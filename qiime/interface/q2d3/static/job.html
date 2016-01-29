@@ -1,0 +1,61 @@
+{% import os %}
+{% import qiime.interface.q2d3 %}
+{% set signature = workflow.signature %}
+{% set artifacts = qiime.interface.q2d3.get_artifacts() %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>{{ plugin.name + ': ' + workflow.name}}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+  <link href="/static/css/fileinput.min.css" media="all" rel="stylesheet" type="text/css" />
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <script src="/static/js/fileinput.min.js"></script>
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+
+</head>
+<body>
+
+<div class="container">
+  <div class="page-header">
+    <h1>{{ plugin.name + ': ' + workflow.name}}</h1>
+  </div>
+  <form method='POST'>
+  {% for name, type in signature.input_artifacts.items() %}
+  <fieldset class="form-group">
+    <label for="in-{{ name }}">Input Artifact: {{ name }}</label>
+    <select class="form-control" name="in-{{ name }}">
+        {% for artifact in qiime.interface.q2d3.get_input_artifacts(signature, name, artifacts) %}
+          <option value="{{ artifact.uuid }}">{{ qiime.interface.q2d3.get_artifact_name(artifact.uuid) }}  -  ({{ artifact.uuid}})</option>
+        {% end %}
+    </select>
+  </fieldset>
+  {% end %}
+
+  {% for name, type in signature.input_parameters.items() %}
+  <fieldset class="form-group">
+    <label for="param-{{ name }}">Input Parameter: {{ name }}</label>
+    <input type="text-field" class="form-control" name="param-{{ name }}" placeholder="{{ repr(type) }}">
+  </fieldset>
+  {% end %}
+
+    <br/>
+      <br/>
+        <br/>
+
+  {% for name, type in signature.output_artifacts.items() %}
+  <fieldset class="form-group">
+    <label for="out-{{ name }}">Output Name: {{ name }}</label>
+    <input type="text-field" class="form-control" name="out-{{ name }}" placeholder="{{ repr(type) }}">
+  </fieldset>
+  {% end %}
+
+
+  <button type="submit" class="btn btn-primary">Go!</button>
+  </form>
+</div>
+
+
+</body>
+</html>

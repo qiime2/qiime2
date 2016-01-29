@@ -1,0 +1,70 @@
+{% import os %}
+{% import qiime.interface.q2d3 %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Q2D3 Dashboard</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+  <link href="/static/css/fileinput.min.css" media="all" rel="stylesheet" type="text/css" />
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <script src="/static/js/fileinput.min.js"></script>
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+
+</head>
+<body>
+
+<div class="container">
+  <div class="page-header">
+    <h1>{{ os.path.split(os.getcwd())[1] }}</h1>
+  </div>
+  <div class="panel panel-default">
+    <div class="panel-heading">Available Workflows:</div>
+    <div class="panel-body">
+       <iframe id='panel-content' src="/workflows" border=0 style="border: none; width: 100%; height: 100%"></iframe>
+    </div>
+  </div>
+  <div class="panel panel-default">
+    <div class="panel-heading">Artifacts:</div>
+    <div class="panel-body">
+        <iframe id='panel-artifacts' src='/artifacts' border=0 style="border: none; width: 100%; height: 100%"></iframe>
+    </div>
+  </div>
+  <!-- <div class="panel panel-default">
+    <div class="panel-heading">Import:</div>
+    <div class="panel-body">
+        <table class="table">
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Type</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+         {% for type_, name in qiime.interface.q2d3.get_import_types() %}
+            <tr>
+                <td>{{ name }}</td>
+                <td>{{ type_ }}</td>
+                <td>
+                    <input type="file" class="file" data-show-preview="false"
+                           data-upload-url="/upload?type={{ type_ }}">
+                </td>
+            </tr>
+         {% end %}
+        </tbody>
+        </table>
+    </div>
+  </div> -->
+</div>
+
+<script>
+    $('.file').on('filebatchuploadcomplete', function(event) {
+        $("#panel-content").attr( 'src', function ( i, val ) { return val; });
+        $("#panel-artifacts").attr( 'src', function ( i, val ) { return val; });
+    });
+</script>
+
+</body>
+</html>

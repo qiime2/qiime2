@@ -1,0 +1,55 @@
+{% import qiime.interface.q2d3 %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+  <script>
+    function delete_file(uuid) {
+        $.ajax({
+            url: "/?uuid=" + uuid,
+            type: 'DELETE',
+            success: function() {
+                location.reload()
+                window.parent.location.reload()
+            }
+          });
+    }
+  </script>
+</head>
+<body>
+    <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>UUID</th>
+        <th>Type</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+     {% for name, artifact in qiime.interface.q2d3.get_artifacts(True) %}
+        <tr id='{{ artifact.uuid }}'>
+            <td>{{ name }}</td>
+            <td>{{ artifact.uuid }}</td>
+            <td>{{ artifact.type }}</td>
+            <td>
+                <button type="button" class="btn btn-danger pull-right" onclick="delete_file('{{ artifact.uuid }}')">Delete</button>
+            </td>
+        </tr>
+     {% end %}
+    </tbody>
+    </table>
+    <script type="text/javascript">
+    jQuery(document).ready(function () {
+        var frame = $('#panel-artifacts', window.parent.document);
+        var height = jQuery("body").height();
+        frame.height(height + 50);
+    });
+    </script>
+</body>
+</html>
