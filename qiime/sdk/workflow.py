@@ -7,36 +7,39 @@
 # ----------------------------------------------------------------------------
 
 import inspect
-
+import frontmatter
 
 class Workflow(object):
 
-    def __init__(self, inputs, outputs, workflow_template, doc=""):
+    def __init__(self, inputs, outputs, workflow_template, name):
         """
            Parameters
            ----------
            inputs : dict, names mapped to ArtifactTypes
            outputs : list of tuples, names mapped to ArtifactTypes
            workflow_template : str, markdown text in ipymd style
-           doc : str
+           name : str, name for this workflow
         """
         self.inputs = inputs
         self.outputs = outputs
         self.workflow_template = workflow_template
-        self.doc = doc
+        self.name
 
     @classmethod
     def from_markdown(cls, markdown):
         """
            Parameters
            ----------
-           markdown : file handle
+           markdown : filepath, file handle
         """
-        inputs, outputs, workflow_template, doc = [], [], "", ""
-        return cls(inputs, outputs, workflow_template, doc)
+        metadata, workflow_template = frontmatter.parse(markdown)
+        inputs = metadata['inputs']
+        outputs = metadata['outputs'].items()
+        name = metadata['name']
+        return cls(inputs, outputs, workflow_template, name)
 
     @classmethod
-    def from_function(cls, function, inputs, outputs, doc):
+    def from_function(cls, function, inputs, outputs, name, doc):
         import_path = inspect.getmodule(function).__name__
         function_name = function.__name__
         parameters = ', '.join(['%s=%s' % (k, k) for k in inputs])
@@ -44,7 +47,7 @@ class Workflow(object):
         workflow_template = _markdown_template.format(
             doc=doc, import_path=import_path, function_name=function_name,
             parameters=parameters, results=results)
-        return cls(inputs, outputs, workflow_template, doc)
+        return cls(inputs, outputs, workflow_template, name)
 
 _markdown_template = """
 {doc}
