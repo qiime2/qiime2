@@ -9,6 +9,7 @@
 import inspect
 import frontmatter
 
+
 class Workflow(object):
 
     def __init__(self, inputs, outputs, workflow_template, name):
