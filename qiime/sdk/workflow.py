@@ -24,16 +24,17 @@ class Workflow(object):
         self.inputs = inputs
         self.outputs = outputs
         self.workflow_template = workflow_template
-        self.name
+        self.name = name
 
     @classmethod
     def from_markdown(cls, markdown):
         """
            Parameters
            ----------
-           markdown : filepath, file handle
+           markdown : filepath
         """
-        metadata, workflow_template = frontmatter.parse(markdown)
+        with open(markdown) as fh:
+            metadata, workflow_template = frontmatter.parse(fh.read())
         inputs = metadata['inputs']
         outputs = metadata['outputs'].items()
         name = metadata['name']

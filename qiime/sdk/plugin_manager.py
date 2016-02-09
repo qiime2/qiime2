@@ -14,4 +14,5 @@ class PluginManager(object):
     def __init__(self):
         self.plugins = {}
         for plugin in pkg_resources.iter_entry_points(group='qiime.plugin'):
-            self.plugins[plugin.name] = plugin.load()
+            plugin = plugin.load()
+            self.plugins[plugin.name] = plugin
