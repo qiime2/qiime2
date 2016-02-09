@@ -33,5 +33,5 @@ class Plugin(object):
     def register_artifact_type(self, artifact_type):
         self.artifact_types[artifact_type.__name__] = artifact_type
 
-    def register_trait(self, trait)
+    def register_trait(self, trait):
         self.traits[trait.__name__] = trait

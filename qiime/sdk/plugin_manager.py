@@ -8,7 +8,8 @@
 
 import pkg_resources
 
-class PluginManager(object)
+
+class PluginManager(object):
 
     def __init__(self):
         self.plugins = {}
