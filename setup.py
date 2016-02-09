@@ -12,4 +12,4 @@ from setuptools import find_packages, setup
 setup(name='qiime',
       version='2.0.0-dev',
       packages=find_packages(),
-      install_requires=[])
+      install_requires=['python-frontmatter'])
