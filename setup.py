@@ -5,3 +5,12 @@
 #
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
+
+
+from setuptools import find_packages, setup
+
+setup(name='qiime',
+      version='2.0.0-dev',
+      packages=find_packages(),
+      install_requires=[]
+     )

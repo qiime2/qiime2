@@ -5,3 +5,9 @@
 #
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
+
+from qiime.sdk.type import Type
+
+
+class ArtifactType(Type):
+    pass
