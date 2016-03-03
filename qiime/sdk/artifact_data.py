@@ -14,26 +14,28 @@ import tempfile
 # TODO make sure files are closed appropriately
 # TODO support subdirectories?
 class ArtifactDataBase:
-    _root = 'data'
+    def __init__(self, root_dir):
+        self._data_dir = os.path.join(root_dir, 'data')
 
 
 class ArtifactDataReader(ArtifactDataBase):
-    def __init__(self, tar):
+    def __init__(self, tar, root_dir):
+        super(ArtifactDataReader, self).__init__(root_dir)
         self._tar = tar
 
     def get_paths(self):
         """Return all paths to artifact data."""
-        all_paths = self._tar.getnames()
         paths = []
-        for path in all_paths:
-            if os.path.dirname(path) == self._root:
+        for path in self._tar.getnames():
+            if os.path.dirname(path) == self._data_dir:
                 paths.append(os.path.basename(path))
         return paths
 
     def get_file(self, path):
         """Returns ``io.BufferedReader``"""
         try:
-            filehandle = self._tar.extractfile(os.path.join(self._root, path))
+            filehandle = self._tar.extractfile(
+                os.path.join(self._data_dir, path))
         except KeyError:
             raise FileNotFoundError("Filepath %r does not exist" % path)
 
@@ -44,7 +46,9 @@ class ArtifactDataReader(ArtifactDataBase):
 
 
 class ArtifactDataWriter(ArtifactDataBase):
-    def __init__(self):
+    def __init__(self, root_dir):
+        super(ArtifactDataWriter, self).__init__(root_dir)
+
         # TODO pass temp dir specified by user in config
         self._tempdir = tempfile.TemporaryDirectory(
             prefix='qiime2-temp-artifact-data-')
@@ -65,4 +69,4 @@ class ArtifactDataWriter(ArtifactDataBase):
 
         # TODO use `filter` parameter to only add files we know about
         # TODO set file metadata appropriately (e.g., owner, permissions)
-        tar.add(self._tempdir.name, arcname=self._root)
+        tar.add(self._tempdir.name, arcname=self._data_dir)

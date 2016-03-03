@@ -29,33 +29,53 @@ class DummyType:
         with data_writer.create_file('model.dat') as fh:
             fh.write(model)
 
+
+class ArtifactError(Exception):
+    pass
+
+
+class ArtifactLoadError(ArtifactError):
+    pass
+
+
 # TODO make sure files are closed appropriately
 # TODO write README
 # TODO check file extension on load/save and warn if not .qtf
-# TODO make sure tar extraction from command-line creates directory instead of
-# dumping all files to cwd
+# TODO make sure path separator code is correct for Unix and Windows systems
 class Artifact:
     _metadata_path = 'metadata.txt'
 
     @classmethod
     def load(cls, tarfilepath):
+        if not tarfile.is_tarfile(tarfilepath):
+            raise ArtifactLoadError(
+                "%r is not a readable tar archive file" % tarfilepath)
+
         with tarfile.open(tarfilepath, mode='r') as tar:
-            type_, uuid_, provenance = cls._load_metadata(tar)
-            data_reader = ArtifactDataReader(tar)
+            root_dir = cls._get_root_dir(tarfilepath)
+            type_, uuid_, provenance = cls._load_metadata(tar, root_dir)
+
+            data_reader = ArtifactDataReader(tar, root_dir)
             model = type_.load(data_reader)
-            return cls(model, type_, uuid_, provenance)
+            return cls(model, type_, provenance, uuid_=uuid_)
 
     @classmethod
-    def _load_metadata(cls, tar):
+    def _get_root_dir(cls, tarfilepath):
+        return os.path.splitext(os.path.basename(tarfilepath))[0]
+
+    @classmethod
+    def _load_metadata(cls, tar, root_dir):
+        metadata_path = os.path.join(root_dir, cls._metadata_path)
+
         try:
-            filehandle = tar.extractfile(cls._metadata_path)
+            filehandle = tar.extractfile(metadata_path)
         except KeyError:
-            raise FileNotFoundError(
-                "Artifact metadata (%r) does not exist" % cls._metadata_path)
+            raise ArtifactLoadError(
+                "Artifact metadata (%r) does not exist" % metadata_path)
 
         if filehandle is None:
-            raise FileNotFoundError(
-                "Artifact metadata (%r) is not a file" % cls._metadata_path)
+            raise ArtifactLoadError(
+                "Artifact metadata (%r) is not a file" % metadata_path)
 
         with io.TextIOWrapper(filehandle) as fh:
             for line in fh:
@@ -75,7 +95,8 @@ class Artifact:
         if type_name == 'DummyType':
             return DummyType
         else:
-            raise TypeError("Unrecognized type %r" % type_name)
+            raise ArtifactLoadError(
+                "Unrecognized artifact type %r" % type_name)
 
     @classmethod
     def _parse_uuid(cls, line):
@@ -85,16 +106,17 @@ class Artifact:
     def _parse_provenance(cls, line):
         return line.strip()
 
-    def __init__(self, model, type_, uuid_, provenance):
+    def __init__(self, model, type_, provenance, uuid_=None):
         self._model = model
         self._type = type_
+        self._provenance = provenance
 
-        if not isinstance(uuid_, uuid.UUID):
+        if uuid_ is None:
+            uuid_ = uuid.uuid4()
+        elif not isinstance(uuid_, uuid.UUID):
             raise TypeError("`uuid_` must be of type %r, not %r" %
                     (uuid.UUID.__name__, type(uuid_).__name__))
         self._uuid = uuid_
-
-        self._provenance = provenance
 
     def __eq__(self, other):
         # TODO this method is mainly for sanity checking right now; revisit
@@ -119,15 +141,16 @@ class Artifact:
     def save(self, tarfilepath):
         # TODO support compression?
         with tarfile.open(tarfilepath, mode='w') as tar:
-            self._save_metadata(tar)
+            root_dir = self._get_root_dir(tarfilepath)
+            self._save_metadata(tar, root_dir)
 
-            data_writer = ArtifactDataWriter()
+            data_writer = ArtifactDataWriter(root_dir)
             self._type.save(self._model, data_writer)
             data_writer.save(tar)
             # TODO fix cleanup
             del data_writer
 
-    def _save_metadata(self, tar):
+    def _save_metadata(self, tar, root_dir):
         # TODO pass temp dir specified by user in config
         with tempfile.TemporaryDirectory(
                 prefix='qiime2-temp-artifact-metadata-') as tempdir:
@@ -145,7 +168,7 @@ class Artifact:
                 fh.write(self._formatted_provenance())
 
             # TODO set file metadata appropriately (e.g., owner, permissions)
-            tar.add(fp, arcname=self._metadata_path, recursive=False)
+            tar.add(fp, arcname=os.path.join(root_dir, self._metadata_path), recursive=False)
 
     def _formatted_type(self):
         return '%s\n' % self._type.__name__
