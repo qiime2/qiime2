@@ -47,31 +47,55 @@ class IdentityTests:
         self.assertTrue(self.Foo[self.Bar] < self.Foo)
         self.assertTrue(self.Foo[self.Bar] < ~self.Foo[~self.Bar])
         self.assertEqual(self.Foo[self.Bar], self.Foo[self.Bar])
+        # opposite
+        self.assertNotEqual(self.Foo[self.Bar], ~self.Foo[self.Bar])
+        self.assertFalse(self.Foo[self.Bar] > self.Foo)
+        self.assertFalse(self.Foo[self.Bar] > ~self.Foo[~self.Bar])
 
         # 2 < 3; 2 < 6; 2 == 2
         self.assertTrue(self.Foo[~self.Bar] < self.Foo)
         self.assertTrue(self.Foo[~self.Bar] < ~self.Foo[self.Bar])
         self.assertEqual(self.Foo[~self.Bar], self.Foo[~self.Bar])
+        # opposite
+        self.assertNotEqual(self.Foo[~self.Bar], ~self.Foo[~self.Bar])
+        self.assertFalse(self.Foo[~self.Bar] > self.Foo)
+        self.assertFalse(self.Foo[~self.Bar] > ~self.Foo[self.Bar])
 
         # 3 > 2; 3 > 1; 3 == 3
         self.assertTrue(self.Foo > self.Foo[~self.Bar])
         self.assertTrue(self.Foo > self.Foo[self.Bar])
         self.assertEqual(self.Foo, self.Foo)
+        # opposite
+        self.assertNotEqual(self.Foo, ~self.Foo)
+        self.assertFalse(self.Foo < self.Foo[~self.Bar])
+        self.assertFalse(self.Foo < self.Foo[self.Bar])
 
         # 4 < 5; 4 < 6; 4 == 4
         self.assertTrue(~self.Foo < ~self.Foo[~self.Bar])
         self.assertTrue(~self.Foo < ~self.Foo[self.Bar])
         self.assertEqual(~self.Foo, ~self.Foo)
+        # opposite
+        self.assertNotEqual(~self.Foo, ~~self.Foo)
+        self.assertFalse(~self.Foo > ~self.Foo[~self.Bar])
+        self.assertFalse(~self.Foo > ~self.Foo[self.Bar])
 
         # 5 > 4; 5 > 1; 5 == 5
         self.assertTrue(~self.Foo[~self.Bar] > ~self.Foo)
         self.assertTrue(~self.Foo[~self.Bar] > self.Foo[self.Bar])
         self.assertEqual(~self.Foo[~self.Bar], ~self.Foo[~self.Bar])
+        # opposite
+        self.assertNotEqual(~self.Foo[~self.Bar], ~~self.Foo[~self.Bar])
+        self.assertFalse(~self.Foo[~self.Bar] < ~self.Foo)
+        self.assertFalse(~self.Foo[~self.Bar] < self.Foo[self.Bar])
 
         # 6 > 4; 6 > 2; 6 == 6
         self.assertTrue(~self.Foo[self.Bar] > ~self.Foo)
         self.assertTrue(~self.Foo[self.Bar] > self.Foo[~self.Bar])
         self.assertEqual(~self.Foo[self.Bar], ~self.Foo[self.Bar])
+        # opposite
+        self.assertNotEqual(~self.Foo[self.Bar], ~~self.Foo[self.Bar])
+        self.assertFalse(~self.Foo[self.Bar] < ~self.Foo)
+        self.assertFalse(~self.Foo[self.Bar] < self.Foo[~self.Bar])
 
         # Because Foo is itself a product-type, the situation of Foo[Bar, Baz]
         # would be a cartesian product of the above cases. This would be 64
@@ -80,6 +104,7 @@ class IdentityTests:
         # therefore as long every field is considered before declaring the
         # subtype-edness of Foo, the answer will still be correct. Therefore
         # the above tests are sufficient.
+
 
 class TestAlgebraicDataTypes(unittest.TestCase, IdentityTests):
     def setUp(self):

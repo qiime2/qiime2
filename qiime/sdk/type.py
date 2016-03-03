@@ -235,11 +235,23 @@ class _NotType(Type, generic=True):
     def __invert__(self):
         return self._instance
 
-    def _cmp(self, other, op):
-        other = other()
-        if sibling_variants(self, other) and not other < self._instance:
+    def __lt__(self, other):
+        if other is Any or other is Nil:
+            return NotImplemented
+        if type(other()) is self.__class__:
+            return self._instance > other._instance
+        if sibling_variants(self, other) and not other < type(self._instance):
+            return self._negate < other
+        return False
+
+    def __gt__(self, other):
+        if other is Any or other is Nil:
+            return NotImplemented
+        if type(other()) is self.__class__:
+            return self._instance < other._instance
+        if sibling_variants(self, other) and not other < type(self._instance):
             return True
-        return op(other, self._negate)
+        return self._negate > other
 
     def __mod__(self, other):
         raise TypeError()
@@ -288,7 +300,7 @@ class Nil:
         return self
 
     def __lt__(self, other):
-        return other is self.__class__._instance
+        return True
 
     def __gt__(self, other):
         return other is self.__class__._instance
@@ -310,4 +322,9 @@ def sibling_variants(a, b):
         return False
     a_var = a().__variant__()
     b_var = b().__variant__()
-    return a_var == b_var or bool(set(a_var) & set(b_var))
+    # They share a variant-type
+    if a_var == b_var or bool(set(a_var) & set(b_var)):
+        # No shared subtypes
+
+        return True
+    return False
