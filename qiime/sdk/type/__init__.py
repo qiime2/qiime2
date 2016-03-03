@@ -7,3 +7,8 @@
 # ----------------------------------------------------------------------------
 
 from .type import Type, Any, Nil
+from .primitive import Str, Int, Float, Map, Bag, Set, List
+
+__all__ = [
+    'Type', 'Any', 'Nil', 'Str', 'Int', 'Float', 'Map', 'Bag', 'Set', 'List'
+]

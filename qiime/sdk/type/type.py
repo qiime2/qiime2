@@ -183,7 +183,7 @@ class Type(metaclass=TypeMeta, fields=('Artifact', 'Primitive')):
         if other._is_generic:
             # The other type is more qualified to answer this question
             return NotImplemented
-        elif type(self) is type(other()):  # other may be class; instantiate it
+        elif type(self) is type(other()):  # noqa
             # Note: This assumes type-inheritance is invariant.
             return all([op(f1, f2) for f1, f2 in
                        zip(self.fields, other.fields)])
@@ -301,6 +301,7 @@ class _NotType(Type, generic=True):
     def __variant__(self):
         return self._instance.__variant__()
 
+
 class Any:
     def __new__(cls):
         if not hasattr(cls, '_instance'):
@@ -322,6 +323,7 @@ class Any:
 
     def __invert__(self):
         return Nil
+
 
 class Nil:
     def __new__(cls):
@@ -348,6 +350,7 @@ class Nil:
 
 Any = Any()
 Nil = Nil()
+
 
 def sibling_variants(a, b):
     if a is Any or b is Any:

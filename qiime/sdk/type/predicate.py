@@ -7,9 +7,11 @@
 # ----------------------------------------------------------------------------
 from qiime.sdk.type import Type
 
+
 class PredicateMeta(type):
     def __getitem__(cls, restrictions):
         return cls(restrictions)
+
 
 class Predicate(metaclass=PredicateMeta):
     def __init__(self, restrictions):
@@ -18,8 +20,10 @@ class Predicate(metaclass=PredicateMeta):
     def __invert__(self):
         return self
 
+
 class Domain(Predicate):
     pass
+
 
 class Property(Predicate):
     pass
