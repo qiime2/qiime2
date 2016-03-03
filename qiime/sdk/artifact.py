@@ -43,7 +43,7 @@ class Artifact:
             type_, uuid_, provenance = cls._load_metadata(tar)
             data_reader = ArtifactDataReader(tar)
             model = type_.load(data_reader)
-            return cls(model, type_, uuid_, provenance)
+            return cls(model, type_, provenance, uuid_=uuid_)
 
     @classmethod
     def _load_metadata(cls, tar):
@@ -85,16 +85,17 @@ class Artifact:
     def _parse_provenance(cls, line):
         return line.strip()
 
-    def __init__(self, model, type_, uuid_, provenance):
+    def __init__(self, model, type_, provenance, uuid_=None):
         self._model = model
         self._type = type_
+        self._provenance = provenance
 
-        if not isinstance(uuid_, uuid.UUID):
+        if uuid_ is None:
+            uuid_ = uuid.uuid4()
+        elif not isinstance(uuid_, uuid.UUID):
             raise TypeError("`uuid_` must be of type %r, not %r" %
                     (uuid.UUID.__name__, type(uuid_).__name__))
         self._uuid = uuid_
-
-        self._provenance = provenance
 
     def __eq__(self, other):
         # TODO this method is mainly for sanity checking right now; revisit
