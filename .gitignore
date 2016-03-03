@@ -63,3 +63,5 @@ target/
 
 # vi
 .*.swp
+
+.DS_Store

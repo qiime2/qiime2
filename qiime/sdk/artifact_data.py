@@ -7,26 +7,23 @@
 # ----------------------------------------------------------------------------
 
 import os
-import abc
 import tarfile
 import tempfile
 
 
-class ArtifactDataBase(metaclass=abc.ABCMeta):
+# TODO make sure files are closed appropriately
+# TODO support subdirectories?
+class ArtifactDataBase:
     _root = 'data'
-
-    @abc.abstractmethod
-    def get_paths(self):
-        """Return all paths to artifact data."""
-        pass
 
 
 class ArtifactDataReader(ArtifactDataBase):
-    def __init__(self, tarfilepath):
-        self._tarfile = tarfile.open(tarfilepath, mode='r')
+    def __init__(self, tar):
+        self._tar = tar
 
     def get_paths(self):
-        all_paths = self._tarfile.getnames()
+        """Return all paths to artifact data."""
+        all_paths = self._tar.getnames()
         paths = []
         for path in all_paths:
             if os.path.dirname(path) == self._root:
@@ -35,10 +32,14 @@ class ArtifactDataReader(ArtifactDataBase):
 
     def get_file(self, path):
         """Returns ``io.BufferedReader``"""
-        filehandle = self._tarfile.extractfile(os.path.join(self._root, path))
+        try:
+            filehandle = self._tar.extractfile(os.path.join(self._root, path))
+        except KeyError:
+            raise FileNotFoundError("Filepath %r does not exist" % path)
+
         if filehandle is None:
             raise FileNotFoundError(
-                "Filepath %r does not exist or is not a file" % path)
+                "Filepath %r is not a file" % path)
         return filehandle
 
 
@@ -49,10 +50,6 @@ class ArtifactDataWriter(ArtifactDataBase):
             prefix='qiime2-temp-artifact-data-')
         self._tracked_files = {}
 
-    def get_paths(self):
-        # TODO this isn't ordered; does it matter?
-        return list(self._tracked_files)
-
     def create_file(self, path):
         """Returns ``io.BufferedWriter``"""
         if path in self._tracked_files:
@@ -62,13 +59,10 @@ class ArtifactDataWriter(ArtifactDataBase):
         self._tracked_files[path] = filehandle
         return filehandle
 
-    def save(self, tarfilepath):
-        """Returns ``tarfile.TarFile``"""
-        # TODO support compression
-        archive = tarfile.open(tarfilepath, mode='x')
-
+    def save(self, tar):
         for filehandle in self._tracked_files.values():
             filehandle.close()
 
-        archive.add(self._tempdir.name, arcname=self._root)
-        return archive
+        # TODO use `filter` parameter to only add files we know about
+        # TODO set file metadata appropriately (e.g., owner, permissions)
+        tar.add(self._tempdir.name, arcname=self._root)
