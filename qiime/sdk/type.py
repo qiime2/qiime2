@@ -6,135 +6,308 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import inspect
+from collections import namedtuple
+import operator
 
-class _AutoInstanceMeta(type):
-    def __new__(metaclass, name, bases, dict):
-        """Instantiate the object, not the classobject!
+from qiime.util import tuplize
 
-        Typically `__new__` of a metaclass would return a class instance, but
-        we go one step further and instantiate the class instance.
 
-        __init__ is called in both cases to make sure everything is square.
+class VariantType:
+    def __init__(self, interface):
+        self.interface = interface
 
-        """
-        cls = type.__new__(metaclass, name, bases, dict)
-        type.__init__(cls, name, bases, dict)
-        # cls is now initialized
-        obj = cls.__new__(cls, name, bases, dict)
-        cls.__init__(obj)
-        # obj is now initialized: `obj` will be bound to the name of the class
-        # when it is defined instead of `cls` as is typical
-        return obj
+    def is_member(self, other):
+        if other is Any or other is Nil:
+            return True
+        return self in other().__variant__()
 
-    def __call__(self, name, bases, dict):
-        """Override the () notation on the class.
+    def validate(self, cls):
+        """Make sure a class meets the variant's interface"""
+        # TODO: implement for realz
+        return True
 
-        This effectively allows us to use an instance as a type. In other
-        words the class can act as its own metaclass as its call() is defered
-        to the metaclass __new__ (which creates a new instance).
 
-        (In the expression: `class X(Y): pass` the metaclass of Y is used to
-         construct X, i.e. type(Y) is used. Therefore, if Y was an
-         instance, then type(Y) is its class. So by overriding __call__ of the
-         metaclass, we can change the behavior of type(Y)(name, bases, dict),
-         which is the signature provided to metaclasses by class definitions)
+class FieldSignature(namedtuple('FieldSigTuple', ['variant_types'])):
+    # def __getitem__(self, i):
+    #     return self.variant_types[i]
 
-        """
-        # We have to get the types of our bases as they are likely to be
-        # instances.
-        bases = tuple([b if inspect.isclass(b) else type(b) for b in bases])
-        return _AutoInstanceMeta.__new__(type(self), name, bases, dict)
+    def __len__(self):
+        return len(self.variant_types)
 
-class EvilSymbol(metaclass=_AutoInstanceMeta):
-    """Doom any decendants to bind their class name to an instance of class."""
-    def __init__(self):
-        """Needed for metaclass to work.
+    def __iter__(self):
+        return iter(self.variant_types)
 
-        `object` isn't a very real object, so it whines about not requiring
-        arguments. This overrides object.__init__ so that self is expected
-        instead of implied."""
-        if hasattr(self, '_initialized'):
-            raise Exception("Already initialized, if subclassing, use: "
-                            "`type(%s).__init__(self)` instead."
-                            % self.__class__.__name__)
-        self._initialized = True
+    def validate(self, fields):
+        if len(self.variant_types) != len(fields):
+            raise TypeError()
+        for field, variant in zip(fields, self.variant_types):
+            if not variant.is_member(field):
+                raise TypeError()
 
-    def _constructor_(self, *args, **kwargs):
-        """Since we don't have the call syntax anymore, recreate it."""
-        cls = self.__class__
-        obj = cls.__new__(cls)
-        obj.__init__(*args, **kwargs)
-        return obj
+    def get_default_fields(self):
+        return tuple([Any] * len(self))
 
-class BaseType(EvilSymbol):
-    def __init__(self, subtypes=None, restrictions=None):
-        # `super` doesn't work, use oldschool style, but remember EvilSymbol is
-        # an instance, not a type.
-        type(EvilSymbol).__init__(self)
 
-        self._subtypes = subtypes
-        self._restrictions = restrictions
+class TypeMeta(type, object):
+    def __new__(meta, *args, **kwargs):
+        return super().__new__(meta, *args)
 
-    @property
-    def subtypes(self):
-        return self._subtypes
+    def __init__(cls, name, bases, dct,
+                 variant_of=(), fields=(),
+                 generic=False, inheritance='invariant'):
+        super().__init__(name, bases, dct)
+        cls.__instance = None
+        cls.__cache = {}
+        # TODO: check that __lt__ and __gt__ have been overriden if True
+        cls._is_generic = generic
 
-    @property
-    def restrictions(self):
-        return self._restrictions
+        # Please, let us never need to indicate contra/co/bi-variant.
+        if inheritance != 'invariant':
+            raise TypeError()
 
-    def __getitem__(self, subtypes):
-        if self.subtypes is not None:
-            raise Exception()
-        return self._copy(subtypes=subtypes)
+        cls._set_variants(variant_of)
+        cls._set_fields(fields)
 
-    def __mod__(self, restrictions):
-        if self.restrictions is not None:
-            raise Exception()
-        return self._copy(restrictions=restrictions)
+    def _set_variants(cls, variant_types):
+        variant_types = tuplize(variant_types)
+        for variant in variant_types:
+            variant.validate(cls)
+        cls.variants = variant_types
 
-    def _copy(self, subtypes=None, restrictions=None):
-        if subtypes is None:
-            subtypes = self.subtypes
-        if restrictions is None:
-            restrictions = self.restrictions
-        return self._constructor_(subtypes=subtypes, restrictions=restrictions)
-
-class ArtifactType(BaseType):
-    pass
-
-class PrimitiveType(BaseType):
-    pass
-
-class Artifact:
-    @classmethod
-    def load(cls, qtf):
-        reuturn cls()
-
-    def __init__(self, value=None, directory_cls=Directory, **kwargs):
-        self.__value = None
-        self.provenance = Provenance()
-        self.type = Type()
-        self.uuid = UUID()
-        self._directory = directory_cls()
-        self._value = value
+    def _set_fields(cls, fields):
+        wrapped = []
+        for field in tuplize(fields):
+            wrapped_field = VariantType(getattr(cls, field))
+            setattr(cls, field, wrapped_field)
+            wrapped.append(wrapped_field)
+        cls.field_signature = FieldSignature(tuple(wrapped))
 
     @property
-    def _value(self):
-        return self.__value
+    def _instance(cls):
+        if cls.__instance is None:
+            try:
+                cls.__instance = cls()
+            except TypeError:
+                # We are an ephemeral type like Not and don't exist without
+                # an instance of another type. None of the class-level
+                # operations will occur anyways.
+                pass
+        return cls.__instance
 
-    @_value.setter
-    def _value(self, value):
-        if value is not None:
-            self.type.validate(value)
-        self.__value = value
+    def __getattr__(cls, attr):
+        return getattr(cls._instance, attr)
 
-    @property
-    def value(self):
-        if self._value is None:
-            self._value = self.type.deserialize(self._directory)
-        return self._value
+    def __getitem__(cls, fields):
+        return cls._instance.__getitem__(fields)
 
-    def save(qtf):
+    def __mod__(cls, predicates):
+        return cls._instance.__mod__(predicates)
+
+    def __repr__(cls):
+        return cls._instance.__repr__()
+
+    def __iter__(cls):
+        return cls._instance.__iter__()
+
+    def __invert__(cls):
+        return cls._instance.__invert__()
+
+    def __lt__(cls, other):
+        return cls._instance.__lt__(other)
+
+    def __gt__(cls, other):
+        return cls._instance.__gt__(other)
+
+    def __call__(cls, *args, **kwargs):
+        obj = super().__call__(*args, **kwargs)
+        name = repr(obj)
+        if name not in cls.__cache:
+            cls.__cache[name] = obj
+        return cls.__cache[name]
+
+
+class Type(metaclass=TypeMeta):
+    def __init__(self, fields=None, predicates=()):
+        super().__init__()
+        if fields is None:
+            self.fields = self.field_signature.get_default_fields()
+        else:
+            self.field_signature.validate(fields)
+            self.fields = fields
+
+        self.predicates = predicates
+
+    def __getitem__(self, fields):
+        if self.fields != self.field_signature.get_default_fields():
+            raise TypeError()
+        return self(fields=tuplize(fields))
+
+    def __mod__(self, predicates):
+        if self.predicates:
+            raise TypeError()
+        return self(predicates=tuplize(predicates))
+
+    def __iter__(self):
         pass
+
+    def __repr__(self):
+        r = c = ""
+
+        if self.predicates:
+            predicates = (self.predicates,)
+            if len(self.predicates) == 1:
+                predicates = self.predicates
+            r = " %% %r" % predicates
+
+        if self.fields:
+            right = -1
+            if len(self.fields) == 1:
+                right = -2
+            c = "[%s]" % repr(self.fields)[1:right]
+
+        return self.__class__.__name__ + c + r
+
+    def __call__(self, fields=None, predicates=None):
+        if fields is None:
+            fields = self.fields
+        if predicates is None:
+            predicates = self.predicates
+        return self.__class__(fields=fields, predicates=predicates)
+
+    def __lt__(self, other):
+        return self._cmp(other, operator.lt)
+
+    def __gt__(self, other):
+        return self._cmp(other, operator.gt)
+
+    def _cmp(self, other, op):
+        if other._is_generic:
+            # The other type is more qualified to answer this question
+            return NotImplemented
+        elif type(self) is type(other()):  # other may be class; instantiate it
+            # Note: This assumes type-inheritance is invariant.
+            return all([op(f1, f2) for f1, f2 in
+                       zip(self.fields, other.fields)])
+        return False
+
+    def __eq__(self, other):
+        return other > self > other
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __invert__(self):
+        return _NotType(self)
+
+    def __variant__(self):
+        return self.__class__.variants
+
+    def is_concrete(self):
+        for type_ in self:
+            if type_._is_generic:
+                return False
+        return True
+
+    class Artifact:
+        def serialize(model, artifact_data_writer):
+            pass
+
+        def deserialize(artifact_data_reader):
+            pass
+
+    class Primitive:
+        def from_string(str):
+            pass
+
+        def to_string(model):
+            pass
+
+
+class _NotType(Type, generic=True):
+    def __init__(self, type_):
+        super().__init__()
+        self._instance = type_()
+        self._negate = type_(fields=tuple(~f for f in type_.fields))
+
+    def __call__(self):
+        return self
+
+    def __invert__(self):
+        return self._instance
+
+    def _cmp(self, other, op):
+        other = other()
+        if sibling_variants(self, other) and not other < self._instance:
+            return True
+        return op(other, self._negate)
+
+    def __mod__(self, other):
+        raise TypeError()
+
+    def __getitem__(self, other):
+        raise TypeError()
+
+    def __repr__(self):
+        if self._instance.predicates:
+            return "~(%r)" % self._instance
+        return "~%r" % self._instance
+
+    def __variant__(self):
+        return self._instance.__variant__()
+
+class Any:
+    def __new__(cls):
+        if not hasattr(cls, '_instance'):
+            cls._instance = super().__new__(cls)
+        cls._is_generic = True
+        return cls._instance
+
+    def __call__(self):
+        return self
+
+    def __lt__(self, other):
+        return other is self.__class__._instance
+
+    def __gt__(self, other):
+        return True
+
+    def __repr__(self):
+        return "Any"
+
+    def __invert__(self):
+        return Nil
+
+class Nil:
+    def __new__(cls):
+        if not hasattr(cls, '_instance'):
+            cls._instance = super().__new__(cls)
+        cls._is_generic = True
+        return cls._instance
+
+    def __call__(self):
+        return self
+
+    def __lt__(self, other):
+        return other is self.__class__._instance
+
+    def __gt__(self, other):
+        return other is self.__class__._instance
+
+    def __repr__(self):
+        return "Nil"
+
+    def __invert__(self):
+        return Any
+
+
+Any = Any()
+Nil = Nil()
+
+def sibling_variants(a, b):
+    if a is Any or b is Any:
+        return True
+    elif a is Nil or b is Nil:
+        return False
+    a_var = a().__variant__()
+    b_var = b().__variant__()
+    return a_var == b_var or bool(set(a_var) & set(b_var))
