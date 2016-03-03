@@ -63,7 +63,7 @@ class TypeMeta(type, object):
 
         # Please, let us never need to indicate contra/co/bi-variant.
         if inheritance != 'invariant':
-            raise TypeError()
+            raise TypeError('No.')
 
         cls._set_variants(variant_of)
         cls._set_fields(fields)
@@ -103,6 +103,9 @@ class TypeMeta(type, object):
     def __mod__(cls, predicates):
         return cls._instance.__mod__(predicates)
 
+    def __rmod__(cls, predicates):
+        return cls._instance.__rmod__(predicates)
+
     def __repr__(cls):
         return cls._instance.__repr__()
 
@@ -118,15 +121,8 @@ class TypeMeta(type, object):
     def __gt__(cls, other):
         return cls._instance.__gt__(other)
 
-    def __call__(cls, *args, **kwargs):
-        obj = super().__call__(*args, **kwargs)
-        name = repr(obj)
-        if name not in cls.__cache:
-            cls.__cache[name] = obj
-        return cls.__cache[name]
 
-
-class Type(metaclass=TypeMeta):
+class Type(metaclass=TypeMeta, fields=('Artifact', 'Primitive')):
     def __init__(self, fields=None, predicates=()):
         super().__init__()
         if fields is None:
@@ -146,6 +142,9 @@ class Type(metaclass=TypeMeta):
         if self.predicates:
             raise TypeError()
         return self(predicates=tuplize(predicates))
+
+    def __rmod__(self, predicates):
+        raise TypeError("No. Do it right.")
 
     def __iter__(self):
         pass
@@ -223,11 +222,9 @@ class Type(metaclass=TypeMeta):
             pass
 
 
-class _NotType(Type, generic=True):
+class _SimpleNotUnion(Type, generic=True):
     def __init__(self, type_):
-        super().__init__()
-        self._instance = type_()
-        self._negate = type_(fields=tuple(~f for f in type_.fields))
+        self._instance = type_
 
     def __call__(self):
         return self
@@ -236,6 +233,42 @@ class _NotType(Type, generic=True):
         return self._instance
 
     def __lt__(self, other):
+        return type(other()) is self.__class__ \
+            and other._instance == self._instance
+
+    def __gt__(self, other):
+        return type(other()) is self.__class__ \
+            and other._instance == self._instance
+
+    def __mod__(self, other):
+        raise TypeError()
+
+    def __getitem__(self, other):
+        raise TypeError()
+
+    def __repr__(self):
+        return repr(self._instance)
+
+    def __variant__(self):
+        return self._instance.__variant__()
+
+
+class _NotType(Type, generic=True):
+    def __init__(self, type_):
+        super().__init__()
+        self._instance = type_()
+        self._negate = type_(fields=tuple(~f for f in type_.fields))
+        if not self._negate.fields:
+            self._negate = _SimpleNotUnion(self._instance)
+
+    def __call__(self):
+        return self
+
+    def __invert__(self):
+        return self._instance
+
+    def __lt__(self, other):
+        # T > ~X[Y] <==> T in X'\X & T > X[~Y]
         if other is Any or other is Nil:
             return NotImplemented
         if type(other()) is self.__class__:
@@ -245,6 +278,7 @@ class _NotType(Type, generic=True):
         return False
 
     def __gt__(self, other):
+        # T < ~X[Y] <==> T in X'\X | T < X[~Y]
         if other is Any or other is Nil:
             return NotImplemented
         if type(other()) is self.__class__:
@@ -324,7 +358,6 @@ def sibling_variants(a, b):
     b_var = b().__variant__()
     # They share a variant-type
     if a_var == b_var or bool(set(a_var) & set(b_var)):
-        # No shared subtypes
-
+        # Do more here?
         return True
     return False

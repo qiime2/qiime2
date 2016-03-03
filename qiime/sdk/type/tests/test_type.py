@@ -23,6 +23,23 @@ class IdentityTests:
         self.assertTrue(self.Bar == self.Bar)
         self.assertFalse(self.Bar != self.Bar)
 
+        self.assertTrue(~self.Foo == ~self.Foo)
+        self.assertTrue(~self.Bar == ~self.Bar)
+
+        self.assertNotEqual(self.Bar, self.Foo)
+        self.assertNotEqual(~self.Bar, self.Foo)
+        self.assertNotEqual(self.Bar, ~self.Foo)
+        self.assertNotEqual(~self.Bar, ~self.Foo)
+        self.assertFalse(~self.Bar < self.Foo)
+
+    def test_exclusive_disjunction(self):
+        self.assertExclusiveDisjunction(self.Foo, ~self.Foo)
+        self.assertExclusiveDisjunction(self.Bar, ~self.Bar)
+
+    def assertExclusiveDisjunction(self, a, b):
+        self.assertFalse(a < b, msg="%r < %r is True" % (a, b))
+        self.assertFalse(b < a, msg="%r < %r is True" % (b, a))
+
     def test_subtype_identities(self):
         # Consider Foo[Bar], we can represent different types as sets
         # representing their respective domains:
@@ -48,7 +65,8 @@ class IdentityTests:
         self.assertTrue(self.Foo[self.Bar] < ~self.Foo[~self.Bar])
         self.assertEqual(self.Foo[self.Bar], self.Foo[self.Bar])
         # opposite
-        self.assertNotEqual(self.Foo[self.Bar], ~self.Foo[self.Bar])
+        self.assertExclusiveDisjunction(self.Foo[self.Bar],
+                                        ~self.Foo[self.Bar])
         self.assertFalse(self.Foo[self.Bar] > self.Foo)
         self.assertFalse(self.Foo[self.Bar] > ~self.Foo[~self.Bar])
 
@@ -57,7 +75,8 @@ class IdentityTests:
         self.assertTrue(self.Foo[~self.Bar] < ~self.Foo[self.Bar])
         self.assertEqual(self.Foo[~self.Bar], self.Foo[~self.Bar])
         # opposite
-        self.assertNotEqual(self.Foo[~self.Bar], ~self.Foo[~self.Bar])
+        self.assertExclusiveDisjunction(self.Foo[~self.Bar],
+                                        ~self.Foo[~self.Bar])
         self.assertFalse(self.Foo[~self.Bar] > self.Foo)
         self.assertFalse(self.Foo[~self.Bar] > ~self.Foo[self.Bar])
 
@@ -66,7 +85,7 @@ class IdentityTests:
         self.assertTrue(self.Foo > self.Foo[self.Bar])
         self.assertEqual(self.Foo, self.Foo)
         # opposite
-        self.assertNotEqual(self.Foo, ~self.Foo)
+        self.assertExclusiveDisjunction(self.Foo, ~self.Foo)
         self.assertFalse(self.Foo < self.Foo[~self.Bar])
         self.assertFalse(self.Foo < self.Foo[self.Bar])
 
@@ -75,7 +94,7 @@ class IdentityTests:
         self.assertTrue(~self.Foo < ~self.Foo[self.Bar])
         self.assertEqual(~self.Foo, ~self.Foo)
         # opposite
-        self.assertNotEqual(~self.Foo, ~~self.Foo)
+        self.assertExclusiveDisjunction(~self.Foo, ~~self.Foo)
         self.assertFalse(~self.Foo > ~self.Foo[~self.Bar])
         self.assertFalse(~self.Foo > ~self.Foo[self.Bar])
 
@@ -84,7 +103,8 @@ class IdentityTests:
         self.assertTrue(~self.Foo[~self.Bar] > self.Foo[self.Bar])
         self.assertEqual(~self.Foo[~self.Bar], ~self.Foo[~self.Bar])
         # opposite
-        self.assertNotEqual(~self.Foo[~self.Bar], ~~self.Foo[~self.Bar])
+        self.assertExclusiveDisjunction(~self.Foo[~self.Bar],
+                                        ~~self.Foo[~self.Bar])
         self.assertFalse(~self.Foo[~self.Bar] < ~self.Foo)
         self.assertFalse(~self.Foo[~self.Bar] < self.Foo[self.Bar])
 
@@ -93,7 +113,8 @@ class IdentityTests:
         self.assertTrue(~self.Foo[self.Bar] > self.Foo[~self.Bar])
         self.assertEqual(~self.Foo[self.Bar], ~self.Foo[self.Bar])
         # opposite
-        self.assertNotEqual(~self.Foo[self.Bar], ~~self.Foo[self.Bar])
+        self.assertExclusiveDisjunction(~self.Foo[self.Bar],
+                                        ~~self.Foo[self.Bar])
         self.assertFalse(~self.Foo[self.Bar] < ~self.Foo)
         self.assertFalse(~self.Foo[self.Bar] < self.Foo[~self.Bar])
 
@@ -106,17 +127,67 @@ class IdentityTests:
         # the above tests are sufficient.
 
 
-class TestAlgebraicDataTypes(unittest.TestCase, IdentityTests):
+class TestUnvariantLeafAlgebraicDataTypes(unittest.TestCase, IdentityTests):
     def setUp(self):
-
         class Foo(Type, fields='X'):
             class X: pass
 
         class Bar(Type, variant_of=Foo.X):
             pass
 
+        class Baz(Type, variant_of=Foo.X):
+            pass
+
         self.Foo = Foo
         self.Bar = Bar
+        self.Baz = Baz
+
+    def test_not_union_works(self):
+        self.assertFalse(self.Foo[~self.Bar] < self.Foo[self.Baz])
+        self.assertTrue(self.Foo[~self.Bar] > self.Foo[self.Baz])
+
+        self.assertFalse(self.Foo[~self.Baz] < self.Foo[self.Bar])
+        self.assertTrue(self.Foo[~self.Baz] > self.Foo[self.Bar])
+
+class TestUnvariantVariantLeafAlgebraicDataTypes(unittest.TestCase,
+                                                 IdentityTests):
+    def setUp(self):
+        class Foo(Type, fields='A'):
+        	class A: pass
+
+        class Bar(Type, fields='B', variant_of=Foo.A):
+        	class B: pass
+
+        class Baz(Type, variant_of=Bar.B):
+            pass
+
+        self.Foo = Foo
+        self.Bar = Bar
+        self.Baz = Baz
+
+    def test_deep_nest(self):
+        self.assertTrue(self.Foo[self.Bar[~self.Baz]] < self.Foo[self.Bar])
+        self.assertFalse(self.Foo[self.Bar[~self.Baz]] > self.Foo[self.Bar])
+
+        self.assertTrue(self.Foo[self.Bar[self.Baz]] <
+                        ~self.Foo[self.Bar[~self.Baz]])
+        self.assertFalse(self.Foo[self.Bar[self.Baz]] >
+                         ~self.Foo[self.Bar[~self.Baz]])
+
+class TestVariantVariant(unittest.TestCase, IdentityTests):
+        def setUp(self):
+            class _(Type, fields='A'):
+            	class A: pass
+
+            class Foo(Type, fields='B', variant_of=_.A):
+            	class B: pass
+
+            class Bar(Type, variant_of=Foo.B):
+                pass
+
+            self.Foo = Foo
+            self.Bar = Bar
+
 
 class TestRefinementTypes:
     pass
