@@ -19,12 +19,12 @@ class DummyType:
 
     @classmethod
     def load(cls, data_reader):
-        with data_reader.get_file('model.dat') as fh:
+        with data_reader.get_file('model.dat', binary=True) as fh:
             return fh.read()
 
     @classmethod
     def save(cls, model, data_writer):
-        with data_writer.create_file('model.dat') as fh:
+        with data_writer.create_file('model.dat', binary=True) as fh:
             fh.write(model)
 
 
@@ -57,13 +57,12 @@ class Artifact:
 
     @classmethod
     def _load_metadata(cls, data_reader):
-        with data_reader.get_file(cls._metadata_path) as binary_fh:
-            with io.TextIOWrapper(binary_fh) as text_fh:
-                # skip header line
-                next(text_fh)
-                type_ = cls._parse_type(next(text_fh))
-                uuid_ = cls._parse_uuid(next(text_fh))
-                provenance = cls._parse_provenance(next(text_fh))
+        with data_reader.get_file(cls._metadata_path) as fh:
+            # skip header line
+            next(fh)
+            type_ = cls._parse_type(next(fh))
+            uuid_ = cls._parse_uuid(next(fh))
+            provenance = cls._parse_provenance(next(fh))
         return type_, uuid_, provenance
 
     @classmethod
@@ -131,17 +130,15 @@ class Artifact:
             data_writer._save_(tar, os.path.join(root_dir, self._data_dir))
 
     def _save_readme(self, data_writer):
-        with data_writer.create_file(self._readme_path) as binary_fh:
-            with io.TextIOWrapper(binary_fh) as text_fh:
-                text_fh.write(_README_TEXT)
+        with data_writer.create_file(self._readme_path) as fh:
+            fh.write(_README_TEXT)
 
     def _save_metadata(self, data_writer):
-        with data_writer.create_file(self._metadata_path) as binary_fh:
-            with io.TextIOWrapper(binary_fh) as text_fh:
-                text_fh.write(_METADATA_HEADER_TEXT)
-                text_fh.write(self._formatted_type())
-                text_fh.write(self._formatted_uuid())
-                text_fh.write(self._formatted_provenance())
+        with data_writer.create_file(self._metadata_path) as fh:
+            fh.write(_METADATA_HEADER_TEXT)
+            fh.write(self._formatted_type())
+            fh.write(self._formatted_uuid())
+            fh.write(self._formatted_provenance())
 
     def _formatted_type(self):
         return '%s\n' % self._type.__name__
@@ -166,8 +163,7 @@ class ArtifactDataReader:
                 paths.append(os.path.basename(path))
         return paths
 
-    def get_file(self, path):
-        """Returns ``io.BufferedReader``"""
+    def get_file(self, path, binary=False):
         try:
             filehandle = self._tar.extractfile(
                 os.path.join(self._data_dir, path))
@@ -177,6 +173,10 @@ class ArtifactDataReader:
         if filehandle is None:
             raise FileNotFoundError(
                 "Filepath %r is not a file" % path)
+
+        if not binary:
+            filehandle = io.TextIOWrapper(filehandle)
+
         return filehandle
 
 
@@ -187,15 +187,19 @@ class ArtifactDataWriter:
             prefix='qiime2-temp-artifact-data-')
         self._tracked_files = {}
 
-    def create_file(self, path):
-        """Returns ``io.BufferedWriter``"""
+    def create_file(self, path, binary=False):
         if self._tempdir is None:
             raise ValueError("`ArtifactDataWriter` has already been finalized")
 
         if path in self._tracked_files:
             raise FileExistsError("Filepath %r already exists" % path)
 
-        filehandle = open(os.path.join(self._tempdir.name, path), mode='wb')
+        if binary:
+            mode = 'wb'
+        else:
+            mode = 'w'
+
+        filehandle = open(os.path.join(self._tempdir.name, path), mode=mode)
         self._tracked_files[path] = filehandle
         return filehandle
 
