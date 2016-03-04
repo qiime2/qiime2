@@ -9,21 +9,28 @@ from qiime.sdk.type import Type
 
 
 class PredicateMeta(type):
-    def __getitem__(cls, restrictions):
+    def __getitem__(cls, *restrictions):
         return cls(restrictions)
 
 
-class Predicate(metaclass=PredicateMeta):
-    def __init__(self, restrictions):
-        pass
+class PredicateConstructor(metaclass=PredicateMeta):
+    def __init__(self, predicate):
+        self._predicate = predicate
 
     def __invert__(self):
-        return self
+        return self(lambda x: return not self._predicate(x))
+
 
 
 class Domain(Predicate):
-    pass
+    def __init__(self, args):
+        arg_types = set(map(type, args))
 
+
+        def predicate(value):
+            pass
+
+        super().__init__(predicate)
 
 class Property(Predicate):
     pass

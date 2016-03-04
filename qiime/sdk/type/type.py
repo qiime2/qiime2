@@ -63,7 +63,7 @@ class TypeMeta(type, object):
 
         # Please, let us never need to indicate contra/co/bi-variant.
         if inheritance != 'invariant':
-            raise TypeError('No.')
+            raise TypeError('No. Inheritance will remain invariant.')
 
         cls._set_variants(variant_of)
         cls._set_fields(fields)
@@ -193,6 +193,7 @@ class Type(metaclass=TypeMeta, fields=('Artifact', 'Primitive')):
         return other > self > other
 
     def __ne__(self, other):
+        # TODO: Should this be `(not self < other) and (not self > other)`?
         return not (self == other)
 
     def __invert__(self):
@@ -273,9 +274,7 @@ class _NotType(Type, generic=True):
             return NotImplemented
         if type(other()) is self.__class__:
             return self._instance > other._instance
-        if sibling_variants(self, other) and not other < type(self._instance):
-            return self._negate < other
-        return False
+        return self._is_relative_complement(other) and self._negate < other
 
     def __gt__(self, other):
         # T < ~X[Y] <==> T in X'\X | T < X[~Y]
@@ -283,9 +282,10 @@ class _NotType(Type, generic=True):
             return NotImplemented
         if type(other()) is self.__class__:
             return self._instance < other._instance
-        if sibling_variants(self, other) and not other < type(self._instance):
-            return True
-        return self._negate > other
+        return self._is_relative_complement(other) or self._negate > other
+
+    def _is_relative_complement(self, t):
+        return sibling_variants(self, t) and not t < type(self._instance)
 
     def __mod__(self, other):
         raise TypeError()
