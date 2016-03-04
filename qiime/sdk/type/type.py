@@ -8,6 +8,7 @@
 
 from collections import namedtuple
 import operator
+import inspect
 
 from qiime.util import tuplize
 
@@ -147,7 +148,9 @@ class Type(metaclass=TypeMeta, fields=('Artifact', 'Primitive')):
         raise TypeError("No. Do it right.")
 
     def __iter__(self):
-        pass
+        yield self
+        for f in self.fields:
+            yield from f
 
     def __repr__(self):
         r = c = ""
@@ -208,11 +211,19 @@ class Type(metaclass=TypeMeta, fields=('Artifact', 'Primitive')):
                 return False
         return True
 
+    def get_imports(self):
+        imps = []
+        for type_ in self:
+            cls = type(type_())
+            imp = inspect.getmodule(cls)
+            imps.append((cls.__name__, imp.__name__))
+        return set(imps)
+
     class Artifact:
-        def serialize(model, artifact_data_writer):
+        def save(self, data, data_writer):
             pass
 
-        def deserialize(artifact_data_reader):
+        def load(data_reader):
             pass
 
     class Primitive:
