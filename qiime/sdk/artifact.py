@@ -15,17 +15,17 @@ import tempfile
 
 # TODO use real type when it is ready
 class DummyType:
-    # model is simply some `bytes`
+    # data is simply some `bytes`
 
     @classmethod
     def load(cls, data_reader):
-        with data_reader.get_file('model.dat', binary=True) as fh:
+        with data_reader.get_file('data.dat', binary=True) as fh:
             return fh.read()
 
     @classmethod
-    def save(cls, model, data_writer):
-        with data_writer.create_file('model.dat', binary=True) as fh:
-            fh.write(model)
+    def save(cls, data, data_writer):
+        with data_writer.create_file('data.dat', binary=True) as fh:
+            fh.write(data)
 
 
 # TODO check file extension on load/save and warn if not .qtf
@@ -36,37 +36,98 @@ class Artifact:
     _data_dir = 'data'
 
     @classmethod
-    def load(cls, tarfilepath):
-        if not tarfile.is_tarfile(tarfilepath):
-            raise tarfile.ReadError(
-                "%r is not a readable tar archive file" % tarfilepath)
-
-        root_dir = cls._get_root_dir(tarfilepath)
-        with tarfile.open(tarfilepath, mode='r') as tar:
-            metadata_reader = ArtifactDataReader(tar, root_dir)
-            type_, uuid_, provenance = cls._load_metadata(metadata_reader)
-
-            data_reader = ArtifactDataReader(
-                tar, os.path.join(root_dir, cls._data_dir))
-            model = type_.load(data_reader)
-            return cls(model, type_, provenance, uuid_=uuid_)
-
-    @classmethod
     def _get_root_dir(cls, tarfilepath):
         return os.path.splitext(os.path.basename(tarfilepath))[0]
 
     @classmethod
-    def _load_metadata(cls, data_reader):
-        with data_reader.get_file(cls._metadata_path) as fh:
-            # skip header line
-            next(fh)
-            type_ = cls._parse_type(next(fh))
-            uuid_ = cls._parse_uuid(next(fh))
-            provenance = cls._parse_provenance(next(fh))
-        return type_, uuid_, provenance
+    def save(cls, data, type_, provenance, tarfilepath):
+        root_dir = cls._get_root_dir(tarfilepath)
+
+        # TODO support compression?
+        with tarfile.open(tarfilepath, mode='w') as tar:
+            metadata_writer = ArtifactDataWriter()
+            cls._save_readme(metadata_writer)
+            cls._save_metadata(type_, provenance, metadata_writer)
+            metadata_writer._save_(tar, root_dir)
+
+            data_writer = ArtifactDataWriter()
+            type_.save(data, data_writer)
+            data_writer._save_(tar, os.path.join(root_dir, cls._data_dir))
 
     @classmethod
-    def _parse_type(cls, line):
+    def _save_readme(cls, data_writer):
+        with data_writer.create_file(cls._readme_path) as fh:
+            fh.write(_README_TEXT)
+
+    @classmethod
+    def _save_metadata(cls, type_, provenance, data_writer):
+        with data_writer.create_file(cls._metadata_path) as fh:
+            fh.write(_METADATA_HEADER_TEXT)
+            fh.write(cls._formatted_type(type_))
+            fh.write(cls._formatted_uuid())
+            fh.write(cls._formatted_provenance(provenance))
+
+    @classmethod
+    def _formatted_type(cls, type_):
+        return '%s\n' % type_.__name__
+
+    @classmethod
+    def _formatted_uuid(cls):
+        return '%s\n' % uuid.uuid4()
+
+    @classmethod
+    def _formatted_provenance(cls, provenance):
+        return '%s\n' % provenance
+
+    def __init__(self, tarfilepath):
+        data, type_, provenance, uuid_ = self._load(tarfilepath)
+        self._data = data
+        self._type = type_
+        self._provenance = provenance
+        self._uuid = uuid_
+
+    @property
+    def data(self):
+        return self._data
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def provenance(self):
+        return self._provenance
+
+    @property
+    def uuid(self):
+        return self._uuid
+
+    def _load(self, tarfilepath):
+        if not tarfile.is_tarfile(tarfilepath):
+            raise tarfile.ReadError(
+                "%r is not a readable tar archive file" % tarfilepath)
+
+        root_dir = self._get_root_dir(tarfilepath)
+        with tarfile.open(tarfilepath, mode='r') as tar:
+            metadata_reader = ArtifactDataReader(tar, root_dir)
+            type_, uuid_, provenance = self._load_metadata(metadata_reader)
+
+            # TODO lazy load data
+            data_reader = ArtifactDataReader(
+                tar, os.path.join(root_dir, self._data_dir))
+            data = type_.load(data_reader)
+            return data, type_, provenance, uuid_
+
+    def _load_metadata(self, data_reader):
+        with data_reader.get_file(self._metadata_path) as fh:
+            # skip header line
+            next(fh)
+            type_ = self._parse_type(next(fh))
+            uuid_ = self._parse_uuid(next(fh))
+            provenance = self._parse_provenance(next(fh))
+        return type_, uuid_, provenance
+
+    def _parse_type(self, line):
         type_name = line.strip()
 
         if type_name == 'DummyType':
@@ -74,82 +135,14 @@ class Artifact:
         else:
             raise TypeError("Unrecognized artifact type %r" % type_name)
 
-    @classmethod
-    def _parse_uuid(cls, line):
+    def _parse_uuid(self, line):
         return uuid.UUID(hex=line.strip())
 
-    @classmethod
-    def _parse_provenance(cls, line):
+    def _parse_provenance(self, line):
         return line.strip()
 
-    def __init__(self, model, type_, provenance, uuid_=None):
-        self._model = model
-        self._type = type_
-        self._provenance = provenance
 
-        if uuid_ is None:
-            uuid_ = uuid.uuid4()
-        elif not isinstance(uuid_, uuid.UUID):
-            raise TypeError(
-                "`uuid_` must be of type %r, not %r" % (uuid.UUID.__name__,
-                                                        type(uuid_).__name__))
-        self._uuid = uuid_
-
-    def __eq__(self, other):
-        # TODO this method is mainly for sanity checking right now; revisit
-        # semantics if we decide to keep the method
-        if not isinstance(other, Artifact):
-            return False
-
-        if self._model != other._model:
-            return False
-
-        if self._type is not other._type:
-            return False
-
-        if self._uuid != other._uuid:
-            return False
-
-        if self._provenance != other._provenance:
-            return False
-
-        return True
-
-    def save(self, tarfilepath):
-        root_dir = self._get_root_dir(tarfilepath)
-
-        # TODO support compression?
-        with tarfile.open(tarfilepath, mode='w') as tar:
-            metadata_writer = ArtifactDataWriter()
-            self._save_readme(metadata_writer)
-            self._save_metadata(metadata_writer)
-            metadata_writer._save_(tar, root_dir)
-
-            data_writer = ArtifactDataWriter()
-            self._type.save(self._model, data_writer)
-            data_writer._save_(tar, os.path.join(root_dir, self._data_dir))
-
-    def _save_readme(self, data_writer):
-        with data_writer.create_file(self._readme_path) as fh:
-            fh.write(_README_TEXT)
-
-    def _save_metadata(self, data_writer):
-        with data_writer.create_file(self._metadata_path) as fh:
-            fh.write(_METADATA_HEADER_TEXT)
-            fh.write(self._formatted_type())
-            fh.write(self._formatted_uuid())
-            fh.write(self._formatted_provenance())
-
-    def _formatted_type(self):
-        return '%s\n' % self._type.__name__
-
-    def _formatted_uuid(self):
-        return '%s\n' % self._uuid
-
-    def _formatted_provenance(self):
-        return '%s\n' % self._provenance
-
-
+# TODO track files, close filehandles in a special method Artifact calls
 class ArtifactDataReader:
     def __init__(self, tar, data_dir):
         self._tar = tar
