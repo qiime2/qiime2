@@ -21,7 +21,7 @@ from qiime.sdk.type import Type
 # TODO make sure path separator code is correct for Unix and Windows systems
 class Artifact:
     _readme_path = 'README.md'
-    _metadata_path = 'metadata.txt'
+    _metadata_path = 'metadata.yaml'
     _data_dir = 'data'
 
     @classmethod
@@ -40,7 +40,7 @@ class Artifact:
             metadata_writer._save_(tar, root_dir)
 
             data_writer = ArtifactDataWriter()
-            type_.save(data, data_writer)
+            type_().save(data, data_writer)
             data_writer._save_(tar, os.path.join(root_dir, cls._data_dir))
 
     @classmethod
@@ -50,6 +50,9 @@ class Artifact:
 
     @classmethod
     def _save_metadata(cls, type_, provenance, data_writer):
+        if not type_().is_concrete():
+            raise TypeError("%r is not a concrete type. Only concrete types "
+                            "can be saved." % type_)
         type_exp = repr(type_)
         imports = [':'.join([path, name]) for name, path
                    in type_().get_imports()]
@@ -64,11 +67,11 @@ class Artifact:
 
     @classmethod
     def _formatted_uuid(cls):
-        return '%s\n' % uuid.uuid4()
+        return str(uuid.uuid4())
 
     @classmethod
     def _formatted_provenance(cls, provenance):
-        return '%s\n' % provenance
+        return str(provenance)
 
     def __init__(self, tarfilepath):
         data, type_, provenance, uuid_ = self._load(tarfilepath)
@@ -106,7 +109,7 @@ class Artifact:
             # TODO lazy load data
             data_reader = ArtifactDataReader(
                 tar, os.path.join(root_dir, self._data_dir))
-            data = type_.load(data_reader)
+            data = type_().load(data_reader)
             return data, type_, provenance, uuid_
 
     def _load_metadata(self, data_reader):
@@ -145,7 +148,11 @@ class Artifact:
                 raise TypeError("Duplicate type name (%r) in expression."
                                 % class_.__name__)
             locals_[class_.__name__] = class_
-        return eval(type_exp, {'__builtins__': {}}, locals_)
+        type_ = eval(type_exp, {'__builtins__': {}}, locals_)
+        if not type_().is_concrete():
+            raise TypeError("%r is not a concrete type. Only concrete types "
+                            "can be loaded." % type_)
+        return type_
 
     def _parse_uuid(self, string):
         return uuid.UUID(hex=string)
