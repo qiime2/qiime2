@@ -14,7 +14,7 @@ import tempfile
 import yaml
 import importlib
 
-from qiime.type import Type
+from qiime.sdk.type import Type
 
 
 # TODO check file extension on load/save and warn if not .qtf
