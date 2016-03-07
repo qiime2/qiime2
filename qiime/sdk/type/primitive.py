@@ -41,7 +41,12 @@ class Str(Type, variant_of=_variants):
 
 
 class Int(Type, variant_of=_variants):
-    pass
+
+    def from_string(self, string):
+        return int(string)
+
+    def to_string(self, data):
+        return str(data)
 
 
 class Float(Type, variant_of=_variants):
