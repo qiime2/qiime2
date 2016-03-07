@@ -58,7 +58,6 @@ class TypeMeta(type, object):
                  generic=False, inheritance='invariant'):
         super().__init__(name, bases, dct)
         cls.__instance = None
-        cls.__cache = {}
         # TODO: check that __lt__ and __gt__ have been overriden if True
         cls._is_generic = generic
 

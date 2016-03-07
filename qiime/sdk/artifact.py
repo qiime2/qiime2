@@ -11,21 +11,10 @@ import os
 import uuid
 import tarfile
 import tempfile
+import yaml
+import importlib
 
-
-# TODO use real type when it is ready
-class DummyType:
-    # data is simply some `bytes`
-
-    @classmethod
-    def load(cls, data_reader):
-        with data_reader.get_file('data.dat', binary=True) as fh:
-            return fh.read()
-
-    @classmethod
-    def save(cls, data, data_writer):
-        with data_writer.create_file('data.dat', binary=True) as fh:
-            fh.write(data)
+from qiime.type import Type
 
 
 # TODO check file extension on load/save and warn if not .qtf
@@ -61,15 +50,17 @@ class Artifact:
 
     @classmethod
     def _save_metadata(cls, type_, provenance, data_writer):
-        with data_writer.create_file(cls._metadata_path) as fh:
-            fh.write(_METADATA_HEADER_TEXT)
-            fh.write(cls._formatted_type(type_))
-            fh.write(cls._formatted_uuid())
-            fh.write(cls._formatted_provenance(provenance))
+        type_exp = repr(type_)
+        imports = [':'.join([path, name]) for name, path
+                   in type_().get_imports()]
 
-    @classmethod
-    def _formatted_type(cls, type_):
-        return '%s\n' % type_.__name__
+        with data_writer.create_file(cls._metadata_path) as fh:
+            yaml.safe_dump({
+                'UUID': cls._formatted_uuid(),
+                'provenance': cls._formatted_provenance(provenance),
+                'imports': imports,
+                'type': type_exp
+            }, stream=fh)
 
     @classmethod
     def _formatted_uuid(cls):
@@ -120,26 +111,47 @@ class Artifact:
 
     def _load_metadata(self, data_reader):
         with data_reader.get_file(self._metadata_path) as fh:
-            # skip header line
-            next(fh)
-            type_ = self._parse_type(next(fh))
-            uuid_ = self._parse_uuid(next(fh))
-            provenance = self._parse_provenance(next(fh))
+            metadata = yaml.safe_load(fh)
+            uuid_ = self._parse_uuid(metadata['UUID'])
+            provenance = self._parse_provenance(metadata['provenance'])
+            type_ = self._parse_type(metadata['imports'], metadata['type'])
         return type_, uuid_, provenance
 
-    def _parse_type(self, line):
-        type_name = line.strip()
+    def _parse_type(self, imports, type_exp):
+        type_exp = type_exp.split('\n')
+        if len(type_exp) != 1:
+            raise TypeError("Multiple lines in type expression of"
+                            " artifact. Will not load to avoid arbitrary"
+                            " code execution.")
+        type_exp, = type_exp
 
-        if type_name == 'DummyType':
-            return DummyType
-        else:
-            raise TypeError("Unrecognized artifact type %r" % type_name)
+        if ';' in type_exp:
+            raise TypeError("Invalid type expression in artifact. Will not"
+                            " load to avoid arbitrary code execution.")
 
-    def _parse_uuid(self, line):
-        return uuid.UUID(hex=line.strip())
+        locals_ = {}
+        for import_ in imports:
+            path, class_ = import_.split(":")
+            try:
+                module = importlib.import_module(path)
+            except ImportError:
+                raise ImportError("The plugin which defines: %r is not"
+                                  " installed." % path)
+            class_ = getattr(module, class_)
+            if not issubclass(class_, Type):
+                raise TypeError("Non-Type artifact. Will not load to avoid"
+                                " arbitrary code execution.")
+            if class_.__name__ in locals_:
+                raise TypeError("Duplicate type name (%r) in expression."
+                                % class_.__name__)
+            locals_[class_.__name__] = class_
+        return eval(type_exp, {'__builtins__': {}}, locals_)
 
-    def _parse_provenance(self, line):
-        return line.strip()
+    def _parse_uuid(self, string):
+        return uuid.UUID(hex=string)
+
+    def _parse_provenance(self, string):
+        return string
 
 
 # TODO track files, close filehandles in a special method Artifact calls
