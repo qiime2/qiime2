@@ -46,3 +46,6 @@ class Int(Type, variant_of=_variants):
 
 class Float(Type, variant_of=_variants):
     pass
+
+class Column(Type, variant_of=Type.Primitive):
+    pass

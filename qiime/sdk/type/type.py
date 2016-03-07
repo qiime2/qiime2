@@ -122,7 +122,7 @@ class TypeMeta(type, object):
         return cls._instance.__gt__(other)
 
 
-class Type(metaclass=TypeMeta, fields=('Artifact', 'Primitive')):
+class Type(metaclass=TypeMeta, fields=('Artifact', 'Primitive', 'Metadata')):
     def __init__(self, fields=None, predicates=()):
         super().__init__()
         if fields is None:
@@ -222,14 +222,21 @@ class Type(metaclass=TypeMeta, fields=('Artifact', 'Primitive')):
         def save(self, data, data_writer):
             pass
 
-        def load(data_reader):
+        def load(self, data_reader):
             pass
 
     class Primitive:
-        def from_string(str):
+        def from_string(self, string):
             pass
 
-        def to_string(model):
+        def to_string(self, model):
+            pass
+
+    class Metadata:
+        def get_columns(self, data):
+            pass
+
+        def get_series(self, data, column):
             pass
 
 
@@ -312,7 +319,6 @@ class _NotType(Type, generic=True):
         return self._instance.__variant__()
 
 
-## TODO: create a base class for Any, Nil, Type
 class Any:
     def __new__(cls):
         if not hasattr(cls, '_instance'):
@@ -334,9 +340,6 @@ class Any:
 
     def __invert__(self):
         return Nil
-
-    def __iter__(self):
-        yield self
 
 
 class Nil:
@@ -360,9 +363,6 @@ class Nil:
 
     def __invert__(self):
         return Any
-
-    def __iter__(self):
-        yield self
 
 
 Any = Any()
