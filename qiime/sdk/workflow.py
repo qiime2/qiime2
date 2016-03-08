@@ -47,6 +47,14 @@ class WorkflowTemplate:
         self.signature = signature
         self.template = template
 
+    def create_job(self, setup_lines, teardown_lines):
+        setup_str = '\n'.join(['>>> %s' % line for line in setup_lines])
+        teardown_str = '\n'.join(['>>> %s' % line for line in teardown_lines])
+        setup_str = _markdown_code_cell_template.format(content=setup_str)
+        teardown_str = _markdown_code_cell_template.format(
+                content=teardown_str)
+        return "\n\n".join([setup_str, self.template, teardown_str])
+
     @classmethod
     def from_markdown(cls, markdown):
         """
@@ -72,11 +80,13 @@ class WorkflowTemplate:
             parameters=parameters, results=results)
         return cls(inputs, outputs, template, name)
 
-_markdown_template = """
-{doc}
+_markdown_template = """{doc}
 
 ```python
 >>> from {import_path} import {function_name}
 >>> {results} = {function_name}({parameters})
-```
-"""
+```"""
+
+_markdown_code_cell_template = """```python
+{content}
+```"""
