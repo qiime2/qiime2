@@ -17,8 +17,6 @@ import importlib
 from qiime.sdk.type import Type
 
 
-# TODO check file extension on load/save and warn if not .qtf
-# TODO make sure path separator code is correct for Unix and Windows systems
 class Artifact:
     _readme_path = 'README.md'
     _metadata_path = 'metadata.yaml'
@@ -32,7 +30,6 @@ class Artifact:
     def save(cls, data, type_, provenance, tarfilepath):
         root_dir = cls._get_root_dir(tarfilepath)
 
-        # TODO support compression?
         with tarfile.open(tarfilepath, mode='w') as tar:
             metadata_writer = ArtifactDataWriter()
             cls._save_readme(metadata_writer)
@@ -106,7 +103,6 @@ class Artifact:
             metadata_reader = ArtifactDataReader(tar, root_dir)
             type_, uuid_, provenance = self._load_metadata(metadata_reader)
 
-            # TODO lazy load data
             data_reader = ArtifactDataReader(
                 tar, os.path.join(root_dir, self._data_dir))
             data = type_().load(data_reader)
@@ -161,7 +157,6 @@ class Artifact:
         return string
 
 
-# TODO track files, close filehandles in a special method Artifact calls
 class ArtifactDataReader:
     def __init__(self, tar, data_dir):
         self._tar = tar
@@ -194,7 +189,6 @@ class ArtifactDataReader:
 
 class ArtifactDataWriter:
     def __init__(self):
-        # TODO pass temp dir specified by user in config
         self._tempdir = tempfile.TemporaryDirectory(
             prefix='qiime2-temp-artifact-data-')
         self._tracked_files = {}
@@ -221,8 +215,6 @@ class ArtifactDataWriter:
         for filehandle in self._tracked_files.values():
             filehandle.close()
 
-        # TODO use `filter` parameter to only add files we know about
-        # TODO set file metadata appropriately (e.g., owner, permissions)
         tar.add(self._tempdir.name, arcname=name)
 
         self._tempdir.cleanup()

@@ -24,7 +24,7 @@ class VariantType:
 
     def validate(self, cls):
         """Make sure a class meets the variant's interface"""
-        # TODO: implement for realz
+        # TODO #15
         return True
 
 
@@ -58,7 +58,7 @@ class TypeMeta(type, object):
                  generic=False, inheritance='invariant'):
         super().__init__(name, bases, dct)
         cls.__instance = None
-        # TODO: check that __lt__ and __gt__ have been overriden if True
+        # TODO #17
         cls._is_generic = generic
 
         # Please, let us never need to indicate contra/co/bi-variant.
@@ -195,7 +195,7 @@ class Type(metaclass=TypeMeta, fields=('Artifact', 'Primitive', 'Metadata')):
         return other > self > other
 
     def __ne__(self, other):
-        # TODO: Should this be `(not self < other) and (not self > other)`?
+        # TODO #18
         return not (self == other)
 
     def __invert__(self):
