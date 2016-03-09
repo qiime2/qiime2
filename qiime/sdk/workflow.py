@@ -81,7 +81,8 @@ class WorkflowTemplate:
 
         output_types = collections.OrderedDict()
         for output in metadata['outputs']:
-            name, type_expr = next(output.items())
+            # TODO validate each nested dict has exactly one item
+            name, type_expr = list(output.items())[0]
             output_types[name] = cls._parse_type(type_imports, type_expr)
 
         name = metadata['name']
