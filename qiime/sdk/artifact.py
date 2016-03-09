@@ -116,6 +116,7 @@ class Artifact:
             type_ = self._parse_type(metadata['imports'], metadata['type'])
         return type_, uuid_, provenance
 
+    # TODO this is duplicated from WorkflowTemplate._parse_type. Refactor!
     def _parse_type(self, imports, type_exp):
         type_exp = type_exp.split('\n')
         if len(type_exp) != 1:

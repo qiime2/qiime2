@@ -66,11 +66,56 @@ class WorkflowTemplate:
         """
         with open(markdown) as fh:
             metadata, template = frontmatter.parse(fh.read())
-        inputs = metadata['inputs']
-        outputs = metadata['outputs'].items()
+
+        type_imports = metadata['type-imports']
+        input_types = {}
+        for name, type_expr in metadata['inputs']:
+            input_types[name] = cls._parse_type(type_imports, type_expr)
+
+        output_types = collections.OrderedDict()
+        for output in metadata['outputs']:
+            name, type_expr = next(output.items())
+            output_types[name] = cls._parse_type(type_imports, type_expr)
+
         name = metadata['name']
-        signature = Signature(name, inputs, outputs)
+        signature = Signature(name, input_types, output_types)
         return cls(signature, template)
+
+    # TODO this is duplicated from Artifact._parse_type. Refactor!
+    @classmethod
+    def _parse_type(cls, imports, type_exp):
+        type_exp = type_exp.split('\n')
+        if len(type_exp) != 1:
+            raise TypeError("Multiple lines in type expression of"
+                            " artifact. Will not load to avoid arbitrary"
+                            " code execution.")
+        type_exp, = type_exp
+
+        if ';' in type_exp:
+            raise TypeError("Invalid type expression in artifact. Will not"
+                            " load to avoid arbitrary code execution.")
+
+        locals_ = {}
+        for import_ in imports:
+            path, class_ = import_.split(":")
+            try:
+                module = importlib.import_module(path)
+            except ImportError:
+                raise ImportError("The plugin which defines: %r is not"
+                                  " installed." % path)
+            class_ = getattr(module, class_)
+            if not issubclass(class_, Type):
+                raise TypeError("Non-Type artifact. Will not load to avoid"
+                                " arbitrary code execution.")
+            if class_.__name__ in locals_:
+                raise TypeError("Duplicate type name (%r) in expression."
+                                % class_.__name__)
+            locals_[class_.__name__] = class_
+        type_ = eval(type_exp, {'__builtins__': {}}, locals_)
+        if not type_().is_concrete():
+            raise TypeError("%r is not a concrete type. Only concrete types "
+                            "can be loaded." % type_)
+        return type_
 
     @classmethod
     def from_function(cls, function, inputs, outputs, name, doc):
