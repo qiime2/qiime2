@@ -39,11 +39,11 @@ _variants = (Map.Key, Map.Value, List.Contents, Bag.Contents, Set.Contents,
 class Str(Type, variant_of=_variants):
 
     def from_string(self, string):
-        # TODO: is this cast necessary
+        # TODO: is this cast necessary?
         return str(string)
 
     def to_string(self, data):
-        # TODO: is this cast necessary
+        # TODO: is this cast necessary?
         return str(data)
 
 
