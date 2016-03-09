@@ -6,7 +6,10 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import collections
+import importlib
 import inspect
+
 import frontmatter
 
 from qiime.sdk.type import Type
@@ -49,6 +52,10 @@ class WorkflowTemplate:
         self.signature = signature
         self.template = template
 
+    @property
+    def name(self):
+        return self.signature.name
+
     def create_job(self, setup_lines, teardown_lines):
         setup_str = '\n'.join(['>>> %s' % line for line in setup_lines])
         teardown_str = '\n'.join(['>>> %s' % line for line in teardown_lines])
@@ -69,7 +76,7 @@ class WorkflowTemplate:
 
         type_imports = metadata['type-imports']
         input_types = {}
-        for name, type_expr in metadata['inputs']:
+        for name, type_expr in metadata['inputs'].items():
             input_types[name] = cls._parse_type(type_imports, type_expr)
 
         output_types = collections.OrderedDict()
@@ -112,9 +119,6 @@ class WorkflowTemplate:
                                 % class_.__name__)
             locals_[class_.__name__] = class_
         type_ = eval(type_exp, {'__builtins__': {}}, locals_)
-        if not type_().is_concrete():
-            raise TypeError("%r is not a concrete type. Only concrete types "
-                            "can be loaded." % type_)
         return type_
 
     @classmethod

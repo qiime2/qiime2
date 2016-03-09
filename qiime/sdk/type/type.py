@@ -319,6 +319,7 @@ class _NotType(Type, generic=True):
         return self._instance.__variant__()
 
 
+# TODO create a base class for Any, Nil, and Type
 class Any:
     def __new__(cls):
         if not hasattr(cls, '_instance'):
@@ -340,6 +341,9 @@ class Any:
 
     def __invert__(self):
         return Nil
+
+    def __iter__(self):
+        yield self
 
 
 class Nil:
@@ -363,6 +367,9 @@ class Nil:
 
     def __invert__(self):
         return Any
+
+    def __iter__(self):
+        yield self
 
 
 Any = Any()

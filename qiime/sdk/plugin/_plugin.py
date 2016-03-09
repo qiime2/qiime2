@@ -6,6 +6,7 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import collections
 import pkg_resources
 
 from qiime.sdk.workflow import WorkflowTemplate
@@ -29,5 +30,8 @@ class Plugin(object):
         self.workflows[w.name] = w
 
     def register_function(self, name, function, inputs, outputs, doc=""):
+        # TODO where is the best place to convert outputs as a list of tuples
+        # into an OrderedDict?
+        outputs = collections.OrderedDict(outputs)
         w = WorkflowTemplate.from_function(function, inputs, outputs, name, doc)
         self.workflows[w.name] = w
