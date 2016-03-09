@@ -9,6 +9,8 @@
 import inspect
 import frontmatter
 
+from qiime.sdk.type import Type
+
 
 class Signature:
     def __init__(self, name, inputs, outputs):
@@ -31,7 +33,7 @@ class Signature:
                 raise TypeError("Unrecognized input type: %r" % input_type)
         self.output_artifacts = outputs
 
-    def resolve_output_types(self, input_types):
+    def __call__(self, artifact, parameters):
         # TODO implement me!
         return self.output_artifacts
 
@@ -67,18 +69,22 @@ class WorkflowTemplate:
         inputs = metadata['inputs']
         outputs = metadata['outputs'].items()
         name = metadata['name']
-        return cls(inputs, outputs, template, name)
+        signature = Signature(name, inputs, outputs)
+        return cls(signature, template)
 
     @classmethod
     def from_function(cls, function, inputs, outputs, name, doc):
+        # TODO: the import paths will not necessarily be a public
+        # import, but might be a full (private) import. fix that. 
         import_path = inspect.getmodule(function).__name__
         function_name = function.__name__
         parameters = ', '.join(['%s=%s' % (k, k) for k in inputs])
-        results = ', '.join([output[0] for output in outputs])
+        results = ', '.join(outputs.keys())
         template = _markdown_template.format(
             doc=doc, import_path=import_path, function_name=function_name,
             parameters=parameters, results=results)
-        return cls(inputs, outputs, template, name)
+        signature = Signature(name, inputs, outputs)
+        return cls(signature, template)
 
 _markdown_template = """{doc}
 
