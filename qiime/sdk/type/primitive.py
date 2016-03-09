@@ -37,7 +37,14 @@ _variants = (Map.Key, Map.Value, List.Contents, Bag.Contents, Set.Contents,
 
 
 class Str(Type, variant_of=_variants):
-    pass
+
+    def from_string(self, string):
+        # TODO: is this cast necessary
+        return str(string)
+
+    def to_string(self, data):
+        # TODO: is this cast necessary
+        return str(data)
 
 
 class Int(Type, variant_of=_variants):
@@ -50,7 +57,12 @@ class Int(Type, variant_of=_variants):
 
 
 class Float(Type, variant_of=_variants):
-    pass
+
+    def from_string(self, string):
+        return float(string)
+
+    def to_string(self, data):
+        return str(data)
 
 class Column(Type, variant_of=Type.Primitive):
     pass
