@@ -26,14 +26,14 @@ class Signature:
         self.input_parameters = {}
         for input_name, input_type in inputs.items():
             if Type.Primitive.is_member(input_type):
-                self.input_parameters[input_name] = input_type
+                self.input_parameters[input_name] = input_type()
             elif Type.Artifact.is_member(input_type):
-                self.input_artifacts[input_name] = input_type
+                self.input_artifacts[input_name] = input_type()
             else:
                 raise TypeError("Unrecognized input type: %r" % input_type)
         self.output_artifacts = outputs
 
-    def __call__(self, artifact, parameters):
+    def __call__(self, artifacts, parameters):
         # TODO implement me!
         return self.output_artifacts
 
@@ -75,7 +75,7 @@ class WorkflowTemplate:
     @classmethod
     def from_function(cls, function, inputs, outputs, name, doc):
         # TODO: the import paths will not necessarily be a public
-        # import, but might be a full (private) import. fix that. 
+        # import, but might be a full (private) import. fix that.
         import_path = inspect.getmodule(function).__name__
         function_name = function.__name__
         parameters = ', '.join(['%s=%s' % (k, k) for k in inputs])

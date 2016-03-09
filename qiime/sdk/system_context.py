@@ -22,9 +22,13 @@ class SystemContext(metaclass=abc.ABCMeta):
     def _uuid_to_filepath(self, uuid):
         pass
 
-    def __call__(self, workflow_template, artifact_uuids, parameters):
+    def __call__(self, workflow_template, artifact_uuids, parameter_references):
         artifacts = self._load_artifacts(artifact_uuids)
-        outputs = workflow_template.signature(artifacts, parameters)
+        signature = workflow_template.signature
+        outputs = signature(artifacts, parameter_references)
+        parameters = {}
+        for name, ref in parameter_references.items():
+            parameters[name] = signature.input_parameters[name].from_string(ref)
         # create setup_lines
         setup_lines = self._system_context_setup_lines()
         for name, artifact_uuid in artifact_uuids.items():
