@@ -6,6 +6,7 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import uuid
 import collections
 import importlib
 import inspect
@@ -13,9 +14,13 @@ import os.path
 
 import frontmatter
 
+from qiime.sdk.artifact import Artifact
+from qiime.sdk.job import Job
 from qiime.sdk.type import Type
 
 
+# TODO `name` is being used as a human-friendly name. I don't think this should
+# be stored in Signature, it makes more sense in Workflow.
 class Signature:
     def __init__(self, name, inputs, outputs):
         """
@@ -42,37 +47,7 @@ class Signature:
         return self.output_artifacts
 
 
-class WorkflowTemplate:
-    def __init__(self, signature, template, id):
-        """
-           Parameters
-           ----------
-           signature : Signature
-           template : str, markdown text in ipymd style
-        """
-        self.signature = signature
-        self.template = template
-        self.id = id
-
-    @property
-    def name(self):
-        return self.signature.name
-
-    @property
-    def reference(self):
-        # TODO: fill this in with more information for tracking the source of
-        # the template. This will come from the plugin system, through a
-        # reverse lookup on the workflow name (or better identifier)
-        return "%s (plus details on plugin, version, and website)" % self.name
-
-    def create_job(self, setup_lines, teardown_lines):
-        setup_str = '\n'.join(['>>> %s' % line for line in setup_lines])
-        teardown_str = '\n'.join(['>>> %s' % line for line in teardown_lines])
-        setup_str = _markdown_code_cell_template.format(content=setup_str)
-        teardown_str = _markdown_code_cell_template.format(
-                content=teardown_str)
-        return "\n\n".join([setup_str, self.template, teardown_str])
-
+class Workflow:
     @classmethod
     def from_markdown(cls, markdown):
         """
@@ -146,6 +121,114 @@ class WorkflowTemplate:
             parameters=parameters, results=results)
         signature = Signature(name, inputs, outputs)
         return cls(signature, template, function.__name__)
+
+    def __init__(self, signature, template, id_):
+        """
+           Parameters
+           ----------
+           signature : Signature
+           template : str, markdown text in ipymd style
+        """
+        self.signature = signature
+        self.template = template
+        self.id = id_
+
+    @property
+    def name(self):
+        return self.signature.name
+
+    @property
+    def reference(self):
+        # TODO: fill this in with more information for tracking the source of
+        # the template. This will come from the plugin system, through a
+        # reverse lookup on the workflow name (or better identifier)
+        #
+        # Should we also/instead store the workflow template markdown, maybe
+        # under a `provenance` directory?
+        return ("%s. Details on plugin, version, and website will also be "
+                "included, see https://github.com/biocore/qiime2/issues/26 "
+                % self.id)
+
+    def to_markdown(self, input_artifact_filepaths, parameter_references,
+                    output_artifact_filepaths):
+        artifacts = self._load_artifacts(input_artifact_filepaths)
+        output_artifact_types = self.signature(artifacts, parameter_references)
+
+        parameters = {}
+        for name, ref in parameter_references.items():
+            parameters[name] = \
+                    self.signature.input_parameters[name].from_string(ref)
+
+        job_uuid = uuid.uuid4()
+        provenance_lines = self._provenance_lines(job_uuid, artifacts,
+                                                  parameters)
+
+        setup_lines = []
+        setup_lines.append('from qiime.sdk.artifact import Artifact')
+
+        for name, filepath in input_artifact_filepaths.items():
+            setup_lines.append('%s = Artifact(%r).data' % (name, filepath))
+
+        for name, value in parameters.items():
+            setup_lines.append('%s = %r' % (name, value))
+
+        teardown_lines = []
+        teardown_lines.extend(
+            self._teardown_import_lines(output_artifact_types))
+
+        # TODO make sure output order is respected
+        for name, output_filepath in output_artifact_filepaths.items():
+            output_type = output_artifact_types[name]
+            teardown_lines.append(
+                'Artifact.save(%s, %r, provenance, %r)' % (name, output_type,
+                                                           output_filepath))
+
+        markdown = self._format_markdown(
+            provenance_lines, setup_lines, teardown_lines)
+        return Job(markdown, job_uuid, input_artifact_filepaths,
+                   parameter_references, output_artifact_filepaths)
+
+    def _load_artifacts(self, artifact_filepaths):
+        artifacts = {}
+        for name, filepath in artifact_filepaths.items():
+            artifacts[name] = Artifact(filepath)
+        return artifacts
+
+    def _provenance_lines(self, job_uuid, artifacts, parameters):
+        artifact_uuids = {name: str(artifact.uuid)
+                          for name, artifact in artifacts.items()}
+        return [
+            "from qiime.sdk.provenance import Provenance",
+            "provenance = Provenance(job_uuid=%r, artifact_uuids=%r, parameters=%r, workflow_template_reference=%r)"
+            % (str(job_uuid), artifact_uuids, parameters, self.reference)
+        ]
+
+    def _teardown_import_lines(self, output_artifact_types):
+        # TODO collapse imports with common prefix
+        imports = set()
+        for output_type in output_artifact_types.values():
+            imports = imports.union(output_type().get_imports())
+        return ['from %s import %s' % (path, name) for name, path in imports]
+
+    def _format_markdown(self, provenance_lines, setup_lines, teardown_lines):
+        provenance_str = self._format_markdown_code_cell(provenance_lines)
+        setup_str = self._format_markdown_code_cell(setup_lines)
+        teardown_str = self._format_markdown_code_cell(teardown_lines)
+        return "\n\n".join(
+            [provenance_str, setup_str, self.template, teardown_str])
+
+    def _format_markdown_code_cell(self, code_lines):
+        code_str = '\n'.join(['>>> %s' % line for line in code_lines])
+        return _markdown_code_cell_template.format(content=code_str)
+
+    # TODO implement to return Python script that can be executed
+    def to_script(self):
+        pass
+
+    # TODO implement to return Python function that can be executed
+    def to_function(self):
+        pass
+
 
 _markdown_template = """{doc}
 

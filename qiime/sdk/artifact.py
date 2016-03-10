@@ -75,7 +75,7 @@ class Artifact:
             return ('No provenance available because this artifact was '
                     'generated independently of QIIME.')
         else:
-            return {'workflow-UUID': str(provenance.workflow_uuid),
+            return {'job-UUID': str(provenance.job_uuid),
                     'artifact-uuids': provenance.artifact_uuids,
                     # TODO: need to store parameter types (or is it enough
                     # that the workflow template reference could get us that?)
@@ -139,8 +139,7 @@ class Artifact:
             type_ = self._parse_type(metadata['imports'], metadata['type'])
         return type_, uuid_, provenance
 
-    # TODO this is mostly duplicated from WorkflowTemplate._parse_type.
-    # Refactor!
+    # TODO this is mostly duplicated from Workflow._parse_type. Refactor!
     def _parse_type(self, imports, type_exp):
         type_exp = type_exp.split('\n')
         if len(type_exp) != 1:
