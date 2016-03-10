@@ -1,0 +1,49 @@
+{% import qiime.q2d3 %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+</head>
+<body>
+    {% set available, unavailable = qiime.q2d3.get_workflows() %}
+    {% set artifacts = qiime.q2d3.get_artifacts() %}
+
+    {% for plugin_name, workflows in available.items() %}
+    <h4>{{ plugin_name }}</h4>
+    <ul id='group', class="list-group">
+        {% for workflow_name, workflow in workflows.items() %}
+        <li id='{{plugin_name}}--{{workflow.id}}' class="list-group-item row" style="margin-right:0px;margin-left:0px;">
+            <a href='/job/{{ plugin_name }}/{{ workflow.id }}' class="col-md-3" target="_blank">{{ workflow_name }}</a>
+            {% if workflow.signature.output_artifacts %}
+                <span class="col-md-5 pull-right">Produces: {{", ".join([repr(t) for t in workflow.signature.output_artifacts.values()])}}</span>
+            {% end %}
+        </li>
+        {% end %}
+    </ul>
+    {% end %}
+
+    {% for plugin_name, workflows in unavailable.items() %}
+    <h4>{{ plugin_name }}</h4>
+    <ul id='group', class="list-group">
+        {% for workflow_name, workflow in workflows.items() %}
+        <li id='{{plugin_name}}--{{workflow.id}}' class="list-group-item row disabled" style="margin-right:0px;margin-left:0px;">
+                <span class="col-md-3">{{ workflow_name }}</span>
+                <span class="col-md-5 pull-right">Missing: {{  ', '.join([repr(type_) for name, type_ in workflow.signature.input_artifacts.items() if not qiime.q2d3.get_input_artifacts(workflow.signature, name, artifacts)])}}</span>
+        </li>
+        {% end %}
+    </ul>
+    {% end %}
+
+    <script type="text/javascript">
+    jQuery(document).ready(function () {
+        var frame = $('#panel-content', window.parent.document);
+        var height = jQuery("body").height();
+        frame.height(height + 50);
+    });
+    </script>
+</body>
+</html>
