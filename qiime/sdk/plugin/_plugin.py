@@ -27,11 +27,11 @@ class Plugin(object):
     def register_workflow(self, workflow):
         fn = pkg_resources.resource_filename(self.package, workflow)
         w = WorkflowTemplate.from_markdown(fn)
-        self.workflows[w.name] = w
+        self.workflows[w.id] = w
 
     def register_function(self, name, function, inputs, outputs, doc=""):
         # TODO where is the best place to convert outputs as a list of tuples
         # into an OrderedDict?
         outputs = collections.OrderedDict(outputs)
         w = WorkflowTemplate.from_function(function, inputs, outputs, name, doc)
-        self.workflows[w.name] = w
+        self.workflows[w.id] = w

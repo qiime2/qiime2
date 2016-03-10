@@ -9,6 +9,7 @@
 import collections
 import importlib
 import inspect
+import os.path
 
 import frontmatter
 
@@ -42,7 +43,7 @@ class Signature:
 
 
 class WorkflowTemplate:
-    def __init__(self, signature, template):
+    def __init__(self, signature, template, id):
         """
            Parameters
            ----------
@@ -51,6 +52,7 @@ class WorkflowTemplate:
         """
         self.signature = signature
         self.template = template
+        self.id = id
 
     @property
     def name(self):
@@ -71,6 +73,8 @@ class WorkflowTemplate:
            ----------
            markdown : filepath
         """
+        id_ = os.path.splitext(os.path.split(markdown)[1])[0]
+        # TODO: verify that `id_` is machine-friendly
         with open(markdown) as fh:
             metadata, template = frontmatter.parse(fh.read())
 
@@ -87,7 +91,7 @@ class WorkflowTemplate:
 
         name = metadata['name']
         signature = Signature(name, input_types, output_types)
-        return cls(signature, template)
+        return cls(signature, template, id_)
 
     # TODO this is duplicated from Artifact._parse_type. Refactor!
     @classmethod
@@ -134,7 +138,7 @@ class WorkflowTemplate:
             doc=doc, import_path=import_path, function_name=function_name,
             parameters=parameters, results=results)
         signature = Signature(name, inputs, outputs)
-        return cls(signature, template)
+        return cls(signature, template, function.__name__)
 
 _markdown_template = """{doc}
 
