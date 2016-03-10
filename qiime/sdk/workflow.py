@@ -56,6 +56,13 @@ class WorkflowTemplate:
     def name(self):
         return self.signature.name
 
+    @property
+    def reference(self):
+        # TODO: fill this in with more information for tracking the source of
+        # the template. This will come from the plugin system, through a
+        # reverse lookup on the workflow name (or better identifier)
+        return "%s (plus details on plugin, version, and website)" % self.name
+
     def create_job(self, setup_lines, teardown_lines):
         setup_str = '\n'.join(['>>> %s' % line for line in setup_lines])
         teardown_str = '\n'.join(['>>> %s' % line for line in teardown_lines])

@@ -13,6 +13,8 @@ import tarfile
 import tempfile
 import yaml
 import importlib
+import time
+import datetime
 
 from qiime.sdk.type import Type
 
@@ -68,7 +70,27 @@ class Artifact:
 
     @classmethod
     def _formatted_provenance(cls, provenance):
-        return str(provenance)
+        if provenance is None:
+            return ('No provenance available because this artifact was '
+                    'generated independently of QIIME.')
+        else:
+            return {'workflow-UUID': str(provenance.workflow_uuid),
+                    'artifact-uuids': provenance.artifact_uuids,
+                    # TODO: need to store parameter types (or is it enough
+                    # that the workflow template reference could get us that?)
+                    'parameters': provenance.parameters,
+                    'runtime': cls._formatted_runtime(provenance),
+                    'workflow-template-reference': provenance.workflow_template_reference}
+
+    @classmethod
+    def _formatted_runtime(cls, provenance):
+        stop_time = time.time()
+        run_time = stop_time - provenance.start_time
+        datetime_start = datetime.datetime.fromtimestamp(provenance.start_time)
+        datetime_stop = datetime.datetime.fromtimestamp(stop_time)
+        return {'run-time-seconds': run_time,
+                'execution-start-time': datetime_start.isoformat(),
+                'execution-stop-time': datetime_stop.isoformat()}
 
     def __init__(self, tarfilepath):
         data, type_, provenance, uuid_ = self._load(tarfilepath)

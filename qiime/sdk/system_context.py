@@ -8,6 +8,7 @@
 
 from collections import OrderedDict
 import abc
+import uuid
 
 from .artifact import Artifact
 
@@ -23,6 +24,7 @@ class SystemContext(metaclass=abc.ABCMeta):
         pass
 
     def __call__(self, workflow_template, artifact_uuids, parameter_references):
+        workflow_uuid = uuid.uuid4()
         artifacts = self._load_artifacts(artifact_uuids)
         signature = workflow_template.signature
         outputs = signature(artifacts, parameter_references)
@@ -30,7 +32,9 @@ class SystemContext(metaclass=abc.ABCMeta):
         for name, ref in parameter_references.items():
             parameters[name] = signature.input_parameters[name].from_string(ref)
         # create setup_lines
-        setup_lines = self._system_context_setup_lines()
+        setup_lines = self._provenance_lines(
+            workflow_uuid, artifact_uuids, parameters, workflow_template)
+        setup_lines.extend(self._system_context_setup_lines())
         for name, artifact_uuid in artifact_uuids.items():
             setup_lines.extend(
                 self._create_artifact_setup_lines(name, artifact_uuid))
@@ -46,11 +50,20 @@ class SystemContext(metaclass=abc.ABCMeta):
                 name, output_type, workflow_template, artifacts, parameters)
             output_filepaths[name] = output_filepath
             teardown_lines.extend(self._create_output_teardown_lines(
-                name, output_type, provenance, output_filepath))
+                name, output_type, output_filepath))
         teardown_lines.extend(self._system_context_teardown_lines())
 
         # create and return job
         return workflow_template.create_job(setup_lines, teardown_lines)
+
+    def _provenance_lines(self, workflow_uuid, artifact_uuids, parameters,
+                          workflow_template):
+        artifact_uuids = {n: str(uuid_) for n, uuid_ in artifact_uuids.items()}
+        result = ["from qiime.sdk.provenance import Provenance",
+                  "provenance = Provenance(workflow_uuid='%s', artifact_uuids=%r, parameters=%r, workflow_template_reference=%r)"
+                  % (workflow_uuid, artifact_uuids, parameters, workflow_template.reference),
+                  ""]
+        return result
 
     def _load_artifacts(self, artifact_uuids):
         result = {}
@@ -74,9 +87,9 @@ class SystemContext(metaclass=abc.ABCMeta):
             result = result.union(output_type().get_imports())
         return ['from %s import %s' % (path, name) for name, path in result]
 
-    def _create_output_teardown_lines(self, name, output_type, provenance, output_reference):
-        return ['Artifact.save(%s, %r, %r, %r)' %
-                (name, output_type, provenance, output_reference)]
+    def _create_output_teardown_lines(self, name, output_type, output_reference):
+        return ['Artifact.save(%s, %r, provenance, %r)' %
+                (name, output_type, output_reference)]
 
     def _system_context_teardown_lines(self):
         return []
