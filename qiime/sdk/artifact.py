@@ -53,6 +53,7 @@ class Artifact:
             raise TypeError("%r is not a concrete type. Only concrete types "
                             "can be saved." % type_)
         type_exp = repr(type_)
+        # TODO collapse imports with common prefix
         imports = [':'.join([path, name]) for name, path
                    in type_().get_imports()]
 
@@ -138,7 +139,8 @@ class Artifact:
             type_ = self._parse_type(metadata['imports'], metadata['type'])
         return type_, uuid_, provenance
 
-    # TODO this is duplicated from WorkflowTemplate._parse_type. Refactor!
+    # TODO this is mostly duplicated from WorkflowTemplate._parse_type.
+    # Refactor!
     def _parse_type(self, imports, type_exp):
         type_exp = type_exp.split('\n')
         if len(type_exp) != 1:

@@ -82,6 +82,7 @@ class SystemContext(metaclass=abc.ABCMeta):
         return '%s = %r' % (name, value)
 
     def _create_teardown_import_lines(self, outputs):
+        # TODO collapse imports with common prefix
         result = set()
         for output_type in outputs.values():
             result = result.union(output_type().get_imports())

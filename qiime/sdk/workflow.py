@@ -100,7 +100,7 @@ class WorkflowTemplate:
         signature = Signature(name, input_types, output_types)
         return cls(signature, template, id_)
 
-    # TODO this is duplicated from Artifact._parse_type. Refactor!
+    # TODO this is mostly duplicated from Artifact._parse_type. Refactor!
     @classmethod
     def _parse_type(cls, imports, type_exp):
         type_exp = type_exp.split('\n')
