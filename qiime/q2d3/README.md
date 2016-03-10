@@ -18,5 +18,5 @@ pip install https://github.com/rossant/ipymd/archive/master.zip
 Then, to launch the server, change to this directory (``qiime2/q2d3``) and run the following command:
 
 ```bash
-jupyter notebook
+qiime-q2d3 serve
 ```

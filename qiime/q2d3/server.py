@@ -63,10 +63,19 @@ def instantiator(port):
                     output_names[name] = value
 
             context_manager = Q2D3Context(os.getcwd(), output_names=output_names)
-            job = context_manager(workflow, input_artifacts, input_params)
-            path = str(uuid.uuid4()) + '.md'
+            input_artifact_fps = {name: context_manager.data[uuid]
+                                  for name, uuid in input_artifacts.items()}
+
+            output_artifact_fps = {}
+            for name, value in output_names.items():
+                output_artifact_fps[name] = os.path.join(
+                    context_manager._data_dir, value + '.qtf')
+
+            job = workflow.to_markdown(input_artifact_fps, input_params, output_artifact_fps)
+
+            path = str(job.uuid) + '.md'
             with open(path, mode='w') as fh:
-                fh.write(job)
+                fh.write(job.markdown)
 
             self.redirect('http://localhost:%d/notebooks/%s' % (port, path))
 

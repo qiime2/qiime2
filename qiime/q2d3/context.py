@@ -11,11 +11,10 @@ import tempfile
 import glob
 import os
 
-from qiime.sdk.system_context import SystemContext
 from qiime.sdk.artifact import Artifact
 
 
-class Q2D3Context(SystemContext):
+class Q2D3Context:
 
     _file_extension = '.qtf'
 
