@@ -13,4 +13,4 @@ install:
   - pip install .
 script:
   - nosetests
-  - flake8 scripts qiime setup.py
+  - flake8 qiime setup.py
