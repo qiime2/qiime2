@@ -12,5 +12,6 @@ setup(
     name='qiime',
     version='2.0.1.dev0',
     packages=find_packages(),
-    install_requires=['python-frontmatter', 'pyyaml']
+    install_requires=['python-frontmatter', 'pyyaml', 'ipymd >= 0.1.2',
+                      'jupyter']
 )
