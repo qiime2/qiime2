@@ -9,9 +9,9 @@
 
 # TODO figure out what the public API should be. For now it's a simple struct.
 class Job:
-    def __init__(self, markdown, uuid, input_artifact_filepaths,
+    def __init__(self, code, uuid, input_artifact_filepaths,
                  parameter_references, output_artifact_filepaths):
-        self.markdown = markdown
+        self.code = code
         self._uuid = uuid
         self.input_artifact_filepaths = input_artifact_filepaths
         self.parameter_references = parameter_references

@@ -14,6 +14,7 @@ import os.path
 import textwrap
 
 import frontmatter
+import ipymd
 
 import qiime.sdk
 import qiime.sdk.job
@@ -151,8 +152,8 @@ class Workflow:
                 "included, see https://github.com/biocore/qiime2/issues/26 "
                 % self.id)
 
-    def to_markdown(self, input_artifact_filepaths, parameter_references,
-                    output_artifact_filepaths):
+    def _context_lines(self, input_artifact_filepaths,
+                       parameter_references, output_artifact_filepaths):
         artifacts = self._load_artifacts(input_artifact_filepaths)
         output_artifact_types = self.signature(artifacts, parameter_references)
 
@@ -185,11 +186,7 @@ class Workflow:
                 'Artifact.save(%s, %r, provenance, %r)' % (name, output_type,
                                                            output_filepath))
 
-        markdown = self._format_markdown(
-            provenance_lines, setup_lines, teardown_lines)
-        return qiime.sdk.job.Job(markdown, job_uuid, input_artifact_filepaths,
-                                 parameter_references,
-                                 output_artifact_filepaths)
+        return provenance_lines, setup_lines, teardown_lines, job_uuid
 
     def _load_artifacts(self, artifact_filepaths):
         artifacts = {}
@@ -241,17 +238,42 @@ class Workflow:
         return "\n\n".join(
             [provenance_str, setup_str, self.template, teardown_str])
 
+    def _format_script(self, provenance_lines, setup_lines, teardown_lines):
+        provenance_str = "\n".join(provenance_lines)
+        setup_str = "\n".join(setup_lines)
+        teardown_str = "\n".join(teardown_lines)
+        py_template = ipymd.convert(self.template, from_="markdown",
+                                    to='python')
+        return "\n\n".join(
+            [provenance_str, setup_str, py_template, teardown_str])
+
     def _format_markdown_code_cell(self, code_lines):
         code_str = '\n'.join(['>>> %s' % line for line in code_lines])
         return _markdown_code_cell_template.format(content=code_str)
 
-    # TODO implement to return Python script that can be executed
-    def to_script(self):
-        pass
+    def to_markdown(self, input_artifact_filepaths, parameter_references,
+                    output_artifact_filepaths):
+        provenance_lines, setup_lines, teardown_lines, job_uuid = \
+            self._context_lines(input_artifact_filepaths,
+                                parameter_references,
+                                output_artifact_filepaths)
+        markdown = self._format_markdown(provenance_lines, setup_lines,
+                                         teardown_lines)
+        return qiime.sdk.job.Job(markdown, job_uuid, input_artifact_filepaths,
+                                 parameter_references,
+                                 output_artifact_filepaths)
 
-    # TODO implement to return Python function that can be executed
-    def to_function(self):
-        pass
+    def to_script(self, input_artifact_filepaths, parameter_references,
+                  output_artifact_filepaths):
+        provenance_lines, setup_lines, teardown_lines, job_uuid = \
+            self._context_lines(input_artifact_filepaths,
+                                parameter_references,
+                                output_artifact_filepaths)
+        script = self._format_script(provenance_lines, setup_lines,
+                                     teardown_lines)
+        return qiime.sdk.job.Job(script, job_uuid, input_artifact_filepaths,
+                                 parameter_references,
+                                 output_artifact_filepaths)
 
 
 _markdown_template = """{doc}
