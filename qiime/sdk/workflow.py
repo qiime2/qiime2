@@ -27,11 +27,16 @@ import qiime.plugin
 class Signature:
     def __init__(self, name, inputs, outputs):
         """
-           Parameters
-           ----------
-           name : str, name for this workflow
-           inputs : dict, names mapped to Types
-           outputs : list of tuples, names mapped to artifact Types
+
+        Parameters
+        ----------
+        name : str
+            Human-readable name for this workflow.
+        inputs : dict
+            Parameter name to semantic type.
+        outputs : collections.OrderedDict
+            Named output to semantic type.
+
         """
         self.name = name
         self.input_artifacts = {}
@@ -48,6 +53,14 @@ class Signature:
     def __call__(self, artifacts, parameters):
         # TODO implement me!
         return self.output_artifacts
+
+    def __eq__(self, other):
+        return (
+            self.name == other.name and
+            self.input_artifacts == other.input_artifacts and
+            self.input_parameters == other.input_parameters and
+            self.output_artifacts == other.output_artifacts
+        )
 
 
 class Workflow:
@@ -111,13 +124,32 @@ class Workflow:
         type_ = eval(type_exp, {'__builtins__': {}}, locals_)
         return type_
 
+    # TODO can we drop the names from `outputs`?
     @classmethod
     def from_function(cls, function, inputs, outputs, name, doc):
+        """
+
+        Parameters
+        ----------
+        function : Python function
+            Function to wrap as a workflow.
+        inputs : dict
+            Parameter name to semantic type.
+        outputs : collections.OrderedDict
+            Named output to semantic type.
+        name : str
+            Human-readable name for this workflow.
+        doc : str
+            Description of the function.
+
+        """
         # TODO: the import paths will not necessarily be a public
         # import, but might be a full (private) import. fix that.
         import_path = inspect.getmodule(function).__name__
         function_name = function.__name__
-        parameters = ', '.join(['%s=%s' % (k, k) for k in inputs])
+        # TODO sorting by parameter name for reproducible output necessary for
+        # testing. Should devs be able to define an ordering to parameters?
+        parameters = ', '.join(['%s=%s' % (k, k) for k in sorted(inputs)])
         results = ', '.join(outputs.keys())
         template = _markdown_template.format(
             doc=doc, import_path=import_path, function_name=function_name,
@@ -135,6 +167,13 @@ class Workflow:
         self.signature = signature
         self.template = template
         self.id = id_
+
+    def __eq__(self, other):
+        return (
+            self.signature == other.signature and
+            self.template == other.template and
+            self.id == other.id
+        )
 
     @property
     def name(self):
@@ -253,6 +292,23 @@ class Workflow:
 
     def to_markdown(self, input_artifact_filepaths, parameter_references,
                     output_artifact_filepaths):
+        """
+
+        Parameters
+        ----------
+        input_artifact_filepaths : dict
+            Input artifact names to artifact filepaths.
+        parameter_references : dict
+            Parameter names to values.
+        output_artifact_filepaths : dict
+            Output artifact names to artifact filepaths.
+
+        Returns
+        -------
+        qiime.sdk.job.Job
+            Job with executable ipymd markdown as `code`.
+
+        """
         provenance_lines, setup_lines, teardown_lines, job_uuid = \
             self._context_lines(input_artifact_filepaths,
                                 parameter_references,
@@ -265,6 +321,23 @@ class Workflow:
 
     def to_script(self, input_artifact_filepaths, parameter_references,
                   output_artifact_filepaths):
+        """
+
+        Parameters
+        ----------
+        input_artifact_filepaths : dict
+            Input artifact names to artifact filepaths.
+        parameter_references : dict
+            Parameter names to values.
+        output_artifact_filepaths : dict
+            Output artifact names to artifact filepaths.
+
+        Returns
+        -------
+        qiime.sdk.job.Job
+            Job with executable Python script as `code`.
+
+        """
         provenance_lines, setup_lines, teardown_lines, job_uuid = \
             self._context_lines(input_artifact_filepaths,
                                 parameter_references,
@@ -281,7 +354,8 @@ _markdown_template = """{doc}
 ```python
 >>> from {import_path} import {function_name}
 >>> {results} = {function_name}({parameters})
-```"""
+```
+"""
 
 _markdown_code_cell_template = """```python
 {content}
