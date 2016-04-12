@@ -10,5 +10,7 @@ from .artifact import Artifact
 from .plugin_manager import PluginManager
 from .provenance import Provenance
 from .workflow import Workflow, Signature
+from .execution import SubprocessExecutor
 
-__all__ = ['Artifact', 'PluginManager', 'Provenance', 'Workflow', 'Signature']
+__all__ = ['Artifact', 'PluginManager', 'Provenance', 'Workflow', 'Signature',
+           'SubprocessExecutor']

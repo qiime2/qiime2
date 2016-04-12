@@ -17,6 +17,7 @@ import time
 import datetime
 
 import qiime.plugin
+import qiime.sdk
 
 
 class Artifact:
@@ -28,8 +29,24 @@ class Artifact:
     def _get_root_dir(cls, tarfilepath):
         return os.path.splitext(os.path.basename(tarfilepath))[0]
 
+    # TODO rename `data` to a more distinguishable name (e.g., `model`)
     @classmethod
     def save(cls, data, type_, provenance, tarfilepath):
+        """
+
+        Parameters
+        ----------
+        data : Python object
+            Model to serialize.
+        type_ : qiime.plugin.Type
+            Semantic type of the model.
+        provenance : qiime.sdk.Provenance
+            Artifact provenance.
+        tarfilepath : str
+            Filepath to save artifact to. An existing filepath will be
+            overwritten.
+
+        """
         root_dir = cls._get_root_dir(tarfilepath)
 
         with tarfile.open(tarfilepath, mode='w') as tar:
@@ -185,8 +202,16 @@ class Artifact:
         return uuid.UUID(hex=string)
 
     # TODO implement provenance parsing
-    def _parse_provenance(self, string):
-        return string
+    def _parse_provenance(self, provenance):
+        if isinstance(provenance, str):
+            return None
+        else:
+            return qiime.sdk.Provenance(
+                job_uuid=provenance['job-UUID'],
+                artifact_uuids=provenance['artifact-uuids'],
+                parameters=provenance['parameters'],
+                workflow_reference=provenance['workflow-reference']
+            )
 
 
 class ArtifactDataReader:

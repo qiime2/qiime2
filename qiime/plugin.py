@@ -37,6 +37,15 @@ class Plugin:
                                              doc)
         self.workflows[w.id] = w
 
+    def __eq__(self, other):
+        return (
+            self.package == other.package and
+            self.name == other.name and
+            self.version == other.version and
+            self.website == other.website and
+            self.workflows == other.workflows
+        )
+
 
 class Type(BaseType, fields=('Artifact', 'Metadata')):
     class Artifact:

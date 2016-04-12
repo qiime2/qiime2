@@ -20,3 +20,9 @@ class Provenance:
         self.artifact_uuids = artifact_uuids
         self.parameters = parameters
         self.workflow_reference = workflow_reference
+
+    def __eq__(self, other):
+        return (self.job_uuid == other.job_uuid) and \
+               (self.artifact_uuids == other.artifact_uuids) and\
+               (self.parameters == other.parameters) and\
+               (self.workflow_reference == other.workflow_reference)
