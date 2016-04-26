@@ -118,11 +118,17 @@ class Artifact:
         }
 
     def __init__(self, tarfilepath):
-        data, type_, provenance, uuid_ = self._load(tarfilepath)
+        tar, data, type_, provenance, uuid_ = self._load(tarfilepath)
+        self._tar = tar
         self._data = data
         self._type = type_
         self._provenance = provenance
         self._uuid = uuid_
+
+    # TODO figure out proper cleanup of self._tar
+    # def __del__(self):
+    #    print("DESTRUCTOR CALLED")
+    #    self._tar.close()
 
     @property
     def data(self):
@@ -146,14 +152,15 @@ class Artifact:
                 "%r is not a readable tar archive file" % tarfilepath)
 
         root_dir = self._get_root_dir(tarfilepath)
-        with tarfile.open(tarfilepath, mode='r') as tar:
-            metadata_reader = ArtifactDataReader(tar, root_dir)
-            type_, uuid_, provenance = self._load_metadata(metadata_reader)
+        tar = tarfile.open(tarfilepath, mode='r')
 
-            data_reader = ArtifactDataReader(
-                tar, os.path.join(root_dir, self._data_dir))
-            data = type_().load(data_reader)
-            return data, type_, provenance, uuid_
+        metadata_reader = ArtifactDataReader(tar, root_dir)
+        type_, uuid_, provenance = self._load_metadata(metadata_reader)
+
+        data_reader = ArtifactDataReader(
+            tar, os.path.join(root_dir, self._data_dir))
+        data = type_().load(data_reader)
+        return tar, data, type_, provenance, uuid_
 
     def _load_metadata(self, data_reader):
         with data_reader.get_file(self._metadata_path) as fh:
