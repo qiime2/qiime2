@@ -1,6 +1,6 @@
 # QIIME 2
 
-[![Build Status](https://travis-ci.org/biocore/qiime2.svg?branch=master)](https://travis-ci.org/biocore/qiime2)
+[![Build Status](https://travis-ci.org/qiime2/qiime2.svg?branch=master)](https://travis-ci.org/qiime2/qiime2)
 
 This repository houses the QIIME 2 project, which is currently in early alpha stage. QIIME 2 will be changing rapidly over the next few months, so we don't recommend depending on this for important analysis. In the meantime, you should continue to use [QIIME 1](http://www.qiime.org) and [Qiita](http://qiita.microbio.me).
 
