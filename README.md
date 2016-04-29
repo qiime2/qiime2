@@ -6,4 +6,6 @@ This repository houses the QIIME 2 project, which is currently in early alpha st
 
 For updates on QIIME 2, you should [follow @qiime_ on twitter](https://twitter.com/qiime_).
 
-To learn about where we're going with QIIME 2, see @gregcaporaso's blog post, [Toward QIIME 2](http://blog.qiime.org/toward-qiime-2), and  video, [q2d2: A public QIIME 2 prototype](https://www.youtube.com/watch?v=kllTtKWr5HQ).
+To learn about where we're going with QIIME 2, see @gregcaporaso's blog post, [*QIIME 2 will revolutionize microbiome bioinformatics*](http://americangut.org/qiime-2-will-revolutionize-microbiome-bioinformatics/), and  video, [q2d2: A public QIIME 2 prototype](https://www.youtube.com/watch?v=kllTtKWr5HQ). 
+
+To try QIIME 2 out, you can use the [Installing and using QIIME 2 demo](https://github.com/qiime2/qiime2/wiki/Installing-and-using-QIIME-2).
