@@ -31,7 +31,8 @@ class DummyType(Type, variant_of=Type.Artifact):
             fh.write('%d\n' % num)
 
 
-def dummy_function(input1, input2, param1, param2):
+def dummy_function(input1: list, input2: list,
+                   param1: int, param2: int) -> list:
     return input1 + input2 + [param1] + [param2]
 
 

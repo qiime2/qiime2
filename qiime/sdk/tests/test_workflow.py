@@ -107,7 +107,8 @@ class TestWorkflow(unittest.TestCase):
         self.assertEqual(workflow, expected)
 
     def test_from_function(self):
-        def dummy_function(input1, input2, param1, param2):
+        def dummy_function(input1: list, input2: list,
+                           param1: int, param2: int) -> list:
             return input1 + input2 + [param1] + [param2]
 
         workflow = Workflow.from_function(
@@ -237,12 +238,22 @@ type-imports:
     - qiime.sdk.tests.test_workflow:DummyType
     - qiime.plugin:Int
 inputs:
-    input1: DummyType
-    input2: DummyType
-    param1: Int
-    param2: Int
+    input1:
+        - DummyType
+        - DummyView
+    input2:
+        - DummyType
+        - DummyView
+    param1:
+        - Int
+        - int
+    param2:
+        - Int
+        - int
 outputs:
-    - concatenated_inputs: DummyType
+    - concatenated_inputs:
+        - DummyType
+        - DummyView
 ---
 ## Concatenate some things together
 

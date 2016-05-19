@@ -19,11 +19,11 @@ from qiime.plugin import Plugin, Int
 from qiime.sdk import Workflow, Signature
 
 
-def dummy_function():
+def dummy_function() -> int:
     return 42
 
 
-def other_dummy_function():
+def other_dummy_function() -> int:
     return 42
 
 
@@ -161,10 +161,16 @@ name: Dummy markdown workflow
 type-imports:
     - qiime.plugin:Int
 inputs:
-    param1: Int
-    param2: Int
+    param1:
+        - Int
+        - int
+    param2:
+        - Int
+        - int
 outputs:
-    - the_sum: Int
+    - the_sum:
+        - Int
+        - int
 ---
 ## Sum some integers and return their summation
 

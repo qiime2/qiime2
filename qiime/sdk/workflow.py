@@ -37,6 +37,7 @@ class Signature:
         outputs : collections.OrderedDict
             Named output to semantic type.
 
+
         """
         self.name = name
         self.input_artifacts = {}
@@ -77,15 +78,22 @@ class Workflow:
             metadata, template = frontmatter.parse(fh.read())
 
         type_imports = metadata['type-imports']
+
         input_types = {}
+        input_views = {}
         for name, type_expr in metadata['inputs'].items():
-            input_types[name] = cls._parse_type(type_imports, type_expr)
+            semantic_type, view_type = cls._parse_type(type_imports, type_expr)
+            input_types[name] = semantic_type
+            input_views[name] = view_type
 
         output_types = collections.OrderedDict()
+        output_views = collections.OrderedDict()
         for output in metadata['outputs']:
             # TODO validate each nested dict has exactly one item
             name, type_expr = list(output.items())[0]
-            output_types[name] = cls._parse_type(type_imports, type_expr)
+            semantic_type, view_type = cls._parse_type(type_imports, type_expr)
+            output_types[name] = semantic_type
+            output_views[name] = view_type
 
         name = metadata['name']
         signature = Signature(name, input_types, output_types)
@@ -94,14 +102,19 @@ class Workflow:
     # TODO this is mostly duplicated from Artifact._parse_type. Refactor!
     @classmethod
     def _parse_type(cls, imports, type_exp):
-        type_exp = type_exp.split('\n')
-        if len(type_exp) != 1:
+        # Split the type expression into its components: the semantic_type_exp
+        # and the view_type. Note that this differs from the type definitions
+        # in Artifact._parse_type, as those won't have view types.
+        semantic_type_exp, view_type = type_exp
+
+        semantic_type_exp = semantic_type_exp.split('\n')
+        if len(semantic_type_exp) != 1:
             raise TypeError("Multiple lines in type expression of"
                             " artifact. Will not load to avoid arbitrary"
                             " code execution.")
-        type_exp, = type_exp
+        semantic_type_exp, = semantic_type_exp
 
-        if ';' in type_exp:
+        if ';' in semantic_type_exp:
             raise TypeError("Invalid type expression in artifact. Will not"
                             " load to avoid arbitrary code execution.")
 
@@ -115,14 +128,15 @@ class Workflow:
                                   " installed." % path)
             class_ = getattr(module, class_)
             if not issubclass(class_, qiime.core.type.BaseType):
-                raise TypeError("Non-Type artifact. Will not load to avoid"
-                                " arbitrary code execution.")
+                raise TypeError("Non-Type artifact (%r). Will not load to"
+                                " avoid arbitrary code execution."
+                                % class_.__name__)
             if class_.__name__ in locals_:
                 raise TypeError("Duplicate type name (%r) in expression."
                                 % class_.__name__)
             locals_[class_.__name__] = class_
-        type_ = eval(type_exp, {'__builtins__': {}}, locals_)
-        return type_
+        type_ = eval(semantic_type_exp, {'__builtins__': {}}, locals_)
+        return type_, view_type
 
     # TODO can we drop the names from `outputs`?
     @classmethod
@@ -155,6 +169,16 @@ class Workflow:
             doc=doc, import_path=import_path, function_name=function_name,
             parameters=parameters, results=results)
         signature = Signature(name, inputs, outputs)
+
+        # just to show that we've got the views
+        input_views = {input: function.__annotations__[input]
+                       for input in inputs}
+        output_view_types = qiime.core.type.util.tuplize(
+                           function.__annotations__['return'])
+        output_views = dict(zip(outputs, output_view_types))
+        # and to keep flake8 happy
+        input_views, output_views
+
         return cls(signature, template, function.__name__)
 
     def __init__(self, signature, template, id_):
