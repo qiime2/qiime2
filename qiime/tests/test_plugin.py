@@ -15,7 +15,7 @@ import unittest.mock
 
 import frontmatter
 
-from qiime.plugin import Plugin, Int
+from qiime.plugin import Plugin, Int, ArchiveFormat
 from qiime.sdk import Workflow, Signature
 
 
@@ -53,6 +53,18 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(self.plugin.website, 'www.dummy-plugin-hub.com')
         self.assertEqual(self.plugin.package, 'dummy_plugin')
         self.assertEqual(self.plugin.workflows, {})
+        self.assertEqual(self.plugin.archive_formats, {})
+
+    def test_register_archive_format(self):
+        self.assertEqual(self.plugin.archive_formats, {})
+
+        def is_valid(data_reader):
+            return True
+        self.plugin.register_archive_format('my-format', '1.0.0', is_valid)
+        exp_format = ArchiveFormat('my-format', '1.0.0', is_valid)
+        self.assertEqual(self.plugin.archive_formats,
+                         {('my-format', '1.0.0'): exp_format})
+        # TODO: test execution of archive format reader and writer
 
     def test_register_function(self):
         self.assertEqual(self.plugin.workflows, {})
