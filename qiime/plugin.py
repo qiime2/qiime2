@@ -13,7 +13,52 @@ import qiime.sdk
 from qiime.core.type.type import BaseType
 from qiime.core.type.primitive import Int, Str, Float
 
-__all__ = ['Plugin', 'Type', 'Int', 'Str', 'Float']
+__all__ = ['load', 'get_archive_format', 'Plugin', 'Type', 'Int', 'Str',
+           'Float']
+
+
+def load(plugin_name, plugin_entry_point_name=None):
+    # TODO centralize 'qiime.plugin', it is used here and in PluginManager
+    plugin_group = 'qiime.plugin'
+
+    if plugin_entry_point_name is None:
+        plugin_entry_point_name = plugin_name
+
+    try:
+        plugin = pkg_resources.load_entry_point(
+            plugin_name, plugin_group, plugin_entry_point_name)
+    except ImportError:
+        try:
+            plugin_entry_map = pkg_resources.get_entry_map(plugin_name)
+        except pkg_resources.DistributionNotFoundError:
+            raise ImportError("Plugin %r is not installed." % plugin_name)
+
+        if plugin_group not in plugin_entry_map:
+            raise ImportError(
+                "Plugin %r is not a valid QIIME plugin. A valid QIIME plugin "
+                "must define its entry points under the %r entry point group."
+                % (plugin_name, plugin_group))
+        else:
+            plugin_entry_point_names = set(plugin_entry_map[plugin_group])
+            raise ImportError(
+                "Could not find entry point name %r in plugin %r. Available "
+                "entry point names: %r" % (plugin_entry_point_name,
+                                           plugin_entry_point_names))
+    else:
+        if not isinstance(plugin, Plugin):
+            raise ImportError(
+                "Plugin %r is not a valid QIIME plugin. Expected type %r, "
+                "not %r" % (Plugin.__name__, type(plugin).__name__))
+        return plugin
+
+
+def get_archive_format(name, version):
+    pm = qiime.sdk.PluginManager()
+    id_ = (name, version)
+    if id_ in pm.archive_formats:
+        return pm.archive_formats[id_][1]
+    else:
+        raise ImportError("Archive format does not exist: %r, %r" % id_)
 
 
 class Plugin:
