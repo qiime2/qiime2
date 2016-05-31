@@ -100,11 +100,7 @@ class Plugin:
 
 class Type(BaseType, fields=('Artifact', 'Metadata')):
     class Artifact:
-        def save(self, data, data_writer):
-            pass
-
-        def load(self, data_reader):
-            pass
+        pass
 
     class Metadata:
         def get_columns(self, data):

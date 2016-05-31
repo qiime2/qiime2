@@ -27,6 +27,7 @@ def other_dummy_function() -> int:
     return 42
 
 
+# TODO updates these tests to use/test `qiime.core.testing.plugin`?
 class TestPlugin(unittest.TestCase):
     def setUp(self):
         # TODO standardize temporary directories created by QIIME
@@ -58,7 +59,7 @@ class TestPlugin(unittest.TestCase):
     def test_register_archive_format(self):
         self.assertEqual(self.plugin.archive_formats, {})
 
-        def is_valid(data_reader):
+        def is_valid(data_dir):
             return True
         self.plugin.register_archive_format('my-format', '1.0.0', is_valid)
         exp_format = ArchiveFormat('my-format', '1.0.0', is_valid)
@@ -91,7 +92,8 @@ class TestPlugin(unittest.TestCase):
                     signature=Signature(
                         name='Dummy function',
                         inputs={},
-                        outputs=collections.OrderedDict([('answer', Int)])),
+                        outputs=collections.OrderedDict([('answer',
+                                                         (Int, int))])),
                     template=expected_dummy_function_template,
                     id_='dummy_function'
                 ),
@@ -100,7 +102,8 @@ class TestPlugin(unittest.TestCase):
                     signature=Signature(
                         name='Dummy function',
                         inputs={},
-                        outputs=collections.OrderedDict([('answer', Int)])),
+                        outputs=collections.OrderedDict([('answer',
+                                                         (Int, int))])),
                     template=expected_other_dummy_function_template,
                     id_='other_dummy_function'
                 )
@@ -120,8 +123,9 @@ class TestPlugin(unittest.TestCase):
                 Workflow(
                     signature=Signature(
                         name='Dummy markdown workflow',
-                        inputs={'param1': Int, 'param2': Int},
-                        outputs=collections.OrderedDict([('the_sum', Int)])),
+                        inputs={'param1': (Int, int), 'param2': (Int, int)},
+                        outputs=collections.OrderedDict([('the_sum',
+                                                         (Int, int))])),
                     template=frontmatter.parse(markdown_template)[1],
                     id_='dummy_markdown_workflow'
                 )
@@ -150,7 +154,8 @@ class TestPlugin(unittest.TestCase):
                     signature=Signature(
                         name='Dummy function',
                         inputs={},
-                        outputs=collections.OrderedDict([('answer', Int)])),
+                        outputs=collections.OrderedDict([('answer',
+                                                         (Int, int))])),
                     template=expected_dummy_function_template,
                     id_='dummy_function'
                 ),
@@ -158,8 +163,9 @@ class TestPlugin(unittest.TestCase):
                 Workflow(
                     signature=Signature(
                         name='Dummy markdown workflow',
-                        inputs={'param1': Int, 'param2': Int},
-                        outputs=collections.OrderedDict([('the_sum', Int)])),
+                        inputs={'param1': (Int, int), 'param2': (Int, int)},
+                        outputs=collections.OrderedDict([('the_sum',
+                                                         (Int, int))])),
                     template=frontmatter.parse(markdown_template)[1],
                     id_='dummy_markdown_workflow'
                 )

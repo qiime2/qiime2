@@ -14,22 +14,9 @@ import uuid
 
 import frontmatter
 
-from qiime.plugin import Type, Int
+import qiime.plugin
+import qiime.core.testing
 from qiime.sdk import Artifact, Signature, Workflow
-
-
-class DummyType(Type, variant_of=Type.Artifact):
-    def load(self, data_reader):
-        fh = data_reader.get_file('data.txt')
-        model = []
-        for line in fh:
-            model.append(int(line.rstrip()))
-        return model
-
-    def save(self, data, data_writer):
-        fh = data_writer.create_file('data.txt')
-        for num in data:
-            fh.write('%d\n' % num)
 
 
 class TestWorkflow(unittest.TestCase):
@@ -51,13 +38,13 @@ class TestWorkflow(unittest.TestCase):
         signature = Signature(
             name='Dummy markdown workflow',
             inputs={
-                'input1': DummyType,
-                'input2': DummyType,
-                'param1': Int,
-                'param2': Int,
+                'input1': (qiime.core.testing.TestType, list),
+                'input2': (qiime.core.testing.TestType, list),
+                'param1': (qiime.plugin.Int, int),
+                'param2': (qiime.plugin.Int, int),
             },
             outputs=collections.OrderedDict([
-                ('concatenated_inputs', DummyType)
+                ('concatenated_inputs', (qiime.core.testing.TestType, list))
             ])
         )
 
@@ -91,13 +78,14 @@ class TestWorkflow(unittest.TestCase):
             signature=Signature(
                 name='Dummy markdown workflow',
                 inputs={
-                    'input1': DummyType,
-                    'input2': DummyType,
-                    'param1': Int,
-                    'param2': Int,
+                    'input1': (qiime.core.testing.TestType, list),
+                    'input2': (qiime.core.testing.TestType, list),
+                    'param1': (qiime.plugin.Int, int),
+                    'param2': (qiime.plugin.Int, int),
                 },
                 outputs=collections.OrderedDict([
-                    ('concatenated_inputs', DummyType)
+                    ('concatenated_inputs',
+                     (qiime.core.testing.TestType, list))
                 ])
             ),
             template=frontmatter.parse(markdown_template)[1],
@@ -114,13 +102,13 @@ class TestWorkflow(unittest.TestCase):
         workflow = Workflow.from_function(
             dummy_function,
             inputs={
-                'input1': DummyType,
-                'input2': DummyType,
-                'param1': Int,
-                'param2': Int
+                'input1': qiime.core.testing.TestType,
+                'input2': qiime.core.testing.TestType,
+                'param1': qiime.plugin.Int,
+                'param2': qiime.plugin.Int
             },
             outputs=collections.OrderedDict([
-                ('concatenated_inputs', DummyType)
+                ('concatenated_inputs', qiime.core.testing.TestType)
             ]),
             name='Concatenate things',
             doc="Let's concatenate some things!"
@@ -130,13 +118,14 @@ class TestWorkflow(unittest.TestCase):
             signature=Signature(
                 name='Concatenate things',
                 inputs={
-                    'input1': DummyType,
-                    'input2': DummyType,
-                    'param1': Int,
-                    'param2': Int,
+                    'input1': (qiime.core.testing.TestType, list),
+                    'input2': (qiime.core.testing.TestType, list),
+                    'param1': (qiime.plugin.Int, int),
+                    'param2': (qiime.plugin.Int, int),
                 },
                 outputs=collections.OrderedDict([
-                    ('concatenated_inputs', DummyType)
+                    ('concatenated_inputs',
+                     (qiime.core.testing.TestType, list))
                 ])
             ),
             template=expected_template,
@@ -171,12 +160,17 @@ class TestWorkflow(unittest.TestCase):
         # that can test either one instead of duplicating a bunch of code.
         workflow = Workflow.from_markdown(self.markdown_fp)
 
-        artifact_fp1 = os.path.join(self.test_dir.name, 'artifact1.qtf')
-        artifact_fp2 = os.path.join(self.test_dir.name, 'artifact2.qtf')
-        Artifact.save([-1, 42, 0, 43, 43], DummyType, None, artifact_fp1)
-        Artifact.save([1, 2, 100], DummyType, None, artifact_fp2)
+        artifact_fp1 = os.path.join(self.test_dir.name, 'artifact1.qzf')
+        artifact = Artifact._from_view(
+            [-1, 42, 0, 43, 43], qiime.core.testing.TestType, None)
+        artifact.save(artifact_fp1)
 
-        artifact_fp3 = os.path.join(self.test_dir.name, 'artifact3.qtf')
+        artifact_fp2 = os.path.join(self.test_dir.name, 'artifact2.qzf')
+        artifact = Artifact._from_view(
+            [1, 2, 100], qiime.core.testing.TestType, None)
+        artifact.save(artifact_fp2)
+
+        artifact_fp3 = os.path.join(self.test_dir.name, 'artifact3.qzf')
 
         job = to_method(
             workflow,
@@ -200,15 +194,16 @@ class TestWorkflow(unittest.TestCase):
         ]
 
         setup_lines = [
-            "input1 = Artifact(%r).data" % artifact_fp1,
-            "input2 = Artifact(%r).data" % artifact_fp2,
+            "input1 = Artifact.load(%r).view(list)" % artifact_fp1,
+            "input2 = Artifact.load(%r).view(list)" % artifact_fp2,
             "param1 = 99",
             "param2 = -999"
         ]
 
         teardown_lines = [
-            "Artifact.save(concatenated_inputs, DummyType, provenance, "
-            "%r)" % artifact_fp3
+            "artifact = Artifact._from_view(concatenated_inputs, TestType, "
+            "provenance)",
+            "artifact.save(%r)" % artifact_fp3
         ]
 
         for expected_lines in (provenance_lines, setup_lines, template_lines,
@@ -235,15 +230,15 @@ class TestWorkflow(unittest.TestCase):
 markdown_template = """---
 name: Dummy markdown workflow
 type-imports:
-    - qiime.sdk.tests.test_workflow:DummyType
+    - qiime.core.testing:TestType
     - qiime.plugin:Int
 inputs:
     input1:
-        - DummyType
-        - DummyView
+        - TestType
+        - list
     input2:
-        - DummyType
-        - DummyView
+        - TestType
+        - list
     param1:
         - Int
         - int
@@ -252,8 +247,8 @@ inputs:
         - int
 outputs:
     - concatenated_inputs:
-        - DummyType
-        - DummyView
+        - TestType
+        - list
 ---
 ## Concatenate some things together
 

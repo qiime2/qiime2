@@ -8,7 +8,9 @@
 
 import pkg_resources
 import unittest
+import unittest.mock
 
+import qiime.core.testing
 from qiime.plugin import Plugin
 from qiime.sdk import PluginManager
 
@@ -44,7 +46,15 @@ class TestPluginManager(unittest.TestCase):
 
         self.assertEqual(
             plugin_manager.plugins,
-            {'dummy-plugin': plugin1, 'other-dummy-plugin': plugin2})
+            {'dummy-plugin': plugin1, 'other-dummy-plugin': plugin2,
+             'test-plugin': qiime.core.testing.plugin})
+
+        expected_archive_format = qiime.plugin.ArchiveFormat(
+            'test-archive-format', 1, lambda e: e)
+        self.assertEqual(
+            plugin_manager.archive_formats,
+            {('test-archive-format', 1):
+             ('test-plugin', expected_archive_format)})
 
 
 if __name__ == '__main__':

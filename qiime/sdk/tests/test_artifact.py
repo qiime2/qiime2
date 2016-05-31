@@ -7,27 +7,12 @@
 # ----------------------------------------------------------------------------
 
 import os
-import tarfile
+import zipfile
 import tempfile
 import unittest
-import uuid
 
-from qiime.plugin import Type
+import qiime.core.testing
 from qiime.sdk import Artifact, Provenance
-
-
-class DummyType(Type, variant_of=Type.Artifact):
-    def load(self, data_reader):
-        fh = data_reader.get_file('data.txt')
-        model = []
-        for line in fh:
-            model.append(int(line.rstrip()))
-        return model
-
-    def save(self, data, data_writer):
-        fh = data_writer.create_file('data.txt')
-        for num in data:
-            fh.write('%d\n' % num)
 
 
 class TestArtifact(unittest.TestCase):
@@ -51,46 +36,55 @@ class TestArtifact(unittest.TestCase):
             )
         )
 
+        self.artifact_with_provenance = Artifact._from_view(
+            [-1, 42, 0, 43, 43], qiime.core.testing.TestType,
+            self.dummy_provenance)
+
+        self.artifact_without_provenance = Artifact._from_view(
+            [-1, 42, 0, 43, 43], qiime.core.testing.TestType, None)
+
     def tearDown(self):
         self.test_dir.cleanup()
 
     def test_save(self):
-        fp = os.path.join(self.test_dir.name, 'artifact.qtf')
-        Artifact.save([-1, 42, 0, 43, 43], DummyType, self.dummy_provenance,
-                      fp)
+        fp = os.path.join(self.test_dir.name, 'artifact.qzf')
 
-        with tarfile.open(fp, mode='r') as tar:
-            fps = set(tar.getnames())
-            expected = {'artifact', 'artifact/metadata.yaml',
-                        'artifact/README.md', 'artifact/data',
-                        'artifact/data/data.txt'}
+        self.artifact_with_provenance.save(fp)
+
+        with zipfile.ZipFile(fp, mode='r') as zf:
+            fps = set(zf.namelist())
+            expected = {'artifact/VERSION', 'artifact/metadata.yaml',
+                        'artifact/README.md', 'artifact/data/data.txt'}
             self.assertEqual(fps, expected)
 
-    def test_constructor(self):
-        fp = os.path.join(self.test_dir.name, 'artifact.qtf')
-        Artifact.save([-1, 42, 0, 43, 43], DummyType, self.dummy_provenance,
-                      fp)
+    def test_load_with_provenance(self):
+        fp = os.path.join(self.test_dir.name, 'artifact.qzf')
+        self.artifact_with_provenance.save(fp)
 
-        artifact = Artifact(fp)
+        artifact = Artifact.load(fp)
 
-        self.assertEqual(artifact.data, [-1, 42, 0, 43, 43])
-        self.assertEqual(artifact.type, DummyType)
+        self.assertEqual(artifact.type, qiime.core.testing.TestType)
         self.assertEqual(artifact.provenance, self.dummy_provenance)
-        self.assertIsInstance(artifact.uuid, uuid.UUID)
-        self.assertEqual(artifact.uuid.version, 4)
+        self.assertEqual(artifact.uuid, self.artifact_with_provenance.uuid)
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43, 43])
 
-    def test_constructor_no_provenance(self):
-        fp = os.path.join(self.test_dir.name, 'artifact.qtf')
-        Artifact.save([-1, 42, 0, 43, 43], DummyType, None, fp)
+    def test_load_without_provenance(self):
+        fp = os.path.join(self.test_dir.name, 'artifact.qzf')
+        self.artifact_without_provenance.save(fp)
 
-        artifact = Artifact(fp)
+        artifact = Artifact.load(fp)
 
-        self.assertEqual(artifact.data, [-1, 42, 0, 43, 43])
-        self.assertEqual(artifact.type, DummyType)
+        self.assertEqual(artifact.type, qiime.core.testing.TestType)
         self.assertEqual(artifact.provenance, None)
-        self.assertIsInstance(artifact.uuid, uuid.UUID)
-        self.assertEqual(artifact.uuid.version, 4)
+        self.assertEqual(artifact.uuid, self.artifact_without_provenance.uuid)
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43, 43])
 
 
+# TODO executing these tests via `python qiime/sdk/tests/test_artifact.py`
+# for me (Jai) raises a ton of DeprecationWarnings from third-party packages I
+# have installed in my conda environment (IPython, pandas, matplotlib). I
+# haven't figured out if the code is doing something wrong or if I broke my
+# environment somehow during testing. For now, running as
+# `nosetests qiime/sdk/tests/test_artifact.py` doesn't have this issue.
 if __name__ == '__main__':
     unittest.main()

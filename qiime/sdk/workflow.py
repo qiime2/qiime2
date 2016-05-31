@@ -11,6 +11,7 @@ import collections
 import importlib
 import inspect
 import os.path
+import pydoc
 import textwrap
 
 import frontmatter
@@ -33,22 +34,26 @@ class Signature:
         name : str
             Human-readable name for this workflow.
         inputs : dict
-            Parameter name to semantic type.
+            Parameter name to tuple of semantic type and view type.
         outputs : collections.OrderedDict
-            Named output to semantic type.
-
+            Named output to tuple of semantic type and view type.
 
         """
         self.name = name
         self.input_artifacts = {}
         self.input_parameters = {}
-        for input_name, input_type in inputs.items():
-            if qiime.core.type.BaseType.Primitive.is_member(input_type):
-                self.input_parameters[input_name] = input_type()
-            elif qiime.plugin.Type.Artifact.is_member(input_type):
-                self.input_artifacts[input_name] = input_type()
+        for input_name, (input_semantic_type, input_view_type) in \
+                inputs.items():
+            if qiime.core.type.BaseType.Primitive.is_member(
+                    input_semantic_type):
+                self.input_parameters[input_name] = (input_semantic_type(),
+                                                     input_view_type)
+            elif qiime.plugin.Type.Artifact.is_member(input_semantic_type):
+                self.input_artifacts[input_name] = (input_semantic_type(),
+                                                    input_view_type)
             else:
-                raise TypeError("Unrecognized input type: %r" % input_type)
+                raise TypeError("Unrecognized input semantic type: %r" %
+                                input_semantic_type)
         self.output_artifacts = outputs
 
     def __call__(self, artifacts, parameters):
@@ -80,20 +85,16 @@ class Workflow:
         type_imports = metadata['type-imports']
 
         input_types = {}
-        input_views = {}
         for name, type_expr in metadata['inputs'].items():
             semantic_type, view_type = cls._parse_type(type_imports, type_expr)
-            input_types[name] = semantic_type
-            input_views[name] = view_type
+            input_types[name] = (semantic_type, view_type)
 
         output_types = collections.OrderedDict()
-        output_views = collections.OrderedDict()
         for output in metadata['outputs']:
-            # TODO validate each nested dict has exactly one item
+            # TODO validate each nested dict has exactly two items
             name, type_expr = list(output.items())[0]
             semantic_type, view_type = cls._parse_type(type_imports, type_expr)
-            output_types[name] = semantic_type
-            output_views[name] = view_type
+            output_types[name] = (semantic_type, view_type)
 
         name = metadata['name']
         signature = Signature(name, input_types, output_types)
@@ -106,6 +107,7 @@ class Workflow:
         # and the view_type. Note that this differs from the type definitions
         # in Artifact._parse_type, as those won't have view types.
         semantic_type_exp, view_type = type_exp
+        view_type = cls._parse_view_type(view_type)
 
         semantic_type_exp = semantic_type_exp.split('\n')
         if len(semantic_type_exp) != 1:
@@ -138,6 +140,18 @@ class Workflow:
         type_ = eval(semantic_type_exp, {'__builtins__': {}}, locals_)
         return type_, view_type
 
+    # TODO this isn't safe nor robust, and not how we want to ultimately handle
+    # importing a view type (`_setup_import_lines` has a similar problem).
+    # Refactor to use a similar import mechanism as semantic types when that
+    # part is finalized. Hack taken from:
+    #     http://stackoverflow.com/a/29831586/3776794
+    @classmethod
+    def _parse_view_type(cls, view_type_str):
+        view_type = pydoc.locate(view_type_str)
+        if view_type is None:
+            raise ImportError("Could not import view type %r" % view_type_str)
+        return view_type
+
     # TODO can we drop the names from `outputs`?
     @classmethod
     def from_function(cls, function, inputs, outputs, name, doc):
@@ -168,16 +182,22 @@ class Workflow:
         template = _markdown_template.format(
             doc=doc, import_path=import_path, function_name=function_name,
             parameters=parameters, results=results)
-        signature = Signature(name, inputs, outputs)
 
-        # just to show that we've got the views
-        input_views = {input: function.__annotations__[input]
-                       for input in inputs}
+        input_types = {}
+        for param_name, semantic_type in inputs.items():
+            view_type = function.__annotations__[param_name]
+            input_types[param_name] = (semantic_type, view_type)
+
         output_view_types = qiime.core.type.util.tuplize(
                            function.__annotations__['return'])
-        output_views = dict(zip(outputs, output_view_types))
-        # and to keep flake8 happy
-        input_views, output_views
+        output_view_types = dict(zip(outputs, output_view_types))
+
+        output_types = collections.OrderedDict()
+        for output_name, semantic_type in outputs.items():
+            view_type = output_view_types[output_name]
+            output_types[output_name] = (semantic_type, view_type)
+
+        signature = Signature(name, input_types, output_types)
 
         return cls(signature, template, function.__name__)
 
@@ -223,17 +243,21 @@ class Workflow:
         parameters = {}
         for name, ref in parameter_references.items():
             parameters[name] = \
-                    self.signature.input_parameters[name].from_string(ref)
+                    self.signature.input_parameters[name][0].from_string(ref)
 
         job_uuid = uuid.uuid4()
         provenance_lines = self._provenance_lines(job_uuid, artifacts,
                                                   parameters)
 
-        setup_lines = []
-        setup_lines.append('from qiime.sdk.artifact import Artifact')
+        setup_lines = self._setup_import_lines()
 
         for name, filepath in input_artifact_filepaths.items():
-            setup_lines.append('%s = Artifact(%r).data' % (name, filepath))
+            view_type = self.signature.input_artifacts[name][1]
+            # TODO explicitly clean up Artifact object instead of relying on
+            # gc?
+            setup_lines.append(
+                '%s = Artifact.load(%r).view(%s)' % (name, filepath,
+                                                     view_type.__name__))
 
         for name, value in parameters.items():
             setup_lines.append('%s = %r' % (name, value))
@@ -244,17 +268,41 @@ class Workflow:
 
         # TODO make sure output order is respected
         for name, output_filepath in output_artifact_filepaths.items():
-            output_type = output_artifact_types[name]
+            output_semantic_type, _ = output_artifact_types[name]
             teardown_lines.append(
-                'Artifact.save(%s, %r, provenance, %r)' % (name, output_type,
-                                                           output_filepath))
+                # TODO make sure `artifact` is a reserved local variable name
+                # so we don't shadow a plugin's local vars. Are there other
+                # reserved names the framework uses?
+                'artifact = Artifact._from_view(%s, %r, provenance)' %
+                (name, output_semantic_type))
+            # TODO explicitly clean up Artifact object instead of relying on
+            # gc?
+            teardown_lines.append(
+                'artifact.save(%r)' % output_filepath)
 
         return provenance_lines, setup_lines, teardown_lines, job_uuid
+
+    # TODO this isn't safe nor robust, and not how we want to ultimately handle
+    # importing a view type (`_parse_view_type` has a similar problem).
+    # Refactor to use a similar import mechanism as semantic types when that
+    # part is finalized.
+    def _setup_import_lines(self):
+        lines = []
+
+        for _, input_view_type in self.signature.input_artifacts.values():
+            input_view_type = input_view_type.__name__
+            if '.' in input_view_type:
+                path, _ = input_view_type.rsplit(sep='.', maxsplit=1)
+                lines.append('import %s' % path)
+
+        lines.append('from qiime.sdk.artifact import Artifact')
+
+        return lines
 
     def _load_artifacts(self, artifact_filepaths):
         artifacts = {}
         for name, filepath in artifact_filepaths.items():
-            artifacts[name] = qiime.sdk.Artifact(filepath)
+            artifacts[name] = qiime.sdk.Artifact.load(filepath)
         return artifacts
 
     def _provenance_lines(self, job_uuid, artifacts, parameters):
@@ -290,8 +338,8 @@ class Workflow:
     def _teardown_import_lines(self, output_artifact_types):
         # TODO collapse imports with common prefix
         imports = set()
-        for output_type in output_artifact_types.values():
-            imports = imports.union(output_type().get_imports())
+        for output_semantic_type, _ in output_artifact_types.values():
+            imports = imports.union(output_semantic_type().get_imports())
         return ['from %s import %s' % (path, name) for name, path in imports]
 
     def _format_markdown(self, provenance_lines, setup_lines, teardown_lines):

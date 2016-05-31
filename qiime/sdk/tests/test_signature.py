@@ -9,22 +9,9 @@
 import unittest
 import collections
 
+import qiime.core.testing
 from qiime.sdk.workflow import Signature
-from qiime.plugin import Int, Type
-
-
-class DummyType(Type, variant_of=Type.Artifact):
-    def load(self, data_reader):
-        fh = data_reader.get_file('data.txt')
-        model = []
-        for line in fh:
-            model.append(int(line.rstrip()))
-        return model
-
-    def save(self, data, data_writer):
-        fh = data_writer.create_file('data.txt')
-        for num in data:
-            fh.write('%d\n' % num)
+from qiime.plugin import Int
 
 
 class TestSignature(unittest.TestCase):
@@ -32,36 +19,42 @@ class TestSignature(unittest.TestCase):
     def test_constructor(self):
         signature = Signature(
             'Bogus human-readable name',
-            inputs={'input1': DummyType,
-                    'input2': DummyType,
-                    'param1': Int,
-                    'param2': Int},
-            outputs=collections.OrderedDict([('output1', DummyType),
-                                             ('output2', DummyType)])
-            )
+            inputs={'input1': (qiime.core.testing.TestType, list),
+                    'input2': (qiime.core.testing.TestType, list),
+                    'param1': (Int, int),
+                    'param2': (Int, int)},
+            outputs=collections.OrderedDict([
+                ('output1', (qiime.core.testing.TestType, list)),
+                ('output2', (qiime.core.testing.TestType, list))]))
 
         self.assertEqual(signature.name, 'Bogus human-readable name')
         self.assertEqual(signature.input_artifacts,
-                         {'input1': DummyType, 'input2': DummyType})
+                         {'input1': (qiime.core.testing.TestType, list),
+                          'input2': (qiime.core.testing.TestType, list)})
         self.assertEqual(signature.input_parameters,
-                         {'param1': Int, 'param2': Int})
-        self.assertEqual(signature.output_artifacts,
-                         collections.OrderedDict([('output1', DummyType),
-                                                  ('output2', DummyType)]))
+                         {'param1': (Int, int), 'param2': (Int, int)})
+        self.assertEqual(
+            signature.output_artifacts,
+            collections.OrderedDict([
+                ('output1', (qiime.core.testing.TestType, list)),
+                ('output2', (qiime.core.testing.TestType, list))]))
 
     def test_call(self):
         signature = Signature(
             'Bogus human-readable name',
-            inputs={'input1': DummyType,
-                    'input2': DummyType,
-                    'param1': Int,
-                    'param2': Int},
-            outputs=collections.OrderedDict([('output1', DummyType),
-                                             ('output2', DummyType)])
+            inputs={'input1': (qiime.core.testing.TestType, list),
+                    'input2': (qiime.core.testing.TestType, list),
+                    'param1': (Int, int),
+                    'param2': (Int, int)},
+            outputs=collections.OrderedDict([
+                ('output1', (qiime.core.testing.TestType, list)),
+                ('output2', (qiime.core.testing.TestType, list))])
             )
-        self.assertEqual(signature({}, {}),
-                         collections.OrderedDict([('output1', DummyType),
-                                                  ('output2', DummyType)]))
+        self.assertEqual(
+            signature({}, {}),
+            collections.OrderedDict([
+                ('output1', (qiime.core.testing.TestType, list)),
+                ('output2', (qiime.core.testing.TestType, list))]))
 
 
 if __name__ == "__main__":
