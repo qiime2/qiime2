@@ -12,3 +12,14 @@ def tuplize(x):
     if type(x) is not tuple:
         return (x,)
     return x
+
+
+# TODO: Move this, but for now it provides some reasonable documentation to
+# the type system
+def overrides(cls):
+    def decorator(func):
+        if not hasattr(cls, func.__name__):
+            raise AssertionError("%r does not override %r"
+                                 % (func, cls.__name__))
+        return func
+    return decorator

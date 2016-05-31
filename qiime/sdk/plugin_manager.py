@@ -14,6 +14,7 @@ class PluginManager:
     def __init__(self):
         self.plugins = {}
         self.archive_formats = {}
+        self.semantic_types = {}
 
         for entry_point in pkg_resources.iter_entry_points(
                 group='qiime.plugin'):
@@ -29,7 +30,7 @@ class PluginManager:
 
         for id_, archive_format in plugin.archive_formats.items():
             if id_ in self.archive_formats:
-                conflicting_plugin = self.archive_formats[id_][0]
+                conflicting_plugin, _ = self.archive_formats[id_]
                 raise ValueError(
                     "Duplicate archive format defined in plugins "
                     "%r and %r: %r, %r" % (conflicting_plugin, plugin.name,
@@ -37,3 +38,17 @@ class PluginManager:
             # TODO rethink the structure for mapping archive format to plugin
             # (also applies to type system and workflows).
             self.archive_formats[id_] = (plugin.name, archive_format)
+
+        for type_name, type_expr in plugin.types.items():
+            if type_name in self.semantic_types:
+                conflicting_plugin, _ = self.semantic_types[type_name]
+                raise ValueError("Duplicate semantic type (%r) defined in"
+                                 " plugins: %r and %r"
+                                 % (type_expr, plugin.name,
+                                    conflicting_plugin.name))
+
+            self.semantic_types[type_name] = (plugin.name, type_expr)
+
+        # TODO: Should plugin loading be transactional? i.e. if there's
+        # something wrong, the entire plugin fails to load any piece, like a
+        # databases rollback/commit

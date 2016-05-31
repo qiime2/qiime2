@@ -39,10 +39,10 @@ class TestWorkflow(unittest.TestCase):
             name='Dummy markdown workflow',
             inputs={
                 'input1': (qiime.core.testing.TestType, list),
-                'input2': (qiime.core.testing.TestType, list),
+                'input2': (qiime.core.testing.TestType, list)},
+            parameters={
                 'param1': (qiime.plugin.Int, int),
-                'param2': (qiime.plugin.Int, int),
-            },
+                'param2': (qiime.plugin.Int, int)},
             outputs=collections.OrderedDict([
                 ('concatenated_inputs', (qiime.core.testing.TestType, list))
             ])
@@ -80,6 +80,8 @@ class TestWorkflow(unittest.TestCase):
                 inputs={
                     'input1': (qiime.core.testing.TestType, list),
                     'input2': (qiime.core.testing.TestType, list),
+                },
+                parameters={
                     'param1': (qiime.plugin.Int, int),
                     'param2': (qiime.plugin.Int, int),
                 },
@@ -103,7 +105,9 @@ class TestWorkflow(unittest.TestCase):
             dummy_function,
             inputs={
                 'input1': qiime.core.testing.TestType,
-                'input2': qiime.core.testing.TestType,
+                'input2': qiime.core.testing.TestType
+            },
+            parameters={
                 'param1': qiime.plugin.Int,
                 'param2': qiime.plugin.Int
             },
@@ -119,9 +123,11 @@ class TestWorkflow(unittest.TestCase):
                 name='Concatenate things',
                 inputs={
                     'input1': (qiime.core.testing.TestType, list),
-                    'input2': (qiime.core.testing.TestType, list),
+                    'input2': (qiime.core.testing.TestType, list)
+                },
+                parameters={
                     'param1': (qiime.plugin.Int, int),
-                    'param2': (qiime.plugin.Int, int),
+                    'param2': (qiime.plugin.Int, int)
                 },
                 outputs=collections.OrderedDict([
                     ('concatenated_inputs',
@@ -131,7 +137,6 @@ class TestWorkflow(unittest.TestCase):
             template=expected_template,
             id_='dummy_function'
         )
-
         self.assertEqual(workflow, expected)
 
     def test_to_script(self):
@@ -201,7 +206,7 @@ class TestWorkflow(unittest.TestCase):
         ]
 
         teardown_lines = [
-            "artifact = Artifact._from_view(concatenated_inputs, TestType, "
+            "artifact = Artifact._from_view(concatenated_inputs, 'TestType', "
             "provenance)",
             "artifact.save(%r)" % artifact_fp3
         ]
@@ -233,16 +238,17 @@ type-imports:
     - qiime.core.testing:TestType
     - qiime.plugin:Int
 inputs:
-    input1:
+    - input1:
         - TestType
         - list
-    input2:
+    - input2:
         - TestType
         - list
-    param1:
+parameters:
+    - param1:
         - Int
         - int
-    param2:
+    - param2:
         - Int
         - int
 outputs:

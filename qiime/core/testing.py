@@ -49,6 +49,6 @@ def list_to_test_archive_format(view, data_dir):
         for num in view:
             fh.write('%d\n' % num)
 
+TestType = qiime.plugin.SemanticType('TestType')
 
-class TestType(qiime.plugin.Type, variant_of=qiime.plugin.Type.Artifact):
-    pass
+plugin.register_semantic_type(TestType)

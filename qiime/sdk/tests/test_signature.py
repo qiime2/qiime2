@@ -20,21 +20,21 @@ class TestSignature(unittest.TestCase):
         signature = Signature(
             'Bogus human-readable name',
             inputs={'input1': (qiime.core.testing.TestType, list),
-                    'input2': (qiime.core.testing.TestType, list),
-                    'param1': (Int, int),
-                    'param2': (Int, int)},
+                    'input2': (qiime.core.testing.TestType, list)},
+            parameters={'param1': (Int, int),
+                        'param2': (Int, int)},
             outputs=collections.OrderedDict([
                 ('output1', (qiime.core.testing.TestType, list)),
                 ('output2', (qiime.core.testing.TestType, list))]))
 
         self.assertEqual(signature.name, 'Bogus human-readable name')
-        self.assertEqual(signature.input_artifacts,
+        self.assertEqual(signature.inputs,
                          {'input1': (qiime.core.testing.TestType, list),
                           'input2': (qiime.core.testing.TestType, list)})
-        self.assertEqual(signature.input_parameters,
+        self.assertEqual(signature.parameters,
                          {'param1': (Int, int), 'param2': (Int, int)})
         self.assertEqual(
-            signature.output_artifacts,
+            signature.outputs,
             collections.OrderedDict([
                 ('output1', (qiime.core.testing.TestType, list)),
                 ('output2', (qiime.core.testing.TestType, list))]))
@@ -43,9 +43,9 @@ class TestSignature(unittest.TestCase):
         signature = Signature(
             'Bogus human-readable name',
             inputs={'input1': (qiime.core.testing.TestType, list),
-                    'input2': (qiime.core.testing.TestType, list),
-                    'param1': (Int, int),
-                    'param2': (Int, int)},
+                    'input2': (qiime.core.testing.TestType, list)},
+            parameters={'param1': (Int, int),
+                        'param2': (Int, int)},
             outputs=collections.OrderedDict([
                 ('output1', (qiime.core.testing.TestType, list)),
                 ('output2', (qiime.core.testing.TestType, list))])

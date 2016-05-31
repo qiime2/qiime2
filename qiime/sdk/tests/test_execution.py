@@ -32,7 +32,9 @@ class TestSubprocessExecutor(unittest.TestCase):
             dummy_function,
             inputs={
                 'input1': qiime.core.testing.TestType,
-                'input2': qiime.core.testing.TestType,
+                'input2': qiime.core.testing.TestType
+            },
+            parameters={
                 'param1': qiime.plugin.Int,
                 'param2': qiime.plugin.Int
             },

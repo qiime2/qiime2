@@ -11,7 +11,6 @@ import os
 import uuid
 import tempfile
 import yaml
-import importlib
 import time
 import datetime
 import zipfile
@@ -90,12 +89,12 @@ class Artifact:
 
         uuid_ = cls._parse_uuid(metadata['UUID'])
         provenance = cls._parse_provenance(metadata['provenance'])
-        type_ = cls._parse_type(metadata['imports'], metadata['type'])
+        type_ = cls._parse_semantic_type(metadata['type'])
         return type_, uuid_, provenance
 
-    # TODO this is mostly duplicated from Workflow._parse_type. Refactor!
+    # TODO this is mostly duplicated from Workflow._parse_semantic_type.
     @classmethod
-    def _parse_type(cls, imports, type_exp):
+    def _parse_semantic_type(cls, type_exp):
         type_exp = type_exp.split('\n')
         if len(type_exp) != 1:
             raise TypeError("Multiple lines in type expression of"
@@ -107,24 +106,10 @@ class Artifact:
             raise TypeError("Invalid type expression in artifact. Will not"
                             " load to avoid arbitrary code execution.")
 
-        locals_ = {}
-        for import_ in imports:
-            path, class_ = import_.split(":")
-            try:
-                module = importlib.import_module(path)
-            except ImportError:
-                raise ImportError("The plugin which defines: %r is not"
-                                  " installed." % path)
-            class_ = getattr(module, class_)
-            if not issubclass(class_, qiime.plugin.Type):
-                raise TypeError("Non-Type artifact. Will not load to avoid"
-                                " arbitrary code execution.")
-            if class_.__name__ in locals_:
-                raise TypeError("Duplicate type name (%r) in expression."
-                                % class_.__name__)
-            locals_[class_.__name__] = class_
+        pm = qiime.sdk.PluginManager()
+        locals_ = {k: v[1] for k, v in pm.semantic_types.items()}
+
         type_ = eval(type_exp, {'__builtins__': {}}, locals_)
-        type_ = type_()
         if not type_.is_concrete():
             raise TypeError("%r is not a concrete type. Only concrete types "
                             "can be loaded." % type_)
@@ -155,7 +140,7 @@ class Artifact:
         ----------
         view : Python object
             View to serialize.
-        type_ : qiime.plugin.Type
+        type_ : qiime.plugin.Type or str
             Semantic type of the artifact.
         provenance : qiime.sdk.Provenance
             Artifact provenance.
@@ -163,8 +148,8 @@ class Artifact:
         """
         # TODO do some validation here, such as making sure `view` can be
         # written to `type_` archive format.
-
-        type_ = type_()
+        if isinstance(type_, str):
+            type_ = cls._parse_semantic_type(type_)
         if not type_.is_concrete():
             raise TypeError(
                 "%r is not a concrete type. Artifacts can only contain "
@@ -296,16 +281,10 @@ class Artifact:
     # objects, `yaml.safe_dump` call needs to be updated to format lists and
     # dicts as typical yaml.
     def _save_metadata(self, zf, root_dir):
-        type_exp = repr(self.type)
-        # TODO collapse imports with common prefix
-        imports = [':'.join([path, name]) for name, path
-                   in self.type.get_imports()]
-
         metadata_bytes = yaml.safe_dump({
             'UUID': self._formatted_uuid(),
             'provenance': self._formatted_provenance(),
-            'imports': imports,
-            'type': type_exp
+            'type': repr(self.type)
         })
         zf.writestr(os.path.join(root_dir, self._metadata_path),
                     metadata_bytes)

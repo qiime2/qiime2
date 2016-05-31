@@ -15,16 +15,17 @@ import unittest.mock
 
 import frontmatter
 
+from qiime.core.testing import TestType
 from qiime.plugin import Plugin, Int, ArchiveFormat
 from qiime.sdk import Workflow, Signature
 
 
-def dummy_function() -> int:
-    return 42
+def dummy_function() -> list:
+    return [42]
 
 
-def other_dummy_function() -> int:
-    return 42
+def other_dummy_function() -> list:
+    return [42]
 
 
 # TODO updates these tests to use/test `qiime.core.testing.plugin`?
@@ -74,7 +75,8 @@ class TestPlugin(unittest.TestCase):
             name='Dummy function',
             function=dummy_function,
             inputs={},
-            outputs=[('answer', Int)],
+            parameters={},
+            outputs=[('answer', TestType)],
             doc='Computes the answer to life, the universe, and everything'
         )
 
@@ -82,7 +84,8 @@ class TestPlugin(unittest.TestCase):
             name='Dummy function',
             function=other_dummy_function,
             inputs={},
-            outputs=[('answer', Int)],
+            parameters={},
+            outputs=[('answer', TestType)],
             doc='Computes the answer to life, the universe, and everything'
         )
 
@@ -92,8 +95,9 @@ class TestPlugin(unittest.TestCase):
                     signature=Signature(
                         name='Dummy function',
                         inputs={},
+                        parameters={},
                         outputs=collections.OrderedDict([('answer',
-                                                         (Int, int))])),
+                                                         (TestType, list))])),
                     template=expected_dummy_function_template,
                     id_='dummy_function'
                 ),
@@ -102,8 +106,9 @@ class TestPlugin(unittest.TestCase):
                     signature=Signature(
                         name='Dummy function',
                         inputs={},
+                        parameters={},
                         outputs=collections.OrderedDict([('answer',
-                                                         (Int, int))])),
+                                                         (TestType, list))])),
                     template=expected_other_dummy_function_template,
                     id_='other_dummy_function'
                 )
@@ -123,9 +128,11 @@ class TestPlugin(unittest.TestCase):
                 Workflow(
                     signature=Signature(
                         name='Dummy markdown workflow',
-                        inputs={'param1': (Int, int), 'param2': (Int, int)},
+                        inputs={},
+                        parameters={'param1': (Int, int),
+                                    'param2': (Int, int)},
                         outputs=collections.OrderedDict([('the_sum',
-                                                         (Int, int))])),
+                                                         (TestType, list))])),
                     template=frontmatter.parse(markdown_template)[1],
                     id_='dummy_markdown_workflow'
                 )
@@ -140,7 +147,8 @@ class TestPlugin(unittest.TestCase):
             name='Dummy function',
             function=dummy_function,
             inputs={},
-            outputs=[('answer', Int)],
+            parameters={},
+            outputs=[('answer', TestType)],
             doc='Computes the answer to life, the universe, and everything'
         )
 
@@ -154,8 +162,9 @@ class TestPlugin(unittest.TestCase):
                     signature=Signature(
                         name='Dummy function',
                         inputs={},
+                        parameters={},
                         outputs=collections.OrderedDict([('answer',
-                                                         (Int, int))])),
+                                                         (TestType, list))])),
                     template=expected_dummy_function_template,
                     id_='dummy_function'
                 ),
@@ -163,9 +172,11 @@ class TestPlugin(unittest.TestCase):
                 Workflow(
                     signature=Signature(
                         name='Dummy markdown workflow',
-                        inputs={'param1': (Int, int), 'param2': (Int, int)},
+                        inputs={},
+                        parameters={'param1': (Int, int),
+                                    'param2': (Int, int)},
                         outputs=collections.OrderedDict([('the_sum',
-                                                         (Int, int))])),
+                                                         (TestType, list))])),
                     template=frontmatter.parse(markdown_template)[1],
                     id_='dummy_markdown_workflow'
                 )
@@ -176,19 +187,18 @@ class TestPlugin(unittest.TestCase):
 
 markdown_template = """---
 name: Dummy markdown workflow
-type-imports:
-    - qiime.plugin:Int
-inputs:
-    param1:
+inputs: []
+parameters:
+    - param1:
         - Int
         - int
-    param2:
+    - param2:
         - Int
         - int
 outputs:
     - the_sum:
-        - Int
-        - int
+        - TestType
+        - list
 ---
 ## Sum some integers and return their summation
 

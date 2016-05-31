@@ -10,11 +10,11 @@ import collections
 import pkg_resources
 
 import qiime.sdk
-from qiime.core.type.type import BaseType
-from qiime.core.type.primitive import Int, Str, Float
+import qiime.core.type.grammar as grammar
+from qiime.core.type import SemanticType, is_semantic_type, Int, Str, Float
 
-__all__ = ['load', 'get_archive_format', 'Plugin', 'Type', 'Int', 'Str',
-           'Float']
+__all__ = ['load', 'get_archive_format', 'Plugin', 'Int', 'Str',
+           'Float', 'SemanticType']
 
 
 def load(plugin_name, plugin_entry_point_name=None):
@@ -69,23 +69,40 @@ class Plugin:
         self.website = website
         self.workflows = {}
         self.archive_formats = {}
+        self.types = {}
 
     def register_workflow(self, workflow):
         fn = pkg_resources.resource_filename(self.package, workflow)
         w = qiime.sdk.Workflow.from_markdown(fn)
         self.workflows[w.id] = w
 
-    def register_function(self, name, function, inputs, outputs, doc=""):
+    def register_function(self, name, function, inputs, parameters, outputs,
+                          doc=""):
         # TODO where is the best place to convert outputs as a list of tuples
         # into an OrderedDict?
         outputs = collections.OrderedDict(outputs)
-        w = qiime.sdk.Workflow.from_function(function, inputs, outputs, name,
-                                             doc)
+        w = qiime.sdk.Workflow.from_function(function, inputs, parameters,
+                                             outputs, name, doc)
         self.workflows[w.id] = w
 
     def register_archive_format(self, name, version, validator):
         self.archive_formats[(name, version)] = \
             ArchiveFormat(name, version, validator)
+
+    def register_semantic_type(self, semantic_type):
+        if not is_semantic_type(semantic_type):
+            raise TypeError("%r is not a semantic type." % semantic_type)
+
+        if not (isinstance(semantic_type, grammar.CompositeType) or
+                (semantic_type.is_concrete() and not semantic_type.fields)):
+            raise ValueError("%r is not a semantic type symbol."
+                             % semantic_type)
+
+        if semantic_type.name in self.types:
+            raise ValueError("Duplicate semantic type symbol %r."
+                             % semantic_type)
+
+        self.types[semantic_type.name] = semantic_type
 
     def __eq__(self, other):
         return (
@@ -96,18 +113,6 @@ class Plugin:
             self.workflows == other.workflows and
             self.archive_formats == other.archive_formats
         )
-
-
-class Type(BaseType, fields=('Artifact', 'Metadata')):
-    class Artifact:
-        pass
-
-    class Metadata:
-        def get_columns(self, data):
-            pass
-
-        def get_series(self, data, column):
-            pass
 
 
 class ArchiveFormat:
