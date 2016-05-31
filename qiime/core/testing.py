@@ -8,8 +8,6 @@
 
 import os.path
 
-import nose
-
 import qiime
 import qiime.plugin
 
@@ -26,15 +24,11 @@ plugin = qiime.plugin.Plugin(
 def validator(data_dir):
     raise NotImplementedError()
 
-plugin.register_archive_format('test-archive-format', 1, validator)
 
-# Not using `qiime.plugin.get_archive_format` to avoid circular ImportError.
-test_archive_format = plugin.archive_formats['test-archive-format', 1]
+plugin.register_archive_format('example-archive-format', 1, validator)
 
 
-@test_archive_format.reader(list)
-@nose.tools.nottest
-def test_archive_format_to_list(data_dir):
+def example_archive_format_to_list(data_dir):
     with open(os.path.join(data_dir, 'data.txt'), 'r') as fh:
         model = []
         for line in fh:
@@ -42,13 +36,21 @@ def test_archive_format_to_list(data_dir):
         return model
 
 
-@test_archive_format.writer(list)
-@nose.tools.nottest
-def list_to_test_archive_format(view, data_dir):
+plugin.register_archive_format_reader('example-archive-format', 1, list,
+                                      example_archive_format_to_list)
+
+
+def list_to_example_archive_format(view, data_dir):
     with open(os.path.join(data_dir, 'data.txt'), 'w') as fh:
         for num in view:
             fh.write('%d\n' % num)
 
+
+plugin.register_archive_format_writer('example-archive-format', 1, list,
+                                      list_to_example_archive_format)
+
 TestType = qiime.plugin.SemanticType('TestType')
 
 plugin.register_semantic_type(TestType)
+
+plugin.register_type_to_archive_format(TestType, 'example-archive-format', 1)

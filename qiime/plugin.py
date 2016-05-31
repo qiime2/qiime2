@@ -13,8 +13,7 @@ import qiime.sdk
 import qiime.core.type.grammar as grammar
 from qiime.core.type import SemanticType, is_semantic_type, Int, Str, Float
 
-__all__ = ['load', 'get_archive_format', 'Plugin', 'Int', 'Str',
-           'Float', 'SemanticType']
+__all__ = ['load', 'Plugin', 'Int', 'Str', 'Float', 'SemanticType']
 
 
 def load(plugin_name, plugin_entry_point_name=None):
@@ -52,15 +51,6 @@ def load(plugin_name, plugin_entry_point_name=None):
         return plugin
 
 
-def get_archive_format(name, version):
-    pm = qiime.sdk.PluginManager()
-    id_ = (name, version)
-    if id_ in pm.archive_formats:
-        return pm.archive_formats[id_][1]
-    else:
-        raise ImportError("Archive format does not exist: %r, %r" % id_)
-
-
 class Plugin:
     def __init__(self, name, version, website, package):
         self.package = package
@@ -70,6 +60,9 @@ class Plugin:
         self.workflows = {}
         self.archive_formats = {}
         self.types = {}
+        self.type_to_archive_formats = {}
+        self.archive_format_readers = {}
+        self.archive_format_writers = {}
 
     def register_workflow(self, workflow):
         fn = pkg_resources.resource_filename(self.package, workflow)
@@ -84,6 +77,14 @@ class Plugin:
         w = qiime.sdk.Workflow.from_function(function, inputs, parameters,
                                              outputs, name, doc)
         self.workflows[w.id] = w
+
+    def register_archive_format_reader(self, name, version, view_type,
+                                       reader):
+        self.archive_format_readers[(name, version, view_type)] = reader
+
+    def register_archive_format_writer(self, name, version, view_type,
+                                       writer):
+        self.archive_format_writers[(name, version, view_type)] = writer
 
     def register_archive_format(self, name, version, validator):
         self.archive_formats[(name, version)] = \
@@ -103,6 +104,19 @@ class Plugin:
                              % semantic_type)
 
         self.types[semantic_type.name] = semantic_type
+
+    def register_type_to_archive_format(self, semantic_type, name, version):
+        if not is_semantic_type(semantic_type):
+            raise TypeError("%r is not a semantic type." % semantic_type)
+        if not isinstance(semantic_type, grammar.TypeExpression):
+            raise ValueError("%r is not a semantic type expression."
+                             % semantic_type)
+
+        self.type_to_archive_formats[semantic_type] = (name, version)
+
+    # TODO: should register_archive_format, register_semantic_type, and
+    # register_type_to_archive_format be namespaced to indicate that they
+    # shouldn't typically be used by plugin devs?
 
     def __eq__(self, other):
         return (

@@ -166,16 +166,8 @@ class Artifact:
         return artifact
 
     def _save_view(self, view):
-        # TODO update when types are ready
-        type_format_map = {
-            'FeatureTable[Frequency]': ('feature-table', 1),
-            'FeatureTable[RelativeFrequency]': ('feature-table', 1),
-            'FeatureTable[PresenceAbsence]': ('feature-table', 1),
-            'TestType': ('test-archive-format', 1),
-        }
-
-        archive_format = type_format_map[repr(self.type)]
-        archive_format = qiime.plugin.get_archive_format(*archive_format)
+        pm = qiime.sdk.PluginManager()
+        archive_format = pm.semantic_type_to_archive_formats[self.type]
 
         view_type = type(view)
         writer = archive_format.writers[view_type]
@@ -207,16 +199,8 @@ class Artifact:
             self._temp_dir.cleanup()
 
     def view(self, view_type):
-        # TODO update when types are ready
-        type_format_map = {
-            'FeatureTable[Frequency]': ('feature-table', 1),
-            'FeatureTable[RelativeFrequency]': ('feature-table', 1),
-            'FeatureTable[PresenceAbsence]': ('feature-table', 1),
-            'TestType': ('test-archive-format', 1),
-        }
-
-        archive_format = type_format_map[repr(self.type)]
-        archive_format = qiime.plugin.get_archive_format(*archive_format)
+        pm = qiime.sdk.PluginManager()
+        archive_format = pm.semantic_type_to_archive_formats[self.type]
 
         reader = archive_format.readers[view_type]
 

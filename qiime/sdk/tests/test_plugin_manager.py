@@ -50,10 +50,10 @@ class TestPluginManager(unittest.TestCase):
              'test-plugin': qiime.core.testing.plugin})
 
         expected_archive_format = qiime.plugin.ArchiveFormat(
-            'test-archive-format', 1, lambda e: e)
+            'example-archive-format', 1, lambda e: e)
         self.assertEqual(
             plugin_manager.archive_formats,
-            {('test-archive-format', 1):
+            {('example-archive-format', 1):
              ('test-plugin', expected_archive_format)})
 
 
