@@ -137,6 +137,9 @@ class CompositeType(_ImmutableBase):
         """
         return TypeExpression(self.name, fields=fields)
 
+    def iter_symbols(self):
+        yield self.name
+
 
 class TypeExpression(_ImmutableBase):
     def __init__(self, name, fields=(), predicate=None):
@@ -226,6 +229,11 @@ class TypeExpression(_ImmutableBase):
 
     def _build_intersection_(self, members):
         return IntersectionTypeExpression(members)
+
+    def iter_symbols(self):
+        yield self.name
+        for field in self.fields:
+            yield from field.iter_symbols()
 
 
 class _SetOperationBase(TypeExpression):

@@ -167,7 +167,17 @@ class Artifact:
 
     def _save_view(self, view):
         pm = qiime.sdk.PluginManager()
-        archive_format = pm.semantic_type_to_archive_formats[self.type]
+        archive_format = None
+        for semantic_type, archive_fmt in \
+                pm.semantic_type_to_archive_formats.items():
+            if self.type <= semantic_type:
+                archive_format = archive_fmt
+                break
+
+        if archive_format is None:
+            raise TypeError(
+                "Artifact type %r does not have an archive format to "
+                "serialize to." % self.type)
 
         view_type = type(view)
         writer = archive_format.writers[view_type]
@@ -200,7 +210,18 @@ class Artifact:
 
     def view(self, view_type):
         pm = qiime.sdk.PluginManager()
-        archive_format = pm.semantic_type_to_archive_formats[self.type]
+
+        archive_format = None
+        for semantic_type, archive_fmt in \
+                pm.semantic_type_to_archive_formats.items():
+            if self.type <= semantic_type:
+                archive_format = archive_fmt
+                break
+
+        if archive_format is None:
+            raise TypeError(
+                "Artifact type %r does not have an archive format to "
+                "deserialize from." % self.type)
 
         reader = archive_format.readers[view_type]
 
