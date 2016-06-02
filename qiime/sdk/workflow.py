@@ -276,9 +276,11 @@ class Workflow:
             view_type = self.signature.inputs[name][1]
             # TODO explicitly clean up Artifact object instead of relying on
             # gc?
+            full_view_type_name = '.'.join([_get_import_path(view_type),
+                                            view_type.__name__])
             setup_lines.append(
                 '%s = Artifact.load(%r).view(%s)' % (name, filepath,
-                                                     view_type.__name__))
+                                                     full_view_type_name))
 
         for name, value in parameters.items():
             setup_lines.append('%s = %r' % (name, value))
@@ -306,15 +308,14 @@ class Workflow:
     # Refactor to use a similar import mechanism as semantic types when that
     # part is finalized.
     def _setup_import_lines(self):
-        lines = []
+        lines = set()
 
         for _, input_view_type in self.signature.inputs.values():
-            input_view_type = input_view_type.__name__
-            if '.' in input_view_type:
-                path, _ = input_view_type.rsplit(sep='.', maxsplit=1)
-                lines.append('import %s' % path)
+            lines.add('import %s' % _get_import_path(input_view_type))
 
-        lines.append('from qiime.sdk.artifact import Artifact')
+        lines.add('from qiime.sdk.artifact import Artifact')
+        lines = list(lines)
+        lines.sort(key=lambda x: len(x))
 
         return lines
 
@@ -432,6 +433,11 @@ class Workflow:
                                  parameter_references,
                                  output_artifact_filepaths)
 
+
+def _get_import_path(cls):
+    # wrapping this in its own function now so we can do more complex things
+    # later, like find the shortest import path
+    return inspect.getmodule(cls).__name__
 
 _markdown_template = """{doc}
 

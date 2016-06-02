@@ -199,8 +199,9 @@ class TestWorkflow(unittest.TestCase):
         ]
 
         setup_lines = [
-            "input1 = Artifact.load(%r).view(list)" % artifact_fp1,
-            "input2 = Artifact.load(%r).view(list)" % artifact_fp2,
+            "import builtins",
+            "input1 = Artifact.load(%r).view(builtins.list)" % artifact_fp1,
+            "input2 = Artifact.load(%r).view(builtins.list)" % artifact_fp2,
             "param1 = 99",
             "param2 = -999"
         ]
