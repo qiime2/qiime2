@@ -9,130 +9,23 @@
 import io
 import os
 import uuid
-import tarfile
 import tempfile
 import yaml
-import importlib
 import time
 import datetime
+import zipfile
 
 import qiime.plugin
 import qiime.sdk
 
 
+# TODO use utf-8 encoding when reading/writing files
 class Artifact:
+    _version = '0.1.0'  # artifact archive format version
+    _version_path = 'VERSION'
     _readme_path = 'README.md'
     _metadata_path = 'metadata.yaml'
-    _data_dir = 'data'
-
-    @classmethod
-    def _get_root_dir(cls, tarfilepath):
-        return os.path.splitext(os.path.basename(tarfilepath))[0]
-
-    # TODO rename `data` to a more distinguishable name (e.g., `model`)
-    @classmethod
-    def save(cls, data, type_, provenance, tarfilepath):
-        """
-
-        Parameters
-        ----------
-        data : Python object
-            Model to serialize.
-        type_ : qiime.plugin.Type
-            Semantic type of the model.
-        provenance : qiime.sdk.Provenance
-            Artifact provenance.
-        tarfilepath : str
-            Filepath to save artifact to. An existing filepath will be
-            overwritten.
-
-        """
-        root_dir = cls._get_root_dir(tarfilepath)
-
-        with tarfile.open(tarfilepath, mode='w') as tar:
-            metadata_writer = ArtifactDataWriter()
-            cls._save_readme(metadata_writer)
-            cls._save_metadata(type_, provenance, metadata_writer)
-            metadata_writer._save_(tar, root_dir)
-
-            data_writer = ArtifactDataWriter()
-            type_().save(data, data_writer)
-            data_writer._save_(tar, os.path.join(root_dir, cls._data_dir))
-
-    @classmethod
-    def _save_readme(cls, data_writer):
-        with data_writer.create_file(cls._readme_path) as fh:
-            fh.write(_README_TEXT)
-
-    # TODO clean up metadata yaml formatting. It currently dumps Python
-    # objects, `yaml.safe_dump` call needs to be updated to format lists and
-    # dicts as typical yaml.
-    @classmethod
-    def _save_metadata(cls, type_, provenance, data_writer):
-        if not type_().is_concrete():
-            raise TypeError("%r is not a concrete type. Only concrete types "
-                            "can be saved." % type_)
-        type_exp = repr(type_)
-        # TODO collapse imports with common prefix
-        imports = [':'.join([path, name]) for name, path
-                   in type_().get_imports()]
-
-        with data_writer.create_file(cls._metadata_path) as fh:
-            yaml.safe_dump({
-                'UUID': cls._formatted_uuid(),
-                'provenance': cls._formatted_provenance(provenance),
-                'imports': imports,
-                'type': type_exp
-            }, stream=fh)
-
-    @classmethod
-    def _formatted_uuid(cls):
-        return str(uuid.uuid4())
-
-    @classmethod
-    def _formatted_provenance(cls, provenance):
-        if provenance is None:
-            return ('No provenance available because this artifact was '
-                    'generated independently of QIIME.')
-        else:
-            return {
-                'job-UUID': str(provenance.job_uuid),
-                'artifact-uuids': provenance.artifact_uuids,
-                # TODO: need to store parameter types (or is it enough
-                # that the workflow template reference could get us that?)
-                'parameters': provenance.parameters,
-                'runtime': cls._formatted_runtime(provenance),
-                'workflow-reference': provenance.workflow_reference
-            }
-
-    @classmethod
-    def _formatted_runtime(cls, provenance):
-        stop_time = time.time()
-        run_time = stop_time - provenance.start_time
-        datetime_start = datetime.datetime.fromtimestamp(provenance.start_time)
-        datetime_stop = datetime.datetime.fromtimestamp(stop_time)
-        return {
-            'run-time-seconds': run_time,
-            'execution-start-time': datetime_start.isoformat(),
-            'execution-stop-time': datetime_stop.isoformat()
-        }
-
-    def __init__(self, tarfilepath):
-        tar, data, type_, provenance, uuid_ = self._load(tarfilepath)
-        self._tar = tar
-        self._data = data
-        self._type = type_
-        self._provenance = provenance
-        self._uuid = uuid_
-
-    # TODO figure out proper cleanup of self._tar
-    # def __del__(self):
-    #    print("DESTRUCTOR CALLED")
-    #    self._tar.close()
-
-    @property
-    def data(self):
-        return self._data
+    _archive_dir = 'data'
 
     @property
     def type(self):
@@ -146,32 +39,62 @@ class Artifact:
     def uuid(self):
         return self._uuid
 
-    def _load(self, tarfilepath):
-        if not tarfile.is_tarfile(tarfilepath):
-            raise tarfile.ReadError(
-                "%r is not a readable tar archive file" % tarfilepath)
+    @classmethod
+    def _get_root_dir(cls, filepath):
+        return os.path.splitext(os.path.basename(filepath))[0]
 
-        root_dir = self._get_root_dir(tarfilepath)
-        tar = tarfile.open(tarfilepath, mode='r')
+    @classmethod
+    def _create_temp_dir(cls):
+        return tempfile.TemporaryDirectory(prefix='qiime2-temp-artifact-data-')
 
-        metadata_reader = ArtifactDataReader(tar, root_dir)
-        type_, uuid_, provenance = self._load_metadata(metadata_reader)
+    @classmethod
+    def load(cls, filepath):
+        if not zipfile.is_zipfile(filepath):
+            raise zipfile.BadZipFile(
+                "%r is not a readable ZIP file, or the file does not exist" %
+                filepath)
 
-        data_reader = ArtifactDataReader(
-            tar, os.path.join(root_dir, self._data_dir))
-        data = type_().load(data_reader)
-        return tar, data, type_, provenance, uuid_
+        root_dir = cls._get_root_dir(filepath)
+        with zipfile.ZipFile(filepath, mode='r') as zf:
+            version = cls._load_version(zf, root_dir)
+            if version != cls._version:
+                raise ValueError(
+                    "Unsupported artifact archive format version %r. "
+                    "Supported version(s): %r" % (version, cls._version))
 
-    def _load_metadata(self, data_reader):
-        with data_reader.get_file(self._metadata_path) as fh:
-            metadata = yaml.safe_load(fh)
-            uuid_ = self._parse_uuid(metadata['UUID'])
-            provenance = self._parse_provenance(metadata['provenance'])
-            type_ = self._parse_type(metadata['imports'], metadata['type'])
+            type_, uuid_, provenance = cls._load_metadata(zf, root_dir)
+
+        artifact = cls.__new__(cls)
+
+        artifact._type = type_
+        artifact._provenance = provenance
+        artifact._uuid = uuid_
+        artifact._zip_filepath = filepath
+
+        return artifact
+
+    @classmethod
+    def _load_version(cls, zf, root_dir):
+        with zf.open(os.path.join(root_dir, cls._version_path)) as bytes_fh:
+            with io.TextIOWrapper(bytes_fh, newline=None,
+                                  encoding='utf-8') as fh:
+                return fh.read().rstrip('\n')
+
+    @classmethod
+    def _load_metadata(cls, zf, root_dir):
+        with zf.open(os.path.join(root_dir, cls._metadata_path)) as bytes_fh:
+            with io.TextIOWrapper(bytes_fh, newline=None,
+                                  encoding='utf-8') as fh:
+                metadata = yaml.safe_load(fh)
+
+        uuid_ = cls._parse_uuid(metadata['UUID'])
+        provenance = cls._parse_provenance(metadata['provenance'])
+        type_ = cls._parse_semantic_type(metadata['type'])
         return type_, uuid_, provenance
 
-    # TODO this is mostly duplicated from Workflow._parse_type. Refactor!
-    def _parse_type(self, imports, type_exp):
+    # TODO this is mostly duplicated from Workflow._parse_semantic_type.
+    @classmethod
+    def _parse_semantic_type(cls, type_exp):
         type_exp = type_exp.split('\n')
         if len(type_exp) != 1:
             raise TypeError("Multiple lines in type expression of"
@@ -183,33 +106,22 @@ class Artifact:
             raise TypeError("Invalid type expression in artifact. Will not"
                             " load to avoid arbitrary code execution.")
 
-        locals_ = {}
-        for import_ in imports:
-            path, class_ = import_.split(":")
-            try:
-                module = importlib.import_module(path)
-            except ImportError:
-                raise ImportError("The plugin which defines: %r is not"
-                                  " installed." % path)
-            class_ = getattr(module, class_)
-            if not issubclass(class_, qiime.plugin.Type):
-                raise TypeError("Non-Type artifact. Will not load to avoid"
-                                " arbitrary code execution.")
-            if class_.__name__ in locals_:
-                raise TypeError("Duplicate type name (%r) in expression."
-                                % class_.__name__)
-            locals_[class_.__name__] = class_
+        pm = qiime.sdk.PluginManager()
+        locals_ = {k: v[1] for k, v in pm.semantic_types.items()}
+
         type_ = eval(type_exp, {'__builtins__': {}}, locals_)
-        if not type_().is_concrete():
+        if not type_.is_concrete():
             raise TypeError("%r is not a concrete type. Only concrete types "
                             "can be loaded." % type_)
         return type_
 
-    def _parse_uuid(self, string):
+    @classmethod
+    def _parse_uuid(cls, string):
         return uuid.UUID(hex=string)
 
     # TODO implement provenance parsing
-    def _parse_provenance(self, provenance):
+    @classmethod
+    def _parse_provenance(cls, provenance):
         if isinstance(provenance, str):
             return None
         else:
@@ -220,80 +132,205 @@ class Artifact:
                 workflow_reference=provenance['workflow-reference']
             )
 
+    @classmethod
+    def _from_view(cls, view, type_, provenance):
+        """
 
-class ArtifactDataReader:
-    def __init__(self, tar, data_dir):
-        self._tar = tar
-        self._data_dir = data_dir
+        Parameters
+        ----------
+        view : Python object
+            View to serialize.
+        type_ : qiime.plugin.Type or str
+            Semantic type of the artifact.
+        provenance : qiime.sdk.Provenance
+            Artifact provenance.
 
-    def get_paths(self):
-        """Return all paths to artifact data."""
-        paths = []
-        for path in self._tar.getnames():
-            if os.path.dirname(path) == self._data_dir:
-                paths.append(os.path.basename(path))
-        return paths
+        """
+        # TODO do some validation here, such as making sure `view` can be
+        # written to `type_` archive format.
+        if isinstance(type_, str):
+            type_ = cls._parse_semantic_type(type_)
+        if not type_.is_concrete():
+            raise TypeError(
+                "%r is not a concrete type. Artifacts can only contain "
+                "concrete types." % type_)
 
-    def get_file(self, path, binary=False):
-        try:
-            filehandle = self._tar.extractfile(
-                os.path.join(self._data_dir, path))
-        except KeyError:
-            raise FileNotFoundError("Filepath %r does not exist" % path)
+        artifact = cls.__new__(cls)
 
-        if filehandle is None:
-            raise FileNotFoundError(
-                "Filepath %r is not a file" % path)
+        artifact._type = type_
+        artifact._provenance = provenance
+        artifact._uuid = uuid.uuid4()
+        artifact._temp_dir = cls._create_temp_dir()
+        artifact._save_view(view)
 
-        if not binary:
-            filehandle = io.TextIOWrapper(filehandle)
+        return artifact
 
-        return filehandle
+    def _save_view(self, view):
+        pm = qiime.sdk.PluginManager()
+        archive_format = None
+        for semantic_type, archive_fmt in \
+                pm.semantic_type_to_archive_formats.items():
+            if self.type <= semantic_type:
+                archive_format = archive_fmt
+                break
 
+        if archive_format is None:
+            raise TypeError(
+                "Artifact type %r does not have an archive format to "
+                "serialize to." % self.type)
 
-class ArtifactDataWriter:
+        view_type = type(view)
+        writer = archive_format.writers[view_type]
+        writer(view, self._temp_dir.name)
+
     def __init__(self):
-        self._tempdir = tempfile.TemporaryDirectory(
-            prefix='qiime2-temp-artifact-data-')
-        self._tracked_files = {}
+        """
 
-    def create_file(self, path, binary=False):
-        if self._tempdir is None:
-            raise ValueError("`ArtifactDataWriter` has already been finalized")
+        This constructor is private.
 
-        if path in self._tracked_files:
-            raise FileExistsError("Filepath %r already exists" % path)
+        """
+        raise NotImplementedError(
+            "Artifact constructor is private. Use `Artifact.load` to "
+            "construct an Artifact.")
 
-        if binary:
-            mode = 'wb'
+    def __new__(cls):
+        artifact = object.__new__(cls)
+
+        artifact._type = None
+        artifact._provenance = None
+        artifact._uuid = None
+        artifact._temp_dir = None
+        artifact._zip_filepath = None
+
+        return artifact
+
+    def __del__(self):
+        if self._temp_dir is not None:
+            self._temp_dir.cleanup()
+
+    def view(self, view_type):
+        pm = qiime.sdk.PluginManager()
+
+        archive_format = None
+        for semantic_type, archive_fmt in \
+                pm.semantic_type_to_archive_formats.items():
+            if self.type <= semantic_type:
+                archive_format = archive_fmt
+                break
+
+        if archive_format is None:
+            raise TypeError(
+                "Artifact type %r does not have an archive format to "
+                "deserialize from." % self.type)
+
+        reader = archive_format.readers[view_type]
+
+        if self._temp_dir is None:
+            self._extract_artifact_data()
+
+        return reader(self._temp_dir.name)
+
+    def _extract_artifact_data(self):
+        assert self._temp_dir is None and self._zip_filepath is not None
+
+        self._temp_dir = self._create_temp_dir()
+        temp_dir = self._temp_dir.name
+
+        # TODO is there a better way to extract the files in an archive
+        # subdirectory into a directory without keeping the nested archive
+        # directory structure?
+        with zipfile.ZipFile(self._zip_filepath, mode='r') as zf:
+            root_dir = self._get_root_dir(self._zip_filepath)
+            prefix = os.path.join(root_dir, self._archive_dir, '')
+
+            for file_ in zf.namelist():
+                if file_.startswith(prefix):
+                    extract_path = zf.extract(file_, path=temp_dir)
+                    os.rename(extract_path,
+                              os.path.join(temp_dir, os.path.basename(file_)))
+            os.rmdir(os.path.join(temp_dir, prefix))
+
+    def save(self, filepath):
+        root_dir = self._get_root_dir(filepath)
+
+        if self._temp_dir is None:
+            self._extract_artifact_data()
+
+        with zipfile.ZipFile(filepath, mode='w',
+                             compression=zipfile.ZIP_DEFLATED,
+                             allowZip64=True) as zf:
+            self._save_version(zf, root_dir)
+            self._save_readme(zf, root_dir)
+            self._save_metadata(zf, root_dir)
+
+            for root, dirs, files in os.walk(self._temp_dir.name):
+                for file_ in files:
+                    temp_path = os.path.join(root, file_)
+                    archive_path = os.path.join(
+                        root_dir,
+                        self._archive_dir,
+                        root.replace(self._temp_dir.name, '', 1),
+                        file_
+                    )
+                    zf.write(temp_path, arcname=archive_path)
+
+    def _save_version(self, zf, root_dir):
+        zf.writestr(os.path.join(root_dir, self._version_path),
+                    '%s\n' % self._version)
+
+    def _save_readme(self, zf, root_dir):
+        zf.writestr(os.path.join(root_dir, self._readme_path),
+                    _README_TEXT)
+
+    # TODO clean up metadata yaml formatting. It currently dumps Python
+    # objects, `yaml.safe_dump` call needs to be updated to format lists and
+    # dicts as typical yaml.
+    def _save_metadata(self, zf, root_dir):
+        metadata_bytes = yaml.safe_dump({
+            'UUID': self._formatted_uuid(),
+            'provenance': self._formatted_provenance(),
+            'type': repr(self.type)
+        })
+        zf.writestr(os.path.join(root_dir, self._metadata_path),
+                    metadata_bytes)
+
+    def _formatted_uuid(self):
+        return str(self.uuid)
+
+    def _formatted_provenance(self):
+        if self.provenance is None:
+            return ('No provenance available because this artifact was '
+                    'generated independently of QIIME.')
         else:
-            mode = 'w'
+            return {
+                'job-UUID': str(self.provenance.job_uuid),
+                'artifact-uuids': self.provenance.artifact_uuids,
+                # TODO: need to store parameter types (or is it enough
+                # that the workflow template reference could get us that?)
+                'parameters': self.provenance.parameters,
+                'runtime': self._formatted_runtime(),
+                'workflow-reference': self.provenance.workflow_reference
+            }
 
-        filehandle = open(os.path.join(self._tempdir.name, path), mode=mode)
-        self._tracked_files[path] = filehandle
-        return filehandle
-
-    # NOTE This method is intended to be called exactly once by Artifact but
-    # not plugin developers.
-    def _save_(self, tar, name):
-        for filehandle in self._tracked_files.values():
-            filehandle.close()
-
-        tar.add(self._tempdir.name, arcname=name)
-
-        self._tempdir.cleanup()
-        self._tempdir = None
-        self._tracked_files = {}
+    def _formatted_runtime(self):
+        stop_time = time.time()
+        run_time = stop_time - self.provenance.start_time
+        datetime_start = datetime.datetime.fromtimestamp(
+            self.provenance.start_time)
+        datetime_stop = datetime.datetime.fromtimestamp(stop_time)
+        return {
+            'run-time-seconds': run_time,
+            'execution-start-time': datetime_start.isoformat(),
+            'execution-stop-time': datetime_stop.isoformat()
+        }
 
 
 _README_TEXT = """# QIIME 2 artifact
 
-This tar archive file stores the data and associated metadata of a serialized
-QIIME 2 artifact.
+This archive stores the data and associated metadata of a serialized QIIME 2
+artifact.
 
 **WARNING:** This is a temporary file format used for prototyping QIIME 2. Do
 not rely on this format for any reason as it will not be supported past the
 prototyping stage in its current form.
 """
-
-_METADATA_HEADER_TEXT = "# QIIME 2 artifact metadata\n"

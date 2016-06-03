@@ -13,30 +13,17 @@ import concurrent
 import os
 import subprocess
 
+import qiime.core.testing
+import qiime.plugin
 from qiime.sdk import Workflow, Artifact, SubprocessExecutor
-from qiime.plugin import Type, Int
 
 
-class DummyType(Type, variant_of=Type.Artifact):
-    def load(self, data_reader):
-        fh = data_reader.get_file('data.txt')
-        model = []
-        for line in fh:
-            model.append(int(line.rstrip()))
-        return model
-
-    def save(self, data, data_writer):
-        fh = data_writer.create_file('data.txt')
-        for num in data:
-            fh.write('%d\n' % num)
-
-
-def dummy_function(input1, input2, param1, param2):
+def dummy_function(input1: list, input2: list,
+                   param1: int, param2: int) -> list:
     return input1 + input2 + [param1] + [param2]
 
 
 class TestSubprocessExecutor(unittest.TestCase):
-
     def setUp(self):
         # TODO standardize temporary directories created by QIIME
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-temp-')
@@ -44,23 +31,31 @@ class TestSubprocessExecutor(unittest.TestCase):
         self.workflow = Workflow.from_function(
             dummy_function,
             inputs={
-                'input1': DummyType,
-                'input2': DummyType,
-                'param1': Int,
-                'param2': Int
+                'input1': qiime.core.testing.TestType,
+                'input2': qiime.core.testing.TestType
+            },
+            parameters={
+                'param1': qiime.plugin.Int,
+                'param2': qiime.plugin.Int
             },
             outputs=collections.OrderedDict([
-                ('concatenated_inputs', DummyType)
+                ('concatenated_inputs', qiime.core.testing.TestType)
             ]),
             name='Concatenate things',
             doc="Let's concatenate some things!"
         )
 
-        self.artifact_fp1 = os.path.join(self.test_dir.name, 'artifact1.qtf')
-        self.artifact_fp2 = os.path.join(self.test_dir.name, 'artifact2.qtf')
-        Artifact.save([-1, 42, 0, 43, 43], DummyType, None, self.artifact_fp1)
-        Artifact.save([1, 2, 100], DummyType, None, self.artifact_fp2)
-        self.artifact_fp3 = os.path.join(self.test_dir.name, 'artifact3.qtf')
+        self.artifact_fp1 = os.path.join(self.test_dir.name, 'artifact1.qzf')
+        self.artifact_fp2 = os.path.join(self.test_dir.name, 'artifact2.qzf')
+        self.artifact_fp3 = os.path.join(self.test_dir.name, 'artifact3.qzf')
+
+        artifact = Artifact._from_view(
+            [-1, 42, 0, 43, 43], qiime.core.testing.TestType, None)
+        artifact.save(self.artifact_fp1)
+
+        artifact = Artifact._from_view(
+            [1, 2, 100], qiime.core.testing.TestType, None)
+        artifact.save(self.artifact_fp2)
 
     def tearDown(self):
         self.test_dir.cleanup()
@@ -87,12 +82,16 @@ class TestSubprocessExecutor(unittest.TestCase):
         self.assertEqual(completed_process.stdout, b'')
         self.assertEqual(completed_process.stderr, b'')
 
-        result = Artifact(self.artifact_fp3)
-        self.assertEqual(result.data,
+        artifact = Artifact.load(self.artifact_fp3)
+
+        self.assertIsNotNone(artifact.provenance)
+        self.assertEqual(artifact.type, qiime.core.testing.TestType)
+        self.assertEqual(artifact.view(list),
                          [-1, 42, 0, 43, 43, 1, 2, 100, 99, -999])
-        self.assertIsNotNone(result.provenance)
-        self.assertEqual(result.type, DummyType)
 
 
+# TODO executing these tests via `python qiime/sdk/tests/test_execution.py`
+# doesn't work, currently must be run as
+# `nosetests qiime/sdk/tests/test_execution.py`
 if __name__ == "__main__":
     unittest.main()

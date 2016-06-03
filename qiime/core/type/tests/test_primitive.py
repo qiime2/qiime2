@@ -6,13 +6,9 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .semantic import SemanticType, is_semantic_type
-from .primitive import (Str, Int, Float, Color, Dict, Set,
-                        List, is_primitive_type)
-from .grammar import is_qiime_type
+import unittest
 
-__all__ = [
-    'SemanticType', 'is_qiime_type', 'is_semantic_type',
-    'is_primitive_type', 'Str', 'Int', 'Float', 'Color',
-    'Dict', 'Set', 'List'
-]
+# TODO: Write some tests.
+
+if __name__ == '__main__':
+    unittest.main()

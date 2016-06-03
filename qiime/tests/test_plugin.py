@@ -15,18 +15,20 @@ import unittest.mock
 
 import frontmatter
 
-from qiime.plugin import Plugin, Int
+from qiime.core.testing import TestType
+from qiime.plugin import Plugin, Int, ArchiveFormat
 from qiime.sdk import Workflow, Signature
 
 
-def dummy_function():
-    return 42
+def dummy_function() -> list:
+    return [42]
 
 
-def other_dummy_function():
-    return 42
+def other_dummy_function() -> list:
+    return [42]
 
 
+# TODO updates these tests to use/test `qiime.core.testing.plugin`?
 class TestPlugin(unittest.TestCase):
     def setUp(self):
         # TODO standardize temporary directories created by QIIME
@@ -53,6 +55,18 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(self.plugin.website, 'www.dummy-plugin-hub.com')
         self.assertEqual(self.plugin.package, 'dummy_plugin')
         self.assertEqual(self.plugin.workflows, {})
+        self.assertEqual(self.plugin.archive_formats, {})
+
+    def test_register_archive_format(self):
+        self.assertEqual(self.plugin.archive_formats, {})
+
+        def is_valid(data_dir):
+            return True
+        self.plugin.register_archive_format('my-format', '1.0.0', is_valid)
+        exp_format = ArchiveFormat('my-format', '1.0.0', is_valid)
+        self.assertEqual(self.plugin.archive_formats,
+                         {('my-format', '1.0.0'): exp_format})
+        # TODO: test execution of archive format reader and writer
 
     def test_register_function(self):
         self.assertEqual(self.plugin.workflows, {})
@@ -61,7 +75,8 @@ class TestPlugin(unittest.TestCase):
             name='Dummy function',
             function=dummy_function,
             inputs={},
-            outputs=[('answer', Int)],
+            parameters={},
+            outputs=[('answer', TestType)],
             doc='Computes the answer to life, the universe, and everything'
         )
 
@@ -69,7 +84,8 @@ class TestPlugin(unittest.TestCase):
             name='Dummy function',
             function=other_dummy_function,
             inputs={},
-            outputs=[('answer', Int)],
+            parameters={},
+            outputs=[('answer', TestType)],
             doc='Computes the answer to life, the universe, and everything'
         )
 
@@ -79,7 +95,9 @@ class TestPlugin(unittest.TestCase):
                     signature=Signature(
                         name='Dummy function',
                         inputs={},
-                        outputs=collections.OrderedDict([('answer', Int)])),
+                        parameters={},
+                        outputs=collections.OrderedDict([('answer',
+                                                         (TestType, list))])),
                     template=expected_dummy_function_template,
                     id_='dummy_function'
                 ),
@@ -88,7 +106,9 @@ class TestPlugin(unittest.TestCase):
                     signature=Signature(
                         name='Dummy function',
                         inputs={},
-                        outputs=collections.OrderedDict([('answer', Int)])),
+                        parameters={},
+                        outputs=collections.OrderedDict([('answer',
+                                                         (TestType, list))])),
                     template=expected_other_dummy_function_template,
                     id_='other_dummy_function'
                 )
@@ -108,8 +128,11 @@ class TestPlugin(unittest.TestCase):
                 Workflow(
                     signature=Signature(
                         name='Dummy markdown workflow',
-                        inputs={'param1': Int, 'param2': Int},
-                        outputs=collections.OrderedDict([('the_sum', Int)])),
+                        inputs={},
+                        parameters={'param1': (Int, int),
+                                    'param2': (Int, int)},
+                        outputs=collections.OrderedDict([('the_sum',
+                                                         (TestType, list))])),
                     template=frontmatter.parse(markdown_template)[1],
                     id_='dummy_markdown_workflow'
                 )
@@ -124,7 +147,8 @@ class TestPlugin(unittest.TestCase):
             name='Dummy function',
             function=dummy_function,
             inputs={},
-            outputs=[('answer', Int)],
+            parameters={},
+            outputs=[('answer', TestType)],
             doc='Computes the answer to life, the universe, and everything'
         )
 
@@ -138,7 +162,9 @@ class TestPlugin(unittest.TestCase):
                     signature=Signature(
                         name='Dummy function',
                         inputs={},
-                        outputs=collections.OrderedDict([('answer', Int)])),
+                        parameters={},
+                        outputs=collections.OrderedDict([('answer',
+                                                         (TestType, list))])),
                     template=expected_dummy_function_template,
                     id_='dummy_function'
                 ),
@@ -146,8 +172,11 @@ class TestPlugin(unittest.TestCase):
                 Workflow(
                     signature=Signature(
                         name='Dummy markdown workflow',
-                        inputs={'param1': Int, 'param2': Int},
-                        outputs=collections.OrderedDict([('the_sum', Int)])),
+                        inputs={},
+                        parameters={'param1': (Int, int),
+                                    'param2': (Int, int)},
+                        outputs=collections.OrderedDict([('the_sum',
+                                                         (TestType, list))])),
                     template=frontmatter.parse(markdown_template)[1],
                     id_='dummy_markdown_workflow'
                 )
@@ -158,13 +187,18 @@ class TestPlugin(unittest.TestCase):
 
 markdown_template = """---
 name: Dummy markdown workflow
-type-imports:
-    - qiime.plugin:Int
-inputs:
-    param1: Int
-    param2: Int
+inputs: []
+parameters:
+    - param1:
+        - Int
+        - int
+    - param2:
+        - Int
+        - int
 outputs:
-    - the_sum: Int
+    - the_sum:
+        - TestType
+        - list
 ---
 ## Sum some integers and return their summation
 
