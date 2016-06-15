@@ -54,9 +54,11 @@ class Signature:
 
         for output_name, (output_semantic_type, output_view_type) in \
                 outputs.items():
-            if not qiime.core.type.is_semantic_type(output_semantic_type):
-                raise TypeError("%r for %r is not a semantic qiime type."
-                                % (output_semantic_type, output_name))
+            if not qiime.core.type.is_semantic_type(output_semantic_type) and \
+               output_semantic_type is not qiime.core.type.Visualization:
+                raise TypeError("%r for %r is not a semantic qiime type or "
+                                "visualization." %
+                                (output_semantic_type, output_name))
 
         self.name = name
         self.inputs = inputs
@@ -194,10 +196,6 @@ class Workflow:
         # testing. Should devs be able to define an ordering to parameters?
         md_params = ', '.join([
             '%s=%s' % (k, k) for k in sorted(inputs) + sorted(parameters)])
-        results = ', '.join(outputs.keys())
-        template = _markdown_template.format(
-            doc=doc, import_path=import_path, function_name=function_name,
-            parameters=md_params, results=results)
 
         input_types = {}
         for param_name, semantic_type in inputs.items():
@@ -217,6 +215,16 @@ class Workflow:
         for output_name, semantic_type in outputs.items():
             view_type = output_view_types[output_name]
             output_types[output_name] = (semantic_type, view_type)
+
+        if function.__annotations__['return'] is None:
+            template = _markdown_template_without_outputs.format(
+                doc=doc, import_path=import_path, function_name=function_name,
+                parameters=md_params)
+        else:
+            results = ', '.join(outputs.keys())
+            template = _markdown_template_with_outputs.format(
+                doc=doc, import_path=import_path, function_name=function_name,
+                parameters=md_params, results=results)
 
         signature = Signature(name, input_types, param_types, output_types)
 
@@ -290,16 +298,30 @@ class Workflow:
         # TODO make sure output order is respected
         for name, output_filepath in output_artifact_filepaths.items():
             output_semantic_type, _ = output_artifact_types[name]
-            teardown_lines.append(
-                # TODO make sure `artifact` is a reserved local variable name
-                # so we don't shadow a plugin's local vars. Are there other
-                # reserved names the framework uses?
-                'artifact = Artifact._from_view(%s, %r, provenance)' %
-                (name, str(output_semantic_type)))
-            # TODO explicitly clean up Artifact object instead of relying on
-            # gc?
-            teardown_lines.append(
-                'artifact.save(%r)' % output_filepath)
+            if output_semantic_type == qiime.core.type.Visualization:
+                teardown_lines.append(
+                    'from qiime.sdk.visualization import Visualization')
+                # visualizations will by definition have an output_dir
+                # parameter, so that is hard-coded here.
+                teardown_lines.append(
+                    'visualization = Visualization._from_data_dir('
+                    '%s, %r, provenance)' %
+                    ('output_dir', str(qiime.core.type.Visualization))
+                )
+                teardown_lines.append(
+                    'visualization.save(%r)' % output_filepath
+                )
+            else:
+                teardown_lines.append(
+                    # TODO make sure `artifact` is a reserved local variable
+                    # name so we don't shadow a plugin's local vars. Are there
+                    # other reserved names the framework uses?
+                    'artifact = Artifact._from_view(%s, %r, provenance)' %
+                    (name, str(output_semantic_type)))
+                # TODO explicitly clean up Artifact object instead of relying
+                # on gc?
+                teardown_lines.append(
+                    'artifact.save(%r)' % output_filepath)
 
         return provenance_lines, setup_lines, teardown_lines, job_uuid
 
@@ -439,11 +461,19 @@ def _get_import_path(cls):
     # later, like find the shortest import path
     return inspect.getmodule(cls).__name__
 
-_markdown_template = """{doc}
+_markdown_template_with_outputs = """{doc}
 
 ```python
 >>> from {import_path} import {function_name}
 >>> {results} = {function_name}({parameters})
+```
+"""
+
+_markdown_template_without_outputs = """{doc}
+
+```python
+>>> from {import_path} import {function_name}
+>>> {function_name}({parameters})
 ```
 """
 

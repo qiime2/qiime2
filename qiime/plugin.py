@@ -11,7 +11,8 @@ import pkg_resources
 
 import qiime.sdk
 import qiime.core.type.grammar as grammar
-from qiime.core.type import SemanticType, is_semantic_type, Int, Str, Float
+from qiime.core.type import (SemanticType, is_semantic_type, Int, Str, Float,
+                             Visualization)
 
 __all__ = ['load', 'Plugin', 'Int', 'Str', 'Float', 'SemanticType']
 
@@ -58,6 +59,7 @@ class Plugin:
         self.version = version
         self.website = website
         self.workflows = {}
+        self.visualizations = {}
         self.archive_formats = {}
         self.types = {}
         self.type_to_archive_formats = {}
@@ -77,6 +79,13 @@ class Plugin:
         w = qiime.sdk.Workflow.from_function(function, inputs, parameters,
                                              outputs, name, doc)
         self.workflows[w.id] = w
+
+    def register_visualization(self, name, function, inputs, parameters,
+                               doc=""):
+        outputs = collections.OrderedDict([('visualization', Visualization)])
+        v = qiime.sdk.Workflow.from_function(function, inputs, parameters,
+                                             outputs, name, doc)
+        self.visualizations[v.id] = v
 
     def register_archive_format_reader(self, name, version, view_type,
                                        reader):

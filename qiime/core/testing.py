@@ -10,6 +10,7 @@ import os.path
 
 import qiime
 import qiime.plugin
+import qiime.core.type
 
 # TODO centralize "dummy" functions and workflows that are currently duplicated
 # across unit tests.
@@ -54,3 +55,19 @@ TestType = qiime.plugin.SemanticType('TestType')
 plugin.register_semantic_type(TestType)
 
 plugin.register_type_to_archive_format(TestType, 'example-archive-format', 1)
+
+
+def visualizer1(ints: list, output_dir: str) -> None:
+    with open(os.path.join(output_dir, 'index.html'), 'w') as fh:
+        fh.write('<html><body>\n')
+        for i in ints:
+            fh.write('%d<br>\n' % i)
+        fh.write('</body></html>')
+
+plugin.register_visualization(
+    function=visualizer1,
+    inputs={'ints': TestType},
+    parameters={'output_dir': qiime.core.type.Str},
+    name='Visualizer #1',
+    doc="Let's write some integers to an html file!"
+)
