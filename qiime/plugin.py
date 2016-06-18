@@ -60,11 +60,11 @@ class Plugin:
         self.website = website
         self.workflows = {}
         self.visualizations = {}
-        self.archive_formats = {}
+        self.data_layouts = {}
         self.types = {}
-        self.type_to_archive_formats = {}
-        self.archive_format_readers = {}
-        self.archive_format_writers = {}
+        self.type_to_data_layouts = {}
+        self.data_layout_readers = {}
+        self.data_layout_writers = {}
 
     def register_workflow(self, workflow):
         fn = pkg_resources.resource_filename(self.package, workflow)
@@ -87,17 +87,15 @@ class Plugin:
                                              outputs, name, doc)
         self.visualizations[v.id] = v
 
-    def register_archive_format_reader(self, name, version, view_type,
-                                       reader):
-        self.archive_format_readers[(name, version, view_type)] = reader
+    def register_data_layout_reader(self, name, version, view_type, reader):
+        self.data_layout_readers[(name, version, view_type)] = reader
 
-    def register_archive_format_writer(self, name, version, view_type,
-                                       writer):
-        self.archive_format_writers[(name, version, view_type)] = writer
+    def register_data_layout_writer(self, name, version, view_type, writer):
+        self.data_layout_writers[(name, version, view_type)] = writer
 
-    def register_archive_format(self, name, version, validator):
-        self.archive_formats[(name, version)] = \
-            ArchiveFormat(name, version, validator)
+    def register_data_layout(self, name, version, validator):
+        self.data_layouts[(name, version)] = DataLayout(name, version,
+                                                        validator)
 
     def register_semantic_type(self, semantic_type):
         if not is_semantic_type(semantic_type):
@@ -114,17 +112,17 @@ class Plugin:
 
         self.types[semantic_type.name] = semantic_type
 
-    def register_type_to_archive_format(self, semantic_type, name, version):
+    def register_type_to_data_layout(self, semantic_type, name, version):
         if not is_semantic_type(semantic_type):
             raise TypeError("%r is not a semantic type." % semantic_type)
         if not isinstance(semantic_type, grammar.TypeExpression):
             raise ValueError("%r is not a semantic type expression."
                              % semantic_type)
 
-        self.type_to_archive_formats[semantic_type] = (name, version)
+        self.type_to_data_layouts[semantic_type] = (name, version)
 
-    # TODO: should register_archive_format, register_semantic_type, and
-    # register_type_to_archive_format be namespaced to indicate that they
+    # TODO: should register_data_layout, register_semantic_type, and
+    # register_type_to_data_layout be namespaced to indicate that they
     # shouldn't typically be used by plugin devs?
 
     def __eq__(self, other):
@@ -134,12 +132,11 @@ class Plugin:
             self.version == other.version and
             self.website == other.website and
             self.workflows == other.workflows and
-            self.archive_formats == other.archive_formats
+            self.data_layouts == other.data_layouts
         )
 
 
-class ArchiveFormat:
-
+class DataLayout:
     def __init__(self, name, version, validator):
         # TODO: should this constructor be private since calling it
         # directly would return an unregistered format, and what
@@ -152,14 +149,13 @@ class ArchiveFormat:
         self._writer_views = {}
 
     def __eq__(self, other):
-        return (self.name == other.name and
-                self.version == other.version)
+        return self.name == other.name and self.version == other.version
 
     def __ne__(self, other):
         return not self == other
 
-    def validate(self, data_reader):
-        return self._validator(data_reader)
+    def validate(self, data_dir):
+        return self._validator(data_dir)
 
     def get_reader_views(self):
         # returns view types that this format can be read into

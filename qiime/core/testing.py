@@ -26,10 +26,10 @@ def validator(data_dir):
     raise NotImplementedError()
 
 
-plugin.register_archive_format('example-archive-format', 1, validator)
+plugin.register_data_layout('example-data-layout', 1, validator)
 
 
-def example_archive_format_to_list(data_dir):
+def example_data_layout_to_list(data_dir):
     with open(os.path.join(data_dir, 'data.txt'), 'r') as fh:
         model = []
         for line in fh:
@@ -37,24 +37,24 @@ def example_archive_format_to_list(data_dir):
         return model
 
 
-plugin.register_archive_format_reader('example-archive-format', 1, list,
-                                      example_archive_format_to_list)
+plugin.register_data_layout_reader('example-data-layout', 1, list,
+                                   example_data_layout_to_list)
 
 
-def list_to_example_archive_format(view, data_dir):
+def list_to_example_data_layout(view, data_dir):
     with open(os.path.join(data_dir, 'data.txt'), 'w') as fh:
         for num in view:
             fh.write('%d\n' % num)
 
 
-plugin.register_archive_format_writer('example-archive-format', 1, list,
-                                      list_to_example_archive_format)
+plugin.register_data_layout_writer('example-data-layout', 1, list,
+                                   list_to_example_data_layout)
 
 TestType = qiime.plugin.SemanticType('TestType')
 
 plugin.register_semantic_type(TestType)
 
-plugin.register_type_to_archive_format(TestType, 'example-archive-format', 1)
+plugin.register_type_to_data_layout(TestType, 'example-data-layout', 1)
 
 
 def visualizer1(ints: list, output_dir: str) -> None:

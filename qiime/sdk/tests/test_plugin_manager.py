@@ -49,12 +49,12 @@ class TestPluginManager(unittest.TestCase):
             {'dummy-plugin': plugin1, 'other-dummy-plugin': plugin2,
              'test-plugin': qiime.core.testing.plugin})
 
-        expected_archive_format = qiime.plugin.ArchiveFormat(
-            'example-archive-format', 1, lambda e: e)
+        expected_data_layout = qiime.plugin.DataLayout(
+            'example-data-layout', 1, lambda e: e)
         self.assertEqual(
-            plugin_manager.archive_formats,
-            {('example-archive-format', 1):
-             ('test-plugin', expected_archive_format)})
+            plugin_manager.data_layouts,
+            {('example-data-layout', 1):
+             ('test-plugin', expected_data_layout)})
 
 
 if __name__ == '__main__':

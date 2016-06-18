@@ -305,8 +305,7 @@ class Workflow:
                 # parameter, so that is hard-coded here.
                 teardown_lines.append(
                     'visualization = Visualization._from_data_dir('
-                    '%s, %r, provenance)' %
-                    ('output_dir', str(qiime.core.type.Visualization))
+                    'output_dir, provenance)'
                 )
                 teardown_lines.append(
                     'visualization.save(%r)' % output_filepath

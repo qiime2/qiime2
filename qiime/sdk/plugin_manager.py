@@ -13,9 +13,9 @@ import pkg_resources
 class PluginManager:
     def __init__(self):
         self.plugins = {}
-        self.archive_formats = {}
+        self.data_layouts = {}
         self.semantic_types = {}
-        self.semantic_type_to_archive_formats = {}
+        self.semantic_type_to_data_layouts = {}
 
         plugins = [e.load() for e in pkg_resources.iter_entry_points(
             group='qiime.plugin')]
@@ -35,16 +35,16 @@ class PluginManager:
             self._finalize_plugin(plugin)
 
     def _integrate_plugin(self, plugin):
-        for id_, archive_format in plugin.archive_formats.items():
-            if id_ in self.archive_formats:
-                conflicting_plugin, _ = self.archive_formats[id_]
+        for id_, data_layout in plugin.data_layouts.items():
+            if id_ in self.data_layouts:
+                conflicting_plugin, _ = self.data_layouts[id_]
                 raise ValueError(
-                    "Duplicate archive format defined in plugins "
+                    "Duplicate data layout defined in plugins "
                     "%r and %r: %r, %r" % (conflicting_plugin, plugin.name,
                                            id_[0], id_[1]))
-            # TODO rethink the structure for mapping archive format to plugin
+            # TODO rethink the structure for mapping data layout to plugin
             # (also applies to type system and workflows).
-            self.archive_formats[id_] = (plugin.name, archive_format)
+            self.data_layouts[id_] = (plugin.name, data_layout)
 
         for type_name, type_expr in plugin.types.items():
             if type_name in self.semantic_types:
@@ -57,26 +57,24 @@ class PluginManager:
             self.semantic_types[type_name] = (plugin.name, type_expr)
 
     def _finalize_plugin(self, plugin):
-        for semantic_type, archive_format_id in \
-                plugin.type_to_archive_formats.items():
-            if archive_format_id not in self.archive_formats:
-                raise ValueError("Archive format %r does not exist, cannot"
+        for semantic_type, data_layout_id in \
+                plugin.type_to_data_layouts.items():
+            if data_layout_id not in self.data_layouts:
+                raise ValueError("Data layout %r does not exist, cannot"
                                  " register semantic type (%r) to it."
-                                 % (archive_format_id, semantic_type))
-            self.semantic_type_to_archive_formats[semantic_type] = \
-                self.archive_formats[archive_format_id][1]
+                                 % (data_layout_id, semantic_type))
+            self.semantic_type_to_data_layouts[semantic_type] = \
+                self.data_layouts[data_layout_id][1]
 
-        for reader_registration, reader in \
-                plugin.archive_format_readers.items():
+        for reader_registration, reader in plugin.data_layout_readers.items():
             name, version, view_type = reader_registration
-            _, archive_format = self.archive_formats[(name, version)]
-            archive_format.reader(view_type)(reader)
+            _, data_layout = self.data_layouts[(name, version)]
+            data_layout.reader(view_type)(reader)
 
-        for writer_registration, writer in \
-                plugin.archive_format_writers.items():
+        for writer_registration, writer in plugin.data_layout_writers.items():
             name, version, view_type = writer_registration
-            _, archive_format = self.archive_formats[(name, version)]
-            archive_format.writer(view_type)(writer)
+            _, data_layout = self.data_layouts[(name, version)]
+            data_layout.writer(view_type)(writer)
 
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
