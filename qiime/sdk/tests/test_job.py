@@ -17,18 +17,18 @@ class TestJob(unittest.TestCase):
     def test_constructor(self):
         job = Job(code="import this",
                   uuid=uuid.UUID('7e909a23-21e2-44c2-be17-0723fae91dc8'),
-                  input_artifact_filepaths={'input1': 'input1.qzf'},
+                  input_artifact_filepaths={'input1': 'input1.qza'},
                   parameter_references={'param1': 42},
-                  output_artifact_filepaths={'output1': 'output1.qzf'})
+                  output_artifact_filepaths={'output1': 'output1.qza'})
 
         self.assertEqual(job.code, "import this")
         self.assertEqual(job.uuid,
                          uuid.UUID('7e909a23-21e2-44c2-be17-0723fae91dc8'))
         self.assertEqual(job.input_artifact_filepaths,
-                         {'input1': 'input1.qzf'})
+                         {'input1': 'input1.qza'})
         self.assertEqual(job.parameter_references, {'param1': 42})
         self.assertEqual(job.output_artifact_filepaths,
-                         {'output1': 'output1.qzf'})
+                         {'output1': 'output1.qza'})
 
 
 if __name__ == "__main__":

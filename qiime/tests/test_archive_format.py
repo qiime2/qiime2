@@ -17,7 +17,7 @@ class TestFormat(unittest.TestCase):
         def is_valid(data_dir):
             return True
 
-        f = qiime.plugin.ArchiveFormat('my-format', '1.0.0', is_valid)
+        f = qiime.plugin.DataLayout('my-format', '1.0.0', is_valid)
         self.assertEqual(f.name, 'my-format')
         self.assertEqual(f.version, '1.0.0')
         with tempfile.TemporaryDirectory() as data_dir:
@@ -30,10 +30,10 @@ class TestFormat(unittest.TestCase):
         def is_valid(data_dir):
             return True
 
-        f1 = qiime.plugin.ArchiveFormat('my-format', '1.0.0', is_valid)
-        f2 = qiime.plugin.ArchiveFormat('my-format', '1.0.0', is_valid)
-        f3 = qiime.plugin.ArchiveFormat('your-format', '1.0.0', is_valid)
-        f4 = qiime.plugin.ArchiveFormat('my-format', '1.0.1', is_valid)
+        f1 = qiime.plugin.DataLayout('my-format', '1.0.0', is_valid)
+        f2 = qiime.plugin.DataLayout('my-format', '1.0.0', is_valid)
+        f3 = qiime.plugin.DataLayout('your-format', '1.0.0', is_valid)
+        f4 = qiime.plugin.DataLayout('my-format', '1.0.1', is_valid)
         self.assertEqual(f1, f1)
         self.assertEqual(f1, f2)
         self.assertNotEqual(f1, f3)
@@ -44,7 +44,7 @@ class TestFormat(unittest.TestCase):
         def is_valid(data_dir):
             return True
 
-        f = qiime.plugin.ArchiveFormat('my-format', '1.0.0', is_valid)
+        f = qiime.plugin.DataLayout('my-format', '1.0.0', is_valid)
 
         @f.reader(float)
         def my_reader(data_dir):
@@ -59,7 +59,7 @@ class TestFormat(unittest.TestCase):
         def is_valid(data_dir):
             return True
 
-        f = qiime.plugin.ArchiveFormat('my-format', '1.0.0', is_valid)
+        f = qiime.plugin.DataLayout('my-format', '1.0.0', is_valid)
 
         @f.writer(float)
         def my_writer(data_dir):

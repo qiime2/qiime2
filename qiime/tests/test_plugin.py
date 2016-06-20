@@ -16,7 +16,7 @@ import unittest.mock
 import frontmatter
 
 from qiime.core.testing import TestType
-from qiime.plugin import Plugin, Int, ArchiveFormat
+from qiime.plugin import Plugin, Int, DataLayout
 from qiime.sdk import Workflow, Signature
 
 
@@ -55,18 +55,18 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(self.plugin.website, 'www.dummy-plugin-hub.com')
         self.assertEqual(self.plugin.package, 'dummy_plugin')
         self.assertEqual(self.plugin.workflows, {})
-        self.assertEqual(self.plugin.archive_formats, {})
+        self.assertEqual(self.plugin.data_layouts, {})
 
-    def test_register_archive_format(self):
-        self.assertEqual(self.plugin.archive_formats, {})
+    def test_register_data_layout(self):
+        self.assertEqual(self.plugin.data_layouts, {})
 
         def is_valid(data_dir):
             return True
-        self.plugin.register_archive_format('my-format', '1.0.0', is_valid)
-        exp_format = ArchiveFormat('my-format', '1.0.0', is_valid)
-        self.assertEqual(self.plugin.archive_formats,
+        self.plugin.register_data_layout('my-format', '1.0.0', is_valid)
+        exp_format = DataLayout('my-format', '1.0.0', is_valid)
+        self.assertEqual(self.plugin.data_layouts,
                          {('my-format', '1.0.0'): exp_format})
-        # TODO: test execution of archive format reader and writer
+        # TODO: test execution of data layout reader and writer
 
     def test_register_function(self):
         self.assertEqual(self.plugin.workflows, {})

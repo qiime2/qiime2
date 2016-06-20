@@ -47,7 +47,7 @@ class TestArtifact(unittest.TestCase):
         self.test_dir.cleanup()
 
     def test_save(self):
-        fp = os.path.join(self.test_dir.name, 'artifact.qzf')
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
 
         self.artifact_with_provenance.save(fp)
 
@@ -58,7 +58,7 @@ class TestArtifact(unittest.TestCase):
             self.assertEqual(fps, expected)
 
     def test_load_with_provenance(self):
-        fp = os.path.join(self.test_dir.name, 'artifact.qzf')
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
         self.artifact_with_provenance.save(fp)
 
         artifact = Artifact.load(fp)
@@ -69,7 +69,7 @@ class TestArtifact(unittest.TestCase):
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43, 43])
 
     def test_load_without_provenance(self):
-        fp = os.path.join(self.test_dir.name, 'artifact.qzf')
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
         self.artifact_without_provenance.save(fp)
 
         artifact = Artifact.load(fp)
