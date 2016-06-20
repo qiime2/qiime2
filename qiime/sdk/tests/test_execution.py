@@ -45,9 +45,9 @@ class TestSubprocessExecutor(unittest.TestCase):
             doc="Let's concatenate some things!"
         )
 
-        self.artifact_fp1 = os.path.join(self.test_dir.name, 'artifact1.qzf')
-        self.artifact_fp2 = os.path.join(self.test_dir.name, 'artifact2.qzf')
-        self.artifact_fp3 = os.path.join(self.test_dir.name, 'artifact3.qzf')
+        self.artifact_fp1 = os.path.join(self.test_dir.name, 'artifact1.qza')
+        self.artifact_fp2 = os.path.join(self.test_dir.name, 'artifact2.qza')
+        self.artifact_fp3 = os.path.join(self.test_dir.name, 'artifact3.qza')
 
         artifact = Artifact._from_view(
             [-1, 42, 0, 43, 43], qiime.core.testing.TestType, None)

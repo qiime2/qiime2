@@ -165,17 +165,17 @@ class TestWorkflow(unittest.TestCase):
         # that can test either one instead of duplicating a bunch of code.
         workflow = Workflow.from_markdown(self.markdown_fp)
 
-        artifact_fp1 = os.path.join(self.test_dir.name, 'artifact1.qzf')
+        artifact_fp1 = os.path.join(self.test_dir.name, 'artifact1.qza')
         artifact = Artifact._from_view(
             [-1, 42, 0, 43, 43], qiime.core.testing.TestType, None)
         artifact.save(artifact_fp1)
 
-        artifact_fp2 = os.path.join(self.test_dir.name, 'artifact2.qzf')
+        artifact_fp2 = os.path.join(self.test_dir.name, 'artifact2.qza')
         artifact = Artifact._from_view(
             [1, 2, 100], qiime.core.testing.TestType, None)
         artifact.save(artifact_fp2)
 
-        artifact_fp3 = os.path.join(self.test_dir.name, 'artifact3.qzf')
+        artifact_fp3 = os.path.join(self.test_dir.name, 'artifact3.qza')
 
         job = to_method(
             workflow,
