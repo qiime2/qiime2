@@ -57,7 +57,7 @@ plugin.register_semantic_type(TestType)
 plugin.register_type_to_data_layout(TestType, 'example-data-layout', 1)
 
 
-def visualizer1(ints: list, output_dir: str) -> None:
+def visualizer1(output_dir: str, ints: list) -> None:
     with open(os.path.join(output_dir, 'index.html'), 'w') as fh:
         fh.write('<html><body>\n')
         for i in ints:
@@ -67,7 +67,7 @@ def visualizer1(ints: list, output_dir: str) -> None:
 plugin.register_visualization(
     function=visualizer1,
     inputs={'ints': TestType},
-    parameters={'output_dir': qiime.core.type.Str},
+    parameters={},
     name='Visualizer #1',
     doc="Let's write some integers to an html file!"
 )

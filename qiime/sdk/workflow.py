@@ -193,7 +193,7 @@ class Workflow:
         import_path = inspect.getmodule(function).__name__
         function_name = function.__name__
         # TODO sorting by parameter name for reproducible output necessary for
-        # testing. Should devs be able to define an ordering to parameters?
+        # testing. This should match `function` signature
         md_params = ', '.join([
             '%s=%s' % (k, k) for k in sorted(inputs) + sorted(parameters)])
 

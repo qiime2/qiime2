@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import collections
+import inspect
 import pkg_resources
 
 import qiime.sdk
@@ -82,6 +83,24 @@ class Plugin:
 
     def register_visualization(self, name, function, inputs, parameters,
                                doc=""):
+        if 'output_dir' in inputs or 'output_dir' in parameters:
+            raise TypeError(
+                "`output_dir` is a reserved parameter name and cannot be used "
+                "in `inputs` or `parameters`")
+        parameters['output_dir'] = qiime.core.type.Str
+
+        function_parameters = \
+            list(inspect.signature(function).parameters.keys())
+        if len(function_parameters) > 0:
+            first_parameter = function_parameters[0]
+            if first_parameter != 'output_dir':
+                raise TypeError(
+                    "Visualization function must have `output_dir` as its "
+                    "first argument, not %r" % first_parameter)
+        else:
+            raise TypeError(
+                "Visualization function must have at least one argument")
+
         outputs = collections.OrderedDict([('visualization', Visualization)])
         v = qiime.sdk.Workflow.from_function(function, inputs, parameters,
                                              outputs, name, doc)
