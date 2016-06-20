@@ -15,6 +15,7 @@ import subprocess
 
 import qiime.core.testing
 import qiime.plugin
+import qiime.sdk.job
 from qiime.sdk import Workflow, Artifact, SubprocessExecutor
 
 
@@ -61,19 +62,25 @@ class TestSubprocessExecutor(unittest.TestCase):
         self.test_dir.cleanup()
 
     def test_call(self):
+        input_artifact_filepaths = {
+            'input1': self.artifact_fp1,
+            'input2': self.artifact_fp2
+        }
+        parameter_references = {
+            'param1': 99,
+            'param2': -999,
+        }
+        output_artifact_filepaths = {
+            'concatenated_inputs': self.artifact_fp3
+        }
+
         executor = SubprocessExecutor()
-        future = executor(self.workflow,
-                          input_artifact_filepaths={
-                            'input1': self.artifact_fp1,
-                            'input2': self.artifact_fp2
-                          },
-                          parameter_references={
-                            'param1': 99,
-                            'param2': -999,
-                          },
-                          output_artifact_filepaths={
-                            'concatenated_inputs': self.artifact_fp3
-                          })
+        future, job = executor(
+            self.workflow,
+            input_artifact_filepaths=input_artifact_filepaths,
+            parameter_references=parameter_references,
+            output_artifact_filepaths=output_artifact_filepaths)
+
         self.assertIsInstance(future, concurrent.futures.Future)
 
         completed_process = future.result()
@@ -81,6 +88,13 @@ class TestSubprocessExecutor(unittest.TestCase):
         self.assertEqual(completed_process.returncode, 0)
         self.assertEqual(completed_process.stdout, b'')
         self.assertEqual(completed_process.stderr, b'')
+
+        self.assertIsInstance(job, qiime.sdk.job.Job)
+        self.assertEqual(job.input_artifact_filepaths,
+                         input_artifact_filepaths)
+        self.assertEqual(job.parameter_references, parameter_references)
+        self.assertEqual(job.output_artifact_filepaths,
+                         output_artifact_filepaths)
 
         artifact = Artifact.load(self.artifact_fp3)
 

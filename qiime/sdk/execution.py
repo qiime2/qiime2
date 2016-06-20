@@ -43,4 +43,4 @@ class SubprocessExecutor:
         # exception in pool.submit or the callback
         future.add_done_callback(lambda _: shutil.rmtree(temp_dir))
 
-        return future
+        return future, job
