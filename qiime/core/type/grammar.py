@@ -84,7 +84,7 @@ class CompositeType(_ImmutableBase):
         for args in zip(self.field_names, fields):
             self._validate_field_(*args)
 
-        return self._build_expression_(fields=fields)
+        return self._apply_fields_(fields=fields)
 
     def __repr__(self):
         return "%s[%s]" % (self.name,
@@ -118,7 +118,7 @@ class CompositeType(_ImmutableBase):
             raise TypeError("%r cannot be used as a field to %r (not a type)."
                             % (value, self))
 
-    def _build_expression_(self, fields):
+    def _apply_fields_(self, fields):
         """Called when a `CompositeType` is promoted to a `TypeExpression`.
 
         This method is designed to be overridden to influence the behaviour of

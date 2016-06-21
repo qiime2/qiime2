@@ -122,11 +122,11 @@ class TestCompositeType(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, 'Ellipsis'):
             Example._validate_field_('foo', Ellipsis)
 
-    def test_build_expression(self):
+    def test_apply_fields(self):
         X = grammar.TypeExpression('X')
         Example = grammar.CompositeType('Example', ('foo',))
 
-        result = Example._build_expression_((X,))
+        result = Example._apply_fields_((X,))
 
         self.assertEqual(result.fields, (X,))
         self.assertEqual(result.name, 'Example')
@@ -163,12 +163,12 @@ class TestCompositeTypeGetItem(unittest.TestCase):
         self.assertEqual(self.local['name'], 'foo')
         self.assertEqual(self.local['value'], ...)
 
-    def test_build_expression_called(self):
+    def test_apply_fields_called(self):
         class MyCompositeType(grammar.CompositeType):
             def _validate_field_(*args):
                 pass  # Let anything through
 
-            def _build_expression_(s, fields):
+            def _apply_fields_(s, fields):
                 self.local['fields'] = fields
                 return ...
 

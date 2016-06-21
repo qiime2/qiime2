@@ -7,13 +7,13 @@
 # ----------------------------------------------------------------------------
 
 from .semantic import SemanticType, is_semantic_type
-from .primitive import (Str, Int, Float, Color, Dict, Set,
-                        List, is_primitive_type)
+from .primitive import (Str, Int, Float, Color, Dict, Set, Metadata,
+                        MetadataCategory, List, is_primitive_type)
 from .grammar import is_qiime_type
 from .visualization import Visualization
 
 __all__ = [
-    'SemanticType', 'is_qiime_type', 'is_semantic_type',
-    'is_primitive_type', 'Str', 'Int', 'Float', 'Color',
-    'Dict', 'Set', 'List', 'Visualization'
+    'SemanticType', 'is_qiime_type', 'is_semantic_type', 'is_primitive_type',
+    'Str', 'Int', 'Float', 'Color', 'Dict', 'Set', 'List', 'Metadata',
+    'MetadataCategory', 'Visualization'
 ]

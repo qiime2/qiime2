@@ -6,8 +6,13 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from qiime.core.type.grammar import TypeExpression, CompositeType, Predicate
 import json
+import numbers
+import re
+import collections.abc
+
+from qiime.core.type.grammar import TypeExpression, CompositeType, Predicate
+import qiime.metadata as metadata
 
 
 def is_primitive_type(type_):
@@ -29,8 +34,14 @@ class _PrimitiveBase(TypeExpression):
         raise TypeError("Cannot union primitive types.")
 
     def _validate_intersection_(self, other, handshake=False):
-        # This literally makes no sense for primitives.
+        # This literally makes no sense for primitives. Even less sense than
+        # C's Union type (which is actually an intersection type...)
         raise TypeError("Cannot intersect primitive types.")
+
+    def to_ast(self):
+        ast = super().to_ast()
+        ast['type'] = 'primitive'
+        return ast
 
 
 class _Primitive(_PrimitiveBase):
@@ -44,11 +55,19 @@ class _Primitive(_PrimitiveBase):
                             " permitted predicates: %r"
                             % (predicate, self, self._valid_predicates))
 
-        # for bound in predicate.iter_boundaries():
-        #     self._validate_predicate_bound_(bound)
+        for bound in predicate.iter_boundaries():
+            if not self._is_element_(bound):
+                raise TypeError()
 
     def _apply_predicate_(self, predicate):
         return self.__class__(fields=self.fields, predicate=predicate)
+
+    def __contains__(self, value):
+        return (self._is_element_(value) and
+                ((not self.predicate) or value in self.predicate))
+
+    def _is_element_(self, value):
+        return False
 
 
 class _Collection(CompositeType):
@@ -64,28 +83,39 @@ class _Collection(CompositeType):
 
         super()._validate_field_(name, value)
 
-    def _build_expression_(self, fields):
-        return _CollectionPrimitive(self.encode, self.decode, self.name,
-                                    fields=fields)
+    def _apply_fields_(self, fields):
+        return _CollectionPrimitive(self._is_element_, self.encode,
+                                    self.decode, self.name, fields=fields)
 
 
 class _CollectionPrimitive(_PrimitiveBase):
-    def __init__(self, encode, decode, *args, **kwargs):
+    def __init__(self, is_member, encode, decode, *args, **kwargs):
         # TODO: This is a nasty hack
         self._encode = encode
         self._decode = decode
+        self._is_member = is_member
+
+        super().__init__(*args, **kwargs)
 
         super().__init__(*args, **kwargs)
 
     def encode(self, value):
-        return self._encode(value)
+        return self._encode(self, value)
 
     def decode(self, string):
-        return self._decode(string)
+        return self._decode(self, string)
+
+    def _is_element_(self, value):
+        return self._is_member(self, value)
 
     def _validate_predicate_(self, predicate):
         raise TypeError("Predicates cannot be applied directly to collection"
                         " types.")
+
+    def to_ast(self):
+        ast = super().to_ast()
+        ast['type'] = 'collection'
+        return ast
 
 
 _RANGE_DEFAULT_START = 0
@@ -143,6 +173,17 @@ class Range(Predicate):
 
         return "%s(%s)" % (self.__class__.__name__, ', '.join(args))
 
+    def iter_boundaries(self):
+        yield from [self.start, self.end]
+
+    def to_ast(self):
+        ast = super().to_ast()
+        ast['start'] = self.start
+        ast['end'] = self.end
+        ast['inclusive-start'] = self.inclusive_start
+        ast['inclusive-end'] = self.inclusive_end
+        return ast
+
 
 class Choices(Predicate):
     def __init__(self, choices):
@@ -150,9 +191,20 @@ class Choices(Predicate):
 
         super().__init__(choices)
 
+    def __contains__(self, value):
+        return value in self.choices
+
     def __repr__(self):
         return "%s({%s})" % (self.__class__.__name__,
                              repr(sorted(self.choices))[1:-1])
+
+    def iter_boundaries(self):
+        yield from self.choices
+
+    def to_ast(self):
+        ast = super().to_ast()
+        ast['choices'] = list(self.choices)
+        return ast
 
 
 class Arguments(Predicate):
@@ -161,11 +213,32 @@ class Arguments(Predicate):
 
         super().__init__(parameter)
 
+    def __contains__(self, value):
+        raise NotImplementedError("Membership cannot be determined by this"
+                                  " predicate directly.")
+
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.parameter)
 
+    def iter_boundaries(self):
+        yield from []
+
+    def to_ast(self):
+        ast = super().to_ast()
+        ast['parameter'] = self.parameter
+        return ast
+
 
 class _Dict(_Collection):
+    def _is_element_(self, value):
+        if not isinstance(value, collections.abc.Mapping):
+            return False
+        key_type, value_type = self.fields
+        for k, v in value.items():
+            if k not in key_type or v not in value_type:
+                return False
+        return True
+
     def decode(self, string):
         return json.loads(string)
 
@@ -184,6 +257,7 @@ class _List(_Collection):
 
 List = _List('List', field_names=['elements'])
 
+
 class _Set(_Collection):
     def decode(self, string):
         return set(json.loads(string))
@@ -193,8 +267,13 @@ class _Set(_Collection):
 
 Set = _Set('Set', field_names=['elements'])
 
+
 class _Int(_Primitive):
     _valid_predicates = {Range, Arguments}
+
+    def _is_element_(self, value):
+        # Works with numpy just fine.
+        return isinstance(value, numbers.Integral)
 
     def decode(self, string):
         return int(string)
@@ -206,13 +285,21 @@ Int = _Int('Int')
 
 class _Str(_Primitive):
     _valid_predicates = {Choices, Arguments}
-    decode = encode = lambda self, x: x
+    decode = encode = lambda self, arg: arg
+
+    def _is_element_(self, value):
+        # No reason for excluding bytes other than extreme prejudice.
+        return isinstance(value, str)
 
 Str = _Str('Str')
 
 
 class _Float(_Primitive):
     _valid_predicates = {Range, Arguments}
+
+    def _is_element_(self, value):
+        # Works with numpy just fine.
+        return isinstance(value, numbers.Real)
 
     def decode(self, string):
         return float(string)
@@ -224,10 +311,50 @@ Float = _Float('Float')
 
 
 class _Color(type(Str)):
-    pass
+    def _is_element_(self, value):
+        # Regex from: http://stackoverflow.com/a/1636354/579416
+        return bool(re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', value))
 
 Color = _Color('Color')
 
-# @_symbolify
-# class Column(_Primitive):
-#     pass
+
+class _Metadata(_Primitive):
+    _valid_predicates = set()
+
+    def _is_element_(self, value):
+        return isinstance(value, metadata.Metadata)
+
+    def decode(self, metadata):
+        # This interface should have already retrieved this object.
+        if not self._is_element_(metadata):
+            raise TypeError("`Metadata` must be provided by the interface"
+                            " directly.")
+        return metadata
+
+    def encode(self, value):
+        # TODO: Should this be the provenance representation? Does that affect
+        # decode?
+        return value
+
+Metadata = _Metadata('Metadata')
+
+
+class _MetadataCategory(_Primitive):
+    _valid_predicates = set()
+
+    def _is_element_(self, value):
+        return isinstance(value, metadata.MetadataCategory)
+
+    def decode(self, metadata_category):
+        # This interface should have already retrieved this object.
+        if not self._is_element_(metadata_category):
+            raise TypeError("`MetadataCategory` must be provided by the"
+                            " interface directly.")
+        return metadata_category
+
+    def encode(self, value):
+        # TODO: Should this be the provenance representation? Does that affect
+        # decode?
+        return value
+
+MetadataCategory = _MetadataCategory('MetadataCategory')

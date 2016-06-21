@@ -145,7 +145,7 @@ class _IncompleteSemanticType(grammar.CompositeType):
             raise TypeError("%r is not a variant of %r." % (value, varfield))
 
     @overrides(grammar.CompositeType)
-    def _build_expression_(self, fields):
+    def _apply_fields_(self, fields):
         return _SemanticType(self.name, self.variant_of, fields=fields)
 
     def is_concrete(self):
