@@ -20,12 +20,6 @@ def is_primitive_type(type_):
 
 
 class _PrimitiveBase(TypeExpression):
-    def __contains__(self, value):
-        # TODO: Make this work correctly. It is stubbed as True as current
-        # usage is through encode/decode, we will need this to work for
-        # the Artifact API and predicates.
-        return True
-
     def _validate_union_(self, other, handshake=False):
         # It is possible we may want this someday: `Int | Str`, but order of
         # encode/decode dispatch wouldn't be straight-forward.
@@ -38,14 +32,8 @@ class _PrimitiveBase(TypeExpression):
         # C's Union type (which is actually an intersection type...)
         raise TypeError("Cannot intersect primitive types.")
 
-    def to_ast(self):
-        ast = super().to_ast()
-        ast['type'] = 'primitive'
-        return ast
-
 
 class _Primitive(_PrimitiveBase):
-
     def _validate_predicate_(self, predicate):
         super()._validate_predicate_(predicate)
         # _valid_predicates will be on the class obj of the primitives to
@@ -57,21 +45,15 @@ class _Primitive(_PrimitiveBase):
 
         for bound in predicate.iter_boundaries():
             if not self._is_element_(bound):
-                raise TypeError()
-
-    def _apply_predicate_(self, predicate):
-        return self.__class__(fields=self.fields, predicate=predicate)
-
-    def __contains__(self, value):
-        return (self._is_element_(value) and
-                ((not self.predicate) or value in self.predicate))
-
-    def _is_element_(self, value):
-        return False
+                raise TypeError("%r has the wrong types for %r."
+                                % (predicate, self))
+    def to_ast(self):
+        ast = super().to_ast()
+        ast['type'] = 'primitive'
+        return ast
 
 
 class _Collection(CompositeType):
-
     def _validate_field_(self, name, value):
         if not isinstance(value, _Primitive):
             if isinstance(value, _CollectionPrimitive):
@@ -84,16 +66,17 @@ class _Collection(CompositeType):
         super()._validate_field_(name, value)
 
     def _apply_fields_(self, fields):
-        return _CollectionPrimitive(self._is_element_, self.encode,
-                                    self.decode, self.name, fields=fields)
+        return _CollectionPrimitive(self._is_element_.__func__,
+                                    self.encode.__func__, self.decode.__func__,
+                                    self.name, fields=fields)
 
 
 class _CollectionPrimitive(_PrimitiveBase):
-    def __init__(self, is_member, encode, decode, *args, **kwargs):
+    def __init__(self, is_element, encode, decode, *args, **kwargs):
         # TODO: This is a nasty hack
         self._encode = encode
         self._decode = decode
-        self._is_member = is_member
+        self._is_element = is_element
 
         super().__init__(*args, **kwargs)
 
@@ -106,11 +89,15 @@ class _CollectionPrimitive(_PrimitiveBase):
         return self._decode(self, string)
 
     def _is_element_(self, value):
-        return self._is_member(self, value)
+        return self._is_element(self, value)
 
     def _validate_predicate_(self, predicate):
         raise TypeError("Predicates cannot be applied directly to collection"
                         " types.")
+
+    def _apply_fields_(self, fields):
+        return _CollectionPrimitive(self._is_element, self._encode,
+                                    self._decode, self.name, fields=fields)
 
     def to_ast(self):
         ast = super().to_ast()
@@ -118,7 +105,7 @@ class _CollectionPrimitive(_PrimitiveBase):
         return ast
 
 
-_RANGE_DEFAULT_START = 0
+_RANGE_DEFAULT_START = None
 _RANGE_DEFAULT_END = None
 _RANGE_DEFAULT_INCLUSIVE_START = True
 _RANGE_DEFAULT_INCLUSIVE_END = False
@@ -127,7 +114,6 @@ _RANGE_DEFAULT_INCLUSIVE_END = False
 class Range(Predicate):
     def __init__(self, *args, inclusive_start=_RANGE_DEFAULT_INCLUSIVE_START,
                  inclusive_end=_RANGE_DEFAULT_INCLUSIVE_END):
-        # TODO: Make this not silly.
         if len(args) == 2:
             self.start, self.end = args
         elif len(args) == 1:
@@ -143,7 +129,34 @@ class Range(Predicate):
 
         super().__init__(args)
 
-    def __contains__(self, value):
+    def __hash__(self):
+        return (hash(type(self)) ^
+                hash(self.start) ^
+                hash(self.end) ^
+                hash(self.inclusive_start) ^
+                hash(self.inclusive_end))
+
+    def __eq__(self, other):
+        return (type(self) is type(other) and
+                self.start == other.start and
+                self.end == other.end and
+                self.inclusive_start == other.inclusive_start and
+                self.inclusive_end == other.inclusive_end)
+
+    def __repr__(self):
+        args = []
+        if self.start is not _RANGE_DEFAULT_START:
+            args.append(repr(self.start))
+        if self.end is not _RANGE_DEFAULT_END:
+            args.append(repr(self.end))
+        if self.inclusive_start is not _RANGE_DEFAULT_INCLUSIVE_START:
+            args.append('inclusive_start=%r' % self.inclusive_start)
+        if self.inclusive_end is not _RANGE_DEFAULT_INCLUSIVE_END:
+            args.append('inclusive_end=%r' % self.inclusive_end)
+
+        return "%s(%s)" % (self.__class__.__name__, ', '.join(args))
+
+    def _is_element_(self, value):
         if self.start is not None:
             if self.inclusive_start:
                 if value < self.start:
@@ -159,19 +172,6 @@ class Range(Predicate):
                 return False
 
         return True
-
-    def __repr__(self):
-        args = []
-        if self.start is not _RANGE_DEFAULT_START:
-            args.append(repr(self.start))
-        if self.end is not _RANGE_DEFAULT_END:
-            args.append(repr(self.end))
-        if self.inclusive_start is not _RANGE_DEFAULT_INCLUSIVE_START:
-            args.append('inclusive_start=%r' % self.inclusive_start)
-        if self.inclusive_end is not _RANGE_DEFAULT_INCLUSIVE_END:
-            args.append('inclusive_end=%r' % self.inclusive_end)
-
-        return "%s(%s)" % (self.__class__.__name__, ', '.join(args))
 
     def iter_boundaries(self):
         yield from [self.start, self.end]
@@ -191,12 +191,18 @@ class Choices(Predicate):
 
         super().__init__(choices)
 
-    def __contains__(self, value):
-        return value in self.choices
+    def __hash__(self):
+        return hash(type(self)) ^ hash(frozenset(self.choices))
+
+    def __eq__(self, other):
+        return type(self) == type(other) and self.choices == other.choices
 
     def __repr__(self):
         return "%s({%s})" % (self.__class__.__name__,
                              repr(sorted(self.choices))[1:-1])
+
+    def _is_element_(self, value):
+        return value in self.choices
 
     def iter_boundaries(self):
         yield from self.choices
@@ -213,13 +219,18 @@ class Arguments(Predicate):
 
         super().__init__(parameter)
 
-    def __contains__(self, value):
-        raise NotImplementedError("Membership cannot be determined by this"
-                                  " predicate directly.")
+    def __hash__(self):
+        return hash(type(self)) ^ hash(self.parameter)
+
+    def __eq__(self, other):
+         return type(self) == type(other) and self.parameter == other.parameter
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.parameter)
 
+    def _is_element_(self, value):
+        raise NotImplementedError("Membership cannot be determined by this"
+                                  " predicate directly.")
     def iter_boundaries(self):
         yield from []
 
@@ -249,6 +260,15 @@ Dict = _Dict('Dict', field_names=['keys', 'values'])
 
 
 class _List(_Collection):
+    def _is_element_(self, value):
+        if not isinstance(value, collections.abc.Sequence):
+            return False
+        element_type, = self.fields
+        for v in value:
+            if v not in element_type:
+                return False
+        return True
+
     def decode(self, string):
         return json.loads(string)
 
@@ -259,6 +279,15 @@ List = _List('List', field_names=['elements'])
 
 
 class _Set(_Collection):
+    def _is_element_(self, value):
+        if not isinstance(value, collections.abc.Set):
+            return False
+        element_type, = self.fields
+        for v in value:
+            if v not in element_type:
+                return False
+        return True
+
     def decode(self, string):
         return set(json.loads(string))
 
@@ -275,6 +304,11 @@ class _Int(_Primitive):
         # Works with numpy just fine.
         return isinstance(value, numbers.Integral)
 
+    def _is_subtype_(self, other):
+        if isinstance(other, type(Float)) and self.predicate <= other.predicate:
+            return True
+        return super()._is_subtype_(other)
+
     def decode(self, string):
         return int(string)
 
@@ -282,6 +316,7 @@ class _Int(_Primitive):
         return str(value)
 
 Int = _Int('Int')
+
 
 class _Str(_Primitive):
     _valid_predicates = {Choices, Arguments}
@@ -315,7 +350,7 @@ class _Color(type(Str)):
         # Regex from: http://stackoverflow.com/a/1636354/579416
         return bool(re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', value))
 
-Color = _Color('Color')
+Color = Colour = _Color('Color')
 
 
 class _Metadata(_Primitive):

@@ -7,15 +7,11 @@
 # ----------------------------------------------------------------------------
 
 
-# TODO make this more robust (hand me a list and see what happens...)
 def tuplize(x):
     if type(x) is not tuple:
         return (x,)
     return x
 
-
-# TODO: Move this, but for now it provides some reasonable documentation to
-# the type system
 def overrides(cls):
     def decorator(func):
         if not hasattr(cls, func.__name__):

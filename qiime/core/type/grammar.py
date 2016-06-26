@@ -7,8 +7,9 @@
 # ----------------------------------------------------------------------------
 
 import types
+import itertools
 
-from qiime.core.type.util import tuplize
+from qiime.core.util import tuplize
 
 
 def _immutable_error(*args):
@@ -38,7 +39,7 @@ class _ImmutableBase:
         super().__setattr__(*args)
 
     def __ne__(self, other):
-        return not (self == other)
+        return not self == other
 
     def __rmod__(self, predicate):
         raise TypeError("Predicate must be applied to the right-hand side of"
@@ -156,14 +157,17 @@ class TypeExpression(_ImmutableBase):
                 hash(self.fields))
 
     def __eq__(self, other):
+        # Deep equality, but not semantic equality.
         if type(self) is not type(other):
             return NotImplemented
         return (self.name == other.name and
                 self.predicate == other.predicate and
                 self.fields == other.fields)
 
-    def __getitem__(self, fields):
-        raise TypeError("%r has no empty fields (not subscriptable)." % self)
+    def equals(self, other):
+        # Different from __eq__ which has to match hashing but can't
+        # consider semantic equality
+        return self <= other <= self
 
     def __repr__(self):
         result = self.name
@@ -172,6 +176,20 @@ class TypeExpression(_ImmutableBase):
         if self.predicate:
             result += ' %% %r' % self.predicate
         return result
+
+    def __getitem__(self, fields):
+        raise TypeError("%r has no empty fields (not subscriptable)." % self)
+
+    def _apply_fields_(self, fields):
+        return self.__class__(self.name, fields=fields,
+                              predicate=self.predicate)
+
+    def __contains__(self, value):
+        return (self._is_element_(value) and
+                ((not self.predicate) or value in self.predicate))
+
+    def _is_element_(self, value):
+        return False
 
     def __mod__(self, predicate):
         if self.predicate:
@@ -230,10 +248,52 @@ class TypeExpression(_ImmutableBase):
     def _build_intersection_(self, members):
         return IntersectionTypeExpression(members)
 
+    def __le__(self, other):
+        return all(any(s._aug_is_subtype(o) for o in other) for s in self)
+
+    def __ge__(self, other):
+        return all(any(o._aug_is_subtype(s) for s in self) for o in other)
+
+    def _aug_is_subtype(self, other):
+        r = self._is_subtype_(other)
+        if r is NotImplemented:
+            return other._is_supertype_(self)
+        return r
+
+    def _is_subtype_(self, other):
+        if self.name != other.name:
+            return False
+        for f1, f2 in itertools.zip_longest(self.fields, other.fields):
+            if not (f1 <= f2):
+                return False
+        if other.predicate and not self.predicate <= other.predicate:
+            return False
+        return True
+
+    def _is_supertype_(self, other):
+        # Invoked only when `other`'s `_is_subtype_` returned `NotImplemented`
+        # that really shouldn't be needed most of the time.
+        raise NotImplementedError
+
+    def __iter__(self):
+        yield from set(self._apply_fields_(fields=fields)
+                       for fields in itertools.product(*self.fields))
+
+    def is_concrete(self):
+        return len(list(self)) == 1
+
     def iter_symbols(self):
         yield self.name
         for field in self.fields:
             yield from field.iter_symbols()
+
+    def to_ast(self):
+        return {
+            "type": 'expression',
+            "name": self.name,
+            "predicate": self.predicate.to_ast() if self.predicate else {},
+            "fields": [field.to_ast() for field in self.fields]
+        }
 
 
 class _SetOperationBase(TypeExpression):
@@ -269,6 +329,14 @@ class _SetOperationBase(TypeExpression):
     def _validate_predicate_(self, predicate):
         raise TypeError("Cannot apply predicates to union/intersection types.")
 
+    def to_ast(self):
+        return {
+            'members': [m.to_ast() for m in self.members]
+        }
+
+    def __iter__(self):
+        yield from set(itertools.chain.from_iterable(self.members))
+
 
 class UnionTypeExpression(_SetOperationBase):
     _operator = '|'
@@ -279,7 +347,66 @@ class UnionTypeExpression(_SetOperationBase):
     def _build_union_(self, members):
         return self.__class__(members)
 
+    def to_ast(self):
+        r = super().to_ast()
+        r['type'] = 'union'
+        return r
 
+
+class Predicate(_ImmutableBase):
+    def __init__(self, *args, **kwargs):
+        self._truthy = any(map(bool, args)) or any(map(bool, kwargs.values()))
+
+        self._freeze_()
+
+    def __hash__(self):
+        # This trivially satisfies the property:
+        # x == x => hash(x) == hash(x)
+        # Subclasses ought to override this with something less... collision-y.
+        return 0
+
+    def __eq__(self, other):
+        raise NotImplementedError
+
+    def __contains__(self, value):
+        return self._is_element_(value)
+
+    def _is_element_(self, value):
+        return True
+
+    def __bool__(self):
+        return self._truthy
+
+    def __le__(self, other):
+        if other is None:
+            other = self.__class__()
+        return self._is_subtype_(other)
+
+    def __ge__(self, other):
+        if other is None:
+            other = self.__class__()
+        return other._is_subtype_(self)
+
+    def _aug_is_subtype(self, other):
+        r = self._is_subtype_(other)
+        if r is NotImplemented:
+            return other._is_supertype_(self)
+        return r
+
+    def _is_subtype_(self, other):
+        raise NotImplementedError
+
+    def _is_supertype_(self, other):
+        raise NotImplementedError
+
+    def to_ast(self):
+        return {
+            'type': 'predicate',
+            'name': self.__class__.__name__
+        }
+
+
+# TODO: finish these classes:
 class IntersectionTypeExpression(_SetOperationBase):
     _operator = '&'
 
@@ -288,6 +415,11 @@ class IntersectionTypeExpression(_SetOperationBase):
 
     def _build_intersection_(self, members):
         return self.__class__(members)
+
+    def to_ast(self):
+        r = super().to_ast()
+        r['type'] = 'intersection'
+        return r
 
 
 class MappingTypeExpression(TypeExpression):
@@ -316,7 +448,7 @@ class MappingTypeExpression(TypeExpression):
         super_eq = super().__eq__(other)
         if super_eq is NotImplemented:
             return NotImplemented
-        return super_eq and (set(self.mapping().items()) ==
+        return super_eq and (set(self.mapping.items()) ==
                              set(other.mapping.items()))
 
     def _validate_predicate_(self, predicate):
@@ -336,18 +468,8 @@ class MappingTypeExpression(TypeExpression):
         # for it at this time.
         raise TypeError("Cannot union type variables.")
 
-
-class Predicate(_ImmutableBase):
-    def __init__(self, *args, **kwargs):
-        self._truthy = any(map(bool, args)) or any(map(bool, kwargs.values()))
-
-        self._freeze_()
-
-    def __hash__(self):
-        # This trivially satisfies the property:
-        # x == x => hash(x) == hash(x)
-        # TODO: Fix all the collisions
-        return 0
-
-    def __bool__(self):
-        return self._truthy
+    def to_ast(self):
+        return {
+            "type": "map",
+            "mapping": [list(item) for item in self.mapping.items()]
+        }

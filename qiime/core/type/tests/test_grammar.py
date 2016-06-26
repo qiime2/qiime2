@@ -132,6 +132,11 @@ class TestCompositeType(unittest.TestCase):
         self.assertEqual(result.name, 'Example')
         self.assertIsInstance(result, grammar.TypeExpression)
 
+    def test_iter_symbols(self):
+        Example = grammar.CompositeType('Example', ('foo',))
+
+        self.assertEqual(list(Example.iter_symbols()), ['Example'])
+
 
 class TestCompositeTypeGetItem(unittest.TestCase):
     def setUp(self):
@@ -350,6 +355,75 @@ class TestTypeExpression(unittest.TestCase):
         self.assertIsInstance(result, grammar.TypeExpression)
         self.assertEqual(result.fields, (Y,))
 
+    def test_is_subtype_wrong_name(self):
+        Y = grammar.TypeExpression('Y')
+        X = grammar.TypeExpression('X')
+
+        self.assertFalse(Y._is_subtype_(X))
+        self.assertFalse(X._is_subtype_(Y))
+
+    def test_is_subtype_diff_fields(self):
+        F1 =  grammar.TypeExpression('F1')
+        F2 =  grammar.TypeExpression('F2')
+        X = grammar.TypeExpression('X', fields=(F1,))
+        X_ = grammar.TypeExpression('X', fields=(F2,))
+
+        self.assertFalse(X_._is_subtype_(X))
+        self.assertFalse(X._is_subtype_(X_))
+
+    def test_is_subtype_diff_predicates(self):
+        class Pred(grammar.Predicate):
+            def __init__(self, value):
+                self.value = value
+                super().__init__(value)
+
+            def _is_subtype_(self, other):
+                return self.value <= other.value
+
+        P1 = Pred(1)
+        P2 = Pred(2)
+        X = grammar.TypeExpression('X', predicate=P1)
+        X_ = grammar.TypeExpression('X', predicate=P2)
+
+        self.assertFalse(X_._is_subtype_(X))
+        self.assertTrue(X._is_subtype_(X_))
+
+    def test_is_subtype_matches(self):
+        X = grammar.TypeExpression('X')
+        X_ = grammar.TypeExpression('X')
+
+        self.assertTrue(X._is_subtype_(X))
+        self.assertTrue(X_._is_subtype_(X))
+        self.assertTrue(X._is_subtype_(X_))
+        self.assertTrue(X_._is_subtype_(X_))
+
+    def test_is_subtype_matches_w_fields(self):
+        F1 =  grammar.TypeExpression('F1')
+        F2 =  grammar.TypeExpression('F2')
+        X = grammar.TypeExpression('X', fields=(F1,))
+        X_ = grammar.TypeExpression('X', fields=(F2,))
+
+        self.assertFalse(X_._is_subtype_(X))
+        self.assertFalse(X._is_subtype_(X_))
+
+    def test_is_subtype_matches_w_predicate(self):
+        class Pred(grammar.Predicate):
+            def __init__(self, value=0):
+                self.value = value
+                super().__init__(value)
+
+            def _is_subtype_(self, other):
+                return self.value <= other.value
+
+        P1 = Pred(1)
+        P1_ = Pred(1)
+        X = grammar.TypeExpression('X', predicate=P1)
+        X_ = grammar.TypeExpression('X', predicate=P1_)
+
+        self.assertTrue(X._is_subtype_(X))
+        self.assertTrue(X_._is_subtype_(X))
+        self.assertTrue(X._is_subtype_(X_))
+        self.assertTrue(X_._is_subtype_(X_))
 
 class TestTypeExpressionMod(unittest.TestCase):
     def setUp(self):
@@ -477,6 +551,54 @@ class TestTypeExpressionAnd(unittest.TestCase):
         new_type_expr = example & 42
         self.assertEqual(self.local['members'], (example, 42))
         self.assertIs(new_type_expr, ...)
+
+
+class TestTypeExpressionLE(unittest.TestCase):
+    def setUp(self):
+        self.local = {}
+
+    def test_is_subtype_called(self):
+        class Example(grammar.TypeExpression):
+            def _is_subtype_(s, other):
+                self.local['other'] = other
+                return self.local['return']
+
+        example = Example('Example')
+        other = Example('Other')
+
+        self.local['return'] = True
+        result = example <= other
+        self.assertEqual(self.local['other'], other)
+        self.assertTrue(result)
+
+        self.local['return'] = False
+        result = example <= other
+        self.assertEqual(self.local['other'], other)
+        self.assertFalse(result)
+
+
+class TestTypeExpressionGE(unittest.TestCase):
+    def setUp(self):
+        self.local = {}
+
+    def test_is_subtype_called(self):
+        class Example(grammar.TypeExpression):
+            def _is_subtype_(s, other):
+                self.local['other'] = other
+                return self.local['return']
+
+        example = Example('Example')
+        other = Example('Other')
+
+        self.local['return'] = True
+        result = example >= other
+        self.assertEqual(self.local['other'], example)
+        self.assertTrue(result)
+
+        self.local['return'] = False
+        result = example >= other
+        self.assertEqual(self.local['other'], example)
+        self.assertFalse(result)
 
 
 # TODO: test the following:

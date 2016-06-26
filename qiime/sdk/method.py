@@ -73,7 +73,7 @@ class Method:
             param_types[param_name] = (primitive_type, view_type)
 
         outputs = collections.OrderedDict(outputs)
-        output_view_types = qiime.core.type.util.tuplize(
+        output_view_types = qiime.core.util.tuplize(
                            function.__annotations__['return'])
         output_view_types = dict(zip(outputs, output_view_types))
 
