@@ -41,7 +41,7 @@ class FunctionMakerDropFirstArg(decorator.FunctionMaker):
     @classmethod
     def clone_sig_without_first_arg(cls, function):
         evaldict = {}
-        fun = cls.create(function, "return None", evaldict, 
+        fun = cls.create(function, "return None", evaldict,
                          __wrapped__=function)
         fun.__func__ = function  # Doctests need the orginal function
         fun.__annotations__ = {}
@@ -177,7 +177,8 @@ class Visualizer:
         def callable_wrapper(*args, **kwargs):
             args = args[1:]
             callable_sig = inspect.Signature.from_callable(self._callable)
-            callable_params = dict(callable_sig.parameters)
+            callable_params = collections.OrderedDict(
+                callable_sig.parameters.items())
             del callable_params['output_dir']
 
             args = {name: value for value, name in zip(args, callable_params)}
@@ -259,4 +260,3 @@ markdown_source_template = """
 %(source)s
 ```
 """
-

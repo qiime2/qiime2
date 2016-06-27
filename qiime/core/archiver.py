@@ -236,7 +236,8 @@ class Archiver:
                 'execution-uuid': str(self.provenance.execution_uuid),
                 'method-reference': self.provenance.method_reference,
                 'artifact-uuids': self.provenance.artifact_uuids,
-                'parameters': self.provenance.parameters
+                'parameters': {
+                    k: str(v) for k, v in self.provenance.parameters.items()}
             }
 
 
