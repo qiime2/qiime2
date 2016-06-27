@@ -14,16 +14,6 @@ def is_primitive_type(type_):
     return isinstance(type_, _PrimitiveBase)
 
 
-def _symbolify(*args, **kwargs):
-    """Used to bootstrap the primitive type classes.
-    They don't have a factory like the semantic types do.
-
-    """
-    def decorator(cls):
-        return cls(*args, **kwargs)
-    return decorator
-
-
 class _PrimitiveBase(TypeExpression):
     def __contains__(self, value):
         # TODO: Make this work correctly. It is stubbed as True as current
@@ -44,9 +34,6 @@ class _PrimitiveBase(TypeExpression):
 
 
 class _Primitive(_PrimitiveBase):
-    def __init__(self, **kwargs):
-        # Use class name to avoid duplicating the name twice
-        super().__init__(self.__class__.__name__, **kwargs)
 
     def _validate_predicate_(self, predicate):
         super()._validate_predicate_(predicate)
@@ -65,8 +52,6 @@ class _Primitive(_PrimitiveBase):
 
 
 class _Collection(CompositeType):
-    def __init__(self, field_names):
-        super().__init__(self.__class__.__name__, field_names)
 
     def _validate_field_(self, name, value):
         if not isinstance(value, _Primitive):
@@ -89,6 +74,8 @@ class _CollectionPrimitive(_PrimitiveBase):
         # TODO: This is a nasty hack
         self._encode = encode
         self._decode = decode
+
+        super().__init__(*args, **kwargs)
 
     def encode(self, value):
         return self._encode(value)
@@ -178,35 +165,35 @@ class Arguments(Predicate):
         return "%s(%r)" % (self.__class__.__name__, self.parameter)
 
 
-@_symbolify(field_names=['keys', 'values'])
-class Dict(_Collection):
+class _Dict(_Collection):
     def decode(self, string):
         return json.loads(string)
 
     def encode(self, value):
         return json.dumps(value)
 
+Dict = _Dict('Dict', field_names=['keys', 'values'])
 
-@_symbolify(field_names=['elements'])
-class List(_Collection):
+
+class _List(_Collection):
     def decode(self, string):
         return json.loads(string)
 
     def encode(self, value):
         return json.dumps(value)
 
+List = _List('List', field_names=['elements'])
 
-@_symbolify(field_names=['elements'])
-class Set(_Collection):
+class _Set(_Collection):
     def decode(self, string):
         return set(json.loads(string))
 
     def encode(self, value):
         return json.dumps(list(value))
 
+Set = _Set('Set', field_names=['elements'])
 
-@_symbolify()
-class Int(_Primitive):
+class _Int(_Primitive):
     _valid_predicates = {Range, Arguments}
 
     def decode(self, string):
@@ -215,15 +202,16 @@ class Int(_Primitive):
     def encode(self, value):
         return str(value)
 
+Int = _Int('Int')
 
-@_symbolify()
-class Str(_Primitive):
+class _Str(_Primitive):
     _valid_predicates = {Choices, Arguments}
     decode = encode = lambda self, x: x
 
+Str = _Str('Str')
 
-@_symbolify()
-class Float(_Primitive):
+
+class _Float(_Primitive):
     _valid_predicates = {Range, Arguments}
 
     def decode(self, string):
@@ -232,10 +220,13 @@ class Float(_Primitive):
     def encode(self, value):
         return str(value)
 
+Float = _Float('Float')
 
-@_symbolify()
-class Color(type(Str)):
+
+class _Color(type(Str)):
     pass
+
+Color = _Color('Color')
 
 # @_symbolify
 # class Column(_Primitive):

@@ -8,7 +8,7 @@ before_install:
   - ./miniconda.sh -b
   - export PATH=/home/travis/miniconda3/bin:$PATH
 install:
-  - conda create --yes -n test-env python=$PYTHON_VERSION nose flake8 'setuptools<20.5.0'
+  - conda create --yes -n test-env python=$PYTHON_VERSION nose flake8 'setuptools<20.5.0' decorator
   - source activate test-env
   - pip install .
 script:

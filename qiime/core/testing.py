@@ -64,10 +64,10 @@ def visualizer1(output_dir: str, ints: list) -> None:
             fh.write('%d<br>\n' % i)
         fh.write('</body></html>')
 
-plugin.register_visualization(
+plugin.visualizers.register_function(
     function=visualizer1,
     inputs={'ints': TestType},
     parameters={},
     name='Visualizer #1',
-    doc="Let's write some integers to an html file!"
+    description="Let's write some integers to an html file!"
 )
