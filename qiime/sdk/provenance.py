@@ -6,23 +6,36 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import time
 
-
-# TODO figure out the public API and make this a safe class (e.g., don't let
-# users change job_uuid or start_time)
-# TODO store job_uuid as uuid.UUID object, it is currently a hex string
 class Provenance:
-    def __init__(self, job_uuid, artifact_uuids, parameters,
-                 workflow_reference):
-        self.start_time = time.time()
-        self.job_uuid = job_uuid
-        self.artifact_uuids = artifact_uuids
-        self.parameters = parameters
-        self.workflow_reference = workflow_reference
+    def __init__(self, execution_uuid, method_reference, artifact_uuids,
+                 parameters):
+        self._execution_uuid = execution_uuid
+        self._method_reference = method_reference
+        self._artifact_uuids = artifact_uuids
+        self._parameters = parameters
+
+    @property
+    def execution_uuid(self):
+        return self._execution_uuid
+
+    @property
+    def method_reference(self):
+        return self._method_reference
+
+    @property
+    def artifact_uuids(self):
+        return self._artifact_uuids
+
+    @property
+    def parameters(self):
+        return self._parameters
 
     def __eq__(self, other):
-        return (self.job_uuid == other.job_uuid) and \
-               (self.artifact_uuids == other.artifact_uuids) and\
-               (self.parameters == other.parameters) and\
-               (self.workflow_reference == other.workflow_reference)
+        return (
+            isinstance(other, Provenance) and
+            (self.execution_uuid == other.execution_uuid) and
+            (self.method_reference == other.method_reference) and
+            (self.artifact_uuids == other.artifact_uuids) and
+            (self.parameters == other.parameters)
+        )

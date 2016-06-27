@@ -235,9 +235,7 @@ class TestWorkflow(unittest.TestCase):
 
 markdown_template = """---
 name: Dummy markdown workflow
-type-imports:
-    - qiime.core.testing:TestType
-    - qiime.plugin:Int
+description: A simple markdown workflow for testing purposes.
 inputs:
     - input1:
         - TestType

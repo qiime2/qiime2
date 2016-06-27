@@ -6,14 +6,11 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import collections
-import inspect
 import pkg_resources
 
 import qiime.sdk
 import qiime.core.type.grammar as grammar
-from qiime.core.type import (SemanticType, is_semantic_type, Int, Str, Float,
-                             Visualization)
+from qiime.core.type import SemanticType, is_semantic_type, Int, Str, Float
 
 __all__ = ['load', 'Plugin', 'Int', 'Str', 'Float', 'SemanticType']
 
@@ -55,56 +52,19 @@ def load(plugin_name, plugin_entry_point_name=None):
 
 class Plugin:
     def __init__(self, name, version, website, package):
-        self.package = package
         self.name = name
         self.version = version
         self.website = website
-        self.workflows = {}
-        self.visualizations = {}
+        self.package = package
+
+        self.methods = PluginMethods(self.package)
+        self.visualizers = PluginVisualizers()
+
         self.data_layouts = {}
         self.types = {}
         self.type_to_data_layouts = {}
         self.data_layout_readers = {}
         self.data_layout_writers = {}
-
-    def register_workflow(self, workflow):
-        fn = pkg_resources.resource_filename(self.package, workflow)
-        w = qiime.sdk.Workflow.from_markdown(fn)
-        self.workflows[w.id] = w
-
-    def register_function(self, name, function, inputs, parameters, outputs,
-                          doc=""):
-        # TODO where is the best place to convert outputs as a list of tuples
-        # into an OrderedDict?
-        outputs = collections.OrderedDict(outputs)
-        w = qiime.sdk.Workflow.from_function(function, inputs, parameters,
-                                             outputs, name, doc)
-        self.workflows[w.id] = w
-
-    def register_visualization(self, name, function, inputs, parameters,
-                               doc=""):
-        if 'output_dir' in inputs or 'output_dir' in parameters:
-            raise TypeError(
-                "`output_dir` is a reserved parameter name and cannot be used "
-                "in `inputs` or `parameters`")
-        parameters['output_dir'] = qiime.core.type.Str
-
-        function_parameters = \
-            list(inspect.signature(function).parameters.keys())
-        if len(function_parameters) > 0:
-            first_parameter = function_parameters[0]
-            if first_parameter != 'output_dir':
-                raise TypeError(
-                    "Visualization function must have `output_dir` as its "
-                    "first argument, not %r" % first_parameter)
-        else:
-            raise TypeError(
-                "Visualization function must have at least one argument")
-
-        outputs = collections.OrderedDict([('visualization', Visualization)])
-        v = qiime.sdk.Workflow.from_function(function, inputs, parameters,
-                                             outputs, name, doc)
-        self.visualizations[v.id] = v
 
     def register_data_layout_reader(self, name, version, view_type, reader):
         self.data_layout_readers[(name, version, view_type)] = reader
@@ -150,9 +110,41 @@ class Plugin:
             self.name == other.name and
             self.version == other.version and
             self.website == other.website and
-            self.workflows == other.workflows and
-            self.data_layouts == other.data_layouts
+            self.methods == other.methods and
+            self.visualizers == other.visualizers and
+            self.data_layouts == other.data_layouts and
+            self.types == other.types and
+            self.type_to_data_layouts == other.type_to_data_layouts and
+            self.data_layout_readers == other.data_layout_readers and
+            self.data_layout_writers == other.data_layout_writers
         )
+
+
+# TODO refactor these classes, they are basically the same
+class PluginMethods(dict):
+    def __init__(self, package):
+        self._package = package
+        super().__init__()
+
+    def register_function(self, function, inputs, parameters, outputs, name,
+                          description):
+        method = qiime.sdk.Method.from_function(function, inputs, parameters,
+                                                outputs, name, description)
+        self[method.id] = method
+
+    def register_markdown(self, markdown_filepath):
+        markdown_filepath = pkg_resources.resource_filename(
+            self._package, markdown_filepath)
+        method = qiime.sdk.Method.from_markdown(markdown_filepath)
+        self[method.id] = method
+
+
+class PluginVisualizers(dict):
+    def register_function(self, function, inputs, parameters, name,
+                          description):
+        visualizer = qiime.sdk.Visualizer.from_function(
+            function, inputs, parameters, name, description)
+        self[visualizer.id] = visualizer
 
 
 class DataLayout:

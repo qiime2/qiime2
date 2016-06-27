@@ -72,6 +72,9 @@ class Artifact(qiime.core.result_base.ResultBase):
 
         return data_layout
 
+    def _orphan(self, pid):
+        self._archiver.orphan(pid)
+
     def view(self, view_type):
         data_layout = self._get_data_layout()
         reader = data_layout.readers[view_type]

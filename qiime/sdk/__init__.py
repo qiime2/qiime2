@@ -7,11 +7,12 @@
 # ----------------------------------------------------------------------------
 
 from .artifact import Artifact
-from .visualization import Visualization
+from .method import Method
 from .plugin_manager import PluginManager
 from .provenance import Provenance
-from .workflow import Workflow, Signature
-from .execution import SubprocessExecutor
+from .signature import Signature
+from .visualization import Visualization
+from .visualizer import Visualizer
 
-__all__ = ['Artifact', 'Visualization', 'PluginManager', 'Provenance',
-           'Workflow', 'Signature', 'SubprocessExecutor']
+__all__ = ['Artifact', 'Visualization', 'Method', 'Visualizer',
+           'PluginManager', 'Provenance', 'Signature']
