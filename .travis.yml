@@ -13,6 +13,6 @@ install:
   - pip install .
 script:
   # TODO don't require devs to remember setting this env var before running
-  # tests
-  - __QIIME2_TEST_MODE__=ON nosetests  
+  # tests. The value can be anything.
+  - QIIMETEST= nosetests
   - flake8 qiime setup.py
