@@ -10,7 +10,7 @@ import unittest
 import collections
 
 import qiime.core.testing
-from qiime.sdk.workflow import Signature
+from qiime.core.type.signature import Signature
 from qiime.plugin import Int
 
 
@@ -18,7 +18,6 @@ class TestSignature(unittest.TestCase):
 
     def test_constructor(self):
         signature = Signature(
-            'Bogus human-readable name',
             inputs={'input1': (qiime.core.testing.TestType, list),
                     'input2': (qiime.core.testing.TestType, list)},
             parameters={'param1': (Int, int),
@@ -27,7 +26,6 @@ class TestSignature(unittest.TestCase):
                 ('output1', (qiime.core.testing.TestType, list)),
                 ('output2', (qiime.core.testing.TestType, list))]))
 
-        self.assertEqual(signature.name, 'Bogus human-readable name')
         self.assertEqual(signature.inputs,
                          {'input1': (qiime.core.testing.TestType, list),
                           'input2': (qiime.core.testing.TestType, list)})
@@ -39,9 +37,8 @@ class TestSignature(unittest.TestCase):
                 ('output1', (qiime.core.testing.TestType, list)),
                 ('output2', (qiime.core.testing.TestType, list))]))
 
-    def test_call(self):
+    def test_solve_output(self):
         signature = Signature(
-            'Bogus human-readable name',
             inputs={'input1': (qiime.core.testing.TestType, list),
                     'input2': (qiime.core.testing.TestType, list)},
             parameters={'param1': (Int, int),
@@ -51,7 +48,7 @@ class TestSignature(unittest.TestCase):
                 ('output2', (qiime.core.testing.TestType, list))])
             )
         self.assertEqual(
-            signature({}, {}),
+            signature.solve_output(**{}),
             collections.OrderedDict([
                 ('output1', (qiime.core.testing.TestType, list)),
                 ('output2', (qiime.core.testing.TestType, list))]))

@@ -16,7 +16,7 @@ import uuid
 import decorator
 
 import qiime.sdk
-import qiime.core.type
+import qiime.core.type as qtype
 
 
 # Descriptor protocol for methods with dynamic signatures built from the
@@ -29,9 +29,9 @@ class DispatchableSignature:
         return staticmethod(getattr(obj, self._method)).__get__(obj, cls)
 
 
-class FunctionMakerDropFirstArg(decorator.FunctionMaker):
+class DropFirstParameter(decorator.FunctionMaker):
     def __init__(self, *args, **kwargs):
-        super(FunctionMakerDropFirstArg, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.signature = self._remove_first_arg(self.signature)
         self.shortsignature = self._remove_first_arg(self.shortsignature)
 
@@ -39,7 +39,7 @@ class FunctionMakerDropFirstArg(decorator.FunctionMaker):
         return ",".join(string.split(',')[1:])[1:]
 
     @classmethod
-    def clone_sig_without_first_arg(cls, function):
+    def from_function(cls, function):
         evaldict = {}
         fun = cls.create(function, "return None", evaldict,
                          __wrapped__=function)
@@ -93,8 +93,8 @@ class Visualizer:
             param_types[param_name] = (primitive_type, view_type)
 
         output_types = collections.OrderedDict(
-            [('visualization', (qiime.core.type.Visualization, None))])
-        signature = qiime.sdk.Signature(input_types, param_types, output_types)
+            [('visualization', (qtype.Visualization, None))])
+        signature = qtype.Signature(input_types, param_types, output_types)
 
         id_ = function.__name__
         try:
@@ -155,7 +155,7 @@ class Visualizer:
         # it displays `output_dir` when there shouldn't be one
         __call__ = decorator.decorator(
             callable_wrapper,
-            FunctionMakerDropFirstArg.clone_sig_without_first_arg(self._callable))
+            DropFirstParameter.from_function(self._callable))
         __call__.__name__ = '__call__'
         self._dynamic_call = __call__
 
@@ -168,8 +168,9 @@ class Visualizer:
             pool.shutdown(wait=False)
             return future
 
-        async = decorator.decorator(async_wrapper,
-            FunctionMakerDropFirstArg.clone_sig_without_first_arg(self._callable))
+        async = decorator.decorator(
+            async_wrapper,
+            DropFirstParameter.from_function(self._callable))
         async.__name__ = 'async'
         self._dynamic_async = async
 
@@ -183,6 +184,8 @@ class Visualizer:
 
             args = {name: value for value, name in zip(args, callable_params)}
             args.update(kwargs)
+
+            self.signature.check_types(**args)
 
             artifacts = {}
             for name in self.signature.inputs:
@@ -210,7 +213,8 @@ class Visualizer:
             with tempfile.TemporaryDirectory() as temp_dir:
                 # TODO make sure _callable doesn't return anything
                 self._callable(output_dir=temp_dir, **view_args)
-                visualization = qiime.sdk.Visualization._from_data_dir(temp_dir, provenance)
+                visualization = qiime.sdk.Visualization._from_data_dir(
+                    temp_dir, provenance)
                 visualization._orphan(self._pid)
                 return visualization
 

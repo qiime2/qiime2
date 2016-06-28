@@ -47,6 +47,7 @@ class _Primitive(_PrimitiveBase):
             if not self._is_element_(bound):
                 raise TypeError("%r has the wrong types for %r."
                                 % (predicate, self))
+
     def to_ast(self):
         ast = super().to_ast()
         ast['type'] = 'primitive'
@@ -223,7 +224,7 @@ class Arguments(Predicate):
         return hash(type(self)) ^ hash(self.parameter)
 
     def __eq__(self, other):
-         return type(self) == type(other) and self.parameter == other.parameter
+        return type(self) == type(other) and self.parameter == other.parameter
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self.parameter)
@@ -231,6 +232,7 @@ class Arguments(Predicate):
     def _is_element_(self, value):
         raise NotImplementedError("Membership cannot be determined by this"
                                   " predicate directly.")
+
     def iter_boundaries(self):
         yield from []
 
@@ -305,7 +307,8 @@ class _Int(_Primitive):
         return isinstance(value, numbers.Integral)
 
     def _is_subtype_(self, other):
-        if isinstance(other, type(Float)) and self.predicate <= other.predicate:
+        if (isinstance(other, type(Float)) and
+                self.predicate <= other.predicate):
             return True
         return super()._is_subtype_(other)
 

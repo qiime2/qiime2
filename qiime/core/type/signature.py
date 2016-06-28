@@ -8,9 +8,11 @@
 
 import itertools
 
-import qiime.core.type as qtype
+from .primitive import is_primitive_type
+from .semantic import is_semantic_type
+from .visualization import Visualization
 
-# TODO: Integrate this with workflows
+
 class Signature:
     def __init__(self, inputs, parameters, outputs):
         """
@@ -25,18 +27,19 @@ class Signature:
 
         """
         for input_name, (semantic_type, _) in inputs.items():
-            if not qtype.is_semantic_type(semantic_type):
-                raise TypeError("%r for %r is not a semantic qiime type." %
+            if not is_semantic_type(semantic_type):
+                raise TypeError("%r for %r is not a semantic QIIME type." %
                                 (semantic_type, input_name))
 
         for param_name, (primitive_type, _) in parameters.items():
-            if not qtype.is_primitive_type(primitive_type):
-                raise TypeError("%r for %r is not a primitive qiime type."
+            if not is_primitive_type(primitive_type):
+                raise TypeError("%r for %r is not a primitive QIIME type."
                                 % (primitive_type, param_name))
 
         for output_name, (output_semantic_type, _) in outputs.items():
-            if not qtype.is_semantic_type(output_semantic_type):
-                raise TypeError("%r for %r is not a semantic qiime type."
+            if not (is_semantic_type(output_semantic_type) or
+                    output_semantic_type == Visualization):
+                raise TypeError("%r for %r is not a semantic QIIME type."
                                 % (output_semantic_type, output_name))
             if not output_semantic_type.is_concrete():
                 raise TypeError("%r for %r is not a concrete type."
@@ -47,38 +50,26 @@ class Signature:
         self.outputs = outputs
 
     def decode_parameters(self, **kwargs):
-        return {key: exp.decode(arg) for key, arg, exp in
-                self._dzip(encoded_arguments, self.parameters)}
+        params = {}
+        for key, (type_expr, _) in self.parameters.items():
+            params[key] = type_expr.decode(kwargs[key])
+        return params
 
-    def encode_parameters(self, **kwargs):
-        # TODO: Do this.
-        pass
-
-    def convert_to_view(self, **kwargs):
-        for key, (_, view_type) in self.inputs.items():
-            try:
-                artifact = kwargs[key]
-            except KeyError:
-                raise TypeError()
-
-            kwargs[key] = artifact.view(view_type)
-
-        return kwargs
-
-    def type_check(self, **kwargs):
+    def check_types(self, **kwargs):
         for key, (type_, _) in itertools.chain(self.inputs.items(),
                                                self.parameters.items()):
             if kwargs[key] not in type_:
-                raise TypeError()
+                raise TypeError("Argument to %r is not a subtype of %r."
+                                % (key, type_))
 
-    def solve(self, **input_types):
-        pass
+    def solve_output(self, **input_types):
+        return self.outputs
 
     def __repr__(self):
         return ", ".join("%s : %r" % entry
                          for entry in itertools.chain(self.inputs.items(),
                                                       self.parameters.items())
-                        ) + " -> %r" % (tuple(self.outputs.values()),)
+                         ) + " -> %r" % (tuple(self.outputs.values()),)
 
     def __eq__(self, other):
         return (type(self) is type(other) and

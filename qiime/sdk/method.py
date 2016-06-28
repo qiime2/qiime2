@@ -19,6 +19,7 @@ import frontmatter
 import ipymd
 
 import qiime.sdk
+import qiime.core.type as qtype
 
 
 # Descriptor protocol for methods with dynamic signatures built from the
@@ -82,7 +83,7 @@ class Method:
             view_type = output_view_types[output_name]
             output_types[output_name] = (semantic_type, view_type)
 
-        signature = qiime.sdk.Signature(input_types, param_types, output_types)
+        signature = qtype.Signature(input_types, param_types, output_types)
 
         id_ = function.__name__
         try:
@@ -126,7 +127,7 @@ class Method:
             name, type_expr = list(output.items())[0]
             output_types[name] = self._parse_semantic_type(type_expr)
 
-        signature = qiime.sdk.Signature(input_types, param_types, output_types)
+        signature = qtype.Signature(input_types, param_types, output_types)
 
         # TODO: verify that `id_` is a valid Python identifier
         id_ = os.path.splitext(os.path.basename(markdown_filepath))[0]
@@ -275,6 +276,9 @@ class Method:
             args = {name: value for value, name in zip(args, callable_params)}
             args.update(kwargs)
 
+            self.signature.check_types(**args)
+            output_types = self.signature.solve_output(**args)
+
             artifacts = {}
             for name in self.signature.inputs:
                 artifacts[name] = args[name]
@@ -282,8 +286,6 @@ class Method:
             parameters = {}
             for name in self.signature.parameters:
                 parameters[name] = args[name]
-
-            output_types = self.signature(artifacts, parameters)
 
             view_args = parameters.copy()
             for name, (_, view_type) in self.signature.inputs.items():

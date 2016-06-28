@@ -6,6 +6,7 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import qiime.core  # noqa
 from qiime.metadata import Metadata, MetadataCategory
 
 __all__ = ['Metadata', 'MetadataCategory']

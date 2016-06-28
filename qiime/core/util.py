@@ -12,6 +12,7 @@ def tuplize(x):
         return (x,)
     return x
 
+
 def overrides(cls):
     def decorator(func):
         if not hasattr(cls, func.__name__):
