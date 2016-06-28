@@ -106,7 +106,7 @@ class TestIncompleteSemanticType(unittest.TestCase):
 
         self.assertIsInstance(
             semantic._IncompleteSemanticType('X', field_names=('foo',),
-                                             field_members={'foo':()},
+                                             field_members={'foo': ()},
                                              variant_of=()),
             grammar.CompositeType)
 

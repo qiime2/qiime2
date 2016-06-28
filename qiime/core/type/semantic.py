@@ -143,7 +143,7 @@ class VariantField:
 
     def is_member(self, semantic_type):
         for field_member in self.field_members:
-            if isinstance(field_members, _IncompleteSemanticType):
+            if isinstance(field_member, _IncompleteSemanticType):
                 # Pseudo-subtyping like Foo[X] <= Foo[Any].
                 # (_IncompleteSemanticType will never have __le__ because you
                 #  are probably doing something wrong with it (this totally
@@ -320,6 +320,7 @@ class SemanticMap(grammar.MappingTypeExpression, _SemanticMixin):
 
     def _build_intersection_(self, members):
         return _SemanticIntersectionType(members)
+
 
 class PropertyMap(Properties):
     def __init__(self, name, mapping):

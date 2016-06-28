@@ -363,8 +363,8 @@ class TestTypeExpression(unittest.TestCase):
         self.assertFalse(X._is_subtype_(Y))
 
     def test_is_subtype_diff_fields(self):
-        F1 =  grammar.TypeExpression('F1')
-        F2 =  grammar.TypeExpression('F2')
+        F1 = grammar.TypeExpression('F1')
+        F2 = grammar.TypeExpression('F2')
         X = grammar.TypeExpression('X', fields=(F1,))
         X_ = grammar.TypeExpression('X', fields=(F2,))
 
@@ -398,8 +398,8 @@ class TestTypeExpression(unittest.TestCase):
         self.assertTrue(X_._is_subtype_(X_))
 
     def test_is_subtype_matches_w_fields(self):
-        F1 =  grammar.TypeExpression('F1')
-        F2 =  grammar.TypeExpression('F2')
+        F1 = grammar.TypeExpression('F1')
+        F2 = grammar.TypeExpression('F2')
         X = grammar.TypeExpression('X', fields=(F1,))
         X_ = grammar.TypeExpression('X', fields=(F2,))
 
@@ -424,6 +424,7 @@ class TestTypeExpression(unittest.TestCase):
         self.assertTrue(X_._is_subtype_(X))
         self.assertTrue(X._is_subtype_(X_))
         self.assertTrue(X_._is_subtype_(X_))
+
 
 class TestTypeExpressionMod(unittest.TestCase):
     def setUp(self):

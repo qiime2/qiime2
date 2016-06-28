@@ -10,9 +10,8 @@ from .artifact import Artifact
 from .method import Method
 from .plugin_manager import PluginManager
 from .provenance import Provenance
-from .signature import Signature
 from .visualization import Visualization
 from .visualizer import Visualizer
 
 __all__ = ['Artifact', 'Visualization', 'Method', 'Visualizer',
-           'PluginManager', 'Provenance', 'Signature']
+           'PluginManager', 'Provenance']
