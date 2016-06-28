@@ -19,7 +19,7 @@ class PluginManager:
 
         plugins = [e.load() for e in pkg_resources.iter_entry_points(
             group='qiime.plugin')]
-        if '__QIIME2_TEST_MODE__' in os.environ:
+        if 'QIIMETEST' in os.environ:
             import qiime.core.testing
             plugins.append(qiime.core.testing.plugin)
 
