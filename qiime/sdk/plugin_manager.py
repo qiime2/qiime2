@@ -11,7 +11,16 @@ import pkg_resources
 
 
 class PluginManager:
-    def __init__(self):
+    __instance = None
+
+    def __new__(cls):
+        if cls.__instance is None:
+            self = super().__new__(cls)
+            self._init()
+            cls.__instance = self
+        return cls.__instance
+
+    def _init(self):
         self.plugins = {}
         self.data_layouts = {}
         self.semantic_types = {}

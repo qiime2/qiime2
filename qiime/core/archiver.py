@@ -15,6 +15,7 @@ import yaml
 import zipfile
 
 import qiime.sdk
+from .util import parse_type
 
 
 # TODO use utf-8 encoding when reading/writing files
@@ -67,38 +68,13 @@ class Archiver:
                 metadata = yaml.safe_load(fh)
 
         uuid_ = cls._parse_uuid(metadata['uuid'])
-        type_ = cls._parse_type(metadata['type'])
+        type_ = parse_type(metadata['type'])
         provenance = cls._parse_provenance(metadata['provenance'])
         return uuid_, type_, provenance
 
     @classmethod
     def _parse_uuid(cls, string):
         return uuid.UUID(hex=string)
-
-    @classmethod
-    def _parse_type(cls, type_exp):
-        # TODO this is mostly duplicated from Method._parse_semantic_type,
-        # refactor.
-        type_exp = type_exp.split('\n')
-        if len(type_exp) != 1:
-            raise TypeError(
-                "Found multiple lines in archive type expression. Will not "
-                "evaluate to avoid arbitrary code execution.")
-        type_exp, = type_exp
-
-        if ';' in type_exp:
-            raise TypeError(
-                "Invalid archive type expression. Will not evaluate to avoid "
-                "arbitrary code execution.")
-
-        pm = qiime.sdk.PluginManager()
-        locals_ = {k: v[1] for k, v in pm.semantic_types.items()}
-        locals_[qiime.core.type.Visualization.name] = \
-            qiime.core.type.Visualization
-        locals_['Properties'] = qiime.core.type.semantic.Properties
-
-        # TODO better error handling for un-eval-able type expressions
-        return eval(type_exp, {'__builtins__': {}}, locals_)
 
     # TODO implement provenance parsing for real
     @classmethod
@@ -117,7 +93,7 @@ class Archiver:
         self._uuid = uuid
 
         if isinstance(type, str):
-            type = self._parse_type(type)
+            type = parse_type(type)
         self._type = type
 
         self._provenance = provenance

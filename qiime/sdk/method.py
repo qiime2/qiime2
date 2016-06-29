@@ -157,32 +157,13 @@ class Method:
         self._init(id_, signature, function, ('markdown', markdown_filepath),
                    name, description, template)
 
-    # TODO this is mostly duplicated from
-    # qiime.core.archiver.Archiver._parse_type. Refactor!
     @classmethod
     def _parse_semantic_type(cls, type_exp):
         # Split the type expression into its components: the semantic_type_exp
-        # and the view_type. Note that this differs from the type definitions
-        # in Archiver._parse_type, as those won't have view types.
+        # and the view_type.
         semantic_type_exp, view_type = type_exp
         view_type = cls._parse_view_type(view_type)
-
-        semantic_type_exp = semantic_type_exp.split('\n')
-        if len(semantic_type_exp) != 1:
-            raise TypeError("Multiple lines in type expression of"
-                            " artifact. Will not load to avoid arbitrary"
-                            " code execution.")
-        semantic_type_exp, = semantic_type_exp
-
-        if ';' in semantic_type_exp:
-            raise TypeError("Invalid type expression in artifact. Will not"
-                            " load to avoid arbitrary code execution.")
-
-        pm = qiime.sdk.PluginManager()
-        locals_ = {k: v[1] for k, v in pm.semantic_types.items()}
-        # Set up all of the types we know about in local scope of the eval
-        # so that complicated type expressions are evaluated.
-        type_ = eval(semantic_type_exp, {'__builtins__': {}}, locals_)
+        type_ = qiime.sdk.parse_type(semantic_type_exp)
         return type_, view_type
 
     @classmethod
