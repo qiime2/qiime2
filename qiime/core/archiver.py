@@ -157,21 +157,15 @@ class Archiver:
         assert not os.path.exists(self._data_dir)
         assert self._archive_filepath is not None
 
-        # TODO is there a better way to extract the files in an archive
-        # subdirectory into a directory without keeping the nested archive
-        # directory structure?
         with zipfile.ZipFile(self._archive_filepath, mode='r') as zf:
             root_dir = self._get_root_dir(self._archive_filepath)
             prefix = os.path.join(root_dir, self._data_dirname, '')
 
             for file_ in zf.namelist():
-                if file_.startswith(prefix):
-                    extract_path = zf.extract(file_, path=self._data_dir)
-                    os.rename(
-                        extract_path,
-                        os.path.join(self._data_dir, os.path.basename(file_)))
-            os.rmdir(os.path.join(self._data_dir, prefix))
-            os.rmdir(os.path.join(self._data_dir, root_dir))
+                if file_.startswith(prefix) and file_ != prefix:
+                    zf.extract(file_, path=self._temp_dir)
+            shutil.move(os.path.join(self._temp_dir, prefix), self._temp_dir)
+            os.rmdir(os.path.join(self._temp_dir, root_dir))
 
     def save_data(self, data, saver):
         assert not os.path.exists(self._data_dir)
@@ -195,14 +189,14 @@ class Archiver:
 
             for root, dirs, files in os.walk(self._data_dir):
                 for file_ in files:
-                    temp_path = os.path.join(root, file_)
+                    abspath = os.path.join(root, file_)
+                    relpath = os.path.relpath(abspath, start=self._data_dir)
                     archive_path = os.path.join(
                         root_dir,
                         self._data_dirname,
-                        root.replace(self._data_dir, '', 1),
-                        file_
+                        relpath
                     )
-                    zf.write(temp_path, arcname=archive_path)
+                    zf.write(abspath, arcname=archive_path)
 
     def _save_version(self, zf, root_dir):
         zf.writestr(os.path.join(root_dir, self._version_filename),
