@@ -95,6 +95,7 @@ class Archiver:
         locals_ = {k: v[1] for k, v in pm.semantic_types.items()}
         locals_[qiime.core.type.Visualization.name] = \
             qiime.core.type.Visualization
+        locals_['Properties'] = qiime.core.type.semantic.Properties
 
         # TODO better error handling for un-eval-able type expressions
         return eval(type_exp, {'__builtins__': {}}, locals_)
