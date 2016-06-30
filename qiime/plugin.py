@@ -11,10 +11,12 @@ import pkg_resources
 import qiime.sdk
 import qiime.core.type.grammar as grammar
 from qiime.core.type import (SemanticType, is_semantic_type, Int, Str, Float,
-                             Metadata, MetadataCategory, Properties)
+                             Color, Metadata, MetadataCategory, Properties,
+                             Range, Choices, Arguments)
 
-__all__ = ['load', 'Plugin', 'Int', 'Str', 'Float', 'Metadata',
-           'MetadataCategory', 'SemanticType', 'Properties']
+__all__ = ['load', 'Plugin', 'Int', 'Str', 'Float', 'Color', 'Metadata',
+           'MetadataCategory', 'SemanticType', 'Properties', 'Range',
+           'Choices', 'Arguments']
 
 
 def load(plugin_name, plugin_entry_point_name=None):
