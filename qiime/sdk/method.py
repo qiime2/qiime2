@@ -112,20 +112,19 @@ class Method:
         input_types = collections.OrderedDict()
         for input_ in metadata['inputs']:
             # TODO validate each nested dict has exactly two items
-            name, type_expr = list(input_.items())[0]
-            input_types[name] = self._parse_semantic_type(type_expr)
+            name, type_tuple = list(input_.items())[0]
+            input_types[name] = self._split_type_tuple(type_tuple, 'semantic')
 
         param_types = collections.OrderedDict()
         for parameter in metadata['parameters']:
             # TODO validate each nested dict has exactly two items
-            name, type_expr = list(parameter.items())[0]
-            param_types[name] = self._parse_primitive_type(type_expr)
-
+            name, type_tuple = list(parameter.items())[0]
+            param_types[name] = self._split_type_tuple(type_tuple, 'primitive')
         output_types = collections.OrderedDict()
         for output in metadata['outputs']:
             # TODO validate each nested dict has exactly two items
-            name, type_expr = list(output.items())[0]
-            output_types[name] = self._parse_semantic_type(type_expr)
+            name, type_tuple = list(output.items())[0]
+            output_types[name] = self._split_type_tuple(type_tuple, 'semantic')
 
         signature = qtype.Signature(input_types, param_types, output_types)
 
@@ -157,47 +156,14 @@ class Method:
         self._init(id_, signature, function, ('markdown', markdown_filepath),
                    name, description, template)
 
-    # TODO this is mostly duplicated from
-    # qiime.core.archiver.Archiver._parse_type. Refactor!
     @classmethod
-    def _parse_semantic_type(cls, type_exp):
-        # Split the type expression into its components: the semantic_type_exp
-        # and the view_type. Note that this differs from the type definitions
-        # in Archiver._parse_type, as those won't have view types.
-        semantic_type_exp, view_type = type_exp
+    def _split_type_tuple(cls, type_tuple, expect):
+        # Split the type expression into its components: the semantic_type
+        # and the view_type.
+        semantic_type, view_type = type_tuple
         view_type = cls._parse_view_type(view_type)
-
-        semantic_type_exp = semantic_type_exp.split('\n')
-        if len(semantic_type_exp) != 1:
-            raise TypeError("Multiple lines in type expression of"
-                            " artifact. Will not load to avoid arbitrary"
-                            " code execution.")
-        semantic_type_exp, = semantic_type_exp
-
-        if ';' in semantic_type_exp:
-            raise TypeError("Invalid type expression in artifact. Will not"
-                            " load to avoid arbitrary code execution.")
-
-        pm = qiime.sdk.PluginManager()
-        locals_ = {k: v[1] for k, v in pm.semantic_types.items()}
-        # Set up all of the types we know about in local scope of the eval
-        # so that complicated type expressions are evaluated.
-        type_ = eval(semantic_type_exp, {'__builtins__': {}}, locals_)
-        return type_, view_type
-
-    @classmethod
-    def _parse_primitive_type(cls, type_expr):
-        # TODO: what is factoring?
-        primitive_type_expr, view_type = type_expr
-        view_type = cls._parse_view_type(view_type)
-
-        # TODO: Get these primitives from somewhere else.
-        locals_ = {
-            t.name: t for t in
-            {qiime.plugin.Int, qiime.plugin.Str, qiime.plugin.Float}}
-
-        type_ = eval(primitive_type_expr, {'__builtins__': {}}, locals_)
-        return type_, view_type
+        semantic_type = qiime.sdk.parse_type(semantic_type, expect=expect)
+        return semantic_type, view_type
 
     # TODO this isn't safe nor robust, and not how we want to ultimately handle
     # importing a view type. Refactor to use a similar import mechanism as

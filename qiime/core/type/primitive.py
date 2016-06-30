@@ -41,7 +41,8 @@ class _Primitive(_PrimitiveBase):
         if not isinstance(predicate, tuple(self._valid_predicates)):
             raise TypeError("Cannot supply %r as a predicate to %r type,"
                             " permitted predicates: %r"
-                            % (predicate, self, self._valid_predicates))
+                            % (predicate, self,
+                               {p.__name__ for p in self._valid_predicates}))
 
         for bound in predicate.iter_boundaries():
             if not self._is_element_(bound):

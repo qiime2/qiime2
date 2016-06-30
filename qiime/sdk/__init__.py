@@ -12,6 +12,7 @@ from .plugin_manager import PluginManager
 from .provenance import Provenance
 from .visualization import Visualization
 from .visualizer import Visualizer
+from ..core.util import parse_type
 
 __all__ = ['Artifact', 'Visualization', 'Method', 'Visualizer',
-           'PluginManager', 'Provenance']
+           'PluginManager', 'Provenance', 'parse_type']
