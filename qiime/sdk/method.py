@@ -45,7 +45,7 @@ class Method:
 
     @classmethod
     def from_function(cls, function, inputs, parameters, outputs, name,
-                      description):
+                      description, plugin=None):
         """
 
         Parameters
@@ -62,6 +62,8 @@ class Method:
             Human-readable name for this method.
         description : str
             Human-readable description for this method.
+        plugin : str, optional
+            The plugin name that this method is assigned to.
 
         """
         input_types = {}
@@ -102,16 +104,16 @@ class Method:
 
         self = cls.__new__(cls)
         self._init(id_, signature, function, ('function', function), name,
-                   description, markdown_source)
+                   description, markdown_source, plugin)
         return self
 
     @classmethod
-    def from_markdown(cls, markdown_filepath):
+    def from_markdown(cls, markdown_filepath, plugin=None):
         self = cls.__new__(cls)
-        self._from_markdown(markdown_filepath)
+        self._from_markdown(markdown_filepath, plugin)
         return self
 
-    def _from_markdown(self, markdown_filepath):
+    def _from_markdown(self, markdown_filepath, plugin):
         with open(markdown_filepath) as fh:
             metadata, template = frontmatter.parse(fh.read())
 
@@ -160,7 +162,7 @@ class Method:
         description = metadata['description']
 
         self._init(id_, signature, function, ('markdown', markdown_filepath),
-                   name, description, template)
+                   name, description, template, plugin)
 
     @classmethod
     def _split_type_tuple(cls, type_tuple, expect):
@@ -189,7 +191,7 @@ class Method:
             {'clsname': self.__class__.__name__})
 
     def _init(self, id, signature, callable, callable_ref, name,
-              description, source):
+              description, source, plugin):
         """
 
         Parameters
@@ -204,7 +206,8 @@ class Method:
             Human-readable description for this method.
         source : str
             Markdown text defining/describing this method's computation.
-
+        plugin : str
+            Name of plugin that this method is registered to.
         """
         self.id = id
         self.signature = signature
@@ -213,6 +216,7 @@ class Method:
         self.name = name
         self.description = description
         self.source = source
+        self._plugin = plugin
 
         self._bind_executors()
 
@@ -220,7 +224,8 @@ class Method:
         callable_wrapper = self._get_callable_wrapper()
 
         __call__ = decorator.decorator(callable_wrapper, self._callable)
-        __call__.__name__ = '__call__'
+        __call__.__name__ = __call__.__qualname__ = '__call__'
+        __call__.__module__ = self._get_import_path()
         del __call__.__annotations__
         del __call__.__wrapped__
         self._dynamic_call = __call__
@@ -235,7 +240,8 @@ class Method:
             return future
 
         async = decorator.decorator(async_wrapper, self._callable)
-        async.__name__ = 'async'
+        async.__name__ = async.__qualname__ = 'async'
+        async.__module__ = self._get_import_path()
         del async.__annotations__
         del async.__wrapped__
         self._dynamic_async = async
@@ -309,6 +315,16 @@ class Method:
 
         return callable_wrapper
 
+    def __repr__(self):
+        return "<method %s>" % self._get_import_path()
+
+    def _get_import_path(self):
+        plugin_path = ''
+        if self._plugin is not None:
+            plugin_path = ('qiime.plugin.%s.methods.'
+                           % self._plugin.replace('-', '_'))
+        return plugin_path + self.id
+
     def __getstate__(self):
         return {
             'type': self._callable_ref[0],
@@ -318,20 +334,19 @@ class Method:
                 'signature': self.signature,
                 'name': self.name,
                 'description': self.description,
-                'source': self.source
+                'source': self.source,
+                'plugin': self._plugin
             },
             'pid': self._pid,
         }
 
     def __setstate__(self, state):
         if state['type'] == 'function':
-            attrs = state['attrs']
             self._init(callable=state['src'],
                        callable_ref=(state['type'], state['src']),
-                       **attrs)
+                       **state['attrs'])
         elif state['type'] == 'markdown':
-            markdown_filepath = state['src']
-            self._from_markdown(markdown_filepath)
+            self._from_markdown(state['src'], state['attrs']['plugin'])
         else:
             raise NotImplementedError
         self._pid = state['pid']

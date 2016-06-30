@@ -7,6 +7,8 @@
 # ----------------------------------------------------------------------------
 
 import pkg_resources
+import sys
+import importlib.machinery
 
 import qiime.sdk
 import qiime.core.data_layout
@@ -18,6 +20,7 @@ from qiime.core.type import (SemanticType, is_semantic_type, Int, Str, Float,
 __all__ = ['Plugin', 'Int', 'Str', 'Float', 'Color', 'Metadata',
            'MetadataCategory', 'SemanticType', 'Properties', 'Range',
            'Choices', 'Arguments']
+__path__ = []
 
 
 class Plugin:
@@ -27,8 +30,8 @@ class Plugin:
         self.website = website
         self.package = package
 
-        self.methods = PluginMethods(self.package)
-        self.visualizers = PluginVisualizers()
+        self.methods = PluginMethods(self.name, self.package)
+        self.visualizers = PluginVisualizers(self.name)
 
         self.data_layouts = {}
         self.types = {}
@@ -77,26 +80,101 @@ class Plugin:
 
 # TODO refactor these classes, they are basically the same
 class PluginMethods(dict):
-    def __init__(self, package):
+    def __init__(self, plugin, package):
         self._package = package
+        self._plugin = plugin
         super().__init__()
 
     def register_function(self, function, inputs, parameters, outputs, name,
                           description):
         method = qiime.sdk.Method.from_function(function, inputs, parameters,
-                                                outputs, name, description)
+                                                outputs, name, description,
+                                                plugin=self._plugin)
         self[method.id] = method
 
     def register_markdown(self, markdown_filepath):
         markdown_filepath = pkg_resources.resource_filename(
             self._package, markdown_filepath)
-        method = qiime.sdk.Method.from_markdown(markdown_filepath)
+        method = qiime.sdk.Method.from_markdown(markdown_filepath,
+                                                plugin=self._plugin)
         self[method.id] = method
 
 
 class PluginVisualizers(dict):
+    def __init__(self, plugin):
+        self._plugin = plugin
+        super().__init__()
+
     def register_function(self, function, inputs, parameters, name,
                           description):
         visualizer = qiime.sdk.Visualizer.from_function(
-            function, inputs, parameters, name, description)
+            function, inputs, parameters, name, description,
+            plugin=self._plugin)
         self[visualizer.id] = visualizer
+
+
+class QIIMEArtifactAPIImporter:
+    def _plugin_lookup(self, plugin_name):
+        import qiime.sdk
+        pm = qiime.sdk.PluginManager()
+        lookup = {s.replace('-', '_'): s for s in pm.plugins}
+        if plugin_name not in lookup:
+            return None
+        return pm.plugins[lookup[plugin_name]]
+
+    def find_spec(self, name, path=None, target=None):
+        # Don't waste time doing anything if it's not a qiime plugin
+        if not name.startswith('qiime.plugin.'):
+            return None
+
+        if target is not None:
+            # TODO: experiment with this to see if it is possible
+            raise ImportError("Reloading the QIIME Artifact API is not"
+                              " currently supported.")
+
+        # We couldn't care less about path, it is useless to us
+        # (It is the __path__ of the parent module)
+
+        fqn = name.split('.')
+        plugin_details = fqn[2:]  # fqn[len(['qiime', 'plugin']):]
+        plugin_name = plugin_details[0]
+
+        plugin = self._plugin_lookup(plugin_name)
+        if plugin is None or len(plugin_details) > 2:
+            return None
+
+        if len(plugin_details) == 1:
+            return self._make_spec(name, plugin)
+        elif plugin_details[1] == 'visualizers':
+            return self._make_spec(name, plugin, 'visualizers')
+        elif plugin_details[1] == 'methods':
+            return self._make_spec(name, plugin, 'methods')
+        return None
+
+    def _make_spec(self, name, plugin, action=None):
+        # See PEP 451 for explanation of what is happening:
+        # https://www.python.org/dev/peps/pep-0451/#modulespec
+        return importlib.machinery.ModuleSpec(
+            name,
+            loader=self,
+            origin='generated QIIME API',
+            loader_state={'plugin': plugin, 'action': action},
+            is_package=action is None
+        )
+
+    def exec_module(self, module):
+        spec = module.__spec__
+        plugin = spec.loader_state['plugin']
+        action = spec.loader_state['action']
+
+        if action is None:
+            module.methods = importlib.import_module('.methods',
+                                                     package=spec.name)
+            module.visualizers = importlib.import_module('.visualizers',
+                                                         package=spec.name)
+        else:
+            actions = getattr(plugin, action)
+            for key, value in actions.items():
+                setattr(module, key, value)
+
+sys.meta_path += [QIIMEArtifactAPIImporter()]
