@@ -40,12 +40,7 @@ class DropFirstParameter(decorator.FunctionMaker):
 
     @classmethod
     def from_function(cls, function):
-        evaldict = {}
-        fun = cls.create(function, "return None", evaldict,
-                         __wrapped__=function)
-        fun.__func__ = function  # Doctests need the orginal function
-        fun.__annotations__ = {}
-        return fun
+        return cls.create(function, "return None", {})
 
 
 # TODO a ton of code is shared between Method and Visualizer, refactor!
@@ -147,16 +142,12 @@ class Visualizer:
     def _bind_executors(self):
         callable_wrapper = self._get_callable_wrapper()
 
-        # TODO drop function annotations as they only make sense for the
-        # "view API". Necessary for `async` too. Simply setting __annotations__
-        # to {} or None doesn't work for some reason.
-
-        # TODO the signature (as `inspect` and IPython sees it) isn't correct,
-        # it displays `output_dir` when there shouldn't be one
         __call__ = decorator.decorator(
             callable_wrapper,
             DropFirstParameter.from_function(self._callable))
         __call__.__name__ = '__call__'
+        del __call__.__annotations__
+        del __call__.__wrapped__
         self._dynamic_call = __call__
 
         # TODO `async` execution has some problems with garbage-collection in
@@ -172,6 +163,8 @@ class Visualizer:
             async_wrapper,
             DropFirstParameter.from_function(self._callable))
         async.__name__ = 'async'
+        del async.__annotations__
+        del async.__wrapped__
         self._dynamic_async = async
 
     def _get_callable_wrapper(self):
