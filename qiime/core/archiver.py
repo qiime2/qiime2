@@ -83,10 +83,11 @@ class Archiver:
             return None
         else:
             return qiime.sdk.Provenance(
-                execution_uuid=provenance['execution-uuid'],
-                method_reference=provenance['method-reference'],
-                artifact_uuids=provenance['artifact-uuids'],
-                parameters=provenance['parameters']
+                execution_uuid=uuid.UUID(hex=provenance['execution-uuid']),
+                executor_reference=provenance['executor-reference'],
+                artifact_uuids={k: uuid.UUID(hex=v) for k, v in
+                                provenance['artifact-uuids'].items()},
+                parameter_references=provenance['parameter-references']
             )
 
     def __init__(self, uuid, type, provenance, archive_filepath=None):
@@ -205,10 +206,10 @@ class Archiver:
         else:
             return {
                 'execution-uuid': str(self.provenance.execution_uuid),
-                'method-reference': self.provenance.method_reference,
-                'artifact-uuids': self.provenance.artifact_uuids,
-                'parameters': {
-                    k: str(v) for k, v in self.provenance.parameters.items()}
+                'executor-reference': self.provenance.executor_reference,
+                'artifact-uuids': {k: str(v) for k, v in
+                                   self.provenance.artifact_uuids.items()},
+                'parameter-references': self.provenance.parameter_references
             }
 
 

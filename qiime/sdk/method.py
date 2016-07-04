@@ -33,6 +33,8 @@ class DispatchableSignature:
 
 
 class Method:
+    # TODO `inspect` module isn't compatible with Method, but works with
+    # Method.__call__. Can Method be improved to play nicer with `inspect`?
     __call__ = DispatchableSignature('_dynamic_call')
     async = DispatchableSignature('_dynamic_async')
 
@@ -41,7 +43,6 @@ class Method:
         self._pid = os.getpid()
         return self
 
-    # TODO can we drop the names from `outputs`?
     @classmethod
     def from_function(cls, function, inputs, parameters, outputs, name,
                       description):
@@ -74,8 +75,13 @@ class Method:
             param_types[param_name] = (primitive_type, view_type)
 
         outputs = collections.OrderedDict(outputs)
-        output_view_types = qiime.core.util.tuplize(
-                           function.__annotations__['return'])
+        try:
+            output_view_types = qiime.core.util.tuplize(
+                               function.__annotations__['return'])
+        except KeyError:
+            raise TypeError(
+                "Function %r must have a return type annotation."
+                % function.__name__)
         output_view_types = dict(zip(outputs, output_view_types))
 
         output_types = collections.OrderedDict()
@@ -272,12 +278,15 @@ class Method:
             execution_uuid = uuid.uuid4()
             method_reference = (
                 "%s. Details on plugin, version, website, etc. will also be "
-                "included, see https://github.com/biocore/qiime2/issues/26 "
+                "included, see https://github.com/biocore/qiime2/issues/26"
                 % self.id)
-            artifact_uuids = {name: str(artifact.uuid) for name, artifact in
+            artifact_uuids = {name: artifact.uuid for name, artifact in
                               artifacts.items()}
-            provenance = qiime.sdk.Provenance(execution_uuid, method_reference,
-                                              artifact_uuids, parameters)
+            parameter_references = {name: str(param) for name, param in
+                                    parameters.items()}
+            provenance = qiime.sdk.Provenance(
+                execution_uuid, method_reference, artifact_uuids,
+                parameter_references)
 
             output_artifacts = []
             for output_view, (semantic_type, view_type) in \
@@ -326,17 +335,6 @@ class Method:
         else:
             raise NotImplementedError
         self._pid = state['pid']
-
-    def __eq__(self, other):
-        return (
-            isinstance(other, Method) and
-            self.id == other.id and
-            self.signature == other.signature and
-            self._callable_ref == other._callable_ref and
-            self.name == other.name and
-            self.description == other.description and
-            self.source == other.source
-        )
 
 
 markdown_source_template = """

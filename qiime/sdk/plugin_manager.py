@@ -28,11 +28,11 @@ class PluginManager:
         self.semantic_types = {}
         self.semantic_type_to_data_layouts = {}
 
-        plugins = [e.load() for e in pkg_resources.iter_entry_points(
-            group='qiime.plugin')]
-        if 'QIIMETEST' in os.environ:
-            import qiime.core.testing
-            plugins.append(qiime.core.testing.plugin)
+        plugins = []
+        for entry_point in pkg_resources.iter_entry_points(
+                group='qiime.plugin'):
+            if entry_point.name != 'dummy-plugin' or 'QIIMETEST' in os.environ:
+                plugins.append(entry_point.load())
 
         # These are all dependent loops, each requires the loop above it to
         # be completed.
