@@ -240,6 +240,46 @@ class TestVisualization(unittest.TestCase):
             }
             self.assertEqual(fps, expected)
 
+    def test_extract(self):
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
+        visualization = Visualization._from_data_dir(self.data_dir,
+                                                     self.provenance)
+        visualization.save(fp)
+
+        Visualization.extract(fp)
+
+        contents = [
+            'visualization/VERSION',
+            'visualization/metadata.yaml',
+            'visualization/README.md',
+            'visualization/data/index.html',
+            'visualization/data/css/style.css']
+
+        for fp in contents:
+            expected_fp = os.path.join(tempfile.gettempdir(), fp)
+            self.assertTrue(os.path.exists(expected_fp),
+                            'File %s was not extracted.' % fp)
+
+    def test_extract_alt_output_dir(self):
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
+        visualization = Visualization._from_data_dir(self.data_dir,
+                                                     self.provenance)
+        visualization.save(fp)
+
+        output_dir = os.path.join(self.test_dir.name, 'viz-extract-test')
+        Visualization.extract(fp, output_dir=output_dir)
+
+        contents = [
+            'visualization/VERSION',
+            'visualization/metadata.yaml',
+            'visualization/README.md',
+            'visualization/data/index.html',
+            'visualization/data/css/style.css']
+
+        for fp in contents:
+            expected_fp = os.path.join(output_dir, fp)
+            self.assertTrue(os.path.exists(expected_fp),
+                            'File %s was not extracted.' % fp)
 
 if __name__ == '__main__':
     unittest.main()
