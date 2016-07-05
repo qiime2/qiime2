@@ -7,224 +7,103 @@
 # ----------------------------------------------------------------------------
 
 import collections
-import os
-import pkg_resources
-import tempfile
 import unittest
-import unittest.mock
 
-import frontmatter
+import qiime.core.data_layout
+import qiime.plugin
+import qiime.sdk
 
-from qiime.core.testing import TestType
-from qiime.plugin import Plugin, Int, DataLayout
-from qiime.sdk import Workflow, Signature
+from qiime.core.testing.type import (IntSequence1, IntSequence2, Mapping,
+                                     FourInts)
+from qiime.core.testing.data_layout import (int_sequence_to_list,
+                                            int_sequence_to_counter,
+                                            list_to_int_sequence,
+                                            mapping_to_dict,
+                                            dict_to_mapping,
+                                            four_ints_to_list,
+                                            list_to_four_ints)
+from qiime.core.testing.util import get_dummy_plugin
 
 
-def dummy_function() -> list:
-    return [42]
-
-
-def other_dummy_function() -> list:
-    return [42]
-
-
-# TODO updates these tests to use/test `qiime.core.testing.plugin`?
 class TestPlugin(unittest.TestCase):
     def setUp(self):
-        # TODO standardize temporary directories created by QIIME
-        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-temp-')
+        self.plugin = get_dummy_plugin()
 
-        self.markdown_fp = os.path.join(self.test_dir.name,
-                                        'dummy_markdown_workflow.md')
-        with open(self.markdown_fp, 'w') as markdown_fh:
-            markdown_fh.write(markdown_template)
-
-        self.plugin = Plugin(
-            name='dummy-plugin',
-            version='0.4.2',
-            website='www.dummy-plugin-hub.com',
-            package='dummy_plugin'
-        )
-
-    def tearDown(self):
-        self.test_dir.cleanup()
-
-    def test_constructor(self):
+    def test_name(self):
         self.assertEqual(self.plugin.name, 'dummy-plugin')
-        self.assertEqual(self.plugin.version, '0.4.2')
-        self.assertEqual(self.plugin.website, 'www.dummy-plugin-hub.com')
-        self.assertEqual(self.plugin.package, 'dummy_plugin')
-        self.assertEqual(self.plugin.workflows, {})
-        self.assertEqual(self.plugin.data_layouts, {})
 
-    def test_register_data_layout(self):
-        self.assertEqual(self.plugin.data_layouts, {})
+    def test_version(self):
+        self.assertEqual(self.plugin.version, '0.0.0-dev')
 
-        def is_valid(data_dir):
-            return True
-        self.plugin.register_data_layout('my-format', '1.0.0', is_valid)
-        exp_format = DataLayout('my-format', '1.0.0', is_valid)
-        self.assertEqual(self.plugin.data_layouts,
-                         {('my-format', '1.0.0'): exp_format})
-        # TODO: test execution of data layout reader and writer
+    def test_website(self):
+        self.assertEqual(self.plugin.website,
+                         'https://github.com/qiime2/qiime2')
 
-    def test_register_function(self):
-        self.assertEqual(self.plugin.workflows, {})
+    def test_package(self):
+        self.assertEqual(self.plugin.package, 'qiime.core.testing')
 
-        self.plugin.register_function(
-            name='Dummy function',
-            function=dummy_function,
-            inputs={},
-            parameters={},
-            outputs=[('answer', TestType)],
-            doc='Computes the answer to life, the universe, and everything'
-        )
+    def test_methods(self):
+        methods = self.plugin.methods
 
-        self.plugin.register_function(
-            name='Dummy function',
-            function=other_dummy_function,
-            inputs={},
-            parameters={},
-            outputs=[('answer', TestType)],
-            doc='Computes the answer to life, the universe, and everything'
-        )
+        self.assertEqual(methods.keys(),
+                         {'merge_mappings', 'concatenate_ints',
+                          'concatenate_ints_markdown', 'split_ints',
+                          'split_ints_markdown'})
+        for method in methods.values():
+            self.assertIsInstance(method, qiime.sdk.Method)
 
-        workflows = {
-            'dummy_function':
-                Workflow(
-                    signature=Signature(
-                        name='Dummy function',
-                        inputs={},
-                        parameters={},
-                        outputs=collections.OrderedDict([('answer',
-                                                         (TestType, list))])),
-                    template=expected_dummy_function_template,
-                    id_='dummy_function'
-                ),
-            'other_dummy_function':
-                Workflow(
-                    signature=Signature(
-                        name='Dummy function',
-                        inputs={},
-                        parameters={},
-                        outputs=collections.OrderedDict([('answer',
-                                                         (TestType, list))])),
-                    template=expected_other_dummy_function_template,
-                    id_='other_dummy_function'
-                )
-        }
+    def test_visualizers(self):
+        visualizers = self.plugin.visualizers
 
-        self.assertEqual(self.plugin.workflows, workflows)
+        self.assertEqual(visualizers.keys(),
+                         {'most_common_viz', 'mapping_viz'})
+        for viz in visualizers.values():
+            self.assertIsInstance(viz, qiime.sdk.Visualizer)
 
-    def test_register_workflow(self):
-        self.assertEqual(self.plugin.workflows, {})
+    def test_data_layouts(self):
+        data_layouts = self.plugin.data_layouts
 
-        with unittest.mock.patch.object(pkg_resources, 'resource_filename',
-                                        return_value=self.markdown_fp):
-            self.plugin.register_workflow(self.markdown_fp)
+        self.assertEqual(
+            data_layouts.keys(),
+            {('int-sequence', 1), ('mapping', 1), ('four-ints', 1)})
+        for dl in data_layouts.values():
+            self.assertIsInstance(dl, qiime.core.data_layout.DataLayout)
 
-        workflows = {
-            'dummy_markdown_workflow':
-                Workflow(
-                    signature=Signature(
-                        name='Dummy markdown workflow',
-                        inputs={},
-                        parameters={'param1': (Int, int),
-                                    'param2': (Int, int)},
-                        outputs=collections.OrderedDict([('the_sum',
-                                                         (TestType, list))])),
-                    template=frontmatter.parse(markdown_template)[1],
-                    id_='dummy_markdown_workflow'
-                )
-        }
+    def test_types(self):
+        types = self.plugin.types
 
-        self.assertEqual(self.plugin.workflows, workflows)
+        self.assertEqual(
+            types,
+            {'IntSequence1': IntSequence1, 'IntSequence2': IntSequence2,
+             'Mapping': Mapping, 'FourInts': FourInts})
 
-    def test_register_function_and_workflow(self):
-        self.assertEqual(self.plugin.workflows, {})
+    def test_type_to_data_layouts(self):
+        type_to_data_layouts = self.plugin.type_to_data_layouts
 
-        self.plugin.register_function(
-            name='Dummy function',
-            function=dummy_function,
-            inputs={},
-            parameters={},
-            outputs=[('answer', TestType)],
-            doc='Computes the answer to life, the universe, and everything'
-        )
+        self.assertEqual(type_to_data_layouts,
+                         {IntSequence1: ('int-sequence', 1),
+                          IntSequence2: ('int-sequence', 1),
+                          Mapping: ('mapping', 1),
+                          FourInts: ('four-ints', 1)})
 
-        with unittest.mock.patch.object(pkg_resources, 'resource_filename',
-                                        return_value=self.markdown_fp):
-            self.plugin.register_workflow(self.markdown_fp)
+    def test_data_layout_readers(self):
+        data_layout_readers = self.plugin.data_layout_readers
 
-        workflows = {
-            'dummy_function':
-                Workflow(
-                    signature=Signature(
-                        name='Dummy function',
-                        inputs={},
-                        parameters={},
-                        outputs=collections.OrderedDict([('answer',
-                                                         (TestType, list))])),
-                    template=expected_dummy_function_template,
-                    id_='dummy_function'
-                ),
-            'dummy_markdown_workflow':
-                Workflow(
-                    signature=Signature(
-                        name='Dummy markdown workflow',
-                        inputs={},
-                        parameters={'param1': (Int, int),
-                                    'param2': (Int, int)},
-                        outputs=collections.OrderedDict([('the_sum',
-                                                         (TestType, list))])),
-                    template=frontmatter.parse(markdown_template)[1],
-                    id_='dummy_markdown_workflow'
-                )
-        }
+        self.assertEqual(
+            data_layout_readers,
+            {('int-sequence', 1, list): int_sequence_to_list,
+             ('int-sequence', 1, collections.Counter): int_sequence_to_counter,
+             ('mapping', 1, dict): mapping_to_dict,
+             ('four-ints', 1, list): four_ints_to_list})
 
-        self.assertEqual(self.plugin.workflows, workflows)
+    def test_data_layout_writers(self):
+        data_layout_writers = self.plugin.data_layout_writers
 
-
-markdown_template = """---
-name: Dummy markdown workflow
-inputs: []
-parameters:
-    - param1:
-        - Int
-        - int
-    - param2:
-        - Int
-        - int
-outputs:
-    - the_sum:
-        - TestType
-        - list
----
-## Sum some integers and return their summation
-
-This workflow sums integers in the following way:
-
-```python
->>> the_sum = param1 + param2
-```
-"""
-
-expected_dummy_function_template = """Computes the answer to life, the universe, and everything
-
-```python
->>> from qiime.tests.test_plugin import dummy_function
->>> answer = dummy_function()
-```
-"""
-
-expected_other_dummy_function_template = """Computes the answer to life, the universe, and everything
-
-```python
->>> from qiime.tests.test_plugin import other_dummy_function
->>> answer = other_dummy_function()
-```
-"""
-
+        self.assertEqual(
+            data_layout_writers,
+            {('int-sequence', 1, list): list_to_int_sequence,
+             ('mapping', 1, dict): dict_to_mapping,
+             ('four-ints', 1, list): list_to_four_ints})
 
 if __name__ == '__main__':
     unittest.main()

@@ -49,5 +49,8 @@ class ResultBase(metaclass=abc.ABCMeta):
         result._archiver = None
         return result
 
+    def _orphan(self, pid):
+        self._archiver.orphan(pid)
+
     def save(self, filepath):
         self._archiver.save(filepath)

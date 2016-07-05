@@ -6,85 +6,297 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import collections
 import os
-import zipfile
+import pkg_resources
 import tempfile
 import unittest
+import uuid
+import zipfile
 
-import qiime.core.testing
 from qiime.sdk import Artifact, Provenance
+
+from qiime.core.testing.type import IntSequence1, FourInts
+from qiime.core.testing.util import get_dummy_plugin
 
 
 class TestArtifact(unittest.TestCase):
     def setUp(self):
+        # Ignore the returned dummy plugin object, just run this to verify the
+        # plugin exists as the tests rely on it being loaded.
+        get_dummy_plugin()
+
         # TODO standardize temporary directories created by QIIME
-        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-temp-')
+        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
 
-        self.dummy_provenance = Provenance(
-            job_uuid='7e909a23-21e2-44c2-be17-0723fae91dc8',
-            artifact_uuids={
-                'input1': 'f16ca3d0-fe83-4b1e-8eea-7e35db3f6b0f',
-                'input2': '908dece5-db23-4562-ad03-876bb5750145',
-            },
-            parameters={
-                'param1': 'abc',
-                'param2': 100,
-            },
-            workflow_reference=(
-                'dummy workflow reference, see '
+        self.provenance = Provenance(
+            execution_uuid=uuid.UUID('7e909a23-21e2-44c2-be17-0723fae91dc8'),
+            executor_reference=(
+                'dummy_method_id. Details on plugin, version, website, etc. '
+                'will also be included, see '
                 'https://github.com/biocore/qiime2/issues/26'
-            )
+            ),
+            artifact_uuids={
+                'input1': uuid.UUID('f16ca3d0-fe83-4b1e-8eea-7e35db3f6b0f'),
+                'input2': uuid.UUID('908dece5-db23-4562-ad03-876bb5750145')
+            },
+            parameter_references={
+                'param1': 'abc',
+                'param2': '100'
+            }
         )
-
-        self.artifact_with_provenance = Artifact._from_view(
-            [-1, 42, 0, 43, 43], qiime.core.testing.TestType,
-            self.dummy_provenance)
-
-        self.artifact_without_provenance = Artifact._from_view(
-            [-1, 42, 0, 43, 43], qiime.core.testing.TestType, None)
 
     def tearDown(self):
         self.test_dir.cleanup()
 
-    def test_save(self):
-        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+    def test_private_constructor(self):
+        with self.assertRaisesRegex(
+                NotImplementedError,
+                'Artifact constructor.*private.*Artifact.load'):
+            Artifact()
 
-        self.artifact_with_provenance.save(fp)
+    # Note on testing strategy below: many of the tests for `_from_view` and
+    # `load` are similar, with the exception that when `load`ing, the
+    # artifact's UUID is known so more specific assertions can be performed.
+    # While these tests appear somewhat redundant, they are important because
+    # they exercise the same operations on Artifact objects constructed from
+    # different sources, whose codepaths have very different internal behavior.
+    # This internal behavior could be tested explicitly but it is safer to test
+    # the public API behavior (e.g. as a user would interact with the object)
+    # in case the internals change.
+
+    def test_from_view(self):
+        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts, None)
+
+        self.assertEqual(artifact.type, FourInts)
+        self.assertIsNone(artifact.provenance)
+        # We don't know what the UUID is because it's generated within
+        # Artifact._from_view.
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
+        # Can produce same view if called again.
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
+
+    def test_from_view_with_provenance(self):
+        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
+                                       self.provenance)
+
+        self.assertEqual(artifact.type, FourInts)
+        self.assertEqual(artifact.provenance, self.provenance)
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
+
+    def test_from_view_different_type_with_multiple_view_types(self):
+        artifact = Artifact._from_view([42, 42, 43, -999, 42], IntSequence1,
+                                       None)
+
+        self.assertEqual(artifact.type, IntSequence1)
+        self.assertIsNone(artifact.provenance)
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+
+        self.assertEqual(artifact.view(list), [42, 42, 43, -999, 42])
+        self.assertEqual(artifact.view(list), [42, 42, 43, -999, 42])
+
+        self.assertEqual(artifact.view(collections.Counter),
+                         collections.Counter({42: 3, 43: 1, -999: 1}))
+        self.assertEqual(artifact.view(collections.Counter),
+                         collections.Counter({42: 3, 43: 1, -999: 1}))
+
+    def test_from_view_and_save(self):
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        # Using four-ints data layout because it has multiple files, some of
+        # which are in a nested directory.
+        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
+                                       self.provenance)
+
+        artifact.save(fp)
 
         with zipfile.ZipFile(fp, mode='r') as zf:
             fps = set(zf.namelist())
-            expected = {'artifact/VERSION', 'artifact/metadata.yaml',
-                        'artifact/README.md', 'artifact/data/data.txt'}
+            expected = {
+                'artifact/VERSION',
+                'artifact/metadata.yaml',
+                'artifact/README.md',
+                'artifact/data/file1.txt',
+                'artifact/data/file2.txt',
+                'artifact/data/nested/file3.txt',
+                'artifact/data/nested/file4.txt'
+            }
             self.assertEqual(fps, expected)
 
+    def test_load(self):
+        saved_artifact = Artifact._from_view([-1, 42, 0, 43], FourInts, None)
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        saved_artifact.save(fp)
+
+        artifact = Artifact.load(fp)
+
+        self.assertEqual(artifact.type, FourInts)
+        self.assertIsNone(artifact.provenance)
+        self.assertEqual(artifact.uuid, saved_artifact.uuid)
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
+
     def test_load_with_provenance(self):
+        saved_artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
+                                             self.provenance)
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        self.artifact_with_provenance.save(fp)
+        saved_artifact.save(fp)
 
         artifact = Artifact.load(fp)
 
-        self.assertEqual(artifact.type, qiime.core.testing.TestType)
-        self.assertEqual(artifact.provenance, self.dummy_provenance)
-        self.assertEqual(artifact.uuid, self.artifact_with_provenance.uuid)
-        self.assertEqual(artifact.view(list), [-1, 42, 0, 43, 43])
+        self.assertEqual(artifact.type, FourInts)
+        self.assertEqual(artifact.provenance, self.provenance)
+        self.assertEqual(artifact.uuid, saved_artifact.uuid)
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
 
-    def test_load_without_provenance(self):
+    def test_load_different_type_with_multiple_view_types(self):
+        saved_artifact = Artifact._from_view([42, 42, 43, -999, 42],
+                                             IntSequence1, None)
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        self.artifact_without_provenance.save(fp)
+        saved_artifact.save(fp)
 
         artifact = Artifact.load(fp)
 
-        self.assertEqual(artifact.type, qiime.core.testing.TestType)
-        self.assertEqual(artifact.provenance, None)
-        self.assertEqual(artifact.uuid, self.artifact_without_provenance.uuid)
-        self.assertEqual(artifact.view(list), [-1, 42, 0, 43, 43])
+        self.assertEqual(artifact.type, IntSequence1)
+        self.assertIsNone(artifact.provenance)
+        self.assertEqual(artifact.uuid, saved_artifact.uuid)
+
+        self.assertEqual(artifact.view(list), [42, 42, 43, -999, 42])
+        self.assertEqual(artifact.view(list), [42, 42, 43, -999, 42])
+
+        self.assertEqual(artifact.view(collections.Counter),
+                         collections.Counter({42: 3, 43: 1, -999: 1}))
+        self.assertEqual(artifact.view(collections.Counter),
+                         collections.Counter({42: 3, 43: 1, -999: 1}))
+
+    def test_load_and_save(self):
+        fp1 = os.path.join(self.test_dir.name, 'artifact1.qza')
+        fp2 = os.path.join(self.test_dir.name, 'artifact2.qza')
+        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
+                                       self.provenance)
+        artifact.save(fp1)
+
+        artifact = Artifact.load(fp1)
+        # Overwriting its source file works.
+        artifact.save(fp1)
+        # Saving to a new file works.
+        artifact.save(fp2)
+
+        with zipfile.ZipFile(fp1, mode='r') as zf:
+            fps = set(zf.namelist())
+            expected = {
+                'artifact1/VERSION',
+                'artifact1/metadata.yaml',
+                'artifact1/README.md',
+                'artifact1/data/file1.txt',
+                'artifact1/data/file2.txt',
+                'artifact1/data/nested/file3.txt',
+                'artifact1/data/nested/file4.txt'
+            }
+            self.assertEqual(fps, expected)
+
+        with zipfile.ZipFile(fp2, mode='r') as zf:
+            fps = set(zf.namelist())
+            expected = {
+                'artifact2/VERSION',
+                'artifact2/metadata.yaml',
+                'artifact2/README.md',
+                'artifact2/data/file1.txt',
+                'artifact2/data/file2.txt',
+                'artifact2/data/nested/file3.txt',
+                'artifact2/data/nested/file4.txt'
+            }
+            self.assertEqual(fps, expected)
+
+    def test_roundtrip(self):
+        fp1 = os.path.join(self.test_dir.name, 'artifact1.qza')
+        fp2 = os.path.join(self.test_dir.name, 'artifact2.qza')
+        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
+                                       self.provenance)
+        artifact.save(fp1)
+
+        artifact1 = Artifact.load(fp1)
+        artifact1.save(fp2)
+        artifact2 = Artifact.load(fp2)
+
+        self.assertEqual(artifact1.type, artifact2.type)
+        self.assertEqual(artifact1.provenance, artifact2.provenance)
+        self.assertEqual(artifact1.uuid, artifact2.uuid)
+        self.assertEqual(artifact1.view(list), artifact2.view(list))
+        self.assertEqual(artifact1.view(list), artifact2.view(list))
+
+    def test_load_from_externally_created_zipfile(self):
+        # If a user unzips a .qza to inspect contents and rezips using a
+        # different ZIP library/implementation than the one provided by Python,
+        # loading, saving, etc. should still work as expected. The Python ZIP
+        # implementation doesn't store directories as entries when writing, but
+        # the `zip` Unix and OS X command line utilities include both
+        # directories and filepaths as entries. When reading these files with
+        # Python's ZIP implementation, the directory entries are visible, so
+        # their presence needs to be accounted for when extracting.
+        #
+        # The following artifact was created with:
+        #
+        #     artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
+        #                                    self.provenance)
+        #     artifact.save('externally_created_zipfile.qza')
+        #
+        # Unzip and rezip using command line utility:
+        #
+        #     unzip externally_created_zipfile.qza
+        #     rm externally_created_zipfile.qza
+        #     zip -r externally_created_zipfile.qza externally_created_zipfile
+        #
+        fp = pkg_resources.resource_filename(
+            'qiime.sdk.tests', 'data/externally_created_zipfile.qza')
+
+        with zipfile.ZipFile(fp, mode='r') as zf:
+            fps = set(zf.namelist())
+            expected = {
+                # These are extra directory entries included by `zip` command
+                # line utility.
+                'externally_created_zipfile/',
+                'externally_created_zipfile/data/',
+                'externally_created_zipfile/data/nested/',
+
+                'externally_created_zipfile/VERSION',
+                'externally_created_zipfile/metadata.yaml',
+                'externally_created_zipfile/README.md',
+                'externally_created_zipfile/data/file1.txt',
+                'externally_created_zipfile/data/file2.txt',
+                'externally_created_zipfile/data/nested/file3.txt',
+                'externally_created_zipfile/data/nested/file4.txt'
+            }
+            self.assertEqual(fps, expected)
+
+        artifact = Artifact.load(fp)
+
+        self.assertEqual(artifact.type, FourInts)
+        self.assertEqual(artifact.provenance, self.provenance)
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
+        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
+
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        artifact.save(fp)
+
+        with zipfile.ZipFile(fp, mode='r') as zf:
+            fps = set(zf.namelist())
+            expected = {
+                # Directory entries should not be present.
+                'artifact/VERSION',
+                'artifact/metadata.yaml',
+                'artifact/README.md',
+                'artifact/data/file1.txt',
+                'artifact/data/file2.txt',
+                'artifact/data/nested/file3.txt',
+                'artifact/data/nested/file4.txt'
+            }
+            self.assertEqual(fps, expected)
 
 
-# TODO executing these tests via `python qiime/sdk/tests/test_artifact.py`
-# for me (Jai) raises a ton of DeprecationWarnings from third-party packages I
-# have installed in my conda environment (IPython, pandas, matplotlib). I
-# haven't figured out if the code is doing something wrong or if I broke my
-# environment somehow during testing. For now, running as
-# `nosetests qiime/sdk/tests/test_artifact.py` doesn't have this issue.
 if __name__ == '__main__':
     unittest.main()

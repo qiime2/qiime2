@@ -73,7 +73,9 @@ class Signature:
 
     def __eq__(self, other):
         return (type(self) is type(other) and
-                self.name == other.name and
                 self.inputs == other.inputs and
                 self.parameters == other.parameters and
                 self.outputs == other.outputs)
+
+    def __ne__(self, other):
+        return not (self == other)

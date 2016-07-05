@@ -66,16 +66,17 @@ class Visualizer:
             first_parameter = function_parameters[0]
             if first_parameter != 'output_dir':
                 raise TypeError(
-                    "Visualization function must have `output_dir` as its "
-                    "first argument, not %r" % first_parameter)
+                    "Visualizer function must have `output_dir` as its first "
+                    "argument, not %r" % first_parameter)
         else:
             raise TypeError(
-                "Visualization function must have at least one argument")
+                "Visualizer function must have at least one argument")
 
-        if function.__annotations__['return'] is not None:
+        if ('return' in function.__annotations__ and
+                function.__annotations__['return'] is not None):
             raise TypeError(
-                "Visualization function cannot return anything. Write "
-                "visualization output to `output_dir`.")
+                "Visualizer function %r cannot return anything. Write output "
+                "to `output_dir`." % function.__name__)
 
         input_types = {}
         for param_name, semantic_type in inputs.items():
@@ -193,17 +194,20 @@ class Visualizer:
                 view_args[name] = artifacts[name].view(view_type)
 
             execution_uuid = uuid.uuid4()
-            method_reference = (
+            visualizer_reference = (
                 "%s. Details on plugin, version, website, etc. will also be "
-                "included, see https://github.com/biocore/qiime2/issues/26 "
+                "included, see https://github.com/biocore/qiime2/issues/26"
                 % self.id)
-            artifact_uuids = {name: str(artifact.uuid) for name, artifact in
+            artifact_uuids = {name: artifact.uuid for name, artifact in
                               artifacts.items()}
-            provenance = qiime.sdk.Provenance(execution_uuid, method_reference,
-                                              artifact_uuids, parameters)
+            parameter_references = {name: str(param) for name, param in
+                                    parameters.items()}
+            provenance = qiime.sdk.Provenance(
+                execution_uuid, visualizer_reference, artifact_uuids,
+                parameter_references)
 
-            # TODO use sane prefix
-            with tempfile.TemporaryDirectory() as temp_dir:
+            # TODO use user-configured temp dir
+            with tempfile.TemporaryDirectory('qiime2-temp-') as temp_dir:
                 # TODO make sure _callable doesn't return anything
                 self._callable(output_dir=temp_dir, **view_args)
                 visualization = qiime.sdk.Visualization._from_data_dir(
@@ -239,17 +243,6 @@ class Visualizer:
         else:
             raise NotImplementedError
         self._pid = state['pid']
-
-    def __eq__(self, other):
-        return (
-            isinstance(other, Visualizer) and
-            self.id == other.id and
-            self.signature == other.signature and
-            self._callable_ref == other._callable_ref and
-            self.name == other.name and
-            self.description == other.description and
-            self.source == other.source
-        )
 
 
 markdown_source_template = """

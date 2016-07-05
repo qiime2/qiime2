@@ -13,5 +13,12 @@ setup(
     version='2.0.1.dev0',
     packages=find_packages(),
     install_requires=['python-frontmatter', 'pyyaml', 'ipymd >= 0.1.2',
-                      'jupyter', 'decorator']
+                      'jupyter', 'decorator', 'pandas'],
+    entry_points={
+        'qiime.plugin': ['dummy-plugin=qiime.core.testing.plugin:dummy_plugin']
+    },
+    package_data={
+        'qiime.core.testing': ['markdown/*md'],
+        'qiime.sdk.tests': ['data/*']
+    }
 )
