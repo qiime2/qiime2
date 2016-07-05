@@ -12,11 +12,12 @@ import tempfile
 import unittest
 import uuid
 import zipfile
+import collections
 
 import qiime.core.type
 from qiime.sdk import Visualization, Provenance
 
-from qiime.core.testing.visualizer import mapping_viz
+from qiime.core.testing.visualizer import mapping_viz, most_common_viz
 
 
 class TestVisualization(unittest.TestCase):
@@ -280,6 +281,23 @@ class TestVisualization(unittest.TestCase):
             expected_fp = os.path.join(output_dir, fp)
             self.assertTrue(os.path.exists(expected_fp),
                             'File %s was not extracted.' % fp)
+
+    def test_get_indices_single(self):
+        visualization = Visualization._from_data_dir(self.data_dir,
+                                                     self.provenance)
+        actual = visualization.get_indices()
+        expected = {'data/index.html'}
+        self.assertEqual(actual, expected)
+
+    def test_get_indices_multiple(self):
+        most_common_viz(self.data_dir,
+                        collections.Counter(range(42)))
+        visualization = Visualization._from_data_dir(self.data_dir,
+                                                     self.provenance)
+        actual = visualization.get_indices()
+        expected = {'data/index.html',
+                    'data/index.tsv'}
+        self.assertEqual(actual, expected)
 
 if __name__ == '__main__':
     unittest.main()
