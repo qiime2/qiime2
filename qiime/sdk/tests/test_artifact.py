@@ -14,9 +14,10 @@ import unittest
 import uuid
 import zipfile
 
+from qiime.core.archiver import ArchiveMetadata
 from qiime.sdk import Artifact, Provenance
 
-from qiime.core.testing.type import IntSequence1, FourInts
+from qiime.core.testing.type import IntSequence1, FourInts, Mapping
 from qiime.core.testing.util import get_dummy_plugin
 
 
@@ -297,6 +298,32 @@ class TestArtifact(unittest.TestCase):
             }
             self.assertEqual(fps, expected)
 
+    def test_load_with_archive_filepath_modified(self):
+        # Save an artifact for use in the following test case.
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        Artifact._from_view([-1, 42, 0, 43], FourInts, None).save(fp)
+
+        # Load the artifact from a filepath then save a different artifact to
+        # the same filepath. Assert that both artifacts produce the correct
+        # views of their data.
+        #
+        # `load` used to be lazy, only extracting data when it needed to (e.g.
+        # when `save` or `view` was called). This was buggy as the filepath
+        # could have been deleted, or worse, modified to contain a different
+        # .qza file. Thus, the wrong archive could be extracted on demand, or
+        # the archive could be missing altogether. There isn't an easy
+        # cross-platform compatible way to solve this problem, so Artifact.load
+        # is no longer lazy and always extracts its data immediately. The real
+        # motivation for lazy loading was for quick inspection of archives
+        # without extracting/copying data, so that API is now provided through
+        # Artifact.peek.
+        artifact1 = Artifact.load(fp)
+        Artifact._from_view([10, 11, 12, 13], FourInts, None).save(fp)
+        artifact2 = Artifact.load(fp)
+
+        self.assertEqual(artifact1.view(list), [-1, 42, 0, 43])
+        self.assertEqual(artifact2.view(list), [10, 11, 12, 13])
+
     def test_extract(self):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
@@ -319,6 +346,31 @@ class TestArtifact(unittest.TestCase):
             expected_fp = os.path.join(output_dir, fp)
             self.assertTrue(os.path.exists(expected_fp),
                             'File %s was not extracted.' % fp)
+
+    def test_peek(self):
+        artifact = Artifact._from_view([0, 0, 42, 1000], FourInts, None)
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        artifact.save(fp)
+
+        metadata = Artifact.peek(fp)
+
+        self.assertIsInstance(metadata, ArchiveMetadata)
+        self.assertEqual(metadata.type, FourInts)
+        self.assertIsNone(metadata.provenance)
+        self.assertEqual(metadata.uuid, artifact.uuid)
+
+    def test_peek_with_provenance(self):
+        artifact = Artifact._from_view({'foo': 'bar', 'baz': 'bazz'}, Mapping,
+                                       self.provenance)
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        artifact.save(fp)
+
+        metadata = Artifact.peek(fp)
+
+        self.assertIsInstance(metadata, ArchiveMetadata)
+        self.assertEqual(metadata.type, Mapping)
+        self.assertEqual(metadata.provenance, self.provenance)
+        self.assertEqual(metadata.uuid, artifact.uuid)
 
 
 if __name__ == '__main__':

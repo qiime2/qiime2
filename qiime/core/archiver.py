@@ -6,8 +6,10 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import collections
 import io
 import os
+import os.path
 import shutil
 import tempfile
 import uuid
@@ -16,6 +18,10 @@ import zipfile
 
 import qiime.sdk
 from .util import parse_type
+
+
+ArchiveMetadata = collections.namedtuple('ArchiveMetadata',
+                                         ['uuid', 'type', 'provenance'])
 
 
 # TODO use utf-8 encoding when reading/writing files
@@ -35,7 +41,7 @@ class Archiver:
         return output_dir
 
     @classmethod
-    def load(cls, filepath):
+    def peek(cls, filepath):
         if not zipfile.is_zipfile(filepath):
             raise zipfile.BadZipFile(
                 "%r is not a readable ZIP file, or the file does not exist" %
@@ -50,8 +56,13 @@ class Archiver:
                     "Supported version(s): %r" % (version, cls._version))
 
             uuid_, type_, provenance = cls._load_metadata(zf, root_dir)
+            return ArchiveMetadata(uuid=uuid_, type=type_,
+                                   provenance=provenance)
 
-        return cls(uuid_, type_, provenance, archive_filepath=filepath)
+    @classmethod
+    def load(cls, filepath):
+        archive_metadata = cls.peek(filepath)
+        return cls(*archive_metadata, archive_filepath=filepath)
 
     @classmethod
     def _get_root_dir(cls, filepath):
@@ -96,24 +107,58 @@ class Archiver:
                 parameter_references=provenance['parameter-references']
             )
 
-    def __init__(self, uuid, type, provenance, archive_filepath=None):
-        self._uuid = uuid
+    def __init__(self, uuid, type, provenance, archive_filepath=None,
+                 data_initializer=None):
+        """
 
+        Parameters
+        ----------
+        data_initializer : callable, optional
+            Callable accepting a single str argument specifying the data
+            directory to write data to. Callable should not return anything,
+            return values will be ignored.
+
+        """
+        if archive_filepath is None and data_initializer is None:
+            raise ValueError(
+                "`archive_filepath` or `data_initializer` must be provided.")
+
+        if archive_filepath is not None and data_initializer is not None:
+            raise ValueError(
+                "`archive_filepath` and `data_initializer` cannot both be "
+                "provided.")
+
+        self._uuid = uuid
         if isinstance(type, str):
             type = parse_type(type)
         self._type = type
-
         self._provenance = provenance
-        self._archive_filepath = archive_filepath
 
         self._temp_dir = tempfile.mkdtemp(prefix='qiime2-archive-temp-')
         self._data_dir = os.path.join(self._temp_dir, self._data_dirname)
         self._pid = os.getpid()
 
+        if archive_filepath is not None:
+            self._extract_data(archive_filepath)
+        else:
+            os.mkdir(self._data_dir)
+            data_initializer(self._data_dir)
+
     def __del__(self):
         # Destructor can be called more than once.
         if os.path.exists(self._temp_dir) and self._pid == os.getpid():
             shutil.rmtree(self._temp_dir)
+
+    def _extract_data(self, archive_filepath):
+        root_dir = self._get_root_dir(archive_filepath)
+        prefix = os.path.join(root_dir, self._data_dirname, '')
+
+        with zipfile.ZipFile(archive_filepath, mode='r') as zf:
+            for file_ in zf.namelist():
+                if file_.startswith(prefix) and file_ != prefix:
+                    zf.extract(file_, path=self._temp_dir)
+            shutil.move(os.path.join(self._temp_dir, prefix), self._temp_dir)
+            os.rmdir(os.path.join(self._temp_dir, root_dir))
 
     @property
     def uuid(self):
@@ -130,38 +175,31 @@ class Archiver:
     def orphan(self, pid):
         self._pid = pid
 
+    def get_index_paths(self):
+        result = {}
+        for path in os.listdir(self._data_dir):
+            if os.path.isfile(os.path.join(self._data_dir, path)):
+                filename = os.path.split(path)[1]
+                if filename.startswith('index.'):
+                    ext = os.path.splitext(filename)[1][1:]
+                    if ext in result:
+                        # TODO: this should [additionally] be handled
+                        # elsewhere, probably on population of self._data_dir.
+                        raise ValueError(
+                            "Multiple index files identified with %s "
+                            "extension (%s, %s). This is currently "
+                            "unsupported." %
+                            (ext, result[ext],
+                             os.path.join(self._data_dirname, path)))
+                    else:
+                        result[ext] = os.path.join(self._data_dirname, path)
+        return result
+
     def load_data(self, loader):
-        if not os.path.exists(self._data_dir):
-            self._extract_data()
-
         return loader(self._data_dir)
-
-    def _extract_data(self):
-        assert not os.path.exists(self._data_dir)
-        assert self._archive_filepath is not None
-
-        with zipfile.ZipFile(self._archive_filepath, mode='r') as zf:
-            root_dir = self._get_root_dir(self._archive_filepath)
-            prefix = os.path.join(root_dir, self._data_dirname, '')
-
-            for file_ in zf.namelist():
-                if file_.startswith(prefix) and file_ != prefix:
-                    zf.extract(file_, path=self._temp_dir)
-            shutil.move(os.path.join(self._temp_dir, prefix), self._temp_dir)
-            os.rmdir(os.path.join(self._temp_dir, root_dir))
-
-    def save_data(self, data, saver):
-        assert not os.path.exists(self._data_dir)
-        assert self._archive_filepath is None
-
-        os.mkdir(self._data_dir)
-        saver(data, self._data_dir)
 
     def save(self, filepath):
         root_dir = self._get_root_dir(filepath)
-
-        if not os.path.exists(self._data_dir):
-            self._extract_data()
 
         with zipfile.ZipFile(filepath, mode='w',
                              compression=zipfile.ZIP_DEFLATED,
@@ -217,30 +255,6 @@ class Archiver:
                                    self.provenance.artifact_uuids.items()},
                 'parameter-references': self.provenance.parameter_references
             }
-
-    def get_index_paths(self):
-        # TODO: this extracts the entire archive, even though that isn't
-        # necessary to get the index paths. Refactor to avoid this.
-        if not os.path.exists(self._data_dir):
-            self._extract_data()
-        result = {}
-        for path in os.listdir(self._data_dir):
-            if os.path.isfile(os.path.join(self._data_dir, path)):
-                filename = os.path.split(path)[1]
-                if filename.startswith('index.'):
-                    ext = os.path.splitext(filename)[1][1:]
-                    if ext in result:
-                        # TODO: this should [additionally] be handled
-                        # elsewhere, probably on population of self._data_dir.
-                        raise ValueError(
-                            "Multiple index files identified with %s "
-                            "extension (%s, %s). This is currently "
-                            "unsupported." %
-                            (ext, result[ext],
-                             os.path.join(self._data_dirname, path)))
-                    else:
-                        result[ext] = os.path.join(self._data_dirname, path)
-        return result
 
 
 _README_TEXT = """# QIIME 2 archive
