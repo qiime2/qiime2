@@ -8,8 +8,6 @@
 
 import distutils.dir_util
 import uuid
-import glob
-import os.path
 
 import qiime.core.archiver
 import qiime.core.result_base
@@ -36,6 +34,5 @@ class Visualization(qiime.core.result_base.ResultBase):
         viz._archiver.save_data(data_dir, distutils.dir_util.copy_tree)
         return viz
 
-    def get_indices(self):
-        indices = glob.glob(os.path.join(self._archiver._data_dir, 'index.*'))
-        return {os.path.join('data', os.path.split(fp)[1]) for fp in indices}
+    def get_index_paths(self):
+        return self._archiver.get_index_paths()

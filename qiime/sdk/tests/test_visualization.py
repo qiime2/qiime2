@@ -17,7 +17,8 @@ import collections
 import qiime.core.type
 from qiime.sdk import Visualization, Provenance
 
-from qiime.core.testing.visualizer import mapping_viz, most_common_viz
+from qiime.core.testing.visualizer import (
+    mapping_viz, most_common_viz, multi_html_viz)
 
 
 class TestVisualization(unittest.TestCase):
@@ -247,28 +248,9 @@ class TestVisualization(unittest.TestCase):
                                                      self.provenance)
         visualization.save(fp)
 
-        Visualization.extract(fp)
-
-        contents = [
-            'visualization/VERSION',
-            'visualization/metadata.yaml',
-            'visualization/README.md',
-            'visualization/data/index.html',
-            'visualization/data/css/style.css']
-
-        for fp in contents:
-            expected_fp = os.path.join(tempfile.gettempdir(), fp)
-            self.assertTrue(os.path.exists(expected_fp),
-                            'File %s was not extracted.' % fp)
-
-    def test_extract_alt_output_dir(self):
-        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
-        visualization.save(fp)
-
         output_dir = os.path.join(self.test_dir.name, 'viz-extract-test')
-        Visualization.extract(fp, output_dir=output_dir)
+        result_dir = Visualization.extract(fp, output_dir=output_dir)
+        self.assertEqual(result_dir, output_dir)
 
         contents = [
             'visualization/VERSION',
@@ -276,28 +258,83 @@ class TestVisualization(unittest.TestCase):
             'visualization/README.md',
             'visualization/data/index.html',
             'visualization/data/css/style.css']
-
         for fp in contents:
             expected_fp = os.path.join(output_dir, fp)
             self.assertTrue(os.path.exists(expected_fp),
                             'File %s was not extracted.' % fp)
 
-    def test_get_indices_single(self):
+    def test_get_index_paths_single_load(self):
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         visualization = Visualization._from_data_dir(self.data_dir,
                                                      self.provenance)
-        actual = visualization.get_indices()
-        expected = {'data/index.html'}
+        visualization.save(fp)
+        visualization = Visualization.load(fp)
+
+        actual = visualization.get_index_paths()
+        expected = {'html': 'data/index.html'}
         self.assertEqual(actual, expected)
 
-    def test_get_indices_multiple(self):
-        most_common_viz(self.data_dir,
-                        collections.Counter(range(42)))
+    def test_get_index_paths_single_from_data_dir(self):
         visualization = Visualization._from_data_dir(self.data_dir,
                                                      self.provenance)
-        actual = visualization.get_indices()
-        expected = {'data/index.html',
-                    'data/index.tsv'}
+
+        actual = visualization.get_index_paths()
+        expected = {'html': 'data/index.html'}
         self.assertEqual(actual, expected)
+
+    def test_get_index_paths_multiple_load(self):
+        data_dir = os.path.join(self.test_dir.name, 'mc-viz-output1')
+        os.mkdir(data_dir)
+        most_common_viz(data_dir,
+                        collections.Counter(range(42)))
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
+        visualization = Visualization._from_data_dir(data_dir,
+                                                     self.provenance)
+        visualization.save(fp)
+        visualization = Visualization.load(fp)
+
+        actual = visualization.get_index_paths()
+        expected = {'html': 'data/index.html',
+                    'tsv': 'data/index.tsv'}
+        self.assertEqual(actual, expected)
+
+    def test_get_index_paths_multiple_from_data_dir(self):
+        data_dir = os.path.join(self.test_dir.name, 'mc-viz-output2')
+        os.mkdir(data_dir)
+        most_common_viz(data_dir, collections.Counter(range(42)))
+        visualization = Visualization._from_data_dir(data_dir,
+                                                     self.provenance)
+
+        actual = visualization.get_index_paths()
+        expected = {'html': 'data/index.html',
+                    'tsv': 'data/index.tsv'}
+        self.assertEqual(actual, expected)
+
+    def test_get_index_paths_multiple_html_load(self):
+        data_dir = os.path.join(self.test_dir.name, 'multi-html-viz1')
+        os.mkdir(data_dir)
+        multi_html_viz(data_dir, [1, 42])
+
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
+        visualization = Visualization._from_data_dir(data_dir,
+                                                     self.provenance)
+        visualization.save(fp)
+        visualization = Visualization.load(fp)
+
+        with self.assertRaises(ValueError):
+            visualization.get_index_paths()
+
+    def test_get_index_paths_multiple_html_from_data_dir(self):
+        data_dir = os.path.join(self.test_dir.name, 'multi-html-viz2')
+        os.mkdir(data_dir)
+        multi_html_viz(data_dir, [1, 42])
+
+        visualization = Visualization._from_data_dir(data_dir,
+                                                     self.provenance)
+
+        with self.assertRaises(ValueError):
+            visualization.get_index_paths()
+
 
 if __name__ == '__main__':
     unittest.main()

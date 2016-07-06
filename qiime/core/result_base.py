@@ -7,8 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import abc
-import zipfile
-import tempfile
 
 import qiime.core.archiver
 
@@ -29,12 +27,8 @@ class ResultBase(metaclass=abc.ABCMeta):
         return result
 
     @classmethod
-    def extract(cls, filepath, output_dir=None):
-        if output_dir is None:
-            output_dir = tempfile.gettempdir()
-        with zipfile.ZipFile(filepath, mode='r') as zf:
-            zf.extractall(output_dir)
-        return output_dir
+    def extract(cls, filepath, output_dir):
+        return qiime.core.archiver.Archiver.extract(filepath, output_dir)
 
     @property
     def type(self):

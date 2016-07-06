@@ -29,6 +29,12 @@ class Archiver:
     _data_dirname = 'data'
 
     @classmethod
+    def extract(cls, filepath, output_dir):
+        with zipfile.ZipFile(filepath, mode='r') as zf:
+            zf.extractall(output_dir)
+        return output_dir
+
+    @classmethod
     def load(cls, filepath):
         if not zipfile.is_zipfile(filepath):
             raise zipfile.BadZipFile(
@@ -211,6 +217,30 @@ class Archiver:
                                    self.provenance.artifact_uuids.items()},
                 'parameter-references': self.provenance.parameter_references
             }
+
+    def get_index_paths(self):
+        # TODO: this extracts the entire archive, even though that isn't
+        # necessary to get the index paths. Refactor to avoid this.
+        if not os.path.exists(self._data_dir):
+            self._extract_data()
+        result = {}
+        for path in os.listdir(self._data_dir):
+            if os.path.isfile(os.path.join(self._data_dir, path)):
+                filename = os.path.split(path)[1]
+                if filename.startswith('index.'):
+                    ext = os.path.splitext(filename)[1][1:]
+                    if ext in result:
+                        # TODO: this should [additionally] be handled
+                        # elsewhere, probably on population of self._data_dir.
+                        raise ValueError(
+                            "Multiple index files identified with %s "
+                            "extension (%s, %s). This is currently "
+                            "unsupported." %
+                            (ext, result[ext],
+                             os.path.join(self._data_dirname, path)))
+                    else:
+                        result[ext] = os.path.join(self._data_dirname, path)
+        return result
 
 
 _README_TEXT = """# QIIME 2 archive

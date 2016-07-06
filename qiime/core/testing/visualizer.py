@@ -27,6 +27,19 @@ def most_common_viz(output_dir: str, ints: collections.Counter) -> None:
         fh.write(df.to_csv(sep='\t', index=False))
 
 
+# Multiple html files (index.1.html, index.2.html)
+def multi_html_viz(output_dir: str, ints: list) -> None:
+    ints = [str(i) for i in ints]
+    with open(os.path.join(output_dir, 'index.1.html'), 'w') as fh:
+        fh.write('<html><body>\n')
+        fh.write(' '.join(ints))
+        fh.write('</body></html>')
+    with open(os.path.join(output_dir, 'index.2.html'), 'w') as fh:
+        fh.write('<html><body>\n')
+        fh.write(' '.join(reversed(ints)))
+        fh.write('</body></html>')
+
+
 # Multiple input artifacts and parameters, and a nested directory with required
 # resources for rendering.
 def mapping_viz(output_dir: str, mapping1: dict, mapping2: dict,
