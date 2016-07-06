@@ -26,6 +26,10 @@ class ResultBase(metaclass=abc.ABCMeta):
         result._assert_valid_type(result.type)
         return result
 
+    @classmethod
+    def extract(cls, filepath, output_dir):
+        return qiime.core.archiver.Archiver.extract(filepath, output_dir)
+
     @property
     def type(self):
         return self._archiver.type

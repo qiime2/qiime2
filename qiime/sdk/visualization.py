@@ -33,3 +33,6 @@ class Visualization(qiime.core.result_base.ResultBase):
         # shutil.copytree doesn't allow the destination directory to exist.
         viz._archiver.save_data(data_dir, distutils.dir_util.copy_tree)
         return viz
+
+    def get_index_paths(self):
+        return self._archiver.get_index_paths()

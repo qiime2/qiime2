@@ -297,6 +297,29 @@ class TestArtifact(unittest.TestCase):
             }
             self.assertEqual(fps, expected)
 
+    def test_extract(self):
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
+                                       self.provenance)
+        artifact.save(fp)
+
+        output_dir = os.path.join(self.test_dir.name, 'artifact-extract-test')
+        result_dir = Artifact.extract(fp, output_dir=output_dir)
+        self.assertEqual(result_dir, output_dir)
+
+        contents = [
+            'artifact/VERSION',
+            'artifact/metadata.yaml',
+            'artifact/README.md',
+            'artifact/data/file1.txt',
+            'artifact/data/file2.txt',
+            'artifact/data/nested/file3.txt',
+            'artifact/data/nested/file4.txt']
+        for fp in contents:
+            expected_fp = os.path.join(output_dir, fp)
+            self.assertTrue(os.path.exists(expected_fp),
+                            'File %s was not extracted.' % fp)
+
 
 if __name__ == '__main__':
     unittest.main()
