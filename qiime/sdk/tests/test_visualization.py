@@ -15,6 +15,7 @@ import zipfile
 import collections
 
 import qiime.core.type
+from qiime.core.archiver import ArchiveMetadata
 from qiime.sdk import Visualization, Provenance
 
 from qiime.core.testing.visualizer import (
@@ -242,6 +243,39 @@ class TestVisualization(unittest.TestCase):
             }
             self.assertEqual(fps, expected)
 
+    def test_load_with_archive_filepath_modified(self):
+        # Save a visualization for use in the following test case.
+        fp = os.path.join(self.test_dir.name, 'visualization.qza')
+        Visualization._from_data_dir(self.data_dir, None).save(fp)
+
+        # Load the visualization from a filepath then save a different
+        # visualization to the same filepath. Assert that both visualizations
+        # access the correct data.
+        #
+        # `load` used to be lazy, only extracting data when it needed to (e.g.
+        # when `save` or `get_index_paths` was called). This was buggy as the
+        # filepath could have been deleted, or worse, modified to contain a
+        # different .qzv file. Thus, the wrong archive could be extracted on
+        # demand, or the archive could be missing altogether. There isn't an
+        # easy cross-platform compatible way to solve this problem, so
+        # Visualization.load is no longer lazy and always extracts its data
+        # immediately. The real motivation for lazy loading was for quick
+        # inspection of archives without extracting/copying data, so that API
+        # is now provided through Visualization.peek.
+        visualization1 = Visualization.load(fp)
+
+        new_data_dir = os.path.join(self.test_dir.name, 'viz-output2')
+        os.mkdir(new_data_dir)
+        most_common_viz(new_data_dir, collections.Counter(range(42)))
+
+        Visualization._from_data_dir(new_data_dir, None).save(fp)
+        visualization2 = Visualization.load(fp)
+
+        self.assertEqual(visualization1.get_index_paths(),
+                         {'html': 'data/index.html'})
+        self.assertEqual(visualization2.get_index_paths(),
+                         {'html': 'data/index.html', 'tsv': 'data/index.tsv'})
+
     def test_extract(self):
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         visualization = Visualization._from_data_dir(self.data_dir,
@@ -334,6 +368,31 @@ class TestVisualization(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             visualization.get_index_paths()
+
+    def test_peek(self):
+        visualization = Visualization._from_data_dir(self.data_dir, None)
+        fp = os.path.join(self.test_dir.name, 'visualization.qza')
+        visualization.save(fp)
+
+        metadata = Visualization.peek(fp)
+
+        self.assertIsInstance(metadata, ArchiveMetadata)
+        self.assertEqual(metadata.type, qiime.core.type.Visualization)
+        self.assertIsNone(metadata.provenance)
+        self.assertEqual(metadata.uuid, visualization.uuid)
+
+    def test_peek_with_provenance(self):
+        visualization = Visualization._from_data_dir(self.data_dir,
+                                                     self.provenance)
+        fp = os.path.join(self.test_dir.name, 'visualization.qza')
+        visualization.save(fp)
+
+        metadata = Visualization.peek(fp)
+
+        self.assertIsInstance(metadata, ArchiveMetadata)
+        self.assertEqual(metadata.type, qiime.core.type.Visualization)
+        self.assertEqual(metadata.provenance, self.provenance)
+        self.assertEqual(metadata.uuid, visualization.uuid)
 
 
 if __name__ == '__main__':

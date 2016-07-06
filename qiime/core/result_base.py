@@ -20,6 +20,10 @@ class ResultBase(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @classmethod
+    def peek(cls, filepath):
+        return qiime.core.archiver.Archiver.peek(filepath)
+
+    @classmethod
     def load(cls, filepath):
         result = cls.__new__(cls)
         result._archiver = qiime.core.archiver.Archiver.load(filepath)
@@ -43,10 +47,10 @@ class ResultBase(metaclass=abc.ABCMeta):
         return self._archiver.uuid
 
     def __init__(self):
-        class_name = self.__class__.__name__
         raise NotImplementedError(
-            "%s constructor is private, use `%s.load`." %
-            (class_name, class_name))
+            "%(classname)s constructor is private, use `%(classname)s.load` "
+            "or `%(classname)s.peek`."
+            % {'classname': self.__class__.__name__})
 
     def __new__(cls):
         result = object.__new__(cls)
