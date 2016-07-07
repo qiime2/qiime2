@@ -9,6 +9,7 @@
 import distutils.dir_util
 import functools
 import uuid
+import os
 
 import qiime.core.archiver
 import qiime.core.result_base
@@ -37,5 +38,20 @@ class Visualization(qiime.core.result_base.ResultBase):
             data_initializer=data_initializer)
         return viz
 
-    def get_index_paths(self):
-        return self._archiver.get_index_paths()
+    def get_index_paths(self, relative=True):
+        result = {}
+        for relpath, abspath in self._archiver.get_data_paths(recursive=False):
+            if relpath.startswith('index.'):
+                relpath = os.path.join(self._archiver.DATA_DIRNAME, relpath)
+                ext = os.path.splitext(relpath)[1][1:]
+                if ext in result:
+                    # TODO: this should [additionally] be handled
+                    # elsewhere, probably on population of self._data_dir.
+                    raise ValueError(
+                        "Multiple index files identified with %s "
+                        "extension (%s, %s). This is currently "
+                        "unsupported." %
+                        (ext, result[ext], relpath))
+                else:
+                    result[ext] = relpath if relative else abspath
+        return result
