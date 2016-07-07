@@ -80,36 +80,36 @@ class Plugin:
 
 # TODO refactor these classes, they are basically the same
 class PluginMethods(dict):
-    def __init__(self, plugin, package):
+    def __init__(self, plugin_name, package):
         self._package = package
-        self._plugin = plugin
+        self._plugin_name = plugin_name
         super().__init__()
 
     def register_function(self, function, inputs, parameters, outputs, name,
                           description):
         method = qiime.sdk.Method.from_function(function, inputs, parameters,
                                                 outputs, name, description,
-                                                plugin=self._plugin)
+                                                plugin_name=self._plugin_name)
         self[method.id] = method
 
     def register_markdown(self, markdown_filepath):
         markdown_filepath = pkg_resources.resource_filename(
             self._package, markdown_filepath)
         method = qiime.sdk.Method.from_markdown(markdown_filepath,
-                                                plugin=self._plugin)
+                                                plugin_name=self._plugin_name)
         self[method.id] = method
 
 
 class PluginVisualizers(dict):
-    def __init__(self, plugin):
-        self._plugin = plugin
+    def __init__(self, plugin_name):
+        self._plugin_name = plugin_name
         super().__init__()
 
     def register_function(self, function, inputs, parameters, name,
                           description):
         visualizer = qiime.sdk.Visualizer.from_function(
             function, inputs, parameters, name, description,
-            plugin=self._plugin)
+            plugin_name=self._plugin_name)
         self[visualizer.id] = visualizer
 
 

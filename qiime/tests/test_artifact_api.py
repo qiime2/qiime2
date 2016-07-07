@@ -12,11 +12,15 @@ import types
 import importlib
 
 import qiime.sdk
+from qiime.core.testing.util import get_dummy_plugin
 
 
 class TestImports(unittest.TestCase):
     def setUp(self):
         self._sys_modules = sys.modules.copy()
+        # Ignore the returned dummy plugin object, just run this to verify the
+        # plugin exists as the tests rely on it being loaded.
+        get_dummy_plugin()
 
     def tearDown(self):
         # This allows us to reset the state of our imports to test different

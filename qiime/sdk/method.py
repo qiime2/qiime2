@@ -45,7 +45,7 @@ class Method:
 
     @classmethod
     def from_function(cls, function, inputs, parameters, outputs, name,
-                      description, plugin=None):
+                      description, plugin_name=None):
         """
 
         Parameters
@@ -62,7 +62,7 @@ class Method:
             Human-readable name for this method.
         description : str
             Human-readable description for this method.
-        plugin : str, optional
+        plugin_name : str, optional
             The plugin name that this method is assigned to.
 
         """
@@ -104,16 +104,16 @@ class Method:
 
         self = cls.__new__(cls)
         self._init(id_, signature, function, ('function', function), name,
-                   description, markdown_source, plugin)
+                   description, markdown_source, plugin_name)
         return self
 
     @classmethod
-    def from_markdown(cls, markdown_filepath, plugin=None):
+    def from_markdown(cls, markdown_filepath, plugin_name=None):
         self = cls.__new__(cls)
-        self._from_markdown(markdown_filepath, plugin)
+        self._from_markdown(markdown_filepath, plugin_name)
         return self
 
-    def _from_markdown(self, markdown_filepath, plugin):
+    def _from_markdown(self, markdown_filepath, plugin_name):
         with open(markdown_filepath) as fh:
             metadata, template = frontmatter.parse(fh.read())
 
@@ -162,7 +162,7 @@ class Method:
         description = metadata['description']
 
         self._init(id_, signature, function, ('markdown', markdown_filepath),
-                   name, description, template, plugin)
+                   name, description, template, plugin_name)
 
     @classmethod
     def _split_type_tuple(cls, type_tuple, expect):
@@ -191,7 +191,7 @@ class Method:
             {'clsname': self.__class__.__name__})
 
     def _init(self, id, signature, callable, callable_ref, name,
-              description, source, plugin):
+              description, source, plugin_name):
         """
 
         Parameters
@@ -206,7 +206,7 @@ class Method:
             Human-readable description for this method.
         source : str
             Markdown text defining/describing this method's computation.
-        plugin : str
+        plugin_name : str
             Name of plugin that this method is registered to.
         """
         self.id = id
@@ -216,7 +216,7 @@ class Method:
         self.name = name
         self.description = description
         self.source = source
-        self._plugin = plugin
+        self._plugin_name = plugin_name
 
         self._bind_executors()
 
@@ -320,9 +320,9 @@ class Method:
 
     def _get_import_path(self):
         plugin_path = ''
-        if self._plugin is not None:
+        if self._plugin_name is not None:
             plugin_path = ('qiime.plugin.%s.methods.'
-                           % self._plugin.replace('-', '_'))
+                           % self._plugin_name.replace('-', '_'))
         return plugin_path + self.id
 
     def __getstate__(self):
@@ -335,7 +335,7 @@ class Method:
                 'name': self.name,
                 'description': self.description,
                 'source': self.source,
-                'plugin': self._plugin
+                'plugin_name': self._plugin_name
             },
             'pid': self._pid,
         }
@@ -346,7 +346,7 @@ class Method:
                        callable_ref=(state['type'], state['src']),
                        **state['attrs'])
         elif state['type'] == 'markdown':
-            self._from_markdown(state['src'], state['attrs']['plugin'])
+            self._from_markdown(state['src'], state['attrs']['plugin_name'])
         else:
             raise NotImplementedError
         self._pid = state['pid']

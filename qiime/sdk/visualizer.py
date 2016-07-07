@@ -55,7 +55,7 @@ class Visualizer:
 
     @classmethod
     def from_function(cls, function, inputs, parameters, name, description,
-                      plugin=None):
+                      plugin_name=None):
         if 'output_dir' in inputs or 'output_dir' in parameters:
             raise TypeError(
                 "`output_dir` is a reserved parameter name and cannot be used "
@@ -104,7 +104,7 @@ class Visualizer:
 
         self = cls.__new__(cls)
         self._init(id_, signature, function, ('function', function), name,
-                   description, markdown_source, plugin)
+                   description, markdown_source, plugin_name)
         return self
 
     def __init__(self):
@@ -114,7 +114,7 @@ class Visualizer:
             {'clsname': self.__class__.__name__})
 
     def _init(self, id, signature, callable, callable_ref, name,
-              description, source, plugin):
+              description, source, plugin_name):
         """
 
         Parameters
@@ -129,7 +129,7 @@ class Visualizer:
             Human-readable description for this visualizer.
         source : str
             Markdown text defining/describing this visualizer's computation.
-        plugin : str
+        plugin_name : str
             Name of the plugin this visualizer is registered to.
         """
         self.id = id
@@ -139,7 +139,7 @@ class Visualizer:
         self.name = name
         self.description = description
         self.source = source
-        self._plugin = plugin
+        self._plugin_name = plugin_name
 
         self._bind_executors()
 
@@ -227,9 +227,9 @@ class Visualizer:
 
     def _get_import_path(self):
         plugin_path = ''
-        if self._plugin is not None:
+        if self._plugin_name is not None:
             plugin_path = ('qiime.plugin.%s.visualizers.'
-                           % self._plugin.replace('-', '_'))
+                           % self._plugin_name.replace('-', '_'))
         return plugin_path + self.id
 
     def __getstate__(self):
@@ -242,7 +242,7 @@ class Visualizer:
                 'name': self.name,
                 'description': self.description,
                 'source': self.source,
-                'plugin': self._plugin
+                'plugin_name': self._plugin_name
             },
             'pid': self._pid,
         }
