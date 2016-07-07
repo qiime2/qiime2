@@ -28,11 +28,11 @@ ArchiveMetadata = collections.namedtuple('ArchiveMetadata',
 class Archiver:
     # This class will likely defer to one of many ArchiveFormats in the future.
     # There's only one supported archive format currently.
-    _version = '0.1.0'
-    _version_filename = 'VERSION'
-    _readme_filename = 'README.md'
-    _metadata_filename = 'metadata.yaml'
-    _data_dirname = 'data'
+    _VERSION = '0.1.0'
+    _VERSION_FILENAME = 'VERSION'
+    _README_FILENAME = 'README.md'
+    _METADATA_FILENAME = 'metadata.yaml'
+    DATA_DIRNAME = 'data'
 
     @classmethod
     def extract(cls, filepath, output_dir):
@@ -50,10 +50,10 @@ class Archiver:
         root_dir = cls._get_root_dir(filepath)
         with zipfile.ZipFile(filepath, mode='r') as zf:
             version = cls._load_version(zf, root_dir)
-            if version != cls._version:
+            if version != cls._VERSION:
                 raise ValueError(
                     "Unsupported archive format version %r. "
-                    "Supported version(s): %r" % (version, cls._version))
+                    "Supported version(s): %r" % (version, cls._VERSION))
 
             uuid_, type_, provenance = cls._load_metadata(zf, root_dir)
             return ArchiveMetadata(uuid=uuid_, type=type_,
@@ -70,7 +70,7 @@ class Archiver:
 
     @classmethod
     def _load_version(cls, zf, root_dir):
-        version_path = os.path.join(root_dir, cls._version_filename)
+        version_path = os.path.join(root_dir, cls._VERSION_FILENAME)
         with zf.open(version_path) as bytes_fh:
             with io.TextIOWrapper(bytes_fh, newline=None,
                                   encoding='utf-8') as fh:
@@ -78,7 +78,7 @@ class Archiver:
 
     @classmethod
     def _load_metadata(cls, zf, root_dir):
-        metadata_path = os.path.join(root_dir, cls._metadata_filename)
+        metadata_path = os.path.join(root_dir, cls._METADATA_FILENAME)
         with zf.open(metadata_path) as bytes_fh:
             with io.TextIOWrapper(bytes_fh, newline=None,
                                   encoding='utf-8') as fh:
@@ -135,7 +135,7 @@ class Archiver:
         self._provenance = provenance
 
         self._temp_dir = tempfile.mkdtemp(prefix='qiime2-archive-temp-')
-        self._data_dir = os.path.join(self._temp_dir, self._data_dirname)
+        self._data_dir = os.path.join(self._temp_dir, self.DATA_DIRNAME)
         self._pid = os.getpid()
 
         if archive_filepath is not None:
@@ -151,7 +151,7 @@ class Archiver:
 
     def _extract_data(self, archive_filepath):
         root_dir = self._get_root_dir(archive_filepath)
-        prefix = os.path.join(root_dir, self._data_dirname, '')
+        prefix = os.path.join(root_dir, self.DATA_DIRNAME, '')
 
         with zipfile.ZipFile(archive_filepath, mode='r') as zf:
             for file_ in zf.namelist():
@@ -175,25 +175,14 @@ class Archiver:
     def orphan(self, pid):
         self._pid = pid
 
-    def get_index_paths(self):
-        result = {}
-        for path in os.listdir(self._data_dir):
-            if os.path.isfile(os.path.join(self._data_dir, path)):
-                filename = os.path.split(path)[1]
-                if filename.startswith('index.'):
-                    ext = os.path.splitext(filename)[1][1:]
-                    if ext in result:
-                        # TODO: this should [additionally] be handled
-                        # elsewhere, probably on population of self._data_dir.
-                        raise ValueError(
-                            "Multiple index files identified with %s "
-                            "extension (%s, %s). This is currently "
-                            "unsupported." %
-                            (ext, result[ext],
-                             os.path.join(self._data_dirname, path)))
-                    else:
-                        result[ext] = os.path.join(self._data_dirname, path)
-        return result
+    def get_data_paths(self, recursive=True):
+        iterable = iter(os.walk(self._data_dir))
+        if not recursive:
+            iterable = [next(iterable)]
+        for root, _, files in iterable:
+            for fp in files:
+                fullpath = os.path.join(root, fp)
+                yield (os.path.relpath(fullpath, self._data_dir), fullpath)
 
     def load_data(self, loader):
         return loader(self._data_dir)
@@ -214,17 +203,17 @@ class Archiver:
                     relpath = os.path.relpath(abspath, start=self._data_dir)
                     archive_path = os.path.join(
                         root_dir,
-                        self._data_dirname,
+                        self.DATA_DIRNAME,
                         relpath
                     )
                     zf.write(abspath, arcname=archive_path)
 
     def _save_version(self, zf, root_dir):
-        zf.writestr(os.path.join(root_dir, self._version_filename),
-                    '%s\n' % self._version)
+        zf.writestr(os.path.join(root_dir, self._VERSION_FILENAME),
+                    '%s\n' % self._VERSION)
 
     def _save_readme(self, zf, root_dir):
-        zf.writestr(os.path.join(root_dir, self._readme_filename),
+        zf.writestr(os.path.join(root_dir, self._README_FILENAME),
                     _README_TEXT)
 
     # TODO clean up metadata yaml formatting. It currently dumps Python
@@ -236,7 +225,7 @@ class Archiver:
             'type': repr(self.type),
             'provenance': self._formatted_provenance()
         })
-        zf.writestr(os.path.join(root_dir, self._metadata_filename),
+        zf.writestr(os.path.join(root_dir, self._METADATA_FILENAME),
                     metadata_bytes)
 
     def _formatted_uuid(self):

@@ -369,6 +369,20 @@ class TestVisualization(unittest.TestCase):
         with self.assertRaises(ValueError):
             visualization.get_index_paths()
 
+    def test_get_index_paths_relative_false(self):
+        data_dir = os.path.join(self.test_dir.name, 'mc-viz-output2')
+        os.mkdir(data_dir)
+        most_common_viz(data_dir, collections.Counter(range(42)))
+        visualization = Visualization._from_data_dir(data_dir,
+                                                     self.provenance)
+
+        def get_abs_path(rel):
+            return os.path.join(visualization._archiver._temp_dir, rel)
+        actual = visualization.get_index_paths(relative=False)
+        expected = {'html': get_abs_path('data/index.html'),
+                    'tsv': get_abs_path('data/index.tsv')}
+        self.assertEqual(actual, expected)
+
     def test_peek(self):
         visualization = Visualization._from_data_dir(self.data_dir, None)
         fp = os.path.join(self.test_dir.name, 'visualization.qza')
