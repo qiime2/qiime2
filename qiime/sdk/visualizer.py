@@ -54,7 +54,8 @@ class Visualizer:
         return self
 
     @classmethod
-    def from_function(cls, function, inputs, parameters, name, description):
+    def from_function(cls, function, inputs, parameters, name, description,
+                      plugin_name=None):
         if 'output_dir' in inputs or 'output_dir' in parameters:
             raise TypeError(
                 "`output_dir` is a reserved parameter name and cannot be used "
@@ -103,7 +104,7 @@ class Visualizer:
 
         self = cls.__new__(cls)
         self._init(id_, signature, function, ('function', function), name,
-                   description, markdown_source)
+                   description, markdown_source, plugin_name)
         return self
 
     def __init__(self):
@@ -113,7 +114,7 @@ class Visualizer:
             {'clsname': self.__class__.__name__})
 
     def _init(self, id, signature, callable, callable_ref, name,
-              description, source):
+              description, source, plugin_name):
         """
 
         Parameters
@@ -128,7 +129,8 @@ class Visualizer:
             Human-readable description for this visualizer.
         source : str
             Markdown text defining/describing this visualizer's computation.
-
+        plugin_name : str
+            Name of the plugin this visualizer is registered to.
         """
         self.id = id
         self.signature = signature
@@ -137,6 +139,7 @@ class Visualizer:
         self.name = name
         self.description = description
         self.source = source
+        self._plugin_name = plugin_name
 
         self._bind_executors()
 
@@ -146,7 +149,8 @@ class Visualizer:
         __call__ = decorator.decorator(
             callable_wrapper,
             DropFirstParameter.from_function(self._callable))
-        __call__.__name__ = '__call__'
+        __call__.__name__ = __call__.__qualname__ = '__call__'
+        __call__.__module__ = self._get_import_path()
         del __call__.__annotations__
         del __call__.__wrapped__
         self._dynamic_call = __call__
@@ -163,7 +167,8 @@ class Visualizer:
         async = decorator.decorator(
             async_wrapper,
             DropFirstParameter.from_function(self._callable))
-        async.__name__ = 'async'
+        async.__name__ = async.__qualname__ = 'async'
+        async.__module__ = self._get_import_path()
         del async.__annotations__
         del async.__wrapped__
         self._dynamic_async = async
@@ -217,6 +222,16 @@ class Visualizer:
 
         return callable_wrapper
 
+    def __repr__(self):
+        return "<visualizer %s>" % self._get_import_path()
+
+    def _get_import_path(self):
+        plugin_path = ''
+        if self._plugin_name is not None:
+            plugin_path = ('qiime.plugin.%s.visualizers.'
+                           % self._plugin_name.replace('-', '_'))
+        return plugin_path + self.id
+
     def __getstate__(self):
         return {
             'type': self._callable_ref[0],
@@ -226,7 +241,8 @@ class Visualizer:
                 'signature': self.signature,
                 'name': self.name,
                 'description': self.description,
-                'source': self.source
+                'source': self.source,
+                'plugin_name': self._plugin_name
             },
             'pid': self._pid,
         }
@@ -237,9 +253,6 @@ class Visualizer:
             self._init(callable=state['src'],
                        callable_ref=(state['type'], state['src']),
                        **attrs)
-        elif state['type'] == 'markdown':
-            markdown_filepath = state['src']
-            self._from_markdown(markdown_filepath)
         else:
             raise NotImplementedError
         self._pid = state['pid']
