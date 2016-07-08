@@ -15,8 +15,8 @@ import zipfile
 import collections
 
 import qiime.core.type
-from qiime.core.archiver import ArchiveMetadata
 from qiime.sdk import Visualization, Provenance
+from qiime.sdk.result import ResultMetadata
 
 from qiime.core.testing.visualizer import (
     mapping_viz, most_common_viz, multi_html_viz)
@@ -390,7 +390,7 @@ class TestVisualization(unittest.TestCase):
 
         metadata = Visualization.peek(fp)
 
-        self.assertIsInstance(metadata, ArchiveMetadata)
+        self.assertIsInstance(metadata, ResultMetadata)
         self.assertEqual(metadata.type, qiime.core.type.Visualization)
         self.assertIsNone(metadata.provenance)
         self.assertEqual(metadata.uuid, visualization.uuid)
@@ -403,7 +403,7 @@ class TestVisualization(unittest.TestCase):
 
         metadata = Visualization.peek(fp)
 
-        self.assertIsInstance(metadata, ArchiveMetadata)
+        self.assertIsInstance(metadata, ResultMetadata)
         self.assertEqual(metadata.type, qiime.core.type.Visualization)
         self.assertEqual(metadata.provenance, self.provenance)
         self.assertEqual(metadata.uuid, visualization.uuid)
