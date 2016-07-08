@@ -14,8 +14,8 @@ import unittest
 import uuid
 import zipfile
 
-from qiime.core.archiver import ArchiveMetadata
 from qiime.sdk import Artifact, Provenance
+from qiime.sdk.result import ResultMetadata
 
 from qiime.core.testing.type import IntSequence1, FourInts, Mapping
 from qiime.core.testing.util import get_dummy_plugin
@@ -354,7 +354,7 @@ class TestArtifact(unittest.TestCase):
 
         metadata = Artifact.peek(fp)
 
-        self.assertIsInstance(metadata, ArchiveMetadata)
+        self.assertIsInstance(metadata, ResultMetadata)
         self.assertEqual(metadata.type, FourInts)
         self.assertIsNone(metadata.provenance)
         self.assertEqual(metadata.uuid, artifact.uuid)
@@ -367,7 +367,7 @@ class TestArtifact(unittest.TestCase):
 
         metadata = Artifact.peek(fp)
 
-        self.assertIsInstance(metadata, ArchiveMetadata)
+        self.assertIsInstance(metadata, ResultMetadata)
         self.assertEqual(metadata.type, Mapping)
         self.assertEqual(metadata.provenance, self.provenance)
         self.assertEqual(metadata.uuid, artifact.uuid)

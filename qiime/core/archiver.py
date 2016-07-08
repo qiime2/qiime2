@@ -6,7 +6,6 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import collections
 import io
 import os
 import os.path
@@ -18,10 +17,6 @@ import zipfile
 
 import qiime.sdk
 from .util import parse_type
-
-
-ArchiveMetadata = collections.namedtuple('ArchiveMetadata',
-                                         ['uuid', 'type', 'provenance'])
 
 
 # TODO use utf-8 encoding when reading/writing files
@@ -42,6 +37,14 @@ class Archiver:
 
     @classmethod
     def peek(cls, filepath):
+        """
+
+        Returns
+        -------
+        tuple
+            Tuple of UUID, type, and provenance.
+
+        """
         if not zipfile.is_zipfile(filepath):
             raise zipfile.BadZipFile(
                 "%r is not a readable ZIP file, or the file does not exist" %
@@ -55,14 +58,12 @@ class Archiver:
                     "Unsupported archive format version %r. "
                     "Supported version(s): %r" % (version, cls._VERSION))
 
-            uuid_, type_, provenance = cls._load_metadata(zf, root_dir)
-            return ArchiveMetadata(uuid=uuid_, type=type_,
-                                   provenance=provenance)
+            return cls._load_metadata(zf, root_dir)
 
     @classmethod
     def load(cls, filepath):
-        archive_metadata = cls.peek(filepath)
-        return cls(*archive_metadata, archive_filepath=filepath)
+        metadata = cls.peek(filepath)
+        return cls(*metadata, archive_filepath=filepath)
 
     @classmethod
     def _get_root_dir(cls, filepath):
@@ -129,8 +130,6 @@ class Archiver:
                 "provided.")
 
         self._uuid = uuid
-        if isinstance(type, str):
-            type = parse_type(type)
         self._type = type
         self._provenance = provenance
 
