@@ -158,6 +158,15 @@ class Visualizer:
         # TODO `async` execution has some problems with garbage-collection in
         # the subprocess given certain inputs. Needs further investigation.
         def async_wrapper(*args, **kwargs):
+            # TODO handle this better in the future, but stop the massive error
+            # caused by MacOSX async runs for now.
+            try:
+                import matplotlib as plt
+                if plt.rcParams['backend'] == 'MacOSX':
+                    raise EnvironmentError(backend_error_template %
+                                           plt.matplotlib_fname())
+            except ImportError:
+                pass
             args = args[1:]
             pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)
             future = pool.submit(self, *args, **kwargs)
@@ -262,4 +271,10 @@ markdown_source_template = """
 ```python
 %(source)s
 ```
+"""
+
+backend_error_template = """
+Your current matplotlib backend (MacOSX) does not work with async calls.
+A recommended backend is Agg, and can be changed by modifying your
+matplotlibrc "backend" parameter, which can be found at: \n\n %s
 """
