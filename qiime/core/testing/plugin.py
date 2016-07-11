@@ -12,16 +12,16 @@ import qiime
 import qiime.plugin
 
 from .data_layout import (
-    int_sequence_validator,
+    int_sequence_data_layout,
     int_sequence_to_list,
     int_sequence_to_counter,
     list_to_int_sequence,
 
-    mapping_validator,
+    mapping_data_layout,
     mapping_to_dict,
     dict_to_mapping,
 
-    four_ints_validator,
+    four_ints_data_layout,
     four_ints_to_list,
     list_to_four_ints
 )
@@ -37,7 +37,7 @@ dummy_plugin = qiime.plugin.Plugin(
     package='qiime.core.testing'
 )
 
-dummy_plugin.register_data_layout('int-sequence', 1, int_sequence_validator)
+dummy_plugin.register_data_layout(int_sequence_data_layout)
 
 dummy_plugin.register_data_layout_reader('int-sequence', 1, list,
                                          int_sequence_to_list)
@@ -48,13 +48,13 @@ dummy_plugin.register_data_layout_writer('int-sequence', 1, list,
 dummy_plugin.register_data_layout_reader(
     'int-sequence', 1, collections.Counter, int_sequence_to_counter)
 
-dummy_plugin.register_data_layout('mapping', 1, mapping_validator)
+dummy_plugin.register_data_layout(mapping_data_layout)
 
 dummy_plugin.register_data_layout_reader('mapping', 1, dict, mapping_to_dict)
 
 dummy_plugin.register_data_layout_writer('mapping', 1, dict, dict_to_mapping)
 
-dummy_plugin.register_data_layout('four-ints', 1, four_ints_validator)
+dummy_plugin.register_data_layout(four_ints_data_layout)
 
 dummy_plugin.register_data_layout_reader(
     'four-ints', 1, list, four_ints_to_list)

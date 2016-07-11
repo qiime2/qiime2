@@ -14,6 +14,8 @@ import unittest
 import uuid
 import zipfile
 
+import qiime.core.type
+from qiime.plugin.data_layout import ValidationError
 from qiime.sdk import Artifact, Provenance
 from qiime.sdk.result import ResultMetadata
 
@@ -371,6 +373,154 @@ class TestArtifact(unittest.TestCase):
         self.assertEqual(metadata.type, Mapping)
         self.assertEqual(metadata.provenance, self.provenance)
         self.assertEqual(metadata.uuid, artifact.uuid)
+
+    def test_import_data_invalid_type(self):
+        with self.assertRaisesRegex(TypeError,
+                                    'concrete semantic type.*Visualization'):
+            Artifact.import_data(qiime.core.type.Visualization, self.test_dir)
+
+        with self.assertRaisesRegex(TypeError,
+                                    'concrete semantic type.*Visualization'):
+            Artifact.import_data('Visualization', self.test_dir)
+
+    def test_import_data_with_filepath_multi_file_data_layout(self):
+        fp = os.path.join(self.test_dir.name, 'test.txt')
+        with open(fp, 'w') as fh:
+            fh.write('42\n')
+
+        with self.assertRaisesRegex(NotADirectoryError,
+                                    "DataLayout\(name='four-ints', version=1\)"
+                                    ".*4 files.*test.txt"):
+            Artifact.import_data(FourInts, fp)
+
+    def test_import_data_with_wrong_number_of_files(self):
+        data_dir = os.path.join(self.test_dir.name, 'test')
+        os.mkdir(data_dir)
+        with open(os.path.join(data_dir, 'file1.txt'), 'w') as fh:
+            fh.write('42\n')
+        with open(os.path.join(data_dir, 'file2.txt'), 'w') as fh:
+            fh.write('43\n')
+
+        error_regex = ("DataLayout\(name='four-ints', version=1\).*"
+                       "4 files.*2 files.*test.*file1.txt, file2.txt, "
+                       "nested/file3.txt, nested/file4.txt")
+        with self.assertRaisesRegex(ValidationError, error_regex):
+            Artifact.import_data(FourInts, data_dir)
+
+    def test_import_data_with_unrecognized_files(self):
+        data_dir = os.path.join(self.test_dir.name, 'test')
+        os.mkdir(data_dir)
+        with open(os.path.join(data_dir, 'file1.txt'), 'w') as fh:
+            fh.write('42\n')
+        with open(os.path.join(data_dir, 'file2.txt'), 'w') as fh:
+            fh.write('43\n')
+        nested = os.path.join(data_dir, 'nested')
+        os.mkdir(nested)
+        with open(os.path.join(nested, 'file3.txt'), 'w') as fh:
+            fh.write('44\n')
+        with open(os.path.join(nested, 'foo.txt'), 'w') as fh:
+            fh.write('45\n')
+
+        error_regex = ("foo.txt.*DataLayout\(name='four-ints', version=1\).*"
+                       "file1.txt, file2.txt, nested/file3.txt, "
+                       "nested/file4.txt")
+        with self.assertRaisesRegex(ValidationError, error_regex):
+            Artifact.import_data(FourInts, data_dir)
+
+    def test_import_data_with_unreachable_path(self):
+        with self.assertRaisesRegex(OSError, "Path does not exist.*foo.txt"):
+            Artifact.import_data(IntSequence1,
+                                 os.path.join(self.test_dir.name, 'foo.txt'))
+
+        with self.assertRaisesRegex(OSError, "Path does not exist.*bar"):
+            Artifact.import_data(FourInts,
+                                 os.path.join(self.test_dir.name, 'bar'))
+
+    def test_import_data_with_invalid_format_single_file(self):
+        fp = os.path.join(self.test_dir.name, 'foo.txt')
+        with open(fp, 'w') as fh:
+            fh.write('42\n')
+            fh.write('43\n')
+            fh.write('abc\n')
+            fh.write('123\n')
+
+        error_regex = "foo.txt.*'int-sequence'"
+        with self.assertRaisesRegex(ValidationError, error_regex):
+            Artifact.import_data(IntSequence1, fp)
+
+    def test_import_data_with_invalid_format_multi_file(self):
+        data_dir = os.path.join(self.test_dir.name, 'test')
+        os.mkdir(data_dir)
+        with open(os.path.join(data_dir, 'file1.txt'), 'w') as fh:
+            fh.write('42\n')
+        with open(os.path.join(data_dir, 'file2.txt'), 'w') as fh:
+            fh.write('43\n')
+        nested = os.path.join(data_dir, 'nested')
+        os.mkdir(nested)
+        with open(os.path.join(nested, 'file3.txt'), 'w') as fh:
+            fh.write('44\n')
+        with open(os.path.join(nested, 'file4.txt'), 'w') as fh:
+            fh.write('foo\n')
+
+        error_regex = "file4.txt.*'single-int'"
+        with self.assertRaisesRegex(ValidationError, error_regex):
+            Artifact.import_data(FourInts, data_dir)
+
+    def test_import_data_with_filepath(self):
+        data_dir = os.path.join(self.test_dir.name, 'test')
+        os.mkdir(data_dir)
+        # Filename shouldn't matter for single-file case.
+        fp = os.path.join(data_dir, 'foo.txt')
+        with open(fp, 'w') as fh:
+            fh.write('42\n')
+            fh.write('43\n')
+            fh.write('42\n')
+            fh.write('0\n')
+
+        artifact = Artifact.import_data(IntSequence1, fp)
+
+        self.assertEqual(artifact.type, IntSequence1)
+        self.assertIn('importing data', artifact.provenance)
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+        self.assertEqual(artifact.view(list), [42, 43, 42, 0])
+
+    def test_import_data_with_directory_single_file(self):
+        data_dir = os.path.join(self.test_dir.name, 'test')
+        os.mkdir(data_dir)
+        fp = os.path.join(data_dir, 'ints.txt')
+        with open(fp, 'w') as fh:
+            fh.write('-1\n')
+            fh.write('-2\n')
+            fh.write('10\n')
+            fh.write('100\n')
+
+        artifact = Artifact.import_data(IntSequence1, data_dir)
+
+        self.assertEqual(artifact.type, IntSequence1)
+        self.assertIn('importing data', artifact.provenance)
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+        self.assertEqual(artifact.view(list), [-1, -2, 10, 100])
+
+    def test_import_data_with_directory_multi_file(self):
+        data_dir = os.path.join(self.test_dir.name, 'test')
+        os.mkdir(data_dir)
+        with open(os.path.join(data_dir, 'file1.txt'), 'w') as fh:
+            fh.write('42\n')
+        with open(os.path.join(data_dir, 'file2.txt'), 'w') as fh:
+            fh.write('41\n')
+        nested = os.path.join(data_dir, 'nested')
+        os.mkdir(nested)
+        with open(os.path.join(nested, 'file3.txt'), 'w') as fh:
+            fh.write('43\n')
+        with open(os.path.join(nested, 'file4.txt'), 'w') as fh:
+            fh.write('40\n')
+
+        artifact = Artifact.import_data(FourInts, data_dir)
+
+        self.assertEqual(artifact.type, FourInts)
+        self.assertIn('importing data', artifact.provenance)
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+        self.assertEqual(artifact.view(list), [42, 41, 43, 40])
 
 
 if __name__ == '__main__':

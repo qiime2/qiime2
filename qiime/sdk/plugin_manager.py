@@ -30,7 +30,7 @@ class PluginManager:
 
         plugins = []
         for entry_point in pkg_resources.iter_entry_points(
-                group='qiime.plugin'):
+                group='qiime.plugins'):
             if entry_point.name != 'dummy-plugin' or 'QIIMETEST' in os.environ:
                 plugins.append(entry_point.load())
 

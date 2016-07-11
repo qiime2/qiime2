@@ -11,7 +11,7 @@ import unittest
 
 import qiime.plugin
 import qiime.sdk
-from qiime.core.data_layout import DataLayout
+from qiime.plugin import DataLayout
 
 from qiime.core.testing.data_layout import (int_sequence_to_list,
                                             int_sequence_to_counter,
@@ -59,9 +59,6 @@ class TestPluginManager(unittest.TestCase):
                           collections.Counter: int_sequence_to_counter})
         self.assertEqual(data_layout.writers, {list: list_to_int_sequence})
 
-        with self.assertRaises(NotImplementedError):
-            data_layout.validate('some-data-directory')
-
     def test_semantic_types(self):
         types = self.pm.semantic_types
 
@@ -85,9 +82,6 @@ class TestPluginManager(unittest.TestCase):
 
         self.assertEqual(data_layout.readers, {dict: mapping_to_dict})
         self.assertEqual(data_layout.writers, {dict: dict_to_mapping})
-
-        with self.assertRaises(NotImplementedError):
-            data_layout.validate('some-data-directory')
 
 
 if __name__ == '__main__':

@@ -43,14 +43,14 @@ class TestImports(unittest.TestCase):
         self.assertIn('generated QIIME API', repr(module))
 
     def _check_plugin(self, module):
-        self._check_spec(module, 'qiime.plugin.dummy_plugin', True)
+        self._check_spec(module, 'qiime.plugins.dummy_plugin', True)
         self._check_methods(module.methods)
         self._check_visualizers(module.visualizers)
         self.assertEqual(set(x for x in dir(module) if not x.startswith('_')),
                          {'visualizers', 'methods'})
 
     def _check_methods(self, module):
-        self._check_spec(module, 'qiime.plugin.dummy_plugin.methods', False)
+        self._check_spec(module, 'qiime.plugins.dummy_plugin.methods', False)
         self.assertTrue(hasattr(module, 'concatenate_ints'))
         self.assertTrue(hasattr(module, 'concatenate_ints_markdown'))
         self.assertFalse(hasattr(module, 'most_common_viz'))
@@ -61,43 +61,43 @@ class TestImports(unittest.TestCase):
 
     def _check_visualizers(self, module):
         self._check_spec(
-            module, 'qiime.plugin.dummy_plugin.visualizers', False)
+            module, 'qiime.plugins.dummy_plugin.visualizers', False)
         self.assertTrue(hasattr(module, 'most_common_viz'))
         self.assertFalse(hasattr(module, 'concatenate_ints'))
         self.assertFalse(hasattr(module, 'concatenate_ints_markdown'))
         self.assertIsInstance(module.most_common_viz, qiime.sdk.Visualizer)
 
     def test_import_root(self):
-        import qiime.plugin.dummy_plugin
-        self._check_plugin(qiime.plugin.dummy_plugin)
+        import qiime.plugins.dummy_plugin
+        self._check_plugin(qiime.plugins.dummy_plugin)
 
     def test_import_root_from(self):
-        from qiime.plugin import dummy_plugin
+        from qiime.plugins import dummy_plugin
         self._check_plugin(dummy_plugin)
 
     def test_import_methods(self):
-        import qiime.plugin.dummy_plugin.methods
-        self._check_methods(qiime.plugin.dummy_plugin.methods)
+        import qiime.plugins.dummy_plugin.methods
+        self._check_methods(qiime.plugins.dummy_plugin.methods)
 
     def test_import_visualizers(self):
-        import qiime.plugin.dummy_plugin.visualizers
-        self._check_visualizers(qiime.plugin.dummy_plugin.visualizers)
+        import qiime.plugins.dummy_plugin.visualizers
+        self._check_visualizers(qiime.plugins.dummy_plugin.visualizers)
 
     def test_import_methods_from(self):
-        from qiime.plugin.dummy_plugin import methods
+        from qiime.plugins.dummy_plugin import methods
         self._check_methods(methods)
 
     def test_import_visualizers_from(self):
-        from qiime.plugin.dummy_plugin import visualizers
+        from qiime.plugins.dummy_plugin import visualizers
         self._check_visualizers(visualizers)
 
     def test_import_non_plugin(self):
         with self.assertRaises(ImportError):
-            import qiime.plugin.dummy_not_plugin  # noqa
+            import qiime.plugins.dummy_not_plugin  # noqa
 
     def test_import_non_action(self):
         with self.assertRaises(ImportError):
-            import qiime.plugin.dummy_plugin.non_action  # noqa
+            import qiime.plugins.dummy_plugin.non_action  # noqa
 
     def test_import_side_module(self):
         # Certain implementations of __PATH__ can cause a module to load
@@ -105,20 +105,20 @@ class TestImports(unittest.TestCase):
         import qiime.metadata
         self.assertIsInstance(qiime.metadata, types.ModuleType)
         with self.assertRaises(ImportError):
-            import qiime.plugin.metadata  # noqa
+            import qiime.plugins.metadata  # noqa
 
     def test_import_too_deep(self):
         with self.assertRaises(ImportError):
-            import qiime.plugin.dummy_plugin.methods.too_deep  # noqa
+            import qiime.plugins.dummy_plugin.methods.too_deep  # noqa
 
     def test_import_non_module(self):
         with self.assertRaises(ImportError):
-            import qiime.plugin.dummy_plugin.methods.concatenate_ints  # noqa
+            import qiime.plugins.dummy_plugin.methods.concatenate_ints  # noqa
 
     def test_reload_fails(self):
-        import qiime.plugin.dummy_plugin
+        import qiime.plugins.dummy_plugin
         with self.assertRaises(ImportError):
-            importlib.reload(qiime.plugin.dummy_plugin)
+            importlib.reload(qiime.plugins.dummy_plugin)
 
 
 if __name__ == '__main__':

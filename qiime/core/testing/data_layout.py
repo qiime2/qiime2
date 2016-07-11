@@ -10,6 +10,8 @@ import collections
 import os
 import os.path
 
+from qiime.plugin import FileFormat, DataLayout
+
 ###############################################################################
 #
 # int-sequence:
@@ -20,8 +22,21 @@ import os.path
 ###############################################################################
 
 
-def int_sequence_validator(data_dir):
-    raise NotImplementedError()
+class IntSequenceFormat(FileFormat):
+    name = 'int-sequence'
+
+    @classmethod
+    def sniff(cls, filepath):
+        with open(filepath, 'r') as fh:
+            for line, _ in zip(fh, range(5)):
+                try:
+                    int(line.rstrip('\n'))
+                except (TypeError, ValueError):
+                    return False
+            return True
+
+int_sequence_data_layout = DataLayout('int-sequence', 1)
+int_sequence_data_layout.register_file('ints.txt', IntSequenceFormat)
 
 
 def int_sequence_to_list(data_dir):
@@ -55,9 +70,20 @@ def int_sequence_to_counter(data_dir):
 #
 ###############################################################################
 
+class MappingFormat(FileFormat):
+    name = 'mapping'
 
-def mapping_validator(data_dir):
-    raise NotImplementedError()
+    @classmethod
+    def sniff(cls, filepath):
+        with open(filepath, 'r') as fh:
+            for line, _ in zip(fh, range(5)):
+                cells = line.rstrip('\n').split('\t')
+                if len(cells) != 2:
+                    return False
+            return True
+
+mapping_data_layout = DataLayout('mapping', 1)
+mapping_data_layout.register_file('mapping.tsv', MappingFormat)
 
 
 def mapping_to_dict(data_dir):
@@ -90,9 +116,23 @@ def dict_to_mapping(view, data_dir):
 #
 ###############################################################################
 
+class SingleIntFormat(FileFormat):
+    name = 'single-int'
 
-def four_ints_validator(data_dir):
-    raise NotImplementedError()
+    @classmethod
+    def sniff(cls, filepath):
+        with open(filepath, 'r') as fh:
+            try:
+                int(fh.readline().rstrip('\n'))
+            except (TypeError, ValueError):
+                return False
+            return True
+
+four_ints_data_layout = DataLayout('four-ints', 1)
+four_ints_data_layout.register_file('file1.txt', SingleIntFormat)
+four_ints_data_layout.register_file('file2.txt', SingleIntFormat)
+four_ints_data_layout.register_file('nested/file3.txt', SingleIntFormat)
+four_ints_data_layout.register_file('nested/file4.txt', SingleIntFormat)
 
 
 def four_ints_to_list(data_dir):
