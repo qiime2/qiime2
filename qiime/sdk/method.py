@@ -321,7 +321,7 @@ class Method:
     def _get_import_path(self):
         plugin_path = ''
         if self._plugin_name is not None:
-            plugin_path = ('qiime.plugin.%s.methods.'
+            plugin_path = ('qiime.plugins.%s.methods.'
                            % self._plugin_name.replace('-', '_'))
         return plugin_path + self.id
 

@@ -237,7 +237,7 @@ class Visualizer:
     def _get_import_path(self):
         plugin_path = ''
         if self._plugin_name is not None:
-            plugin_path = ('qiime.plugin.%s.visualizers.'
+            plugin_path = ('qiime.plugins.%s.visualizers.'
                            % self._plugin_name.replace('-', '_'))
         return plugin_path + self.id
 

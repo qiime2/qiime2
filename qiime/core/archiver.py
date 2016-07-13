@@ -98,7 +98,10 @@ class Archiver:
     @classmethod
     def _parse_provenance(cls, provenance):
         if isinstance(provenance, str):
-            return None
+            if provenance == 'None':
+                return None
+            else:
+                return provenance
         else:
             return qiime.sdk.Provenance(
                 execution_uuid=uuid.UUID(hex=provenance['execution-uuid']),
@@ -233,8 +236,9 @@ class Archiver:
     # TODO this is a provenance placeholder for now
     def _formatted_provenance(self):
         if self.provenance is None:
-            return ('No provenance available because this archive was '
-                    'generated independently of QIIME.')
+            return str(None)
+        elif isinstance(self.provenance, str):
+            return self.provenance
         else:
             return {
                 'execution-uuid': str(self.provenance.execution_uuid),

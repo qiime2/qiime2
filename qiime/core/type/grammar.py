@@ -141,6 +141,9 @@ class CompositeType(_ImmutableBase):
     def iter_symbols(self):
         yield self.name
 
+    def is_concrete(self):
+        return False
+
 
 class TypeExpression(_ImmutableBase):
     def __init__(self, name, fields=(), predicate=None):

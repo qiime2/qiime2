@@ -9,17 +9,19 @@
 import collections
 import unittest
 
-import qiime.core.data_layout
 import qiime.plugin
 import qiime.sdk
 
 from qiime.core.testing.type import (IntSequence1, IntSequence2, Mapping,
                                      FourInts)
-from qiime.core.testing.data_layout import (int_sequence_to_list,
+from qiime.core.testing.data_layout import (IntSequenceFormat,
+                                            int_sequence_to_list,
                                             int_sequence_to_counter,
                                             list_to_int_sequence,
+                                            MappingFormat,
                                             mapping_to_dict,
                                             dict_to_mapping,
+                                            SingleIntFormat,
                                             four_ints_to_list,
                                             list_to_four_ints)
 from qiime.core.testing.util import get_dummy_plugin
@@ -67,7 +69,27 @@ class TestPlugin(unittest.TestCase):
             data_layouts.keys(),
             {('int-sequence', 1), ('mapping', 1), ('four-ints', 1)})
         for dl in data_layouts.values():
-            self.assertIsInstance(dl, qiime.core.data_layout.DataLayout)
+            self.assertIsInstance(dl, qiime.plugin.DataLayout)
+
+        self.assertEqual(
+            data_layouts[('int-sequence', 1)].files,
+            {'ints.txt': IntSequenceFormat})
+
+        self.assertEqual(
+            data_layouts[('mapping', 1)].files,
+            {'mapping.tsv': MappingFormat})
+
+        self.assertEqual(data_layouts[('four-ints', 1)].files, {
+            'file1.txt': SingleIntFormat,
+            'file2.txt': SingleIntFormat,
+            'nested/file3.txt': SingleIntFormat,
+            'nested/file4.txt': SingleIntFormat
+        })
+
+    def test_data_layouts_finalized(self):
+        for data_layout in self.plugin.data_layouts.values():
+            with self.assertRaisesRegex(RuntimeError, "DataLayout.*finalized"):
+                data_layout.register_file('new-file.txt', SingleIntFormat)
 
     def test_types(self):
         types = self.plugin.types
@@ -104,6 +126,7 @@ class TestPlugin(unittest.TestCase):
             {('int-sequence', 1, list): list_to_int_sequence,
              ('mapping', 1, dict): dict_to_mapping,
              ('four-ints', 1, list): list_to_four_ints})
+
 
 if __name__ == '__main__':
     unittest.main()
