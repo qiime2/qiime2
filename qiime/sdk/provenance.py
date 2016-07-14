@@ -40,6 +40,12 @@ class Provenance:
                     % (str.__name__, type(param_ref).__name__))
         self._parameter_references = parameter_references
 
+    def __repr__(self):
+        return repr(dict(execution_uuid=self.execution_uuid,
+                         executor_reference=self.executor_reference,
+                         artifact_uuids=self.artifact_uuids,
+                         parameter_references=self.parameter_references))
+
     @property
     def execution_uuid(self):
         return self._execution_uuid

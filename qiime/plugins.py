@@ -9,7 +9,14 @@
 import sys
 import importlib.machinery
 
+__all__ = ['available_plugins']
 __path__ = []
+
+
+def available_plugins():
+    import qiime.sdk
+    pm = qiime.sdk.PluginManager()
+    return set('qiime.plugins.' + s.replace('-', '_') for s in pm.plugins)
 
 
 class QIIMEArtifactAPIImporter:
@@ -45,35 +52,40 @@ class QIIMEArtifactAPIImporter:
         if len(plugin_details) == 1:
             return self._make_spec(name, plugin)
         elif plugin_details[1] == 'visualizers':
-            return self._make_spec(name, plugin, 'visualizers')
+            return self._make_spec(name, plugin, ('visualizers',))
         elif plugin_details[1] == 'methods':
-            return self._make_spec(name, plugin, 'methods')
+            return self._make_spec(name, plugin, ('methods',))
+        elif plugin_details[1] == 'actions':
+            return self._make_spec(name, plugin, ('methods', 'visualizers'))
         return None
 
-    def _make_spec(self, name, plugin, action=None):
+    def _make_spec(self, name, plugin, action_types=None):
         # See PEP 451 for explanation of what is happening:
         # https://www.python.org/dev/peps/pep-0451/#modulespec
         return importlib.machinery.ModuleSpec(
             name,
             loader=self,
             origin='generated QIIME API',
-            loader_state={'plugin': plugin, 'action': action},
-            is_package=action is None
+            loader_state={'plugin': plugin, 'action_types': action_types},
+            is_package=action_types is None
         )
 
     def exec_module(self, module):
         spec = module.__spec__
         plugin = spec.loader_state['plugin']
-        action = spec.loader_state['action']
+        action_types = spec.loader_state['action_types']
 
-        if action is None:
+        if action_types is None:
             module.methods = importlib.import_module('.methods',
                                                      package=spec.name)
             module.visualizers = importlib.import_module('.visualizers',
                                                          package=spec.name)
+            module.actions = importlib.import_module('.actions',
+                                                     package=spec.name)
         else:
-            actions = getattr(plugin, action)
-            for key, value in actions.items():
-                setattr(module, key, value)
+            for action_type in action_types:
+                actions = getattr(plugin, action_type)
+                for key, value in actions.items():
+                    setattr(module, key, value)
 
 sys.meta_path += [QIIMEArtifactAPIImporter()]

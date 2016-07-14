@@ -47,7 +47,7 @@ class TestImports(unittest.TestCase):
         self._check_methods(module.methods)
         self._check_visualizers(module.visualizers)
         self.assertEqual(set(x for x in dir(module) if not x.startswith('_')),
-                         {'visualizers', 'methods'})
+                         {'visualizers', 'methods', 'actions'})
 
     def _check_methods(self, module):
         self._check_spec(module, 'qiime.plugins.dummy_plugin.methods', False)
