@@ -8,7 +8,8 @@
 
 import qiime.core  # noqa
 from qiime.metadata import Metadata, MetadataCategory
+from qiime.sdk import Visualization, Artifact
 
-__all__ = ['Metadata', 'MetadataCategory']
+__all__ = ['Metadata', 'MetadataCategory', 'Visualization', 'Artifact']
 
 __version__ = '2.0.1.dev0'
