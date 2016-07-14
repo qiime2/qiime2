@@ -59,8 +59,8 @@ class Signature:
         for key, (type_, _) in itertools.chain(self.inputs.items(),
                                                self.parameters.items()):
             if kwargs[key] not in type_:
-                raise TypeError("Argument to %r is not a subtype of %r."
-                                % (key, type_))
+                raise TypeError("Argument to parameter %r is not a subtype of"
+                                " %r." % (key, type_))
 
     def solve_output(self, **input_types):
         return self.outputs

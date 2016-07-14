@@ -106,6 +106,10 @@ class Result:
         result._archiver = None
         return result
 
+    def __repr__(self):
+        return ("<%s: %r uuid: %s>"
+                % (self.__class__.__name__.lower(), self.type, self.uuid))
+
     def _orphan(self, pid):
         self._archiver.orphan(pid)
 
