@@ -250,8 +250,6 @@ class Visualization(Result):
                 relpath = os.path.join(self._archiver.DATA_DIRNAME, relpath)
                 ext = os.path.splitext(relpath)[1][1:]
                 if ext in result:
-                    # TODO: this should [additionally] be handled
-                    # elsewhere, probably on population of self._data_dir.
                     raise ValueError(
                         "Multiple index files identified with %s "
                         "extension (%s, %s). This is currently "

@@ -33,8 +33,6 @@ class DispatchableSignature:
 
 
 class Method:
-    # TODO `inspect` module isn't compatible with Method, but works with
-    # Method.__call__. Can Method be improved to play nicer with `inspect`?
     __call__ = DispatchableSignature('_dynamic_call')
     async = DispatchableSignature('_dynamic_async')
 
@@ -230,8 +228,6 @@ class Method:
         del __call__.__wrapped__
         self._dynamic_call = __call__
 
-        # TODO `async` execution has some problems with garbage-collection in
-        # the subprocess given certain inputs. Needs further investigation.
         def async_wrapper(*args, **kwargs):
             args = args[1:]
             pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)

@@ -155,8 +155,6 @@ class Visualizer:
         del __call__.__wrapped__
         self._dynamic_call = __call__
 
-        # TODO `async` execution has some problems with garbage-collection in
-        # the subprocess given certain inputs. Needs further investigation.
         def async_wrapper(*args, **kwargs):
             # TODO handle this better in the future, but stop the massive error
             # caused by MacOSX async runs for now.
