@@ -9,6 +9,7 @@
 import collections
 import concurrent.futures
 import inspect
+import pkg_resources
 import unittest
 import uuid
 
@@ -373,6 +374,27 @@ class TestMethod(unittest.TestCase):
             self.assertEqual(result.type, IntSequence1)
             self.assertEqual(result.view(list),
                              [10, 20, 0, 42, 43, 99, -22, 55, 1])
+
+    def test_markdown_input_section_validation(self):
+        fp = pkg_resources.resource_filename(
+            'qiime.sdk.tests', 'data/method_bad_input_section.md')
+
+        with self.assertRaisesRegex(TypeError, 'input section'):
+            Method.from_markdown(fp)
+
+    def test_markdown_parameters_section_validation(self):
+        fp = pkg_resources.resource_filename(
+            'qiime.sdk.tests', 'data/method_bad_parameters_section.md')
+
+        with self.assertRaisesRegex(TypeError, 'parameters section'):
+            Method.from_markdown(fp)
+
+    def test_markdown_outputs_section_validation(self):
+        fp = pkg_resources.resource_filename(
+            'qiime.sdk.tests', 'data/method_bad_outputs_section.md')
+
+        with self.assertRaisesRegex(TypeError, 'outputs section'):
+            Method.from_markdown(fp)
 
 
 if __name__ == '__main__':

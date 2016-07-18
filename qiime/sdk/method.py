@@ -117,19 +117,28 @@ class Method:
 
         input_types = collections.OrderedDict()
         for input_ in metadata['inputs']:
-            # TODO validate each nested dict has exactly two items
             name, type_tuple = list(input_.items())[0]
+            if len(type_tuple) != 2:
+                raise TypeError(
+                    "Bad input section formatting, need two items per key"
+                )
             input_types[name] = self._split_type_tuple(type_tuple, 'semantic')
 
         param_types = collections.OrderedDict()
         for parameter in metadata['parameters']:
-            # TODO validate each nested dict has exactly two items
             name, type_tuple = list(parameter.items())[0]
+            if len(type_tuple) != 2:
+                raise TypeError(
+                    "Bad parameters section formatting, need two items per key"
+                )
             param_types[name] = self._split_type_tuple(type_tuple, 'primitive')
         output_types = collections.OrderedDict()
         for output in metadata['outputs']:
-            # TODO validate each nested dict has exactly two items
             name, type_tuple = list(output.items())[0]
+            if len(type_tuple) != 2:
+                raise TypeError(
+                    "Bad outputs section formatting, need two items per key"
+                )
             output_types[name] = self._split_type_tuple(type_tuple, 'semantic')
 
         signature = qtype.Signature(input_types, param_types, output_types)
