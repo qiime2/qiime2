@@ -281,6 +281,20 @@ class TestVisualizer(unittest.TestCase):
             }
             self.assertEqual(fps, expected)
 
+    def test_visualizer_callable_output(self):
+        # Callable returns a value from `return_vals`
+        return_vals = (True, False, [], {}, '', 0, 0.0)
+        for return_val in return_vals:
+            visualizer = Visualizer.from_function(
+                lambda output_dir: return_val, {}, {}, '', ''
+            )
+            with self.assertRaisesRegex(TypeError, "should not return"):
+                visualizer()
+
+        # Callable returns None (default function return)
+        visualizer = Visualizer.from_function(lambda output_dir: None,
+                                              {}, {}, '', '')
+        visualizer()  # Should not raise an exception
 
 if __name__ == '__main__':
     unittest.main()
