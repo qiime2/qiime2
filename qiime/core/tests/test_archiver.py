@@ -24,8 +24,7 @@ class TestArchiver(unittest.TestCase):
         # FakeArchiver is for testing some of the private methods on Archiver
         # that don't require the full class.
         class FakeArchiver(Archiver):
-            # Specifically not calling super() because we don't need to
-            # drag any of Archiver's baggage into this.
+            # Explicitly not calling super()
             def __init__(self, *args, **kwargs):
                 self._temp_dir = tempfile.mkdtemp(prefix)
                 self._data_dir = os.path.join(self._temp_dir,
@@ -125,3 +124,21 @@ class TestArchiver(unittest.TestCase):
                 with io.TextIOWrapper(bytes_fh, newline=None,
                                       encoding='utf-8', errors='strict') as fh:
                     self.assertTrue(fh.read().rstrip('\n'))
+
+    def test_metadata_pprint_yaml(self):
+        archive = self.FakeArchiver()
+        fp = os.path.join(self.root_dir, "archive.qza")
+
+        with zipfile.ZipFile(fp, mode="w",
+                             compression=zipfile.ZIP_DEFLATED,
+                             allowZip64=True) as zf:
+            archive._save_metadata(zf, self.root_dir)
+
+            with zf.open(os.path.join(self.root_dir,
+                                      Archiver._METADATA_FILENAME)) as zip_fh:
+                with io.TextIOWrapper(zip_fh, newline=None,
+                                      encoding='utf-8', errors='strict') as fh:
+                    self.assertEqual(fh.read(),
+                                     "uuid: foo\n"
+                                     "type: '''bar'''\n"
+                                     "provenance: baz\n")

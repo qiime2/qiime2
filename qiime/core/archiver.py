@@ -6,6 +6,7 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import collections
 import io
 import os
 import os.path
@@ -17,6 +18,10 @@ import zipfile
 
 import qiime.sdk
 from .util import parse_type
+
+# Allow OrderedDict to be serialized for YAML representation
+yaml.add_representer(collections.OrderedDict, lambda dumper, data:
+                     dumper.represent_dict(data.items()))
 
 
 class Archiver:
@@ -218,15 +223,12 @@ class Archiver:
         zf.writestr(os.path.join(root_dir, self._README_FILENAME),
                     _README_TEXT.encode('utf-8'))
 
-    # TODO clean up metadata yaml formatting. It currently dumps Python
-    # objects, `yaml.safe_dump` call needs to be updated to format lists and
-    # dicts as typical yaml.
     def _save_metadata(self, zf, root_dir):
-        metadata_bytes = yaml.safe_dump({
-            'uuid': self._formatted_uuid(),
-            'type': repr(self.type),
-            'provenance': self._formatted_provenance()
-        })
+        metadata_bytes = yaml.dump(collections.OrderedDict([
+            ('uuid', self._formatted_uuid()),
+            ('type', repr(self.type)),
+            ('provenance', self._formatted_provenance())
+        ]), default_flow_style=False)
         zf.writestr(os.path.join(root_dir, self._METADATA_FILENAME),
                     metadata_bytes.encode('utf-8'))
 
