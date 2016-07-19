@@ -220,8 +220,11 @@ class Visualizer:
 
             # TODO use user-configured temp dir
             with tempfile.TemporaryDirectory('qiime2-temp-') as temp_dir:
-                # TODO make sure _callable doesn't return anything
-                self._callable(output_dir=temp_dir, **view_args)
+                ret_val = self._callable(output_dir=temp_dir, **view_args)
+                if ret_val is not None:
+                    raise TypeError(
+                        "Visualizer %r should not return anything. "
+                        "Received %r as a return value." % (self, ret_val))
                 visualization = qiime.sdk.Visualization._from_data_dir(
                     temp_dir, provenance)
                 visualization._orphan(self._pid)
