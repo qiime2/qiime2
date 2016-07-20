@@ -208,7 +208,7 @@ class Visualizer:
             execution_uuid = uuid.uuid4()
             visualizer_reference = (
                 "%s. Details on plugin, version, website, etc. will also be "
-                "included, see https://github.com/biocore/qiime2/issues/26"
+                "included, see https://github.com/qiime2/qiime2/issues/26"
                 % self.id)
             artifact_uuids = {name: artifact.uuid for name, artifact in
                               artifacts.items()}
