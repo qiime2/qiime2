@@ -14,13 +14,15 @@ class Metadata:
         self._dataframe = dataframe
 
     def __repr__(self):
-        return self._dataframe.to_json()
+        return repr(self._dataframe)
+
+    def _repr_html_(self):
+        return self._dataframe._repr_html_()
 
     @classmethod
     def load(cls, path):
         try:
-            df = pd.read_csv(path, sep='\t', dtype=object).\
-                 set_index('#SampleID')
+            df = pd.read_csv(path, sep='\t', dtype=object, index_col=0)
         except OSError:
             raise OSError(
                 "Metadata file %s doesn't exist or isn't accessible (e.g., "
@@ -28,10 +30,9 @@ class Metadata:
         except (pd.io.common.CParserError, KeyError):
             raise ValueError(
                 'Metadata file format is invalid for file %s. Currently only '
-                'QIIME 1 sample metadata mapping files are officially '
-                'supported. These can be validated using Keemei: '
-                'http://keemei.qiime.org' % path)
-
+                'QIIME 1 sample/feature metadata mapping files are officially '
+                'supported. Sample metadata mapping files can be validated '
+                'using Keemei: http://keemei.qiime.org' % path)
         return cls(df)
 
     def get_category(self, *names):
@@ -57,7 +58,7 @@ class MetadataCategory:
         self._series = series
 
     def __repr__(self):
-        return self._series.to_json()
+        return repr(self._series)
 
     @classmethod
     def load(cls, path, category):
