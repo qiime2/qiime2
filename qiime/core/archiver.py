@@ -19,7 +19,6 @@ import qiime.sdk
 from .util import parse_type
 
 
-# TODO use utf-8 encoding when reading/writing files
 class Archiver:
     # This class will likely defer to one of many ArchiveFormats in the future.
     # There's only one supported archive format currently.
@@ -74,7 +73,7 @@ class Archiver:
         version_path = os.path.join(root_dir, cls._VERSION_FILENAME)
         with zf.open(version_path) as bytes_fh:
             with io.TextIOWrapper(bytes_fh, newline=None,
-                                  encoding='utf-8') as fh:
+                                  encoding='utf-8', errors='strict') as fh:
                 return fh.read().rstrip('\n')
 
     @classmethod
@@ -82,7 +81,7 @@ class Archiver:
         metadata_path = os.path.join(root_dir, cls._METADATA_FILENAME)
         with zf.open(metadata_path) as bytes_fh:
             with io.TextIOWrapper(bytes_fh, newline=None,
-                                  encoding='utf-8') as fh:
+                                  encoding='utf-8', errors='strict') as fh:
                 metadata = yaml.safe_load(fh)
 
         uuid_ = cls._parse_uuid(metadata['uuid'])
@@ -211,12 +210,13 @@ class Archiver:
                     zf.write(abspath, arcname=archive_path)
 
     def _save_version(self, zf, root_dir):
+        version = '%s\n' % self._VERSION
         zf.writestr(os.path.join(root_dir, self._VERSION_FILENAME),
-                    '%s\n' % self._VERSION)
+                    version.encode('utf-8'))
 
     def _save_readme(self, zf, root_dir):
         zf.writestr(os.path.join(root_dir, self._README_FILENAME),
-                    _README_TEXT)
+                    _README_TEXT.encode('utf-8'))
 
     # TODO clean up metadata yaml formatting. It currently dumps Python
     # objects, `yaml.safe_dump` call needs to be updated to format lists and
@@ -228,7 +228,7 @@ class Archiver:
             'provenance': self._formatted_provenance()
         })
         zf.writestr(os.path.join(root_dir, self._METADATA_FILENAME),
-                    metadata_bytes)
+                    metadata_bytes.encode('utf-8'))
 
     def _formatted_uuid(self):
         return str(self.uuid)
