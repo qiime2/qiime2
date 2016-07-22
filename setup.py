@@ -22,6 +22,7 @@ setup(
     },
     package_data={
         'qiime.core.testing': ['markdown/*md'],
+        'qiime.tests': ['data/*'],
         'qiime.sdk.tests': ['data/*']
     }
 )
