@@ -140,7 +140,8 @@ class Artifact(Result):
                 "An artifact requires a concrete semantic type, not type %r."
                 % type)
 
-        data_layout = cls._get_data_layout(type)
+        pm = qiime.sdk.PluginManager()
+        data_layout = pm.get_data_layout(type)
         data_layout.validate(path)
 
         if os.path.isfile(path):
@@ -188,7 +189,8 @@ class Artifact(Result):
                 "`provenance` must be None or an instance of "
                 "qiime.sdk.Provenance.")
 
-        data_layout = cls._get_data_layout(type_)
+        pm = qiime.sdk.PluginManager()
+        data_layout = pm.get_data_layout(type_)
         view_type = type(view)
         # TODO better error handling for when `view` cannot be written to
         # `type_` data layout.
@@ -200,26 +202,9 @@ class Artifact(Result):
             uuid.uuid4(), type_, provenance, data_initializer=writer)
         return artifact
 
-    @classmethod
-    def _get_data_layout(cls, type_):
-        pm = qiime.sdk.PluginManager()
-
-        data_layout = None
-        for semantic_type, datalayout in \
-                pm.semantic_type_to_data_layouts.items():
-            if type_ <= semantic_type:
-                data_layout = datalayout
-                break
-
-        if data_layout is None:
-            raise TypeError(
-                "Artifact semantic type %r does not have a compatible data "
-                "layout." % type_)
-
-        return data_layout
-
     def view(self, view_type):
-        data_layout = self._get_data_layout(self.type)
+        pm = qiime.sdk.PluginManager()
+        data_layout = pm.get_data_layout(self.type)
         reader = data_layout.readers[view_type]
         return self._archiver.load_data(reader)
 

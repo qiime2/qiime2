@@ -9,6 +9,8 @@
 import os
 import pkg_resources
 
+import qiime.core.type
+
 
 class PluginManager:
     __instance = None
@@ -26,7 +28,7 @@ class PluginManager:
         self.plugins = {}
         self.data_layouts = {}
         self.semantic_types = {}
-        self.semantic_type_to_data_layouts = {}
+        self._semantic_type_to_data_layouts = {}
 
         plugins = []
         for entry_point in pkg_resources.iter_entry_points(
@@ -74,7 +76,7 @@ class PluginManager:
                 raise ValueError("Data layout %r does not exist, cannot"
                                  " register semantic type (%r) to it."
                                  % (data_layout_id, semantic_type))
-            self.semantic_type_to_data_layouts[semantic_type] = \
+            self._semantic_type_to_data_layouts[semantic_type] = \
                 self.data_layouts[data_layout_id][1]
 
         for reader_registration, reader in plugin.data_layout_readers.items():
@@ -90,3 +92,22 @@ class PluginManager:
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
+
+    def get_data_layout(self, type):
+        if not qiime.core.type.is_semantic_type(type):
+            raise TypeError(
+                "Must provide a semantic type via `type`, not %r" % type)
+
+        data_layout = None
+        for semantic_type, datalayout in \
+                self._semantic_type_to_data_layouts.items():
+            if type <= semantic_type:
+                data_layout = datalayout
+                break
+
+        if data_layout is None:
+            raise TypeError(
+                "Semantic type %r does not have a compatible data layout."
+                % type)
+
+        return data_layout
