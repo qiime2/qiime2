@@ -17,6 +17,7 @@ import uuid
 import qiime.sdk
 import qiime.core.archiver
 import qiime.core.type
+import qiime.core.util
 
 # Note: Result, Artifact, and Visualization classes are in this file to avoid
 # circular dependencies between Result and its subclasses. Result is tightly
@@ -118,6 +119,8 @@ class Result:
 
 
 class Artifact(Result):
+    extension = '.qza'
+
     @classmethod
     def _is_valid_type(cls, type_):
         if qiime.core.type.is_semantic_type(type_) and type_.is_concrete():
@@ -223,8 +226,17 @@ class Artifact(Result):
         reader = data_layout.readers[view_type]
         return self._archiver.load_data(reader)
 
+    def save(self, filepath):
+        if not filepath.endswith(self.extension):
+            with qiime.core.util.warning() as warn:
+                warn(_result_extension_warning_template.format(
+                     'Artifact', self.extension))
+        super().save(filepath)
+
 
 class Visualization(Result):
+    extension = '.qzv'
+
     @classmethod
     def _is_valid_type(cls, type_):
         if type_ == qiime.core.type.Visualization:
@@ -258,3 +270,16 @@ class Visualization(Result):
                 else:
                     result[ext] = relpath if relative else abspath
         return result
+
+    def save(self, filepath):
+        if not filepath.endswith(self.extension):
+            with qiime.core.util.warning() as warn:
+                warn(_result_extension_warning_template.format(
+                     'Visualization', self.extension))
+        super().save(filepath)
+
+
+_result_extension_warning_template = "The most widely supported " \
+    "and recommended file extension for a QIIME 2 {0} is '{1}'. The {0} "\
+    "will still be created, but the provided file extension can not be " \
+    "guaranteed to work with all QIIME 2 interfaces."
