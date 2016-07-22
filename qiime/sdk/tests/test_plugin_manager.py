@@ -67,15 +67,17 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(types['Mapping'], ('dummy-plugin', Mapping))
         self.assertEqual(types['FourInts'], ('dummy-plugin', FourInts))
 
-    def test_semantic_type_to_data_layouts(self):
-        type_to_layouts = self.pm.semantic_type_to_data_layouts
+    def test_get_data_layout(self):
+        self.assertIsInstance(
+            self.pm.get_data_layout(IntSequence1), DataLayout)
+        self.assertIsInstance(
+            self.pm.get_data_layout(IntSequence2), DataLayout)
+        self.assertIsInstance(
+            self.pm.get_data_layout(Mapping), DataLayout)
+        self.assertIsInstance(
+            self.pm.get_data_layout(FourInts), DataLayout)
 
-        self.assertIsInstance(type_to_layouts[IntSequence1], DataLayout)
-        self.assertIsInstance(type_to_layouts[IntSequence2], DataLayout)
-        self.assertIsInstance(type_to_layouts[Mapping], DataLayout)
-        self.assertIsInstance(type_to_layouts[FourInts], DataLayout)
-
-        data_layout = type_to_layouts[Mapping]
+        data_layout = self.pm.get_data_layout(Mapping)
 
         self.assertEqual(data_layout.name, 'mapping')
         self.assertEqual(data_layout.version, 1)
