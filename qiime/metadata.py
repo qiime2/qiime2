@@ -22,7 +22,8 @@ class Metadata:
     @classmethod
     def load(cls, path):
         try:
-            df = pd.read_csv(path, sep='\t', dtype=object, index_col=0)
+            df = pd.read_csv(path, sep='\t', dtype=object)
+            df.set_index(df.columns[0], drop=True, append=False, inplace=True)
         except OSError:
             raise OSError(
                 "Metadata file %s doesn't exist or isn't accessible (e.g., "
