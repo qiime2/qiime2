@@ -245,7 +245,7 @@ class TestVisualization(unittest.TestCase):
 
     def test_load_with_archive_filepath_modified(self):
         # Save a visualization for use in the following test case.
-        fp = os.path.join(self.test_dir.name, 'visualization.qza')
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         Visualization._from_data_dir(self.data_dir, None).save(fp)
 
         # Load the visualization from a filepath then save a different
@@ -385,7 +385,7 @@ class TestVisualization(unittest.TestCase):
 
     def test_peek(self):
         visualization = Visualization._from_data_dir(self.data_dir, None)
-        fp = os.path.join(self.test_dir.name, 'visualization.qza')
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         visualization.save(fp)
 
         metadata = Visualization.peek(fp)
@@ -398,7 +398,7 @@ class TestVisualization(unittest.TestCase):
     def test_peek_with_provenance(self):
         visualization = Visualization._from_data_dir(self.data_dir,
                                                      self.provenance)
-        fp = os.path.join(self.test_dir.name, 'visualization.qza')
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         visualization.save(fp)
 
         metadata = Visualization.peek(fp)

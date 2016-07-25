@@ -7,6 +7,8 @@
 # ----------------------------------------------------------------------------
 
 import re
+import contextlib
+import warnings
 
 
 def tuplize(x):
@@ -93,3 +95,16 @@ def parse_type(string, expect=None):
 # Makes it possible to programmatically detect when a type doesn't exist.
 class UnknownTypeError(TypeError):
     pass
+
+
+@contextlib.contextmanager
+def warning():
+    def _warnformat(msg, category, filename, lineno, file=None, line=None):
+        return '%s:%s: %s: %s\n' % (filename, lineno, category.__name__, msg)
+
+    default_warn_format = warnings.formatwarning
+    try:
+        warnings.formatwarning = _warnformat
+        yield warnings.warn
+    finally:
+        warnings.formatwarning = default_warn_format

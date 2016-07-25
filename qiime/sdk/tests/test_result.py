@@ -10,6 +10,7 @@ import os
 import tempfile
 import unittest
 import uuid
+import warnings
 
 import qiime.core.type
 from qiime.sdk import Result, Artifact, Visualization, Provenance
@@ -209,7 +210,7 @@ class TestResult(unittest.TestCase):
     def test_peek_visualization(self):
         visualization = Visualization._from_data_dir(self.data_dir,
                                                      self.provenance)
-        fp = os.path.join(self.test_dir.name, 'visualization.qza')
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         visualization.save(fp)
 
         metadata = Result.peek(fp)
@@ -218,6 +219,30 @@ class TestResult(unittest.TestCase):
         self.assertEqual(metadata.type, qiime.core.type.Visualization)
         self.assertEqual(metadata.provenance, self.provenance)
         self.assertEqual(metadata.uuid, visualization.uuid)
+
+    def test_save_artifact_warning(self):
+        artifact = Artifact._from_view([0, 0, 42, 1000], FourInts,
+                                       self.provenance)
+        fp = os.path.join(self.test_dir.name, 'artifact.zip')
+
+        with warnings.catch_warnings(record=True) as w:
+            artifact.save(fp)
+
+            self.assertEqual(len(w), 1)
+            self.assertIsInstance(w[0].message, UserWarning)
+            self.assertIn(Artifact.extension, str(w[0].message))
+
+    def test_save_visualization_warning(self):
+        visualization = Visualization._from_data_dir(self.data_dir,
+                                                     self.provenance)
+        fp = os.path.join(self.test_dir.name, 'visualization.zip')
+
+        with warnings.catch_warnings(record=True) as w:
+            visualization.save(fp)
+
+            self.assertEqual(len(w), 1)
+            self.assertIsInstance(w[0].message, UserWarning)
+            self.assertIn(Visualization.extension, str(w[0].message))
 
 
 if __name__ == '__main__':
