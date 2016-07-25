@@ -15,3 +15,8 @@ from ..core.util import parse_type
 
 __all__ = ['Result', 'Artifact', 'Visualization', 'Method', 'Visualizer',
            'PluginManager', 'Provenance', 'parse_type']
+
+# Various URLs
+CITATION = 'http://www.ncbi.nlm.nih.gov/pubmed/20383131'
+HELP_URL = 'http://2.qiime.org'
+CONDA_CHANNEL = 'https://anaconda.org/qiime2'
