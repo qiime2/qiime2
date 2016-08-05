@@ -9,6 +9,7 @@
 from .data_layout import DataLayout
 from .file_format import FileFormat
 from .plugin import Plugin
+from .template import plugin_init
 
 from qiime.core.type import (SemanticType, Int, Str, Float, Color, Metadata,
                              MetadataCategory, Properties, Range, Choices,
@@ -17,4 +18,4 @@ from qiime.core.type import (SemanticType, Int, Str, Float, Color, Metadata,
 
 __all__ = ['DataLayout', 'FileFormat', 'Plugin', 'SemanticType', 'Int', 'Str',
            'Float', 'Color', 'Metadata', 'MetadataCategory', 'Properties',
-           'Range', 'Choices', 'Arguments']
+           'Range', 'Choices', 'Arguments', 'plugin_init']
