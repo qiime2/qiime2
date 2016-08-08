@@ -44,6 +44,33 @@ class TestPlugin(unittest.TestCase):
     def test_package(self):
         self.assertEqual(self.plugin.package, 'qiime.core.testing')
 
+    def test_citation_text(self):
+        self.assertEqual(self.plugin.citation_text, 'No relevant citation.')
+
+    def test_user_support_text(self):
+        self.assertEqual(self.plugin.user_support_text,
+                         'For help, see http://2.qiime.org')
+
+    def test_citation_text_default(self):
+        plugin = qiime.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime.core.testing')
+        self.assertTrue(plugin.citation_text.startswith('No citation'))
+        self.assertTrue(plugin.citation_text.endswith(
+                            plugin.website))
+
+    def test_user_support_text_default(self):
+        plugin = qiime.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime.core.testing')
+        self.assertTrue(plugin.user_support_text.startswith('No user'))
+        self.assertTrue(plugin.user_support_text.endswith(
+                            plugin.website))
+
     def test_methods(self):
         methods = self.plugin.methods
 

@@ -16,11 +16,23 @@ from .data_layout import DataLayout
 
 
 class Plugin:
-    def __init__(self, name, version, website, package):
+    def __init__(self, name, version, website, package, citation_text=None,
+                 user_support_text=None):
         self.name = name
         self.version = version
         self.website = website
         self.package = package
+        if citation_text is None:
+            self.citation_text = ('No citation available. Cite plugin '
+                                  'website: %s' % self.website)
+        else:
+            self.citation_text = citation_text
+        if user_support_text is None:
+            self.user_support_text = ('No user support information available. '
+                                      'See plugin website: %s'
+                                      % self.website)
+        else:
+            self.user_support_text = user_support_text
 
         self.methods = PluginMethods(self.name, self.package)
         self.visualizers = PluginVisualizers(self.name)
