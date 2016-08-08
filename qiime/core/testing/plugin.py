@@ -34,7 +34,9 @@ dummy_plugin = qiime.plugin.Plugin(
     name='dummy-plugin',
     version='0.0.0-dev',
     website='https://github.com/qiime2/qiime2',
-    package='qiime.core.testing'
+    package='qiime.core.testing',
+    citation_text='No relevant citation.',
+    user_support_text='For help, see http://2.qiime.org'
 )
 
 dummy_plugin.register_data_layout(int_sequence_data_layout)
