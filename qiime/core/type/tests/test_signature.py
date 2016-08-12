@@ -9,15 +9,15 @@
 import unittest
 import collections
 
-from qiime.core.type.signature import Signature
+from qiime.core.type.signature import PipelineSignature
 from qiime.plugin import Int
 from qiime.core.testing.type import IntSequence1
 
 
-class TestSignature(unittest.TestCase):
+class TestPipelineSignature(unittest.TestCase):
 
     def test_constructor(self):
-        signature = Signature(
+        signature = PipelineSignature(
             inputs={'input1': (IntSequence1, list),
                     'input2': (IntSequence1, list)},
             parameters={'param1': (Int, int),
@@ -38,7 +38,7 @@ class TestSignature(unittest.TestCase):
                 ('output2', (IntSequence1, list))]))
 
     def test_solve_output(self):
-        signature = Signature(
+        signature = PipelineSignature(
             inputs={'input1': (IntSequence1, list),
                     'input2': (IntSequence1, list)},
             parameters={'param1': (Int, int),

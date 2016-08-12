@@ -109,6 +109,9 @@ class Archiver:
         else:
             return qiime.sdk.Provenance(
                 execution_uuid=uuid.UUID(hex=provenance['execution-uuid']),
+                # TODO this should be 'action-reference' to match QIIME 2
+                # nomenclature. Not worth updating now while provenance is
+                # stubbed.
                 executor_reference=provenance['executor-reference'],
                 artifact_uuids={k: uuid.UUID(hex=v) for k, v in
                                 provenance['artifact-uuids'].items()},
@@ -244,6 +247,9 @@ class Archiver:
         else:
             return {
                 'execution-uuid': str(self.provenance.execution_uuid),
+                # TODO this should be 'action-reference' to match QIIME 2
+                # nomenclature. Not worth updating now while provenance is
+                # stubbed.
                 'executor-reference': self.provenance.executor_reference,
                 'artifact-uuids': {k: str(v) for k, v in
                                    self.provenance.artifact_uuids.items()},

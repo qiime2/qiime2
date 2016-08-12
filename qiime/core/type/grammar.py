@@ -16,10 +16,6 @@ def _immutable_error(*args):
     raise TypeError("Types are immutable.")
 
 
-def is_qiime_type(type_):
-    return isinstance(type_, TypeExpression)
-
-
 class _ImmutableBase:
     """Disables instance mutation (but not static/class mutation) using
     `_freeze_` method. This class also implements shared methods."""

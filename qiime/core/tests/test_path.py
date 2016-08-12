@@ -36,3 +36,7 @@ class TestTempPath(unittest.TestCase):
         self.assertTrue(os.path.isfile(path))
         f._finalize()
         self.assertFalse(os.path.isfile(path))
+
+
+if __name__ == '__main__':
+    unittest.main()

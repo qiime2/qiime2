@@ -6,10 +6,15 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import inspect
 import pkg_resources
+import types
+
+import frontmatter
 
 import qiime.sdk
 import qiime.core.type.grammar as grammar
+from qiime.core.callable import MethodCallable, VisualizerCallable
 from qiime.core.type import is_semantic_type
 
 from .data_layout import DataLayout
@@ -34,14 +39,25 @@ class Plugin:
         else:
             self.user_support_text = user_support_text
 
-        self.methods = PluginMethods(self.name, self.package)
-        self.visualizers = PluginVisualizers(self.name)
+        self.methods = PluginMethods(self)
+        self.visualizers = PluginVisualizers(self)
 
         self.data_layouts = {}
         self.data_layout_readers = {}
         self.data_layout_writers = {}
         self.types = {}
         self.type_to_data_layouts = {}
+
+    @property
+    def actions(self):
+        # TODO this doesn't handle method/visualizer name collisions. The
+        # auto-generated `qiime.plugins.<plugin-name>.actions` API has the same
+        # problem. This should be solved at method/visualizer registration
+        # time, which will solve the problem for both APIs.
+        actions = {}
+        actions.update(self.methods)
+        actions.update(self.visualizers)
+        return types.MappingProxyType(actions)
 
     def register_data_layout(self, data_layout):
         if not isinstance(data_layout, DataLayout):
@@ -90,35 +106,71 @@ class Plugin:
     # shouldn't typically be used by plugin devs?
 
 
-class PluginMethods(dict):
-    def __init__(self, plugin_name, package):
-        self._package = package
-        self._plugin_name = plugin_name
+class PluginActions(dict):
+    _subpackage = None
+
+    def __init__(self, plugin):
+        self._plugin = plugin
+        self._package = 'qiime.plugins.%s.%s' % (
+            self._plugin.name.replace('-', '_'), self._subpackage)
         super().__init__()
+
+    # Private helpers for use in subclasses:
+
+    def _register_callable(self, callable, name, description, source):
+        action = qiime.sdk.Action._from_callable(callable, name, description,
+                                                 source)
+        self[action.id] = action
+
+    def _get_function_source(self, function):
+        try:
+            source = inspect.getsource(function)
+        except OSError:
+            raise TypeError(
+                "Cannot retrieve source code for function %r" %
+                function.__name__)
+        return markdown_source_template % {'source': source}
+
+
+class PluginMethods(PluginActions):
+    _subpackage = 'methods'
 
     def register_function(self, function, inputs, parameters, outputs, name,
                           description):
-        method = qiime.sdk.Method.from_function(function, inputs, parameters,
-                                                outputs, name, description,
-                                                plugin_name=self._plugin_name)
-        self[method.id] = method
+        callable = MethodCallable.from_function(function, inputs, parameters,
+                                                outputs, self._package)
+        source = self._get_function_source(function)
+
+        self._register_callable(callable, name, description, source)
 
     def register_markdown(self, markdown_filepath):
         markdown_filepath = pkg_resources.resource_filename(
-            self._package, markdown_filepath)
-        method = qiime.sdk.Method.from_markdown(markdown_filepath,
-                                                plugin_name=self._plugin_name)
-        self[method.id] = method
+            self._plugin.package, markdown_filepath)
+
+        callable = MethodCallable.from_markdown(markdown_filepath,
+                                                self._package)
+
+        with open(markdown_filepath) as fh:
+            metadata, source = frontmatter.parse(fh.read())
+
+        self._register_callable(callable, metadata['name'],
+                                metadata['description'], source)
 
 
-class PluginVisualizers(dict):
-    def __init__(self, plugin_name):
-        self._plugin_name = plugin_name
-        super().__init__()
+class PluginVisualizers(PluginActions):
+    _subpackage = 'visualizers'
 
     def register_function(self, function, inputs, parameters, name,
                           description):
-        visualizer = qiime.sdk.Visualizer.from_function(
-            function, inputs, parameters, name, description,
-            plugin_name=self._plugin_name)
-        self[visualizer.id] = visualizer
+        callable = VisualizerCallable.from_function(function, inputs,
+                                                    parameters, self._package)
+        source = self._get_function_source(function)
+
+        self._register_callable(callable, name, description, source)
+
+
+markdown_source_template = """
+```python
+%(source)s
+```
+"""
