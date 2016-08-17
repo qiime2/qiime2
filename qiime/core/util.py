@@ -71,7 +71,7 @@ def parse_type(string, expect=None):
 
     pm = qiime.sdk.PluginManager()
     locals_ = {n: getattr(qtype, n) for n in qtype.__all__ if '_' not in n}
-    locals_.update({k: v[1] for k, v in pm.semantic_types.items()})
+    locals_.update({k: v.semantic_type for k, v in pm.semantic_types.items()})
 
     try:
         type_expr = eval(string, {'__builtins__': {}}, locals_)
@@ -97,6 +97,18 @@ def parse_type(string, expect=None):
 # Makes it possible to programmatically detect when a type doesn't exist.
 class UnknownTypeError(TypeError):
     pass
+
+
+def parse_format(format_str):
+    # Avoid circular imports
+    import qiime.sdk
+
+    pm = qiime.sdk.PluginManager()
+    for type_format_record in pm.type_formats:
+        if type_format_record.format.__name__ == format_str:
+            return type_format_record.format
+
+    raise TypeError("No format: %s" % format_str)
 
 
 @contextlib.contextmanager

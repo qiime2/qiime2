@@ -17,7 +17,7 @@ import yaml
 import zipfile
 
 import qiime.sdk
-from .util import parse_type
+import qiime.core.util as util
 
 # Allow OrderedDict to be serialized for YAML representation
 yaml.add_representer(collections.OrderedDict, lambda dumper, data:
@@ -27,7 +27,7 @@ yaml.add_representer(collections.OrderedDict, lambda dumper, data:
 class Archiver:
     # This class will likely defer to one of many ArchiveFormats in the future.
     # There's only one supported archive format currently.
-    _VERSION = '0.1.0'
+    _VERSION = '0.2.0'
     _VERSION_FILENAME = 'VERSION'
     _README_FILENAME = 'README.md'
     _METADATA_FILENAME = 'metadata.yaml'
@@ -90,9 +90,10 @@ class Archiver:
                 metadata = yaml.safe_load(fh)
 
         uuid_ = cls._parse_uuid(metadata['uuid'])
-        type_ = parse_type(metadata['type'])
+        type_ = util.parse_type(metadata['type'])
         provenance = cls._parse_provenance(metadata['provenance'])
-        return uuid_, type_, provenance
+        format = metadata['format']
+        return uuid_, type_, format, provenance
 
     @classmethod
     def _parse_uuid(cls, string):
@@ -118,8 +119,8 @@ class Archiver:
                 parameter_references=provenance['parameter-references']
             )
 
-    def __init__(self, uuid, type, provenance, archive_filepath=None,
-                 data_initializer=None):
+    def __init__(self, uuid, type, format: str, provenance,
+                 archive_filepath=None, data_initializer=None):
         """
 
         Parameters
@@ -142,6 +143,7 @@ class Archiver:
         self._uuid = uuid
         self._type = type
         self._provenance = provenance
+        self._format = format
 
         self._temp_dir = tempfile.mkdtemp(prefix='qiime2-archive-temp-')
         self._data_dir = os.path.join(self._temp_dir, self.DATA_DIRNAME)
@@ -152,6 +154,9 @@ class Archiver:
         else:
             os.mkdir(self._data_dir)
             data_initializer(self._data_dir)
+        # TODO: set _temp_dir to be read-only, don't forget that windows will
+        # fail on shutil.rmtree, so add an onerror callback which chmods and
+        # removes again
 
     def __del__(self):
         # Destructor can be called more than once.
@@ -180,6 +185,10 @@ class Archiver:
     @property
     def provenance(self):
         return self._provenance
+
+    @property
+    def format(self):
+        return self._format
 
     def orphan(self, pid):
         self._pid = pid
@@ -230,6 +239,7 @@ class Archiver:
         metadata_bytes = yaml.dump(collections.OrderedDict([
             ('uuid', self._formatted_uuid()),
             ('type', repr(self.type)),
+            ('format', self.format),
             ('provenance', self._formatted_provenance())
         ]), default_flow_style=False)
         zf.writestr(os.path.join(root_dir, self._METADATA_FILENAME),

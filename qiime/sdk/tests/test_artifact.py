@@ -15,7 +15,6 @@ import uuid
 import zipfile
 
 import qiime.core.type
-from qiime.plugin.data_layout import ValidationError
 from qiime.sdk import Artifact, Provenance
 from qiime.sdk.result import ResultMetadata
 
@@ -69,7 +68,8 @@ class TestArtifact(unittest.TestCase):
     # in case the internals change.
 
     def test_from_view(self):
-        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts, None)
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                       list, None)
 
         self.assertEqual(artifact.type, FourInts)
         self.assertIsNone(artifact.provenance)
@@ -81,8 +81,8 @@ class TestArtifact(unittest.TestCase):
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
 
     def test_from_view_with_provenance(self):
-        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
-                                       self.provenance)
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                       list, self.provenance)
 
         self.assertEqual(artifact.type, FourInts)
         self.assertEqual(artifact.provenance, self.provenance)
@@ -91,15 +91,17 @@ class TestArtifact(unittest.TestCase):
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
 
     def test_from_view_different_type_with_multiple_view_types(self):
-        artifact = Artifact._from_view([42, 42, 43, -999, 42], IntSequence1,
-                                       None)
+        artifact = Artifact._from_view(IntSequence1, [42, 42, 43, -999, 42],
+                                       list, None)
 
         self.assertEqual(artifact.type, IntSequence1)
         self.assertIsNone(artifact.provenance)
         self.assertIsInstance(artifact.uuid, uuid.UUID)
 
-        self.assertEqual(artifact.view(list), [42, 42, 43, -999, 42])
-        self.assertEqual(artifact.view(list), [42, 42, 43, -999, 42])
+        self.assertEqual(artifact.view(list),
+                         [42, 42, 43, -999, 42])
+        self.assertEqual(artifact.view(list),
+                         [42, 42, 43, -999, 42])
 
         self.assertEqual(artifact.view(collections.Counter),
                          collections.Counter({42: 3, 43: 1, -999: 1}))
@@ -110,8 +112,8 @@ class TestArtifact(unittest.TestCase):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         # Using four-ints data layout because it has multiple files, some of
         # which are in a nested directory.
-        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
-                                       self.provenance)
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                       list, self.provenance)
 
         artifact.save(fp)
 
@@ -129,7 +131,8 @@ class TestArtifact(unittest.TestCase):
             self.assertEqual(fps, expected)
 
     def test_load(self):
-        saved_artifact = Artifact._from_view([-1, 42, 0, 43], FourInts, None)
+        saved_artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                             list, None)
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         saved_artifact.save(fp)
 
@@ -142,8 +145,8 @@ class TestArtifact(unittest.TestCase):
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
 
     def test_load_with_provenance(self):
-        saved_artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
-                                             self.provenance)
+        saved_artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                             list, self.provenance)
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         saved_artifact.save(fp)
 
@@ -156,8 +159,9 @@ class TestArtifact(unittest.TestCase):
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
 
     def test_load_different_type_with_multiple_view_types(self):
-        saved_artifact = Artifact._from_view([42, 42, 43, -999, 42],
-                                             IntSequence1, None)
+        saved_artifact = Artifact._from_view(IntSequence1,
+                                             [42, 42, 43, -999, 42],
+                                             list, None)
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         saved_artifact.save(fp)
 
@@ -167,8 +171,10 @@ class TestArtifact(unittest.TestCase):
         self.assertIsNone(artifact.provenance)
         self.assertEqual(artifact.uuid, saved_artifact.uuid)
 
-        self.assertEqual(artifact.view(list), [42, 42, 43, -999, 42])
-        self.assertEqual(artifact.view(list), [42, 42, 43, -999, 42])
+        self.assertEqual(artifact.view(list),
+                         [42, 42, 43, -999, 42])
+        self.assertEqual(artifact.view(list),
+                         [42, 42, 43, -999, 42])
 
         self.assertEqual(artifact.view(collections.Counter),
                          collections.Counter({42: 3, 43: 1, -999: 1}))
@@ -178,8 +184,8 @@ class TestArtifact(unittest.TestCase):
     def test_load_and_save(self):
         fp1 = os.path.join(self.test_dir.name, 'artifact1.qza')
         fp2 = os.path.join(self.test_dir.name, 'artifact2.qza')
-        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
-                                       self.provenance)
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                       list, self.provenance)
         artifact.save(fp1)
 
         artifact = Artifact.load(fp1)
@@ -217,8 +223,9 @@ class TestArtifact(unittest.TestCase):
     def test_roundtrip(self):
         fp1 = os.path.join(self.test_dir.name, 'artifact1.qza')
         fp2 = os.path.join(self.test_dir.name, 'artifact2.qza')
-        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
-                                       self.provenance)
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                       list, self.provenance)
+
         artifact.save(fp1)
 
         artifact1 = Artifact.load(fp1)
@@ -228,8 +235,10 @@ class TestArtifact(unittest.TestCase):
         self.assertEqual(artifact1.type, artifact2.type)
         self.assertEqual(artifact1.provenance, artifact2.provenance)
         self.assertEqual(artifact1.uuid, artifact2.uuid)
-        self.assertEqual(artifact1.view(list), artifact2.view(list))
-        self.assertEqual(artifact1.view(list), artifact2.view(list))
+        self.assertEqual(artifact1.view(list),
+                         artifact2.view(list))
+        self.assertEqual(artifact1.view(list),
+                         artifact2.view(list))
 
     def test_load_from_externally_created_zipfile(self):
         # If a user unzips a .qza to inspect contents and rezips using a
@@ -243,7 +252,7 @@ class TestArtifact(unittest.TestCase):
         #
         # The following artifact was created with:
         #
-        #     artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
+        #     artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
         #                                    self.provenance)
         #     artifact.save('externally_created_zipfile.qza')
         #
@@ -303,7 +312,8 @@ class TestArtifact(unittest.TestCase):
     def test_load_with_archive_filepath_modified(self):
         # Save an artifact for use in the following test case.
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        Artifact._from_view([-1, 42, 0, 43], FourInts, None).save(fp)
+        Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
+                            None).save(fp)
 
         # Load the artifact from a filepath then save a different artifact to
         # the same filepath. Assert that both artifacts produce the correct
@@ -320,7 +330,8 @@ class TestArtifact(unittest.TestCase):
         # without extracting/copying data, so that API is now provided through
         # Artifact.peek.
         artifact1 = Artifact.load(fp)
-        Artifact._from_view([10, 11, 12, 13], FourInts, None).save(fp)
+        Artifact._from_view(FourInts, [10, 11, 12, 13], list,
+                            None).save(fp)
         artifact2 = Artifact.load(fp)
 
         self.assertEqual(artifact1.view(list), [-1, 42, 0, 43])
@@ -328,8 +339,8 @@ class TestArtifact(unittest.TestCase):
 
     def test_extract(self):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        artifact = Artifact._from_view([-1, 42, 0, 43], FourInts,
-                                       self.provenance)
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                       list, self.provenance)
         artifact.save(fp)
 
         output_dir = os.path.join(self.test_dir.name, 'artifact-extract-test')
@@ -350,7 +361,8 @@ class TestArtifact(unittest.TestCase):
                             'File %s was not extracted.' % fp)
 
     def test_peek(self):
-        artifact = Artifact._from_view([0, 0, 42, 1000], FourInts, None)
+        artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000],
+                                       list, None)
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         artifact.save(fp)
 
@@ -362,8 +374,8 @@ class TestArtifact(unittest.TestCase):
         self.assertEqual(metadata.uuid, artifact.uuid)
 
     def test_peek_with_provenance(self):
-        artifact = Artifact._from_view({'foo': 'bar', 'baz': 'bazz'}, Mapping,
-                                       self.provenance)
+        artifact = Artifact._from_view(Mapping, {'foo': 'bar', 'baz': 'bazz'},
+                                       dict, self.provenance)
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         artifact.save(fp)
 
@@ -388,24 +400,16 @@ class TestArtifact(unittest.TestCase):
         with open(fp, 'w') as fh:
             fh.write('42\n')
 
-        with self.assertRaisesRegex(NotADirectoryError,
-                                    "DataLayout\(name='four-ints', version=1\)"
-                                    ".*4 files.*test.txt"):
+        with self.assertRaisesRegex(ValueError,
+                                    "not.*directory"):
             Artifact.import_data(FourInts, fp)
 
     def test_import_data_with_wrong_number_of_files(self):
         data_dir = os.path.join(self.test_dir.name, 'test')
         os.mkdir(data_dir)
-        with open(os.path.join(data_dir, 'file1.txt'), 'w') as fh:
-            fh.write('42\n')
-        with open(os.path.join(data_dir, 'file2.txt'), 'w') as fh:
-            fh.write('43\n')
-
-        error_regex = ("DataLayout\(name='four-ints', version=1\).*"
-                       "4 files.*2 files.*test.*file1.txt, file2.txt, "
-                       "nested/file3.txt, nested/file4.txt")
-        with self.assertRaisesRegex(ValidationError, error_regex):
-            Artifact.import_data(FourInts, data_dir)
+        error_regex = ("Missing.*MappingDirectoryFormat.*mapping.tsv")
+        with self.assertRaisesRegex(ValueError, error_regex):
+            Artifact.import_data(Mapping, data_dir)
 
     def test_import_data_with_unrecognized_files(self):
         data_dir = os.path.join(self.test_dir.name, 'test')
@@ -421,18 +425,16 @@ class TestArtifact(unittest.TestCase):
         with open(os.path.join(nested, 'foo.txt'), 'w') as fh:
             fh.write('45\n')
 
-        error_regex = ("foo.txt.*DataLayout\(name='four-ints', version=1\).*"
-                       "file1.txt, file2.txt, nested/file3.txt, "
-                       "nested/file4.txt")
-        with self.assertRaisesRegex(ValidationError, error_regex):
+        error_regex = ("Unrecognized.*foo.txt.*FourIntsDirectoryFormat")
+        with self.assertRaisesRegex(ValueError, error_regex):
             Artifact.import_data(FourInts, data_dir)
 
     def test_import_data_with_unreachable_path(self):
-        with self.assertRaisesRegex(OSError, "Path does not exist.*foo.txt"):
+        with self.assertRaisesRegex(ValueError, "not.*directory"):
             Artifact.import_data(IntSequence1,
                                  os.path.join(self.test_dir.name, 'foo.txt'))
 
-        with self.assertRaisesRegex(OSError, "Path does not exist.*bar"):
+        with self.assertRaisesRegex(ValueError, "not.*directory"):
             Artifact.import_data(FourInts,
                                  os.path.join(self.test_dir.name, 'bar'))
 
@@ -444,8 +446,8 @@ class TestArtifact(unittest.TestCase):
             fh.write('abc\n')
             fh.write('123\n')
 
-        error_regex = "foo.txt.*'int-sequence'"
-        with self.assertRaisesRegex(ValidationError, error_regex):
+        error_regex = "foo.txt.*IntSequenceFormat"
+        with self.assertRaisesRegex(ValueError, error_regex):
             Artifact.import_data(IntSequence1, fp)
 
     def test_import_data_with_invalid_format_multi_file(self):
@@ -462,8 +464,8 @@ class TestArtifact(unittest.TestCase):
         with open(os.path.join(nested, 'file4.txt'), 'w') as fh:
             fh.write('foo\n')
 
-        error_regex = "file4.txt.*'single-int'"
-        with self.assertRaisesRegex(ValidationError, error_regex):
+        error_regex = "file4.txt.*SingleIntFormat"
+        with self.assertRaisesRegex(ValueError, error_regex):
             Artifact.import_data(FourInts, data_dir)
 
     def test_import_data_with_filepath(self):

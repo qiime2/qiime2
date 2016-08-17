@@ -33,6 +33,7 @@ class TestArchiver(unittest.TestCase):
                 self._uuid = 'foo'
                 self._type = 'bar'
                 self._provenance = 'baz'
+                self._format = 'quux'
         self.FakeArchiver = FakeArchiver
 
     def tearDown(self):
@@ -141,6 +142,7 @@ class TestArchiver(unittest.TestCase):
                     self.assertEqual(fh.read(),
                                      "uuid: foo\n"
                                      "type: '''bar'''\n"
+                                     "format: quux\n"
                                      "provenance: baz\n")
 
 

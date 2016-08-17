@@ -215,8 +215,10 @@ class TestMethod(unittest.TestCase):
         concatenate_ints_markdown = \
             self.plugin.methods['concatenate_ints_markdown']
 
-        artifact1 = Artifact._from_view([0, 42, 43], IntSequence1, None)
-        artifact2 = Artifact._from_view([99, -22], IntSequence2, None)
+        artifact1 = Artifact._from_view(IntSequence1, [0, 42, 43],
+                                        list, None)
+        artifact2 = Artifact._from_view(IntSequence2, [99, -22],
+                                        list, None)
 
         for method in concatenate_ints, concatenate_ints_markdown:
             result = method(artifact1, artifact1, artifact2, 55, 1)
@@ -254,7 +256,8 @@ class TestMethod(unittest.TestCase):
                              exp_counter_view)
 
             # Accepts IntSequence1 | IntSequence2
-            artifact3 = Artifact._from_view([10, 20], IntSequence2, None)
+            artifact3 = Artifact._from_view(IntSequence2, [10, 20],
+                                            list, None)
             result = method(artifact3, artifact1, artifact2, 55, 1)
 
             self.assertEqual(result.type, IntSequence1)
@@ -265,7 +268,8 @@ class TestMethod(unittest.TestCase):
         split_ints = self.plugin.methods['split_ints']
         split_ints_markdown = self.plugin.methods['split_ints_markdown']
 
-        artifact = Artifact._from_view([0, 42, -2, 43, 6], IntSequence1, None)
+        artifact = Artifact._from_view(IntSequence1, [0, 42, -2, 43, 6],
+                                       list, None)
 
         for method in split_ints, split_ints_markdown:
             result = method(artifact)
@@ -307,9 +311,10 @@ class TestMethod(unittest.TestCase):
     def test_call_with_no_parameters(self):
         merge_mappings = self.plugin.methods['merge_mappings']
 
-        artifact1 = Artifact._from_view({'foo': 'abc', 'bar': 'def'}, Mapping,
-                                        None)
-        artifact2 = Artifact._from_view({'bazz': 'abc'}, Mapping, None)
+        artifact1 = Artifact._from_view(Mapping, {'foo': 'abc', 'bar': 'def'},
+                                        dict, None)
+        artifact2 = Artifact._from_view(Mapping, {'bazz': 'abc'},
+                                        dict, None)
 
         result = merge_mappings(artifact1, artifact2)
 
@@ -337,8 +342,10 @@ class TestMethod(unittest.TestCase):
         concatenate_ints_markdown = \
             self.plugin.methods['concatenate_ints_markdown']
 
-        artifact1 = Artifact._from_view([0, 42, 43], IntSequence1, None)
-        artifact2 = Artifact._from_view([99, -22], IntSequence2, None)
+        artifact1 = Artifact._from_view(IntSequence1, [0, 42, 43],
+                                        list, None)
+        artifact2 = Artifact._from_view(IntSequence2, [99, -22],
+                                        list, None)
 
         for method in concatenate_ints, concatenate_ints_markdown:
             future = method.async(artifact1, artifact1, artifact2, 55, 1)
@@ -379,7 +386,7 @@ class TestMethod(unittest.TestCase):
                              exp_counter_view)
 
             # Accepts IntSequence1 | IntSequence2
-            artifact3 = Artifact._from_view([10, 20], IntSequence2, None)
+            artifact3 = Artifact._from_view(IntSequence2, [10, 20], list, None)
             future = method.async(artifact3, artifact1, artifact2, 55, 1)
             result = future.result()
 
@@ -391,7 +398,8 @@ class TestMethod(unittest.TestCase):
         split_ints = self.plugin.methods['split_ints']
         split_ints_markdown = self.plugin.methods['split_ints_markdown']
 
-        artifact = Artifact._from_view([0, 42, -2, 43, 6], IntSequence1, None)
+        artifact = Artifact._from_view(IntSequence1, [0, 42, -2, 43, 6], list,
+                                       None)
 
         for method in split_ints, split_ints_markdown:
             future = method.async(artifact)

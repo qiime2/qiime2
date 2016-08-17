@@ -365,7 +365,7 @@ class MethodCallable(Callable):
                     "Expected output view type %r, received %r" %
                     (view_type.__name__, type(output_view).__name__))
             artifact = qiime.sdk.Artifact._from_view(
-                output_view, semantic_type, provenance)
+                semantic_type, output_view, view_type, provenance)
             output_artifacts.append(artifact)
 
         if len(output_artifacts) == 1:

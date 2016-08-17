@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import inspect
+import collections
 import pkg_resources
 import types
 
@@ -15,9 +16,16 @@ import frontmatter
 import qiime.sdk
 import qiime.core.type.grammar as grammar
 from qiime.core.callable import MethodCallable, VisualizerCallable
+from qiime.plugin.model import DirectoryFormat
 from qiime.core.type import is_semantic_type
 
-from .data_layout import DataLayout
+
+TransformerRecord = collections.namedtuple(
+    'TransformerRecord', ['transformer', 'restrict', 'plugin'])
+SemanticTypeRecord = collections.namedtuple(
+    'SemanticTypeRecord', ['semantic_type', 'plugin'])
+TypeFormatRecord = collections.namedtuple(
+    'TypeFormatRecord', ['type_expression', 'format', 'plugin'])
 
 
 class Plugin:
@@ -42,11 +50,9 @@ class Plugin:
         self.methods = PluginMethods(self)
         self.visualizers = PluginVisualizers(self)
 
-        self.data_layouts = {}
-        self.data_layout_readers = {}
-        self.data_layout_writers = {}
         self.types = {}
-        self.type_to_data_layouts = {}
+        self.transformers = {}
+        self.type_formats = []
 
     @property
     def actions(self):
@@ -59,23 +65,55 @@ class Plugin:
         actions.update(self.visualizers)
         return types.MappingProxyType(actions)
 
-    def register_data_layout(self, data_layout):
-        if not isinstance(data_layout, DataLayout):
-            raise TypeError(
-                "`data_layout` must be an instance of type %r, not type %r."
-                % (DataLayout.__name__, type(data_layout).__name__))
-        # Finalize data layout to prevent additional files from being
-        # registered on the data layout after it has been registered.
-        data_layout.finalize()
-        name = data_layout.name
-        version = data_layout.version
-        self.data_layouts[(name, version)] = data_layout
+    def register_transformer(self, _fn=None, *, restrict=None):
+        """
+        A transformer has the type Callable[[type], type]
+        """
+        # `_fn` allows us to figure out if we are called with or without
+        # arguments in order to support both:
+        # ```
+        # @plugin.register_transformer
+        # def _(x: A) -> B:
+        #    ...
+        # ```
+        # and
+        # ```
+        # @plugin.register_transformer(restrict=True)
+        # def _(x: A) -> B:
+        #   ...
+        # ```
 
-    def register_data_layout_reader(self, name, version, view_type, reader):
-        self.data_layout_readers[(name, version, view_type)] = reader
+        def decorator(transformer):
+            annotations = transformer.__annotations__.copy()
+            if len(annotations) != 2:
+                raise TypeError("A transformer must only have a single input"
+                                " and output annotation.")
+            if type(annotations['return']) is tuple:
+                raise TypeError("A transformer can only return a single type,"
+                                " not %r." % (annotations['return'],))
+            try:
+                output = annotations.pop('return')
+            except KeyError:
+                raise TypeError("A transformer must provide a return type.")
 
-    def register_data_layout_writer(self, name, version, view_type, writer):
-        self.data_layout_writers[(name, version, view_type)] = writer
+            input = list(annotations.values())[0]
+            if (input, output) in self.transformers:
+                raise TypeError("Duplicate transformer (%r) from %r to %r."
+                                % (transformer, input, output))
+            if input == output:
+                raise TypeError("Plugins should not register identity"
+                                " transformations (%r, %r to %r)."
+                                % (transformer, input, output))
+
+            self.transformers[input, output] = TransformerRecord(
+                transformer=transformer, restrict=restrict, plugin=self)
+            return transformer
+
+        if _fn is None:
+            return decorator
+        else:
+            # Apply the decorator as we were applied with a single function
+            return decorator(_fn)
 
     def register_semantic_type(self, semantic_type):
         if not is_semantic_type(semantic_type):
@@ -90,20 +128,24 @@ class Plugin:
             raise ValueError("Duplicate semantic type symbol %r."
                              % semantic_type)
 
-        self.types[semantic_type.name] = semantic_type
+        self.types[semantic_type.name] = SemanticTypeRecord(
+            semantic_type=semantic_type, plugin=self)
 
-    def register_type_to_data_layout(self, semantic_type, name, version):
+    def register_semantic_type_to_format(self, semantic_type, artifact_format):
+        if not issubclass(artifact_format, DirectoryFormat):
+            raise TypeError("%r is not a directory format." % artifact_format)
         if not is_semantic_type(semantic_type):
             raise TypeError("%r is not a semantic type." % semantic_type)
         if not isinstance(semantic_type, grammar.TypeExpression):
             raise ValueError("%r is not a semantic type expression."
                              % semantic_type)
+        if semantic_type.predicate is not None:
+            raise ValueError("%r has a predicate, differentiating format on"
+                             " predicate is not supported.")
 
-        self.type_to_data_layouts[semantic_type] = (name, version)
-
-    # TODO: should register_data_layout, register_semantic_type, and
-    # register_type_to_data_layout be namespaced to indicate that they
-    # shouldn't typically be used by plugin devs?
+        self.type_formats.append(TypeFormatRecord(
+            type_expression=semantic_type,
+            format=artifact_format, plugin=self))
 
 
 class PluginActions(dict):
