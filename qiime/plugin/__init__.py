@@ -13,9 +13,9 @@ from .template import plugin_init
 
 from qiime.core.type import (SemanticType, Int, Str, Float, Color, Metadata,
                              MetadataCategory, Properties, Range, Choices,
-                             Arguments)
+                             Arguments, Bool)
 
 
 __all__ = ['DataLayout', 'FileFormat', 'Plugin', 'SemanticType', 'Int', 'Str',
            'Float', 'Color', 'Metadata', 'MetadataCategory', 'Properties',
-           'Range', 'Choices', 'Arguments', 'plugin_init']
+           'Range', 'Choices', 'Arguments', 'plugin_init', 'Bool']

@@ -349,6 +349,27 @@ class _Float(_Primitive):
 Float = _Float('Float')
 
 
+class _Bool(_Primitive):
+    _valid_predicates = {Arguments, }
+
+    def _is_element_(self, value):
+        return isinstance(value, bool)
+
+    def decode(self, string):
+        if string not in ('false', 'true'):
+            raise TypeError("%s is neither 'true' or 'false'" % string)
+
+        return string == 'true'
+
+    def encode(self, value):
+        if value:
+            return 'true'
+        else:
+            return 'false'
+
+Bool = _Bool('Bool')
+
+
 class _Color(type(Str)):
     def _is_element_(self, value):
         # Regex from: http://stackoverflow.com/a/1636354/579416
