@@ -10,13 +10,13 @@ import collections
 import concurrent.futures
 import inspect
 import os.path
-import tempfile
 import uuid
 
 import decorator
 
 import qiime.sdk
 import qiime.core.type as qtype
+from qiime.core.path import TempPath
 
 
 # Descriptor protocol for methods with dynamic signatures built from the
@@ -219,14 +219,14 @@ class Visualizer:
                 parameter_references)
 
             # TODO use user-configured temp dir
-            with tempfile.TemporaryDirectory('qiime2-temp-') as temp_dir:
-                ret_val = self._callable(output_dir=temp_dir, **view_args)
+            with TempPath(dir=True) as temp_dir:
+                ret_val = self._callable(output_dir=str(temp_dir), **view_args)
                 if ret_val is not None:
                     raise TypeError(
                         "Visualizer %r should not return anything. "
                         "Received %r as a return value." % (self, ret_val))
                 visualization = qiime.sdk.Visualization._from_data_dir(
-                    temp_dir, provenance)
+                    str(temp_dir), provenance)
                 visualization._orphan(self._pid)
                 return visualization
 
