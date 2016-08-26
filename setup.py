@@ -10,7 +10,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='qiime',
-    version='2.0.2',
+    version='2.0.3.dev',
     license='BSD-3-Clause',
     packages=find_packages(),
     install_requires=['python-frontmatter', 'pyyaml', 'ipymd >= 0.1.2',
