@@ -142,3 +142,7 @@ class TestArchiver(unittest.TestCase):
                                      "uuid: foo\n"
                                      "type: '''bar'''\n"
                                      "provenance: baz\n")
+
+
+if __name__ == '__main__':
+    unittest.main()

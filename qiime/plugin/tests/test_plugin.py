@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import collections
+import types
 import unittest
 
 import qiime.plugin
@@ -71,6 +72,24 @@ class TestPlugin(unittest.TestCase):
         self.assertTrue(plugin.user_support_text.endswith(
                             plugin.website))
 
+    def test_actions(self):
+        actions = self.plugin.actions
+
+        self.assertIsInstance(actions, types.MappingProxyType)
+        self.assertEqual(actions.keys(),
+                         {'merge_mappings', 'concatenate_ints',
+                          'concatenate_ints_markdown', 'split_ints',
+                          'split_ints_markdown', 'most_common_viz',
+                          'mapping_viz'})
+        for action in actions.values():
+            self.assertIsInstance(action, qiime.sdk.Action)
+
+        # Read-only dict.
+        with self.assertRaises(TypeError):
+            actions["i-shouldn't-do-this"] = "my-action"
+        with self.assertRaises(TypeError):
+            actions["merge_mappings"] = "my-action"
+
     def test_methods(self):
         methods = self.plugin.methods
 
@@ -79,7 +98,7 @@ class TestPlugin(unittest.TestCase):
                           'concatenate_ints_markdown', 'split_ints',
                           'split_ints_markdown'})
         for method in methods.values():
-            self.assertIsInstance(method, qiime.sdk.Method)
+            self.assertIsInstance(method, qiime.sdk.Action)
 
     def test_visualizers(self):
         visualizers = self.plugin.visualizers
@@ -87,7 +106,7 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(visualizers.keys(),
                          {'most_common_viz', 'mapping_viz'})
         for viz in visualizers.values():
-            self.assertIsInstance(viz, qiime.sdk.Visualizer)
+            self.assertIsInstance(viz, qiime.sdk.Action)
 
     def test_data_layouts(self):
         data_layouts = self.plugin.data_layouts

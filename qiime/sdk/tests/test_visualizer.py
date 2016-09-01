@@ -17,8 +17,8 @@ import zipfile
 
 import qiime.plugin
 import qiime.core.type
-from qiime.core.type import Signature
-from qiime.sdk import Artifact, Visualization, Visualizer, Provenance
+from qiime.core.type import VisualizerSignature
+from qiime.sdk import Artifact, Visualization, Provenance, Action
 
 from qiime.core.testing.type import IntSequence1, IntSequence2, Mapping
 from qiime.core.testing.util import get_dummy_plugin
@@ -35,15 +35,15 @@ class TestVisualizer(unittest.TestCase):
 
     def test_private_constructor(self):
         with self.assertRaisesRegex(NotImplementedError,
-                                    'Visualizer constructor.*private'):
-            Visualizer()
+                                    'Action constructor.*private'):
+            Action()
 
     def test_from_function_with_artifacts_and_parameters(self):
         visualizer = self.plugin.visualizers['mapping_viz']
 
         self.assertEqual(visualizer.id, 'mapping_viz')
 
-        exp_sig = Signature(
+        exp_sig = VisualizerSignature(
             inputs={
                 'mapping1': (Mapping, dict),
                 'mapping2': (Mapping, dict)
@@ -70,7 +70,7 @@ class TestVisualizer(unittest.TestCase):
 
         self.assertEqual(visualizer.id, 'most_common_viz')
 
-        exp_sig = Signature(
+        exp_sig = VisualizerSignature(
             inputs={
                 'ints': (IntSequence1 | IntSequence2, collections.Counter)
             },
@@ -282,19 +282,36 @@ class TestVisualizer(unittest.TestCase):
             self.assertEqual(fps, expected)
 
     def test_visualizer_callable_output(self):
+        artifact = Artifact._from_view(
+            {'foo': 'abc', 'bar': 'def'}, Mapping, None)
+
         # Callable returns a value from `return_vals`
         return_vals = (True, False, [], {}, '', 0, 0.0)
         for return_val in return_vals:
-            visualizer = Visualizer.from_function(
-                lambda output_dir: return_val, {}, {}, '', ''
+            def func(output_dir: str, foo: dict) -> None:
+                return return_val
+
+            self.plugin.visualizers.register_function(
+                func, {'foo': Mapping}, {}, '', ''
             )
+            visualizer = self.plugin.visualizers['func']
+
             with self.assertRaisesRegex(TypeError, "should not return"):
-                visualizer()
+                visualizer(foo=artifact)
 
         # Callable returns None (default function return)
-        visualizer = Visualizer.from_function(lambda output_dir: None,
-                                              {}, {}, '', '')
-        visualizer()  # Should not raise an exception
+        def func(output_dir: str, foo: dict) -> None:
+            return None
+
+        self.plugin.visualizers.register_function(
+            func, {'foo': Mapping}, {}, '', ''
+        )
+        visualizer = self.plugin.visualizers['func']
+
+        # Should not raise an exception
+        output = visualizer(foo=artifact)
+        self.assertIsInstance(output, Visualization)
+
 
 if __name__ == '__main__':
     unittest.main()

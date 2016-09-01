@@ -9,23 +9,28 @@
 import collections
 import concurrent.futures
 import inspect
-import pkg_resources
 import unittest
 import uuid
 
 import qiime.plugin
-from qiime.core.type import Signature
-from qiime.sdk import Artifact, Method, Provenance
+from qiime.core.callable import Results
+from qiime.core.type import MethodSignature
+from qiime.sdk import Artifact, Provenance, Action
 
 from qiime.core.testing.type import IntSequence1, IntSequence2, Mapping
 from qiime.core.testing.util import get_dummy_plugin
 
 
+# TODO refactor these tests now that qiime.sdk.Action exists, and
+# Method/Visualizer classes have been removed. It probably makes sense to move
+# some of the tests here (and in Visualizer tests) into Action-specific test
+# cases (this will also remove some of the redundant tests betwen Method and
+# Visualizer).
 class TestMethod(unittest.TestCase):
     def setUp(self):
         self.plugin = get_dummy_plugin()
 
-        self.concatenate_ints_sig = Signature(
+        self.concatenate_ints_sig = MethodSignature(
             inputs={
                 'ints1': (IntSequence1 | IntSequence2, list),
                 'ints2': (IntSequence1, list),
@@ -40,7 +45,7 @@ class TestMethod(unittest.TestCase):
             ])
         )
 
-        self.split_ints_sig = Signature(
+        self.split_ints_sig = MethodSignature(
             inputs={
                 'ints': (IntSequence1, list)
             },
@@ -53,8 +58,8 @@ class TestMethod(unittest.TestCase):
 
     def test_private_constructor(self):
         with self.assertRaisesRegex(NotImplementedError,
-                                    'Method constructor.*private'):
-            Method()
+                                    'Action constructor.*private'):
+            Action()
 
     def test_from_markdown_with_artifacts_and_parameters(self):
         method = self.plugin.methods['concatenate_ints_markdown']
@@ -94,7 +99,7 @@ class TestMethod(unittest.TestCase):
 
         self.assertEqual(method.id, 'split_ints')
 
-        exp_sig = Signature(
+        exp_sig = MethodSignature(
             inputs={
                 'ints': (IntSequence1, list)
             },
@@ -117,7 +122,7 @@ class TestMethod(unittest.TestCase):
 
         self.assertEqual(method.id, 'merge_mappings')
 
-        exp_sig = Signature(
+        exp_sig = MethodSignature(
             inputs={
                 'mapping1': (Mapping, dict),
                 'mapping2': (Mapping, dict)
@@ -269,6 +274,7 @@ class TestMethod(unittest.TestCase):
             self.assertEqual(len(result), 2)
 
             for output_artifact in result:
+                self.assertIsInstance(output_artifact, Artifact)
                 self.assertEqual(output_artifact.type, IntSequence1)
 
                 provenance = output_artifact.provenance
@@ -289,8 +295,14 @@ class TestMethod(unittest.TestCase):
             # Output artifacts have different UUIDs.
             self.assertNotEqual(result[0].uuid, result[1].uuid)
 
+            # Index lookup.
             self.assertEqual(result[0].view(list), [0, 42])
             self.assertEqual(result[1].view(list), [-2, 43, 6])
+
+            # Test properties of the `Results` object.
+            self.assertIsInstance(result, Results)
+            self.assertEqual(result.left.view(list), [0, 42])
+            self.assertEqual(result.right.view(list), [-2, 43, 6])
 
     def test_call_with_no_parameters(self):
         merge_mappings = self.plugin.methods['merge_mappings']
@@ -375,26 +387,66 @@ class TestMethod(unittest.TestCase):
             self.assertEqual(result.view(list),
                              [10, 20, 0, 42, 43, 99, -22, 55, 1])
 
-    def test_markdown_input_section_validation(self):
-        fp = pkg_resources.resource_filename(
-            'qiime.sdk.tests', 'data/method_bad_input_section.md')
+    def test_async_with_multiple_outputs(self):
+        split_ints = self.plugin.methods['split_ints']
+        split_ints_markdown = self.plugin.methods['split_ints_markdown']
 
+        artifact = Artifact._from_view([0, 42, -2, 43, 6], IntSequence1, None)
+
+        for method in split_ints, split_ints_markdown:
+            future = method.async(artifact)
+
+            self.assertIsInstance(future, concurrent.futures.Future)
+            result = future.result()
+
+            self.assertIsInstance(result, tuple)
+            self.assertEqual(len(result), 2)
+
+            for output_artifact in result:
+                self.assertIsInstance(output_artifact, Artifact)
+                self.assertEqual(output_artifact.type, IntSequence1)
+
+                provenance = output_artifact.provenance
+                self.assertIsInstance(provenance, Provenance)
+                self.assertIsInstance(provenance.execution_uuid, uuid.UUID)
+                self.assertTrue(
+                    provenance.executor_reference.startswith(method.id))
+                self.assertEqual(provenance.artifact_uuids, {
+                    'ints': artifact.uuid
+                })
+                self.assertEqual(provenance.parameter_references, {})
+
+                self.assertIsInstance(output_artifact.uuid, uuid.UUID)
+
+            # Output artifacts have the same provenance.
+            self.assertEqual(result[0].provenance, result[1].provenance)
+
+            # Output artifacts have different UUIDs.
+            self.assertNotEqual(result[0].uuid, result[1].uuid)
+
+            # Index lookup.
+            self.assertEqual(result[0].view(list), [0, 42])
+            self.assertEqual(result[1].view(list), [-2, 43, 6])
+
+            # Test properties of the `Results` object.
+            self.assertIsInstance(result, Results)
+            self.assertEqual(result.left.view(list), [0, 42])
+            self.assertEqual(result.right.view(list), [-2, 43, 6])
+
+    def test_markdown_input_section_validation(self):
         with self.assertRaisesRegex(TypeError, 'input section'):
-            Method.from_markdown(fp)
+            self.plugin.methods.register_markdown(
+                'markdown/method_bad_input_section.md')
 
     def test_markdown_parameters_section_validation(self):
-        fp = pkg_resources.resource_filename(
-            'qiime.sdk.tests', 'data/method_bad_parameters_section.md')
-
         with self.assertRaisesRegex(TypeError, 'parameters section'):
-            Method.from_markdown(fp)
+            self.plugin.methods.register_markdown(
+                'markdown/method_bad_parameters_section.md')
 
     def test_markdown_outputs_section_validation(self):
-        fp = pkg_resources.resource_filename(
-            'qiime.sdk.tests', 'data/method_bad_outputs_section.md')
-
         with self.assertRaisesRegex(TypeError, 'outputs section'):
-            Method.from_markdown(fp)
+            self.plugin.methods.register_markdown(
+                'markdown/method_bad_outputs_section.md')
 
 
 if __name__ == '__main__':
