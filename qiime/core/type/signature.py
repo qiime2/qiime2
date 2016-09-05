@@ -24,7 +24,7 @@ from .visualization import Visualization
 # input semantic types, zero or more parameters, and produce one or more output
 # semantic types or Visualization types.
 class PipelineSignature:
-    def __init__(self, inputs, parameters, outputs):
+    def __init__(self, inputs, parameters, defaults, outputs):
         """
         Parameters
         ----------
@@ -32,18 +32,21 @@ class PipelineSignature:
             Parameter name to tuple of semantic type and view type.
         parameters : dict
             Parameter name to tuple of primitive type and view type.
+        defaults : dict
+            Parameter name to default argument.
         outputs : collections.OrderedDict
             Named output to tuple of QIIME type and view type.
-
         """
         # TODO ensure `inputs`, `parameters`, and `outputs` are OrderedDicts.
         self._assert_valid_inputs(inputs)
         self._assert_valid_parameters(parameters)
+        self._assert_valid_defaults(defaults, parameters)
         self._assert_valid_outputs(outputs)
 
         self.inputs = inputs
         self.parameters = parameters
         self.outputs = outputs
+        self.defaults = defaults
 
     def _assert_valid_inputs(self, inputs):
         if len(inputs) == 0:
@@ -72,6 +75,18 @@ class PipelineSignature:
                 raise TypeError(
                     "Parameter %r must be a complete primitive type "
                     "expression, not %r" % (param_name, primitive_type))
+
+    def _assert_valid_defaults(self, defaults, parameters):
+        # only parameters can have defaults and the type must match
+        for param_name, default in defaults.items():
+            if param_name not in parameters:
+                raise ValueError("Input %r must not have a default value" %
+                                 param_name)
+
+            if default not in parameters[param_name][0]:
+                raise TypeError("Default value for parameter %r is not of "
+                                "semantic QIIME type %r" %
+                                (param_name, parameters[param_name][0]))
 
     def _assert_valid_outputs(self, outputs):
         if len(outputs) == 0:
@@ -130,6 +145,7 @@ class PipelineSignature:
         return (type(self) is type(other) and
                 self.inputs == other.inputs and
                 self.parameters == other.parameters and
+                self.defaults == other.defaults and
                 self.outputs == other.outputs)
 
     def __ne__(self, other):
@@ -174,7 +190,8 @@ class MethodSignature(PipelineSignature):
                 )
             output_types[name] = cls._split_type_tuple(type_tuple, 'semantic')
 
-        return cls(input_types, param_types, output_types)
+        # TODO come up with a nice way to format default values in markdown
+        return cls(input_types, param_types, {}, output_types)
 
     @classmethod
     def _split_type_tuple(cls, type_tuple, expect):
@@ -196,8 +213,8 @@ class MethodSignature(PipelineSignature):
             raise ImportError("Could not import view type %r" % view_type_str)
         return view_type
 
-    def __init__(self, inputs, parameters, outputs):
-        super().__init__(inputs, parameters, outputs)
+    def __init__(self, inputs, parameters, defaults, outputs):
+        super().__init__(inputs, parameters, defaults, outputs)
 
         # Assert all output types are semantic types. The parent class is less
         # strict in its output type requirements.
@@ -240,8 +257,8 @@ class VisualizerSignature(PipelineSignature):
         return function_to_signature(cls, function, inputs, parameters,
                                      outputs)
 
-    def __init__(self, inputs, parameters, outputs):
-        super().__init__(inputs, parameters, outputs)
+    def __init__(self, inputs, parameters, defaults, outputs):
+        super().__init__(inputs, parameters, defaults, outputs)
 
         # Assert there is exactly one output that is a Visualization type. The
         # parent class is less strict in its output requirements.
@@ -266,15 +283,12 @@ def function_to_signature(cls, function, inputs, parameters, outputs):
     # TODO prevent function signature from mixing artifacts and primitives.
     # Artifacts come first followed by primitives.
 
-    input_types = {}
-    for param_name, semantic_type in inputs.items():
-        view_type = function.__annotations__[param_name]
-        input_types[param_name] = (semantic_type, view_type)
-
-    param_types = {}
-    for param_name, primitive_type in parameters.items():
-        view_type = function.__annotations__[param_name]
-        param_types[param_name] = (primitive_type, view_type)
+    sig_params = inspect.signature(function).parameters
+    annotations = {n: p.annotation for n, p in sig_params.items()}
+    input_types = {n: (t, annotations[n]) for n, t in inputs.items()}
+    param_types = {n: (t, annotations[n]) for n, t in parameters.items()}
+    defaults = {n: p.default for n, p in sig_params.items()
+                if p.default is not p.empty and n in parameters}
 
     outputs = collections.OrderedDict(outputs)
     output_view_types = qiime.core.util.tuplize(
@@ -288,7 +302,7 @@ def function_to_signature(cls, function, inputs, parameters, outputs):
         view_type = output_view_types[output_name]
         output_types[output_name] = (semantic_type, view_type)
 
-    return cls(input_types, param_types, output_types)
+    return cls(input_types, param_types, defaults, output_types)
 
 
 def get_return_annotation(function):

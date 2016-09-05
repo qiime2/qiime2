@@ -53,6 +53,7 @@ class TestVisualizer(unittest.TestCase):
                 'key_label': (qiime.plugin.Str, str),
                 'value_label': (qiime.plugin.Str, str)
             },
+            defaults={},
             outputs=collections.OrderedDict([
                 ('visualization', (qiime.core.type.Visualization, None))
             ])
@@ -76,6 +77,7 @@ class TestVisualizer(unittest.TestCase):
                 'ints': (IntSequence1 | IntSequence2, collections.Counter)
             },
             parameters={},
+            defaults={},
             outputs=collections.OrderedDict([
                 ('visualization', (qiime.core.type.Visualization, None))
             ])

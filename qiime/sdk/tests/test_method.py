@@ -40,6 +40,7 @@ class TestMethod(unittest.TestCase):
                 'int1': (qiime.plugin.Int, int),
                 'int2': (qiime.plugin.Int, int)
             },
+            defaults={},
             outputs=collections.OrderedDict([
                 ('concatenated_ints', (IntSequence1, list))
             ])
@@ -50,6 +51,7 @@ class TestMethod(unittest.TestCase):
                 'ints': (IntSequence1, list)
             },
             parameters={},
+            defaults={},
             outputs=collections.OrderedDict([
                 ('left', (IntSequence1, list)),
                 ('right', (IntSequence1, list))
@@ -104,6 +106,7 @@ class TestMethod(unittest.TestCase):
                 'ints': (IntSequence1, list)
             },
             parameters={},
+            defaults={},
             outputs=collections.OrderedDict([
                 ('left', (IntSequence1, list)),
                 ('right', (IntSequence1, list))
@@ -128,6 +131,7 @@ class TestMethod(unittest.TestCase):
                 'mapping2': (Mapping, dict)
             },
             parameters={},
+            defaults={},
             outputs=collections.OrderedDict([
                 ('merged_mapping', (Mapping, dict))
             ])
