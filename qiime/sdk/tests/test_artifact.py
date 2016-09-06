@@ -524,6 +524,65 @@ class TestArtifact(unittest.TestCase):
         self.assertIsInstance(artifact.uuid, uuid.UUID)
         self.assertEqual(artifact.view(list), [42, 41, 43, 40])
 
+    def test_eq_identity(self):
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                       list, self.provenance)
+
+        self.assertEqual(artifact, artifact)
+
+    def test_eq_same_uuid(self):
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        artifact1 = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                        list, self.provenance)
+        artifact1.save(fp)
+
+        artifact2 = Artifact.load(fp)
+
+        self.assertEqual(artifact1, artifact2)
+
+    def test_ne_same_data_different_uuid(self):
+        artifact1 = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                        list, self.provenance)
+        artifact2 = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                        list, self.provenance)
+
+        self.assertNotEqual(artifact1, artifact2)
+
+    def test_ne_different_data_different_uuid(self):
+        artifact1 = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                        list, self.provenance)
+        artifact2 = Artifact._from_view(FourInts, [1, 2, 3, 4],
+                                        list, self.provenance)
+
+        self.assertNotEqual(artifact1, artifact2)
+
+    def test_ne_subclass_same_uuid(self):
+        class ArtifactSubclass(Artifact):
+            pass
+
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        artifact1 = ArtifactSubclass._from_view(FourInts, [-1, 42, 0, 43],
+                                                list, self.provenance)
+        artifact1.save(fp)
+
+        artifact2 = Artifact.load(fp)
+
+        self.assertNotEqual(artifact1, artifact2)
+        self.assertNotEqual(artifact2, artifact1)
+
+    def test_ne_different_type_same_uuid(self):
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
+                                       list, self.provenance)
+
+        class Faker:
+            @property
+            def uuid(self):
+                return artifact.uuid
+
+        faker = Faker()
+
+        self.assertNotEqual(artifact, faker)
+
 
 if __name__ == '__main__':
     unittest.main()

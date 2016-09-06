@@ -408,6 +408,70 @@ class TestVisualization(unittest.TestCase):
         self.assertEqual(metadata.provenance, self.provenance)
         self.assertEqual(metadata.uuid, visualization.uuid)
 
+    def test_eq_identity(self):
+        visualization = Visualization._from_data_dir(self.data_dir,
+                                                     self.provenance)
+
+        self.assertEqual(visualization, visualization)
+
+    def test_eq_same_uuid(self):
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
+        visualization1 = Visualization._from_data_dir(self.data_dir,
+                                                      self.provenance)
+        visualization1.save(fp)
+
+        visualization2 = Visualization.load(fp)
+
+        self.assertEqual(visualization1, visualization2)
+
+    def test_ne_same_data_different_uuid(self):
+        visualization1 = Visualization._from_data_dir(self.data_dir,
+                                                      self.provenance)
+        visualization2 = Visualization._from_data_dir(self.data_dir,
+                                                      self.provenance)
+
+        self.assertNotEqual(visualization1, visualization2)
+
+    def test_ne_different_data_different_uuid(self):
+        visualization1 = Visualization._from_data_dir(self.data_dir,
+                                                      self.provenance)
+
+        data_dir = os.path.join(self.test_dir.name, 'mc-viz-output1')
+        os.mkdir(data_dir)
+        most_common_viz(data_dir,
+                        collections.Counter(range(42)))
+        visualization2 = Visualization._from_data_dir(data_dir,
+                                                      self.provenance)
+
+        self.assertNotEqual(visualization1, visualization2)
+
+    def test_ne_subclass_same_uuid(self):
+        class VisualizationSubclass(Visualization):
+            pass
+
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
+        visualization1 = VisualizationSubclass._from_data_dir(self.data_dir,
+                                                              self.provenance)
+        visualization1.save(fp)
+
+        visualization2 = Visualization.load(fp)
+
+        self.assertNotEqual(visualization1, visualization2)
+        self.assertNotEqual(visualization2, visualization1)
+
+    def test_ne_different_type_same_uuid(self):
+        visualization = Visualization._from_data_dir(self.data_dir,
+                                                     self.provenance)
+
+        class Faker:
+            @property
+            def uuid(self):
+                return visualization.uuid
+
+        faker = Faker()
+
+        self.assertNotEqual(visualization, faker)
+
 
 if __name__ == '__main__':
     unittest.main()
