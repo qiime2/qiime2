@@ -10,14 +10,6 @@ from qiime.plugin import TextFileFormat
 import qiime.plugin.model as model
 
 
-###############################################################################
-#
-# int-sequence:
-#
-#     A sequence of integers stored in a single file. Since this is a sequence,
-#     the integers have an order and repetition of elements is allowed.
-#
-###############################################################################
 class IntSequenceFormat(TextFileFormat):
     """
     A sequence of integers stored on new lines in a file. Since this is a

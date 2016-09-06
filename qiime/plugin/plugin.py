@@ -88,13 +88,14 @@ class Plugin:
             if len(annotations) != 2:
                 raise TypeError("A transformer must only have a single input"
                                 " and output annotation.")
-            if type(annotations['return']) is tuple:
-                raise TypeError("A transformer can only return a single type,"
-                                " not %r." % (annotations['return'],))
             try:
                 output = annotations.pop('return')
             except KeyError:
                 raise TypeError("A transformer must provide a return type.")
+
+            if type(output) is tuple:
+                raise TypeError("A transformer can only return a single type,"
+                                " not %r." % (output,))
 
             input = list(annotations.values())[0]
             if (input, output) in self.transformers:

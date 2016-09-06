@@ -102,6 +102,11 @@ class Result:
 
     @property
     def format(self):
+        # Not memoized because it matters, just to keep the logic contained
+        # in lieu of a better place to put it.
+        # TODO: parse in the archiver if possible, but it will require a
+        # Visualization format (currently a string), otherwise special-casing
+        # is needed everywhere.
         if not hasattr(self, '__format'):
             self.__format = util.parse_format(self._archiver.format)
         return self.__format
