@@ -6,29 +6,20 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import collections
+from importlib import import_module
 
 import qiime
 import qiime.plugin
 
-from .data_layout import (
-    int_sequence_data_layout,
-    int_sequence_to_list,
-    int_sequence_to_counter,
-    list_to_int_sequence,
-
-    mapping_data_layout,
-    mapping_to_dict,
-    dict_to_mapping,
-
-    four_ints_data_layout,
-    four_ints_to_list,
-    list_to_four_ints
+from .format import (
+    IntSequenceDirectoryFormat,
+    MappingDirectoryFormat,
+    FourIntsDirectoryFormat,
 )
+
 from .type import IntSequence1, IntSequence2, Mapping, FourInts
 from .method import concatenate_ints, split_ints, merge_mappings
 from .visualizer import most_common_viz, mapping_viz
-
 
 dummy_plugin = qiime.plugin.Plugin(
     name='dummy-plugin',
@@ -39,40 +30,31 @@ dummy_plugin = qiime.plugin.Plugin(
     user_support_text='For help, see http://2.qiime.org'
 )
 
-dummy_plugin.register_data_layout(int_sequence_data_layout)
+import_module('qiime.core.testing.transformer')
 
-dummy_plugin.register_data_layout_reader('int-sequence', 1, list,
-                                         int_sequence_to_list)
-
-dummy_plugin.register_data_layout_writer('int-sequence', 1, list,
-                                         list_to_int_sequence)
-
-dummy_plugin.register_data_layout_reader(
-    'int-sequence', 1, collections.Counter, int_sequence_to_counter)
-
-dummy_plugin.register_data_layout(mapping_data_layout)
-
-dummy_plugin.register_data_layout_reader('mapping', 1, dict, mapping_to_dict)
-
-dummy_plugin.register_data_layout_writer('mapping', 1, dict, dict_to_mapping)
-
-dummy_plugin.register_data_layout(four_ints_data_layout)
-
-dummy_plugin.register_data_layout_reader(
-    'four-ints', 1, list, four_ints_to_list)
-
-dummy_plugin.register_data_layout_writer(
-    'four-ints', 1, list, list_to_four_ints)
-
+# Register semantic types
 dummy_plugin.register_semantic_type(IntSequence1)
 dummy_plugin.register_semantic_type(IntSequence2)
 dummy_plugin.register_semantic_type(Mapping)
 dummy_plugin.register_semantic_type(FourInts)
 
-dummy_plugin.register_type_to_data_layout(IntSequence1, 'int-sequence', 1)
-dummy_plugin.register_type_to_data_layout(IntSequence2, 'int-sequence', 1)
-dummy_plugin.register_type_to_data_layout(Mapping, 'mapping', 1)
-dummy_plugin.register_type_to_data_layout(FourInts, 'four-ints', 1)
+
+dummy_plugin.register_semantic_type_to_format(
+    IntSequence1,
+    artifact_format=IntSequenceDirectoryFormat
+)
+dummy_plugin.register_semantic_type_to_format(
+    IntSequence2,
+    artifact_format=IntSequenceDirectoryFormat
+)
+dummy_plugin.register_semantic_type_to_format(
+    Mapping,
+    artifact_format=MappingDirectoryFormat
+)
+dummy_plugin.register_semantic_type_to_format(
+    FourInts,
+    artifact_format=FourIntsDirectoryFormat
+)
 
 # TODO add an optional parameter to this method when they are supported
 dummy_plugin.methods.register_markdown('markdown/concatenate_ints_markdown.md')

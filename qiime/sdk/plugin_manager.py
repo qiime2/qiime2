@@ -6,6 +6,7 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import collections
 import os
 import pkg_resources
 
@@ -26,9 +27,9 @@ class PluginManager:
 
     def _init(self):
         self.plugins = {}
-        self.data_layouts = {}
         self.semantic_types = {}
-        self._semantic_type_to_data_layouts = {}
+        self.transformers = collections.defaultdict(dict)
+        self.type_formats = []
 
         plugins = []
         for entry_point in pkg_resources.iter_entry_points(
@@ -44,70 +45,43 @@ class PluginManager:
         for plugin in plugins:
             self._integrate_plugin(plugin)
 
-        for plugin in plugins:
-            self._finalize_plugin(plugin)
-
     def _integrate_plugin(self, plugin):
-        for id_, data_layout in plugin.data_layouts.items():
-            if id_ in self.data_layouts:
-                conflicting_plugin, _ = self.data_layouts[id_]
-                raise ValueError(
-                    "Duplicate data layout defined in plugins "
-                    "%r and %r: %r, %r" % (conflicting_plugin, plugin.name,
-                                           id_[0], id_[1]))
-            # TODO rethink the structure for mapping data layout to plugin
-            # (also applies to type system and workflows).
-            self.data_layouts[id_] = (plugin.name, data_layout)
-
-        for type_name, type_expr in plugin.types.items():
+        for type_name, type_record in plugin.types.items():
             if type_name in self.semantic_types:
-                conflicting_plugin, _ = self.semantic_types[type_name]
+                conflicting_type_record = self.semantic_types[type_name]
                 raise ValueError("Duplicate semantic type (%r) defined in"
                                  " plugins: %r and %r"
-                                 % (type_expr, plugin.name,
-                                    conflicting_plugin.name))
+                                 % (type_name, type_record.plugin.name,
+                                    conflicting_type_record.plugin.name))
 
-            self.semantic_types[type_name] = (plugin.name, type_expr)
+            self.semantic_types[type_name] = type_record
 
-    def _finalize_plugin(self, plugin):
-        for semantic_type, data_layout_id in \
-                plugin.type_to_data_layouts.items():
-            if data_layout_id not in self.data_layouts:
-                raise ValueError("Data layout %r does not exist, cannot"
-                                 " register semantic type (%r) to it."
-                                 % (data_layout_id, semantic_type))
-            self._semantic_type_to_data_layouts[semantic_type] = \
-                self.data_layouts[data_layout_id][1]
+        for (input, output), transformer_record in plugin.transformers.items():
+            if output in self.transformers[input]:
+                raise ValueError("Transformer from %r to %r already exists."
+                                 % transformer_record)
+            self.transformers[input][output] = transformer_record
 
-        for reader_registration, reader in plugin.data_layout_readers.items():
-            name, version, view_type = reader_registration
-            _, data_layout = self.data_layouts[(name, version)]
-            data_layout.reader(view_type)(reader)
-
-        for writer_registration, writer in plugin.data_layout_writers.items():
-            name, version, view_type = writer_registration
-            _, data_layout = self.data_layouts[(name, version)]
-            data_layout.writer(view_type)(writer)
+        self.type_formats.extend(plugin.type_formats)
 
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
 
-    def get_data_layout(self, type):
-        if not qiime.core.type.is_semantic_type(type):
+    def get_directory_format(self, semantic_type):
+        if not qiime.core.type.is_semantic_type(semantic_type):
             raise TypeError(
                 "Must provide a semantic type via `type`, not %r" % type)
 
-        data_layout = None
-        for semantic_type, datalayout in \
-                self._semantic_type_to_data_layouts.items():
-            if type <= semantic_type:
-                data_layout = datalayout
+        dir_fmt = None
+        for type_format_record in self.type_formats:
+            if semantic_type <= type_format_record.type_expression:
+                dir_fmt = type_format_record.format
                 break
 
-        if data_layout is None:
+        if dir_fmt is None:
             raise TypeError(
-                "Semantic type %r does not have a compatible data layout."
-                % type)
+                "Semantic type %r does not have a compatible directory format."
+                % semantic_type)
 
-        return data_layout
+        return dir_fmt

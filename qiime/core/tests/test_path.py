@@ -9,28 +9,28 @@
 import os
 import unittest
 
-from qiime.core.path import TempPath
+from qiime.core.path import OutPath
 
 
-class TestTempPath(unittest.TestCase):
-    def test_new_temppath(self):
-        f = TempPath()
-        self.assertIsInstance(f, TempPath)
+class TestOutPath(unittest.TestCase):
+    def test_new_outpath(self):
+        f = OutPath()
+        self.assertIsInstance(f, OutPath)
         self.assertTrue(f.is_file())
 
-        g = TempPath(dir=True)
-        self.assertIsInstance(g, TempPath)
+        g = OutPath(dir=True)
+        self.assertIsInstance(g, OutPath)
         self.assertTrue(g.is_dir())
 
-    def test_new_temppath_context_mgr(self):
-        with TempPath() as f:
+    def test_new_outpath_context_mgr(self):
+        with OutPath() as f:
             path = str(f)
-            self.assertIsInstance(f, TempPath)
+            self.assertIsInstance(f, OutPath)
             self.assertTrue(os.path.isfile(path))
         self.assertFalse(os.path.isfile(path))
 
     def test_finalize(self):
-        f = TempPath()
+        f = OutPath()
         path = str(f)
 
         self.assertTrue(os.path.isfile(path))

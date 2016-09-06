@@ -152,10 +152,10 @@ class TestVisualizer(unittest.TestCase):
     def test_call_with_artifacts_and_parameters(self):
         mapping_viz = self.plugin.visualizers['mapping_viz']
 
-        artifact1 = Artifact._from_view({'foo': 'abc', 'bar': 'def'}, Mapping,
-                                        None)
-        artifact2 = Artifact._from_view({'baz': 'abc', 'bazz': 'ghi'}, Mapping,
-                                        None)
+        artifact1 = Artifact._from_view(Mapping, {'foo': 'abc', 'bar': 'def'},
+                                        dict, None)
+        artifact2 = Artifact._from_view(Mapping, {'baz': 'abc', 'bazz': 'ghi'},
+                                        dict, None)
 
         result = mapping_viz(artifact1, artifact2, 'Key', 'Value')
 
@@ -197,8 +197,8 @@ class TestVisualizer(unittest.TestCase):
     def test_call_with_no_parameters(self):
         most_common_viz = self.plugin.visualizers['most_common_viz']
 
-        artifact = Artifact._from_view([42, 42, 10, 0, 42, 5, 0], IntSequence1,
-                                       None)
+        artifact = Artifact._from_view(IntSequence1, [42, 42, 10, 0, 42, 5, 0],
+                                       list, None)
 
         result = most_common_viz(artifact)
 
@@ -236,10 +236,10 @@ class TestVisualizer(unittest.TestCase):
     def test_async(self):
         mapping_viz = self.plugin.visualizers['mapping_viz']
 
-        artifact1 = Artifact._from_view({'foo': 'abc', 'bar': 'def'}, Mapping,
-                                        None)
-        artifact2 = Artifact._from_view({'baz': 'abc', 'bazz': 'ghi'}, Mapping,
-                                        None)
+        artifact1 = Artifact._from_view(Mapping, {'foo': 'abc', 'bar': 'def'},
+                                        dict, None)
+        artifact2 = Artifact._from_view(Mapping, {'baz': 'abc', 'bazz': 'ghi'},
+                                        dict, None)
 
         future = mapping_viz.async(artifact1, artifact2, 'Key', 'Value')
 
@@ -283,7 +283,7 @@ class TestVisualizer(unittest.TestCase):
 
     def test_visualizer_callable_output(self):
         artifact = Artifact._from_view(
-            {'foo': 'abc', 'bar': 'def'}, Mapping, None)
+            Mapping, {'foo': 'abc', 'bar': 'def'}, dict, None)
 
         # Callable returns a value from `return_vals`
         return_vals = (True, False, [], {}, '', 0, 0.0)
