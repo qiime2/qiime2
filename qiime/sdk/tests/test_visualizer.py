@@ -17,6 +17,7 @@ import zipfile
 
 import qiime.plugin
 import qiime.core.type
+from qiime.core.callable import Results
 from qiime.core.type import VisualizerSignature
 from qiime.sdk import Artifact, Visualization, Provenance, Action
 
@@ -159,6 +160,14 @@ class TestVisualizer(unittest.TestCase):
 
         result = mapping_viz(artifact1, artifact2, 'Key', 'Value')
 
+        # Test properties of the `Results` object.
+        self.assertIsInstance(result, tuple)
+        self.assertIsInstance(result, Results)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result.visualization, result[0])
+
+        result = result[0]
+
         self.assertIsInstance(result, Visualization)
         self.assertEqual(result.type, qiime.core.type.Visualization)
 
@@ -201,6 +210,14 @@ class TestVisualizer(unittest.TestCase):
                                        list, None)
 
         result = most_common_viz(artifact)
+
+        # Test properties of the `Results` object.
+        self.assertIsInstance(result, tuple)
+        self.assertIsInstance(result, Results)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result.visualization, result[0])
+
+        result = result[0]
 
         self.assertIsInstance(result, Visualization)
         self.assertEqual(result.type, qiime.core.type.Visualization)
@@ -245,6 +262,14 @@ class TestVisualizer(unittest.TestCase):
 
         self.assertIsInstance(future, concurrent.futures.Future)
         result = future.result()
+
+        # Test properties of the `Results` object.
+        self.assertIsInstance(result, tuple)
+        self.assertIsInstance(result, Results)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result.visualization, result[0])
+
+        result = result[0]
 
         self.assertIsInstance(result, Visualization)
         self.assertEqual(result.type, qiime.core.type.Visualization)
@@ -310,7 +335,8 @@ class TestVisualizer(unittest.TestCase):
 
         # Should not raise an exception
         output = visualizer(foo=artifact)
-        self.assertIsInstance(output, Visualization)
+        self.assertIsInstance(output, Results)
+        self.assertIsInstance(output.visualization, Visualization)
 
 
 if __name__ == '__main__':

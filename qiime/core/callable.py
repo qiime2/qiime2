@@ -249,15 +249,9 @@ class Callable(metaclass=abc.ABCMeta):
                     "defined in signature: %d != %d" %
                     (len(outputs_tuple), len(self.signature.outputs)))
 
-            # If there is a single output, don't wrap in a Results object to
-            # match how Python handles single return values. Otherwise, wrap in
-            # a Results object mapping output name to value so users have
-            # access to outputs by name or position.
-            if len(outputs_tuple) == 1:
-                return outputs_tuple[0]
-            else:
-                return Results(self.signature.outputs.keys(),
-                               outputs_tuple)
+            # Wrap in a Results object mapping output name to value so users
+            # have access to outputs by name or position.
+            return Results(self.signature.outputs.keys(), outputs_tuple)
 
         callable_wrapper = self._rewrite_wrapper_signature(callable_wrapper)
         self._set_wrapper_properties(callable_wrapper, '__call__')
