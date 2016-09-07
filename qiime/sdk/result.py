@@ -126,6 +126,20 @@ class Result:
         return ("<%s: %r uuid: %s>"
                 % (self.__class__.__name__.lower(), self.type, self.uuid))
 
+    def __eq__(self, other):
+        # Checking the UUID is mostly sufficient but requiring an exact type
+        # match makes it safer in case `other` is a subclass or a completely
+        # different type that happens to have a `.uuid` property. We want to
+        # ensure (as best as we can) that the UUIDs we are comparing are linked
+        # to the same type of QIIME 2 object.
+        return (
+            type(self) == type(other) and
+            self.uuid == other.uuid
+        )
+
+    def __ne__(self, other):
+        return not (self == other)
+
     def _orphan(self, pid):
         self._archiver.orphan(pid)
 
