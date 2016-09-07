@@ -149,6 +149,9 @@ class Artifact(Result):
         if isinstance(type_, str):
             type_ = qiime.sdk.parse_type(type_)
 
+        if isinstance(view_type, str):
+            view_type = qiime.core.util.parse_format(view_type)
+
         if view_type is None:
             if type(view) is str or isinstance(view, pathlib.PurePath):
                 pm = qiime.sdk.PluginManager()

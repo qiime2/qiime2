@@ -102,11 +102,20 @@ class UnknownTypeError(TypeError):
 def parse_format(format_str):
     # Avoid circular imports
     import qiime.sdk
+    from qiime.plugin.model.base import FormatBase
 
     pm = qiime.sdk.PluginManager()
     for type_format_record in pm.type_formats:
         if type_format_record.format.__name__ == format_str:
             return type_format_record.format
+
+    for input in pm.transformers:
+        if issubclass(input, FormatBase) and input.__name__ == format_str:
+            return input
+        for output in pm.transformers[input]:
+            if (issubclass(output, FormatBase) and
+                    output.__name__ == format_str):
+                return output
 
     raise TypeError("No format: %s" % format_str)
 
