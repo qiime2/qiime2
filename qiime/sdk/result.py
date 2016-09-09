@@ -42,6 +42,10 @@ class Result:
     API shared by Artifact and Visualization.
 
     """
+
+    # Subclasses must override to provide a file extension.
+    extension = None
+
     @classmethod
     def _is_valid_type(cls, type_):
         """Subclasses should override this method."""
@@ -144,7 +148,10 @@ class Result:
         self._archiver.orphan(pid)
 
     def save(self, filepath):
+        if not filepath.endswith(self.extension):
+            filepath += self.extension
         self._archiver.save(filepath)
+        return filepath
 
 
 class Artifact(Result):
@@ -221,13 +228,6 @@ class Artifact(Result):
         to_type.set_user_owned(result, True)
         return result
 
-    def save(self, filepath):
-        if not filepath.endswith(self.extension):
-            with qiime.core.util.warning() as warn:
-                warn(_result_extension_warning_template.format(
-                     'Artifact', self.extension))
-        super().save(filepath)
-
 
 class Visualization(Result):
     extension = '.qzv'
@@ -265,16 +265,3 @@ class Visualization(Result):
                 else:
                     result[ext] = relpath if relative else abspath
         return result
-
-    def save(self, filepath):
-        if not filepath.endswith(self.extension):
-            with qiime.core.util.warning() as warn:
-                warn(_result_extension_warning_template.format(
-                     'Visualization', self.extension))
-        super().save(filepath)
-
-
-_result_extension_warning_template = "The most widely supported " \
-    "and recommended file extension for a QIIME 2 {0} is '{1}'. The {0} "\
-    "will still be created, but the provided file extension can not be " \
-    "guaranteed to work with all QIIME 2 interfaces."
