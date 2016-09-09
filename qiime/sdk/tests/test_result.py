@@ -10,7 +10,6 @@ import os
 import tempfile
 import unittest
 import uuid
-import warnings
 
 import qiime.core.type
 from qiime.sdk import Result, Artifact, Visualization, Provenance
@@ -220,29 +219,55 @@ class TestResult(unittest.TestCase):
         self.assertEqual(metadata.provenance, self.provenance)
         self.assertEqual(metadata.uuid, visualization.uuid)
 
-    def test_save_artifact_warning(self):
+    def test_save_artifact_auto_extension(self):
         artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000],
                                        list, self.provenance)
+
+        # No extension.
+        fp = os.path.join(self.test_dir.name, 'artifact')
+        obs_fp = artifact.save(fp)
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.qza')
+
+        # Wrong extension.
         fp = os.path.join(self.test_dir.name, 'artifact.zip')
+        obs_fp = artifact.save(fp)
+        obs_filename = os.path.basename(obs_fp)
 
-        with warnings.catch_warnings(record=True) as w:
-            artifact.save(fp)
+        self.assertEqual(obs_filename, 'artifact.zip.qza')
 
-            self.assertEqual(len(w), 1)
-            self.assertIsInstance(w[0].message, UserWarning)
-            self.assertIn(Artifact.extension, str(w[0].message))
+        # Correct extension.
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        obs_fp = artifact.save(fp)
+        obs_filename = os.path.basename(obs_fp)
 
-    def test_save_visualization_warning(self):
+        self.assertEqual(obs_filename, 'artifact.qza')
+
+    def test_save_visualization_auto_extension(self):
         visualization = Visualization._from_data_dir(self.data_dir,
                                                      self.provenance)
+
+        # No extension.
+        fp = os.path.join(self.test_dir.name, 'visualization')
+        obs_fp = visualization.save(fp)
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.qzv')
+
+        # Wrong extension.
         fp = os.path.join(self.test_dir.name, 'visualization.zip')
+        obs_fp = visualization.save(fp)
+        obs_filename = os.path.basename(obs_fp)
 
-        with warnings.catch_warnings(record=True) as w:
-            visualization.save(fp)
+        self.assertEqual(obs_filename, 'visualization.zip.qzv')
 
-            self.assertEqual(len(w), 1)
-            self.assertIsInstance(w[0].message, UserWarning)
-            self.assertIn(Visualization.extension, str(w[0].message))
+        # Correct extension.
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
+        obs_fp = visualization.save(fp)
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.qzv')
 
 
 if __name__ == '__main__':
