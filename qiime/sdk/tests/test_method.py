@@ -223,6 +223,15 @@ class TestMethod(unittest.TestCase):
         for method in concatenate_ints, concatenate_ints_markdown:
             result = method(artifact1, artifact1, artifact2, 55, 1)
 
+            # Test properties of the `Results` object.
+            self.assertIsInstance(result, tuple)
+            self.assertIsInstance(result, Results)
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result.concatenated_ints.view(list),
+                             [0, 42, 43, 0, 42, 43, 99, -22, 55, 1])
+
+            result = result[0]
+
             self.assertIsInstance(result, Artifact)
             self.assertEqual(result.type, IntSequence1)
 
@@ -258,7 +267,7 @@ class TestMethod(unittest.TestCase):
             # Accepts IntSequence1 | IntSequence2
             artifact3 = Artifact._from_view(IntSequence2, [10, 20],
                                             list, None)
-            result = method(artifact3, artifact1, artifact2, 55, 1)
+            result, = method(artifact3, artifact1, artifact2, 55, 1)
 
             self.assertEqual(result.type, IntSequence1)
             self.assertEqual(result.view(list),
@@ -318,6 +327,15 @@ class TestMethod(unittest.TestCase):
 
         result = merge_mappings(artifact1, artifact2)
 
+        # Test properties of the `Results` object.
+        self.assertIsInstance(result, tuple)
+        self.assertIsInstance(result, Results)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result.merged_mapping.view(dict),
+                         {'foo': 'abc', 'bar': 'def', 'bazz': 'abc'})
+
+        result = result[0]
+
         self.assertIsInstance(result, Artifact)
         self.assertEqual(result.type, Mapping)
 
@@ -352,6 +370,15 @@ class TestMethod(unittest.TestCase):
 
             self.assertIsInstance(future, concurrent.futures.Future)
             result = future.result()
+
+            # Test properties of the `Results` object.
+            self.assertIsInstance(result, tuple)
+            self.assertIsInstance(result, Results)
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result.concatenated_ints.view(list),
+                             [0, 42, 43, 0, 42, 43, 99, -22, 55, 1])
+
+            result = result[0]
 
             self.assertIsInstance(result, Artifact)
             self.assertEqual(result.type, IntSequence1)
@@ -388,7 +415,7 @@ class TestMethod(unittest.TestCase):
             # Accepts IntSequence1 | IntSequence2
             artifact3 = Artifact._from_view(IntSequence2, [10, 20], list, None)
             future = method.async(artifact3, artifact1, artifact2, 55, 1)
-            result = future.result()
+            result, = future.result()
 
             self.assertEqual(result.type, IntSequence1)
             self.assertEqual(result.view(list),
