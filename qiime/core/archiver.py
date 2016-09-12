@@ -206,6 +206,15 @@ class Archiver:
         return loader(self._data_dir)
 
     def save(self, filepath):
+        if filepath == '':
+            raise ValueError("Cannot save to an empty filepath.")
+        if os.path.isdir(filepath):
+            raise ValueError("Cannot save to a directory (%s)." % filepath)
+        if filepath.endswith(os.sep):
+            raise ValueError(
+                "Cannot save to a filepath ending in a path separator (%s)." %
+                filepath)
+
         root_dir = self._get_root_dir(filepath)
 
         with zipfile.ZipFile(filepath, mode='w',

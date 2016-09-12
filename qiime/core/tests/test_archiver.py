@@ -10,116 +10,109 @@ import io
 import os
 import tempfile
 import unittest
+import uuid
 import zipfile
 
 from qiime.core.archiver import Archiver
+from qiime.core.testing.type import IntSequence1
 
 
 class TestArchiver(unittest.TestCase):
     def setUp(self):
         prefix = "qiime2-test-temp-"
         self.temp_dir = tempfile.TemporaryDirectory(prefix=prefix)
-        self.root_dir = self.temp_dir.name
 
-        # FakeArchiver is for testing some of the private methods on Archiver
-        # that don't require the full class.
-        class FakeArchiver(Archiver):
-            # Explicitly not calling super()
-            def __init__(self, *args, **kwargs):
-                self._temp_dir = tempfile.mkdtemp(prefix)
-                self._data_dir = os.path.join(self._temp_dir,
-                                              self.DATA_DIRNAME)
-                self._pid = os.getpid()
-                self._uuid = 'foo'
-                self._type = 'bar'
-                self._provenance = 'baz'
-                self._format = 'quux'
-        self.FakeArchiver = FakeArchiver
+        # Initialize an Archiver. The values passed to the constructor mostly
+        # don't matter to the Archiver, but we'll pass valid Artifact test data
+        # anyways in case Archiver's behavior changes in the future.
+        def data_initializer(data_dir):
+            fp = os.path.join(data_dir, 'ints.txt')
+            with open(fp, 'w') as fh:
+                fh.write('1\n')
+                fh.write('2\n')
+                fh.write('3\n')
+
+        self.archiver = Archiver(uuid.uuid4(), IntSequence1,
+                                 'IntSequenceDirectoryFormat', None,
+                                 data_initializer=data_initializer)
 
     def tearDown(self):
         self.temp_dir.cleanup()
 
     def test_load_version_file_decoding(self):
-        fp = os.path.join(self.root_dir, "bad_data.qza")
+        fp = os.path.join(self.temp_dir.name, "bad_data.qza")
 
         # Bypass Archiver.save to build a faux-qza file with a
         # non-UTF-8 encoded version file.
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
                              allowZip64=True) as zf:
-            zf.writestr(os.path.join(self.root_dir,
-                                     Archiver._VERSION_FILENAME),
+            zf.writestr(os.path.join('bad_data', Archiver._VERSION_FILENAME),
                         "version info".encode("utf-16"))
 
             with self.assertRaises(UnicodeDecodeError):
-                Archiver._load_version(zf, self.root_dir)
+                Archiver._load_version(zf, 'bad_data')
 
     def test_load_metadata_file_decoding(self):
-        fp = os.path.join(self.root_dir, "bad_data.qza")
+        fp = os.path.join(self.temp_dir.name, "bad_data.qza")
 
         # Bypass Archiver.save to build a faux-qza file with a
         # non-UTF-8 encoded metadata file.
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
                              allowZip64=True) as zf:
-            zf.writestr(os.path.join(self.root_dir,
-                                     Archiver._METADATA_FILENAME),
+            zf.writestr(os.path.join('bad_data', Archiver._METADATA_FILENAME),
                         "metadata info".encode("utf-16"))
 
             with self.assertRaises(UnicodeDecodeError):
-                Archiver._load_metadata(zf, self.root_dir)
+                Archiver._load_metadata(zf, 'bad_data')
 
     def test_save_version_file_encoding(self):
-        archive = self.FakeArchiver()
-        fp = os.path.join(self.root_dir, "archive.qza")
+        fp = os.path.join(self.temp_dir.name, "archive.qza")
 
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
                              allowZip64=True) as zf:
-            archive._save_version(zf, self.root_dir)
+            self.archiver._save_version(zf, 'archive')
 
             # Manually load the saved file with strict errors on (this will
             # raise a UnicodeDecodeError if there is a mismatch
             # during decoding).
-            version_path = os.path.join(self.root_dir,
-                                        Archiver._VERSION_FILENAME)
+            version_path = os.path.join('archive', Archiver._VERSION_FILENAME)
             with zf.open(version_path) as bytes_fh:
                 with io.TextIOWrapper(bytes_fh, newline=None,
                                       encoding='utf-8', errors='strict') as fh:
                     self.assertEqual(fh.read().rstrip('\n'), Archiver._VERSION)
 
     def test_save_readme_file_encoding(self):
-        archive = self.FakeArchiver()
-        fp = os.path.join(self.root_dir, "archive.qza")
+        fp = os.path.join(self.temp_dir.name, "archive.qza")
 
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
                              allowZip64=True) as zf:
-            archive._save_readme(zf, self.root_dir)
+            self.archiver._save_readme(zf, 'archive')
 
             # Manually load the saved file with strict errors on (this will
             # raise a UnicodeDecodeError if there is a mismatch during
             # decoding).
-            readme_path = os.path.join(self.root_dir,
-                                       Archiver._README_FILENAME)
+            readme_path = os.path.join('archive', Archiver._README_FILENAME)
             with zf.open(readme_path) as bytes_fh:
                 with io.TextIOWrapper(bytes_fh, newline=None,
                                       encoding='utf-8', errors='strict') as fh:
                     self.assertTrue(fh.read().rstrip('\n'))
 
     def test_save_metadata_file_encoding(self):
-        archive = self.FakeArchiver()
-        fp = os.path.join(self.root_dir, "archive.qza")
+        fp = os.path.join(self.temp_dir.name, "archive.qza")
 
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
                              allowZip64=True) as zf:
-            archive._save_metadata(zf, self.root_dir)
+            self.archiver._save_metadata(zf, 'archive')
 
             # Manually load the saved file with strict errors on (this will
             # raise a UnicodeDecodeError if there is a mismatch during
             # decoding).
-            metadata_path = os.path.join(self.root_dir,
+            metadata_path = os.path.join('archive',
                                          Archiver._METADATA_FILENAME)
             with zf.open(metadata_path) as bytes_fh:
                 with io.TextIOWrapper(bytes_fh, newline=None,
@@ -127,23 +120,35 @@ class TestArchiver(unittest.TestCase):
                     self.assertTrue(fh.read().rstrip('\n'))
 
     def test_metadata_pprint_yaml(self):
-        archive = self.FakeArchiver()
-        fp = os.path.join(self.root_dir, "archive.qza")
+        fp = os.path.join(self.temp_dir.name, "archive.qza")
 
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
                              allowZip64=True) as zf:
-            archive._save_metadata(zf, self.root_dir)
+            self.archiver._save_metadata(zf, 'archive')
 
-            with zf.open(os.path.join(self.root_dir,
+            with zf.open(os.path.join('archive',
                                       Archiver._METADATA_FILENAME)) as zip_fh:
                 with io.TextIOWrapper(zip_fh, newline=None,
                                       encoding='utf-8', errors='strict') as fh:
                     self.assertEqual(fh.read(),
-                                     "uuid: foo\n"
-                                     "type: '''bar'''\n"
-                                     "format: quux\n"
-                                     "provenance: baz\n")
+                                     "uuid: %s\n" % self.archiver.uuid +
+                                     "type: IntSequence1\n"
+                                     "format: IntSequenceDirectoryFormat\n"
+                                     "provenance: None\n")
+
+    def test_save_invalid_filepath(self):
+        # Empty filepath.
+        with self.assertRaisesRegex(ValueError, 'empty'):
+            self.archiver.save('')
+
+        # Directory.
+        with self.assertRaisesRegex(ValueError, 'directory'):
+            self.archiver.save(self.temp_dir.name)
+
+        # Ends with path separator (no basename, e.g. /tmp/foo/).
+        with self.assertRaisesRegex(ValueError, 'path separator'):
+            self.archiver.save(os.path.join(self.temp_dir.name, 'foo', ''))
 
 
 if __name__ == '__main__':
