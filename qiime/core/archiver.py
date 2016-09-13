@@ -225,7 +225,14 @@ class Archiver:
             self._save_metadata(zf, root_dir)
 
             for root, dirs, files in os.walk(self._data_dir):
+                # Prune hidden directories from traversal. Strategy modified
+                # from http://stackoverflow.com/a/13454267/3776794
+                dirs[:] = [d for d in dirs if not d.startswith('.')]
+
                 for file_ in files:
+                    if file_.startswith('.'):
+                        continue
+
                     abspath = os.path.join(root, file_)
                     relpath = os.path.relpath(abspath, start=self._data_dir)
                     archive_path = os.path.join(
