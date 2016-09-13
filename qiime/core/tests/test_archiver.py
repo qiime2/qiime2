@@ -150,6 +150,40 @@ class TestArchiver(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'path separator'):
             self.archiver.save(os.path.join(self.temp_dir.name, 'foo', ''))
 
+    def test_save_ignores_dotfiles(self):
+        def data_initializer(data_dir):
+            fp = os.path.join(data_dir, 'ints.txt')
+            with open(fp, 'w') as fh:
+                fh.write('1\n')
+                fh.write('2\n')
+                fh.write('3\n')
+
+            hidden_fp = os.path.join(data_dir, '.hidden-file')
+            with open(hidden_fp, 'w') as fh:
+                fh.write("You can't see me if I can't see you\n")
+
+            hidden_dir = os.path.join(data_dir, '.hidden-dir')
+            os.mkdir(hidden_dir)
+            with open(os.path.join(hidden_dir, 'ignored-file'), 'w') as fh:
+                fh.write("I'm ignored because I live in a hidden dir :(\n")
+
+        archiver = Archiver(uuid.uuid4(), IntSequence1,
+                            'IntSequenceDirectoryFormat', None,
+                            data_initializer=data_initializer)
+
+        fp = os.path.join(self.temp_dir.name, 'archive.qza')
+        archiver.save(fp)
+
+        with zipfile.ZipFile(fp, mode='r') as zf:
+            fps = set(zf.namelist())
+            expected = {
+                'archive/VERSION',
+                'archive/metadata.yaml',
+                'archive/README.md',
+                'archive/data/ints.txt'
+            }
+            self.assertEqual(fps, expected)
+
 
 if __name__ == '__main__':
     unittest.main()
