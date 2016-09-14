@@ -12,17 +12,16 @@ import pkg_resources
 import tempfile
 import unittest
 import uuid
-import zipfile
 
 import qiime.core.type
 from qiime.sdk import Artifact, Provenance
 from qiime.sdk.result import ResultMetadata
 
 from qiime.core.testing.type import IntSequence1, FourInts, Mapping
-from qiime.core.testing.util import get_dummy_plugin
+from qiime.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 
 
-class TestArtifact(unittest.TestCase):
+class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
     def setUp(self):
         # Ignore the returned dummy plugin object, just run this to verify the
         # plugin exists as the tests rely on it being loaded.
@@ -117,18 +116,18 @@ class TestArtifact(unittest.TestCase):
 
         artifact.save(fp)
 
-        with zipfile.ZipFile(fp, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                'artifact/VERSION',
-                'artifact/metadata.yaml',
-                'artifact/README.md',
-                'artifact/data/file1.txt',
-                'artifact/data/file2.txt',
-                'artifact/data/nested/file3.txt',
-                'artifact/data/nested/file4.txt'
-            }
-            self.assertEqual(fps, expected)
+        root_dir = str(artifact.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/file1.txt',
+            'data/file2.txt',
+            'data/nested/file3.txt',
+            'data/nested/file4.txt'
+        }
+
+        self.assertArchiveMembers(fp, root_dir, expected)
 
     def test_load(self):
         saved_artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
@@ -194,31 +193,31 @@ class TestArtifact(unittest.TestCase):
         # Saving to a new file works.
         artifact.save(fp2)
 
-        with zipfile.ZipFile(fp1, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                'artifact1/VERSION',
-                'artifact1/metadata.yaml',
-                'artifact1/README.md',
-                'artifact1/data/file1.txt',
-                'artifact1/data/file2.txt',
-                'artifact1/data/nested/file3.txt',
-                'artifact1/data/nested/file4.txt'
-            }
-            self.assertEqual(fps, expected)
+        root_dir = str(artifact.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/file1.txt',
+            'data/file2.txt',
+            'data/nested/file3.txt',
+            'data/nested/file4.txt'
+        }
 
-        with zipfile.ZipFile(fp2, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                'artifact2/VERSION',
-                'artifact2/metadata.yaml',
-                'artifact2/README.md',
-                'artifact2/data/file1.txt',
-                'artifact2/data/file2.txt',
-                'artifact2/data/nested/file3.txt',
-                'artifact2/data/nested/file4.txt'
-            }
-            self.assertEqual(fps, expected)
+        self.assertArchiveMembers(fp1, root_dir, expected)
+
+        root_dir = str(artifact.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/file1.txt',
+            'data/file2.txt',
+            'data/nested/file3.txt',
+            'data/nested/file4.txt'
+        }
+
+        self.assertArchiveMembers(fp2, root_dir, expected)
 
     def test_roundtrip(self):
         fp1 = os.path.join(self.test_dir.name, 'artifact1.qza')
@@ -260,31 +259,30 @@ class TestArtifact(unittest.TestCase):
         #
         #     unzip externally_created_zipfile.qza
         #     rm externally_created_zipfile.qza
-        #     zip -r externally_created_zipfile.qza externally_created_zipfile
+        #     zip -r externally_created_zipfile.qza <unzipped uuid directory>
         #
         fp = pkg_resources.resource_filename(
             'qiime.sdk.tests', 'data/externally_created_zipfile.qza')
-
-        with zipfile.ZipFile(fp, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                # These are extra directory entries included by `zip` command
-                # line utility.
-                'externally_created_zipfile/',
-                'externally_created_zipfile/data/',
-                'externally_created_zipfile/data/nested/',
-
-                'externally_created_zipfile/VERSION',
-                'externally_created_zipfile/metadata.yaml',
-                'externally_created_zipfile/README.md',
-                'externally_created_zipfile/data/file1.txt',
-                'externally_created_zipfile/data/file2.txt',
-                'externally_created_zipfile/data/nested/file3.txt',
-                'externally_created_zipfile/data/nested/file4.txt'
-            }
-            self.assertEqual(fps, expected)
-
         artifact = Artifact.load(fp)
+
+        root_dir = str(artifact.uuid)
+        expected = {
+            # These are extra directory entries included by `zip` command
+            # line utility.
+            '',  # Expected path: `root_dir`/
+            'data/',
+            'data/nested/',
+
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/file1.txt',
+            'data/file2.txt',
+            'data/nested/file3.txt',
+            'data/nested/file4.txt'
+        }
+
+        self.assertArchiveMembers(fp, root_dir, expected)
 
         self.assertEqual(artifact.type, FourInts)
         self.assertEqual(artifact.provenance, self.provenance)
@@ -295,19 +293,19 @@ class TestArtifact(unittest.TestCase):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         artifact.save(fp)
 
-        with zipfile.ZipFile(fp, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                # Directory entries should not be present.
-                'artifact/VERSION',
-                'artifact/metadata.yaml',
-                'artifact/README.md',
-                'artifact/data/file1.txt',
-                'artifact/data/file2.txt',
-                'artifact/data/nested/file3.txt',
-                'artifact/data/nested/file4.txt'
-            }
-            self.assertEqual(fps, expected)
+        root_dir = str(artifact.uuid)
+        expected = {
+            # Directory entries should not be present.
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/file1.txt',
+            'data/file2.txt',
+            'data/nested/file3.txt',
+            'data/nested/file4.txt'
+        }
+
+        self.assertArchiveMembers(fp, root_dir, expected)
 
     def test_load_with_archive_filepath_modified(self):
         # Save an artifact for use in the following test case.
@@ -347,18 +345,18 @@ class TestArtifact(unittest.TestCase):
         result_dir = Artifact.extract(fp, output_dir=output_dir)
         self.assertEqual(result_dir, output_dir)
 
-        contents = [
-            'artifact/VERSION',
-            'artifact/metadata.yaml',
-            'artifact/README.md',
-            'artifact/data/file1.txt',
-            'artifact/data/file2.txt',
-            'artifact/data/nested/file3.txt',
-            'artifact/data/nested/file4.txt']
-        for fp in contents:
-            expected_fp = os.path.join(output_dir, fp)
-            self.assertTrue(os.path.exists(expected_fp),
-                            'File %s was not extracted.' % fp)
+        root_dir = str(artifact.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/file1.txt',
+            'data/file2.txt',
+            'data/nested/file3.txt',
+            'data/nested/file4.txt'
+        }
+
+        self.assertExtractedArchiveMembers(output_dir, root_dir, expected)
 
     def test_peek(self):
         artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000],

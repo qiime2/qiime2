@@ -13,7 +13,6 @@ import os.path
 import tempfile
 import unittest
 import uuid
-import zipfile
 
 import qiime.plugin
 import qiime.core.type
@@ -22,10 +21,10 @@ from qiime.core.type import VisualizerSignature
 from qiime.sdk import Artifact, Visualization, Provenance, Action
 
 from qiime.core.testing.type import IntSequence1, IntSequence2, Mapping
-from qiime.core.testing.util import get_dummy_plugin
+from qiime.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 
 
-class TestVisualizer(unittest.TestCase):
+class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
     def setUp(self):
         # TODO standardize temporary directories created by QIIME
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
@@ -192,16 +191,16 @@ class TestVisualizer(unittest.TestCase):
         filepath = os.path.join(self.test_dir.name, 'visualization.qzv')
         result.save(filepath)
 
-        with zipfile.ZipFile(filepath, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                'visualization/VERSION',
-                'visualization/metadata.yaml',
-                'visualization/README.md',
-                'visualization/data/index.html',
-                'visualization/data/css/style.css'
-            }
-            self.assertEqual(fps, expected)
+        root_dir = str(result.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/index.html',
+            'data/css/style.css'
+        }
+
+        self.assertArchiveMembers(filepath, root_dir, expected)
 
     def test_call_with_no_parameters(self):
         most_common_viz = self.plugin.visualizers['most_common_viz']
@@ -239,16 +238,16 @@ class TestVisualizer(unittest.TestCase):
         filepath = os.path.join(self.test_dir.name, 'visualization.qzv')
         result.save(filepath)
 
-        with zipfile.ZipFile(filepath, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                'visualization/VERSION',
-                'visualization/metadata.yaml',
-                'visualization/README.md',
-                'visualization/data/index.html',
-                'visualization/data/index.tsv'
-            }
-            self.assertEqual(fps, expected)
+        root_dir = str(result.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/index.html',
+            'data/index.tsv'
+        }
+
+        self.assertArchiveMembers(filepath, root_dir, expected)
 
     def test_async(self):
         mapping_viz = self.plugin.visualizers['mapping_viz']
@@ -295,16 +294,16 @@ class TestVisualizer(unittest.TestCase):
         filepath = os.path.join(self.test_dir.name, 'visualization.qzv')
         result.save(filepath)
 
-        with zipfile.ZipFile(filepath, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                'visualization/VERSION',
-                'visualization/metadata.yaml',
-                'visualization/README.md',
-                'visualization/data/index.html',
-                'visualization/data/css/style.css'
-            }
-            self.assertEqual(fps, expected)
+        root_dir = str(result.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/index.html',
+            'data/css/style.css'
+        }
+
+        self.assertArchiveMembers(filepath, root_dir, expected)
 
     def test_visualizer_callable_output(self):
         artifact = Artifact._from_view(

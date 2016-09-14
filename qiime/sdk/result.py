@@ -11,7 +11,6 @@ import distutils.dir_util
 import functools
 import os
 import os.path
-import uuid
 import pathlib
 
 import qiime.sdk
@@ -214,8 +213,9 @@ class Artifact(Result):
         result = transformation(view)
 
         artifact = cls.__new__(cls)
+        # Not providing a UUID, Archiver will create one.
         artifact._archiver = archiver.Archiver(
-            uuid.uuid4(), type, output_dir_fmt.__name__, provenance,
+            type, output_dir_fmt.__name__, provenance,
             data_initializer=result.path._move_or_copy)
         return artifact
 
@@ -245,9 +245,10 @@ class Visualization(Result):
         data_initializer = functools.partial(distutils.dir_util.copy_tree,
                                              data_dir)
         viz = cls.__new__(cls)
+        # Not providing a UUID, Archiver will create one.
         viz._archiver = archiver.Archiver(
-            uuid.uuid4(), qiime.core.type.Visualization, 'Visualization',
-            provenance, data_initializer=data_initializer)
+            qiime.core.type.Visualization, 'Visualization', provenance,
+            data_initializer=data_initializer)
         return viz
 
     def get_index_paths(self, relative=True):
