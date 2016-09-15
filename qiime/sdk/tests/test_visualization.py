@@ -7,11 +7,9 @@
 # ----------------------------------------------------------------------------
 
 import os
-import pkg_resources
 import tempfile
 import unittest
 import uuid
-import zipfile
 import collections
 
 import qiime.core.type
@@ -20,9 +18,10 @@ from qiime.sdk.result import ResultMetadata
 
 from qiime.core.testing.visualizer import (
     mapping_viz, most_common_viz, multi_html_viz)
+from qiime.core.testing.util import ArchiveTestingMixin
 
 
-class TestVisualization(unittest.TestCase):
+class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
     def setUp(self):
         # TODO standardize temporary directories created by QIIME
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
@@ -96,16 +95,16 @@ class TestVisualization(unittest.TestCase):
 
         visualization.save(fp)
 
-        with zipfile.ZipFile(fp, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                'visualization/VERSION',
-                'visualization/metadata.yaml',
-                'visualization/README.md',
-                'visualization/data/index.html',
-                'visualization/data/css/style.css'
-            }
-            self.assertEqual(fps, expected)
+        root_dir = str(visualization.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/index.html',
+            'data/css/style.css'
+        }
+
+        self.assertArchiveMembers(fp, root_dir, expected)
 
     def test_load(self):
         saved_visualization = Visualization._from_data_dir(self.data_dir, None)
@@ -143,27 +142,27 @@ class TestVisualization(unittest.TestCase):
         # Saving to a new file works.
         visualization.save(fp2)
 
-        with zipfile.ZipFile(fp1, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                'visualization1/VERSION',
-                'visualization1/metadata.yaml',
-                'visualization1/README.md',
-                'visualization1/data/index.html',
-                'visualization1/data/css/style.css'
-            }
-            self.assertEqual(fps, expected)
+        root_dir = str(visualization.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/index.html',
+            'data/css/style.css'
+        }
 
-        with zipfile.ZipFile(fp2, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                'visualization2/VERSION',
-                'visualization2/metadata.yaml',
-                'visualization2/README.md',
-                'visualization2/data/index.html',
-                'visualization2/data/css/style.css'
-            }
-            self.assertEqual(fps, expected)
+        self.assertArchiveMembers(fp1, root_dir, expected)
+
+        root_dir = str(visualization.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/index.html',
+            'data/css/style.css'
+        }
+
+        self.assertArchiveMembers(fp2, root_dir, expected)
 
     def test_roundtrip(self):
         fp1 = os.path.join(self.test_dir.name, 'visualization1.qzv')
@@ -179,69 +178,6 @@ class TestVisualization(unittest.TestCase):
         self.assertEqual(visualization1.type, visualization2.type)
         self.assertEqual(visualization1.provenance, visualization2.provenance)
         self.assertEqual(visualization1.uuid, visualization2.uuid)
-
-    def test_load_from_externally_created_zipfile(self):
-        # If a user unzips a .qzv to inspect contents and rezips using a
-        # different ZIP library/implementation than the one provided by Python,
-        # loading, saving, etc. should still work as expected. The Python ZIP
-        # implementation doesn't store directories as entries when writing, but
-        # the `zip` Unix and OS X command line utilities include both
-        # directories and filepaths as entries. When reading these files with
-        # Python's ZIP implementation, the directory entries are visible, so
-        # their presence needs to be accounted for when extracting.
-        #
-        # The following visualization was created with:
-        #
-        #     visualization = Visualization._from_data_dir(self.data_dir,
-        #                                                  self.provenance)
-        #     visualization.save('externally_created_zipfile.qzv')
-        #
-        # Unzip and rezip using command line utility:
-        #
-        #     unzip externally_created_zipfile.qzv
-        #     rm externally_created_zipfile.qzv
-        #     zip -r externally_created_zipfile.qzv externally_created_zipfile
-        #
-        fp = pkg_resources.resource_filename(
-            'qiime.sdk.tests', 'data/externally_created_zipfile.qzv')
-
-        with zipfile.ZipFile(fp, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                # These are extra directory entries included by `zip` command
-                # line utility.
-                'externally_created_zipfile/',
-                'externally_created_zipfile/data/',
-                'externally_created_zipfile/data/css/',
-
-                'externally_created_zipfile/VERSION',
-                'externally_created_zipfile/metadata.yaml',
-                'externally_created_zipfile/README.md',
-                'externally_created_zipfile/data/index.html',
-                'externally_created_zipfile/data/css/style.css'
-            }
-            self.assertEqual(fps, expected)
-
-        visualization = Visualization.load(fp)
-
-        self.assertEqual(visualization.type, qiime.core.type.Visualization)
-        self.assertEqual(visualization.provenance, self.provenance)
-        self.assertIsInstance(visualization.uuid, uuid.UUID)
-
-        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization.save(fp)
-
-        with zipfile.ZipFile(fp, mode='r') as zf:
-            fps = set(zf.namelist())
-            expected = {
-                # Directory entries should not be present.
-                'visualization/VERSION',
-                'visualization/metadata.yaml',
-                'visualization/README.md',
-                'visualization/data/index.html',
-                'visualization/data/css/style.css'
-            }
-            self.assertEqual(fps, expected)
 
     def test_load_with_archive_filepath_modified(self):
         # Save a visualization for use in the following test case.
@@ -286,16 +222,15 @@ class TestVisualization(unittest.TestCase):
         result_dir = Visualization.extract(fp, output_dir=output_dir)
         self.assertEqual(result_dir, output_dir)
 
-        contents = [
-            'visualization/VERSION',
-            'visualization/metadata.yaml',
-            'visualization/README.md',
-            'visualization/data/index.html',
-            'visualization/data/css/style.css']
-        for fp in contents:
-            expected_fp = os.path.join(output_dir, fp)
-            self.assertTrue(os.path.exists(expected_fp),
-                            'File %s was not extracted.' % fp)
+        root_dir = str(visualization.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/index.html',
+            'data/css/style.css'}
+
+        self.assertExtractedArchiveMembers(output_dir, root_dir, expected)
 
     def test_get_index_paths_single_load(self):
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')

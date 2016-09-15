@@ -16,11 +16,11 @@ from qiime.sdk import Result, Artifact, Visualization, Provenance
 from qiime.sdk.result import ResultMetadata
 
 from qiime.core.testing.type import FourInts
-from qiime.core.testing.util import get_dummy_plugin
+from qiime.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 from qiime.core.testing.visualizer import mapping_viz
 
 
-class TestResult(unittest.TestCase):
+class TestResult(unittest.TestCase, ArchiveTestingMixin):
     def setUp(self):
         # Ignore the returned dummy plugin object, just run this to verify the
         # plugin exists as the tests rely on it being loaded.
@@ -159,18 +159,18 @@ class TestResult(unittest.TestCase):
         result_dir = Result.extract(fp, output_dir=output_dir)
         self.assertEqual(result_dir, output_dir)
 
-        contents = [
-            'artifact/VERSION',
-            'artifact/metadata.yaml',
-            'artifact/README.md',
-            'artifact/data/file1.txt',
-            'artifact/data/file2.txt',
-            'artifact/data/nested/file3.txt',
-            'artifact/data/nested/file4.txt']
-        for fp in contents:
-            expected_fp = os.path.join(output_dir, fp)
-            self.assertTrue(os.path.exists(expected_fp),
-                            'File %s was not extracted.' % fp)
+        root_dir = str(artifact.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/file1.txt',
+            'data/file2.txt',
+            'data/nested/file3.txt',
+            'data/nested/file4.txt'
+        }
+
+        self.assertExtractedArchiveMembers(output_dir, root_dir, expected)
 
     def test_extract_visualization(self):
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
@@ -182,16 +182,16 @@ class TestResult(unittest.TestCase):
         result_dir = Result.extract(fp, output_dir=output_dir)
         self.assertEqual(result_dir, output_dir)
 
-        contents = [
-            'visualization/VERSION',
-            'visualization/metadata.yaml',
-            'visualization/README.md',
-            'visualization/data/index.html',
-            'visualization/data/css/style.css']
-        for fp in contents:
-            expected_fp = os.path.join(output_dir, fp)
-            self.assertTrue(os.path.exists(expected_fp),
-                            'File %s was not extracted.' % fp)
+        root_dir = str(visualization.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/index.html',
+            'data/css/style.css'
+        }
+
+        self.assertExtractedArchiveMembers(output_dir, root_dir, expected)
 
     def test_peek_artifact(self):
         artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000],
