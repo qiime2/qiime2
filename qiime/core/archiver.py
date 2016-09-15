@@ -32,6 +32,8 @@ class Archiver:
     _README_FILENAME = 'README.md'
     _METADATA_FILENAME = 'metadata.yaml'
     DATA_DIRNAME = 'data'
+    # Zipfiles always use forward slash as the path separator.
+    _ZIPSEP = '/'
 
     @classmethod
     def extract(cls, filepath, output_dir):
@@ -69,14 +71,27 @@ class Archiver:
         def extract_data(data_dir):
             with zipfile.ZipFile(filepath, mode='r') as zf:
                 root_dir = cls._get_root_dir(zf)
-                prefix = os.path.join(root_dir, cls.DATA_DIRNAME, '')
+
+                # This archive path is <archive uuid>/data/
+                # The trailing slash is necessary because directory entries
+                # in the zipfile have trailing slashes, and these directory
+                # entries shouldn't be extracted (see filtering logic in loop
+                # below).
+                archive_data_dir = cls._ZIPSEP.join(
+                    [root_dir, cls.DATA_DIRNAME, ''])
 
                 for file_ in zf.namelist():
-                    if file_.startswith(prefix) and file_ != prefix:
+                    if file_.startswith(archive_data_dir) and \
+                            file_ != archive_data_dir:
                         zf.extract(file_, path=data_dir)
 
-            # This is `data_dir`/<archive uuid>/data/
-            extracted_data_dir = os.path.join(data_dir, prefix)
+            # This filesystem path is `data_dir`/<archive uuid>/data/
+            # Archive path separators must be converted to OS-specific
+            # separators because this is a filesystem path now instead of an
+            # archive path.
+            extracted_data_dir = os.path.join(
+                data_dir, *archive_data_dir.split(cls._ZIPSEP))
+
             for name in os.listdir(extracted_data_dir):
                 # Note: if the archive's data directory contains a top-level
                 # file or directory with a name matching this archive's UUID,
@@ -101,7 +116,7 @@ class Archiver:
         roots = set()
         for relpath in zf.namelist():
             if not relpath.startswith('.'):
-                root = relpath.split(os.sep, maxsplit=1)[0]
+                root = relpath.split(cls._ZIPSEP, maxsplit=1)[0]
                 roots.add(root)
         if len(roots) == 0:
             raise ValueError("Archive does not have a visible root directory.")
@@ -112,8 +127,8 @@ class Archiver:
         root = roots.pop()
         if not cls._is_uuid4(root):
             raise ValueError(
-                "Archive root directory %r is not a valid version 4 UUID." %
-                root)
+                "Archive root directory name %r is not a valid version 4 "
+                "UUID." % root)
         return root
 
     @classmethod
@@ -131,7 +146,7 @@ class Archiver:
 
     @classmethod
     def _load_version(cls, zf, root_dir):
-        version_path = os.path.join(root_dir, cls._VERSION_FILENAME)
+        version_path = root_dir + cls._ZIPSEP + cls._VERSION_FILENAME
         with zf.open(version_path) as bytes_fh:
             with io.TextIOWrapper(bytes_fh, newline=None,
                                   encoding='utf-8', errors='strict') as fh:
@@ -139,7 +154,7 @@ class Archiver:
 
     @classmethod
     def _load_metadata(cls, zf, root_dir):
-        metadata_path = os.path.join(root_dir, cls._METADATA_FILENAME)
+        metadata_path = root_dir + cls._ZIPSEP + cls._METADATA_FILENAME
         with zf.open(metadata_path) as bytes_fh:
             with io.TextIOWrapper(bytes_fh, newline=None,
                                   encoding='utf-8', errors='strict') as fh:
@@ -284,20 +299,20 @@ class Archiver:
 
                     abspath = os.path.join(root, file_)
                     relpath = os.path.relpath(abspath, start=self._data_dir)
-                    archive_path = os.path.join(
+                    archive_path = self._ZIPSEP.join([
                         root_dir,
                         self.DATA_DIRNAME,
-                        relpath
-                    )
+                        relpath.replace(os.sep, self._ZIPSEP)
+                    ])
                     zf.write(abspath, arcname=archive_path)
 
     def _save_version(self, zf, root_dir):
         version = '%s\n' % self._VERSION
-        zf.writestr(os.path.join(root_dir, self._VERSION_FILENAME),
+        zf.writestr(root_dir + self._ZIPSEP + self._VERSION_FILENAME,
                     version.encode('utf-8'))
 
     def _save_readme(self, zf, root_dir):
-        zf.writestr(os.path.join(root_dir, self._README_FILENAME),
+        zf.writestr(root_dir + self._ZIPSEP + self._README_FILENAME,
                     _README_TEXT.encode('utf-8'))
 
     def _save_metadata(self, zf, root_dir):
@@ -307,7 +322,7 @@ class Archiver:
             ('format', self.format),
             ('provenance', self._formatted_provenance())
         ]), default_flow_style=False)
-        zf.writestr(os.path.join(root_dir, self._METADATA_FILENAME),
+        zf.writestr(root_dir + self._ZIPSEP + self._METADATA_FILENAME,
                     metadata_bytes.encode('utf-8'))
 
     def _formatted_uuid(self):

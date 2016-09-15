@@ -40,9 +40,9 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.temp_dir.cleanup()
 
     def test_load_version_file_decoding(self):
-        fp = os.path.join(self.temp_dir.name, "bad_data.qza")
+        fp = os.path.join(self.temp_dir.name, "bad_data.zip")
 
-        # Bypass Archiver.save to build a faux-qza file with a
+        # Bypass Archiver.save to build a faux-archive with a
         # non-UTF-8 encoded version file.
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
@@ -54,9 +54,9 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 Archiver._load_version(zf, 'bad_data')
 
     def test_load_metadata_file_decoding(self):
-        fp = os.path.join(self.temp_dir.name, "bad_data.qza")
+        fp = os.path.join(self.temp_dir.name, "bad_data.zip")
 
-        # Bypass Archiver.save to build a faux-qza file with a
+        # Bypass Archiver.save to build a faux-archive with a
         # non-UTF-8 encoded metadata file.
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
@@ -68,7 +68,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 Archiver._load_metadata(zf, 'bad_data')
 
     def test_save_version_file_encoding(self):
-        fp = os.path.join(self.temp_dir.name, "archive.qza")
+        fp = os.path.join(self.temp_dir.name, "archive.zip")
 
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
@@ -85,7 +85,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                     self.assertEqual(fh.read().rstrip('\n'), Archiver._VERSION)
 
     def test_save_readme_file_encoding(self):
-        fp = os.path.join(self.temp_dir.name, "archive.qza")
+        fp = os.path.join(self.temp_dir.name, "archive.zip")
 
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
@@ -102,7 +102,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                     self.assertTrue(fh.read().rstrip('\n'))
 
     def test_save_metadata_file_encoding(self):
-        fp = os.path.join(self.temp_dir.name, "archive.qza")
+        fp = os.path.join(self.temp_dir.name, "archive.zip")
 
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
@@ -120,7 +120,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                     self.assertTrue(fh.read().rstrip('\n'))
 
     def test_metadata_pprint_yaml(self):
-        fp = os.path.join(self.temp_dir.name, "archive.qza")
+        fp = os.path.join(self.temp_dir.name, "archive.zip")
 
         with zipfile.ZipFile(fp, mode="w",
                              compression=zipfile.ZIP_DEFLATED,
@@ -170,7 +170,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         archiver = Archiver(IntSequence1, 'IntSequenceDirectoryFormat', None,
                             data_initializer=data_initializer)
 
-        fp = os.path.join(self.temp_dir.name, 'archive.qza')
+        fp = os.path.join(self.temp_dir.name, 'archive.zip')
         archiver.save(fp)
 
         root_dir = str(archiver.uuid)
@@ -184,7 +184,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertArchiveMembers(fp, root_dir, expected)
 
     def test_save_archive_members(self):
-        fp = os.path.join(self.temp_dir.name, 'archive.qza')
+        fp = os.path.join(self.temp_dir.name, 'archive.zip')
 
         self.archiver.save(fp)
 
@@ -199,7 +199,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertArchiveMembers(fp, root_dir, expected)
 
     def test_load_archive(self):
-        fp = os.path.join(self.temp_dir.name, 'archive.qza')
+        fp = os.path.join(self.temp_dir.name, 'archive.zip')
         self.archiver.save(fp)
 
         archiver = Archiver.load(fp)
@@ -212,7 +212,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                          {'ints.txt'})
 
     def test_load_ignores_root_dotfiles(self):
-        fp = os.path.join(self.temp_dir.name, 'archive.qza')
+        fp = os.path.join(self.temp_dir.name, 'archive.zip')
         self.archiver.save(fp)
 
         # Add some dotfiles to the archive.
@@ -257,7 +257,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         # Directory members aren't created by Python's zipfile module but can
         # be present if the archive is unzipped and then rezipped, for example,
         # using a command-line zip program.
-        fp = os.path.join(self.temp_dir.name, 'archive.qza')
+        fp = os.path.join(self.temp_dir.name, 'archive.zip')
         self.archiver.save(fp)
 
         # Add directory entries to the archive.
@@ -265,16 +265,20 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         with zipfile.ZipFile(fp, mode='a') as zf:
             zf.writestr('%s/' % root_dir, "")
             zf.writestr('%s/data/' % root_dir, "")
+            zf.writestr('%s/data/nested/' % root_dir, "")
+            zf.writestr('%s/data/nested/foo.txt' % root_dir, "bar")
 
         # Assert the expected files exist in the archive to verify this test
         # case is testing what we want it to.
         expected = {
             '',  # Expected path: `root_dir`/
             'data/',
+            'data/nested/',
             'VERSION',
             'metadata.yaml',
             'README.md',
-            'data/ints.txt'
+            'data/ints.txt',
+            'data/nested/foo.txt'
         }
 
         self.assertArchiveMembers(fp, root_dir, expected)
@@ -286,7 +290,21 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(archiver.format, 'IntSequenceDirectoryFormat')
         self.assertIsNone(archiver.provenance)
         self.assertEqual({e for (e, _) in archiver.get_data_paths()},
-                         {'ints.txt'})
+                         {'ints.txt', 'nested/foo.txt'})
+
+        archiver.save(fp)
+
+        root_dir = str(archiver.uuid)
+        expected = {
+            # Directory entries should not be present.
+            'VERSION',
+            'metadata.yaml',
+            'README.md',
+            'data/ints.txt',
+            'data/nested/foo.txt'
+        }
+
+        self.assertArchiveMembers(fp, root_dir, expected)
 
     def test_load_empty_archive(self):
         fp = os.path.join(self.temp_dir.name, 'empty.zip')

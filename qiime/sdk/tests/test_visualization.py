@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import os
-import pkg_resources
 import tempfile
 import unittest
 import uuid
@@ -179,68 +178,6 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(visualization1.type, visualization2.type)
         self.assertEqual(visualization1.provenance, visualization2.provenance)
         self.assertEqual(visualization1.uuid, visualization2.uuid)
-
-    def test_load_from_externally_created_zipfile(self):
-        # If a user unzips a .qzv to inspect contents and rezips using a
-        # different ZIP library/implementation than the one provided by Python,
-        # loading, saving, etc. should still work as expected. The Python ZIP
-        # implementation doesn't store directories as entries when writing, but
-        # the `zip` Unix and OS X command line utilities include both
-        # directories and filepaths as entries. When reading these files with
-        # Python's ZIP implementation, the directory entries are visible, so
-        # their presence needs to be accounted for when extracting.
-        #
-        # The following visualization was created with:
-        #
-        #     visualization = Visualization._from_data_dir(self.data_dir,
-        #                                                  self.provenance)
-        #     visualization.save('externally_created_zipfile.qzv')
-        #
-        # Unzip and rezip using command line utility:
-        #
-        #     unzip externally_created_zipfile.qzv
-        #     rm externally_created_zipfile.qzv
-        #     zip -r externally_created_zipfile.qzv <unzipped uuid directory>
-        #
-        fp = pkg_resources.resource_filename(
-            'qiime.sdk.tests', 'data/externally_created_zipfile.qzv')
-        visualization = Visualization.load(fp)
-
-        root_dir = str(visualization.uuid)
-        expected = {
-            # These are extra directory entries included by `zip` command
-            # line utility.
-            '',  # Expected path: `root_dir`/
-            'data/',
-            'data/css/',
-
-            'VERSION',
-            'metadata.yaml',
-            'README.md',
-            'data/index.html',
-            'data/css/style.css'
-        }
-
-        self.assertArchiveMembers(fp, root_dir, expected)
-
-        self.assertEqual(visualization.type, qiime.core.type.Visualization)
-        self.assertEqual(visualization.provenance, self.provenance)
-        self.assertIsInstance(visualization.uuid, uuid.UUID)
-
-        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization.save(fp)
-
-        root_dir = str(visualization.uuid)
-        expected = {
-            # Directory entries should not be present.
-            'VERSION',
-            'metadata.yaml',
-            'README.md',
-            'data/index.html',
-            'data/css/style.css'
-        }
-
-        self.assertArchiveMembers(fp, root_dir, expected)
 
     def test_load_with_archive_filepath_modified(self):
         # Save a visualization for use in the following test case.

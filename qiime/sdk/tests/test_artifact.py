@@ -8,7 +8,6 @@
 
 import collections
 import os
-import pkg_resources
 import tempfile
 import unittest
 import uuid
@@ -238,74 +237,6 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
                          artifact2.view(list))
         self.assertEqual(artifact1.view(list),
                          artifact2.view(list))
-
-    def test_load_from_externally_created_zipfile(self):
-        # If a user unzips a .qza to inspect contents and rezips using a
-        # different ZIP library/implementation than the one provided by Python,
-        # loading, saving, etc. should still work as expected. The Python ZIP
-        # implementation doesn't store directories as entries when writing, but
-        # the `zip` Unix and OS X command line utilities include both
-        # directories and filepaths as entries. When reading these files with
-        # Python's ZIP implementation, the directory entries are visible, so
-        # their presence needs to be accounted for when extracting.
-        #
-        # The following artifact was created with:
-        #
-        #     artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
-        #                                    self.provenance)
-        #     artifact.save('externally_created_zipfile.qza')
-        #
-        # Unzip and rezip using command line utility:
-        #
-        #     unzip externally_created_zipfile.qza
-        #     rm externally_created_zipfile.qza
-        #     zip -r externally_created_zipfile.qza <unzipped uuid directory>
-        #
-        fp = pkg_resources.resource_filename(
-            'qiime.sdk.tests', 'data/externally_created_zipfile.qza')
-        artifact = Artifact.load(fp)
-
-        root_dir = str(artifact.uuid)
-        expected = {
-            # These are extra directory entries included by `zip` command
-            # line utility.
-            '',  # Expected path: `root_dir`/
-            'data/',
-            'data/nested/',
-
-            'VERSION',
-            'metadata.yaml',
-            'README.md',
-            'data/file1.txt',
-            'data/file2.txt',
-            'data/nested/file3.txt',
-            'data/nested/file4.txt'
-        }
-
-        self.assertArchiveMembers(fp, root_dir, expected)
-
-        self.assertEqual(artifact.type, FourInts)
-        self.assertEqual(artifact.provenance, self.provenance)
-        self.assertIsInstance(artifact.uuid, uuid.UUID)
-        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
-        self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
-
-        fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        artifact.save(fp)
-
-        root_dir = str(artifact.uuid)
-        expected = {
-            # Directory entries should not be present.
-            'VERSION',
-            'metadata.yaml',
-            'README.md',
-            'data/file1.txt',
-            'data/file2.txt',
-            'data/nested/file3.txt',
-            'data/nested/file4.txt'
-        }
-
-        self.assertArchiveMembers(fp, root_dir, expected)
 
     def test_load_with_archive_filepath_modified(self):
         # Save an artifact for use in the following test case.

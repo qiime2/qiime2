@@ -6,6 +6,7 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import os
 import os.path
 import zipfile
 
@@ -70,9 +71,12 @@ class ArchiveTestingMixin:
             as paths relative to `root_dir`.
 
         """
+        observed = set()
+        for root, _, filenames in os.walk(extract_dir):
+            for filename in filenames:
+                observed.add(os.path.join(root, filename))
+
         expected = {os.path.join(extract_dir, root_dir, member)
                     for member in expected}
 
-        for expected_path in expected:
-            self.assertTrue(os.path.exists(expected_path),
-                            'Path %s was not extracted.' % expected_path)
+        self.assertEqual(observed, expected)
