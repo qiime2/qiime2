@@ -22,6 +22,7 @@ class TestPipelineSignature(unittest.TestCase):
                     'input2': (IntSequence1, list)},
             parameters={'param1': (Int, int),
                         'param2': (Int, int)},
+            defaults={'param1': 42},
             outputs=collections.OrderedDict([
                 ('output1', (IntSequence1, list)),
                 ('output2', (IntSequence1, list))]))
@@ -31,6 +32,8 @@ class TestPipelineSignature(unittest.TestCase):
                           'input2': (IntSequence1, list)})
         self.assertEqual(signature.parameters,
                          {'param1': (Int, int), 'param2': (Int, int)})
+        self.assertEqual(signature.defaults,
+                         {'param1': 42})
         self.assertEqual(
             signature.outputs,
             collections.OrderedDict([
@@ -43,6 +46,7 @@ class TestPipelineSignature(unittest.TestCase):
                     'input2': (IntSequence1, list)},
             parameters={'param1': (Int, int),
                         'param2': (Int, int)},
+            defaults={'param1': 42},
             outputs=collections.OrderedDict([
                 ('output1', (IntSequence1, list)),
                 ('output2', (IntSequence1, list))])
