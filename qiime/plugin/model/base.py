@@ -17,7 +17,7 @@ class FormatBase:
                 raise ValueError("A path must be provided when reading.")
         else:
             if mode != 'r':
-                raise ValueError("A path must be ommitted when writing.")
+                raise ValueError("A path must be omitted when writing.")
 
         if mode == 'w':
             self.path = qpath.OutPath(
