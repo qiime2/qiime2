@@ -17,7 +17,6 @@ import yaml
 import zipfile
 
 import qiime.sdk
-import qiime.core.util as util
 
 # Allow OrderedDict to be serialized for YAML representation
 yaml.add_representer(collections.OrderedDict, lambda dumper, data:
@@ -166,7 +165,7 @@ class Archiver:
                 "Archive root directory must match UUID present in archive's "
                 "metadata: %r != %r" % (root_dir, str(uuid_)))
 
-        type_ = util.parse_type(metadata['type'])
+        type_ = qiime.sdk.parse_type(metadata['type'])
         provenance = cls._parse_provenance(metadata['provenance'])
         format = metadata['format']
         return uuid_, type_, format, provenance

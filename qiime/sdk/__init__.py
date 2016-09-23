@@ -10,10 +10,10 @@ from .action import Action
 from .plugin_manager import PluginManager
 from .provenance import Provenance
 from .result import Result, Artifact, Visualization
-from ..core.util import parse_type
+from .util import parse_type, parse_format, UnknownTypeError
 
 __all__ = ['Result', 'Artifact', 'Visualization', 'Action', 'PluginManager',
-           'Provenance', 'parse_type']
+           'Provenance', 'parse_type', 'parse_format', 'UnknownTypeError']
 
 # Various URLs
 CITATION = 'http://www.ncbi.nlm.nih.gov/pubmed/20383131'

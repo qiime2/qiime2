@@ -16,7 +16,6 @@ import pathlib
 import qiime.sdk
 import qiime.core.archiver as archiver
 import qiime.core.type
-import qiime.core.util as util
 import qiime.core.transform as transform
 import qiime.plugin.model as model
 
@@ -111,7 +110,7 @@ class Result:
         # Visualization format (currently a string), otherwise special-casing
         # is needed everywhere.
         if not hasattr(self, '__format'):
-            self.__format = util.parse_format(self._archiver.format)
+            self.__format = qiime.sdk.parse_format(self._archiver.format)
         return self.__format
 
     def __init__(self):
@@ -170,7 +169,7 @@ class Artifact(Result):
             type_ = qiime.sdk.parse_type(type_)
 
         if isinstance(view_type, str):
-            view_type = qiime.core.util.parse_format(view_type)
+            view_type = qiime.sdk.parse_format(view_type)
 
         if view_type is None:
             if type(view) is str or isinstance(view, pathlib.PurePath):

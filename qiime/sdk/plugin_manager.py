@@ -14,7 +14,15 @@ import qiime.core.type
 
 
 class PluginManager:
+    entry_point_group = 'qiime.plugins'
     __instance = None
+
+    @classmethod
+    def iter_entry_points(cls):
+        for entry_point in pkg_resources.iter_entry_points(
+                group=cls.entry_point_group):
+            if entry_point.name != 'dummy-plugin' or 'QIIMETEST' in os.environ:
+                yield entry_point
 
     # This class is a singleton as it is slow to create, represents the
     # state of a qiime installation, and is needed *everywhere*
@@ -31,18 +39,13 @@ class PluginManager:
         self.transformers = collections.defaultdict(dict)
         self.type_formats = []
 
-        plugins = []
-        for entry_point in pkg_resources.iter_entry_points(
-                group='qiime.plugins'):
-            if entry_point.name != 'dummy-plugin' or 'QIIMETEST' in os.environ:
-                plugins.append(entry_point.load())
-
         # These are all dependent loops, each requires the loop above it to
         # be completed.
-        for plugin in plugins:
+        for entry_point in self.iter_entry_points():
+            plugin = entry_point.load()
             self.plugins[plugin.name] = plugin
 
-        for plugin in plugins:
+        for plugin in self.plugins.values():
             self._integrate_plugin(plugin)
 
     def _integrate_plugin(self, plugin):
