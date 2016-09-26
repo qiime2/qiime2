@@ -15,17 +15,17 @@ import qiime
 # TODO Split out into more specific subclasses if necessary.
 class TestPluginBase(unittest.TestCase):
     package = None
+    test_dir_prefix = 'qiime2-plugin'
 
     def setUp(self):
-        plugin = None
-        package = None
-        # plugins are keyed by their names, so a search inside the plugin
-        # object is required to match to the correct plugin
         try:
             package = self.package.split('.')[0]
         except AttributeError:
             self.fail('Test class must have a package property.')
 
+        # plugins are keyed by their names, so a search inside the plugin
+        # object is required to match to the correct plugin
+        plugin = None
         for name, plugin_ in qiime.sdk.PluginManager().plugins.items():
             if plugin_.package == package:
                 plugin = plugin_
@@ -33,13 +33,12 @@ class TestPluginBase(unittest.TestCase):
         if plugin is not None:
             self.plugin = plugin
         else:
-            self.fail('%s is not a registered QIIME 2 plugin.' %
-                      self.package.split('.')[0])
+            self.fail('%s is not a registered QIIME 2 plugin.' % package)
 
         # TODO use qiime temp dir when ported to framework, and when the
         # configurable temp dir exists
         self.temp_dir = tempfile.TemporaryDirectory(
-            prefix='q2-types-test-temp-')
+            prefix='%s-test-temp-' % self.test_dir_prefix)
 
     def tearDown(self):
         self.temp_dir.cleanup()
