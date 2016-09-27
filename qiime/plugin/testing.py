@@ -72,7 +72,8 @@ class TestPluginBase(unittest.TestCase):
     def assertSemanticTypeRegisteredToFormat(self, semantic_type, exp_format):
         obs_format = None
         for type_format_record in self.plugin.type_formats:
-            if type_format_record.type_expression == semantic_type:
+            if (type_format_record.type_expression == semantic_type and
+                    exp_format == type_format_record.format):
                 obs_format = type_format_record.format
                 break
 
