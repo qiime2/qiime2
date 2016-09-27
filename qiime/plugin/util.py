@@ -10,7 +10,7 @@ from qiime.core.transform import ModelType
 
 
 def transform(data, *, from_type=None, to_type):
-    from_type = from_type if from_type else type(data)
+    from_type = type(data) if from_type is None else from_type
 
     from_model_type = ModelType.from_view_type(from_type)
     to_model_type = ModelType.from_view_type(to_type)
