@@ -434,7 +434,7 @@ class VisualizerCallable(Callable):
         # TODO use qiime.plugin.OutPath when it exists, and update visualizers
         # to work with OutPath instead of str. Visualization._from_data_dir
         # will also need to be updated to support OutPath instead of str.
-        with tempfile.TemporaryDirectory('qiime2-temp-') as temp_dir:
+        with tempfile.TemporaryDirectory(prefix='qiime2-temp-') as temp_dir:
             ret_val = callable(output_dir=temp_dir, **view_args)
             if ret_val is not None:
                 raise TypeError(
