@@ -1,0 +1,19 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2016--, QIIME 2 development team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+# ----------------------------------------------------------------------------
+
+from qiime.core.transform import ModelType
+
+
+def transform(data, *, from_type=None, to_type):
+    from_type = from_type if from_type else type(data)
+
+    from_model_type = ModelType.from_view_type(from_type)
+    to_model_type = ModelType.from_view_type(to_type)
+    transformation = from_model_type.make_transformation(to_model_type)
+
+    return transformation(data)
