@@ -10,7 +10,6 @@ import re
 
 import qiime.sdk
 import qiime.core.type as qtype
-from qiime.plugin.model.base import FormatBase
 
 
 # Makes it possible to programmatically detect when a type doesn't exist.
@@ -85,16 +84,8 @@ def parse_type(string, expect=None):
 
 def parse_format(format_str):
     pm = qiime.sdk.PluginManager()
-    for type_format_record in pm.type_formats:
-        if type_format_record.format.__name__ == format_str:
-            return type_format_record.format
-
-    for input in pm.transformers:
-        if issubclass(input, FormatBase) and input.__name__ == format_str:
-            return input
-        for output in pm.transformers[input]:
-            if (issubclass(output, FormatBase) and
-                    output.__name__ == format_str):
-                return output
-
-    raise TypeError("No format: %s" % format_str)
+    try:
+        format_record = pm.formats[format_str]
+    except KeyError:
+        raise TypeError("No format: %s" % format_str)
+    return format_record.format
