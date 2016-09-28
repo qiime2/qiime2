@@ -12,9 +12,12 @@ import qiime
 import qiime.plugin
 
 from .format import (
+    IntSequenceFormat,
+    MappingFormat,
+    SingleIntFormat,
     IntSequenceDirectoryFormat,
     MappingDirectoryFormat,
-    FourIntsDirectoryFormat,
+    FourIntsDirectoryFormat
 )
 
 from .type import IntSequence1, IntSequence2, Mapping, FourInts
@@ -37,6 +40,14 @@ dummy_plugin.register_semantic_type(IntSequence1)
 dummy_plugin.register_semantic_type(IntSequence2)
 dummy_plugin.register_semantic_type(Mapping)
 dummy_plugin.register_semantic_type(FourInts)
+
+# Register formats
+dummy_plugin.register_format(IntSequenceFormat)
+dummy_plugin.register_format(MappingFormat)
+dummy_plugin.register_format(SingleIntFormat)
+dummy_plugin.register_format(IntSequenceDirectoryFormat)
+dummy_plugin.register_format(MappingDirectoryFormat)
+dummy_plugin.register_format(FourIntsDirectoryFormat)
 
 
 dummy_plugin.register_semantic_type_to_format(

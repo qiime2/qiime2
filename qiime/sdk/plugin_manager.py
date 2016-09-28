@@ -37,6 +37,7 @@ class PluginManager:
         self.plugins = {}
         self.semantic_types = {}
         self.transformers = collections.defaultdict(dict)
+        self.formats = {}
         self.type_formats = []
 
         # These are all dependent loops, each requires the loop above it to
@@ -65,6 +66,7 @@ class PluginManager:
                                  % transformer_record)
             self.transformers[input][output] = transformer_record
 
+        self.formats.update(plugin.formats)
         self.type_formats.extend(plugin.type_formats)
 
     # TODO: Should plugin loading be transactional? i.e. if there's

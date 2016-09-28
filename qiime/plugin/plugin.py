@@ -17,6 +17,7 @@ import qiime.sdk
 import qiime.core.type.grammar as grammar
 from qiime.core.callable import MethodCallable, VisualizerCallable
 from qiime.plugin.model import DirectoryFormat
+from qiime.plugin.model.base import FormatBase
 from qiime.core.type import is_semantic_type
 
 
@@ -24,6 +25,7 @@ TransformerRecord = collections.namedtuple(
     'TransformerRecord', ['transformer', 'restrict', 'plugin'])
 SemanticTypeRecord = collections.namedtuple(
     'SemanticTypeRecord', ['semantic_type', 'plugin'])
+FormatRecord = collections.namedtuple('FormatRecord', ['format', 'plugin'])
 TypeFormatRecord = collections.namedtuple(
     'TypeFormatRecord', ['type_expression', 'format', 'plugin'])
 
@@ -50,6 +52,7 @@ class Plugin:
         self.methods = PluginMethods(self)
         self.visualizers = PluginVisualizers(self)
 
+        self.formats = {}
         self.types = {}
         self.transformers = {}
         self.type_formats = []
@@ -64,6 +67,15 @@ class Plugin:
         actions.update(self.methods)
         actions.update(self.visualizers)
         return types.MappingProxyType(actions)
+
+    def register_format(self, format):
+        if not issubclass(format, FormatBase):
+            raise TypeError("%r is not a valid format." % format)
+        if format.__name__ in self.formats.keys():
+            raise NameError("%r is already a registered format." % format)
+
+        self.formats[format.__name__] = FormatRecord(format=format,
+                                                     plugin=self)
 
     def register_transformer(self, _fn=None, *, restrict=None):
         """
