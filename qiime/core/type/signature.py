@@ -77,15 +77,16 @@ class PipelineSignature:
                     "expression, not %r" % (param_name, primitive_type))
 
     def _assert_valid_defaults(self, defaults, parameters):
-        # only parameters can have defaults and the type must match
+        # only parameters can have defaults and the type must match or be None
         for param_name, default in defaults.items():
             if param_name not in parameters:
                 raise ValueError("Input %r must not have a default value" %
                                  param_name)
 
-            if default not in parameters[param_name][0]:
+            if default is not None and \
+               default not in parameters[param_name][0]:
                 raise TypeError("Default value for parameter %r is not of "
-                                "semantic QIIME type %r" %
+                                "semantic QIIME type %r or None." %
                                 (param_name, parameters[param_name][0]))
 
     def _assert_valid_outputs(self, outputs):
@@ -113,11 +114,20 @@ class PipelineSignature:
         return params
 
     def check_types(self, **kwargs):
-        for key, (type_, _) in itertools.chain(self.inputs.items(),
-                                               self.parameters.items()):
+        for key, (type_, _) in self.inputs.items():
             if kwargs[key] not in type_:
-                raise TypeError("Argument to parameter %r is not a subtype of"
+                raise TypeError("Argument to input %r is not a subtype of"
                                 " %r." % (key, type_))
+
+        for key, (type_, _) in self.parameters.items():
+            if kwargs[key] not in type_:
+                # A type mismatch is unacceptable unless the value is None
+                # and this parameter's default value is None.
+                if not (key in self.defaults and
+                        self.defaults[key] is None and
+                        kwargs[key] is None):
+                    raise TypeError("Argument to parameter %r is not a "
+                                    "subtype of %r." % (key, type_))
 
     def solve_output(self, **input_types):
         # TODO implement solving here. The check for concrete output types may
