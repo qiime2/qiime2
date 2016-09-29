@@ -68,14 +68,15 @@ class Plugin:
         actions.update(self.visualizers)
         return types.MappingProxyType(actions)
 
-    def register_format(self, format):
-        if not issubclass(format, FormatBase):
-            raise TypeError("%r is not a valid format." % format)
-        if format.__name__ in self.formats.keys():
-            raise NameError("%r is already a registered format." % format)
+    def register_formats(self, *formats):
+        for format in formats:
+            if not issubclass(format, FormatBase):
+                raise TypeError("%r is not a valid format." % format)
+            if format.__name__ in self.formats:
+                raise NameError("%r is already a registered format." % format)
 
-        self.formats[format.__name__] = FormatRecord(format=format,
-                                                     plugin=self)
+            self.formats[format.__name__] = FormatRecord(format=format,
+                                                         plugin=self)
 
     def register_transformer(self, _fn=None, *, restrict=None):
         """
@@ -128,21 +129,23 @@ class Plugin:
             # Apply the decorator as we were applied with a single function
             return decorator(_fn)
 
-    def register_semantic_type(self, semantic_type):
-        if not is_semantic_type(semantic_type):
-            raise TypeError("%r is not a semantic type." % semantic_type)
+    def register_semantic_types(self, *semantic_types):
+        for semantic_type in semantic_types:
+            if not is_semantic_type(semantic_type):
+                raise TypeError("%r is not a semantic type." % semantic_type)
 
-        if not (isinstance(semantic_type, grammar.CompositeType) or
-                (semantic_type.is_concrete() and not semantic_type.fields)):
-            raise ValueError("%r is not a semantic type symbol."
-                             % semantic_type)
+            if not (isinstance(semantic_type, grammar.CompositeType) or
+                    (semantic_type.is_concrete() and
+                    not semantic_type.fields)):
+                raise ValueError("%r is not a semantic type symbol."
+                                 % semantic_type)
 
-        if semantic_type.name in self.types:
-            raise ValueError("Duplicate semantic type symbol %r."
-                             % semantic_type)
+            if semantic_type.name in self.types:
+                raise ValueError("Duplicate semantic type symbol %r."
+                                 % semantic_type)
 
-        self.types[semantic_type.name] = SemanticTypeRecord(
-            semantic_type=semantic_type, plugin=self)
+            self.types[semantic_type.name] = SemanticTypeRecord(
+                semantic_type=semantic_type, plugin=self)
 
     def register_semantic_type_to_format(self, semantic_type, artifact_format):
         if not issubclass(artifact_format, DirectoryFormat):

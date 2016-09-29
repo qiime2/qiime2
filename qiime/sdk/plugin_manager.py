@@ -66,7 +66,14 @@ class PluginManager:
                                  % transformer_record)
             self.transformers[input][output] = transformer_record
 
-        self.formats.update(plugin.formats)
+        for name, record in plugin.formats.items():
+            if name in self.formats:
+                raise NameError(
+                    "Duplicate format registration (%r) defined in plugins: %r"
+                    " and %r" %
+                    (name, record.plugin.name, self.formats[name].plugin.name)
+                )
+            self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
 
     # TODO: Should plugin loading be transactional? i.e. if there's
