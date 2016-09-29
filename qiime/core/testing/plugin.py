@@ -36,18 +36,15 @@ dummy_plugin = qiime.plugin.Plugin(
 import_module('qiime.core.testing.transformer')
 
 # Register semantic types
-dummy_plugin.register_semantic_type(IntSequence1)
-dummy_plugin.register_semantic_type(IntSequence2)
-dummy_plugin.register_semantic_type(Mapping)
-dummy_plugin.register_semantic_type(FourInts)
+dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, Mapping,
+                                     FourInts)
 
 # Register formats
-dummy_plugin.register_format(IntSequenceFormat)
-dummy_plugin.register_format(MappingFormat)
-dummy_plugin.register_format(SingleIntFormat)
-dummy_plugin.register_format(IntSequenceDirectoryFormat)
-dummy_plugin.register_format(MappingDirectoryFormat)
-dummy_plugin.register_format(FourIntsDirectoryFormat)
+dummy_plugin.register_formats(
+    IntSequenceFormat, MappingFormat, SingleIntFormat,
+    IntSequenceDirectoryFormat, MappingDirectoryFormat,
+    FourIntsDirectoryFormat
+)
 
 
 dummy_plugin.register_semantic_type_to_format(
