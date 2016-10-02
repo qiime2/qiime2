@@ -37,8 +37,9 @@ class Archiver:
     @classmethod
     def extract(cls, filepath, output_dir):
         with zipfile.ZipFile(filepath, mode='r') as zf:
+            root_dir = cls._get_root_dir(zf)
             zf.extractall(output_dir)
-        return output_dir
+        return os.path.join(output_dir, root_dir)
 
     @classmethod
     def peek(cls, filepath):
