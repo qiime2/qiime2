@@ -155,11 +155,11 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
                                        list, self.provenance)
         artifact.save(fp)
 
+        root_dir = str(artifact.uuid)
         output_dir = os.path.join(self.test_dir.name, 'artifact-extract-test')
         result_dir = Result.extract(fp, output_dir=output_dir)
-        self.assertEqual(result_dir, output_dir)
+        self.assertEqual(result_dir, os.path.join(output_dir, root_dir))
 
-        root_dir = str(artifact.uuid)
         expected = {
             'VERSION',
             'metadata.yaml',
@@ -178,11 +178,11 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
                                                      self.provenance)
         visualization.save(fp)
 
+        root_dir = str(visualization.uuid)
         output_dir = os.path.join(self.test_dir.name, 'viz-extract-test')
         result_dir = Result.extract(fp, output_dir=output_dir)
-        self.assertEqual(result_dir, output_dir)
+        self.assertEqual(result_dir, os.path.join(output_dir, root_dir))
 
-        root_dir = str(visualization.uuid)
         expected = {
             'VERSION',
             'metadata.yaml',

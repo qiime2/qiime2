@@ -272,11 +272,11 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
                                        list, self.provenance)
         artifact.save(fp)
 
+        root_dir = str(artifact.uuid)
         output_dir = os.path.join(self.test_dir.name, 'artifact-extract-test')
         result_dir = Artifact.extract(fp, output_dir=output_dir)
-        self.assertEqual(result_dir, output_dir)
+        self.assertEqual(result_dir, os.path.join(output_dir, root_dir))
 
-        root_dir = str(artifact.uuid)
         expected = {
             'VERSION',
             'metadata.yaml',
