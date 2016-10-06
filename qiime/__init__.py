@@ -7,10 +7,12 @@
 # ----------------------------------------------------------------------------
 
 import qiime.core  # noqa
+from qiime.citation import Citation
 from qiime.metadata import Metadata, MetadataCategory
 import qiime.sdk as _sdk
 
-__all__ = ['Metadata', 'MetadataCategory', 'Visualization', 'Artifact']
+__all__ = ['Citation', 'Metadata', 'MetadataCategory', 'Visualization',
+           'Artifact']
 
 __version__ = '2.0.3.dev'
 

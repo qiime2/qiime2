@@ -17,9 +17,11 @@ import uuid
 import decorator
 import frontmatter
 import ipymd
+import time
 
 import qiime.sdk
 import qiime.core.type as qtype
+import qiime.core.archive as archive
 from qiime.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 
 
@@ -128,6 +130,7 @@ class Results(tuple):
 
 
 class Callable(metaclass=abc.ABCMeta):
+    action_type = 'callable'
     __call__ = LateBindingAttribute('_dynamic_call')
     async = LateBindingAttribute('_dynamic_async')
 
@@ -190,6 +193,8 @@ class Callable(metaclass=abc.ABCMeta):
 
     def _get_callable_wrapper(self):
         def callable_wrapper(*args, **kwargs):
+            provenance = archive.ActionProvenanceCapture(
+                self.action_type, self.package, self.id)
             # This function's signature is rewritten below using
             # `decorator.decorator`. When the signature is rewritten, args[0]
             # is the function whose signature was used to rewrite this
@@ -210,29 +215,20 @@ class Callable(metaclass=abc.ABCMeta):
             output_types = self.signature.solve_output(**user_input)
 
             artifacts = {}
-            for name in self.signature.inputs:
-                artifacts[name] = user_input[name]
+            # .keys() are needed to preserve order for provenance
+            for name in self.signature.inputs.keys():
+                artifact = artifacts[name] = user_input[name]
+                provenance.add_input(name, artifact)
 
             parameters = {}
-            for name in self.signature.parameters:
-                parameters[name] = user_input[name]
+            for name, (primitive_type, _) in self.signature.parameters.items():
+                parameter = parameters[name] = user_input[name]
+                provenance.add_parameter(name, primitive_type, parameter)
 
             view_args = parameters.copy()
             for name, (_, view_type) in self.signature.inputs.items():
-                view_args[name] = artifacts[name].view(view_type)
-
-            execution_uuid = uuid.uuid4()
-            action_reference = (
-                "%s. Details on plugin, version, website, etc. will also be "
-                "included, see https://github.com/qiime2/qiime2/issues/26"
-                % self.id)
-            artifact_uuids = {name: artifact.uuid for name, artifact in
-                              artifacts.items()}
-            parameter_references = {name: str(param) for name, param in
-                                    parameters.items()}
-            provenance = qiime.sdk.Provenance(
-                execution_uuid, action_reference, artifact_uuids,
-                parameter_references)
+                recorder = provenance.transformation_recorder(name)
+                view_args[name] = artifacts[name]._view(view_type, recorder)
 
             outputs = self._callable_executor_(self._callable, view_args,
                                                output_types, provenance)
@@ -292,7 +288,7 @@ class Callable(metaclass=abc.ABCMeta):
 
     def _set_wrapper_properties(self, wrapper, name):
         wrapper.__name__ = wrapper.__qualname__ = name
-        wrapper.__module__ = self.get_import_path()
+        wrapper.__module__ = self.package
         del wrapper.__annotations__
         # This is necessary so that `inspect` doesn't display the wrapped
         # function's annotations (the annotations apply to the "view API" and
@@ -303,7 +299,7 @@ class Callable(metaclass=abc.ABCMeta):
         return self.package + '.' + self.id
 
     def __repr__(self):
-        return "<callable %s>" % self.get_import_path()
+        return "<%s %s>" % (self.action_type, self.get_import_path())
 
     def __getstate__(self):
         return {
@@ -327,6 +323,7 @@ class Callable(metaclass=abc.ABCMeta):
 
 
 class MethodCallable(Callable):
+    action_type = 'method'
     # Abstract method implementations:
 
     def _callable_sig_converter_(self, callable):
@@ -359,7 +356,7 @@ class MethodCallable(Callable):
                     "Expected output view type %r, received %r" %
                     (view_type.__name__, type(output_view).__name__))
             artifact = qiime.sdk.Artifact._from_view(
-                semantic_type, output_view, view_type, provenance)
+                semantic_type, output_view, view_type, provenance.fork())
             output_artifacts.append(artifact)
 
         if len(output_artifacts) == 1:
@@ -409,9 +406,6 @@ class MethodCallable(Callable):
         self.__init__(package, id, signature, function,
                       ('markdown', markdown_filepath), pid=pid)
 
-    def __repr__(self):
-        return "<method %s>" % self.get_import_path()
-
     def __setstate__(self, state):
         try:
             super().__setstate__(state)
@@ -424,6 +418,7 @@ class MethodCallable(Callable):
 
 
 class VisualizerCallable(Callable):
+    action_type = 'visualizer'
     # Abstract method implementations:
 
     def _callable_sig_converter_(self, callable):
@@ -447,9 +442,6 @@ class VisualizerCallable(Callable):
         signature = qtype.VisualizerSignature.from_function(
             function, inputs, parameters)
         return super().from_function(function, signature, package)
-
-    def __repr__(self):
-        return "<visualizer %s>" % self.get_import_path()
 
 
 # TODO add unit test for callables raising this

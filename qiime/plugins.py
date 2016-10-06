@@ -74,6 +74,7 @@ class QIIMEArtifactAPIImporter:
         spec = module.__spec__
         plugin = spec.loader_state['plugin']
         action_types = spec.loader_state['action_types']
+        module.__plugin__ = plugin
 
         if action_types is None:
             module.methods = importlib.import_module('.methods',
