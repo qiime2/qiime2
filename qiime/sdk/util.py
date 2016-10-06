@@ -83,6 +83,9 @@ def parse_type(string, expect=None):
 
 
 def parse_format(format_str):
+    if format_str is None:
+        return None
+
     pm = qiime.sdk.PluginManager()
     try:
         format_record = pm.formats[format_str]

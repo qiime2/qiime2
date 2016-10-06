@@ -18,7 +18,7 @@ import qiime.plugin
 import qiime.core.type
 from qiime.core.callable import Results
 from qiime.core.type import VisualizerSignature
-from qiime.sdk import Artifact, Visualization, Provenance, Action
+from qiime.sdk import Artifact, Visualization, Action
 
 from qiime.core.testing.type import IntSequence1, IntSequence2, Mapping
 from qiime.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
@@ -155,9 +155,9 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         mapping_viz = self.plugin.visualizers['mapping_viz']
 
         artifact1 = Artifact._from_view(Mapping, {'foo': 'abc', 'bar': 'def'},
-                                        dict, None)
+                                        dict)
         artifact2 = Artifact._from_view(Mapping, {'baz': 'abc', 'bazz': 'ghi'},
-                                        dict, None)
+                                        dict)
 
         result = mapping_viz(artifact1, artifact2, 'Key', 'Value')
 
@@ -172,20 +172,6 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         self.assertIsInstance(result, Visualization)
         self.assertEqual(result.type, qiime.core.type.Visualization)
 
-        provenance = result.provenance
-        self.assertIsInstance(provenance, Provenance)
-        self.assertIsInstance(provenance.execution_uuid, uuid.UUID)
-        self.assertTrue(
-            provenance.executor_reference.startswith(mapping_viz.id))
-        self.assertEqual(provenance.artifact_uuids, {
-            'mapping1': artifact1.uuid,
-            'mapping2': artifact2.uuid
-        })
-        self.assertEqual(provenance.parameter_references, {
-            'key_label': 'Key',
-            'value_label': 'Value'
-        })
-
         self.assertIsInstance(result.uuid, uuid.UUID)
 
         # TODO qiime.sdk.Visualization doesn't have an API to access its
@@ -197,7 +183,6 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/index.html',
             'data/css/style.css'
         }
@@ -208,7 +193,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         most_common_viz = self.plugin.visualizers['most_common_viz']
 
         artifact = Artifact._from_view(IntSequence1, [42, 42, 10, 0, 42, 5, 0],
-                                       list, None)
+                                       list)
 
         result = most_common_viz(artifact)
 
@@ -223,16 +208,6 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         self.assertIsInstance(result, Visualization)
         self.assertEqual(result.type, qiime.core.type.Visualization)
 
-        provenance = result.provenance
-        self.assertIsInstance(provenance, Provenance)
-        self.assertIsInstance(provenance.execution_uuid, uuid.UUID)
-        self.assertTrue(
-            provenance.executor_reference.startswith(most_common_viz.id))
-        self.assertEqual(provenance.artifact_uuids, {
-            'ints': artifact.uuid
-        })
-        self.assertEqual(provenance.parameter_references, {})
-
         self.assertIsInstance(result.uuid, uuid.UUID)
 
         # TODO qiime.sdk.Visualization doesn't have an API to access its
@@ -244,7 +219,6 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/index.html',
             'data/index.tsv'
         }
@@ -255,9 +229,9 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         mapping_viz = self.plugin.visualizers['mapping_viz']
 
         artifact1 = Artifact._from_view(Mapping, {'foo': 'abc', 'bar': 'def'},
-                                        dict, None)
+                                        dict)
         artifact2 = Artifact._from_view(Mapping, {'baz': 'abc', 'bazz': 'ghi'},
-                                        dict, None)
+                                        dict)
 
         future = mapping_viz.async(artifact1, artifact2, 'Key', 'Value')
 
@@ -275,20 +249,6 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         self.assertIsInstance(result, Visualization)
         self.assertEqual(result.type, qiime.core.type.Visualization)
 
-        provenance = result.provenance
-        self.assertIsInstance(provenance, Provenance)
-        self.assertIsInstance(provenance.execution_uuid, uuid.UUID)
-        self.assertTrue(
-            provenance.executor_reference.startswith(mapping_viz.id))
-        self.assertEqual(provenance.artifact_uuids, {
-            'mapping1': artifact1.uuid,
-            'mapping2': artifact2.uuid
-        })
-        self.assertEqual(provenance.parameter_references, {
-            'key_label': 'Key',
-            'value_label': 'Value'
-        })
-
         self.assertIsInstance(result.uuid, uuid.UUID)
 
         # TODO qiime.sdk.Visualization doesn't have an API to access its
@@ -300,7 +260,6 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/index.html',
             'data/css/style.css'
         }
@@ -309,7 +268,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
 
     def test_visualizer_callable_output(self):
         artifact = Artifact._from_view(
-            Mapping, {'foo': 'abc', 'bar': 'def'}, dict, None)
+            Mapping, {'foo': 'abc', 'bar': 'def'}, dict)
 
         # Callable returns a value from `return_vals`
         return_vals = (True, False, [], {}, '', 0, 0.0)

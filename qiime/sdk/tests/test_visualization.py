@@ -13,7 +13,7 @@ import uuid
 import collections
 
 import qiime.core.type
-from qiime.sdk import Visualization, Provenance
+from qiime.sdk import Visualization
 from qiime.sdk.result import ResultMetadata
 
 from qiime.core.testing.visualizer import (
@@ -35,23 +35,6 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
                     {'ghi': 'baz', 'jkl': 'bazz'},
                     key_label='Key', value_label='Value')
 
-        self.provenance = Provenance(
-            execution_uuid=uuid.UUID('7e909a23-21e2-44c2-be17-0723fae91dc8'),
-            executor_reference=(
-                'mapping_viz. Details on plugin, version, website, etc. '
-                'will also be included, see '
-                'https://github.com/biocore/qiime2/issues/26'
-            ),
-            artifact_uuids={
-                'mapping1': uuid.UUID('f16ca3d0-fe83-4b1e-8eea-7e35db3f6b0f'),
-                'mapping2': uuid.UUID('908dece5-db23-4562-ad03-876bb5750145')
-            },
-            parameter_references={
-                'key_label': 'Key',
-                'value_label': 'Value'
-            }
-        )
-
     def tearDown(self):
         self.test_dir.cleanup()
 
@@ -72,26 +55,14 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
     # user would interact with the object) in case the internals change.
 
     def test_from_data_dir(self):
-        visualization = Visualization._from_data_dir(self.data_dir, None)
+        visualization = Visualization._from_data_dir(self.data_dir)
 
         self.assertEqual(visualization.type, qiime.core.type.Visualization)
-        self.assertIsNone(visualization.provenance)
-        # We don't know what the UUID is because it's generated within
-        # Visualization._from_data_dir.
-        self.assertIsInstance(visualization.uuid, uuid.UUID)
-
-    def test_from_data_dir_with_provenance(self):
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
-
-        self.assertEqual(visualization.type, qiime.core.type.Visualization)
-        self.assertEqual(visualization.provenance, self.provenance)
         self.assertIsInstance(visualization.uuid, uuid.UUID)
 
     def test_from_data_dir_and_save(self):
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(self.data_dir)
 
         visualization.save(fp)
 
@@ -99,7 +70,6 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/index.html',
             'data/css/style.css'
         }
@@ -107,33 +77,19 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         self.assertArchiveMembers(fp, root_dir, expected)
 
     def test_load(self):
-        saved_visualization = Visualization._from_data_dir(self.data_dir, None)
+        saved_visualization = Visualization._from_data_dir(self.data_dir)
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         saved_visualization.save(fp)
 
         visualization = Visualization.load(fp)
 
         self.assertEqual(visualization.type, qiime.core.type.Visualization)
-        self.assertIsNone(visualization.provenance)
-        self.assertEqual(visualization.uuid, saved_visualization.uuid)
-
-    def test_load_with_provenance(self):
-        saved_visualization = Visualization._from_data_dir(self.data_dir,
-                                                           self.provenance)
-        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        saved_visualization.save(fp)
-
-        visualization = Visualization.load(fp)
-
-        self.assertEqual(visualization.type, qiime.core.type.Visualization)
-        self.assertEqual(visualization.provenance, self.provenance)
         self.assertEqual(visualization.uuid, saved_visualization.uuid)
 
     def test_load_and_save(self):
         fp1 = os.path.join(self.test_dir.name, 'visualization1.qzv')
         fp2 = os.path.join(self.test_dir.name, 'visualization2.qzv')
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(self.data_dir)
         visualization.save(fp1)
 
         visualization = Visualization.load(fp1)
@@ -146,7 +102,6 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/index.html',
             'data/css/style.css'
         }
@@ -157,7 +112,6 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/index.html',
             'data/css/style.css'
         }
@@ -167,8 +121,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
     def test_roundtrip(self):
         fp1 = os.path.join(self.test_dir.name, 'visualization1.qzv')
         fp2 = os.path.join(self.test_dir.name, 'visualization2.qzv')
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(self.data_dir)
         visualization.save(fp1)
 
         visualization1 = Visualization.load(fp1)
@@ -176,13 +129,12 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         visualization2 = Visualization.load(fp2)
 
         self.assertEqual(visualization1.type, visualization2.type)
-        self.assertEqual(visualization1.provenance, visualization2.provenance)
         self.assertEqual(visualization1.uuid, visualization2.uuid)
 
     def test_load_with_archive_filepath_modified(self):
         # Save a visualization for use in the following test case.
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        Visualization._from_data_dir(self.data_dir, None).save(fp)
+        Visualization._from_data_dir(self.data_dir).save(fp)
 
         # Load the visualization from a filepath then save a different
         # visualization to the same filepath. Assert that both visualizations
@@ -204,7 +156,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         os.mkdir(new_data_dir)
         most_common_viz(new_data_dir, collections.Counter(range(42)))
 
-        Visualization._from_data_dir(new_data_dir, None).save(fp)
+        Visualization._from_data_dir(new_data_dir).save(fp)
         visualization2 = Visualization.load(fp)
 
         self.assertEqual(visualization1.get_index_paths(),
@@ -214,8 +166,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
 
     def test_extract(self):
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(self.data_dir)
         visualization.save(fp)
 
         root_dir = str(visualization.uuid)
@@ -226,16 +177,15 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/index.html',
-            'data/css/style.css'}
+            'data/css/style.css'
+        }
 
         self.assertExtractedArchiveMembers(output_dir, root_dir, expected)
 
     def test_get_index_paths_single_load(self):
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(self.data_dir)
         visualization.save(fp)
         visualization = Visualization.load(fp)
 
@@ -244,8 +194,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(actual, expected)
 
     def test_get_index_paths_single_from_data_dir(self):
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(self.data_dir)
 
         actual = visualization.get_index_paths()
         expected = {'html': 'data/index.html'}
@@ -257,8 +206,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         most_common_viz(data_dir,
                         collections.Counter(range(42)))
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization = Visualization._from_data_dir(data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(data_dir)
         visualization.save(fp)
         visualization = Visualization.load(fp)
 
@@ -271,8 +219,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         data_dir = os.path.join(self.test_dir.name, 'mc-viz-output2')
         os.mkdir(data_dir)
         most_common_viz(data_dir, collections.Counter(range(42)))
-        visualization = Visualization._from_data_dir(data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(data_dir)
 
         actual = visualization.get_index_paths()
         expected = {'html': 'data/index.html',
@@ -285,8 +232,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         multi_html_viz(data_dir, [1, 42])
 
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization = Visualization._from_data_dir(data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(data_dir)
         visualization.save(fp)
         visualization = Visualization.load(fp)
 
@@ -298,8 +244,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         os.mkdir(data_dir)
         multi_html_viz(data_dir, [1, 42])
 
-        visualization = Visualization._from_data_dir(data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(data_dir)
 
         with self.assertRaises(ValueError):
             visualization.get_index_paths()
@@ -308,51 +253,35 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         data_dir = os.path.join(self.test_dir.name, 'mc-viz-output2')
         os.mkdir(data_dir)
         most_common_viz(data_dir, collections.Counter(range(42)))
-        visualization = Visualization._from_data_dir(data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(data_dir)
 
         def get_abs_path(rel):
-            return os.path.join(visualization._archiver._temp_dir, rel)
+            return str(visualization._archiver.root_dir / rel)
         actual = visualization.get_index_paths(relative=False)
         expected = {'html': get_abs_path('data/index.html'),
                     'tsv': get_abs_path('data/index.tsv')}
         self.assertEqual(actual, expected)
 
     def test_peek(self):
-        visualization = Visualization._from_data_dir(self.data_dir, None)
+        visualization = Visualization._from_data_dir(self.data_dir)
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         visualization.save(fp)
 
         metadata = Visualization.peek(fp)
 
         self.assertIsInstance(metadata, ResultMetadata)
-        self.assertEqual(metadata.type, qiime.core.type.Visualization)
-        self.assertIsNone(metadata.provenance)
-        self.assertEqual(metadata.uuid, visualization.uuid)
-
-    def test_peek_with_provenance(self):
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
-        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization.save(fp)
-
-        metadata = Visualization.peek(fp)
-
-        self.assertIsInstance(metadata, ResultMetadata)
-        self.assertEqual(metadata.type, qiime.core.type.Visualization)
-        self.assertEqual(metadata.provenance, self.provenance)
-        self.assertEqual(metadata.uuid, visualization.uuid)
+        self.assertEqual(metadata.type, 'Visualization')
+        self.assertEqual(metadata.uuid, str(visualization.uuid))
+        self.assertIsNone(metadata.format)
 
     def test_eq_identity(self):
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(self.data_dir)
 
         self.assertEqual(visualization, visualization)
 
     def test_eq_same_uuid(self):
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization1 = Visualization._from_data_dir(self.data_dir,
-                                                      self.provenance)
+        visualization1 = Visualization._from_data_dir(self.data_dir)
         visualization1.save(fp)
 
         visualization2 = Visualization.load(fp)
@@ -360,23 +289,19 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(visualization1, visualization2)
 
     def test_ne_same_data_different_uuid(self):
-        visualization1 = Visualization._from_data_dir(self.data_dir,
-                                                      self.provenance)
-        visualization2 = Visualization._from_data_dir(self.data_dir,
-                                                      self.provenance)
+        visualization1 = Visualization._from_data_dir(self.data_dir)
+        visualization2 = Visualization._from_data_dir(self.data_dir)
 
         self.assertNotEqual(visualization1, visualization2)
 
     def test_ne_different_data_different_uuid(self):
-        visualization1 = Visualization._from_data_dir(self.data_dir,
-                                                      self.provenance)
+        visualization1 = Visualization._from_data_dir(self.data_dir)
 
         data_dir = os.path.join(self.test_dir.name, 'mc-viz-output1')
         os.mkdir(data_dir)
         most_common_viz(data_dir,
                         collections.Counter(range(42)))
-        visualization2 = Visualization._from_data_dir(data_dir,
-                                                      self.provenance)
+        visualization2 = Visualization._from_data_dir(data_dir)
 
         self.assertNotEqual(visualization1, visualization2)
 
@@ -385,8 +310,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
             pass
 
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization1 = VisualizationSubclass._from_data_dir(self.data_dir,
-                                                              self.provenance)
+        visualization1 = VisualizationSubclass._from_data_dir(self.data_dir)
         visualization1.save(fp)
 
         visualization2 = Visualization.load(fp)
@@ -395,8 +319,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         self.assertNotEqual(visualization2, visualization1)
 
     def test_ne_different_type_same_uuid(self):
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(self.data_dir)
 
         class Faker:
             @property

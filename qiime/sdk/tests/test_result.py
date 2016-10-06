@@ -9,10 +9,9 @@
 import os
 import tempfile
 import unittest
-import uuid
 
 import qiime.core.type
-from qiime.sdk import Result, Artifact, Visualization, Provenance
+from qiime.sdk import Result, Artifact, Visualization
 from qiime.sdk.result import ResultMetadata
 
 from qiime.core.testing.type import FourInts
@@ -36,23 +35,6 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
                     {'ghi': 'baz', 'jkl': 'bazz'},
                     key_label='Key', value_label='Value')
 
-        self.provenance = Provenance(
-            execution_uuid=uuid.UUID('7e909a23-21e2-44c2-be17-0723fae91dc8'),
-            executor_reference=(
-                'dummy_action_id. Details on plugin, version, website, etc. '
-                'will also be included, see '
-                'https://github.com/biocore/qiime2/issues/26'
-            ),
-            artifact_uuids={
-                'input1': uuid.UUID('f16ca3d0-fe83-4b1e-8eea-7e35db3f6b0f'),
-                'input2': uuid.UUID('908dece5-db23-4562-ad03-876bb5750145')
-            },
-            parameter_references={
-                'param1': 'abc',
-                'param2': '100'
-            }
-        )
-
     def tearDown(self):
         self.test_dir.cleanup()
 
@@ -62,69 +44,8 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
                 'Result constructor.*private.*Result.load'):
             Result()
 
-    def test_load_visualization_as_artifact(self):
-        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
-        visualization.save(fp)
-
-        with self.assertRaisesRegex(
-                TypeError, 'Visualization.*Artifact.load.*Visualization.load'):
-            Artifact.load(fp)
-
-    def test_load_artifact_as_visualization(self):
-        artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000],
-                                       list, self.provenance)
-        fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        artifact.save(fp)
-
-        with self.assertRaisesRegex(
-                TypeError, 'Artifact.*Visualization.load.*Artifact.load'):
-            Visualization.load(fp)
-
-    def test_extract_visualization_as_artifact(self):
-        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
-        visualization.save(fp)
-
-        with self.assertRaisesRegex(
-                TypeError, 'Artifact does not support.*Visualization'):
-            Artifact.extract(fp, self.test_dir)
-
-    def test_extract_artifact_as_visualization(self):
-        artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000],
-                                       list, self.provenance)
-        fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        artifact.save(fp)
-
-        with self.assertRaisesRegex(
-                TypeError, 'Visualization does not support.*FourInts'):
-            Visualization.extract(fp, self.test_dir)
-
-    def test_peek_visualization_as_artifact(self):
-        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
-        visualization.save(fp)
-
-        with self.assertRaisesRegex(
-                TypeError, 'Artifact does not support.*Visualization'):
-            Artifact.peek(fp)
-
-    def test_peek_artifact_as_visualization(self):
-        artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000],
-                                       list, self.provenance)
-        fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        artifact.save(fp)
-
-        with self.assertRaisesRegex(
-                TypeError, 'Visualization does not support.*FourInts'):
-            Visualization.peek(fp)
-
     def test_load_artifact(self):
-        saved_artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
-                                             list, self.provenance)
+        saved_artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         saved_artifact.save(fp)
 
@@ -132,13 +53,11 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertIsInstance(artifact, Artifact)
         self.assertEqual(artifact.type, FourInts)
-        self.assertEqual(artifact.provenance, self.provenance)
         self.assertEqual(artifact.uuid, saved_artifact.uuid)
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
 
     def test_load_visualization(self):
-        saved_visualization = Visualization._from_data_dir(self.data_dir,
-                                                           self.provenance)
+        saved_visualization = Visualization._from_data_dir(self.data_dir)
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         saved_visualization.save(fp)
 
@@ -146,13 +65,11 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertIsInstance(visualization, Visualization)
         self.assertEqual(visualization.type, qiime.core.type.Visualization)
-        self.assertEqual(visualization.provenance, self.provenance)
         self.assertEqual(visualization.uuid, saved_visualization.uuid)
 
     def test_extract_artifact(self):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43],
-                                       list, self.provenance)
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
         artifact.save(fp)
 
         root_dir = str(artifact.uuid)
@@ -163,7 +80,6 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/file1.txt',
             'data/file2.txt',
             'data/nested/file3.txt',
@@ -174,8 +90,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
     def test_extract_visualization(self):
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(self.data_dir)
         visualization.save(fp)
 
         root_dir = str(visualization.uuid)
@@ -186,7 +101,6 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/index.html',
             'data/css/style.css'
         }
@@ -194,34 +108,31 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         self.assertExtractedArchiveMembers(output_dir, root_dir, expected)
 
     def test_peek_artifact(self):
-        artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000],
-                                       list, self.provenance)
+        artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000], list)
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         artifact.save(fp)
 
         metadata = Result.peek(fp)
 
         self.assertIsInstance(metadata, ResultMetadata)
-        self.assertEqual(metadata.type, FourInts)
-        self.assertEqual(metadata.provenance, self.provenance)
-        self.assertEqual(metadata.uuid, artifact.uuid)
+        self.assertEqual(metadata.type, 'FourInts')
+        self.assertEqual(metadata.uuid, str(artifact.uuid))
+        self.assertEqual(metadata.format, 'FourIntsDirectoryFormat')
 
     def test_peek_visualization(self):
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(self.data_dir)
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         visualization.save(fp)
 
         metadata = Result.peek(fp)
 
         self.assertIsInstance(metadata, ResultMetadata)
-        self.assertEqual(metadata.type, qiime.core.type.Visualization)
-        self.assertEqual(metadata.provenance, self.provenance)
-        self.assertEqual(metadata.uuid, visualization.uuid)
+        self.assertEqual(metadata.type, 'Visualization')
+        self.assertEqual(metadata.uuid, str(visualization.uuid))
+        self.assertIsNone(metadata.format)
 
     def test_save_artifact_auto_extension(self):
-        artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000],
-                                       list, self.provenance)
+        artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000], list)
 
         # No extension.
         fp = os.path.join(self.test_dir.name, 'artifact')
@@ -245,8 +156,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(obs_filename, 'artifact.qza')
 
     def test_save_visualization_auto_extension(self):
-        visualization = Visualization._from_data_dir(self.data_dir,
-                                                     self.provenance)
+        visualization = Visualization._from_data_dir(self.data_dir)
 
         # No extension.
         fp = os.path.join(self.test_dir.name, 'visualization')
