@@ -15,7 +15,7 @@ class Action:
 
     # Private constructor
     @classmethod
-    def _from_callable(cls, callable, name, description, source):
+    def _from_callable(cls, callable, name, description, citations, source):
         """
 
         Parameters
@@ -25,6 +25,8 @@ class Action:
             Human-readable name for this action.
         description : str
             Human-readable description for this action.
+        citations : list
+            List of citations
         source : str
             Markdown text defining/describing this action's computation.
 
@@ -34,6 +36,7 @@ class Action:
         self._callable = callable
         self.name = name
         self.description = description
+        self.citations = citations
         self.source = source
 
         return self

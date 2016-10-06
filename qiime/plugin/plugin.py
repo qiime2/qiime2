@@ -12,6 +12,7 @@ import pkg_resources
 import types
 
 import frontmatter
+import yaml
 
 import qiime.sdk
 import qiime.core.type.grammar as grammar
@@ -31,12 +32,22 @@ TypeFormatRecord = collections.namedtuple(
 
 
 class Plugin:
+    @staticmethod
+    def yaml_representer(dumper, data):
+        items = [
+            ('version', data.version),
+            ('website', data.website)
+        ]
+        return dumper.represent_dict(items)
+
+
     def __init__(self, name, version, website, package, citation_text=None,
-                 user_support_text=None):
+                 citations=None, user_support_text=None):
         self.name = name
         self.version = version
         self.website = website
         self.package = package
+        self.citations = citations
         if citation_text is None:
             self.citation_text = ('No citation available. Cite plugin '
                                   'website: %s' % self.website)
@@ -164,6 +175,10 @@ class Plugin:
             format=artifact_format, plugin=self))
 
 
+
+yaml.add_representer(Plugin, Plugin.yaml_representer)
+
+
 class PluginActions(dict):
     _subpackage = None
 
@@ -175,9 +190,10 @@ class PluginActions(dict):
 
     # Private helpers for use in subclasses:
 
-    def _register_callable(self, callable, name, description, source):
+    def _register_callable(self, callable, name, description, citations,
+                           source):
         action = qiime.sdk.Action._from_callable(callable, name, description,
-                                                 source)
+                                                 citations, source)
         self[action.id] = action
 
     def _get_function_source(self, function):
@@ -194,12 +210,17 @@ class PluginMethods(PluginActions):
     _subpackage = 'methods'
 
     def register_function(self, function, inputs, parameters, outputs, name,
-                          description):
+                          description, citations=None):
+        if citations is None:
+            citations = []
+        else:
+            pass  # TODO: validate citations schema
+
         callable = MethodCallable.from_function(function, inputs, parameters,
                                                 outputs, self._package)
         source = self._get_function_source(function)
 
-        self._register_callable(callable, name, description, source)
+        self._register_callable(callable, name, description, citations, source)
 
     def register_markdown(self, markdown_filepath):
         markdown_filepath = pkg_resources.resource_filename(
@@ -211,20 +232,32 @@ class PluginMethods(PluginActions):
         with open(markdown_filepath) as fh:
             metadata, source = frontmatter.parse(fh.read())
 
+        if 'citations' not in metadata:
+            citations = []
+        else:
+            citations = metadata['citations']
+            # TODO: validate citations schema
+
         self._register_callable(callable, metadata['name'],
-                                metadata['description'], source)
+                                metadata['description'], citations, source)
 
 
 class PluginVisualizers(PluginActions):
     _subpackage = 'visualizers'
 
     def register_function(self, function, inputs, parameters, name,
-                          description):
+                          description, citations=None):
+        if citations is None:
+            citations = []
+        else:
+            # TODO: validate citations schema
+            pass
+
         callable = VisualizerCallable.from_function(function, inputs,
                                                     parameters, self._package)
         source = self._get_function_source(function)
 
-        self._register_callable(callable, name, description, source)
+        self._register_callable(callable, name, description, citations, source)
 
 
 markdown_source_template = """

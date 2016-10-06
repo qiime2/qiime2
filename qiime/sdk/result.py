@@ -14,10 +14,11 @@ import os.path
 import pathlib
 
 import qiime.sdk
-import qiime.core.archiver as archiver
 import qiime.core.type
 import qiime.core.transform as transform
+import qiime.core.archive as archive
 import qiime.plugin.model as model
+import qiime.core.util as util
 
 # Note: Result, Artifact, and Visualization classes are in this file to avoid
 # circular dependencies between Result and its subclasses. Result is tightly
@@ -27,8 +28,7 @@ import qiime.plugin.model as model
 
 
 ResultMetadata = collections.namedtuple('ResultMetadata',
-                                        ['uuid', 'type', 'format',
-                                         'provenance'])
+                                        ['uuid', 'type', 'format'])
 
 
 class Result:
@@ -51,28 +51,26 @@ class Result:
 
     @classmethod
     def peek(cls, filepath):
-        uuid, type, format, provenance = archiver.Archiver.peek(filepath)
-        if not cls._is_valid_type(type):
-            raise TypeError(
-                "Cannot peek at filepath %r because %s does not support type "
-                "%r." % (filepath, cls.__name__, type))
-        return ResultMetadata(uuid=uuid, type=type, format=format,
-                              provenance=provenance)
+        return ResultMetadata(*archive.Archiver.peek(filepath))
+
+    @classmethod
+    def extract(cls, filepath, output_dir):
+        return archive.Archiver.extract(filepath, output_dir)
 
     @classmethod
     def load(cls, filepath):
         """Factory for loading Artifacts and Visualizations."""
-        archiver_ = archiver.Archiver.load(filepath)
+        archiver = archive.Archiver.load(filepath)
 
-        if Artifact._is_valid_type(archiver_.type):
+        if Artifact._is_valid_type(archiver.type):
             result = Artifact.__new__(Artifact)
-        elif Visualization._is_valid_type(archiver_.type):
+        elif Visualization._is_valid_type(archiver.type):
             result = Visualization.__new__(Visualization)
         else:
             raise TypeError(
                 "Cannot load filepath %r into an Artifact or Visualization "
                 "because type %r is not supported."
-                % (filepath, archiver_.type))
+                % (filepath, archiver.type))
 
         if type(result) is not cls and cls is not Result:
             raise TypeError(
@@ -80,23 +78,12 @@ class Result:
                 % (type(result).__name__, cls.__name__,
                    type(result).__name__))
 
-        result._archiver = archiver_
+        result._archiver = archiver
         return result
-
-    @classmethod
-    def extract(cls, filepath, output_dir):
-        # `peek` first to ensure the type is valid for the `cls` this was
-        # called on.
-        cls.peek(filepath)
-        return archiver.Archiver.extract(filepath, output_dir)
 
     @property
     def type(self):
         return self._archiver.type
-
-    @property
-    def provenance(self):
-        return self._archiver.provenance
 
     @property
     def uuid(self):
@@ -104,14 +91,7 @@ class Result:
 
     @property
     def format(self):
-        # Not memoized because it matters, just to keep the logic contained
-        # in lieu of a better place to put it.
-        # TODO: parse in the archiver if possible, but it will require a
-        # Visualization format (currently a string), otherwise special-casing
-        # is needed everywhere.
-        if not hasattr(self, '__format'):
-            self.__format = qiime.sdk.parse_format(self._archiver.format)
-        return self.__format
+        return self._archiver.format
 
     def __init__(self):
         raise NotImplementedError(
@@ -163,33 +143,56 @@ class Artifact(Result):
             return False
 
     @classmethod
-    def import_data(cls, type, view, view_type=None):
+    def import_data(cls, type, view, view_type=None, citations=()):
         type_, type = type, __builtins__['type']
+
+        is_format = False
         if isinstance(type_, str):
             type_ = qiime.sdk.parse_type(type_)
 
         if isinstance(view_type, str):
             view_type = qiime.sdk.parse_format(view_type)
+            is_format = True
 
         if view_type is None:
             if type(view) is str or isinstance(view, pathlib.PurePath):
+                is_format = True
                 pm = qiime.sdk.PluginManager()
                 output_dir_fmt = pm.get_directory_format(type_)
-                if pathlib.Path(view).is_file() and issubclass(
-                        output_dir_fmt,
-                        model.SingleFileDirectoryFormatBase):
+                if pathlib.Path(view).is_file():
+                    if not issubclass(output_dir_fmt,
+                                      model.SingleFileDirectoryFormatBase):
+                        raise TypeError("Importing from %r requires a"
+                                        " directory."
+                                        % output_dir_fmt.__class__.__name__)
                     view_type = output_dir_fmt.file.format
                 else:
                     view_type = output_dir_fmt
             else:
                 view_type = type(view)
 
-        provenance = ("This artifact was generated by importing data from an "
-                      "external source.")
-        return cls._from_view(type_, view, view_type, provenance)
+        if is_format:
+            md5sums = {}
+            path = pathlib.Path(view)
+            if path.is_file():
+                md5sums[path.name] = util.md5sum(path)
+            elif path.is_dir():
+                md5sums = util.md5sum_directory(path)
+            else:
+                raise ValueError("Path '%s' does not exist." % path)
+
+            provenance_capture = archive.ImportProvenanceCapture(
+                format=view_type, checksums=md5sums)
+        else:
+            provenance_capture = archive.ImportProvenanceCapture()
+
+        for citation in citations:
+            provenance_capture.add_citation(citation)
+
+        return cls._from_view(type_, view, view_type, provenance_capture)
 
     @classmethod
-    def _from_view(cls, type, view, view_type, provenance):
+    def _from_view(cls, type, view, view_type, provenance_capture):
         if isinstance(type, str):
             type = qiime.sdk.parse_type(type)
 
@@ -208,21 +211,28 @@ class Artifact(Result):
         from_type = transform.ModelType.from_view_type(view_type)
         to_type = transform.ModelType.from_view_type(output_dir_fmt)
 
-        transformation = from_type.make_transformation(to_type)
+        recorder = provenance_capture.transformation_recorder('result')
+        transformation = from_type.make_transformation(to_type,
+                                                       recorder=recorder)
         result = transformation(view)
 
         artifact = cls.__new__(cls)
         # Not providing a UUID, Archiver will create one.
-        artifact._archiver = archiver.Archiver(
-            type, output_dir_fmt.__name__, provenance,
-            data_initializer=result.path._move_or_copy)
+        artifact._archiver = archive.Archiver.from_data(
+            type, output_dir_fmt,
+            data_initializer=result.path._move_or_copy,
+            provenance_capture=provenance_capture)
         return artifact
 
     def view(self, view_type):
+        return self._view(view_type)
+
+    def _view(self, view_type, recorder=None):
         from_type = transform.ModelType.from_view_type(self.format)
         to_type = transform.ModelType.from_view_type(view_type)
-        transformation = from_type.make_transformation(to_type)
-        result = self._archiver.load_data(transformation)
+        transformation = from_type.make_transformation(to_type,
+                                                       recorder=recorder)
+        result = transformation(self._archiver.data_dir)
 
         to_type.set_user_owned(result, True)
         return result
@@ -239,15 +249,17 @@ class Visualization(Result):
             return False
 
     @classmethod
-    def _from_data_dir(cls, data_dir, provenance):
+    def _from_data_dir(cls, data_dir, provenance_capture):
         # shutil.copytree doesn't allow the destination directory to exist.
-        data_initializer = functools.partial(distutils.dir_util.copy_tree,
-                                             data_dir)
+        def data_initializer(destination):
+            return distutils.dir_util.copy_tree(
+                str(data_dir), str(destination))
+
         viz = cls.__new__(cls)
-        # Not providing a UUID, Archiver will create one.
-        viz._archiver = archiver.Archiver(
-            qiime.core.type.Visualization, 'Visualization', provenance,
-            data_initializer=data_initializer)
+        viz._archiver = archive.Archiver.from_data(
+            qiime.core.type.Visualization, None,
+            data_initializer=data_initializer,
+            provenance_capture=provenance_capture)
         return viz
 
     def get_index_paths(self, relative=True):

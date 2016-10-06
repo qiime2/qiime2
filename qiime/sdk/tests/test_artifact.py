@@ -29,22 +29,13 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         # TODO standardize temporary directories created by QIIME
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
 
-        self.provenance = Provenance(
-            execution_uuid=uuid.UUID('7e909a23-21e2-44c2-be17-0723fae91dc8'),
-            executor_reference=(
-                'dummy_method_id. Details on plugin, version, website, etc. '
-                'will also be included, see '
-                'https://github.com/biocore/qiime2/issues/26'
-            ),
-            artifact_uuids={
-                'input1': uuid.UUID('f16ca3d0-fe83-4b1e-8eea-7e35db3f6b0f'),
-                'input2': uuid.UUID('908dece5-db23-4562-ad03-876bb5750145')
-            },
-            parameter_references={
-                'param1': 'abc',
-                'param2': '100'
-            }
-        )
+
+        self.lookup = {}
+        class ProvenanceCapture:
+            pass
+
+        self.provenance_capture = ProvenanceCapture
+
 
     def tearDown(self):
         self.test_dir.cleanup()
@@ -70,7 +61,6 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
                                        list, None)
 
         self.assertEqual(artifact.type, FourInts)
-        self.assertIsNone(artifact.provenance)
         # We don't know what the UUID is because it's generated within
         # Artifact._from_view.
         self.assertIsInstance(artifact.uuid, uuid.UUID)
@@ -83,7 +73,6 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
                                        list, self.provenance)
 
         self.assertEqual(artifact.type, FourInts)
-        self.assertEqual(artifact.provenance, self.provenance)
         self.assertIsInstance(artifact.uuid, uuid.UUID)
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
@@ -93,7 +82,6 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
                                        list, None)
 
         self.assertEqual(artifact.type, IntSequence1)
-        self.assertIsNone(artifact.provenance)
         self.assertIsInstance(artifact.uuid, uuid.UUID)
 
         self.assertEqual(artifact.view(list),

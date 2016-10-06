@@ -34,7 +34,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 fh.write('3\n')
 
         self.archiver = Archiver(IntSequence1, 'IntSequenceDirectoryFormat',
-                                 None, data_initializer=data_initializer)
+                                 data_initializer=data_initializer)
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -134,8 +134,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                     self.assertEqual(fh.read(),
                                      "uuid: %s\n" % self.archiver.uuid +
                                      "type: IntSequence1\n"
-                                     "format: IntSequenceDirectoryFormat\n"
-                                     "provenance: None\n")
+                                     "format: IntSequenceDirectoryFormat\n")
 
     def test_save_invalid_filepath(self):
         # Empty filepath.
@@ -167,7 +166,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             with open(os.path.join(hidden_dir, 'ignored-file'), 'w') as fh:
                 fh.write("I'm ignored because I live in a hidden dir :(\n")
 
-        archiver = Archiver(IntSequence1, 'IntSequenceDirectoryFormat', None,
+        archiver = Archiver(IntSequence1, 'IntSequenceDirectoryFormat',
                             data_initializer=data_initializer)
 
         fp = os.path.join(self.temp_dir.name, 'archive.zip')
@@ -207,7 +206,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(archiver.uuid, self.archiver.uuid)
         self.assertEqual(archiver.type, IntSequence1)
         self.assertEqual(archiver.format, 'IntSequenceDirectoryFormat')
-        self.assertIsNone(archiver.provenance)
         self.assertEqual({e for (e, _) in archiver.get_data_paths()},
                          {'ints.txt'})
 
@@ -249,7 +247,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(archiver.uuid, self.archiver.uuid)
         self.assertEqual(archiver.type, IntSequence1)
         self.assertEqual(archiver.format, 'IntSequenceDirectoryFormat')
-        self.assertIsNone(archiver.provenance)
         self.assertEqual({e for (e, _) in archiver.get_data_paths()},
                          {'ints.txt'})
 
@@ -288,7 +285,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(archiver.uuid, self.archiver.uuid)
         self.assertEqual(archiver.type, IntSequence1)
         self.assertEqual(archiver.format, 'IntSequenceDirectoryFormat')
-        self.assertIsNone(archiver.provenance)
         self.assertEqual({e for (e, _) in archiver.get_data_paths()},
                          {'ints.txt', 'nested/foo.txt'})
 
