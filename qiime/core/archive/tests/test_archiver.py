@@ -6,14 +6,16 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import io
 import os
 import tempfile
 import unittest
 import uuid
 import zipfile
+import pathlib
 
-from qiime.core.archiver import Archiver
+from qiime.core.archive import Archiver
+from qiime.core.archive.archiver import _ZipArchive
+from qiime.core.testing.format import IntSequenceDirectoryFormat
 from qiime.core.testing.type import IntSequence1
 from qiime.core.testing.util import ArchiveTestingMixin
 
@@ -27,131 +29,35 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         # don't matter to the Archiver, but we'll pass valid Artifact test data
         # anyways in case Archiver's behavior changes in the future.
         def data_initializer(data_dir):
-            fp = os.path.join(data_dir, 'ints.txt')
+            fp = os.path.join(str(data_dir), 'ints.txt')
             with open(fp, 'w') as fh:
                 fh.write('1\n')
                 fh.write('2\n')
                 fh.write('3\n')
 
-        self.archiver = Archiver(IntSequence1, 'IntSequenceDirectoryFormat',
-                                 None, data_initializer=data_initializer)
+        self.archiver = Archiver.from_data(
+            IntSequence1, IntSequenceDirectoryFormat,
+            data_initializer=data_initializer)
 
     def tearDown(self):
         self.temp_dir.cleanup()
 
-    def test_load_version_file_decoding(self):
-        fp = os.path.join(self.temp_dir.name, "bad_data.zip")
-
-        # Bypass Archiver.save to build a faux-archive with a
-        # non-UTF-8 encoded version file.
-        with zipfile.ZipFile(fp, mode="w",
-                             compression=zipfile.ZIP_DEFLATED,
-                             allowZip64=True) as zf:
-            zf.writestr(os.path.join('bad_data', Archiver._VERSION_FILENAME),
-                        "version info".encode("utf-16"))
-
-            with self.assertRaises(UnicodeDecodeError):
-                Archiver._load_version(zf, 'bad_data')
-
-    def test_load_metadata_file_decoding(self):
-        fp = os.path.join(self.temp_dir.name, "bad_data.zip")
-
-        # Bypass Archiver.save to build a faux-archive with a
-        # non-UTF-8 encoded metadata file.
-        with zipfile.ZipFile(fp, mode="w",
-                             compression=zipfile.ZIP_DEFLATED,
-                             allowZip64=True) as zf:
-            zf.writestr(os.path.join('bad_data', Archiver._METADATA_FILENAME),
-                        "metadata info".encode("utf-16"))
-
-            with self.assertRaises(UnicodeDecodeError):
-                Archiver._load_metadata(zf, 'bad_data')
-
-    def test_save_version_file_encoding(self):
-        fp = os.path.join(self.temp_dir.name, "archive.zip")
-
-        with zipfile.ZipFile(fp, mode="w",
-                             compression=zipfile.ZIP_DEFLATED,
-                             allowZip64=True) as zf:
-            self.archiver._save_version(zf, 'archive')
-
-            # Manually load the saved file with strict errors on (this will
-            # raise a UnicodeDecodeError if there is a mismatch
-            # during decoding).
-            version_path = os.path.join('archive', Archiver._VERSION_FILENAME)
-            with zf.open(version_path) as bytes_fh:
-                with io.TextIOWrapper(bytes_fh, newline=None,
-                                      encoding='utf-8', errors='strict') as fh:
-                    self.assertEqual(fh.read().rstrip('\n'), Archiver._VERSION)
-
-    def test_save_readme_file_encoding(self):
-        fp = os.path.join(self.temp_dir.name, "archive.zip")
-
-        with zipfile.ZipFile(fp, mode="w",
-                             compression=zipfile.ZIP_DEFLATED,
-                             allowZip64=True) as zf:
-            self.archiver._save_readme(zf, 'archive')
-
-            # Manually load the saved file with strict errors on (this will
-            # raise a UnicodeDecodeError if there is a mismatch during
-            # decoding).
-            readme_path = os.path.join('archive', Archiver._README_FILENAME)
-            with zf.open(readme_path) as bytes_fh:
-                with io.TextIOWrapper(bytes_fh, newline=None,
-                                      encoding='utf-8', errors='strict') as fh:
-                    self.assertTrue(fh.read().rstrip('\n'))
-
-    def test_save_metadata_file_encoding(self):
-        fp = os.path.join(self.temp_dir.name, "archive.zip")
-
-        with zipfile.ZipFile(fp, mode="w",
-                             compression=zipfile.ZIP_DEFLATED,
-                             allowZip64=True) as zf:
-            self.archiver._save_metadata(zf, 'archive')
-
-            # Manually load the saved file with strict errors on (this will
-            # raise a UnicodeDecodeError if there is a mismatch during
-            # decoding).
-            metadata_path = os.path.join('archive',
-                                         Archiver._METADATA_FILENAME)
-            with zf.open(metadata_path) as bytes_fh:
-                with io.TextIOWrapper(bytes_fh, newline=None,
-                                      encoding='utf-8', errors='strict') as fh:
-                    self.assertTrue(fh.read().rstrip('\n'))
-
-    def test_metadata_pprint_yaml(self):
-        fp = os.path.join(self.temp_dir.name, "archive.zip")
-
-        with zipfile.ZipFile(fp, mode="w",
-                             compression=zipfile.ZIP_DEFLATED,
-                             allowZip64=True) as zf:
-            self.archiver._save_metadata(zf, 'archive')
-
-            with zf.open(os.path.join('archive',
-                                      Archiver._METADATA_FILENAME)) as zip_fh:
-                with io.TextIOWrapper(zip_fh, newline=None,
-                                      encoding='utf-8', errors='strict') as fh:
-                    self.assertEqual(fh.read(),
-                                     "uuid: %s\n" % self.archiver.uuid +
-                                     "type: IntSequence1\n"
-                                     "format: IntSequenceDirectoryFormat\n"
-                                     "provenance: None\n")
-
     def test_save_invalid_filepath(self):
         # Empty filepath.
-        with self.assertRaisesRegex(ValueError, 'empty'):
+        with self.assertRaisesRegex(FileNotFoundError, 'No such file'):
             self.archiver.save('')
 
         # Directory.
-        with self.assertRaisesRegex(ValueError, 'directory'):
+        with self.assertRaisesRegex(IsADirectoryError, 'directory'):
             self.archiver.save(self.temp_dir.name)
 
         # Ends with path separator (no basename, e.g. /tmp/foo/).
-        with self.assertRaisesRegex(ValueError, 'path separator'):
+        with self.assertRaisesRegex(IsADirectoryError, 'directory'):
             self.archiver.save(os.path.join(self.temp_dir.name, 'foo', ''))
 
     def test_save_excludes_dotfiles_in_data_dir(self):
         def data_initializer(data_dir):
+            data_dir = str(data_dir)
             fp = os.path.join(data_dir, 'ints.txt')
             with open(fp, 'w') as fh:
                 fh.write('1\n')
@@ -167,8 +73,9 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             with open(os.path.join(hidden_dir, 'ignored-file'), 'w') as fh:
                 fh.write("I'm ignored because I live in a hidden dir :(\n")
 
-        archiver = Archiver(IntSequence1, 'IntSequenceDirectoryFormat', None,
-                            data_initializer=data_initializer)
+        archiver = Archiver.from_data(
+            IntSequence1, IntSequenceDirectoryFormat,
+            data_initializer=data_initializer)
 
         fp = os.path.join(self.temp_dir.name, 'archive.zip')
         archiver.save(fp)
@@ -177,7 +84,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/ints.txt'
         }
 
@@ -192,7 +98,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/ints.txt'
         }
 
@@ -206,9 +111,9 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertEqual(archiver.uuid, self.archiver.uuid)
         self.assertEqual(archiver.type, IntSequence1)
-        self.assertEqual(archiver.format, 'IntSequenceDirectoryFormat')
-        self.assertIsNone(archiver.provenance)
-        self.assertEqual({e for (e, _) in archiver.get_data_paths()},
+        self.assertEqual(archiver.format, IntSequenceDirectoryFormat)
+        self.assertEqual({str(p.relative_to(archiver.data_dir))
+                          for p in archiver.data_dir.iterdir()},
                          {'ints.txt'})
 
     def test_load_ignores_root_dotfiles(self):
@@ -233,7 +138,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '.hidden-dir/ignored-file',
                 '%s/VERSION' % root_dir,
                 '%s/metadata.yaml' % root_dir,
-                '%s/README.md' % root_dir,
                 '%s/data/ints.txt' % root_dir
             }
 
@@ -248,9 +152,9 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertEqual(archiver.uuid, self.archiver.uuid)
         self.assertEqual(archiver.type, IntSequence1)
-        self.assertEqual(archiver.format, 'IntSequenceDirectoryFormat')
-        self.assertIsNone(archiver.provenance)
-        self.assertEqual({e for (e, _) in archiver.get_data_paths()},
+        self.assertEqual(archiver.format, IntSequenceDirectoryFormat)
+        self.assertEqual({str(p.relative_to(archiver.data_dir))
+                          for p in archiver.data_dir.iterdir()},
                          {'ints.txt'})
 
     def test_load_ignores_directory_members(self):
@@ -276,7 +180,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'data/nested/',
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/ints.txt',
             'data/nested/foo.txt'
         }
@@ -287,10 +190,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertEqual(archiver.uuid, self.archiver.uuid)
         self.assertEqual(archiver.type, IntSequence1)
-        self.assertEqual(archiver.format, 'IntSequenceDirectoryFormat')
-        self.assertIsNone(archiver.provenance)
-        self.assertEqual({e for (e, _) in archiver.get_data_paths()},
-                         {'ints.txt', 'nested/foo.txt'})
+        self.assertEqual(archiver.format, IntSequenceDirectoryFormat)
 
         archiver.save(fp)
 
@@ -299,7 +199,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             # Directory entries should not be present.
             'VERSION',
             'metadata.yaml',
-            'README.md',
             'data/ints.txt',
             'data/nested/foo.txt'
         }
@@ -359,7 +258,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             expected = {
                 '%s/VERSION' % root_dir,
                 '%s/metadata.yaml' % root_dir,
-                '%s/README.md' % root_dir,
                 '%s/data/ints.txt' % root_dir,
                 '%s/VERSION' % second_root_dir
             }
@@ -372,66 +270,39 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             Archiver.load(fp)
 
     def test_load_invalid_uuid4_root_dir(self):
-        fp = os.path.join(self.temp_dir.name, 'invalid-uuid4.zip')
-        self.archiver.save(fp)
-
+        fp = pathlib.Path(self.temp_dir.name) / 'invalid-uuid4'
+        zp = pathlib.Path(self.temp_dir.name) / 'bad.zip'
+        fp.mkdir()
         # Invalid uuid4 taken from https://gist.github.com/ShawnMilo/7777304
         root_dir = '89eb3586-8a82-47a4-c911-758a62601cf7'
-        with zipfile.ZipFile(fp, mode='w') as zf:
-            self.archiver._save_version(zf, root_dir)
-            self.archiver._save_readme(zf, root_dir)
-            self.archiver._save_metadata(zf, root_dir)
 
-            zf.writestr('%s/data/foo.txt' % root_dir, 'Hello, World!\n')
+        record = _ZipArchive.setup(fp, 'foo', 'bar')
+        (fp / str(record.uuid)).rename(fp / root_dir)
+        _ZipArchive.save(fp, zp)
 
         with self.assertRaisesRegex(ValueError,
                                     'root directory.*valid version 4 UUID'):
-            Archiver.load(fp)
+            _ZipArchive(zp)
 
-    def test_load_root_dir_metadata_uuid_mismatch(self):
-        fp = os.path.join(self.temp_dir.name, 'root-dir-metadata-mismatch.zip')
-        self.archiver.save(fp)
-
-        root_dir = str(uuid.uuid4())
-        with zipfile.ZipFile(fp, mode='w') as zf:
-            self.archiver._save_version(zf, root_dir)
-            self.archiver._save_readme(zf, root_dir)
-            self.archiver._save_metadata(zf, root_dir)
-
-            zf.writestr('%s/data/foo.txt' % root_dir, 'Hello, World!\n')
-
-        with self.assertRaisesRegex(
-                ValueError, 'root directory must match UUID.*metadata'):
-            Archiver.load(fp)
-
-    def test_parse_uuid_valid(self):
+    def test_is_uuid4_valid(self):
         uuid_str = str(uuid.uuid4())
 
-        obs = Archiver._parse_uuid(uuid_str)
-        exp = uuid.UUID(hex=uuid_str, version=4)
-
-        self.assertEqual(obs, exp)
-        self.assertEqual(str(obs), uuid_str)
+        self.assertTrue(_ZipArchive._is_uuid4(uuid_str))
 
     def test_parse_uuid_invalid(self):
         # Invalid uuid4 taken from https://gist.github.com/ShawnMilo/7777304
         uuid_str = '89eb3586-8a82-47a4-c911-758a62601cf7'
-
-        with self.assertRaisesRegex(ValueError, 'not a valid version 4 UUID'):
-            Archiver._parse_uuid(uuid_str)
+        self.assertFalse(_ZipArchive._is_uuid4(uuid_str))
 
         # Not a UUID.
         uuid_str = 'abc123'
-        with self.assertRaisesRegex(ValueError, 'not a valid version 4 UUID'):
-            Archiver._parse_uuid(uuid_str)
+        self.assertFalse(_ZipArchive._is_uuid4(uuid_str))
 
         # Other UUID versions.
         for uuid_ in (uuid.uuid1(), uuid.uuid3(uuid.NAMESPACE_DNS, 'foo'),
                       uuid.uuid5(uuid.NAMESPACE_DNS, 'bar')):
             uuid_str = str(uuid_)
-            with self.assertRaisesRegex(ValueError,
-                                        'not a valid version 4 UUID'):
-                Archiver._parse_uuid(uuid_str)
+            self.assertFalse(_ZipArchive._is_uuid4(uuid_str))
 
 if __name__ == '__main__':
     unittest.main()

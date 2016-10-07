@@ -15,7 +15,7 @@ import uuid
 import qiime.plugin
 from qiime.core.callable import Results
 from qiime.core.type import MethodSignature
-from qiime.sdk import Artifact, Provenance, Action
+from qiime.sdk import Artifact, Action
 
 from qiime.core.testing.type import IntSequence1, IntSequence2, Mapping
 from qiime.core.testing.util import get_dummy_plugin
@@ -219,10 +219,8 @@ class TestMethod(unittest.TestCase):
         concatenate_ints_markdown = \
             self.plugin.methods['concatenate_ints_markdown']
 
-        artifact1 = Artifact._from_view(IntSequence1, [0, 42, 43],
-                                        list, None)
-        artifact2 = Artifact._from_view(IntSequence2, [99, -22],
-                                        list, None)
+        artifact1 = Artifact._from_view(IntSequence1, [0, 42, 43], list)
+        artifact2 = Artifact._from_view(IntSequence2, [99, -22], list)
 
         for method in concatenate_ints, concatenate_ints_markdown:
             result = method(artifact1, artifact1, artifact2, 55, 1)
@@ -239,21 +237,6 @@ class TestMethod(unittest.TestCase):
             self.assertIsInstance(result, Artifact)
             self.assertEqual(result.type, IntSequence1)
 
-            provenance = result.provenance
-            self.assertIsInstance(provenance, Provenance)
-            self.assertIsInstance(provenance.execution_uuid, uuid.UUID)
-            self.assertTrue(
-                provenance.executor_reference.startswith(method.id))
-            self.assertEqual(provenance.artifact_uuids, {
-                'ints1': artifact1.uuid,
-                'ints2': artifact1.uuid,
-                'ints3': artifact2.uuid
-            })
-            self.assertEqual(provenance.parameter_references, {
-                'int1': '55',
-                'int2': '1'
-            })
-
             self.assertIsInstance(result.uuid, uuid.UUID)
 
             # Can retrieve multiple views of different type.
@@ -269,8 +252,7 @@ class TestMethod(unittest.TestCase):
                              exp_counter_view)
 
             # Accepts IntSequence1 | IntSequence2
-            artifact3 = Artifact._from_view(IntSequence2, [10, 20],
-                                            list, None)
+            artifact3 = Artifact._from_view(IntSequence2, [10, 20], list)
             result, = method(artifact3, artifact1, artifact2, 55, 1)
 
             self.assertEqual(result.type, IntSequence1)
@@ -281,8 +263,7 @@ class TestMethod(unittest.TestCase):
         split_ints = self.plugin.methods['split_ints']
         split_ints_markdown = self.plugin.methods['split_ints_markdown']
 
-        artifact = Artifact._from_view(IntSequence1, [0, 42, -2, 43, 6],
-                                       list, None)
+        artifact = Artifact._from_view(IntSequence1, [0, 42, -2, 43, 6], list)
 
         for method in split_ints, split_ints_markdown:
             result = method(artifact)
@@ -293,21 +274,7 @@ class TestMethod(unittest.TestCase):
             for output_artifact in result:
                 self.assertIsInstance(output_artifact, Artifact)
                 self.assertEqual(output_artifact.type, IntSequence1)
-
-                provenance = output_artifact.provenance
-                self.assertIsInstance(provenance, Provenance)
-                self.assertIsInstance(provenance.execution_uuid, uuid.UUID)
-                self.assertTrue(
-                    provenance.executor_reference.startswith(method.id))
-                self.assertEqual(provenance.artifact_uuids, {
-                    'ints': artifact.uuid
-                })
-                self.assertEqual(provenance.parameter_references, {})
-
                 self.assertIsInstance(output_artifact.uuid, uuid.UUID)
-
-            # Output artifacts have the same provenance.
-            self.assertEqual(result[0].provenance, result[1].provenance)
 
             # Output artifacts have different UUIDs.
             self.assertNotEqual(result[0].uuid, result[1].uuid)
@@ -325,9 +292,8 @@ class TestMethod(unittest.TestCase):
         merge_mappings = self.plugin.methods['merge_mappings']
 
         artifact1 = Artifact._from_view(Mapping, {'foo': 'abc', 'bar': 'def'},
-                                        dict, None)
-        artifact2 = Artifact._from_view(Mapping, {'bazz': 'abc'},
-                                        dict, None)
+                                        dict)
+        artifact2 = Artifact._from_view(Mapping, {'bazz': 'abc'}, dict)
 
         result = merge_mappings(artifact1, artifact2)
 
@@ -343,17 +309,6 @@ class TestMethod(unittest.TestCase):
         self.assertIsInstance(result, Artifact)
         self.assertEqual(result.type, Mapping)
 
-        provenance = result.provenance
-        self.assertIsInstance(provenance, Provenance)
-        self.assertIsInstance(provenance.execution_uuid, uuid.UUID)
-        self.assertTrue(
-            provenance.executor_reference.startswith(merge_mappings.id))
-        self.assertEqual(provenance.artifact_uuids, {
-            'mapping1': artifact1.uuid,
-            'mapping2': artifact2.uuid
-        })
-        self.assertEqual(provenance.parameter_references, {})
-
         self.assertIsInstance(result.uuid, uuid.UUID)
 
         self.assertEqual(result.view(dict),
@@ -364,10 +319,8 @@ class TestMethod(unittest.TestCase):
         concatenate_ints_markdown = \
             self.plugin.methods['concatenate_ints_markdown']
 
-        artifact1 = Artifact._from_view(IntSequence1, [0, 42, 43],
-                                        list, None)
-        artifact2 = Artifact._from_view(IntSequence2, [99, -22],
-                                        list, None)
+        artifact1 = Artifact._from_view(IntSequence1, [0, 42, 43], list)
+        artifact2 = Artifact._from_view(IntSequence2, [99, -22], list)
 
         for method in concatenate_ints, concatenate_ints_markdown:
             future = method.async(artifact1, artifact1, artifact2, 55, 1)
@@ -387,21 +340,6 @@ class TestMethod(unittest.TestCase):
             self.assertIsInstance(result, Artifact)
             self.assertEqual(result.type, IntSequence1)
 
-            provenance = result.provenance
-            self.assertIsInstance(provenance, Provenance)
-            self.assertIsInstance(provenance.execution_uuid, uuid.UUID)
-            self.assertTrue(
-                provenance.executor_reference.startswith(method.id))
-            self.assertEqual(provenance.artifact_uuids, {
-                'ints1': artifact1.uuid,
-                'ints2': artifact1.uuid,
-                'ints3': artifact2.uuid
-            })
-            self.assertEqual(provenance.parameter_references, {
-                'int1': '55',
-                'int2': '1'
-            })
-
             self.assertIsInstance(result.uuid, uuid.UUID)
 
             # Can retrieve multiple views of different type.
@@ -417,7 +355,7 @@ class TestMethod(unittest.TestCase):
                              exp_counter_view)
 
             # Accepts IntSequence1 | IntSequence2
-            artifact3 = Artifact._from_view(IntSequence2, [10, 20], list, None)
+            artifact3 = Artifact._from_view(IntSequence2, [10, 20], list)
             future = method.async(artifact3, artifact1, artifact2, 55, 1)
             result, = future.result()
 
@@ -429,8 +367,7 @@ class TestMethod(unittest.TestCase):
         split_ints = self.plugin.methods['split_ints']
         split_ints_markdown = self.plugin.methods['split_ints_markdown']
 
-        artifact = Artifact._from_view(IntSequence1, [0, 42, -2, 43, 6], list,
-                                       None)
+        artifact = Artifact._from_view(IntSequence1, [0, 42, -2, 43, 6], list)
 
         for method in split_ints, split_ints_markdown:
             future = method.async(artifact)
@@ -445,20 +382,7 @@ class TestMethod(unittest.TestCase):
                 self.assertIsInstance(output_artifact, Artifact)
                 self.assertEqual(output_artifact.type, IntSequence1)
 
-                provenance = output_artifact.provenance
-                self.assertIsInstance(provenance, Provenance)
-                self.assertIsInstance(provenance.execution_uuid, uuid.UUID)
-                self.assertTrue(
-                    provenance.executor_reference.startswith(method.id))
-                self.assertEqual(provenance.artifact_uuids, {
-                    'ints': artifact.uuid
-                })
-                self.assertEqual(provenance.parameter_references, {})
-
                 self.assertIsInstance(output_artifact.uuid, uuid.UUID)
-
-            # Output artifacts have the same provenance.
-            self.assertEqual(result[0].provenance, result[1].provenance)
 
             # Output artifacts have different UUIDs.
             self.assertNotEqual(result[0].uuid, result[1].uuid)
