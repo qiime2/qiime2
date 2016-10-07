@@ -129,7 +129,8 @@ class _Archive:
             with self.open(self.VERSION_FILE) as fh:
                 header, version_line, framework_version_line, eof = \
                     fh.read().split('\n')
-            assert(header.strip() == 'QIIME 2')
+            if header.strip() != 'QIIME 2':
+                raise Exception()  # GOTO except Exception
             version = version_line.split(':')[1].strip()
             framework_version = framework_version_line.split(':')[1].strip()
             return version, framework_version
@@ -201,9 +202,15 @@ class _ZipArchive(_Archive):
                              self.uuid, self.version, self.framework_version)
 
     def extract(self, filepath):
+        filepath = pathlib.Path(filepath)
         with zipfile.ZipFile(str(self.path), mode='r') as zf:
-            zf.extractall(str(filepath))
-        return pathlib.Path(filepath) / str(self.uuid)
+            for name in zf.namelist():
+                if name.startswith(str(self.uuid)):
+                    # extract removes `..` components, so as long as we extract
+                    # into `filepath`, the path won't go backwards.
+                    zf.extract(name, path=str(filepath))
+
+        return filepath / str(self.uuid)
 
     @classmethod
     def _as_zip_path(self, path):
