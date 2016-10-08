@@ -12,7 +12,7 @@ import qiime.sdk as _sdk
 
 __all__ = ['Metadata', 'MetadataCategory', 'Visualization', 'Artifact']
 
-__version__ = '2.0.3.dev'
+__version__ = '2.0.5'
 
 # `from qiime import Artifact` fails if `from qiime.sdk` is used above so
 # import and alias instead
