@@ -288,15 +288,20 @@ class VisualizerSignature(PipelineSignature):
 # duplicate code between MethodSignature.from_function and
 # VisualizerSignature.from_function.
 def function_to_signature(cls, function, inputs, parameters, outputs):
-    # TODO respect function signature parameter order by using `inspect` and
-    # `OrderedDict`.
-    # TODO prevent function signature from mixing artifacts and primitives.
-    # Artifacts come first followed by primitives.
-
     sig_params = inspect.signature(function).parameters
     annotations = {n: p.annotation for n, p in sig_params.items()}
-    input_types = {n: (t, annotations[n]) for n, t in inputs.items()}
-    param_types = {n: (t, annotations[n]) for n, t in parameters.items()}
+
+    input_types = collections.OrderedDict()
+    param_types = collections.OrderedDict()
+
+    # TODO prevent function signature from mixing artifacts and primitives.
+    # Artifacts come first followed by primitives.
+    for name in sig_params:
+        if name in inputs:
+            input_types[name] = (inputs[name], annotations[name])
+        if name in parameters:
+            param_types[name] = (parameters[name], annotations[name])
+
     defaults = {n: p.default for n, p in sig_params.items()
                 if p.default is not p.empty and n in parameters}
 
