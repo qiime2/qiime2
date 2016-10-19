@@ -6,6 +6,8 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import qiime
+
 
 # Artifacts and parameters.
 def concatenate_ints(ints1: list, ints2: list, ints3: list, int1: int,
@@ -31,3 +33,12 @@ def merge_mappings(mapping1: dict, mapping2: dict) -> dict:
                 "values: %r != %r" % (key, merged[key], value))
         merged[key] = value
     return merged
+
+
+def identity_with_metadata(ints: list, metadata: qiime.Metadata) -> list:
+    return ints
+
+
+def identity_with_metadata_category(ints: list,
+                                    metadata: qiime.MetadataCategory) -> list:
+    return ints

@@ -67,7 +67,8 @@ class TestPlugin(unittest.TestCase):
                          {'merge_mappings', 'concatenate_ints',
                           'concatenate_ints_markdown', 'split_ints',
                           'split_ints_markdown', 'most_common_viz',
-                          'mapping_viz'})
+                          'mapping_viz', 'identity_with_metadata',
+                          'identity_with_metadata_category'})
         for action in actions.values():
             self.assertIsInstance(action, qiime.sdk.Action)
 
@@ -83,7 +84,8 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(methods.keys(),
                          {'merge_mappings', 'concatenate_ints',
                           'concatenate_ints_markdown', 'split_ints',
-                          'split_ints_markdown'})
+                          'split_ints_markdown', 'identity_with_metadata',
+                          'identity_with_metadata_category'})
         for method in methods.values():
             self.assertIsInstance(method, qiime.sdk.Action)
 

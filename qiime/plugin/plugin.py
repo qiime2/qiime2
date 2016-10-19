@@ -12,6 +12,7 @@ import pkg_resources
 import types
 
 import frontmatter
+import yaml
 
 import qiime.sdk
 import qiime.core.type.grammar as grammar
@@ -31,6 +32,14 @@ TypeFormatRecord = collections.namedtuple(
 
 
 class Plugin:
+    @staticmethod
+    def yaml_representer(dumper, data):
+        items = [
+            ('version', data.version),
+            ('website', data.website)
+        ]
+        return dumper.represent_dict(items)
+
     def __init__(self, name, version, website, package, citation_text=None,
                  user_support_text=None):
         self.name = name
@@ -162,6 +171,9 @@ class Plugin:
         self.type_formats.append(TypeFormatRecord(
             type_expression=semantic_type,
             format=artifact_format, plugin=self))
+
+
+yaml.add_representer(Plugin, Plugin.yaml_representer)
 
 
 class PluginActions(dict):

@@ -15,6 +15,7 @@ import qiime.core.type
 import qiime.core.transform as transform
 import qiime.core.archive as archive
 import qiime.plugin.model as model
+import qiime.core.util as util
 
 # Note: Result, Artifact, and Visualization classes are in this file to avoid
 # circular dependencies between Result and its subclasses. Result is tightly
@@ -141,14 +142,18 @@ class Artifact(Result):
     @classmethod
     def import_data(cls, type, view, view_type=None):
         type_, type = type, __builtins__['type']
+
+        is_format = False
         if isinstance(type_, str):
             type_ = qiime.sdk.parse_type(type_)
 
         if isinstance(view_type, str):
             view_type = qiime.sdk.parse_format(view_type)
+            is_format = True
 
         if view_type is None:
             if type(view) is str or isinstance(view, pathlib.PurePath):
+                is_format = True
                 pm = qiime.sdk.PluginManager()
                 output_dir_fmt = pm.get_directory_format(type_)
                 if pathlib.Path(view).is_file():
@@ -163,10 +168,23 @@ class Artifact(Result):
             else:
                 view_type = type(view)
 
-        return cls._from_view(type_, view, view_type)
+        format_ = None
+        md5sums = None
+        if is_format:
+            path = pathlib.Path(view)
+            if path.is_file():
+                md5sums = {path.name: util.md5sum(path)}
+            elif path.is_dir():
+                md5sums = util.md5sum_directory(path)
+            else:
+                raise ValueError("Path '%s' does not exist." % path)
+            format_ = view_type
+
+        provenance_capture = archive.ImportProvenanceCapture(format_, md5sums)
+        return cls._from_view(type_, view, view_type, provenance_capture)
 
     @classmethod
-    def _from_view(cls, type, view, view_type):
+    def _from_view(cls, type, view, view_type, provenance_capture):
         if isinstance(type, str):
             type = qiime.sdk.parse_type(type)
 
@@ -185,19 +203,27 @@ class Artifact(Result):
         from_type = transform.ModelType.from_view_type(view_type)
         to_type = transform.ModelType.from_view_type(output_dir_fmt)
 
-        transformation = from_type.make_transformation(to_type)
+        recorder = provenance_capture.transformation_recorder('result')
+        transformation = from_type.make_transformation(to_type,
+                                                       recorder=recorder)
         result = transformation(view)
 
         artifact = cls.__new__(cls)
         artifact._archiver = archive.Archiver.from_data(
             type, output_dir_fmt,
-            data_initializer=result.path._move_or_copy)
+            data_initializer=result.path._move_or_copy,
+            provenance_capture=provenance_capture)
         return artifact
 
     def view(self, view_type):
+        return self._view(view_type)
+
+    def _view(self, view_type, recorder=None):
         from_type = transform.ModelType.from_view_type(self.format)
         to_type = transform.ModelType.from_view_type(view_type)
-        transformation = from_type.make_transformation(to_type)
+
+        transformation = from_type.make_transformation(to_type,
+                                                       recorder=recorder)
         result = transformation(self._archiver.data_dir)
 
         to_type.set_user_owned(result, True)
@@ -215,7 +241,7 @@ class Visualization(Result):
             return False
 
     @classmethod
-    def _from_data_dir(cls, data_dir):
+    def _from_data_dir(cls, data_dir, provenance_capture):
         # shutil.copytree doesn't allow the destination directory to exist.
         def data_initializer(destination):
             return distutils.dir_util.copy_tree(
@@ -224,7 +250,8 @@ class Visualization(Result):
         viz = cls.__new__(cls)
         viz._archiver = archive.Archiver.from_data(
             qiime.core.type.Visualization, None,
-            data_initializer=data_initializer)
+            data_initializer=data_initializer,
+            provenance_capture=provenance_capture)
         return viz
 
     def get_index_paths(self, relative=True):

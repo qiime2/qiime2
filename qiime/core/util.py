@@ -8,6 +8,10 @@
 
 import contextlib
 import warnings
+import hashlib
+import os
+import io
+import collections
 
 import decorator
 
@@ -25,6 +29,50 @@ def overrides(cls):
                                  % (func, cls.__name__))
         return func
     return decorator
+
+
+# Concept from: http://stackoverflow.com/a/11157649/579416
+def duration_time(relative_delta):
+    attrs = ['years', 'months', 'days', 'hours', 'minutes', 'seconds',
+             'microseconds']
+    results = []
+    for attr in attrs:
+        value = getattr(relative_delta, attr)
+        if value != 0:
+            if value == 1:
+                # Remove plural 's'
+                attr = attr[:-1]
+            results.append("%d %s" % (value, attr))
+    if results:
+        text = results[-1]
+        if results[:-1]:
+            text = ', and '.join([', '.join(results[:-1]), text])
+        return text
+    else:
+        # This is impossible.
+        return 'Great scott! No time passed!'
+
+
+def md5sum(filepath):
+    md5 = hashlib.md5()
+    with open(str(filepath), mode='rb') as fh:
+        for chunk in iter(lambda: fh.read(io.DEFAULT_BUFFER_SIZE), b""):
+            md5.update(chunk)
+    return md5.hexdigest()
+
+
+def md5sum_directory(directory):
+    directory = str(directory)
+    sums = collections.OrderedDict()
+    for root, dirs, files in os.walk(directory, topdown=True):
+        dirs[:] = sorted([d for d in dirs if not d[0] == '.'])
+        for file in sorted(files):
+            if file[0] == '.':
+                continue
+
+            path = os.path.join(root, file)
+            sums[os.path.relpath(path, start=directory)] = md5sum(path)
+    return sums
 
 
 @contextlib.contextmanager

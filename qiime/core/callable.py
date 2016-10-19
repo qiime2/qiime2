@@ -19,6 +19,7 @@ import ipymd
 
 import qiime.sdk
 import qiime.core.type as qtype
+import qiime.core.archive as archive
 from qiime.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 
 
@@ -186,6 +187,8 @@ class Callable(metaclass=abc.ABCMeta):
 
     def _get_callable_wrapper(self):
         def callable_wrapper(*args, **kwargs):
+            provenance = archive.ActionProvenanceCapture(
+                self.action_type, self.package, self.id)
             # This function's signature is rewritten below using
             # `decorator.decorator`. When the signature is rewritten, args[0]
             # is the function whose signature was used to rewrite this
@@ -207,18 +210,21 @@ class Callable(metaclass=abc.ABCMeta):
 
             artifacts = {}
             for name in self.signature.inputs:
-                artifacts[name] = user_input[name]
+                artifact = artifacts[name] = user_input[name]
+                provenance.add_input(name, artifact)
 
             parameters = {}
-            for name in self.signature.parameters:
-                parameters[name] = user_input[name]
+            for name, (primitive_type, _) in self.signature.parameters.items():
+                parameter = parameters[name] = user_input[name]
+                provenance.add_parameter(name, primitive_type, parameter)
 
             view_args = parameters.copy()
             for name, (_, view_type) in self.signature.inputs.items():
-                view_args[name] = artifacts[name].view(view_type)
+                recorder = provenance.transformation_recorder(name)
+                view_args[name] = artifacts[name]._view(view_type, recorder)
 
             outputs = self._callable_executor_(self._callable, view_args,
-                                               output_types)
+                                               output_types, provenance)
             # `outputs` matches a Python function's return: either a single
             # value is returned, or it is a tuple of return values. Treat both
             # cases uniformly.
@@ -317,7 +323,8 @@ class MethodCallable(Callable):
         # No conversion necessary.
         return callable
 
-    def _callable_executor_(self, callable, view_args, output_types):
+    def _callable_executor_(self, callable, view_args, output_types,
+                            provenance):
         output_views = callable(**view_args)
         output_views = tuplize(output_views)
 
@@ -342,7 +349,7 @@ class MethodCallable(Callable):
                     "Expected output view type %r, received %r" %
                     (view_type.__name__, type(output_view).__name__))
             artifact = qiime.sdk.Artifact._from_view(
-                semantic_type, output_view, view_type)
+                semantic_type, output_view, view_type, provenance.fork())
             output_artifacts.append(artifact)
 
         if len(output_artifacts) == 1:
@@ -410,7 +417,8 @@ class VisualizerCallable(Callable):
     def _callable_sig_converter_(self, callable):
         return DropFirstParameter.from_function(callable)
 
-    def _callable_executor_(self, callable, view_args, output_types):
+    def _callable_executor_(self, callable, view_args, output_types,
+                            provenance):
         # TODO use qiime.plugin.OutPath when it exists, and update visualizers
         # to work with OutPath instead of str. Visualization._from_data_dir
         # will also need to be updated to support OutPath instead of str.
@@ -420,7 +428,7 @@ class VisualizerCallable(Callable):
                 raise TypeError(
                     "Visualizer %r should not return anything. "
                     "Received %r as a return value." % (self, ret_val))
-            return qiime.sdk.Visualization._from_data_dir(temp_dir)
+            return qiime.sdk.Visualization._from_data_dir(temp_dir, provenance)
 
     @classmethod
     def from_function(cls, function, inputs, parameters, package):
