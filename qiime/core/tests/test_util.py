@@ -17,12 +17,22 @@ import qiime.core.util as util
 
 
 class TestDurationTime(unittest.TestCase):
+
+    def test_time_travel(self):
+        start = datetime.datetime(1987, 10, 27, 1, 21, 2, 50)
+        end = datetime.datetime(1985, 10, 26, 1, 21, 0, 0)
+        reldelta = relativedelta.relativedelta(end, start)
+
+        self.assertEqual(
+            util.duration_time(reldelta),
+            '-2 years, -1 days, -3 seconds, and 999950 microseconds')
+
     def test_no_duration(self):
         time = datetime.datetime(1985, 10, 26, 1, 21, 0)
         reldelta = relativedelta.relativedelta(time, time)
 
         self.assertEqual(util.duration_time(reldelta),
-                         'Great scott! No time passed!')
+                         '0 microseconds')
 
     def test_singular(self):
         start = datetime.datetime(1985, 10, 26, 1, 21, 0, 0)

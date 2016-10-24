@@ -49,8 +49,8 @@ def duration_time(relative_delta):
             text = ', and '.join([', '.join(results[:-1]), text])
         return text
     else:
-        # This is impossible.
-        return 'Great scott! No time passed!'
+        # Great Scott! No time has passed!
+        return '0 %s' % attrs[-1]
 
 
 def md5sum(filepath):

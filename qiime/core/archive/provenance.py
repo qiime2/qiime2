@@ -36,12 +36,15 @@ LiteralString = collections.namedtuple('LiteralString', ['string'])
 
 
 class OrderedKeyValue(collections.OrderedDict):
-    @staticmethod
-    def yaml_representer(dumper, data):
-        return dumper.represent_list([{k: v} for k, v in data.items()])
+    pass
 
 
-yaml.add_representer(OrderedKeyValue, OrderedKeyValue.yaml_representer)
+# Used for yaml that looks like:
+#   - key1: value1
+#   - key2: value2
+yaml.add_representer(OrderedKeyValue, lambda dumper, data:
+                     dumper.represent_list([
+                        {k: v} for k, v in data.items()]))
 
 
 # Controlling the order of dictionaries (even if semantically irrelevant) is
@@ -60,6 +63,7 @@ yaml.add_representer(LiteralString, lambda dumper, data:
 yaml.add_representer(datetime, lambda dumper, data:
                      dumper.represent_scalar('tag:yaml.org,2002:timestamp',
                                              data.isoformat()))
+
 
 # Forward reference to something else in the document, namespaces are
 # delimited by colons (:).
@@ -177,7 +181,7 @@ class ProvenanceCapture:
                                       sys.version.split('\n')))
         env['framework'] = qiime.__version__
         env['plugins'] = self.plugins
-        env['pip'] = self.capture_env()
+        env['python-packages'] = self.capture_env()
 
         return env
 
