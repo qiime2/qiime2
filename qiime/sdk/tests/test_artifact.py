@@ -15,6 +15,7 @@ import uuid
 import qiime.core.type
 from qiime.sdk import Artifact
 from qiime.sdk.result import ResultMetadata
+import qiime.core.archive as archive
 
 from qiime.core.testing.type import IntSequence1, FourInts, Mapping
 from qiime.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
@@ -28,6 +29,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
 
         # TODO standardize temporary directories created by QIIME
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        self.provenance_capture = archive.ImportProvenanceCapture()
 
     def tearDown(self):
         self.test_dir.cleanup()
@@ -49,7 +51,8 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
     # in case the internals change.
 
     def test_from_view(self):
-        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
+                                       self.provenance_capture)
 
         self.assertEqual(artifact.type, FourInts)
         # We don't know what the UUID is because it's generated within
@@ -61,7 +64,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
 
     def test_from_view_different_type_with_multiple_view_types(self):
         artifact = Artifact._from_view(IntSequence1, [42, 42, 43, -999, 42],
-                                       list)
+                                       list, self.provenance_capture)
 
         self.assertEqual(artifact.type, IntSequence1)
         self.assertIsInstance(artifact.uuid, uuid.UUID)
@@ -80,7 +83,8 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         # Using four-ints data layout because it has multiple files, some of
         # which are in a nested directory.
-        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
+                                       self.provenance_capture)
 
         artifact.save(fp)
 
@@ -91,13 +95,16 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'data/file1.txt',
             'data/file2.txt',
             'data/nested/file3.txt',
-            'data/nested/file4.txt'
+            'data/nested/file4.txt',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
         }
 
         self.assertArchiveMembers(fp, root_dir, expected)
 
     def test_load(self):
-        saved_artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        saved_artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         saved_artifact.save(fp)
 
@@ -109,8 +116,8 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
 
     def test_load_different_type_with_multiple_view_types(self):
-        saved_artifact = Artifact._from_view(IntSequence1,
-                                             [42, 42, 43, -999, 42], list)
+        saved_artifact = Artifact.import_data(IntSequence1,
+                                              [42, 42, 43, -999, 42])
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         saved_artifact.save(fp)
 
@@ -132,7 +139,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
     def test_load_and_save(self):
         fp1 = os.path.join(self.test_dir.name, 'artifact1.qza')
         fp2 = os.path.join(self.test_dir.name, 'artifact2.qza')
-        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
         artifact.save(fp1)
 
         artifact = Artifact.load(fp1)
@@ -148,7 +155,10 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'data/file1.txt',
             'data/file2.txt',
             'data/nested/file3.txt',
-            'data/nested/file4.txt'
+            'data/nested/file4.txt',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
         }
 
         self.assertArchiveMembers(fp1, root_dir, expected)
@@ -160,7 +170,10 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'data/file1.txt',
             'data/file2.txt',
             'data/nested/file3.txt',
-            'data/nested/file4.txt'
+            'data/nested/file4.txt',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
         }
 
         self.assertArchiveMembers(fp2, root_dir, expected)
@@ -168,7 +181,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
     def test_roundtrip(self):
         fp1 = os.path.join(self.test_dir.name, 'artifact1.qza')
         fp2 = os.path.join(self.test_dir.name, 'artifact2.qza')
-        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
 
         artifact.save(fp1)
 
@@ -188,7 +201,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
     def test_load_with_archive_filepath_modified(self):
         # Save an artifact for use in the following test case.
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        Artifact._from_view(FourInts, [-1, 42, 0, 43], list).save(fp)
+        Artifact.import_data(FourInts, [-1, 42, 0, 43]).save(fp)
 
         # Load the artifact from a filepath then save a different artifact to
         # the same filepath. Assert that both artifacts produce the correct
@@ -205,7 +218,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         # without extracting/copying data, so that API is now provided through
         # Artifact.peek.
         artifact1 = Artifact.load(fp)
-        Artifact._from_view(FourInts, [10, 11, 12, 13], list).save(fp)
+        Artifact.import_data(FourInts, [10, 11, 12, 13]).save(fp)
         artifact2 = Artifact.load(fp)
 
         self.assertEqual(artifact1.view(list), [-1, 42, 0, 43])
@@ -213,7 +226,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
 
     def test_extract(self):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
         artifact.save(fp)
 
         root_dir = str(artifact.uuid)
@@ -227,13 +240,16 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'data/file1.txt',
             'data/file2.txt',
             'data/nested/file3.txt',
-            'data/nested/file4.txt'
+            'data/nested/file4.txt',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
         }
 
         self.assertExtractedArchiveMembers(output_dir, root_dir, expected)
 
     def test_peek(self):
-        artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000], list)
+        artifact = Artifact.import_data(FourInts, [0, 0, 42, 1000])
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         artifact.save(fp)
 
@@ -288,11 +304,11 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             Artifact.import_data(FourInts, data_dir)
 
     def test_import_data_with_unreachable_path(self):
-        with self.assertRaisesRegex(ValueError, "not.*directory"):
+        with self.assertRaisesRegex(ValueError, "does not exist"):
             Artifact.import_data(IntSequence1,
                                  os.path.join(self.test_dir.name, 'foo.txt'))
 
-        with self.assertRaisesRegex(ValueError, "not.*directory"):
+        with self.assertRaisesRegex(ValueError, "does not exist"):
             Artifact.import_data(FourInts,
                                  os.path.join(self.test_dir.name, 'bar'))
 
@@ -380,13 +396,13 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(artifact.view(list), [42, 41, 43, 40])
 
     def test_eq_identity(self):
-        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
 
         self.assertEqual(artifact, artifact)
 
     def test_eq_same_uuid(self):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        artifact1 = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        artifact1 = Artifact.import_data(FourInts, [-1, 42, 0, 43])
         artifact1.save(fp)
 
         artifact2 = Artifact.load(fp)
@@ -394,14 +410,14 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(artifact1, artifact2)
 
     def test_ne_same_data_different_uuid(self):
-        artifact1 = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
-        artifact2 = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        artifact1 = Artifact.import_data(FourInts, [-1, 42, 0, 43])
+        artifact2 = Artifact.import_data(FourInts, [-1, 42, 0, 43])
 
         self.assertNotEqual(artifact1, artifact2)
 
     def test_ne_different_data_different_uuid(self):
-        artifact1 = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
-        artifact2 = Artifact._from_view(FourInts, [1, 2, 3, 4], list)
+        artifact1 = Artifact.import_data(FourInts, [-1, 42, 0, 43])
+        artifact2 = Artifact.import_data(FourInts, [1, 2, 3, 4])
 
         self.assertNotEqual(artifact1, artifact2)
 
@@ -410,8 +426,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             pass
 
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        artifact1 = ArtifactSubclass._from_view(FourInts, [-1, 42, 0, 43],
-                                                list)
+        artifact1 = ArtifactSubclass.import_data(FourInts, [-1, 42, 0, 43])
         artifact1.save(fp)
 
         artifact2 = Artifact.load(fp)
@@ -420,7 +435,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         self.assertNotEqual(artifact2, artifact1)
 
     def test_ne_different_type_same_uuid(self):
-        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
 
         class Faker:
             @property

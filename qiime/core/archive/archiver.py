@@ -224,11 +224,12 @@ class _ZipArchive(_Archive):
 
 
 class Archiver:
-    CURRENT_FORMAT_VERSION = '0'
+    CURRENT_FORMAT_VERSION = '1'
     CURRENT_ARCHIVE = _ZipArchive
     _FORMAT_REGISTRY = {
         # NOTE: add more archive formats as things change
-        '0': 'qiime.core.archive.format.v0:ArchiveFormat'
+        '0': 'qiime.core.archive.format.v0:ArchiveFormat',
+        '1': 'qiime.core.archive.format.v1:ArchiveFormat'
     }
 
     @classmethod
@@ -301,13 +302,13 @@ class Archiver:
         return cls(path, Format(rec))
 
     @classmethod
-    def from_data(cls, type, format, data_initializer):
+    def from_data(cls, type, format, data_initializer, provenance_capture):
         path = cls._make_temp_path()
         rec = cls.CURRENT_ARCHIVE.setup(path, cls.CURRENT_FORMAT_VERSION,
                                         qiime.__version__)
 
         Format = cls.get_format_class(cls.CURRENT_FORMAT_VERSION)
-        Format.write(rec, type, format, data_initializer)
+        Format.write(rec, type, format, data_initializer, provenance_capture)
 
         return cls(path, Format(rec))
 
@@ -335,6 +336,10 @@ class Archiver:
     @property
     def root_dir(self):
         return self._fmt.path
+
+    @property
+    def provenance_dir(self):
+        return getattr(self._fmt, 'provenance_dir', None)
 
     def __del__(self):
         # Destructor can be called more than once.

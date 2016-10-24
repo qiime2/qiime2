@@ -21,7 +21,8 @@ from .format import (
 )
 
 from .type import IntSequence1, IntSequence2, Mapping, FourInts
-from .method import concatenate_ints, split_ints, merge_mappings
+from .method import (concatenate_ints, split_ints, merge_mappings,
+                     identity_with_metadata, identity_with_metadata_category)
 from .visualizer import most_common_viz, mapping_viz
 
 dummy_plugin = qiime.plugin.Plugin(
@@ -123,6 +124,36 @@ dummy_plugin.methods.register_function(
     description='This method merges two mappings into a single new mapping. '
                 'If a key is shared between mappings and the values differ, '
                 'an error will be raised.'
+)
+
+dummy_plugin.methods.register_function(
+    function=identity_with_metadata,
+    inputs={
+        'ints': IntSequence1 | IntSequence2
+    },
+    parameters={
+        'metadata': qiime.plugin.Metadata
+    },
+    outputs=[
+        ('out', IntSequence1)
+    ],
+    name='Identity',
+    description='This method does nothing, but takes metadata'
+)
+
+dummy_plugin.methods.register_function(
+    function=identity_with_metadata_category,
+    inputs={
+        'ints': IntSequence1 | IntSequence2
+    },
+    parameters={
+        'metadata': qiime.plugin.MetadataCategory
+    },
+    outputs=[
+        ('out', IntSequence1)
+    ],
+    name='Identity',
+    description='This method does nothing, but takes a metadata category'
 )
 
 dummy_plugin.visualizers.register_function(

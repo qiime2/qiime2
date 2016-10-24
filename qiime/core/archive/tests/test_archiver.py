@@ -14,6 +14,7 @@ import zipfile
 import pathlib
 
 from qiime.core.archive import Archiver
+from qiime.core.archive import ImportProvenanceCapture
 from qiime.core.archive.archiver import _ZipArchive
 from qiime.core.testing.format import IntSequenceDirectoryFormat
 from qiime.core.testing.type import IntSequence1
@@ -37,7 +38,8 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
 
         self.archiver = Archiver.from_data(
             IntSequence1, IntSequenceDirectoryFormat,
-            data_initializer=data_initializer)
+            data_initializer=data_initializer,
+            provenance_capture=ImportProvenanceCapture())
 
     def tearDown(self):
         self.temp_dir.cleanup()
@@ -75,7 +77,8 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
 
         archiver = Archiver.from_data(
             IntSequence1, IntSequenceDirectoryFormat,
-            data_initializer=data_initializer)
+            data_initializer=data_initializer,
+            provenance_capture=ImportProvenanceCapture())
 
         fp = os.path.join(self.temp_dir.name, 'archive.zip')
         archiver.save(fp)
@@ -84,7 +87,10 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'data/ints.txt'
+            'data/ints.txt',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
         }
 
         self.assertArchiveMembers(fp, root_dir, expected)
@@ -98,7 +104,10 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'data/ints.txt'
+            'data/ints.txt',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
         }
 
         self.assertArchiveMembers(fp, root_dir, expected)
@@ -138,7 +147,10 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '.hidden-dir/ignored-file',
                 '%s/VERSION' % root_dir,
                 '%s/metadata.yaml' % root_dir,
-                '%s/data/ints.txt' % root_dir
+                '%s/data/ints.txt' % root_dir,
+                '%s/provenance/metadata.yaml' % root_dir,
+                '%s/provenance/VERSION' % root_dir,
+                '%s/provenance/action/action.yaml' % root_dir
             }
 
             observed = set(zf.namelist())
@@ -181,7 +193,10 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'VERSION',
             'metadata.yaml',
             'data/ints.txt',
-            'data/nested/foo.txt'
+            'data/nested/foo.txt',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
         }
 
         self.assertArchiveMembers(fp, root_dir, expected)
@@ -200,7 +215,10 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'VERSION',
             'metadata.yaml',
             'data/ints.txt',
-            'data/nested/foo.txt'
+            'data/nested/foo.txt',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
         }
 
         self.assertArchiveMembers(fp, root_dir, expected)
@@ -259,6 +277,9 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '%s/VERSION' % root_dir,
                 '%s/metadata.yaml' % root_dir,
                 '%s/data/ints.txt' % root_dir,
+                '%s/provenance/metadata.yaml' % root_dir,
+                '%s/provenance/VERSION' % root_dir,
+                '%s/provenance/action/action.yaml' % root_dir,
                 '%s/VERSION' % second_root_dir
             }
 

@@ -13,6 +13,7 @@ import unittest
 import qiime.core.type
 from qiime.sdk import Result, Artifact, Visualization
 from qiime.sdk.result import ResultMetadata
+import qiime.core.archive as archive
 
 from qiime.core.testing.type import FourInts
 from qiime.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
@@ -20,6 +21,11 @@ from qiime.core.testing.visualizer import mapping_viz
 
 
 class TestResult(unittest.TestCase, ArchiveTestingMixin):
+    def make_provenance_capture(self):
+        # You can't actually import a visualization, but I won't tell
+        # visualization if you don't...
+        return archive.ImportProvenanceCapture()
+
     def setUp(self):
         # Ignore the returned dummy plugin object, just run this to verify the
         # plugin exists as the tests rely on it being loaded.
@@ -45,7 +51,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
             Result()
 
     def test_load_artifact(self):
-        saved_artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        saved_artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         saved_artifact.save(fp)
 
@@ -57,7 +63,8 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
 
     def test_load_visualization(self):
-        saved_visualization = Visualization._from_data_dir(self.data_dir)
+        saved_visualization = Visualization._from_data_dir(
+             self.data_dir, self.make_provenance_capture())
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         saved_visualization.save(fp)
 
@@ -69,7 +76,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
     def test_extract_artifact(self):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
-        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list)
+        artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
         artifact.save(fp)
 
         root_dir = str(artifact.uuid)
@@ -83,14 +90,18 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
             'data/file1.txt',
             'data/file2.txt',
             'data/nested/file3.txt',
-            'data/nested/file4.txt'
+            'data/nested/file4.txt',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
         }
 
         self.assertExtractedArchiveMembers(output_dir, root_dir, expected)
 
     def test_extract_visualization(self):
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
-        visualization = Visualization._from_data_dir(self.data_dir)
+        visualization = Visualization._from_data_dir(
+             self.data_dir, self.make_provenance_capture())
         visualization.save(fp)
 
         root_dir = str(visualization.uuid)
@@ -102,13 +113,16 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
             'VERSION',
             'metadata.yaml',
             'data/index.html',
-            'data/css/style.css'
+            'data/css/style.css',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
         }
 
         self.assertExtractedArchiveMembers(output_dir, root_dir, expected)
 
     def test_peek_artifact(self):
-        artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000], list)
+        artifact = Artifact.import_data(FourInts, [0, 0, 42, 1000])
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         artifact.save(fp)
 
@@ -120,7 +134,8 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(metadata.format, 'FourIntsDirectoryFormat')
 
     def test_peek_visualization(self):
-        visualization = Visualization._from_data_dir(self.data_dir)
+        visualization = Visualization._from_data_dir(
+             self.data_dir, self.make_provenance_capture())
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
         visualization.save(fp)
 
@@ -132,7 +147,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         self.assertIsNone(metadata.format)
 
     def test_save_artifact_auto_extension(self):
-        artifact = Artifact._from_view(FourInts, [0, 0, 42, 1000], list)
+        artifact = Artifact.import_data(FourInts, [0, 0, 42, 1000])
 
         # No extension.
         fp = os.path.join(self.test_dir.name, 'artifact')
@@ -156,7 +171,8 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(obs_filename, 'artifact.qza')
 
     def test_save_visualization_auto_extension(self):
-        visualization = Visualization._from_data_dir(self.data_dir)
+        visualization = Visualization._from_data_dir(
+             self.data_dir, self.make_provenance_capture())
 
         # No extension.
         fp = os.path.join(self.test_dir.name, 'visualization')

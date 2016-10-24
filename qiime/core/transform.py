@@ -45,7 +45,8 @@ class ModelType:
         self._pm = sdk.PluginManager()
         self._view_type = view_type
 
-    def make_transformation(self, other):
+    def make_transformation(self, other, recorder=None):
+        # TODO: do something with the recorder.
         transformer = self._get_transformer_to(other)
         if transformer is None:
             raise Exception("No transformation from %r to %r" %
