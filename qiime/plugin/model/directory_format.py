@@ -162,7 +162,8 @@ class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
         if not self.path.is_dir():
             raise ValueError("%r is not a directory." % self.path)
         collected_paths = {p: None for p in self.path.glob('**/*')
-                           if p.is_file()}
+                           if not p.name.startswith('.') and
+                           p.is_file()}
         for field in self._fields:
             getattr(self, field)._validate_members(collected_paths)
 
