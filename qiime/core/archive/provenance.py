@@ -259,6 +259,9 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.parameters = OrderedKeyValue()
 
     def handle_metadata(self, name, value):
+        if value is None:
+            return None
+
         if isinstance(value, qiime.MetadataCategory):
             pandas_obj = value.to_series()
         elif isinstance(value, qiime.Metadata):
