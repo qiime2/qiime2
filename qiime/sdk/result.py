@@ -119,6 +119,13 @@ class Result:
     def __ne__(self, other):
         return not (self == other)
 
+    def export_data(self, output_dir):
+        distutils.dir_util.copy_tree(
+            str(self._archiver.data_dir), str(output_dir))
+        # Return None for now, although future implementations that include
+        # format tranformations may return the invoked transformers
+        return None
+
     def _orphan(self, pid):
         self._archiver.orphan(pid)
 
