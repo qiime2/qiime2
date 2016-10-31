@@ -2,7 +2,4 @@
 
 [![Build Status](https://travis-ci.org/qiime2/qiime2.svg?branch=master)](https://travis-ci.org/qiime2/qiime2)
 
-**See the [QIIME 2 wiki](http:/2.qiime.org)** to learn how to use QIIME 2
-(including an installation/usage tutorial), develop QIIME 2 plugins, stay
-up-to-date on QIIME 2, request features and report bugs, and for other
-information.
+Source code repository for the QIIME 2 framework. Visit https://qiime2.org to learn more about the QIIME 2 project.

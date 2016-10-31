@@ -31,7 +31,7 @@ dummy_plugin = qiime.plugin.Plugin(
     website='https://github.com/qiime2/qiime2',
     package='qiime.core.testing',
     citation_text='No relevant citation.',
-    user_support_text='For help, see http://2.qiime.org'
+    user_support_text='For help, see https://qiime2.org'
 )
 
 import_module('qiime.core.testing.transformer')
