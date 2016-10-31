@@ -37,7 +37,7 @@ class TestPlugin(unittest.TestCase):
 
     def test_user_support_text(self):
         self.assertEqual(self.plugin.user_support_text,
-                         'For help, see http://2.qiime.org')
+                         'For help, see https://qiime2.org')
 
     def test_citation_text_default(self):
         plugin = qiime.plugin.Plugin(
