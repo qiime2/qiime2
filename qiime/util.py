@@ -17,13 +17,19 @@ _REDIRECTED_STDIO_LOCK = threading.Lock()
 
 @contextlib.contextmanager
 def redirected_stdio(stdout=None, stderr=None):
-    with contextlib.ExitStack() as stack:
-        stack.enter_context(_REDIRECTED_STDIO_LOCK)
+    with _REDIRECTED_STDIO_LOCK:
         if stdout is not None:
-            stack.enter_context(_redirected_fd(to=stdout, stdio=sys.stdout))
-        if stderr is not None:
-            stack.enter_context(_redirected_fd(to=stderr, stdio=sys.stderr))
-        yield
+            with _redirected_fd(to=stdout, stdio=sys.stdout):
+                if stderr is not None:
+                    with _redirected_fd(to=stderr, stdio=sys.stderr):
+                        yield
+                else:
+                    yield
+        elif stderr is not None:
+            with _redirected_fd(to=stderr, stdio=sys.stderr):
+                yield
+        else:
+            yield
 
 
 # Taken whole-sale from: http://stackoverflow.com/a/22434262/579416
