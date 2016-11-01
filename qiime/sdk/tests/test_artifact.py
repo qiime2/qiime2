@@ -310,7 +310,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
 
         with self.assertRaisesRegex(ValueError, "does not exist"):
             Artifact.import_data(FourInts,
-                                 os.path.join(self.test_dir.name, 'bar'))
+                                 os.path.join(self.test_dir.name, 'bar', ''))
 
     def test_import_data_with_invalid_format_single_file(self):
         fp = os.path.join(self.test_dir.name, 'foo.txt')

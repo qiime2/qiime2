@@ -54,7 +54,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             self.archiver.save(self.temp_dir.name)
 
         # Ends with path separator (no basename, e.g. /tmp/foo/).
-        with self.assertRaisesRegex(IsADirectoryError, 'directory'):
+        with self.assertRaises((IsADirectoryError, FileNotFoundError)):
             self.archiver.save(os.path.join(self.temp_dir.name, 'foo', ''))
 
     def test_save_excludes_dotfiles_in_data_dir(self):
