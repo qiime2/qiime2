@@ -315,8 +315,8 @@ def function_to_signature(cls, function, inputs, parameters, outputs):
     output_types = collections.OrderedDict()
     for output_name, semantic_type in outputs.items():
         view_type = output_view_types.get(output_name)
-
-        if view_type is None:
+        
+        if output_name != "visualization" and view_type is None:
             raise TypeError("Function %r does not describe %r in its return "
                             "annotation." % (function.__name__, output_name))
 
