@@ -9,7 +9,7 @@
 import pickle
 import unittest
 
-from qiime.core.callable import Results
+from qiime.sdk import Results
 
 
 class TestResults(unittest.TestCase):

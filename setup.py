@@ -13,8 +13,7 @@ setup(
     version='2.0.7.dev0',
     license='BSD-3-Clause',
     packages=find_packages(),
-    install_requires=['python-frontmatter', 'pyyaml', 'ipymd >= 0.1.2',
-                      'jupyter', 'decorator', 'pandas', 'cookiecutter',
+    install_requires=['pyyaml', 'decorator', 'pandas', 'cookiecutter',
                       'tzlocal', 'python-dateutil'],
     entry_points={
         'qiime.plugins': [
@@ -22,7 +21,6 @@ setup(
         ]
     },
     package_data={
-        'qiime.core.testing': ['markdown/*md'],
-        'qiime.tests': ['data/*'],
+        'qiime.tests': ['data/*']
     }
 )

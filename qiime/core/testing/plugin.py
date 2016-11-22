@@ -66,12 +66,6 @@ dummy_plugin.register_semantic_type_to_format(
 )
 
 # TODO add an optional parameter to this method when they are supported
-dummy_plugin.methods.register_markdown('markdown/concatenate_ints_markdown.md')
-dummy_plugin.methods.register_markdown('markdown/split_ints_markdown.md')
-
-# This method is equivalent to its markdown version above, they just have
-# different IDs.
-# TODO add an optional parameter to this method when they are supported
 dummy_plugin.methods.register_function(
     function=concatenate_ints,
     inputs={
