@@ -6,7 +6,6 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import collections
 import concurrent.futures
 import inspect
 import os.path
@@ -16,10 +15,10 @@ import uuid
 
 import qiime.plugin
 import qiime.core.type
-from qiime.core.callable import Results
 from qiime.core.type import VisualizerSignature
-from qiime.sdk import Artifact, Visualization, Action
+from qiime.sdk import Artifact, Visualization, Visualizer, Results
 
+from qiime.core.testing.visualizer import most_common_viz, mapping_viz
 from qiime.core.testing.type import IntSequence1, IntSequence2, Mapping
 from qiime.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 
@@ -35,8 +34,8 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
 
     def test_private_constructor(self):
         with self.assertRaisesRegex(NotImplementedError,
-                                    'Action constructor.*private'):
-            Action()
+                                    'Visualizer constructor.*private'):
+            Visualizer()
 
     def test_from_function_with_artifacts_and_parameters(self):
         visualizer = self.plugin.visualizers['mapping_viz']
@@ -44,18 +43,15 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(visualizer.id, 'mapping_viz')
 
         exp_sig = VisualizerSignature(
+            mapping_viz,
             inputs={
-                'mapping1': (Mapping, dict),
-                'mapping2': (Mapping, dict)
+                'mapping1': Mapping,
+                'mapping2': Mapping
             },
             parameters={
-                'key_label': (qiime.plugin.Str, str),
-                'value_label': (qiime.plugin.Str, str)
+                'key_label': qiime.plugin.Str,
+                'value_label': qiime.plugin.Str
             },
-            defaults={},
-            outputs=collections.OrderedDict([
-                ('visualization', (qiime.core.type.Visualization, None))
-            ])
         )
         self.assertEqual(visualizer.signature, exp_sig)
 
@@ -72,14 +68,11 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(visualizer.id, 'most_common_viz')
 
         exp_sig = VisualizerSignature(
+            most_common_viz,
             inputs={
-                'ints': (IntSequence1 | IntSequence2, collections.Counter)
+                'ints': IntSequence1 | IntSequence2
             },
-            parameters={},
-            defaults={},
-            outputs=collections.OrderedDict([
-                ('visualization', (qiime.core.type.Visualization, None))
-            ])
+            parameters={}
         )
         self.assertEqual(visualizer.signature, exp_sig)
 

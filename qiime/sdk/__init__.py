@@ -6,10 +6,12 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .action import Action
+from .action import Action, Method, Visualizer
 from .plugin_manager import PluginManager
 from .result import Result, Artifact, Visualization
+from .results import Results
 from .util import parse_type, parse_format, UnknownTypeError
 
-__all__ = ['Result', 'Artifact', 'Visualization', 'Action', 'PluginManager',
-           'parse_type', 'parse_format', 'UnknownTypeError']
+__all__ = ['Result', 'Results', 'Artifact', 'Visualization', 'Action',
+           'Method', 'Visualizer', 'PluginManager', 'parse_type',
+           'parse_format', 'UnknownTypeError']

@@ -52,19 +52,15 @@ class TestImports(unittest.TestCase):
     def _check_methods(self, module):
         self._check_spec(module, 'qiime.plugins.dummy_plugin.methods', False)
         self.assertTrue(hasattr(module, 'concatenate_ints'))
-        self.assertTrue(hasattr(module, 'concatenate_ints_markdown'))
         self.assertFalse(hasattr(module, 'most_common_viz'))
 
         self.assertIsInstance(module.concatenate_ints, qiime.sdk.Action)
-        self.assertIsInstance(module.concatenate_ints_markdown,
-                              qiime.sdk.Action)
 
     def _check_visualizers(self, module):
         self._check_spec(
             module, 'qiime.plugins.dummy_plugin.visualizers', False)
         self.assertTrue(hasattr(module, 'most_common_viz'))
         self.assertFalse(hasattr(module, 'concatenate_ints'))
-        self.assertFalse(hasattr(module, 'concatenate_ints_markdown'))
         self.assertIsInstance(module.most_common_viz, qiime.sdk.Action)
 
     def test_import_root(self):

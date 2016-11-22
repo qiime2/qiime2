@@ -17,51 +17,44 @@ from qiime.core.testing.type import IntSequence1
 
 
 class TestPipelineSignature(unittest.TestCase):
+    def setUp(self):
+        def f(input1: list, input2: list,
+              param1: int, param2: int=42) -> (list, list):
+            pass
 
-    def test_constructor(self):
-        signature = PipelineSignature(
-            inputs={'input1': (IntSequence1, list),
-                    'input2': (IntSequence1, list)},
-            parameters={'param1': (Int, int),
-                        'param2': (Int, int)},
-            defaults={'param1': 42},
-            outputs=collections.OrderedDict([
-                ('output1', (IntSequence1, list)),
-                ('output2', (IntSequence1, list))]))
+        self.signature = PipelineSignature(
+            f,
+            inputs={'input1': IntSequence1,
+                    'input2': IntSequence1},
+            parameters={'param1': Int,
+                        'param2': Int},
+            outputs=[
+                ('output1', IntSequence1),
+                ('output2', IntSequence1)])
 
-        self.assertEqual(signature.inputs,
+    def test_properties(self):
+        self.assertEqual(self.signature.inputs,
                          {'input1': (IntSequence1, list),
                           'input2': (IntSequence1, list)})
-        self.assertEqual(signature.parameters,
+        self.assertEqual(self.signature.parameters,
                          {'param1': (Int, int), 'param2': (Int, int)})
-        self.assertEqual(signature.defaults,
-                         {'param1': 42})
+        self.assertEqual(self.signature.defaults, {'param2': 42})
         self.assertEqual(
-            signature.outputs,
+            self.signature.outputs,
             collections.OrderedDict([
                 ('output1', (IntSequence1, list)),
                 ('output2', (IntSequence1, list))]))
 
     def test_solve_output(self):
-        signature = PipelineSignature(
-            inputs={'input1': (IntSequence1, list),
-                    'input2': (IntSequence1, list)},
-            parameters={'param1': (Int, int),
-                        'param2': (Int, int)},
-            defaults={'param1': 42},
-            outputs=collections.OrderedDict([
-                ('output1', (IntSequence1, list)),
-                ('output2', (IntSequence1, list))])
-            )
         self.assertEqual(
-            signature.solve_output(**{}),
+            self.signature.solve_output(**{}),
             collections.OrderedDict([
                 ('output1', (IntSequence1, list)),
                 ('output2', (IntSequence1, list))]))
 
 
 class TestMethodSignature(unittest.TestCase):
-    def test_from_function(self):
+    def test_constructor(self):
         def method(input3: list, input2: dict, in1: set, param1: str,
                    p2: int=2) -> tuple:
             pass
@@ -97,8 +90,7 @@ class TestMethodSignature(unittest.TestCase):
             'p2': 2
         }
 
-        sig = MethodSignature.from_function(
-            method, inputs, parameters, outputs)
+        sig = MethodSignature(method, inputs, parameters, outputs)
 
         self.assertIsInstance(sig.inputs, collections.OrderedDict)
         self.assertEqual(sig.inputs, exp_inputs)
@@ -113,7 +105,7 @@ class TestMethodSignature(unittest.TestCase):
 
 
 class TestVisualizerSignature(unittest.TestCase):
-    def test_from_function(self):
+    def test_constructor(self):
         def visualizer(output_dir, input3: list, input2: dict, in1: set,
                        param1: str, p2: int=2) -> None:
             pass
@@ -146,8 +138,7 @@ class TestVisualizerSignature(unittest.TestCase):
             'p2': 2
         }
 
-        sig = VisualizerSignature.from_function(
-            visualizer, inputs, parameters)
+        sig = VisualizerSignature(visualizer, inputs, parameters)
 
         self.assertIsInstance(sig.inputs, collections.OrderedDict)
         self.assertEqual(sig.inputs, exp_inputs)

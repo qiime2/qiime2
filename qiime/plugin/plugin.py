@@ -6,17 +6,13 @@
 # The full license is in the file COPYING.txt, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import inspect
 import collections
-import pkg_resources
 import types
 
-import frontmatter
 import yaml
 
 import qiime.sdk
 import qiime.core.type.grammar as grammar
-from qiime.core.callable import MethodCallable, VisualizerCallable
 from qiime.plugin.model import DirectoryFormat
 from qiime.plugin.model.base import FormatBase
 from qiime.core.type import is_semantic_type
@@ -185,46 +181,17 @@ class PluginActions(dict):
             self._plugin.name.replace('-', '_'), self._subpackage)
         super().__init__()
 
-    # Private helpers for use in subclasses:
-
-    def _register_callable(self, callable, name, description, source):
-        action = qiime.sdk.Action._from_callable(callable, name, description,
-                                                 source)
-        self[action.id] = action
-
-    def _get_function_source(self, function):
-        try:
-            source = inspect.getsource(function)
-        except OSError:
-            raise TypeError(
-                "Cannot retrieve source code for function %r" %
-                function.__name__)
-        return markdown_source_template % {'source': source}
-
 
 class PluginMethods(PluginActions):
     _subpackage = 'methods'
 
+    # TODO is `register` a better name now that functions are the only accepted
+    # source (i.e. markdown support is gone)?
     def register_function(self, function, inputs, parameters, outputs, name,
                           description):
-        callable = MethodCallable.from_function(function, inputs, parameters,
-                                                outputs, self._package)
-        source = self._get_function_source(function)
-
-        self._register_callable(callable, name, description, source)
-
-    def register_markdown(self, markdown_filepath):
-        markdown_filepath = pkg_resources.resource_filename(
-            self._plugin.package, markdown_filepath)
-
-        callable = MethodCallable.from_markdown(markdown_filepath,
-                                                self._package)
-
-        with open(markdown_filepath) as fh:
-            metadata, source = frontmatter.parse(fh.read())
-
-        self._register_callable(callable, metadata['name'],
-                                metadata['description'], source)
+        method = qiime.sdk.Method._init(function, inputs, parameters, outputs,
+                                        self._package, name, description)
+        self[method.id] = method
 
 
 class PluginVisualizers(PluginActions):
@@ -232,15 +199,7 @@ class PluginVisualizers(PluginActions):
 
     def register_function(self, function, inputs, parameters, name,
                           description):
-        callable = VisualizerCallable.from_function(function, inputs,
-                                                    parameters, self._package)
-        source = self._get_function_source(function)
-
-        self._register_callable(callable, name, description, source)
-
-
-markdown_source_template = """
-```python
-%(source)s
-```
-"""
+        visualizer = qiime.sdk.Visualizer._init(function, inputs, parameters,
+                                                self._package, name,
+                                                description)
+        self[visualizer.id] = visualizer
