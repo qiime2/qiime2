@@ -9,6 +9,8 @@
 import pkg_resources
 import tempfile
 import unittest
+import shutil
+
 import qiime
 
 
@@ -84,3 +86,17 @@ class TestPluginBase(unittest.TestCase):
             obs_format, exp_format,
             "Expected semantic type %r to be registered to format %r, not %r."
             % (semantic_type, exp_format, obs_format))
+
+    def transformer_helper(self, source, target, filenames):
+        transformer = self.get_transformer(source, target)
+
+        for filename in filenames:
+            filepath = self.get_data_path(filename)
+            shutil.copy(filepath, self.temp_dir.name)
+        input = source(self.temp_dir.name, mode='r')
+
+        obs = transformer(input)
+
+        self.assertIsInstance(obs, target)
+
+        return input, obs
