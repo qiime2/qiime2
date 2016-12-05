@@ -91,23 +91,31 @@ class TestPluginBase(unittest.TestCase):
             "Expected semantic type %r to be registered to format %r, not %r."
             % (semantic_type, exp_format, obs_format))
 
-    def transform_format(self, source_format, target, filenames):
+    def transform_format(self, source_format, target, **kwargs):
         # Guard any non-QIIME2 Format sources from being tested
         self.assertTrue(issubclass(source_format, FormatBase))
 
         transformer = self.get_transformer(source_format, target)
 
-        for filename in filenames:
-            filepath = self.get_data_path(filename)
-            shutil.copy(filepath, self.temp_dir.name)
-        input = source_format(self.temp_dir.name, mode='r')
+        source_path = None
+        if 'filename' in kwargs:
+            source_path = kwargs['filename']
+        elif 'filenames' in kwargs:
+            source_path = self.temp_dir.name
+            for filename in kwargs['filenames']:
+                filepath = self.get_data_path(filename)
+                shutil.copy(filepath, source_path)
+        else:
+            self.fail("The helper method `transform_format` requires either "
+                      "a filename or a sequence of filenames supplied as their"
+                      " respective keyword arguments.")
+        input = source_format(source_path, mode='r')
 
         obs = transformer(input)
 
-        if issubclass(type(target), DirectoryFormat):
-            classes = (pathlib.Path, str, DirectoryFormat)
-            valid = (issubclass(type(obs), x) for x in classes).any()
-            self.assertTrue(valid)
+        if issubclass(target, DirectoryFormat):
+            self.assertTrue(type(obs) in (pathlib.Path, str) or
+                            issubclass(type(obs), DirectoryFormat))
         else:
             self.assertIsInstance(obs, target)
 
