@@ -14,7 +14,6 @@ import pathlib
 
 import qiime
 
-from qiime.plugin.model import DirectoryFormat
 from qiime.plugin.model.base import FormatBase
 
 
@@ -91,31 +90,32 @@ class TestPluginBase(unittest.TestCase):
             "Expected semantic type %r to be registered to format %r, not %r."
             % (semantic_type, exp_format, obs_format))
 
-    def transform_format(self, source_format, target, **kwargs):
+    def transform_format(self, source_format, target, filename=None,
+                         filenames=None):
         # Guard any non-QIIME2 Format sources from being tested
         self.assertTrue(issubclass(source_format, FormatBase))
 
-        transformer = self.get_transformer(source_format, target)
+        # Guard against invalid filename(s) usage
+        if filename is not None and filenames is not None:
+            raise ValueError("Cannot use both `filename` and `filenames` at "
+                             "the same time.")
 
+        # Handle format initialization
         source_path = None
-        if 'filename' in kwargs:
-            source_path = kwargs['filename']
-        elif 'filenames' in kwargs:
+        if filename:
+            source_path = self.get_data_path(filename)
+        elif filenames:
             source_path = self.temp_dir.name
-            for filename in kwargs['filenames']:
+            for filename in filenames:
                 filepath = self.get_data_path(filename)
                 shutil.copy(filepath, source_path)
-        else:
-            self.fail("The helper method `transform_format` requires either "
-                      "a filename or a sequence of filenames supplied as their"
-                      " respective keyword arguments.")
         input = source_format(source_path, mode='r')
 
+        transformer = self.get_transformer(source_format, target)
         obs = transformer(input)
 
-        if issubclass(target, DirectoryFormat):
-            self.assertTrue(type(obs) in (pathlib.Path, str) or
-                            issubclass(type(obs), DirectoryFormat))
+        if issubclass(target, FormatBase):
+            self.assertIsInstance(obs, (type(pathlib.Path()), str, target))
         else:
             self.assertIsInstance(obs, target)
 
