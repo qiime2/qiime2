@@ -9,18 +9,74 @@
 import collections
 import inspect
 import itertools
+import copy
 
 import qiime.sdk
 from .grammar import TypeExpression
 from .primitive import is_primitive_type
 from .semantic import is_semantic_type
 from .visualization import Visualization
+from ..util import ImmutableBase
+
+
+class _NoValue:
+    def __repr__(self):
+        return "NOVALUE"
+
+
+class ParameterSpec(ImmutableBase):
+    def __init__(self, **kwargs):
+        self.NOVALUE = _NoValue()
+        self.qiime_type = kwargs.pop('qiime_type', self.NOVALUE)
+        self.view_type = kwargs.pop('view_type', self.NOVALUE)
+        self.default = kwargs.pop('default', self.NOVALUE)
+        if kwargs:
+            raise TypeError("Got unexpected keyword argument(s) %r"
+                            % list(kwargs))
+        self._freeze_()
+
+    def has_qiime_type(self):
+        return self.qiime_type is not self.NOVALUE
+
+    def has_view_type(self):
+        return self.view_type is not self.NOVALUE
+
+    def has_default(self):
+        return self.default is not self.NOVALUE
+
+    def __repr__(self):
+        return ("ParameterSpec(qiime_type=%r, view_type=%r, default=%r)"
+                % (self.qiime_type, self.view_type, self.default))
+
+    def __eq__(self, other):
+        if self.has_qiime_type() != other.has_qiime_type():
+            return False
+        if self.has_qiime_type() and not self.qiime_type.equals(
+                other.qiime_type):
+            return False
+
+        if self.has_view_type() != other.has_view_type():
+            return False
+        if self.has_view_type() and self.view_type is not other.view_type:
+            return False
+
+        if self.has_default() != other.has_default():
+            return False
+        if self.has_default() and self.default != other.default:
+            return False
+
+        return True
+
+    def __ne__(self, other):
+        return not (self == other)
 
 
 # Note: Pipeline doesn't exist yet but it is expected to accept one or more
 # input semantic types, zero or more parameters, and produce one or more output
 # semantic types or Visualization types.
 class PipelineSignature:
+    provided_args = ('ctx',)
+
     def __init__(self, callable, inputs, parameters, outputs):
         """
 
@@ -37,139 +93,158 @@ class PipelineSignature:
             type.
 
         """
-        inputs, parameters, outputs, defaults = self._parse_annotations(
+        inputs, parameters, outputs = self._parse_signature(
             callable, inputs, parameters, outputs)
 
         self._assert_valid_inputs(inputs)
         self._assert_valid_parameters(parameters)
         self._assert_valid_outputs(outputs)
-        self._assert_valid_defaults(defaults, parameters)
 
         self.inputs = inputs
         self.parameters = parameters
         self.outputs = outputs
-        self.defaults = defaults
 
-    def _parse_annotations(self, callable, inputs, parameters, outputs):
-        sig_params = inspect.signature(callable).parameters
-        annotations = {n: p.annotation for n, p in sig_params.items()}
+    @property
+    def defaults(self):
+        return collections.OrderedDict([
+            (name, spec.default) for name, spec in self.parameters.items()
+            if spec.has_default()])
 
-        input_types = collections.OrderedDict()
-        param_types = collections.OrderedDict()
+    def _parse_signature(self, callable, inputs, parameters, outputs):
+        # Copy so we can "exhaust" the collections and check for missing params
+        inputs = copy.copy(inputs)
+        parameters = copy.copy(parameters)
 
-        # TODO prevent callable signature from mixing artifacts and primitives.
-        # Artifacts come first followed by primitives.
-        for name in sig_params:
+        annotated_inputs = collections.OrderedDict()
+        annotated_parameters = collections.OrderedDict()
+        annotated_outputs = collections.OrderedDict()
+
+        in_parameter_section = False
+        for name, parameter in inspect.signature(callable).parameters.items():
+            if (parameter.kind == parameter.VAR_POSITIONAL
+                    or parameter.kind == parameter.VAR_KEYWORD):
+                raise TypeError("Variadic definitions are unsupported: %r"
+                                % name)
+            spec_kwargs = {}
+            if parameter.annotation is not parameter.empty:
+                spec_kwargs['view_type'] = parameter.annotation
+            if parameter.default is not parameter.empty:
+                spec_kwargs['default'] = parameter.default
+
             if name in inputs:
-                input_types[name] = (inputs[name], annotations[name])
-            if name in parameters:
-                param_types[name] = (parameters[name], annotations[name])
+                if in_parameter_section:
+                    # Mixing "parameters" into the "input" section is not
+                    # allowed
+                    raise TypeError("Artifact inputs must come before"
+                                    " parameters in callable signature.")
+                annotated_inputs[name] = ParameterSpec(
+                    qiime_type=inputs.pop(name), **spec_kwargs)
+            elif name in parameters:
+                in_parameter_section = True
+                annotated_parameters[name] = ParameterSpec(
+                    qiime_type=parameters.pop(name), **spec_kwargs)
+            elif name not in self.provided_args:
+                raise TypeError("Parameter in callable without QIIME type: %r"
+                                % name)
+        # we should have popped both of these empty by this point
+        if inputs or parameters:
+            raise TypeError("Callable does not have parameter(s): %r"
+                            % list(inputs) + list(parameters))
 
-        defaults = {n: p.default for n, p in sig_params.items()
-                    if p.default is not p.empty and n in parameters}
+        if 'return' in callable.__annotations__:
+            output_views = qiime.core.util.tuplize(
+                callable.__annotations__['return'])
 
-        outputs = collections.OrderedDict(outputs)
-        output_view_types = qiime.core.util.tuplize(
-            self._get_return_annotation(callable))
+            if len(output_views) != len(outputs):
+                raise TypeError()
 
-        # TODO make sure these are the same length before zipping
-        output_view_types = dict(zip(outputs, output_view_types))
+            for (name, qiime_type), view_type in zip(outputs, output_views):
+                annotated_outputs[name] = ParameterSpec(qiime_type=qiime_type,
+                                                        view_type=view_type)
+        else:
+            for name, qiime_type in outputs:
+                annotated_outputs[name] = ParameterSpec(qiime_type=qiime_type)
 
-        output_types = collections.OrderedDict()
-        for output_name, semantic_type in outputs.items():
-            view_type = output_view_types[output_name]
-            output_types[output_name] = (semantic_type, view_type)
+        return annotated_inputs, annotated_parameters, annotated_outputs
 
-        return input_types, param_types, output_types, defaults
-
-    def _get_return_annotation(self, callable):
-        if 'return' not in callable.__annotations__:
-            raise TypeError(
-                "Callable %r must have a return type annotation."
-                % callable.__name__)
-
-        return callable.__annotations__['return']
 
     def _assert_valid_inputs(self, inputs):
         if len(inputs) == 0:
             raise TypeError("%s requires at least one input" %
                             self.__class__.__name__)
 
-        for input_name, (semantic_type, _) in inputs.items():
-            if not is_semantic_type(semantic_type):
+        for input_name, spec in inputs.items():
+            if not is_semantic_type(spec.qiime_type):
                 raise TypeError(
                     "Input %r must be a semantic QIIME type, not %r" %
-                    (input_name, semantic_type))
+                    (input_name, spec.qiime_type))
 
-            if not isinstance(semantic_type, TypeExpression):
+            if not isinstance(spec.qiime_type, TypeExpression):
                 raise TypeError(
                     "Input %r must be a complete semantic type expression, "
-                    "not %r" % (input_name, semantic_type))
+                    "not %r" % (input_name, spec.qiime_type))
+
+            if spec.has_default():
+                raise ValueError("Input %r must not have a default value" %
+                                 input_name)
 
     def _assert_valid_parameters(self, parameters):
-        for param_name, (primitive_type, _) in parameters.items():
-            if not is_primitive_type(primitive_type):
+        for param_name, spec in parameters.items():
+            if not is_primitive_type(spec.qiime_type):
                 raise TypeError(
                     "Parameter %r must be a primitive QIIME type, not %r" %
-                    (param_name, primitive_type))
+                    (param_name, spec.qiime_type))
 
-            if not isinstance(primitive_type, TypeExpression):
+            if not isinstance(spec.qiime_type, TypeExpression):
                 raise TypeError(
                     "Parameter %r must be a complete primitive type "
-                    "expression, not %r" % (param_name, primitive_type))
+                    "expression, not %r" % (param_name, spec.qiime_type))
+
+            if (spec.has_default()
+                    and spec.default is not None
+                    and spec.default not in spec.qiime_type):
+                raise TypeError("Default value for parameter %r is not of "
+                                "semantic QIIME type %r or None."
+                                % (param_name, spec.qiime_type))
 
     def _assert_valid_outputs(self, outputs):
         if len(outputs) == 0:
             raise TypeError("%s requires at least one output" %
                             self.__class__.__name__)
 
-        for output_name, (output_semantic_type, _) in outputs.items():
-            if not (is_semantic_type(output_semantic_type) or
-                    output_semantic_type == Visualization):
+        for output_name, spec in outputs.items():
+            if not (is_semantic_type(spec.qiime_type) or
+                    spec.qiime_type == Visualization):
                 raise TypeError(
                     "Output %r must be a semantic QIIME type or "
                     "Visualization, not %r" %
-                    (output_name, output_semantic_type))
+                    (output_name, spec.qiime_type))
 
-            if not isinstance(output_semantic_type, TypeExpression):
+            if not isinstance(spec.qiime_type, TypeExpression):
                 raise TypeError(
                     "Output %r must be a complete type expression, not %r" %
-                    (output_name, output_semantic_type))
-
-    def _assert_valid_defaults(self, defaults, parameters):
-        # only parameters can have defaults and the type must match or be None
-        for param_name, default in defaults.items():
-            if param_name not in parameters:
-                raise ValueError("Input %r must not have a default value" %
-                                 param_name)
-
-            if default is not None and \
-               default not in parameters[param_name][0]:
-                raise TypeError("Default value for parameter %r is not of "
-                                "semantic QIIME type %r or None." %
-                                (param_name, parameters[param_name][0]))
+                    (output_name, spec.qiime_type))
 
     def decode_parameters(self, **kwargs):
         params = {}
-        for key, (type_expr, _) in self.parameters.items():
-            params[key] = type_expr.decode(kwargs[key])
+        for key, spec in self.parameters.items():
+            params[key] = spec.qiime_type.decode(kwargs[key])
         return params
 
     def check_types(self, **kwargs):
-        for key, (type_, _) in self.inputs.items():
-            if kwargs[key] not in type_:
+        for name, spec in self.inputs.items():
+            if kwargs[name] not in spec.qiime_type:
                 raise TypeError("Argument to input %r is not a subtype of"
-                                " %r." % (key, type_))
+                                " %r." % (name, spec.qiime_type))
 
-        for key, (type_, _) in self.parameters.items():
-            if kwargs[key] not in type_:
+        for name, spec in self.parameters.items():
+            if kwargs[name] not in spec.qiime_type:
                 # A type mismatch is unacceptable unless the value is None
                 # and this parameter's default value is None.
-                if not (key in self.defaults and
-                        self.defaults[key] is None and
-                        kwargs[key] is None):
+                if not (spec.has_default()
+                        and spec.default is kwargs[name] is None):
                     raise TypeError("Argument to parameter %r is not a "
-                                    "subtype of %r." % (key, type_))
+                                    "subtype of %r." % (name, spec.qiime_type))
 
     def solve_output(self, **input_types):
         # TODO implement solving here. The check for concrete output types may
@@ -178,26 +253,27 @@ class PipelineSignature:
         # concrete output types.
         solved_outputs = self.outputs
 
-        for output_name, (output_semantic_type, _) in solved_outputs.items():
-            if not output_semantic_type.is_concrete():
+        for output_name, spec in solved_outputs.items():
+            if not spec.qiime_type.is_concrete():
                 raise TypeError(
                     "Solved output %r must be a concrete type, not %r" %
-                    (output_name, output_semantic_type))
+                    (output_name, spec.qiime_type))
 
         return solved_outputs
 
     def __repr__(self):
-        inputs = []
-        for name, type in itertools.chain(self.inputs.items(),
-                                          self.parameters.items()):
-            inputs.append("%s : %r" % (name, type))
-        return ", ".join(inputs) + " -> %r" % (tuple(self.outputs.values()),)
+        lines = []
+        for group in 'inputs', 'parameters', 'outputs':
+            lookup = getattr(self, group)
+            lines.append('%s:' % group)
+            for name, spec in lookup.items():
+                lines.append('    %s: %r' % (name, spec))
+        return '\n'.join(lines)
 
     def __eq__(self, other):
         return (type(self) is type(other) and
                 self.inputs == other.inputs and
                 self.parameters == other.parameters and
-                self.defaults == other.defaults and
                 self.outputs == other.outputs)
 
     def __ne__(self, other):
@@ -205,19 +281,22 @@ class PipelineSignature:
 
 
 class MethodSignature(PipelineSignature):
-    def __init__(self, callable, inputs, parameters, outputs):
-        super().__init__(callable, inputs, parameters, outputs)
+    provided_args = ()
 
+    def _assert_valid_outputs(self, outputs):
+        super()._assert_valid_outputs(outputs)
         # Assert all output types are semantic types. The parent class is less
         # strict in its output type requirements.
-        for output_name, (output_semantic_type, _) in self.outputs.items():
-            if not is_semantic_type(output_semantic_type):
+        for output_name, spec in outputs.items():
+            if not is_semantic_type(spec.qiime_type):
                 raise TypeError(
                     "Output %r must be a semantic QIIME type, not %r" %
-                    (output_name, output_semantic_type))
+                    (output_name, spec.qiime_type))
 
 
 class VisualizerSignature(PipelineSignature):
+    provided_args = ('output_dir',)
+
     def __init__(self, callable, inputs, parameters):
         if 'output_dir' in inputs or 'output_dir' in parameters:
             raise TypeError(
@@ -240,9 +319,11 @@ class VisualizerSignature(PipelineSignature):
         outputs = [('visualization', Visualization)]
         super().__init__(callable, inputs, parameters, outputs)
 
-        _, (_, return_type) = next(iter(self.outputs.items()))
-        if return_type is not None:
+    def _assert_valid_outputs(self, outputs):
+        super()._assert_valid_outputs(outputs)
+        output = outputs['visualization']
+        if output.has_view_type() and output.view_type is not None:
             raise TypeError(
-                "Visualizer callable %r cannot return anything. Its return "
+                "Visualizer callable cannot return anything. Its return "
                 "annotation must be None, not %r. Write output to "
-                "`output_dir`." % (callable.__name__, return_type))
+                "`output_dir`." % output.view_type)

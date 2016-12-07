@@ -157,14 +157,15 @@ class Action(metaclass=abc.ABCMeta):
                 provenance.add_input(name, artifact)
 
             parameters = {}
-            for name, (primitive_type, _) in self.signature.parameters.items():
+            for name, spec in self.signature.parameters.items():
                 parameter = parameters[name] = user_input[name]
-                provenance.add_parameter(name, primitive_type, parameter)
+                provenance.add_parameter(name, spec.qiime_type, parameter)
 
             view_args = parameters.copy()
-            for name, (_, view_type) in self.signature.inputs.items():
+            for name, spec in self.signature.inputs.items():
                 recorder = provenance.transformation_recorder(name)
-                view_args[name] = artifacts[name]._view(view_type, recorder)
+                view_args[name] = artifacts[name]._view(spec.view_type,
+                                                        recorder)
 
             outputs = self._callable_executor_(self._callable, view_args,
                                                output_types, provenance)
@@ -261,14 +262,14 @@ class Method(Action):
                 % (len(output_views), len(output_types)))
 
         output_artifacts = []
-        for output_view, (semantic_type, view_type) in \
-                zip(output_views, output_types.values()):
-            if type(output_view) is not view_type:
+        for output_view, spec in zip(output_views, output_types.values()):
+            if type(output_view) is not spec.view_type:
                 raise TypeError(
                     "Expected output view type %r, received %r" %
-                    (view_type.__name__, type(output_view).__name__))
+                    (spec.view_type.__name__, type(output_view).__name__))
             artifact = qiime.sdk.Artifact._from_view(
-                semantic_type, output_view, view_type, provenance.fork())
+                spec.qiime_type, output_view, spec.view_type,
+                provenance.fork())
             output_artifacts.append(artifact)
 
         if len(output_artifacts) == 1:

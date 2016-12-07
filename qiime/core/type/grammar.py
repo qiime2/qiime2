@@ -10,29 +10,11 @@ import types
 import itertools
 
 from qiime.core.util import tuplize
+from ..util import ImmutableBase
 
 
-def _immutable_error(*args):
-    raise TypeError("Types are immutable.")
-
-
-class _ImmutableBase:
-    """Disables instance mutation (but not static/class mutation) using
-    `_freeze_` method. This class also implements shared methods."""
-
-    def _freeze_(self):
-        """Disables __setattr__ when called. It is idempotent."""
-        self._frozen = True  # The particular value doesn't matter
-
-    __delattr__ = __setitem__ = __delitem__ = _immutable_error
-
-    def __setattr__(self, *args):
-        # This doesn't stop silly things like
-        # object.__setattr__(obj, ...), but that's a pretty rude thing
-        # to do anyways. We are just trying to avoid accidental mutation.
-        if hasattr(self, '_frozen'):
-            _immutable_error()
-        super().__setattr__(*args)
+class _TypeBase(ImmutableBase):
+    """Provides reflexive methods."""
 
     def __ne__(self, other):
         return not self == other
@@ -48,7 +30,7 @@ class _ImmutableBase:
         return self & other  # intersection should be associative
 
 
-class CompositeType(_ImmutableBase):
+class CompositeType(_TypeBase):
     def __init__(self, name, field_names):
         # These classes aren't user-facing, but some light validation avoids
         # accidental issues. However, we don't want to waste a lot of time with
@@ -141,7 +123,7 @@ class CompositeType(_ImmutableBase):
         return False
 
 
-class TypeExpression(_ImmutableBase):
+class TypeExpression(_TypeBase):
     def __init__(self, name, fields=(), predicate=None):
         self.name = name
         self.predicate = predicate
@@ -352,7 +334,7 @@ class UnionTypeExpression(_SetOperationBase):
         return r
 
 
-class Predicate(_ImmutableBase):
+class Predicate(_TypeBase):
     def __init__(self, *args, **kwargs):
         self._truthy = any(map(bool, args)) or any(map(bool, kwargs.values()))
 
