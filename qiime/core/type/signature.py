@@ -8,7 +8,6 @@
 
 import collections
 import inspect
-import itertools
 import copy
 
 import qiime.sdk
@@ -25,14 +24,13 @@ class _NoValue:
 
 
 class ParameterSpec(ImmutableBase):
-    def __init__(self, **kwargs):
-        self.NOVALUE = _NoValue()
-        self.qiime_type = kwargs.pop('qiime_type', self.NOVALUE)
-        self.view_type = kwargs.pop('view_type', self.NOVALUE)
-        self.default = kwargs.pop('default', self.NOVALUE)
-        if kwargs:
-            raise TypeError("Got unexpected keyword argument(s) %r"
-                            % list(kwargs))
+    NOVALUE = _NoValue()
+
+    def __init__(self, qiime_type=NOVALUE, view_type=NOVALUE, default=NOVALUE):
+        self.qiime_type = qiime_type
+        self.view_type = view_type
+        self.default = default
+
         self._freeze_()
 
     def has_qiime_type(self):
@@ -49,23 +47,9 @@ class ParameterSpec(ImmutableBase):
                 % (self.qiime_type, self.view_type, self.default))
 
     def __eq__(self, other):
-        if self.has_qiime_type() != other.has_qiime_type():
-            return False
-        if self.has_qiime_type() and not self.qiime_type.equals(
-                other.qiime_type):
-            return False
-
-        if self.has_view_type() != other.has_view_type():
-            return False
-        if self.has_view_type() and self.view_type is not other.view_type:
-            return False
-
-        if self.has_default() != other.has_default():
-            return False
-        if self.has_default() and self.default != other.default:
-            return False
-
-        return True
+        return (self.qiime_type == other.qiime_type and
+                self.view_type == other.view_type and
+                self.default == other.default)
 
     def __ne__(self, other):
         return not (self == other)
@@ -75,7 +59,7 @@ class ParameterSpec(ImmutableBase):
 # input semantic types, zero or more parameters, and produce one or more output
 # semantic types or Visualization types.
 class PipelineSignature:
-    provided_args = ('ctx',)
+    builtin_args = ('ctx',)
 
     def __init__(self, callable, inputs, parameters, outputs):
         """
@@ -114,6 +98,7 @@ class PipelineSignature:
         # Copy so we can "exhaust" the collections and check for missing params
         inputs = copy.copy(inputs)
         parameters = copy.copy(parameters)
+        builtin_args = list(self.builtin_args)
 
         annotated_inputs = collections.OrderedDict()
         annotated_parameters = collections.OrderedDict()
@@ -121,15 +106,24 @@ class PipelineSignature:
 
         in_parameter_section = False
         for name, parameter in inspect.signature(callable).parameters.items():
-            if (parameter.kind == parameter.VAR_POSITIONAL
-                    or parameter.kind == parameter.VAR_KEYWORD):
-                raise TypeError("Variadic definitions are unsupported: %r"
-                                % name)
-            spec_kwargs = {}
+            if (parameter.kind == parameter.VAR_POSITIONAL or
+                    parameter.kind == parameter.VAR_KEYWORD):
+                raise TypeError("Variadic definitions are unsupported: %r" %
+                                name)
+
+            if builtin_args:
+                if builtin_args[0] != name:
+                    raise TypeError("Missing builtin argument %r, got %r" %
+                                    (builtin_args[0], name))
+                builtin_args = builtin_args[1:]
+                continue
+
+            view_type = ParameterSpec.NOVALUE
             if parameter.annotation is not parameter.empty:
-                spec_kwargs['view_type'] = parameter.annotation
+                view_type = parameter.annotation
+            default = ParameterSpec.NOVALUE
             if parameter.default is not parameter.empty:
-                spec_kwargs['default'] = parameter.default
+                default = parameter.default
 
             if name in inputs:
                 if in_parameter_section:
@@ -138,14 +132,16 @@ class PipelineSignature:
                     raise TypeError("Artifact inputs must come before"
                                     " parameters in callable signature.")
                 annotated_inputs[name] = ParameterSpec(
-                    qiime_type=inputs.pop(name), **spec_kwargs)
+                    qiime_type=inputs.pop(name), view_type=view_type,
+                    default=default)
             elif name in parameters:
                 in_parameter_section = True
                 annotated_parameters[name] = ParameterSpec(
-                    qiime_type=parameters.pop(name), **spec_kwargs)
-            elif name not in self.provided_args:
-                raise TypeError("Parameter in callable without QIIME type: %r"
-                                % name)
+                    qiime_type=parameters.pop(name), view_type=view_type,
+                    default=default)
+            elif name not in self.builtin_args:
+                raise TypeError("Parameter in callable without QIIME type:"
+                                " %r" % name)
         # we should have popped both of these empty by this point
         if inputs or parameters:
             raise TypeError("Callable does not have parameter(s): %r"
@@ -156,7 +152,9 @@ class PipelineSignature:
                 callable.__annotations__['return'])
 
             if len(output_views) != len(outputs):
-                raise TypeError()
+                raise TypeError("Number of registered outputs (%r) does not"
+                                " match annotation (%r)" %
+                                (len(outputs), len(output_views)))
 
             for (name, qiime_type), view_type in zip(outputs, output_views):
                 annotated_outputs[name] = ParameterSpec(qiime_type=qiime_type,
@@ -167,17 +165,16 @@ class PipelineSignature:
 
         return annotated_inputs, annotated_parameters, annotated_outputs
 
-
     def _assert_valid_inputs(self, inputs):
         if len(inputs) == 0:
-            raise TypeError("%s requires at least one input" %
-                            self.__class__.__name__)
+            raise TypeError("%s requires at least one input"
+                            % self.__class__.__name__)
 
         for input_name, spec in inputs.items():
             if not is_semantic_type(spec.qiime_type):
                 raise TypeError(
-                    "Input %r must be a semantic QIIME type, not %r" %
-                    (input_name, spec.qiime_type))
+                    "Input %r must be a semantic QIIME type, not %r"
+                    % (input_name, spec.qiime_type))
 
             if not isinstance(spec.qiime_type, TypeExpression):
                 raise TypeError(
@@ -185,45 +182,45 @@ class PipelineSignature:
                     "not %r" % (input_name, spec.qiime_type))
 
             if spec.has_default():
-                raise ValueError("Input %r must not have a default value" %
-                                 input_name)
+                raise ValueError("Input %r must not have a default value"
+                                 % input_name)
 
     def _assert_valid_parameters(self, parameters):
         for param_name, spec in parameters.items():
             if not is_primitive_type(spec.qiime_type):
                 raise TypeError(
-                    "Parameter %r must be a primitive QIIME type, not %r" %
-                    (param_name, spec.qiime_type))
+                    "Parameter %r must be a primitive QIIME type, not %r"
+                    % (param_name, spec.qiime_type))
 
             if not isinstance(spec.qiime_type, TypeExpression):
                 raise TypeError(
                     "Parameter %r must be a complete primitive type "
                     "expression, not %r" % (param_name, spec.qiime_type))
 
-            if (spec.has_default()
-                    and spec.default is not None
-                    and spec.default not in spec.qiime_type):
+            if (spec.has_default() and
+                    spec.default is not None and
+                    spec.default not in spec.qiime_type):
                 raise TypeError("Default value for parameter %r is not of "
                                 "semantic QIIME type %r or None."
                                 % (param_name, spec.qiime_type))
 
     def _assert_valid_outputs(self, outputs):
         if len(outputs) == 0:
-            raise TypeError("%s requires at least one output" %
-                            self.__class__.__name__)
+            raise TypeError("%s requires at least one output"
+                            % self.__class__.__name__)
 
         for output_name, spec in outputs.items():
             if not (is_semantic_type(spec.qiime_type) or
                     spec.qiime_type == Visualization):
                 raise TypeError(
                     "Output %r must be a semantic QIIME type or "
-                    "Visualization, not %r" %
-                    (output_name, spec.qiime_type))
+                    "Visualization, not %r"
+                    % (output_name, spec.qiime_type))
 
             if not isinstance(spec.qiime_type, TypeExpression):
                 raise TypeError(
-                    "Output %r must be a complete type expression, not %r" %
-                    (output_name, spec.qiime_type))
+                    "Output %r must be a complete type expression, not %r"
+                    % (output_name, spec.qiime_type))
 
     def decode_parameters(self, **kwargs):
         params = {}
@@ -241,8 +238,8 @@ class PipelineSignature:
             if kwargs[name] not in spec.qiime_type:
                 # A type mismatch is unacceptable unless the value is None
                 # and this parameter's default value is None.
-                if not (spec.has_default()
-                        and spec.default is kwargs[name] is None):
+                if not (spec.has_default() and
+                        spec.default is kwargs[name] is None):
                     raise TypeError("Argument to parameter %r is not a "
                                     "subtype of %r." % (name, spec.qiime_type))
 
@@ -281,7 +278,7 @@ class PipelineSignature:
 
 
 class MethodSignature(PipelineSignature):
-    provided_args = ()
+    builtin_args = ()
 
     def _assert_valid_outputs(self, outputs):
         super()._assert_valid_outputs(outputs)
@@ -295,27 +292,9 @@ class MethodSignature(PipelineSignature):
 
 
 class VisualizerSignature(PipelineSignature):
-    provided_args = ('output_dir',)
+    builtin_args = ('output_dir',)
 
     def __init__(self, callable, inputs, parameters):
-        if 'output_dir' in inputs or 'output_dir' in parameters:
-            raise TypeError(
-                "`output_dir` is a reserved parameter name and cannot be used "
-                "in `inputs` or `parameters`")
-
-        callable_parameters = \
-            list(inspect.signature(callable).parameters.keys())
-        if len(callable_parameters) > 1:
-            first_parameter = callable_parameters[0]
-            if first_parameter != 'output_dir':
-                raise TypeError(
-                    "Visualizer callable must have `output_dir` as its first "
-                    "argument, not %r" % first_parameter)
-        else:
-            raise TypeError(
-                "Visualizer callable must have at least two arguments, not %d"
-                % len(callable_parameters))
-
         outputs = [('visualization', Visualization)]
         super().__init__(callable, inputs, parameters, outputs)
 
