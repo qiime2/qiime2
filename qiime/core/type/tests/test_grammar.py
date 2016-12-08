@@ -12,9 +12,9 @@ import collections
 import qiime.core.type.grammar as grammar
 
 
-class TestImmutableBase(unittest.TestCase):
+class TestTypeBase(unittest.TestCase):
     def setUp(self):
-        class Example(grammar._ImmutableBase):
+        class Example(grammar._TypeBase):
             __getitem__ = __or__ = __and__ = lambda s, x: x
 
             def __eq__(self, other):
@@ -77,11 +77,11 @@ class TestImmutableBase(unittest.TestCase):
 class TestCompositeType(unittest.TestCase):
     def test_immutable(self):
         # If this test fails, then the hiearchy has been rearranged and the
-        # properties tested for `_ImmutableBase` should be tested for
+        # properties tested for `_TypeBase` should be tested for
         # this class.
         #     - Your Friendly Dead Man's Switch
         self.assertIsInstance(grammar.CompositeType('Example', ('foo',)),
-                              grammar._ImmutableBase)
+                              grammar._TypeBase)
 
     def test_field_sanity(self):
         with self.assertRaisesRegex(ValueError, 'empty'):
@@ -186,11 +186,11 @@ class TestCompositeTypeGetItem(unittest.TestCase):
 class TestTypeExpression(unittest.TestCase):
     def test_immutable(self):
         # If this test fails, then the hiearchy has been rearranged and the
-        # properties tested for `_ImmutableBase` should be tested for
+        # properties tested for `_TypeBase` should be tested for
         # this class.
         #     - Your Friendly Dead Man's Switch
         self.assertIsInstance(grammar.TypeExpression('X'),
-                              grammar._ImmutableBase)
+                              grammar._TypeBase)
 
     def test_hashable(self):
         a = grammar.TypeExpression('X')

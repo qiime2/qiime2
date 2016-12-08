@@ -115,3 +115,23 @@ class DropFirstParameter(decorator.FunctionMaker):
 
     def _remove_first_arg(self, string):
         return ",".join(string.split(',')[1:])[1:]
+
+
+def _immutable_error(obj, *args):
+    raise TypeError('%s is immutable.' % obj.__class__.__name__)
+
+
+class ImmutableBase:
+    def _freeze_(self):
+        """Disables __setattr__ when called. It is idempotent."""
+        self._frozen = True  # The particular value doesn't matter
+
+    __delattr__ = __setitem__ = __delitem__ = _immutable_error
+
+    def __setattr__(self, *args):
+        # This doesn't stop silly things like
+        # object.__setattr__(obj, ...), but that's a pretty rude thing
+        # to do anyways. We are just trying to avoid accidental mutation.
+        if hasattr(self, '_frozen'):
+            _immutable_error(self)
+        super().__setattr__(*args)
