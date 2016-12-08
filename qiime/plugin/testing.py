@@ -9,7 +9,12 @@
 import pkg_resources
 import tempfile
 import unittest
+import shutil
+import pathlib
+
 import qiime
+
+from qiime.plugin.model.base import FormatBase
 
 
 # TODO Split out into more specific subclasses if necessary.
@@ -84,3 +89,36 @@ class TestPluginBase(unittest.TestCase):
             obs_format, exp_format,
             "Expected semantic type %r to be registered to format %r, not %r."
             % (semantic_type, exp_format, obs_format))
+
+    def transform_format(self, source_format, target, filename=None,
+                         filenames=None):
+        # Guard any non-QIIME2 Format sources from being tested
+        if not issubclass(source_format, FormatBase):
+            raise ValueError("`source_format` must be a subclass of "
+                             "FormatBase.")
+
+        # Guard against invalid filename(s) usage
+        if filename is not None and filenames is not None:
+            raise ValueError("Cannot use both `filename` and `filenames` at "
+                             "the same time.")
+
+        # Handle format initialization
+        source_path = None
+        if filename:
+            source_path = self.get_data_path(filename)
+        elif filenames:
+            source_path = self.temp_dir.name
+            for filename in filenames:
+                filepath = self.get_data_path(filename)
+                shutil.copy(filepath, source_path)
+        input = source_format(source_path, mode='r')
+
+        transformer = self.get_transformer(source_format, target)
+        obs = transformer(input)
+
+        if issubclass(target, FormatBase):
+            self.assertIsInstance(obs, (type(pathlib.Path()), str, target))
+        else:
+            self.assertIsInstance(obs, target)
+
+        return input, obs
