@@ -93,7 +93,9 @@ class TestPluginBase(unittest.TestCase):
     def transform_format(self, source_format, target, filename=None,
                          filenames=None):
         # Guard any non-QIIME2 Format sources from being tested
-        self.assertTrue(issubclass(source_format, FormatBase))
+        if not issubclass(source_format, FormatBase):
+            raise ValueError("`source_format` must be a subclass of "
+                             "FormatBase.")
 
         # Guard against invalid filename(s) usage
         if filename is not None and filenames is not None:
