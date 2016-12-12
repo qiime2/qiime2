@@ -279,9 +279,9 @@ class Method(Action):
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, package, name,
-              description):
+              description, help_text=None):
         signature = qtype.MethodSignature(callable, inputs, parameters,
-                                          outputs)
+                                          outputs, help_text)
         return super()._init(callable, signature, package, name, description)
 
 
@@ -307,8 +307,10 @@ class Visualizer(Action):
             return qiime.sdk.Visualization._from_data_dir(temp_dir, provenance)
 
     @classmethod
-    def _init(cls, callable, inputs, parameters, package, name, description):
-        signature = qtype.VisualizerSignature(callable, inputs, parameters)
+    def _init(cls, callable, inputs, parameters, package, name, description,
+              help_text=None):
+        signature = qtype.VisualizerSignature(callable, inputs, parameters,
+                                              help_text)
         return super()._init(callable, signature, package, name, description)
 
 

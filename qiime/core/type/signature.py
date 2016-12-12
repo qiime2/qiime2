@@ -26,10 +26,12 @@ class _NoValue:
 class ParameterSpec(ImmutableBase):
     NOVALUE = _NoValue()
 
-    def __init__(self, qiime_type=NOVALUE, view_type=NOVALUE, default=NOVALUE):
+    def __init__(self, qiime_type=NOVALUE, view_type=NOVALUE, default=NOVALUE,
+                 help_text=NOVALUE):
         self.qiime_type = qiime_type
         self.view_type = view_type
         self.default = default
+        self.help_text = help_text
 
         self._freeze_()
 
@@ -42,14 +44,19 @@ class ParameterSpec(ImmutableBase):
     def has_default(self):
         return self.default is not self.NOVALUE
 
+    def has_help_text(self):
+        return self.help_text is not self.NOVALUE
+
     def __repr__(self):
-        return ("ParameterSpec(qiime_type=%r, view_type=%r, default=%r)"
-                % (self.qiime_type, self.view_type, self.default))
+        return ("ParameterSpec(qiime_type=%r, view_type=%r, default=%r, "
+                "help_text=%r)" % (self.qiime_type, self.view_type,
+                                   self.default, self.help_text))
 
     def __eq__(self, other):
         return (self.qiime_type == other.qiime_type and
                 self.view_type == other.view_type and
-                self.default == other.default)
+                self.default == other.default and
+                self.help_text == other.help_text)
 
     def __ne__(self, other):
         return not (self == other)
@@ -61,7 +68,7 @@ class ParameterSpec(ImmutableBase):
 class PipelineSignature:
     builtin_args = ('ctx',)
 
-    def __init__(self, callable, inputs, parameters, outputs):
+    def __init__(self, callable, inputs, parameters, outputs, help_text=None):
         """
 
         Parameters
@@ -75,10 +82,12 @@ class PipelineSignature:
         outputs : list of tuple
             Each tuple contains the name of the output (str) and its QIIME
             type.
+        help_text : dict, optional
+            Parameter name to help text.
 
         """
         inputs, parameters, outputs = self._parse_signature(
-            callable, inputs, parameters, outputs)
+            callable, inputs, parameters, outputs, help_text)
 
         self._assert_valid_inputs(inputs)
         self._assert_valid_parameters(parameters)
@@ -94,7 +103,8 @@ class PipelineSignature:
             (name, spec.default) for name, spec in self.parameters.items()
             if spec.has_default()])
 
-    def _parse_signature(self, callable, inputs, parameters, outputs):
+    def _parse_signature(self, callable, inputs, parameters, outputs,
+                         help_text):
         # Copy so we can "exhaust" the collections and check for missing params
         inputs = copy.copy(inputs)
         parameters = copy.copy(parameters)
@@ -103,6 +113,9 @@ class PipelineSignature:
         annotated_inputs = collections.OrderedDict()
         annotated_parameters = collections.OrderedDict()
         annotated_outputs = collections.OrderedDict()
+
+        if help_text is None:
+            help_text = {}
 
         in_parameter_section = False
         for name, parameter in inspect.signature(callable).parameters.items():
@@ -133,12 +146,12 @@ class PipelineSignature:
                                     " parameters in callable signature.")
                 annotated_inputs[name] = ParameterSpec(
                     qiime_type=inputs.pop(name), view_type=view_type,
-                    default=default)
+                    default=default, help_text=help_text.get(name))
             elif name in parameters:
                 in_parameter_section = True
                 annotated_parameters[name] = ParameterSpec(
                     qiime_type=parameters.pop(name), view_type=view_type,
-                    default=default)
+                    default=default, help_text=help_text.get(name))
             elif name not in self.builtin_args:
                 raise TypeError("Parameter in callable without QIIME type:"
                                 " %r" % name)
@@ -157,11 +170,13 @@ class PipelineSignature:
                                 (len(outputs), len(output_views)))
 
             for (name, qiime_type), view_type in zip(outputs, output_views):
-                annotated_outputs[name] = ParameterSpec(qiime_type=qiime_type,
-                                                        view_type=view_type)
+                annotated_outputs[name] = ParameterSpec(
+                    qiime_type=qiime_type, view_type=view_type,
+                    help_text=help_text.get(name))
         else:
             for name, qiime_type in outputs:
-                annotated_outputs[name] = ParameterSpec(qiime_type=qiime_type)
+                annotated_outputs[name] = ParameterSpec(
+                    qiime_type=qiime_type, help_text=help_text.get(name))
 
         return annotated_inputs, annotated_parameters, annotated_outputs
 
@@ -294,9 +309,9 @@ class MethodSignature(PipelineSignature):
 class VisualizerSignature(PipelineSignature):
     builtin_args = ('output_dir',)
 
-    def __init__(self, callable, inputs, parameters):
+    def __init__(self, callable, inputs, parameters, help_text=None):
         outputs = [('visualization', Visualization)]
-        super().__init__(callable, inputs, parameters, outputs)
+        super().__init__(callable, inputs, parameters, outputs, help_text)
 
     def _assert_valid_outputs(self, outputs):
         super()._assert_valid_outputs(outputs)
