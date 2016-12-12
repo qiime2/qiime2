@@ -148,9 +148,7 @@ class PipelineSignature:
             default = ParameterSpec.NOVALUE
             if parameter.default is not parameter.empty:
                 default = parameter.default
-            help_text = help_texts.get(name, ParameterSpec.NOVALUE)
-            if help_text is not ParameterSpec.NOVALUE:
-                help_texts.pop(name)
+            help_text = help_texts.pop(name, ParameterSpec.NOVALUE)
 
             if name in inputs:
                 if in_parameter_section:
@@ -184,24 +182,20 @@ class PipelineSignature:
                                 (len(outputs), len(output_views)))
 
             for (name, qiime_type), view_type in zip(outputs, output_views):
-                help_text = help_texts.get(name, ParameterSpec.NOVALUE)
-                if help_text is not ParameterSpec.NOVALUE:
-                    help_texts.pop(name)
+                help_text = help_texts.pop(name, ParameterSpec.NOVALUE)
                 annotated_outputs[name] = ParameterSpec(qiime_type=qiime_type,
                                                         view_type=view_type,
                                                         help_text=help_text)
         else:
             for name, qiime_type in outputs:
-                help_text = help_texts.get(name, ParameterSpec.NOVALUE)
-                if help_text is not ParameterSpec.NOVALUE:
-                    help_texts.pop(name)
+                help_text = help_texts.pop(name, ParameterSpec.NOVALUE)
                 annotated_outputs[name] = ParameterSpec(qiime_type=qiime_type,
                                                         help_text=help_text)
 
         # we should have popped the help_texts empty by this point
         if help_texts:
-            raise TypeError("Callable does not have parameter(s) found in "
-                            "help_texts: %r" % list(help_texts))
+            raise TypeError("Callable does not have parameter(s)/output(s) "
+                            "found in help_texts: %r" % list(help_texts))
 
         return annotated_inputs, annotated_parameters, annotated_outputs
 
