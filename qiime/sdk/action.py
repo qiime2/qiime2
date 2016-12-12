@@ -279,9 +279,9 @@ class Method(Action):
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, package, name,
-              description, help_text=None):
+              description, help_texts=None):
         signature = qtype.MethodSignature(callable, inputs, parameters,
-                                          outputs, help_text)
+                                          outputs, help_texts)
         return super()._init(callable, signature, package, name, description)
 
 
@@ -308,9 +308,9 @@ class Visualizer(Action):
 
     @classmethod
     def _init(cls, callable, inputs, parameters, package, name, description,
-              help_text=None):
+              help_texts=None):
         signature = qtype.VisualizerSignature(callable, inputs, parameters,
-                                              help_text)
+                                              help_texts)
         return super()._init(callable, signature, package, name, description)
 
 

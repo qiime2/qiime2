@@ -68,7 +68,7 @@ class ParameterSpec(ImmutableBase):
 class PipelineSignature:
     builtin_args = ('ctx',)
 
-    def __init__(self, callable, inputs, parameters, outputs, help_text=None):
+    def __init__(self, callable, inputs, parameters, outputs, help_texts=None):
         """
 
         Parameters
@@ -82,12 +82,12 @@ class PipelineSignature:
         outputs : list of tuple
             Each tuple contains the name of the output (str) and its QIIME
             type.
-        help_text : dict, optional
+        help_texts : dict, optional
             Parameter name to help text.
 
         """
         inputs, parameters, outputs = self._parse_signature(
-            callable, inputs, parameters, outputs, help_text)
+            callable, inputs, parameters, outputs, help_texts)
 
         self._assert_valid_inputs(inputs)
         self._assert_valid_parameters(parameters)
@@ -103,19 +103,30 @@ class PipelineSignature:
             (name, spec.default) for name, spec in self.parameters.items()
             if spec.has_default()])
 
+    @property
+    def help_texts(self):
+        params = {}
+        params.update(self.inputs)
+        params.update(self.parameters)
+        params.update(self.outputs)
+
+        return collections.OrderedDict([
+            (name, spec.help_text) for name, spec in params.items()
+            if spec.has_help_text()])
+
     def _parse_signature(self, callable, inputs, parameters, outputs,
-                         help_text):
+                         help_texts):
+        if help_texts is None:
+            help_texts = {}
         # Copy so we can "exhaust" the collections and check for missing params
         inputs = copy.copy(inputs)
         parameters = copy.copy(parameters)
+        help_texts = copy.copy(help_texts)
         builtin_args = list(self.builtin_args)
 
         annotated_inputs = collections.OrderedDict()
         annotated_parameters = collections.OrderedDict()
         annotated_outputs = collections.OrderedDict()
-
-        if help_text is None:
-            help_text = {}
 
         in_parameter_section = False
         for name, parameter in inspect.signature(callable).parameters.items():
@@ -137,6 +148,9 @@ class PipelineSignature:
             default = ParameterSpec.NOVALUE
             if parameter.default is not parameter.empty:
                 default = parameter.default
+            help_text = help_texts.get(name, ParameterSpec.NOVALUE)
+            if help_text is not ParameterSpec.NOVALUE:
+                help_texts.pop(name)
 
             if name in inputs:
                 if in_parameter_section:
@@ -146,12 +160,12 @@ class PipelineSignature:
                                     " parameters in callable signature.")
                 annotated_inputs[name] = ParameterSpec(
                     qiime_type=inputs.pop(name), view_type=view_type,
-                    default=default, help_text=help_text.get(name))
+                    default=default, help_text=help_text)
             elif name in parameters:
                 in_parameter_section = True
                 annotated_parameters[name] = ParameterSpec(
                     qiime_type=parameters.pop(name), view_type=view_type,
-                    default=default, help_text=help_text.get(name))
+                    default=default, help_text=help_text)
             elif name not in self.builtin_args:
                 raise TypeError("Parameter in callable without QIIME type:"
                                 " %r" % name)
@@ -170,13 +184,24 @@ class PipelineSignature:
                                 (len(outputs), len(output_views)))
 
             for (name, qiime_type), view_type in zip(outputs, output_views):
-                annotated_outputs[name] = ParameterSpec(
-                    qiime_type=qiime_type, view_type=view_type,
-                    help_text=help_text.get(name))
+                help_text = help_texts.get(name, ParameterSpec.NOVALUE)
+                if help_text is not ParameterSpec.NOVALUE:
+                    help_texts.pop(name)
+                annotated_outputs[name] = ParameterSpec(qiime_type=qiime_type,
+                                                        view_type=view_type,
+                                                        help_text=help_text)
         else:
             for name, qiime_type in outputs:
-                annotated_outputs[name] = ParameterSpec(
-                    qiime_type=qiime_type, help_text=help_text.get(name))
+                help_text = help_texts.get(name, ParameterSpec.NOVALUE)
+                if help_text is not ParameterSpec.NOVALUE:
+                    help_texts.pop(name)
+                annotated_outputs[name] = ParameterSpec(qiime_type=qiime_type,
+                                                        help_text=help_text)
+
+        # we should have popped the help_texts empty by this point
+        if help_texts:
+            raise TypeError("Callable does not have parameter(s) found in "
+                            "help_texts: %r" % list(help_texts))
 
         return annotated_inputs, annotated_parameters, annotated_outputs
 

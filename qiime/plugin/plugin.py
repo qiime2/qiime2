@@ -188,10 +188,10 @@ class PluginMethods(PluginActions):
     # TODO is `register` a better name now that functions are the only accepted
     # source (i.e. markdown support is gone)?
     def register_function(self, function, inputs, parameters, outputs, name,
-                          description, help_text=None):
+                          description, help_texts=None):
         method = qiime.sdk.Method._init(function, inputs, parameters, outputs,
                                         self._package, name, description,
-                                        help_text)
+                                        help_texts)
         self[method.id] = method
 
 
@@ -199,8 +199,8 @@ class PluginVisualizers(PluginActions):
     _subpackage = 'visualizers'
 
     def register_function(self, function, inputs, parameters, name,
-                          description, help_text=None):
+                          description, help_texts=None):
         visualizer = qiime.sdk.Visualizer._init(function, inputs, parameters,
                                                 self._package, name,
-                                                description, help_text)
+                                                description, help_texts)
         self[visualizer.id] = visualizer
