@@ -15,7 +15,8 @@ class ArchiveFormat(v0.ArchiveFormat):
     @classmethod
     def write(cls, archive_record, type, format, data_initializer,
               provenance_capture):
-        super().write(archive_record, type, format, data_initializer)
+        super().write(archive_record, type, format, data_initializer,
+                      provenance_capture)
         root = archive_record.root
 
         prov_dir = root / cls.PROVENANCE_DIR
