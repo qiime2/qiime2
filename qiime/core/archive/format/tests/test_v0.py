@@ -52,7 +52,7 @@ class TestArchiveFormat(unittest.TestCase):
                              r.version, r.framework_version)
 
         ArchiveFormat.write(fake, IntSequence1, IntSequenceDirectoryFormat,
-                            lambda x: None)
+                            lambda x: None, None)
         with self.assertRaisesRegex(
                 ValueError, 'root directory must match UUID.*metadata'):
             ArchiveFormat(r)
