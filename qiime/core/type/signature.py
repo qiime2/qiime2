@@ -213,9 +213,9 @@ class PipelineSignature:
         if input_descriptions or parameter_descriptions or output_descriptions:
             raise TypeError(
                 "Callable does not have parameter(s)/output(s) found in "
-                " descriptions: %r" % list({**input_descriptions,
-                                            **parameter_descriptions,
-                                            **output_descriptions}))
+                "descriptions: %r" % [*input_descriptions,
+                                      *parameter_descriptions,
+                                      *output_descriptions])
 
         return annotated_inputs, annotated_parameters, annotated_outputs
 
