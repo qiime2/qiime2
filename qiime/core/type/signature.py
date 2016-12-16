@@ -26,10 +26,12 @@ class _NoValue:
 class ParameterSpec(ImmutableBase):
     NOVALUE = _NoValue()
 
-    def __init__(self, qiime_type=NOVALUE, view_type=NOVALUE, default=NOVALUE):
+    def __init__(self, qiime_type=NOVALUE, view_type=NOVALUE, default=NOVALUE,
+                 description=NOVALUE):
         self.qiime_type = qiime_type
         self.view_type = view_type
         self.default = default
+        self.description = description
 
         self._freeze_()
 
@@ -42,14 +44,19 @@ class ParameterSpec(ImmutableBase):
     def has_default(self):
         return self.default is not self.NOVALUE
 
+    def has_description(self):
+        return self.description is not self.NOVALUE
+
     def __repr__(self):
-        return ("ParameterSpec(qiime_type=%r, view_type=%r, default=%r)"
-                % (self.qiime_type, self.view_type, self.default))
+        return ("ParameterSpec(qiime_type=%r, view_type=%r, default=%r, "
+                "description=%r)" % (self.qiime_type, self.view_type,
+                                     self.default, self.description))
 
     def __eq__(self, other):
         return (self.qiime_type == other.qiime_type and
                 self.view_type == other.view_type and
-                self.default == other.default)
+                self.default == other.default and
+                self.description == other.description)
 
     def __ne__(self, other):
         return not (self == other)
@@ -61,7 +68,9 @@ class ParameterSpec(ImmutableBase):
 class PipelineSignature:
     builtin_args = ('ctx',)
 
-    def __init__(self, callable, inputs, parameters, outputs):
+    def __init__(self, callable, inputs, parameters, outputs,
+                 input_descriptions=None, parameter_descriptions=None,
+                 output_descriptions=None):
         """
 
         Parameters
@@ -75,10 +84,17 @@ class PipelineSignature:
         outputs : list of tuple
             Each tuple contains the name of the output (str) and its QIIME
             type.
+        input_descriptions : dict, optional
+            Input name to description string.
+        parameter_descriptions : dict, optional
+            Parameter name to description string.
+        output_descriptions : dict, optional
+            Output name to description string.
 
         """
         inputs, parameters, outputs = self._parse_signature(
-            callable, inputs, parameters, outputs)
+            callable, inputs, parameters, outputs, input_descriptions,
+            parameter_descriptions, output_descriptions)
 
         self._assert_valid_inputs(inputs)
         self._assert_valid_parameters(parameters)
@@ -94,10 +110,23 @@ class PipelineSignature:
             (name, spec.default) for name, spec in self.parameters.items()
             if spec.has_default()])
 
-    def _parse_signature(self, callable, inputs, parameters, outputs):
+    def _parse_signature(self, callable, inputs, parameters, outputs,
+                         input_descriptions=None, parameter_descriptions=None,
+                         output_descriptions=None):
+        #  Initialize dictionaries if non-existant.
+        if input_descriptions is None:
+            input_descriptions = {}
+        if parameter_descriptions is None:
+            parameter_descriptions = {}
+        if output_descriptions is None:
+            output_descriptions = {}
+
         # Copy so we can "exhaust" the collections and check for missing params
         inputs = copy.copy(inputs)
         parameters = copy.copy(parameters)
+        input_descriptions = copy.copy(input_descriptions)
+        parameter_descriptions = copy.copy(parameter_descriptions)
+        output_descriptions = copy.copy(output_descriptions)
         builtin_args = list(self.builtin_args)
 
         annotated_inputs = collections.OrderedDict()
@@ -131,14 +160,18 @@ class PipelineSignature:
                     # allowed
                     raise TypeError("Artifact inputs must come before"
                                     " parameters in callable signature.")
+                description = input_descriptions.pop(name,
+                                                     ParameterSpec.NOVALUE)
                 annotated_inputs[name] = ParameterSpec(
                     qiime_type=inputs.pop(name), view_type=view_type,
-                    default=default)
+                    default=default, description=description)
             elif name in parameters:
                 in_parameter_section = True
+                description = parameter_descriptions.pop(name,
+                                                         ParameterSpec.NOVALUE)
                 annotated_parameters[name] = ParameterSpec(
                     qiime_type=parameters.pop(name), view_type=view_type,
-                    default=default)
+                    default=default, description=description)
             elif name not in self.builtin_args:
                 raise TypeError("Parameter in callable without QIIME type:"
                                 " %r" % name)
@@ -157,11 +190,25 @@ class PipelineSignature:
                                 (len(outputs), len(output_views)))
 
             for (name, qiime_type), view_type in zip(outputs, output_views):
-                annotated_outputs[name] = ParameterSpec(qiime_type=qiime_type,
-                                                        view_type=view_type)
+                description = output_descriptions.pop(name,
+                                                      ParameterSpec.NOVALUE)
+                annotated_outputs[name] = ParameterSpec(
+                    qiime_type=qiime_type, view_type=view_type,
+                    description=description)
         else:
             for name, qiime_type in outputs:
-                annotated_outputs[name] = ParameterSpec(qiime_type=qiime_type)
+                description = output_descriptions.pop(name,
+                                                      ParameterSpec.NOVALUE)
+                annotated_outputs[name] = ParameterSpec(
+                    qiime_type=qiime_type, description=description)
+
+        # we should have popped the descriptions empty by this point
+        if input_descriptions or parameter_descriptions or output_descriptions:
+            raise TypeError(
+                "Callable does not have parameter(s)/output(s) found in "
+                "descriptions: %r" % [*input_descriptions,
+                                      *parameter_descriptions,
+                                      *output_descriptions])
 
         return annotated_inputs, annotated_parameters, annotated_outputs
 
@@ -294,9 +341,13 @@ class MethodSignature(PipelineSignature):
 class VisualizerSignature(PipelineSignature):
     builtin_args = ('output_dir',)
 
-    def __init__(self, callable, inputs, parameters):
+    def __init__(self, callable, inputs, parameters, input_descriptions=None,
+                 parameter_descriptions=None):
         outputs = [('visualization', Visualization)]
-        super().__init__(callable, inputs, parameters, outputs)
+        output_descriptions = None
+        super().__init__(callable, inputs, parameters, outputs,
+                         input_descriptions, parameter_descriptions,
+                         output_descriptions)
 
     def _assert_valid_outputs(self, outputs):
         super()._assert_valid_outputs(outputs)
