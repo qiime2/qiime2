@@ -110,13 +110,6 @@ class PipelineSignature:
             (name, spec.default) for name, spec in self.parameters.items()
             if spec.has_default()])
 
-    @property
-    def descriptions(self):
-        params = {**self.inputs, **self.parameters, **self.outputs}
-        return collections.OrderedDict([
-            (name, spec.description) for name, spec in params.items()
-            if spec.has_description()])
-
     def _parse_signature(self, callable, inputs, parameters, outputs,
                          input_descriptions=None, parameter_descriptions=None,
                          output_descriptions=None):
