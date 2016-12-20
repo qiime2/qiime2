@@ -9,18 +9,19 @@
 from setuptools import find_packages, setup
 
 setup(
-    name='qiime',
-    version='2.0.7.dev0',
+    name='qiime2',
+    version='2017.2.0.dev0',
     license='BSD-3-Clause',
+    url='https://qiime2.org',
     packages=find_packages(),
     install_requires=['pyyaml', 'decorator', 'pandas', 'cookiecutter',
                       'tzlocal', 'python-dateutil'],
     entry_points={
-        'qiime.plugins': [
-            'dummy-plugin=qiime.core.testing.plugin:dummy_plugin'
+        'qiime2.plugins': [
+            'dummy-plugin=qiime2.core.testing.plugin:dummy_plugin'
         ]
     },
     package_data={
-        'qiime.tests': ['data/*']
+        'qiime2.tests': ['data/*']
     }
 )

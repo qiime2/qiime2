@@ -8,11 +8,13 @@ before_install:
   - ./miniconda.sh -b
   - export PATH=/home/travis/miniconda3/bin:$PATH
 install:
-  - conda create --yes -n test-env python=$PYTHON_VERSION nose flake8 'setuptools<20.5.0' decorator pandas
+  - conda create --yes -n test-env python=$PYTHON_VERSION nose 'setuptools<20.5.0' decorator pandas
   - source activate test-env
+  # pip has a much newer version of flake8 than conda.
+  - pip install flake8
   - pip install .
 script:
   # TODO don't require devs to remember setting this env var before running
   # tests. The value can be anything.
   - QIIMETEST= nosetests
-  - flake8 qiime setup.py
+  - flake8
