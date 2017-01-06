@@ -15,8 +15,8 @@ import pandas.util.testing as pdt
 import qiime2
 
 
-class TestMetadata(unittest.TestCase):
-    def test_load_does_not_cast_index_or_column_types(self):
+class TestMetadataLoad(unittest.TestCase):
+    def test_does_not_cast_index_or_column_types(self):
         fp = pkg_resources.resource_filename(
             'qiime2.tests', 'data/metadata-no-type-cast.tsv')
 
@@ -33,6 +33,105 @@ class TestMetadata(unittest.TestCase):
             df, exp_df, check_dtype=True, check_index_type=True,
             check_column_type=True, check_frame_type=True, check_names=True,
             check_exact=True)
+
+
+class TestIDs(unittest.TestCase):
+    def test_default(self):
+        df = pd.DataFrame({'Subject': ['subject-1', 'subject-1', 'subject-2'],
+                           'SampleType': ['gut', 'tongue', 'gut']},
+                          index=pd.Index(['S1', 'S2', 'S3'], name='id'))
+        metadata = qiime2.Metadata(df)
+
+        actual = metadata.ids()
+        expected = {'S1', 'S2', 'S3'}
+        self.assertEqual(actual, expected)
+
+    def test_incomplete_where(self):
+        df = pd.DataFrame({'Subject': ['subject-1', 'subject-1', 'subject-2'],
+                           'SampleType': ['gut', 'tongue', 'gut']},
+                          index=['S1', 'S2', 'S3'])
+        metadata = qiime2.Metadata(df)
+
+        where = "Subject='subject-1' AND SampleType="
+        with self.assertRaises(ValueError):
+            metadata.ids(where)
+
+        where = "Subject="
+        with self.assertRaises(ValueError):
+            metadata.ids(where)
+
+    def test_invalid_where(self):
+        df = pd.DataFrame({'Subject': ['subject-1', 'subject-1', 'subject-2'],
+                           'SampleType': ['gut', 'tongue', 'gut']},
+                          index=['S1', 'S2', 'S3'])
+        metadata = qiime2.Metadata(df)
+
+        where = "not-a-column-name='subject-1'"
+        with self.assertRaises(ValueError):
+            metadata.ids(where)
+
+    def test_empty_result(self):
+        df = pd.DataFrame({'Subject': ['subject-1', 'subject-1', 'subject-2'],
+                           'SampleType': ['gut', 'tongue', 'gut']},
+                          index=pd.Index(['S1', 'S2', 'S3'], name='id'))
+        metadata = qiime2.Metadata(df)
+
+        where = "Subject='subject-3'"
+        actual = metadata.ids(where)
+        expected = set()
+        self.assertEqual(actual, expected)
+
+    def test_simple_expression(self):
+        df = pd.DataFrame({'Subject': ['subject-1', 'subject-1', 'subject-2'],
+                           'SampleType': ['gut', 'tongue', 'gut']},
+                          index=pd.Index(['S1', 'S2', 'S3'], name='id'))
+        metadata = qiime2.Metadata(df)
+
+        where = "Subject='subject-1'"
+        actual = metadata.ids(where)
+        expected = {'S1', 'S2'}
+        self.assertEqual(actual, expected)
+
+        where = "Subject='subject-2'"
+        actual = metadata.ids(where)
+        expected = {'S3'}
+        self.assertEqual(actual, expected)
+
+        where = "Subject='subject-3'"
+        actual = metadata.ids(where)
+        expected = set()
+        self.assertEqual(actual, expected)
+
+        where = "SampleType='gut'"
+        actual = metadata.ids(where)
+        expected = {'S1', 'S3'}
+        self.assertEqual(actual, expected)
+
+        where = "SampleType='tongue'"
+        actual = metadata.ids(where)
+        expected = {'S2'}
+        self.assertEqual(actual, expected)
+
+    def test_more_complex_expressions(self):
+        df = pd.DataFrame({'Subject': ['subject-1', 'subject-1', 'subject-2'],
+                           'SampleType': ['gut', 'tongue', 'gut']},
+                          index=pd.Index(['S1', 'S2', 'S3'], name='id'))
+        metadata = qiime2.Metadata(df)
+
+        where = "Subject='subject-1' OR Subject='subject-2'"
+        actual = metadata.ids(where)
+        expected = {'S1', 'S2', 'S3'}
+        self.assertEqual(actual, expected)
+
+        where = "Subject='subject-1' AND Subject='subject-2'"
+        actual = metadata.ids(where)
+        expected = set()
+        self.assertEqual(actual, expected)
+
+        where = "Subject='subject-1' AND SampleType='gut'"
+        actual = metadata.ids(where)
+        expected = {'S1'}
+        self.assertEqual(actual, expected)
 
 
 if __name__ == '__main__':

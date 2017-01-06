@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import sqlite3
+
 import pandas as pd
 
 
@@ -52,6 +54,63 @@ class Metadata:
 
     def to_dataframe(self):
         return self._dataframe.copy()
+
+    def ids(self, where=None):
+        """Retrieve IDs matching search criteria.
+
+        Parameters
+        ----------
+        where : str, optional
+            SQLite WHERE clause specifying criteria IDs must meet to be
+            included in the results. All IDs are included by default.
+
+        Returns
+        -------
+        set
+            IDs matching search criteria specified in `where`.
+
+        """
+        if where is None:
+            return set(self._dataframe.index)
+
+        conn = sqlite3.connect(':memory:')
+        conn.row_factory = lambda cursor, row: row[0]
+
+        self._dataframe.to_sql('metadata', conn)
+        id_column = self._dataframe.index.name
+
+        c = conn.cursor()
+
+        # In general we wouldn't want to format our query in this way because
+        # it leaves us open to sql injection, but it seems acceptable here for
+        # a few reasons:
+        # 1) This is a throw-away database which we're just creating to have
+        #    access to the query language, so any malicious behavior wouldn't
+        #    impact any data that isn't temporary
+        # 2) The substitution syntax recommended in the docs doesn't allow
+        #    us to specify complex `where` statements, which is what we need to
+        #    do here. For example, we need to specify things like:
+        #        WHERE Subject='subject-1' AND SampleType='gut'
+        #    but their qmark/named-style syntaxes only supports substition of
+        #    variables, such as:
+        #        WHERE Subject=?
+        # 3) sqlite3.Cursor.execute will only execute a single statement so
+        #    inserting multiple statements
+        #    (e.g., "Subject='subject-1'; DROP...") will result in an
+        #    OperationalError being raised.
+        query = ('SELECT "{0}" FROM metadata WHERE {1} GROUP BY "{0}" '
+                 'ORDER BY "{0}";'.format(id_column, where))
+
+        try:
+            c.execute(query)
+        except sqlite3.OperationalError:
+            conn.close()
+            raise ValueError("Selection of IDs failed with query:\n %s"
+                             % query)
+
+        ids = set(c.fetchall())
+        conn.close()
+        return ids
 
 
 class MetadataCategory:
