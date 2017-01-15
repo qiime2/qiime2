@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import sqlite3
+import uuid
 
 import pandas as pd
 
@@ -76,8 +77,18 @@ class Metadata:
         conn = sqlite3.connect(':memory:')
         conn.row_factory = lambda cursor, row: row[0]
 
-        self._dataframe.to_sql('metadata', conn)
-        id_column = self._dataframe.index.name
+        # If the index isn't named, generate a unique random column name to
+        # store it under in the SQL table. If we don't supply a column name for
+        # the unnamed index, pandas will choose the name 'index', and if that
+        # name conflicts with existing columns, the name will be 'level_0',
+        # 'level_1', etc. Instead of trying to guess what pandas named the
+        # index column (since this isn't documented behavior), explicitly
+        # generate an index column name.
+        index_column = self._dataframe.index.name
+        if index_column is None:
+            index_column = self._generate_column_name()
+        self._dataframe.to_sql('metadata', conn, index=True,
+                               index_label=index_column)
 
         c = conn.cursor()
 
@@ -99,7 +110,7 @@ class Metadata:
         #    (e.g., "Subject='subject-1'; DROP...") will result in an
         #    OperationalError being raised.
         query = ('SELECT "{0}" FROM metadata WHERE {1} GROUP BY "{0}" '
-                 'ORDER BY "{0}";'.format(id_column, where))
+                 'ORDER BY "{0}";'.format(index_column, where))
 
         try:
             c.execute(query)
@@ -111,6 +122,13 @@ class Metadata:
         ids = set(c.fetchall())
         conn.close()
         return ids
+
+    def _generate_column_name(self):
+        """Generate column name that doesn't clash with current columns."""
+        while True:
+            name = str(uuid.uuid4())
+            if name not in self._dataframe.columns:
+                return name
 
 
 class MetadataCategory:
