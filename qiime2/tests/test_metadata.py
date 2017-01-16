@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import pkg_resources
+import sqlite3
 import unittest
 
 import pandas as pd
@@ -131,6 +132,46 @@ class TestIDs(unittest.TestCase):
         where = "Subject='subject-1' AND SampleType='gut'"
         actual = metadata.ids(where)
         expected = {'S1'}
+        self.assertEqual(actual, expected)
+
+    def test_index_without_name(self):
+        df = pd.DataFrame({'Subject': ['subject-1', 'subject-1', 'subject-2'],
+                           'SampleType': ['gut', 'tongue', 'gut']},
+                          index=['S1', 'S2', 'S3'])
+        metadata = qiime2.Metadata(df)
+
+        actual = metadata.ids(where="SampleType='gut'")
+        expected = {'S1', 'S3'}
+        self.assertEqual(actual, expected)
+
+    def test_index_with_column_name_clash(self):
+        df = pd.DataFrame(
+            {'Subject': ['subject-1', 'subject-1', 'subject-2'],
+             'SampleType': ['gut', 'tongue', 'gut']},
+            index=pd.Index(['S1', 'S2', 'S3'], name='SampleType'))
+        metadata = qiime2.Metadata(df)
+
+        with self.assertRaises(sqlite3.OperationalError):
+            metadata.ids(where="Subject='subject-1'")
+
+    def test_duplicate_columns(self):
+        df = pd.DataFrame([['subject-1', 'gut'],
+                           ['subject-1', 'tongue'],
+                           ['subject-2', 'gut']],
+                          index=['S1', 'S2', 'S3'], columns=['foo', 'foo'])
+        metadata = qiime2.Metadata(df)
+
+        with self.assertRaises(sqlite3.OperationalError):
+            metadata.ids(where="foo='subject-2'")
+
+    def test_query_by_index(self):
+        df = pd.DataFrame({'Subject': ['subject-1', 'subject-1', 'subject-2'],
+                           'SampleType': ['gut', 'tongue', 'gut']},
+                          index=pd.Index(['S1', 'S2', 'S3'], name='id'))
+        metadata = qiime2.Metadata(df)
+
+        actual = metadata.ids(where="id='S2' OR id='S1'")
+        expected = {'S1', 'S2'}
         self.assertEqual(actual, expected)
 
 
