@@ -16,6 +16,11 @@ __all__ = ['Metadata', 'MetadataCategory', 'Visualization', 'Artifact']
 
 __version__ = pkg_resources.get_distribution('qiime2').version
 
+# "Train release" version includes <year>.<month> and excludes patch numbers
+# and pre/post-release tags. All versions within a train release are expected
+# to be compatible.
+__release__ = '.'.join(__version__.split('.')[:2])
+
 # `from qiime2 import Artifact` fails if `from qiime2.sdk` is used above so
 # import and alias instead
 Visualization = _sdk.Visualization
