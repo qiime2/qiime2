@@ -8,7 +8,6 @@
 
 from .model import TextFileFormat, BinaryFileFormat, DirectoryFormat
 from .plugin import Plugin
-from .template import plugin_init
 
 from qiime2.core.type import (SemanticType, Int, Str, Float, Color, Metadata,
                               MetadataCategory, Properties, Range, Choices,
@@ -17,5 +16,4 @@ from qiime2.core.type import (SemanticType, Int, Str, Float, Color, Metadata,
 
 __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
            'SemanticType', 'Bool', 'Int', 'Str', 'Float', 'Color', 'Metadata',
-           'MetadataCategory', 'Properties', 'Range', 'Choices', 'Arguments',
-           'plugin_init']
+           'MetadataCategory', 'Properties', 'Range', 'Choices', 'Arguments']
