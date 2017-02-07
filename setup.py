@@ -10,7 +10,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='qiime2',
-    version='2017.2.0',
+    version='2017.3.0.dev',
     license='BSD-3-Clause',
     url='https://qiime2.org',
     packages=find_packages(),
