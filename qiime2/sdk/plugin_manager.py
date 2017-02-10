@@ -19,10 +19,22 @@ class PluginManager:
 
     @classmethod
     def iter_entry_points(cls):
+        """Yield QIIME 2 plugin entry points.
+
+        If the QIIMETEST environment variable is set, only the framework
+        testing plugin entry point (`dummy-plugin`) will be yielded. Otherwise,
+        all available plugin entry points (excluding `dummy-plugin`) will be
+        yielded.
+
+        """
         for entry_point in pkg_resources.iter_entry_points(
                 group=cls.entry_point_group):
-            if entry_point.name != 'dummy-plugin' or 'QIIMETEST' in os.environ:
-                yield entry_point
+            if 'QIIMETEST' in os.environ:
+                if entry_point.name == 'dummy-plugin':
+                    yield entry_point
+            else:
+                if entry_point.name != 'dummy-plugin':
+                    yield entry_point
 
     # This class is a singleton as it is slow to create, represents the
     # state of a qiime2 installation, and is needed *everywhere*
@@ -80,10 +92,25 @@ class PluginManager:
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
 
+    @property
+    def importable_types(self):
+        """Return set of concrete semantic types that are importable.
+
+        A concrete semantic type is importable if it has an associated
+        directory format.
+
+        """
+        types = set()
+        for record in self.type_formats:
+            for type in record.type_expression:
+                types.add(type)
+        return types
+
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):
             raise TypeError(
-                "Must provide a semantic type via `type`, not %r" % type)
+                "Must provide a semantic type via `semantic_type`, not %r" %
+                semantic_type)
 
         dir_fmt = None
         for type_format_record in self.type_formats:

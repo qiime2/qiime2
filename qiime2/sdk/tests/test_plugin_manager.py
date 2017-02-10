@@ -10,15 +10,13 @@ import unittest
 
 import qiime2.plugin
 import qiime2.sdk
+from qiime2.plugin.plugin import SemanticTypeRecord
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
-                                      FourInts)
+                                      FourInts, Kennel, Dog, Cat)
 from qiime2.core.testing.util import get_dummy_plugin
 
 
-# These tests are written to pass regardless of other plugins that may be
-# installed. This is accomplished by only testing pieces we know are defined by
-# the dummy plugin.
 class TestPluginManager(unittest.TestCase):
     def setUp(self):
         self.plugin = get_dummy_plugin()
@@ -28,22 +26,37 @@ class TestPluginManager(unittest.TestCase):
     def test_plugins(self):
         plugins = self.pm.plugins
 
-        self.assertIsInstance(plugins['dummy-plugin'], qiime2.plugin.Plugin)
+        exp = {'dummy-plugin': self.plugin}
+        self.assertEqual(plugins, exp)
 
     def test_semantic_types(self):
         types = self.pm.semantic_types
 
-        self.assertEqual(types['IntSequence1'].semantic_type, IntSequence1)
-        self.assertEqual(types['IntSequence1'].plugin, self.plugin)
+        exp = {
+            'IntSequence1': SemanticTypeRecord(semantic_type=IntSequence1,
+                                               plugin=self.plugin),
+            'IntSequence2': SemanticTypeRecord(semantic_type=IntSequence2,
+                                               plugin=self.plugin),
+            'Mapping': SemanticTypeRecord(semantic_type=Mapping,
+                                          plugin=self.plugin),
+            'FourInts': SemanticTypeRecord(semantic_type=FourInts,
+                                           plugin=self.plugin),
+            'Kennel': SemanticTypeRecord(semantic_type=Kennel,
+                                         plugin=self.plugin),
+            'Dog': SemanticTypeRecord(semantic_type=Dog,
+                                      plugin=self.plugin),
+            'Cat': SemanticTypeRecord(semantic_type=Cat,
+                                      plugin=self.plugin),
+        }
 
-        self.assertEqual(types['IntSequence2'].semantic_type, IntSequence2)
-        self.assertEqual(types['IntSequence2'].plugin, self.plugin)
+        self.assertEqual(types, exp)
 
-        self.assertEqual(types['Mapping'].semantic_type, Mapping)
-        self.assertEqual(types['Mapping'].plugin, self.plugin)
+    def test_importable_types(self):
+        types = self.pm.importable_types
 
-        self.assertEqual(types['FourInts'].semantic_type, FourInts)
-        self.assertEqual(types['FourInts'].plugin, self.plugin)
+        exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],
+               Kennel[Cat]}
+        self.assertEqual(types, exp)
 
     # TODO: add tests for type/directory/transformer registrations
 
