@@ -36,8 +36,9 @@ class Plugin:
         ]
         return dumper.represent_dict(items)
 
-    def __init__(self, name, version, website, package, citation_text=None,
-                 user_support_text=None):
+    def __init__(self, name, version, website, package, 
+        description=None, short_description=None, 
+        citation_text=None, user_support_text=None):
         self.name = name
         self.version = version
         self.website = website
@@ -53,6 +54,16 @@ class Plugin:
                                       % self.website)
         else:
             self.user_support_text = user_support_text
+        if description is None:
+            self.description = ('No description available. '
+                                'See plugin website: %s'
+                                % self.website)
+        else:
+            self.description = description
+        if short_description is None:
+            self.short_description = ''
+        else:
+            self.short_description = short_description
 
         self.methods = PluginMethods(self)
         self.visualizers = PluginVisualizers(self)
