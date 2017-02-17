@@ -36,9 +36,9 @@ class Plugin:
         ]
         return dumper.represent_dict(items)
 
-    def __init__(self, name, version, website, package, 
-        description=None, short_description=None, 
-        citation_text=None, user_support_text=None):
+    def __init__(self, name, version, website, package,
+                 description=None, short_description=None,
+                 citation_text=None, user_support_text=None):
         self.name = name
         self.version = version
         self.website = website
