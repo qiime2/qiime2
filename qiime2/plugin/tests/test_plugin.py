@@ -39,6 +39,14 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(self.plugin.user_support_text,
                          'For help, see https://qiime2.org')
 
+    def test_short_description_text(self):
+        self.assertEqual(self.plugin.short_description,
+                         'Dummy plugin for testing.')
+
+    def test_description_text(self):
+        self.assertEqual(self.plugin.description,
+                         'Description of dummy plugin.')
+
     def test_citation_text_default(self):
         plugin = qiime2.plugin.Plugin(
             name='local-dummy-plugin',
