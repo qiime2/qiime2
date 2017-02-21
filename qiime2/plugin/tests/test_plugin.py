@@ -110,7 +110,8 @@ class TestPlugin(unittest.TestCase):
 
         self.assertEqual(
             set(types),
-            set(['IntSequence1', 'IntSequence2', 'Mapping', 'FourInts']))
+            set(['IntSequence1', 'IntSequence2', 'Mapping', 'FourInts',
+                 'Kennel', 'Dog', 'Cat']))
 
 
 if __name__ == '__main__':

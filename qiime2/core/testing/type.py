@@ -13,3 +13,7 @@ IntSequence1 = qiime2.plugin.SemanticType('IntSequence1')
 IntSequence2 = qiime2.plugin.SemanticType('IntSequence2')
 Mapping = qiime2.plugin.SemanticType('Mapping')
 FourInts = qiime2.plugin.SemanticType('FourInts')
+
+Kennel = qiime2.plugin.SemanticType('Kennel', field_names='pet')
+Dog = qiime2.plugin.SemanticType('Dog', variant_of=Kennel.field['pet'])
+Cat = qiime2.plugin.SemanticType('Cat', variant_of=Kennel.field['pet'])
