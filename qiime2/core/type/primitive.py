@@ -176,7 +176,10 @@ class Range(Predicate):
         return True
 
     def iter_boundaries(self):
-        yield from [self.start, self.end]
+        if self.start is not None:
+            yield self.start
+        if self.end is not None:
+            yield self.end
 
     def to_ast(self):
         ast = super().to_ast()
