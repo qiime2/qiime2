@@ -4,18 +4,16 @@ env:
   - PYTHON_VERSION=3.5
 before_install:
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b
-  - export PATH=/home/travis/miniconda3/bin:$PATH
-install:
-  - conda create --yes -n test-env python=$PYTHON_VERSION nose 'setuptools<20.5.0' decorator pandas
-  - source activate test-env
+  - export MINICONDA_PREFIX="$HOME/miniconda"
+  - bash miniconda.sh -b -p $MINICONDA_PREFIX
+  - export PATH="$MINICONDA_PREFIX/bin:$PATH"
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update conda
+  - conda install conda-build
+  - conda info -a
   - pip install flake8
-  - pip install .
   - git clone https://github.com/qiime2/q2lint
 script:
-  # TODO don't require devs to remember setting this env var before running
-  # tests. The value can be anything.
-  - QIIMETEST= nosetests
   - flake8
   - python q2lint/q2lint.py
+  - conda build -c https://conda.anaconda.org/qiime2 -c defaults --override-channels --python $PYTHON_VERSION ci/recipe
