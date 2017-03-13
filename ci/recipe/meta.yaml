@@ -1,0 +1,48 @@
+# TODO review meta.yml spec and fill in missing fields as necessary (e.g. build number).
+package:
+  name: qiime2
+  version: "2017.3.0.dev0"
+
+source:
+  path: ../..
+
+build:
+  noarch_python: True
+  preserve_egg_dir: True
+  script: python setup.py install
+
+requirements:
+  build:
+    - python
+    - setuptools
+    - pyyaml
+    - decorator
+    - pandas
+    - tzlocal
+    - python-dateutil
+
+  run:
+    - python
+    - setuptools
+    - pyyaml
+    - decorator
+    - pandas
+    - tzlocal
+    - python-dateutil
+
+test:
+  requires:
+    - nose
+
+  imports:
+    - qiime2
+
+  commands:
+    # TODO don't require devs to remember setting this env var before running
+    # tests. The value can be anything.
+    - QIIMETEST= nosetests qiime2
+
+about:
+  home: https://qiime2.org
+  license: BSD-3-Clause
+  license_family: BSD
