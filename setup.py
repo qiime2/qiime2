@@ -23,5 +23,6 @@ setup(
     },
     package_data={
         'qiime2.tests': ['data/*']
-    }
+    },
+    zip_safe=False
 )
