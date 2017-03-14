@@ -7,13 +7,12 @@ source:
   path: ../..
 
 build:
-  noarch_python: True
-  preserve_egg_dir: True
+  noarch: python
   script: python setup.py install
 
 requirements:
   build:
-    - python
+    - python 3.5*
     - setuptools
     - pyyaml
     - decorator
@@ -22,7 +21,7 @@ requirements:
     - python-dateutil
 
   run:
-    - python
+    - python 3.5*
     - setuptools
     - pyyaml
     - decorator
