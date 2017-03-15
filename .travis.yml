@@ -7,13 +7,20 @@ before_install:
   - export MINICONDA_PREFIX="$HOME/miniconda"
   - bash miniconda.sh -b -p $MINICONDA_PREFIX
   - export PATH="$MINICONDA_PREFIX/bin:$PATH"
-  - conda config --set always_yes yes --set changeps1 no
+  - conda config --set always_yes yes
   - conda update conda
   - conda install conda-build
   - conda info -a
+  - git clone https://github.com/qiime2/q2lint ../q2lint
+install:
+  - conda create -n test-env
+  - conda env update -n test-env -f ci/environment.yaml
+  - source activate test-env
   - pip install flake8
-  - git clone https://github.com/qiime2/q2lint
+  - conda install nose
+  - pip install --no-deps .
 script:
   - flake8
-  - python q2lint/q2lint.py
+  - python ../q2lint/q2lint.py
+  - QIIMETEST= nosetests
   - conda build -c https://conda.anaconda.org/qiime2 -c defaults --override-channels --python $PYTHON_VERSION ci/recipe

@@ -30,16 +30,13 @@ requirements:
     - python-dateutil
 
 test:
-  requires:
-    - nose
-
   imports:
     - qiime2
 
   commands:
     # TODO don't require devs to remember setting this env var before running
     # tests. The value can be anything.
-    - QIIMETEST= nosetests qiime2
+    - QIIMETEST= python -c "import qiime2.plugins.dummy_plugin"
 
 about:
   home: https://qiime2.org
