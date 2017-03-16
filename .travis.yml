@@ -14,11 +14,13 @@ before_install:
   - git clone https://github.com/qiime2/q2lint ../q2lint
 install:
   - conda create -n test-env
-  - conda env update -n test-env -f ci/environment.yaml
   - source activate test-env
+  # Install testing utils
   - pip install flake8
   - conda install nose
-  - pip install --no-deps .
+  # Install qiime2 environment
+  - conda env update -f ci/environment.yaml
+  - python setup.py install
 script:
   - flake8
   - python ../q2lint/q2lint.py
