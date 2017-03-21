@@ -20,13 +20,16 @@ from .format import (
     FourIntsDirectoryFormat
 )
 
-from .type import IntSequence1, IntSequence2, Mapping, FourInts
+from .type import (IntSequence1, IntSequence2, Mapping, FourInts,
+                   Kennel, Dog, Cat)
 from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_category)
 from .visualizer import most_common_viz, mapping_viz
 
 dummy_plugin = qiime2.plugin.Plugin(
     name='dummy-plugin',
+    description='Description of dummy plugin.',
+    short_description='Dummy plugin for testing.',
     version='0.0.0-dev',
     website='https://github.com/qiime2/qiime2',
     package='qiime2.core.testing',
@@ -38,7 +41,7 @@ import_module('qiime2.core.testing.transformer')
 
 # Register semantic types
 dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, Mapping,
-                                     FourInts)
+                                     FourInts, Kennel, Dog, Cat)
 
 # Register formats
 dummy_plugin.register_formats(
@@ -46,7 +49,6 @@ dummy_plugin.register_formats(
     IntSequenceDirectoryFormat, MappingDirectoryFormat,
     FourIntsDirectoryFormat
 )
-
 
 dummy_plugin.register_semantic_type_to_format(
     IntSequence1,
@@ -63,6 +65,10 @@ dummy_plugin.register_semantic_type_to_format(
 dummy_plugin.register_semantic_type_to_format(
     FourInts,
     artifact_format=FourIntsDirectoryFormat
+)
+dummy_plugin.register_semantic_type_to_format(
+    Kennel[Dog | Cat],
+    artifact_format=MappingDirectoryFormat
 )
 
 # TODO add an optional parameter to this method when they are supported

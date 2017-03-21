@@ -197,7 +197,7 @@ class Action(metaclass=abc.ABCMeta):
             # caused by MacOSX async runs for now.
             try:
                 import matplotlib as plt
-                if plt.rcParams['backend'] == 'MacOSX':
+                if plt.rcParams['backend'].lower() == 'macosx':
                     raise EnvironmentError(backend_error_template %
                                            plt.matplotlib_fname())
             except ImportError:
