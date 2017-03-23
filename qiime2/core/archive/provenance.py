@@ -69,22 +69,30 @@ yaml.add_representer(datetime, lambda dumper, data:
 # delimited by colons (:).
 yaml.add_representer(ForwardRef, lambda dumper, data:
                      dumper.represent_scalar('!ref', data.reference))
+yaml.add_constructor('!ref', lambda loader, node:
+                     ForwardRef(loader.construct_scalar(node)))
 
 
 # This tag represents an artifact without provenance, this is to support
 # archive format v0. Ideally this won't be seen in the wild in practice.
 yaml.add_representer(NoProvenance, lambda dumper, data:
                      dumper.represent_scalar('!no-provenance', str(data.uuid)))
+yaml.add_constructor('!no-provenance', lambda loader, node:
+                     NoProvenance(loader.construct_scalar(node)))
 
 
 # A reference to Metadata and MetadataCategory who's data can be found at the
 # relative path indicated as its value
 yaml.add_representer(MetadataPath, lambda dumper, data:
                      dumper.represent_scalar('!metadata', data.path))
+yaml.add_constructor('!metadata', lambda loader, node:
+                     MetadataPath(loader.construct_scalar(node)))
 
 # A color primitive.
 yaml.add_representer(ColorPrimitive, lambda dumper, data:
                      dumper.represent_scalar('!color', data.hex))
+yaml.add_constructor('!color', lambda loader, node:
+                     ColorPrimitive(loader.construct_scalar(node)))
 
 
 class ProvenanceCapture:

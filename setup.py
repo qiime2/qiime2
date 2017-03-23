@@ -15,7 +15,7 @@ setup(
     url='https://qiime2.org',
     packages=find_packages(),
     install_requires=['pyyaml', 'decorator', 'pandas', 'tzlocal',
-                      'python-dateutil'],
+                      'python-dateutil', 'networkx'],
     entry_points={
         'qiime2.plugins': [
             'dummy-plugin=qiime2.core.testing.plugin:dummy_plugin'
