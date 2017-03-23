@@ -6,14 +6,15 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import pkg_resources
+
 import qiime2.core  # noqa
 from qiime2.metadata import Metadata, MetadataCategory
 import qiime2.sdk as _sdk
-from ._version import get_versions
 
 __all__ = ['Metadata', 'MetadataCategory', 'Visualization', 'Artifact']
-__version__ = get_versions()['version']
-del get_versions
+
+__version__ = pkg_resources.get_distribution('qiime2').version
 
 # "Train release" version includes <year>.<month> and excludes patch numbers
 # and pre/post-release tags. All versions within a train release are expected
