@@ -8,12 +8,9 @@
 
 from setuptools import find_packages, setup
 
-import versioneer
-
 setup(
     name='qiime2',
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    version='2017.3.0.dev',
     license='BSD-3-Clause',
     url='https://qiime2.org',
     packages=find_packages(),
@@ -27,5 +24,5 @@ setup(
     package_data={
         'qiime2.tests': ['data/*']
     },
-    zip_safe=False,
+    zip_safe=False
 )

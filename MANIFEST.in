@@ -1,2 +1,0 @@
-include versioneer.py
-include qiime2/_version.py
