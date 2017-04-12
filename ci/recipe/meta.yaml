@@ -1,10 +1,9 @@
-# TODO review meta.yml spec and fill in missing fields as necessary (e.g. build number).
-
 {% set data = load_setup_py_data() %}
+{% set version = data.get('version') %}
 
 package:
   name: qiime2
-  version: {{ data.get('version') }}
+  version: {{ version }}
 
 source:
   path: ../..
@@ -16,11 +15,6 @@ requirements:
   build:
     - python 3.5*
     - setuptools
-    - pyyaml
-    - decorator
-    - pandas
-    - tzlocal
-    - python-dateutil
 
   run:
     - python 3.5*

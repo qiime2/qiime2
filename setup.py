@@ -17,8 +17,6 @@ setup(
     license='BSD-3-Clause',
     url='https://qiime2.org',
     packages=find_packages(),
-    install_requires=['pyyaml', 'decorator', 'pandas', 'tzlocal',
-                      'python-dateutil'],
     entry_points={
         'qiime2.plugins': [
             'dummy-plugin=qiime2.core.testing.plugin:dummy_plugin'
