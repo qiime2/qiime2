@@ -1,28 +1,23 @@
+dist: trusty
 sudo: false
 language: python
-env:
-  - PYTHON_VERSION=3.5
 before_install:
-  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - export MPLBACKEND='Agg'
+  - wget -q https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
   - export MINICONDA_PREFIX="$HOME/miniconda"
   - bash miniconda.sh -b -p $MINICONDA_PREFIX
   - export PATH="$MINICONDA_PREFIX/bin:$PATH"
   - conda config --set always_yes yes
-  - conda update conda
-  - conda install conda-build
+  - conda update -q conda
   - conda info -a
   - git clone https://github.com/qiime2/q2lint ../q2lint
 install:
-  - conda create -n test-env
+  - conda create -q -n test-env --file https://raw.githubusercontent.com/qiime2/environment-files/master/latest/staging/qiime2-latest-conda-linux-64.txt
   - source activate test-env
-  # Install testing utils
-  - pip install flake8
+  - pip install -q flake8
   - conda install nose
-  # Install qiime2 environment
-  - conda env update -f ci/environment.yaml
   - python setup.py install
 script:
   - flake8
   - python ../q2lint/q2lint.py
   - QIIMETEST= nosetests
-  - conda build -c https://conda.anaconda.org/qiime2 -c defaults --override-channels --python $PYTHON_VERSION ci/recipe
