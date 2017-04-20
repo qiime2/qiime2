@@ -1,0 +1,24 @@
+/* Explicit overriding of desktop screen size only */
+@media screen and (min-width: 875px) {
+
+    p.logo {
+        position: absolute;
+        height: 185px;
+        width: 575px;
+        top: 20px;
+
+    }
+
+    div.documentwrapper,
+    div.sphinxsidebar {
+        margin-top: 200px;
+    }
+
+    div.body {
+        border-left: 1px dashed #bbb;
+    }
+
+    div.sphinxsidebar {
+        text-align: right;
+    }
+}
