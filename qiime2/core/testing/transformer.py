@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 import collections
+from qiime2 import Metadata
 
 from .format import (
     FourIntsDirectoryFormat,
@@ -125,6 +126,9 @@ def _14(ff: MappingFormat) -> dict:
             data[key] = value
     return data
 
+@dummy_plugin.register_transformer
+def _134(df: MappingDirectoryFormat) -> Metadata:
+    return Metadata(pd.DataFrame(df.mapping.view(dict)))
 
 @dummy_plugin.register_transformer
 def _3(df: FourIntsDirectoryFormat) -> list:

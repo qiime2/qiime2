@@ -76,6 +76,23 @@ class ModelType:
 
         return transformer
 
+    def has_transformation(self, other):
+        """ Checks to see if there exist transformers for other
+
+        Parameters
+        ----------
+        other : ModelType subclass
+           The object being checked for transformer
+
+        Returns
+        -------
+        bool
+            Does the specified transformer exist for other?
+        """
+
+        transformer = self._get_transformer_to(other)
+        return transformer is not None
+
     def _get_transformer_from(self, other):
         return None
 
