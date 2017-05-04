@@ -6,10 +6,12 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import os
 import pathlib
 import shutil
 import distutils
 import tempfile
+import weakref
 
 
 _ConcretePath = type(pathlib.Path())
@@ -55,6 +57,16 @@ class InPath(OwnedPath):
 
 
 class OutPath(OwnedPath):
+    @classmethod
+    def _destruct(cls, path):
+        if not os.path.exists(path):
+            return
+
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.unlink(path)
+
     def __new__(cls, dir=False, **kwargs):
         """
         Create a tempfile, return pathlib.Path reference to it.
@@ -63,22 +75,10 @@ class OutPath(OwnedPath):
             name = tempfile.mkdtemp(**kwargs)
         else:
             _, name = tempfile.mkstemp(**kwargs)
-        return super().__new__(cls, name)
-
-    def __del__(self):
-        self._finalize()
-        if hasattr(super(), "__del__"):
-            super().__del__(self)
+        obj = super().__new__(cls, name)
+        obj._destructor = weakref.finalize(obj, cls._destruct, str(obj))
+        return obj
 
     def __exit__(self, t, v, tb):
-        self._finalize()
+        self._destructor()
         super().__exit__(t, v, tb)
-
-    def _finalize(self):
-        if not self.exists():
-            return
-
-        if self.is_dir():
-            shutil.rmtree(str(self))
-        else:
-            self.unlink()

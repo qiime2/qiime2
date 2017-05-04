@@ -15,6 +15,7 @@ import importlib
 import os
 import shutil
 import io
+import weakref
 
 import qiime2
 
@@ -233,6 +234,11 @@ class Archiver:
     }
 
     @classmethod
+    def _destruct(cls, path):
+        if os.path.exists(path):
+            shutil.rmtree(path)
+
+    @classmethod
     def _make_temp_path(cls):
         # Not using OutPath because it cleans itself up. Archiver should be
         # responsible for that.
@@ -315,7 +321,13 @@ class Archiver:
     def __init__(self, path, fmt):
         self.path = path
         self._fmt = fmt
-        self._pid = os.getpid()
+        self._destructor = weakref.finalize(self, self._destruct,
+                                            str(self.path))
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._destructor = weakref.finalize(self, self._destruct,
+                                            str(self.path))
 
     @property
     def uuid(self):
@@ -341,13 +353,8 @@ class Archiver:
     def provenance_dir(self):
         return getattr(self._fmt, 'provenance_dir', None)
 
-    def __del__(self):
-        # Destructor can be called more than once.
-        if self.path.exists() and self._pid == os.getpid():
-            shutil.rmtree(str(self.path))
-
     def save(self, filepath):
         self.CURRENT_ARCHIVE.save(self.path, filepath)
 
-    def orphan(self, pid):
-        self._pid = pid
+    def orphan(self):
+        self._destructor.detach()

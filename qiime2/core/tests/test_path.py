@@ -29,12 +29,12 @@ class TestOutPath(unittest.TestCase):
             self.assertTrue(os.path.isfile(path))
         self.assertFalse(os.path.isfile(path))
 
-    def test_finalize(self):
+    def test_destructor(self):
         f = OutPath()
         path = str(f)
 
         self.assertTrue(os.path.isfile(path))
-        f._finalize()
+        f._destructor()
         self.assertFalse(os.path.isfile(path))
 
 

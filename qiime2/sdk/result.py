@@ -126,8 +126,8 @@ class Result:
         # format tranformations may return the invoked transformers
         return None
 
-    def _orphan(self, pid):
-        self._archiver.orphan(pid)
+    def _orphan(self):
+        self._archiver.orphan()
 
     def save(self, filepath):
         if not filepath.endswith(self.extension):
