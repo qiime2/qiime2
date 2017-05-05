@@ -70,6 +70,10 @@ class QIIMEArtifactAPIImporter:
             is_package=action_types is None
         )
 
+    def create_module(self, spec):
+        # Required by Python 3.6, we just need the default behavior
+        return None
+
     def exec_module(self, module):
         spec = module.__spec__
         plugin = spec.loader_state['plugin']
