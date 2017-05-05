@@ -15,12 +15,42 @@ import pandas as pd
 class Metadata:
     def __init__(self, dataframe):
         self._dataframe = dataframe
+        self._artifact = None
 
     def __repr__(self):
         return repr(self._dataframe)
 
     def _repr_html_(self):
         return self._dataframe._repr_html_()
+
+    @property
+    def artifact(self):
+        return self._artifact
+
+    @classmethod
+    def from_artifact(cls, artifact):
+        """
+        Parameters
+        ----------
+        artifact: qiime2.Artifact
+           Loaded artifact object.
+
+        Returns
+        -------
+        qiime2.Metadata
+        """
+        import qiime2.sdk.util
+        # check to see if it has metadata
+        if not qiime2.sdk.util.has_metadata(artifact):
+            raise ValueError('Artifact has no metadata.')
+
+        md = artifact.view(cls)
+        md._add_artifact(artifact)
+        return md
+
+    def _add_artifact(self, artifact):
+        """ Adds the artifact to self."""
+        self._artifact = artifact
 
     @classmethod
     def load(cls, path):
@@ -46,11 +76,14 @@ class Metadata:
                                       " supported.")
         try:
             result = MetadataCategory(self._dataframe[names[0]])
+
         except KeyError:
             raise KeyError(
                 '%s is not a category in metadata file. Available '
                 'categories are %s.' %
                 (names[0], ', '.join(self._dataframe.columns)))
+        else:
+            result._add_artifact(self.artifact)
         return result
 
     def to_dataframe(self):
@@ -134,6 +167,7 @@ class Metadata:
 class MetadataCategory:
     def __init__(self, series):
         self._series = series
+        self._artifact = None
 
     def __repr__(self):
         return repr(self._series)
@@ -144,3 +178,25 @@ class MetadataCategory:
 
     def to_series(self):
         return self._series.copy()
+
+    @property
+    def artifact(self):
+        return self._artifact
+
+    @classmethod
+    def from_artifact(cls, artifact, category):
+        """
+        Parameters
+        ----------
+        artifact: qiime2.Artifact
+           Loaded artifact object.
+
+        Returns
+        -------
+        qiime.Metadata
+        """
+        return Metadata.from_artifact(artifact).get_category(category)
+
+    def _add_artifact(self, artifact):
+        """ Adds the artifact to self."""
+        self._artifact = artifact

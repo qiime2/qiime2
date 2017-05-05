@@ -114,4 +114,3 @@ def has_metadata(artifact):
     from_type = transform.ModelType.from_view_type(artifact.format)
     to_type = transform.ModelType.from_view_type(Metadata)
     return from_type.has_transformation(to_type)
-

@@ -14,6 +14,7 @@ import pandas as pd
 import pandas.util.testing as pdt
 
 import qiime2
+from qiime2.core.testing.util import get_dummy_plugin
 
 
 class TestMetadataLoad(unittest.TestCase):
@@ -34,6 +35,30 @@ class TestMetadataLoad(unittest.TestCase):
             df, exp_df, check_dtype=True, check_index_type=True,
             check_column_type=True, check_frame_type=True, check_names=True,
             check_exact=True)
+
+
+class TestMetadataFromArtifact(unittest.TestCase):
+    def setUp(self):
+        get_dummy_plugin()
+
+    def test_from_artifact(self):
+        A = qiime2.Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
+        md = qiime2.Metadata.from_artifact(A)
+        pdt.assert_frame_equal(md.to_dataframe(),
+                               pd.DataFrame({'a': '1', 'b': '3'}, index=[0]))
+
+    def test_from_bad_artifact(self):
+        A = qiime2.Artifact.import_data('IntSequence1', [1, 2, 3, 4])
+        with self.assertRaisesRegex(ValueError, 'metadata'):
+            qiime2.Metadata.from_artifact(A)
+
+    def test_artifact(self):
+        A = qiime2.Artifact.import_data('Mapping', {'a': ['1', '2'],
+                                                    'b': ['2', '3']})
+        md = qiime2.Metadata.from_artifact(A)
+        art = md.artifact
+        self.assertIsInstance(art, qiime2.Artifact)
+        self.assertEquals(art, A)
 
 
 class TestIDs(unittest.TestCase):

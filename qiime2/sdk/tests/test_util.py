@@ -17,7 +17,7 @@ class TestUtil(unittest.TestCase):
         get_dummy_plugin()
 
     def test_has_metadata_true(self):
-        A = Artifact.import_data('Mapping', {'a':'1','b':'2'})
+        A = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
         self.assertTrue(has_metadata(A))
 
     def test_has_metadata_false(self):

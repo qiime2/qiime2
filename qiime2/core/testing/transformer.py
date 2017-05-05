@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 import collections
 from qiime2 import Metadata
+import pandas as pd
 
 from .format import (
     FourIntsDirectoryFormat,
@@ -126,9 +127,12 @@ def _14(ff: MappingFormat) -> dict:
             data[key] = value
     return data
 
+
 @dummy_plugin.register_transformer
 def _134(df: MappingDirectoryFormat) -> Metadata:
-    return Metadata(pd.DataFrame(df.mapping.view(dict)))
+    d = df.mapping.view(dict)
+    return Metadata(pd.DataFrame(d, index=[0]))
+
 
 @dummy_plugin.register_transformer
 def _3(df: FourIntsDirectoryFormat) -> list:
