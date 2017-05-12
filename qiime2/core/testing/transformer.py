@@ -129,9 +129,9 @@ def _14(ff: MappingFormat) -> dict:
 
 
 @dummy_plugin.register_transformer
-def _134(df: MappingDirectoryFormat) -> Metadata:
+def _15(df: MappingDirectoryFormat) -> Metadata:
     d = df.mapping.view(dict)
-    return Metadata(pd.DataFrame(d, index=[0]))
+    return Metadata(pd.DataFrame(d, index=["0"]))
 
 
 @dummy_plugin.register_transformer
