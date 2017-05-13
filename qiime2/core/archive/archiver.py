@@ -10,12 +10,9 @@ import collections
 import uuid as _uuid
 import pathlib
 import zipfile
-import tempfile
 import importlib
 import os
-import shutil
 import io
-import weakref
 
 import qiime2
 
@@ -234,16 +231,8 @@ class Archiver:
     }
 
     @classmethod
-    def _destruct(cls, path):
-        if os.path.exists(path):
-            shutil.rmtree(path)
-
-    @classmethod
     def _make_temp_path(cls):
-        # Not using OutPath because it cleans itself up. Archiver should be
-        # responsible for that.
-        # TODO: normalize `mkdtemp` when we have framework temp locations.
-        return pathlib.Path(tempfile.mkdtemp(prefix='qiime2-archive-'))
+        return qiime2.core.path.ArchivePath()
 
     @classmethod
     def get_format_class(cls, version):
@@ -321,13 +310,6 @@ class Archiver:
     def __init__(self, path, fmt):
         self.path = path
         self._fmt = fmt
-        self._destructor = weakref.finalize(self, self._destruct,
-                                            str(self.path))
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        self._destructor = weakref.finalize(self, self._destruct,
-                                            str(self.path))
 
     @property
     def uuid(self):
@@ -357,4 +339,4 @@ class Archiver:
         self.CURRENT_ARCHIVE.save(self.path, filepath)
 
     def orphan(self):
-        self._destructor.detach()
+        self.path.orphan()

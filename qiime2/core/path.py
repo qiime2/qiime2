@@ -82,3 +82,22 @@ class OutPath(OwnedPath):
     def __exit__(self, t, v, tb):
         self._destructor()
         super().__exit__(t, v, tb)
+
+
+class ArchivePath(OutPath):
+    def __new__(cls, *args):
+        if args:
+            obj = OwnedPath.__new__(cls, *args)
+            obj._destructor = weakref.finalize(obj, cls._destruct, str(obj))
+        else:
+            obj = super().__new__(cls, dir=True, prefix="qiime2-archive-")
+        return obj
+
+    def __truediv__(self, key):
+        return pathlib.Path(str(self), key)
+
+    def __rtruediv__(self, key):
+        return pathlib.Path(key, str(self))
+
+    def orphan(self):
+        self._destructor.detach()
