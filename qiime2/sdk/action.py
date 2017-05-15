@@ -20,12 +20,14 @@ import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 
 
-# This isn't a global as much as a process local.
+# These aren't globals as much as a process locals. This is necessary because
+# atexit handlers aren't invoked during a subprocess exit (`_exit` is called)
 _FAILURE_PROCESS_CLEANUP = []
 _ALWAYS_PROCESS_CLEANUP = []
 
 
 def _async_action(action, args, kwargs):
+    """Helper to cleanup because atexit destructors are not called"""
     try:
         return action(*args, **kwargs)
     except:  # This is cleanup, even KeyboardInterrupt should be caught
@@ -176,6 +178,11 @@ class Action(metaclass=abc.ABCMeta):
                 artifact = artifacts[name] = user_input[name]
                 provenance.add_input(name, artifact)
                 if self._is_subprocess():
+                    # Cleanup shouldn't be handled in the subprocess, it
+                    # doesn't own any of these inputs, they were just provided.
+                    # We also can't rely on the subprocess preventing atexit
+                    # hooks as the destructor is also called when the artifact
+                    # goes out of scope (which happens).
                     artifact._orphan()
 
             parameters = {}
@@ -191,6 +198,10 @@ class Action(metaclass=abc.ABCMeta):
 
             outputs = self._callable_executor_(self._callable, view_args,
                                                output_types, provenance)
+            # The outputs don't need to be orphaned, because their destructors
+            # aren't invoked in atexit for a subprocess, instead the
+            # `_async_action` helper will detect failure and cleanup if needed.
+            # These are meant to be owned by the parent process.
 
             if len(outputs) != len(self.signature.outputs):
                 raise ValueError(

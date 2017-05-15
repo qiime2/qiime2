@@ -84,20 +84,53 @@ class OutPath(OwnedPath):
         super().__exit__(t, v, tb)
 
 
-class ArchivePath(OutPath):
-    def __new__(cls, *args):
-        if args:
-            obj = OwnedPath.__new__(cls, *args)
-            obj._destructor = weakref.finalize(obj, cls._destruct, str(obj))
+class InternalDirectory(_ConcretePath):
+    DEFAULT_PREFIX = 'qiime2-'
+
+    @classmethod
+    def _destruct(cls, path):
+        """DO NOT USE DIRECTLY, use `_destructor()` instead"""
+        if os.path.exists(path):
+            shutil.rmtree(path)
+
+    @classmethod
+    def __new(cls, *args):
+        self = super().__new__(cls, *args)
+        self._destructor = weakref.finalize(self, self._destruct, str(self))
+        return self
+
+    def __new__(cls, *args, prefix=None):
+        if args and prefix is not None:
+            raise TypeError("Cannot pass a path and a prefix at the same time")
+        elif args:
+            # This happens when the base-class's __reduce__ method is invoked
+            # for pickling.
+            return cls.__new(*args)
         else:
-            obj = super().__new__(cls, dir=True, prefix="qiime2-archive-")
-        return obj
+            if prefix is None:
+                prefix = cls.DEFAULT_PREFIX
+            elif not prefix.startswith(cls.DEFAULT_PREFIX):
+                prefix = cls.DEFAULT_PREFIX + prefix
+            # TODO: normalize when temp-directories are configurable
+            path = tempfile.mkdtemp(prefix=prefix)
+            return cls.__new(path)
 
-    def __truediv__(self, key):
-        return pathlib.Path(str(self), key)
+    def __truediv__(self, path):
+        # We don't want to create self-destructing paths when using the join
+        # operator
+        return _ConcretePath(str(self), path)
 
-    def __rtruediv__(self, key):
-        return pathlib.Path(key, str(self))
+    def __rtruediv__(self, path):
+        # Same reasoning as truediv
+        return _ConcretePath(path, str(self))
 
     def orphan(self):
         self._destructor.detach()
+
+
+class ArchivePath(InternalDirectory):
+    DEFAULT_PREFIX = 'qiime2-archive-'
+
+
+class ProvenancePath(InternalDirectory):
+    DEFAULT_PREFIX = 'qiime2-provenance-'

@@ -12,12 +12,8 @@ import pkg_resources
 import uuid
 import copy
 import importlib
-import pathlib
 import shutil
-import tempfile
 import sys
-import weakref
-import os
 from datetime import datetime
 
 import distutils
@@ -94,16 +90,6 @@ class ProvenanceCapture:
     ACTION_DIR = 'action'
     ACTION_FILE = 'action.yaml'
 
-    @classmethod
-    def _destruct(cls, path):
-        # Used to delete the original source when "forking". Each forked child
-        # will be a copy, but the original won't ever be renamed, so the
-        # directory would persist. Instead of adding logic for "first fork"
-        # it's easier to just let it erase itself should it go out of scope
-        # without a rename.
-        if os.path.exists(path):
-            shutil.rmtree(path)
-
     def __init__(self):
         self.start = time.time()
         self.uuid = uuid.uuid4()
@@ -117,19 +103,17 @@ class ProvenanceCapture:
 
         self._build_paths()
 
+    def _destructor(self):
+        self.path._destructor()
+
     def _build_paths(self):
-        # TODO: normalize `mkdtemp` when we have framework temp locations.
-        self.path = pathlib.Path(tempfile.mkdtemp(prefix='qiime2-prov-'))
+        self.path = qiime2.core.path.ProvenancePath()
 
         self.ancestor_dir = self.path / self.ANCESTOR_DIR
         self.ancestor_dir.mkdir()
 
         self.action_dir = self.path / self.ACTION_DIR
         self.action_dir.mkdir()
-
-        # Destructor setup:
-        self._destructor = weakref.finalize(self, self._destruct,
-                                            str(self.path))
 
     def add_ancestor(self, artifact):
         other_path = artifact._archiver.provenance_dir
