@@ -39,9 +39,8 @@ class Metadata:
         -------
         qiime2.Metadata
         """
-        import qiime2.sdk.util
         # check to see if it has metadata
-        if not qiime2.sdk.util.has_metadata(artifact):
+        if not artifact.has_metadata():
             raise ValueError('Artifact has no metadata.')
 
         md = artifact.view(cls)
@@ -76,7 +75,6 @@ class Metadata:
                                       " supported.")
         try:
             result = MetadataCategory(self._dataframe[names[0]])
-
         except KeyError:
             raise KeyError(
                 '%s is not a category in metadata file. Available '

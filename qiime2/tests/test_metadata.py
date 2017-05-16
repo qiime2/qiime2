@@ -45,7 +45,7 @@ class TestMetadataFromArtifact(unittest.TestCase):
         A = qiime2.Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
         md = qiime2.Metadata.from_artifact(A)
         pdt.assert_frame_equal(md.to_dataframe(),
-                               pd.DataFrame({'a': '1', 'b': '3'}, index=[0]))
+                               pd.DataFrame({'a': '1', 'b': '3'}, index=['0']))
 
     def test_from_bad_artifact(self):
         A = qiime2.Artifact.import_data('IntSequence1', [1, 2, 3, 4])

@@ -92,25 +92,3 @@ def parse_format(format_str):
     except KeyError:
         raise TypeError("No format: %s" % format_str)
     return format_record.format
-
-
-def has_metadata(artifact):
-    """ Checks for metadata within an artifact
-
-    Parameters
-    ----------
-    artifact: Artifact
-       The artifact to check for metadata.
-
-    Returns
-    -------
-    bool
-       True if the artifact has metadata, False otherwise.
-
-    """
-    from qiime2 import Metadata
-    from qiime2.core import transform
-    # TODO: May want to push this into the artifact object
-    from_type = transform.ModelType.from_view_type(artifact.format)
-    to_type = transform.ModelType.from_view_type(Metadata)
-    return from_type.has_transformation(to_type)

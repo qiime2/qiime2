@@ -259,15 +259,15 @@ class ActionProvenanceCapture(ProvenanceCapture):
         else:
             raise NotImplementedError
 
-        _uuid = ""
+        uuid_ref = ""
         if value.artifact is not None:
-            _uuid = str(value.artifact.uuid) + ":"
+            uuid_ref = str(value.artifact.uuid) + ":"
             self.add_ancestor(value.artifact)
 
         relpath = name + '.tsv'
         pandas_obj.to_csv(str(self.action_dir / relpath), sep='\t')
 
-        return MetadataPath(_uuid + relpath)
+        return MetadataPath(uuid_ref + relpath)
 
     def add_parameter(self, name, type_expr, parameter):
         type_map = {
