@@ -12,9 +12,7 @@ import pkg_resources
 import uuid
 import copy
 import importlib
-import pathlib
 import shutil
-import tempfile
 import sys
 from datetime import datetime
 
@@ -103,11 +101,14 @@ class ProvenanceCapture:
         # us treat all transformations uniformly.
         self.transformers = collections.OrderedDict()
 
-        # TODO: normalize `mkdtemp` when we have framework temp locations.
-        self.path = pathlib.Path(tempfile.mkdtemp(prefix='qiime2-prov-'))
         self._build_paths()
 
+    def _destructor(self):
+        self.path._destructor()
+
     def _build_paths(self):
+        self.path = qiime2.core.path.ProvenancePath()
+
         self.ancestor_dir = self.path / self.ANCESTOR_DIR
         self.ancestor_dir.mkdir()
 
@@ -213,21 +214,10 @@ class ProvenanceCapture:
         forked.transformers = forked.transformers.copy()
         # create a copy of the backing dir so factory (the hard stuff is
         # mostly done by this point)
-        forked.path = pathlib.Path(tempfile.mkdtemp(prefix='qiime2-prov-'))
         forked._build_paths()
-
         distutils.dir_util.copy_tree(str(self.path), str(forked.path))
 
         return forked
-
-    def __del__(self):
-        # Used to delete the original source when "forking". Each forked child
-        # will be a copy, but the original won't ever be renamed, so the
-        # directory would persist. Instead of adding logic for "first fork"
-        # it's easier to just let it erase itself should it go out of scope
-        # without a rename.
-        if self.path.exists():
-            shutil.rmtree(str(self.path))
 
 
 class ImportProvenanceCapture(ProvenanceCapture):

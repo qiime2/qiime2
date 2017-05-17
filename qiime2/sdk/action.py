@@ -20,6 +20,25 @@ import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 
 
+# These aren't globals as much as a process locals. This is necessary because
+# atexit handlers aren't invoked during a subprocess exit (`_exit` is called)
+_FAILURE_PROCESS_CLEANUP = []
+_ALWAYS_PROCESS_CLEANUP = []
+
+
+def _async_action(action, args, kwargs):
+    """Helper to cleanup because atexit destructors are not called"""
+    try:
+        return action(*args, **kwargs)
+    except:  # This is cleanup, even KeyboardInterrupt should be caught
+        for garbage in _FAILURE_PROCESS_CLEANUP:
+            garbage._destructor()
+        raise
+    finally:
+        for garbage in _ALWAYS_PROCESS_CLEANUP:
+            garbage._destructor()
+
+
 class Action(metaclass=abc.ABCMeta):
     type = 'action'
 
@@ -132,6 +151,9 @@ class Action(metaclass=abc.ABCMeta):
         def callable_wrapper(*args, **kwargs):
             provenance = archive.ActionProvenanceCapture(
                 self.type, self.package, self.id)
+            if self._is_subprocess():
+                _ALWAYS_PROCESS_CLEANUP.append(provenance)
+
             # This function's signature is rewritten below using
             # `decorator.decorator`. When the signature is rewritten, args[0]
             # is the function whose signature was used to rewrite this
@@ -155,6 +177,13 @@ class Action(metaclass=abc.ABCMeta):
             for name in self.signature.inputs:
                 artifact = artifacts[name] = user_input[name]
                 provenance.add_input(name, artifact)
+                if self._is_subprocess():
+                    # Cleanup shouldn't be handled in the subprocess, it
+                    # doesn't own any of these inputs, they were just provided.
+                    # We also can't rely on the subprocess preventing atexit
+                    # hooks as the destructor is also called when the artifact
+                    # goes out of scope (which happens).
+                    artifact._orphan()
 
             parameters = {}
             for name, spec in self.signature.parameters.items():
@@ -169,23 +198,21 @@ class Action(metaclass=abc.ABCMeta):
 
             outputs = self._callable_executor_(self._callable, view_args,
                                                output_types, provenance)
-            # `outputs` matches a Python function's return: either a single
-            # value is returned, or it is a tuple of return values. Treat both
-            # cases uniformly.
-            outputs_tuple = tuplize(outputs)
-            for output in outputs_tuple:
-                output._orphan(self._pid)
+            # The outputs don't need to be orphaned, because their destructors
+            # aren't invoked in atexit for a subprocess, instead the
+            # `_async_action` helper will detect failure and cleanup if needed.
+            # These are meant to be owned by the parent process.
 
-            if len(outputs_tuple) != len(self.signature.outputs):
+            if len(outputs) != len(self.signature.outputs):
                 raise ValueError(
                     "Number of callable outputs must match number of outputs "
                     "defined in signature: %d != %d" %
-                    (len(outputs_tuple), len(self.signature.outputs)))
+                    (len(outputs), len(self.signature.outputs)))
 
             # Wrap in a Results object mapping output name to value so users
             # have access to outputs by name or position.
             return qiime2.sdk.Results(self.signature.outputs.keys(),
-                                      outputs_tuple)
+                                      outputs)
 
         callable_wrapper = self._rewrite_wrapper_signature(callable_wrapper)
         self._set_wrapper_properties(callable_wrapper, '__call__')
@@ -210,7 +237,7 @@ class Action(metaclass=abc.ABCMeta):
             args = args[1:]
 
             pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)
-            future = pool.submit(self, *args, **kwargs)
+            future = pool.submit(_async_action, self, args, kwargs)
             pool.shutdown(wait=False)
             return future
 
@@ -233,6 +260,9 @@ class Action(metaclass=abc.ABCMeta):
         # not the "artifact API").
         del wrapper.__wrapped__
 
+    def _is_subprocess(self):
+        return self._pid != os.getpid()
+
 
 class Method(Action):
     type = 'method'
@@ -245,6 +275,7 @@ class Method(Action):
 
     def _callable_executor_(self, callable, view_args, output_types,
                             provenance):
+        is_subprocess = self._is_subprocess()
         output_views = callable(**view_args)
         output_views = tuplize(output_views)
 
@@ -271,11 +302,10 @@ class Method(Action):
                 spec.qiime_type, output_view, spec.view_type,
                 provenance.fork())
             output_artifacts.append(artifact)
+            if is_subprocess:
+                _FAILURE_PROCESS_CLEANUP.append(artifact._archiver)
 
-        if len(output_artifacts) == 1:
-            return output_artifacts[0]
-        else:
-            return tuple(output_artifacts)
+        return tuple(output_artifacts)
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, package, name,
@@ -307,8 +337,12 @@ class Visualizer(Action):
                 raise TypeError(
                     "Visualizer %r should not return anything. "
                     "Received %r as a return value." % (self, ret_val))
-            return qiime2.sdk.Visualization._from_data_dir(temp_dir,
-                                                           provenance)
+            viz = qiime2.sdk.Visualization._from_data_dir(temp_dir,
+                                                          provenance)
+            if self._is_subprocess():
+                _FAILURE_PROCESS_CLEANUP.append(viz._archiver)
+
+            return (viz,)
 
     @classmethod
     def _init(cls, callable, inputs, parameters, package, name, description,

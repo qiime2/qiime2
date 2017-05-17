@@ -10,10 +10,8 @@ import collections
 import uuid as _uuid
 import pathlib
 import zipfile
-import tempfile
 import importlib
 import os
-import shutil
 import io
 
 import qiime2
@@ -234,10 +232,7 @@ class Archiver:
 
     @classmethod
     def _make_temp_path(cls):
-        # Not using OutPath because it cleans itself up. Archiver should be
-        # responsible for that.
-        # TODO: normalize `mkdtemp` when we have framework temp locations.
-        return pathlib.Path(tempfile.mkdtemp(prefix='qiime2-archive-'))
+        return qiime2.core.path.ArchivePath()
 
     @classmethod
     def get_format_class(cls, version):
@@ -315,7 +310,6 @@ class Archiver:
     def __init__(self, path, fmt):
         self.path = path
         self._fmt = fmt
-        self._pid = os.getpid()
 
     @property
     def uuid(self):
@@ -341,13 +335,8 @@ class Archiver:
     def provenance_dir(self):
         return getattr(self._fmt, 'provenance_dir', None)
 
-    def __del__(self):
-        # Destructor can be called more than once.
-        if self.path.exists() and self._pid == os.getpid():
-            shutil.rmtree(str(self.path))
-
     def save(self, filepath):
         self.CURRENT_ARCHIVE.save(self.path, filepath)
 
-    def orphan(self, pid):
-        self._pid = pid
+    def orphan(self):
+        self.path.orphan()
