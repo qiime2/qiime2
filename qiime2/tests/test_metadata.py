@@ -58,7 +58,7 @@ class TestMetadataFromArtifact(unittest.TestCase):
         md = qiime2.Metadata.from_artifact(A)
         art = md.artifact
         self.assertIsInstance(art, qiime2.Artifact)
-        self.assertEquals(art, A)
+        self.assertEqual(art, A)
 
 
 class TestIDs(unittest.TestCase):
