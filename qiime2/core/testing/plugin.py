@@ -13,9 +13,11 @@ import qiime2.plugin
 
 from .format import (
     IntSequenceFormat,
+    IntSequenceFormatV2,
     MappingFormat,
     SingleIntFormat,
     IntSequenceDirectoryFormat,
+    IntSequenceV2DirectoryFormat,
     MappingDirectoryFormat,
     FourIntsDirectoryFormat
 )
@@ -45,9 +47,9 @@ dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, Mapping,
 
 # Register formats
 dummy_plugin.register_formats(
-    IntSequenceFormat, MappingFormat, SingleIntFormat,
-    IntSequenceDirectoryFormat, MappingDirectoryFormat,
-    FourIntsDirectoryFormat
+    IntSequenceFormat, IntSequenceFormatV2, MappingFormat, SingleIntFormat,
+    IntSequenceDirectoryFormat, IntSequenceV2DirectoryFormat,
+    MappingDirectoryFormat, FourIntsDirectoryFormat
 )
 
 dummy_plugin.register_semantic_type_to_format(
@@ -56,7 +58,7 @@ dummy_plugin.register_semantic_type_to_format(
 )
 dummy_plugin.register_semantic_type_to_format(
     IntSequence2,
-    artifact_format=IntSequenceDirectoryFormat
+    artifact_format=IntSequenceV2DirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     Mapping,

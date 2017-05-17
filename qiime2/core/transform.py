@@ -171,10 +171,10 @@ class SingleFileDirectoryFormatType(FormatType):
             return None
 
         if wrap_input:
-            transformer = self._wrap_input(transformer)
+            transformer = in_._wrap_input(transformer)
 
         if wrap_output:
-            transformer = self._wrap_output(transformer)
+            transformer = out_._wrap_output(transformer)
 
         return transformer
 

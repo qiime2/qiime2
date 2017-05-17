@@ -195,6 +195,16 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertEqual(obs_filename, 'visualization.qzv')
 
+    def test_import_data_single_dirfmt_to_single_dirfmt(self):
+        temp_data_dir = os.path.join(self.test_dir.name, 'import')
+        os.mkdir(temp_data_dir)
+
+        with open(os.path.join(temp_data_dir, 'ints.txt'), 'w') as fh:
+            fh.write("1\n2\n3\n")
+
+        qiime2.Artifact.import_data('IntSequence2', temp_data_dir,
+                                    view_type="IntSequenceDirectoryFormat")
+
 
 if __name__ == '__main__':
     unittest.main()
