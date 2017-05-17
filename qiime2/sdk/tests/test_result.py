@@ -205,6 +205,14 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         qiime2.Artifact.import_data('IntSequence2', temp_data_dir,
                                     view_type="IntSequenceDirectoryFormat")
 
+    def test_artifact_has_metadata_true(self):
+        A = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
+        self.assertTrue(A.has_metadata())
+
+    def test_artifact_has_metadata_false(self):
+        A = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
+        self.assertFalse(A.has_metadata())
+
 
 if __name__ == '__main__':
     unittest.main()

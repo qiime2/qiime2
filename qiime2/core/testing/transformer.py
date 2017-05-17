@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 import collections
+from qiime2 import Metadata
+import pandas as pd
 
 from .format import (
     FourIntsDirectoryFormat,
@@ -124,6 +126,12 @@ def _14(ff: MappingFormat) -> dict:
                     "observed more than once." % key)
             data[key] = value
     return data
+
+
+@dummy_plugin.register_transformer
+def _15(df: MappingDirectoryFormat) -> Metadata:
+    d = df.mapping.view(dict)
+    return Metadata(pd.DataFrame(d, index=["0"]))
 
 
 @dummy_plugin.register_transformer

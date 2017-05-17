@@ -10,6 +10,7 @@ import collections
 import distutils.dir_util
 import pathlib
 
+import qiime2.metadata
 import qiime2.sdk
 import qiime2.core.type
 import qiime2.core.transform as transform
@@ -235,6 +236,19 @@ class Artifact(Result):
 
         to_type.set_user_owned(result, True)
         return result
+
+    def has_metadata(self):
+        """ Checks for metadata within an artifact
+
+        Returns
+        -------
+        bool
+           True if the artifact has metadata, False otherwise.
+
+        """
+        from_type = transform.ModelType.from_view_type(self.format)
+        to_type = transform.ModelType.from_view_type(qiime2.Metadata)
+        return from_type.has_transformation(to_type)
 
 
 class Visualization(Result):
