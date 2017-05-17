@@ -26,6 +26,16 @@ class IntSequenceFormat(TextFileFormat):
             return True
 
 
+class IntSequenceFormatV2(IntSequenceFormat):
+    """
+    Same as IntSequenceFormat, but has a header "VERSION 2"
+
+    """
+    def sniff(self):
+        with self.open() as fh:
+            return fh.readline() == 'VERSION 2\n'
+
+
 class MappingFormat(TextFileFormat):
     """
     A mapping of keys to values stored in a TSV file. Since this is a
@@ -58,6 +68,9 @@ class SingleIntFormat(TextFileFormat):
 
 IntSequenceDirectoryFormat = model.SingleFileDirectoryFormat(
     'IntSequenceDirectoryFormat', 'ints.txt', IntSequenceFormat)
+
+IntSequenceV2DirectoryFormat = model.SingleFileDirectoryFormat(
+    'IntSequenceV2DirectoryFormat', 'integers.txt', IntSequenceFormatV2)
 
 
 # This could have been a `SingleFileDirectoryFormat`, but isn't for testing

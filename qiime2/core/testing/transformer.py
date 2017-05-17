@@ -11,6 +11,7 @@ from .format import (
     FourIntsDirectoryFormat,
     MappingDirectoryFormat,
     IntSequenceFormat,
+    IntSequenceFormatV2,
     SingleIntFormat,
     MappingFormat,
 )
@@ -41,8 +42,25 @@ def _7(data: list) -> IntSequenceFormat:
 
 
 @dummy_plugin.register_transformer
+def _77(data: list) -> IntSequenceFormatV2:
+    ff = IntSequenceFormatV2()
+    with ff.open() as fh:
+        fh.write('VERSION 2\n')
+        for int_ in data:
+            fh.write('%d\n' % int_)
+    return ff
+
+
+@dummy_plugin.register_transformer
 def _9(ff: IntSequenceFormat) -> list:
     with ff.open() as fh:
+        return list(map(int, fh.readlines()))
+
+
+@dummy_plugin.register_transformer
+def _99(ff: IntSequenceFormatV2) -> list:
+    with ff.open() as fh:
+        fh.readline()  # skip header
         return list(map(int, fh.readlines()))
 
 
@@ -50,6 +68,25 @@ def _9(ff: IntSequenceFormat) -> list:
 def _10(ff: IntSequenceFormat) -> collections.Counter:
     with ff.open() as fh:
         return collections.Counter(map(int, fh.readlines()))
+
+
+@dummy_plugin.register_transformer
+def _1010(ff: IntSequenceFormatV2) -> collections.Counter:
+    with ff.open() as fh:
+        fh.readline()  # skip header
+        return collections.Counter(map(int, fh.readlines()))
+
+
+@dummy_plugin.register_transformer
+def _1000(ff: IntSequenceFormat) -> IntSequenceFormatV2:
+    new_ff = IntSequenceFormatV2()
+
+    with new_ff.open() as new_fh, ff.open() as fh:
+        new_fh.write("VERSION 2\n")
+        for line in fh:
+            new_fh.write(line)
+
+    return new_ff
 
 
 @dummy_plugin.register_transformer
