@@ -63,9 +63,9 @@ class TestPlugin(unittest.TestCase):
             version='0.0.0-dev',
             website='https://github.com/qiime2/qiime2',
             package='qiime2.core.testing')
-        self.assertTrue(plugin.user_support_text.startswith('No user'))
+        self.assertTrue(plugin.user_support_text.startswith('Please post'))
         self.assertTrue(plugin.user_support_text.endswith(
-                            plugin.website))
+                            'https://forum.qiime2.org'))
 
     def test_actions(self):
         actions = self.plugin.actions

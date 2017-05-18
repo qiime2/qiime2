@@ -49,9 +49,9 @@ class Plugin:
         else:
             self.citation_text = citation_text
         if user_support_text is None:
-            self.user_support_text = ('No user support information available. '
-                                      'See plugin website: %s'
-                                      % self.website)
+            self.user_support_text = ('Please post to the QIIME 2 forum for '
+                                      'help with this plugin: https://forum.'
+                                      'qiime2.org')
         else:
             self.user_support_text = user_support_text
         if short_description is None:
