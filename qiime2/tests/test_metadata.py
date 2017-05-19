@@ -17,6 +17,59 @@ import qiime2
 from qiime2.core.testing.util import get_dummy_plugin
 
 
+class TestMetadata(unittest.TestCase):
+    def setUp(self):
+        self.illegal_chars = ['/', '\0', '\\', '*', '<', '>', '?', '|', '$']
+
+    def test_valid_metadata(self):
+        exp_index = pd.Index(['a', 'b', 'c'], dtype=object)
+        exp_df = pd.DataFrame({'col1': ['2', '1', '3']},
+                              index=exp_index, dtype=object)
+
+        metadata = qiime2.Metadata(exp_df)
+        df = metadata.to_dataframe()
+
+        pdt.assert_frame_equal(
+            df, exp_df, check_dtype=True, check_index_type=True,
+            check_column_type=True, check_frame_type=True, check_names=True,
+            check_exact=True)
+
+    def test_invalid_metadata_characters_in_category(self):
+        for val in self.illegal_chars:
+            index = pd.Index(['a', 'b', 'c'], dtype=object)
+            df = pd.DataFrame({'col1{}foo'.format(val): ['2', '1', '3']},
+                              index=index, dtype=object)
+
+            with self.assertRaisesRegex(ValueError,
+                                        'Invalid characters.*category'):
+                qiime2.Metadata(df)
+
+    def test_invalid_metadata_characters_in_index(self):
+        for val in self.illegal_chars:
+            index = pd.Index(['a', 'b{}'.format(val), 'c'], dtype=object)
+            df = pd.DataFrame({'col1': ['2', '1', '3']},
+                              index=index, dtype=object)
+
+            with self.assertRaisesRegex(ValueError,
+                                        'Invalid character.*index'):
+                qiime2.Metadata(df)
+
+    def test_invalid_columns_dtype(self):
+        with self.assertRaisesRegex(ValueError, 'Non-string.*category labels'):
+            qiime2.Metadata(pd.DataFrame(['a', 'b', 'c']))
+
+    def test_invalid_index_dtype(self):
+        with self.assertRaisesRegex(ValueError, 'Non-string.*index values'):
+            qiime2.Metadata(pd.DataFrame({'foo': ['a', 'b', 'c']}))
+
+    def test_duplicate_indices(self):
+        index = pd.Index(['b', 'b', 'b'], dtype=object)
+        df = pd.DataFrame({'foo': [1, 2, 3]}, index=index)
+
+        with self.assertRaisesRegex(ValueError, 'Non-unique.*index values'):
+            qiime2.Metadata(df)
+
+
 class TestMetadataLoad(unittest.TestCase):
     def test_does_not_cast_index_or_column_types(self):
         fp = pkg_resources.resource_filename(
@@ -36,6 +89,22 @@ class TestMetadataLoad(unittest.TestCase):
             check_column_type=True, check_frame_type=True, check_names=True,
             check_exact=True)
 
+    def test_invalid_metadata_characters_in_category(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata-illegal-categories-characters.tsv')
+
+        with self.assertRaisesRegex(ValueError,
+                                    'Invalid characters.*category'):
+            qiime2.Metadata.load(fp)
+
+    def test_invalid_metadata_characters_in_index(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata-illegal-index-characters.tsv')
+
+        with self.assertRaisesRegex(ValueError,
+                                    'Invalid characters.*index'):
+            qiime2.Metadata.load(fp)
+
 
 class TestMetadataFromArtifact(unittest.TestCase):
     def setUp(self):
@@ -49,7 +118,13 @@ class TestMetadataFromArtifact(unittest.TestCase):
 
     def test_from_bad_artifact(self):
         A = qiime2.Artifact.import_data('IntSequence1', [1, 2, 3, 4])
-        with self.assertRaisesRegex(ValueError, 'metadata'):
+        with self.assertRaisesRegex(ValueError, 'Artifact has no metadata'):
+            qiime2.Metadata.from_artifact(A)
+
+    def test_invalid_metadata_characters_in_category(self):
+        A = qiime2.Artifact.import_data('Mapping', {'a': '1', '>b': '3'})
+
+        with self.assertRaisesRegex(ValueError, 'Invalid characters'):
             qiime2.Metadata.from_artifact(A)
 
     def test_artifact(self):
