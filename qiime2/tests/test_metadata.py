@@ -9,6 +9,7 @@
 import pkg_resources
 import sqlite3
 import unittest
+import tempfile
 
 import pandas as pd
 import pandas.util.testing as pdt
@@ -34,10 +35,23 @@ class TestMetadata(unittest.TestCase):
             check_column_type=True, check_frame_type=True, check_names=True,
             check_exact=True)
 
+    def test_valid_metadata_str(self):
+        exp_index = pd.Index(['a', 'b', 'c'], dtype=str)
+        exp_df = pd.DataFrame({'col1': ['2', '1', '3']},
+                              index=exp_index, dtype=str)
+
+        metadata = qiime2.Metadata(exp_df)
+        df = metadata.to_dataframe()
+
+        pdt.assert_frame_equal(
+            df, exp_df, check_dtype=True, check_index_type=True,
+            check_column_type=True, check_frame_type=True, check_names=True,
+            check_exact=True)
+
     def test_invalid_metadata_characters_in_category(self):
         for val in self.illegal_chars:
             index = pd.Index(['a', 'b', 'c'], dtype=object)
-            df = pd.DataFrame({'col1{}foo'.format(val): ['2', '1', '3']},
+            df = pd.DataFrame({'col1%s' % val: ['2', '1', '3']},
                               index=index, dtype=object)
 
             with self.assertRaisesRegex(ValueError,
@@ -46,7 +60,7 @@ class TestMetadata(unittest.TestCase):
 
     def test_invalid_metadata_characters_in_index(self):
         for val in self.illegal_chars:
-            index = pd.Index(['a', 'b{}'.format(val), 'c'], dtype=object)
+            index = pd.Index(['a', 'b%s' % val, 'c'], dtype=object)
             df = pd.DataFrame({'col1': ['2', '1', '3']},
                               index=index, dtype=object)
 
@@ -55,18 +69,26 @@ class TestMetadata(unittest.TestCase):
                 qiime2.Metadata(df)
 
     def test_invalid_columns_dtype(self):
-        with self.assertRaisesRegex(ValueError, 'Non-string.*category labels'):
+        with self.assertRaisesRegex(ValueError, 'Non-string.*category label'):
             qiime2.Metadata(pd.DataFrame(['a', 'b', 'c']))
 
     def test_invalid_index_dtype(self):
         with self.assertRaisesRegex(ValueError, 'Non-string.*index values'):
             qiime2.Metadata(pd.DataFrame({'foo': ['a', 'b', 'c']}))
 
+    def test_duplicate_categories(self):
+        index = pd.Index(['a', 'b'], dtype=object)
+        df = pd.DataFrame({'foo': [1, 2], 'bar': [3, 4]}, index=index)
+        df.columns = ['foo', 'foo']
+
+        with self.assertRaisesRegex(ValueError, 'Duplicate.*category'):
+            qiime2.Metadata(df)
+
     def test_duplicate_indices(self):
         index = pd.Index(['b', 'b', 'b'], dtype=object)
         df = pd.DataFrame({'foo': [1, 2, 3]}, index=index)
 
-        with self.assertRaisesRegex(ValueError, 'Non-unique.*index values'):
+        with self.assertRaisesRegex(ValueError, 'Duplicate.*index values'):
             qiime2.Metadata(df)
 
 
@@ -105,6 +127,12 @@ class TestMetadataLoad(unittest.TestCase):
                                     'Invalid characters.*index'):
             qiime2.Metadata.load(fp)
 
+    def test_non_tsv_metadata_file(self):
+        with tempfile.TemporaryFile() as bad_file:
+            bad_file.write(b'\x07\x08\x07')
+            with self.assertRaisesRegex(ValueError, 'No columns to parse'):
+                qiime2.Metadata.load(bad_file)
+
 
 class TestMetadataFromArtifact(unittest.TestCase):
     def setUp(self):
@@ -123,7 +151,6 @@ class TestMetadataFromArtifact(unittest.TestCase):
 
     def test_invalid_metadata_characters_in_category(self):
         A = qiime2.Artifact.import_data('Mapping', {'a': '1', '>b': '3'})
-
         with self.assertRaisesRegex(ValueError, 'Invalid characters'):
             qiime2.Metadata.from_artifact(A)
 
@@ -253,16 +280,6 @@ class TestIDs(unittest.TestCase):
 
         with self.assertRaises(sqlite3.OperationalError):
             metadata.ids(where="Subject='subject-1'")
-
-    def test_duplicate_columns(self):
-        df = pd.DataFrame([['subject-1', 'gut'],
-                           ['subject-1', 'tongue'],
-                           ['subject-2', 'gut']],
-                          index=['S1', 'S2', 'S3'], columns=['foo', 'foo'])
-        metadata = qiime2.Metadata(df)
-
-        with self.assertRaises(sqlite3.OperationalError):
-            metadata.ids(where="foo='subject-2'")
 
     def test_query_by_index(self):
         df = pd.DataFrame({'Subject': ['subject-1', 'subject-1', 'subject-2'],

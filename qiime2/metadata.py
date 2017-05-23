@@ -18,33 +18,27 @@ class Metadata:
         # characters on *nix filesystems. The remaining values aren't permitted
         # because they *could* be misinterpreted by a shell (e.g. `*`, `|`).
         illegal_chars = ['/', '\0', '\\', '*', '<', '>', '?', '|', '$']
-        illegal_chars = set(illegal_chars)
         chars_for_msg = ", ".join("%r" % i for i in illegal_chars)
+        illegal_chars = set(illegal_chars)
 
-        categories = dataframe.columns.values.tolist()
-        indices = dataframe.index.tolist()
+        for (axis, label) in [(dataframe.columns, 'category label'),
+                              (dataframe.index, 'index')]:
+            # First check the axis dtype
+            if axis.dtype_str not in ['object', 'str']:
+                msg = "Non-string Metadata %s values detected" % label
+                raise ValueError(invalid_metadata_template % msg)
 
-        if dataframe.columns.dtype_str != 'object':
-            msg = "Non-string Metadata category labels detected"
-            raise ValueError(invalid_metadata_template % msg)
+            # Then check for invalid characters along axis
+            for value in axis:
+                if illegal_chars & set(value):
+                    msg = "Invalid characters (e.g. %s) detected in " \
+                          "metadata %s: %r" % (chars_for_msg, label, value)
+                    raise ValueError(invalid_metadata_template % msg)
 
-        if any(illegal_chars & set(category) for category in categories):
-            msg = "Invalid characters (e.g. %s) detected in metadata " \
-                  "category labels" % chars_for_msg
-            raise ValueError(invalid_metadata_template % msg)
-
-        if dataframe.index.dtype_str != 'object':
-            msg = "Non-string Metadata index values detected"
-            raise ValueError(invalid_metadata_template % msg)
-
-        if any(illegal_chars & set(index) for index in indices):
-            msg = "Invalid characters (e.g. %s) detected in index (e.g. " \
-                  "`SampleID`) values" % chars_for_msg
-            raise ValueError(invalid_metadata_template % msg)
-
-        if len(indices) != len(set(indices)):
-            msg = "Non-unique Metadata index values detected"
-            raise ValueError(invalid_metadata_template % msg)
+            # Finally, ensure unique values along axis
+            if len(axis) != len(set(axis)):
+                msg = "Duplicate Metadata %s values detected" % label
+                raise ValueError(invalid_metadata_template % msg)
 
         self._dataframe = dataframe
         self._artifact = None
