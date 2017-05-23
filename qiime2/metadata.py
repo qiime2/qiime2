@@ -14,6 +14,32 @@ import pandas as pd
 
 class Metadata:
     def __init__(self, dataframe):
+        # `/` and `\0` aren't permitted because they are invalid filename
+        # characters on *nix filesystems. The remaining values aren't permitted
+        # because they *could* be misinterpreted by a shell (e.g. `*`, `|`).
+        illegal_chars = ['/', '\0', '\\', '*', '<', '>', '?', '|', '$']
+        chars_for_msg = ", ".join("%r" % i for i in illegal_chars)
+        illegal_chars = set(illegal_chars)
+
+        for (axis, label) in [(dataframe.columns, 'category label'),
+                              (dataframe.index, 'index')]:
+            # First check the axis dtype
+            if axis.dtype_str not in ['object', 'str']:
+                msg = "Non-string Metadata %s values detected" % label
+                raise ValueError(invalid_metadata_template % msg)
+
+            # Then check for invalid characters along axis
+            for value in axis:
+                if illegal_chars & set(value):
+                    msg = "Invalid characters (e.g. %s) detected in " \
+                          "metadata %s: %r" % (chars_for_msg, label, value)
+                    raise ValueError(invalid_metadata_template % msg)
+
+            # Finally, ensure unique values along axis
+            if len(axis) != len(set(axis)):
+                msg = "Duplicate Metadata %s values detected" % label
+                raise ValueError(invalid_metadata_template % msg)
+
         self._dataframe = dataframe
         self._artifact = None
 
@@ -61,11 +87,8 @@ class Metadata:
                 "Metadata file %s doesn't exist or isn't accessible (e.g., "
                 "due to incompatible file permissions)." % path)
         except (pd.io.common.CParserError, KeyError):
-            raise ValueError(
-                'Metadata file format is invalid for file %s. Currently only '
-                'QIIME 1 sample/feature metadata mapping files are officially '
-                'supported. Sample metadata mapping files can be validated '
-                'using Keemei: http://keemei.qiime.org' % path)
+            msg = 'Metadata file format is invalid for file %s' % path
+            raise ValueError(invalid_metadata_template % msg)
         return cls(df)
 
     def get_category(self, *names):
@@ -198,3 +221,9 @@ class MetadataCategory:
     def _add_artifact(self, artifact):
         """ Adds the artifact to self."""
         self._artifact = artifact
+
+
+invalid_metadata_template = "%s. There may be more errors present in this " \
+    "metadata. Currently only QIIME 1 sample/feature metadata mapping files " \
+    "are officially supported. Sample metadata files can be validated using " \
+    "Keemei: http://keemei.qiime.org."
