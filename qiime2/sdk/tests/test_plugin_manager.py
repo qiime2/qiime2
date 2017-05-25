@@ -61,7 +61,7 @@ class TestPluginManager(unittest.TestCase):
     # TODO: add tests for type/directory/transformer registrations
 
     def test_importable_formats(self):
-        _format = self.pm.importable_formats
+        obs = self.pm.importable_formats
         exp = {'IntSequenceV2DirectoryFormat':
                FormatRecord(format='qiime2.plugin.model.directory_format.'
                                    'IntSequenceV2DirectoryFormat',
@@ -94,7 +94,7 @@ class TestPluginManager(unittest.TestCase):
                                    'SingleIntFormat',
                             plugin=self.plugin)}
 
-        self.assertTrue(set(exp).issubset(set(_format)))
+        self.assertEqual(obs, exp)
 
 
 if __name__ == '__main__':

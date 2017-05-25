@@ -48,7 +48,7 @@ class PluginManager:
     def _init(self):
         self.plugins = {}
         self.semantic_types = {}
-        self.importable_formats = {}
+        self._importable_formats = {}
         self.transformers = collections.defaultdict(dict)
         self.formats = {}
         self.type_formats = []
@@ -80,7 +80,7 @@ class PluginManager:
             self.transformers[input][output] = transformer_record
 
         for name, record in plugin.formats.items():
-            self.importable_formats[name] = record
+            self._importable_formats[name] = record
             if name in self.formats:
                 raise NameError(
                     "Duplicate format registration (%r) defined in plugins: %r"
@@ -93,6 +93,13 @@ class PluginManager:
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
+
+    @property
+    def importable_formats(self):
+        """Return dict of formats that are importable
+
+        """
+        return self._importable_formats
 
     @property
     def importable_types(self):
