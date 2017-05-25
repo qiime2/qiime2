@@ -10,7 +10,7 @@ import unittest
 
 import qiime2.plugin
 import qiime2.sdk
-from qiime2.plugin.plugin import SemanticTypeRecord
+from qiime2.plugin.plugin import SemanticTypeRecord, FormatRecord
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
                                       FourInts, Kennel, Dog, Cat)
@@ -59,6 +59,42 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(types, exp)
 
     # TODO: add tests for type/directory/transformer registrations
+
+    def test_importable_formats(self):
+        _format = self.pm.importable_formats
+        exp = {'IntSequenceV2DirectoryFormat':
+               FormatRecord(format='qiime2.plugin.model.directory_format.'
+                                   'IntSequenceV2DirectoryFormat',
+                            plugin=self.plugin),
+               'FourIntsDirectoryFormat':
+               FormatRecord(format='qiime2.core.testing.format.'
+                                   'FourIntsDirectoryFormat',
+                            plugin=self.plugin),
+               'IntSequenceDirectoryFormat':
+               FormatRecord(format='qiime2.plugin.model.directory_format.'
+                                   'IntSequenceDirectoryFormat',
+                            plugin=self.plugin),
+               'IntSequenceFormat':
+               FormatRecord(format='qiime2.core.testing.format.'
+                                   'IntSequenceFormat',
+                            plugin=self.plugin),
+               'IntSequenceFormatV2':
+               FormatRecord(format='qiime2.core.testing.format.'
+                                   'IntSequenceFormatV2',
+                            plugin=self.plugin),
+               'MappingDirectoryFormat':
+               FormatRecord(format='qiime2.core.testing.format.'
+                                   'MappingDirectoryFormat',
+                            plugin=self.plugin),
+               'MappingFormat':
+               FormatRecord(format='qiime2.core.testing.format.MappingFormat',
+                            plugin=self.plugin),
+               'SingleIntFormat':
+               FormatRecord(format='qiime2.core.testing.format.'
+                                   'SingleIntFormat',
+                            plugin=self.plugin)}
+
+        self.assertTrue(set(exp).issubset(set(_format)))
 
 
 if __name__ == '__main__':
