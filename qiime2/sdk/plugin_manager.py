@@ -9,7 +9,7 @@
 import collections
 import os
 import pkg_resources
-
+import qiime2.core.transform as transform
 import qiime2.core.type
 
 
@@ -79,12 +79,15 @@ class PluginManager:
                                  % transformer_record)
             self.transformers[input][output] = transformer_record
 
+        to_type = transform.ModelType.from_view_type(qiime2.Metadata)
         for name, record in plugin.formats.items():
 
             for type_format in self.type_formats:
-                if record.has_transformation(type_format):
-                    self._importable_formats[name] = record
-                    break
+                print('foo')
+                #if from_type.has_transformation(to_type):
+                #    print(blarg)
+                #    self._importable_formats[name] = record
+                #    break
 
             if name in self.formats:
                 raise NameError(
