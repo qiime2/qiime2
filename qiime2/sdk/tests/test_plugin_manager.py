@@ -62,9 +62,11 @@ class TestPluginManager(unittest.TestCase):
 
     def test_importable_formats(self):
         obs = self.pm.importable_formats
-        for key in obs.keys:
-          print('observed: ' + str(key))
-        self.assertEqual(obs, None)
+        exp = set([ 'IntSequenceDirectoryFormat', 'MappingDirectoryFormat',
+                'IntSequenceV2DirectoryFormat', 'IntSequenceFormatV2',
+                'FourIntsDirectoryFormat', 'IntSequenceFormat' ])
+        
+        self.assertEqual(obs.keys(), exp)
 
 
 if __name__ == '__main__':
