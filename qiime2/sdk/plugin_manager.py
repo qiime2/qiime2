@@ -79,8 +79,15 @@ class PluginManager:
                                  % transformer_record)
             self.transformers[input][output] = transformer_record
 
+        #### ???? ----------------------------- 
         for name, record in plugin.formats.items():
-            self._importable_formats[name] = record
+            for type_format in self.type_formats:
+                record.has_transformation(type_format):
+                    self._importable_formats[name] = record
+                    break
+
+        #### ???? -----------------------------
+
             if name in self.formats:
                 raise NameError(
                     "Duplicate format registration (%r) defined in plugins: %r"
