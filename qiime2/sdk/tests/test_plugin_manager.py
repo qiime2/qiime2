@@ -56,7 +56,7 @@ class TestPluginManager(unittest.TestCase):
         exp = { IntSequence1, IntSequence2, FourInts,
                Mapping, Kennel[Dog], Kennel[Cat] }
         
-        print(types + '\n\n----\n\n' + exp)
+        print(str(types) + "\n\n----\n\n" + str(exp))
 
         self.assertEqual(types, exp)
 

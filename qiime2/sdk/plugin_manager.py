@@ -48,7 +48,6 @@ class PluginManager:
     def _init(self):
         self.plugins = {}
         self.semantic_types = {}
-        self._importable_formats = {}
         self.transformers = collections.defaultdict(dict)
         self.formats = {}
         self.type_formats = []
@@ -79,15 +78,7 @@ class PluginManager:
                                  % transformer_record)
             self.transformers[input][output] = transformer_record
 
-        to_type = transform.ModelType.from_view_type(qiime2.Metadata)
         for name, record in plugin.formats.items():
-
-            for type_format in self.type_formats:
-                print('foo')
-                #if from_type.has_transformation(to_type):
-                #    print(blarg)
-                #    self._importable_formats[name] = record
-                #    break
 
             if name in self.formats:
                 raise NameError(
@@ -108,7 +99,16 @@ class PluginManager:
         """Return dict of formats that are importable
 
         """
-        return self._importable_formats
+        _importable_formats = {}
+        for plugin in self.plugins.values():
+            for name, record in plugin.formats.items():
+                for type_format in self.type_formats:
+                    from_type = transform.ModelType.from_view_type(record.format)
+                    to_type = transform.ModelType.from_view_type(type_format.format)
+                    if from_type.has_transformation(to_type):
+                        _importable_formats[name] = record
+
+        return _importable_formats
 
     @property
     def importable_types(self):
