@@ -53,6 +53,7 @@ class TestPluginManager(unittest.TestCase):
 
     def test_importable_types(self):
         types = self.pm.importable_types
+        print(types)
 
         exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],
                Kennel[Cat]}

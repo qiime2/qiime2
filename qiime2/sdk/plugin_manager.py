@@ -79,14 +79,12 @@ class PluginManager:
                                  % transformer_record)
             self.transformers[input][output] = transformer_record
 
-        #### ???? ----------------------------- 
         for name, record in plugin.formats.items():
+
             for type_format in self.type_formats:
-                record.has_transformation(type_format):
+                if record.has_transformation(type_format):
                     self._importable_formats[name] = record
                     break
-
-        #### ???? -----------------------------
 
             if name in self.formats:
                 raise NameError(
@@ -95,6 +93,7 @@ class PluginManager:
                     (name, record.plugin.name, self.formats[name].plugin.name)
                 )
             self.formats[name] = record
+
         self.type_formats.extend(plugin.type_formats)
 
     # TODO: Should plugin loading be transactional? i.e. if there's
