@@ -53,50 +53,18 @@ class TestPluginManager(unittest.TestCase):
 
     def test_importable_types(self):
         types = self.pm.importable_types
-        exp = { IntSequence1, IntSequence2, FourInts,
-               Mapping, Kennel[Dog], Kennel[Cat] }
-        
-        print(str(types) + "\n\n----\n\n" + str(exp))
 
+        exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],
+               Kennel[Cat]}
         self.assertEqual(types, exp)
 
     # TODO: add tests for type/directory/transformer registrations
 
     def test_importable_formats(self):
         obs = self.pm.importable_formats
-        exp = {'IntSequenceV2DirectoryFormat':
-               FormatRecord(format='qiime2.plugin.model.directory_format.'
-                                   'IntSequenceV2DirectoryFormat',
-                            plugin=self.plugin),
-               'FourIntsDirectoryFormat':
-               FormatRecord(format='qiime2.core.testing.format.'
-                                   'FourIntsDirectoryFormat',
-                            plugin=self.plugin),
-               'IntSequenceDirectoryFormat':
-               FormatRecord(format='qiime2.plugin.model.directory_format.'
-                                   'IntSequenceDirectoryFormat',
-                            plugin=self.plugin),
-               'IntSequenceFormat':
-               FormatRecord(format='qiime2.core.testing.format.'
-                                   'IntSequenceFormat',
-                            plugin=self.plugin),
-               'IntSequenceFormatV2':
-               FormatRecord(format='qiime2.core.testing.format.'
-                                   'IntSequenceFormatV2',
-                            plugin=self.plugin),
-               'MappingDirectoryFormat':
-               FormatRecord(format='qiime2.core.testing.format.'
-                                   'MappingDirectoryFormat',
-                            plugin=self.plugin),
-               'MappingFormat':
-               FormatRecord(format='qiime2.core.testing.format.MappingFormat',
-                            plugin=self.plugin),
-               'SingleIntFormat':
-               FormatRecord(format='qiime2.core.testing.format.'
-                                   'SingleIntFormat',
-                            plugin=self.plugin)}
-
-        self.assertEqual(obs, exp)
+        for key in obs.keys:
+          print('observed: ' + str(key))
+        self.assertEqual(obs, None)
 
 
 if __name__ == '__main__':
