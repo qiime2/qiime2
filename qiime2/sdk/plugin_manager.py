@@ -96,15 +96,20 @@ class PluginManager:
 
     @property
     def importable_formats(self):
-        """Return dict of formats that are importable
+        """Return dict of formats that are importable.
+
+        A format is importable if an installed plugin can transform it into
+        one of the canonical semantic types.
 
         """
         _importable_formats = {}
         for plugin in self.plugins.values():
             for name, record in plugin.formats.items():
                 for type_format in self.type_formats:
-                    from_type = transform.ModelType.from_view_type(record.format)
-                    to_type = transform.ModelType.from_view_type(type_format.format)
+                    from_type = transform.ModelType.from_view_type(
+                        record.format)
+                    to_type = transform.ModelType.from_view_type(
+                        type_format.format)
                     if from_type.has_transformation(to_type):
                         _importable_formats[name] = record.format
 
