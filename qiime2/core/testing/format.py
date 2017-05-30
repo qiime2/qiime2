@@ -99,6 +99,7 @@ class FourIntsDirectoryFormat(model.DirectoryFormat):
         else:
             return 'file%d.txt' % num
 
+
 class DummyFormat(TextFileFormat):
     """
     Useless format which maps to nothing, used for testing the plugin

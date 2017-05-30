@@ -87,5 +87,6 @@ class TestPluginManager(unittest.TestCase):
         obs = [item[0] for item in self.plugin.formats.items()]
         self.assertTrue(exp in obs)
 
+
 if __name__ == '__main__':
     unittest.main()
