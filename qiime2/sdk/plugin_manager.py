@@ -106,7 +106,7 @@ class PluginManager:
                     from_type = transform.ModelType.from_view_type(record.format)
                     to_type = transform.ModelType.from_view_type(type_format.format)
                     if from_type.has_transformation(to_type):
-                        _importable_formats[name] = record
+                        _importable_formats[name] = record.format
 
         return _importable_formats
 

@@ -14,6 +14,12 @@ from qiime2.plugin.plugin import SemanticTypeRecord, FormatRecord
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
                                       FourInts, Kennel, Dog, Cat)
+from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
+                                      MappingDirectoryFormat,
+                                      IntSequenceV2DirectoryFormat,
+                                      IntSequenceFormatV2,
+                                      FourIntsDirectoryFormat,
+                                      IntSequenceFormat)
 from qiime2.core.testing.util import get_dummy_plugin
 
 
@@ -62,11 +68,16 @@ class TestPluginManager(unittest.TestCase):
 
     def test_importable_formats(self):
         obs = self.pm.importable_formats
-        exp = set([ 'IntSequenceDirectoryFormat', 'MappingDirectoryFormat',
-                'IntSequenceV2DirectoryFormat', 'IntSequenceFormatV2',
-                'FourIntsDirectoryFormat', 'IntSequenceFormat' ])
+        exp = { 
+            'IntSequenceDirectoryFormat': IntSequenceDirectoryFormat,
+            'MappingDirectoryFormat': MappingDirectoryFormat,
+            'IntSequenceV2DirectoryFormat': IntSequenceV2DirectoryFormat,
+            'IntSequenceFormatV2': IntSequenceFormatV2,
+            'FourIntsDirectoryFormat': FourIntsDirectoryFormat,
+            'IntSequenceFormat': IntSequenceFormat
+        }
         
-        self.assertEqual(obs.keys(), exp)
+        self.assertEqual(obs, exp)
 
 
 if __name__ == '__main__':
