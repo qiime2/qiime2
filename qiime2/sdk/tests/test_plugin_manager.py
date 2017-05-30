@@ -79,6 +79,13 @@ class TestPluginManager(unittest.TestCase):
 
         self.assertEqual(obs, exp)
 
+    def test_importable_formats_with_dummy(self):
+        exp = "DummyFormat"
+        obs = self.pm.importable_formats.keys()
+        self.assertFalse(exp in obs)
+
+        obs = [item[0] for item in self.plugin.formats.items()]
+        self.assertTrue(exp in obs)
 
 if __name__ == '__main__':
     unittest.main()

@@ -98,3 +98,10 @@ class FourIntsDirectoryFormat(model.DirectoryFormat):
             return 'nested/file%d.txt' % num
         else:
             return 'file%d.txt' % num
+
+class DummyFormat(TextFileFormat):
+    """
+    Useless format which maps to nothing, used for testing the plugin
+    manager.
+
+    """
