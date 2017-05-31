@@ -62,7 +62,7 @@ class ParameterSpec(ImmutableBase):
         return not (self == other)
 
 
-# Note: Pipeline doesn't exist yet but it is expected to accept one or more
+# Note: Pipeline doesn't exist yet but it is expected to accept zero or more
 # input semantic types, zero or more parameters, and produce one or more output
 # semantic types or Visualization types.
 class PipelineSignature:
@@ -213,10 +213,6 @@ class PipelineSignature:
         return annotated_inputs, annotated_parameters, annotated_outputs
 
     def _assert_valid_inputs(self, inputs):
-        if len(inputs) == 0:
-            raise TypeError("%s requires at least one input"
-                            % self.__class__.__name__)
-
         for input_name, spec in inputs.items():
             if not is_semantic_type(spec.qiime_type):
                 raise TypeError(

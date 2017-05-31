@@ -40,6 +40,23 @@ def multi_html_viz(output_dir: str, ints: list) -> None:
         fh.write('</body></html>')
 
 
+# No input artifacts, only parameters.
+def params_only_viz(output_dir: str, name: str='Foo Bar', age: int=42):
+    with open(os.path.join(output_dir, 'index.html'), 'w') as fh:
+        fh.write('<html><body>\n')
+        fh.write('Name: %s\n' % name)
+        fh.write('Age: %s\n' % age)
+        fh.write('</body></html>')
+
+
+# No input artifacts or parameters.
+def no_input_viz(output_dir: str):
+    with open(os.path.join(output_dir, 'index.html'), 'w') as fh:
+        fh.write('<html><body>\n')
+        fh.write('Hello, World!\n')
+        fh.write('</body></html>')
+
+
 # Multiple input artifacts and parameters, and a nested directory with required
 # resources for rendering.
 def mapping_viz(output_dir: str, mapping1: dict, mapping2: dict,

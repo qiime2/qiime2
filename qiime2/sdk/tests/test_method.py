@@ -17,7 +17,8 @@ from qiime2.core.type import MethodSignature
 from qiime2.sdk import Artifact, Method, Results
 
 from qiime2.core.testing.method import (concatenate_ints, merge_mappings,
-                                        split_ints)
+                                        split_ints, params_only_method,
+                                        no_input_method)
 from qiime2.core.testing.type import IntSequence1, IntSequence2, Mapping
 from qiime2.core.testing.util import get_dummy_plugin
 
@@ -118,6 +119,51 @@ class TestMethod(unittest.TestCase):
             method.description.startswith('This method merges two mappings'))
         self.assertTrue(
             method.source.startswith('\n```python\ndef merge_mappings('))
+
+    def test_from_function_with_parameters_only(self):
+        method = self.plugin.methods['params_only_method']
+
+        self.assertEqual(method.id, 'params_only_method')
+
+        exp_sig = MethodSignature(
+            params_only_method,
+            inputs={},
+            parameters={
+                'name': qiime2.plugin.Str,
+                'age': qiime2.plugin.Int
+            },
+            outputs=[
+                ('out', Mapping)
+            ]
+        )
+        self.assertEqual(method.signature, exp_sig)
+
+        self.assertEqual(method.name, 'Parameters only method')
+        self.assertTrue(
+            method.description.startswith('This method only accepts'))
+        self.assertTrue(
+            method.source.startswith('\n```python\ndef params_only_method('))
+
+    def test_from_function_without_inputs_or_parameters(self):
+        method = self.plugin.methods['no_input_method']
+
+        self.assertEqual(method.id, 'no_input_method')
+
+        exp_sig = MethodSignature(
+            no_input_method,
+            inputs={},
+            parameters={},
+            outputs=[
+                ('out', Mapping)
+            ]
+        )
+        self.assertEqual(method.signature, exp_sig)
+
+        self.assertEqual(method.name, 'No input method')
+        self.assertTrue(
+            method.description.startswith('This method does not accept any'))
+        self.assertTrue(
+            method.source.startswith('\n```python\ndef no_input_method('))
 
     def test_is_callable(self):
         self.assertTrue(callable(self.plugin.methods['concatenate_ints']))
@@ -274,6 +320,26 @@ class TestMethod(unittest.TestCase):
 
         self.assertEqual(result.view(dict),
                          {'foo': 'abc', 'bar': 'def', 'bazz': 'abc'})
+
+    def test_call_with_parameters_only(self):
+        params_only_method = self.plugin.methods['params_only_method']
+
+        result, = params_only_method("Someone's Name", 999)
+
+        self.assertIsInstance(result, Artifact)
+        self.assertEqual(result.type, Mapping)
+        self.assertIsInstance(result.uuid, uuid.UUID)
+        self.assertEqual(result.view(dict), {"Someone's Name": '999'})
+
+    def test_call_without_inputs_or_parameters(self):
+        no_input_method = self.plugin.methods['no_input_method']
+
+        result, = no_input_method()
+
+        self.assertIsInstance(result, Artifact)
+        self.assertEqual(result.type, Mapping)
+        self.assertIsInstance(result.uuid, uuid.UUID)
+        self.assertEqual(result.view(dict), {'foo': '42'})
 
     def test_async(self):
         concatenate_ints = self.plugin.methods['concatenate_ints']
