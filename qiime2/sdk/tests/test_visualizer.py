@@ -18,7 +18,8 @@ import qiime2.core.type
 from qiime2.core.type import VisualizerSignature
 from qiime2.sdk import Artifact, Visualization, Visualizer, Results
 
-from qiime2.core.testing.visualizer import most_common_viz, mapping_viz
+from qiime2.core.testing.visualizer import (most_common_viz, mapping_viz,
+                                            params_only_viz, no_input_viz)
 from qiime2.core.testing.type import IntSequence1, IntSequence2, Mapping
 from qiime2.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 
@@ -82,6 +83,47 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
                                               'and TSV'))
         self.assertTrue(
             visualizer.source.startswith('\n```python\ndef most_common_viz('))
+
+    def test_from_function_with_parameters_only(self):
+        visualizer = self.plugin.visualizers['params_only_viz']
+
+        self.assertEqual(visualizer.id, 'params_only_viz')
+
+        exp_sig = VisualizerSignature(
+            params_only_viz,
+            inputs={},
+            parameters={
+                'name': qiime2.plugin.Str,
+                'age': qiime2.plugin.Int
+            }
+        )
+        self.assertEqual(visualizer.signature, exp_sig)
+
+        self.assertEqual(visualizer.name, 'Parameters only viz')
+        self.assertTrue(
+            visualizer.description.startswith('This visualizer only accepts '
+                                              'parameters.'))
+        self.assertTrue(
+            visualizer.source.startswith('\n```python\ndef params_only_viz('))
+
+    def test_from_function_without_inputs_or_parameters(self):
+        visualizer = self.plugin.visualizers['no_input_viz']
+
+        self.assertEqual(visualizer.id, 'no_input_viz')
+
+        exp_sig = VisualizerSignature(
+            no_input_viz,
+            inputs={},
+            parameters={}
+        )
+        self.assertEqual(visualizer.signature, exp_sig)
+
+        self.assertEqual(visualizer.name, 'No input viz')
+        self.assertTrue(
+            visualizer.description.startswith('This visualizer does not '
+                                              'accept any'))
+        self.assertTrue(
+            visualizer.source.startswith('\n```python\ndef no_input_viz('))
 
     def test_is_callable(self):
         self.assertTrue(callable(self.plugin.visualizers['mapping_viz']))
@@ -228,6 +270,55 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/artifacts/%s/metadata.yaml' % artifact.uuid,
             'provenance/artifacts/%s/VERSION' % artifact.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact.uuid
+        }
+
+        self.assertArchiveMembers(filepath, root_dir, expected)
+
+    def test_call_with_parameters_only(self):
+        params_only_viz = self.plugin.visualizers['params_only_viz']
+
+        # Parameters all have default values.
+        result, = params_only_viz()
+
+        self.assertIsInstance(result, Visualization)
+        self.assertEqual(result.type, qiime2.core.type.Visualization)
+        self.assertIsInstance(result.uuid, uuid.UUID)
+
+        filepath = os.path.join(self.test_dir.name, 'visualization.qzv')
+        result.save(filepath)
+
+        root_dir = str(result.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'data/index.html',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
+        }
+
+        self.assertArchiveMembers(filepath, root_dir, expected)
+
+    def test_call_without_inputs_or_parameters(self):
+        no_input_viz = self.plugin.visualizers['no_input_viz']
+
+        result, = no_input_viz()
+
+        self.assertIsInstance(result, Visualization)
+        self.assertEqual(result.type, qiime2.core.type.Visualization)
+        self.assertIsInstance(result.uuid, uuid.UUID)
+
+        filepath = os.path.join(self.test_dir.name, 'visualization.qzv')
+        result.save(filepath)
+
+        root_dir = str(result.uuid)
+        expected = {
+            'VERSION',
+            'metadata.yaml',
+            'data/index.html',
+            'provenance/metadata.yaml',
+            'provenance/VERSION',
+            'provenance/action/action.yaml'
         }
 
         self.assertArchiveMembers(filepath, root_dir, expected)

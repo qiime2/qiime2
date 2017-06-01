@@ -25,8 +25,10 @@ from .format import (
 from .type import (IntSequence1, IntSequence2, Mapping, FourInts,
                    Kennel, Dog, Cat)
 from .method import (concatenate_ints, split_ints, merge_mappings,
-                     identity_with_metadata, identity_with_metadata_category)
-from .visualizer import most_common_viz, mapping_viz
+                     identity_with_metadata, identity_with_metadata_category,
+                     params_only_method, no_input_method)
+from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
+                         no_input_viz)
 
 dummy_plugin = qiime2.plugin.Plugin(
     name='dummy-plugin',
@@ -157,6 +159,55 @@ dummy_plugin.methods.register_function(
     name='Identity',
     description='This method does nothing, but takes a metadata category'
 )
+
+
+dummy_plugin.methods.register_function(
+    function=params_only_method,
+    inputs={},
+    parameters={
+        'name': qiime2.plugin.Str,
+        'age': qiime2.plugin.Int
+    },
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='Parameters only method',
+    description='This method only accepts parameters.'
+)
+
+
+dummy_plugin.methods.register_function(
+    function=no_input_method,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='No input method',
+    description='This method does not accept any type of input.'
+)
+
+
+dummy_plugin.visualizers.register_function(
+    function=params_only_viz,
+    inputs={},
+    parameters={
+        'name': qiime2.plugin.Str,
+        'age': qiime2.plugin.Int
+    },
+    name='Parameters only viz',
+    description='This visualizer only accepts parameters.'
+)
+
+
+dummy_plugin.visualizers.register_function(
+    function=no_input_viz,
+    inputs={},
+    parameters={},
+    name='No input viz',
+    description='This visualizer does not accept any type of input.'
+)
+
 
 dummy_plugin.visualizers.register_function(
     function=most_common_viz,

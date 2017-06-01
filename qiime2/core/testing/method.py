@@ -35,6 +35,16 @@ def merge_mappings(mapping1: dict, mapping2: dict) -> dict:
     return merged
 
 
+# No input artifacts, only parameters.
+def params_only_method(name: str, age: int) -> dict:
+    return {name: age}
+
+
+# No input artifacts or parameters.
+def no_input_method() -> dict:
+    return {'foo': 42}
+
+
 def identity_with_metadata(ints: list, metadata: qiime2.Metadata) -> list:
     return ints
 
