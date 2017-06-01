@@ -11,6 +11,7 @@ import os
 import tempfile
 import unittest
 import uuid
+import pathlib
 
 import qiime2.core.type
 from qiime2.sdk import Artifact
@@ -230,9 +231,11 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         artifact.save(fp)
 
         root_dir = str(artifact.uuid)
-        output_dir = os.path.join(self.test_dir.name, 'artifact-extract-test')
+        # pathlib normalizes away the `.`, it doesn't matter, but this is the
+        # implementation we're using, so let's test against that assumption.
+        output_dir = pathlib.Path(self.test_dir.name) / 'artifact-extract-test'
         result_dir = Artifact.extract(fp, output_dir=output_dir)
-        self.assertEqual(result_dir, os.path.join(output_dir, root_dir))
+        self.assertEqual(result_dir, str(output_dir / root_dir))
 
         expected = {
             'VERSION',
