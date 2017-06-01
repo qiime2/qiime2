@@ -32,10 +32,10 @@ class ArchiveTestingMixin:
 
         Parameters
         ----------
-        archive_filepath : str
+        archive_filepath : str or Path
             Filepath to archive whose members will be verified against the
             `expected` members.
-        root_dir : str
+        root_dir : str or Path
             Root directory of the archive. Will be prepended to the member
             paths in `expected`. This is useful when the archive's root
             directory is not known ahead of time (e.g. when it is a random
@@ -45,6 +45,8 @@ class ArchiveTestingMixin:
             `root_dir`.
 
         """
+        archive_filepath = str(archive_filepath)
+        root_dir = str(root_dir)
         with zipfile.ZipFile(archive_filepath, mode='r') as zf:
             observed = set(zf.namelist())
 
@@ -59,9 +61,9 @@ class ArchiveTestingMixin:
 
         Parameters
         ----------
-        extract_dir : str
+        extract_dir : str or Path
             Path to directory the archive was extracted to.
-        root_dir : str
+        root_dir : str or Path
             Root directory of the archive that was extracted to `extract_dir`.
             This is useful when the archive's root directory is not known ahead
             of time (e.g. when it is a random UUID) and the caller is
@@ -71,6 +73,8 @@ class ArchiveTestingMixin:
             as paths relative to `root_dir`.
 
         """
+        extract_dir = str(extract_dir)
+        root_dir = str(root_dir)
         observed = set()
         for root, _, filenames in os.walk(extract_dir):
             for filename in filenames:
