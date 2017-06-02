@@ -100,7 +100,15 @@ class FourIntsDirectoryFormat(model.DirectoryFormat):
             return 'file%d.txt' % num
 
 
-class DummyFormat(TextFileFormat):
+class UnimportableFormat(TextFileFormat):
+    """
+    Useless format which maps to nothing, used for testing the plugin
+    manager.
+
+    """
+
+
+class UnimportableDirectoryFormat(model.DirectoryFormat):
     """
     Useless format which maps to nothing, used for testing the plugin
     manager.
