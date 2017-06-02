@@ -16,6 +16,8 @@ from .format import (
     IntSequenceFormatV2,
     SingleIntFormat,
     MappingFormat,
+    UnimportableFormat,
+    UnimportableDirectoryFormat
 )
 from .plugin import dummy_plugin
 
@@ -147,3 +149,13 @@ def _1(data: list) -> FourIntsDirectoryFormat:
     for i, int_ in enumerate(data, 1):
         df.single_ints.write_data(int_, int, num=i)
     return df
+
+
+@dummy_plugin.register_transformer
+def _4(ff: UnimportableFormat) -> int:
+    return 1
+
+
+@dummy_plugin.register_transformer
+def _6(df: UnimportableDirectoryFormat) -> int:
+    return 2

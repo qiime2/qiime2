@@ -64,9 +64,12 @@ class PluginManager:
         for plugin in self.plugins.values():
             self._integrate_plugin(plugin)
 
-    # This hook is for setting up additional properties that *require* the PluginManager be instantiated
+    # This hook is for setting up additional properties that *require*
+    # the PluginManager be instantiated
     def _post_init(self):
         for type_format in self.type_formats:
+            for type in type_format.type_expression:
+                self._importable_types.add(type)
             for record in self.formats.values():
                 from_type = transform.ModelType.from_view_type(
                     record.format)
@@ -74,8 +77,6 @@ class PluginManager:
                     type_format.format)
                 if from_type.has_transformation(to_type):
                     self._importable_formats.add(record)
-            for type in type_format.type_expression:
-                self._importable_types.add(type)
 
     def _integrate_plugin(self, plugin):
         for type_name, type_record in plugin.types.items():
@@ -114,8 +115,8 @@ class PluginManager:
     def importable_formats(self):
         """Return set of formats that are importable.
 
-        A format is importable if an installed plugin can transform it into
-        one of the canonical semantic types.
+        A format is importable in a QIIME 2 deployment if it can be transformed
+        into at least one of the canonical semantic type formats.
 
         """
         return self._importable_formats

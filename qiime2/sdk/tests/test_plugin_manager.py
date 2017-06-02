@@ -10,8 +10,7 @@ import unittest
 
 import qiime2.plugin
 import qiime2.sdk
-from qiime2.plugin.plugin import (SemanticTypeRecord, TypeFormatRecord,
-                                 FormatRecord)
+from qiime2.plugin.plugin import (SemanticTypeRecord, FormatRecord)
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
                                       FourInts, Kennel, Dog, Cat)
@@ -79,7 +78,6 @@ class TestPluginManager(unittest.TestCase):
             FourIntsDirectoryFormat,
             IntSequenceFormat
         }
-
         self.assertEqual(set(obs), exp)
 
     def test_importable_formats_with_dummy(self):
@@ -87,11 +85,11 @@ class TestPluginManager(unittest.TestCase):
         self.assertFalse(UnimportableFormat in obs)
         self.assertFalse(UnimportableDirectoryFormat in obs)
 
-        obs = self.plugin.formats.items()
+        obs = self.pm.formats.items()
         exp = {
                 ('UnimportableFormat',
-                FormatRecord(format=UnimportableFormat,
-                             plugin=self.plugin)),
+                 FormatRecord(format=UnimportableFormat,
+                              plugin=self.plugin)),
                 ('UnimportableDirectoryFormat',
                  FormatRecord(format=UnimportableDirectoryFormat,
                               plugin=self.plugin))
