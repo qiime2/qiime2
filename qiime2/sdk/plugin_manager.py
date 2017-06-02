@@ -52,7 +52,7 @@ class PluginManager:
         self.transformers = collections.defaultdict(dict)
         self.formats = {}
         self.type_formats = []
-        self._importable_formats = {}
+        self._importable_formats = set()
         self._importable_types = set()
 
         # These are all dependent loops, each requires the loop above it to
@@ -67,13 +67,13 @@ class PluginManager:
     # This hook is for setting up additional properties that *require* the PluginManager be instantiated
     def _post_init(self):
         for type_format in self.type_formats:
-            for name, record in self.formats.items():
+            for record in self.formats.values():
                 from_type = transform.ModelType.from_view_type(
                     record.format)
                 to_type = transform.ModelType.from_view_type(
                     type_format.format)
                 if from_type.has_transformation(to_type):
-                    self._importable_formats[name] = record.format
+                    self._importable_formats.add(record)
             for type in type_format.type_expression:
                 self._importable_types.add(type)
 
@@ -112,7 +112,7 @@ class PluginManager:
 
     @property
     def importable_formats(self):
-        """Return dict of formats that are importable.
+        """Return set of formats that are importable.
 
         A format is importable if an installed plugin can transform it into
         one of the canonical semantic types.
