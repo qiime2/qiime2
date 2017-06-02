@@ -53,6 +53,7 @@ class PluginManager:
         self.formats = {}
         self.type_formats = []
         self._importable_formats = {}
+        self._importable_types = set()
 
         # These are all dependent loops, each requires the loop above it to
         # be completed.
@@ -63,15 +64,18 @@ class PluginManager:
         for plugin in self.plugins.values():
             self._integrate_plugin(plugin)
 
+    # This hook is for setting up additional properties that *require* the PluginManager be instantiated
     def _post_init(self):
-        for name, record in self.formats.items():
-            for type_format in self.type_formats:
+        for type_format in self.type_formats:
+            for name, record in self.formats.items():
                 from_type = transform.ModelType.from_view_type(
                     record.format)
                 to_type = transform.ModelType.from_view_type(
                     type_format.format)
                 if from_type.has_transformation(to_type):
                     self._importable_formats[name] = record.format
+            for type in type_format.type_expression:
+                self._importable_types.add(type)
 
     def _integrate_plugin(self, plugin):
         for type_name, type_record in plugin.types.items():
@@ -114,7 +118,6 @@ class PluginManager:
         one of the canonical semantic types.
 
         """
-
         return self._importable_formats
 
     @property
@@ -125,11 +128,7 @@ class PluginManager:
         directory format.
 
         """
-        types = set()
-        for record in self.type_formats:
-            for type in record.type_expression:
-                types.add(type)
-        return types
+        return self._importable_types
 
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):
