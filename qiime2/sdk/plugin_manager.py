@@ -43,6 +43,7 @@ class PluginManager:
             self = super().__new__(cls)
             self._init()
             cls.__instance = self
+            self._post_init()
         return cls.__instance
 
     def _init(self):
@@ -51,6 +52,7 @@ class PluginManager:
         self.transformers = collections.defaultdict(dict)
         self.formats = {}
         self.type_formats = []
+        self._importable_formats = {}
 
         # These are all dependent loops, each requires the loop above it to
         # be completed.
@@ -60,6 +62,16 @@ class PluginManager:
 
         for plugin in self.plugins.values():
             self._integrate_plugin(plugin)
+
+    def _post_init(self):
+        for name, record in self.formats.items():
+            for type_format in self.type_formats:
+                from_type = transform.ModelType.from_view_type(
+                    record.format)
+                to_type = transform.ModelType.from_view_type(
+                    type_format.format)
+                if from_type.has_transformation(to_type):
+                    self._importable_formats[name] = record.format
 
     def _integrate_plugin(self, plugin):
         for type_name, type_record in plugin.types.items():
@@ -102,18 +114,8 @@ class PluginManager:
         one of the canonical semantic types.
 
         """
-        _importable_formats = {}
-        for plugin in self.plugins.values():
-            for name, record in plugin.formats.items():
-                for type_format in self.type_formats:
-                    from_type = transform.ModelType.from_view_type(
-                        record.format)
-                    to_type = transform.ModelType.from_view_type(
-                        type_format.format)
-                    if from_type.has_transformation(to_type):
-                        _importable_formats[name] = record.format
 
-        return _importable_formats
+        return self._importable_formats
 
     @property
     def importable_types(self):
