@@ -9,7 +9,7 @@
 import collections
 import os
 import pkg_resources
-
+import qiime2.core.transform as transform
 import qiime2.core.type
 
 
@@ -79,6 +79,7 @@ class PluginManager:
             self.transformers[input][output] = transformer_record
 
         for name, record in plugin.formats.items():
+
             if name in self.formats:
                 raise NameError(
                     "Duplicate format registration (%r) defined in plugins: %r"
@@ -86,11 +87,33 @@ class PluginManager:
                     (name, record.plugin.name, self.formats[name].plugin.name)
                 )
             self.formats[name] = record
+
         self.type_formats.extend(plugin.type_formats)
 
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
+
+    @property
+    def importable_formats(self):
+        """Return dict of formats that are importable.
+
+        A format is importable if an installed plugin can transform it into
+        one of the canonical semantic types.
+
+        """
+        _importable_formats = {}
+        for plugin in self.plugins.values():
+            for name, record in plugin.formats.items():
+                for type_format in self.type_formats:
+                    from_type = transform.ModelType.from_view_type(
+                        record.format)
+                    to_type = transform.ModelType.from_view_type(
+                        type_format.format)
+                    if from_type.has_transformation(to_type):
+                        _importable_formats[name] = record.format
+
+        return _importable_formats
 
     @property
     def importable_types(self):

@@ -14,6 +14,12 @@ from qiime2.plugin.plugin import SemanticTypeRecord
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
                                       FourInts, Kennel, Dog, Cat)
+from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
+                                        MappingDirectoryFormat,
+                                        IntSequenceV2DirectoryFormat,
+                                        IntSequenceFormatV2,
+                                        FourIntsDirectoryFormat,
+                                        IntSequenceFormat)
 from qiime2.core.testing.util import get_dummy_plugin
 
 
@@ -59,6 +65,27 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(types, exp)
 
     # TODO: add tests for type/directory/transformer registrations
+
+    def test_importable_formats(self):
+        obs = self.pm.importable_formats
+        exp = {
+            'IntSequenceDirectoryFormat': IntSequenceDirectoryFormat,
+            'MappingDirectoryFormat': MappingDirectoryFormat,
+            'IntSequenceV2DirectoryFormat': IntSequenceV2DirectoryFormat,
+            'IntSequenceFormatV2': IntSequenceFormatV2,
+            'FourIntsDirectoryFormat': FourIntsDirectoryFormat,
+            'IntSequenceFormat': IntSequenceFormat
+        }
+
+        self.assertEqual(obs, exp)
+
+    def test_importable_formats_with_dummy(self):
+        exp = "DummyFormat"
+        obs = self.pm.importable_formats.keys()
+        self.assertFalse(exp in obs)
+
+        obs = [item[0] for item in self.plugin.formats.items()]
+        self.assertTrue(exp in obs)
 
 
 if __name__ == '__main__':
