@@ -8,6 +8,8 @@
 
 import os
 import sys
+import errno
+import shutil
 
 import threading
 import contextlib
@@ -63,3 +65,30 @@ def _get_fileno(file_or_fd):
     if not isinstance(fd, int):
         raise ValueError("Expected a file (`.fileno()`) or a file descriptor")
     return fd
+
+
+def duplicate(src, dst):
+    """Alternative to shutil.copyfile, this will use os.link when possible.
+
+    See shutil.copyfile for documention. Only `src` and `dst` are supported.
+    Unlike copyfile, this will not overwrite the destination if it exists.
+
+    """
+    if os.path.isdir(src):
+        # os.link will give a permission error
+        raise OSError(errno.EISDIR, "Is a directory", src)
+    if os.path.isdir(dst):
+        # os.link will give a FileExists error
+        raise OSError(errno.EISDIR, "Is a directory", dst)
+
+    if os.path.exists(dst):
+        # shutil.copyfile will overwrite the existing file
+        raise OSError(errno.EEXIST, "File exists", src, "File exists", dst)
+
+    try:
+        os.link(src, dst)
+    except OSError as e:
+        if e.errno == errno.EXDEV:  # Invalid cross-device link
+            shutil.copyfile(src, dst)
+        else:
+            raise
