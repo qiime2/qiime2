@@ -75,6 +75,49 @@ class TestProvenanceIntegration(unittest.TestCase):
         self.assertTrue((p_dir / 'artifacts' / str(metadata_artifact_2.uuid) /
                          'action' / 'action.yaml').exists())
 
+    def test_chain_with_merged_artifact_metadata(self):
+        md_artifact1 = qiime2.Artifact.import_data(
+            'Mapping', {'a': 'foo', 'b': 'bar'})
+        md_artifact2 = qiime2.Artifact.import_data(
+            'Mapping', {'c': 'baz'})
+        md1 = qiime2.Metadata.from_artifact(md_artifact1)
+        md2 = qiime2.Metadata.from_artifact(md_artifact2)
+        merged_md = md1.merge(md2)
+        merged_mdc = merged_md.get_category('c')
+
+        a = qiime2.Artifact.import_data('IntSequence1', [1, 2, 3])
+
+        b = dummy_plugin.actions.identity_with_metadata(a, merged_md).out
+        c = dummy_plugin.actions.identity_with_metadata_category(
+            b, merged_mdc).out
+
+        p_dir = c._archiver.provenance_dir
+
+        yaml_value = "%s,%s:metadata.tsv" % (md_artifact1.uuid,
+                                             md_artifact2.uuid)
+
+        # Check action files for uuid-metadata values
+        with (p_dir / 'action' / 'action.yaml').open() as fh:
+            self.assertIn(yaml_value, fh.read())
+        with (p_dir / 'artifacts' / str(b.uuid) / 'action' /
+              'action.yaml').open() as fh:
+            self.assertIn(yaml_value, fh.read())
+
+        # Check that metadata is written out fully
+        with (p_dir / 'action' / 'metadata.tsv').open() as fh:
+            self.assertEqual(fh.read(), '0\tbaz\n')
+
+        new_merged_md = qiime2.Metadata.load(
+            str(p_dir / 'artifacts' / str(b.uuid) / 'action' / 'metadata.tsv'))
+        pdt.assert_frame_equal(new_merged_md.to_dataframe(),
+                               merged_md.to_dataframe(), check_names=False)
+
+        # Check that provenance of originating metadata artifacts exists
+        self.assertTrue((p_dir / 'artifacts' / str(md_artifact1.uuid) /
+                         'action' / 'action.yaml').exists())
+        self.assertTrue((p_dir / 'artifacts' / str(md_artifact2.uuid) /
+                         'action' / 'action.yaml').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -84,3 +84,33 @@ class ArchiveTestingMixin:
                     for member in expected}
 
         self.assertEqual(observed, expected)
+
+
+class ReallyEqualMixin:
+    """Mixin for testing implementations of __eq__/__ne__.
+
+    Based on this public domain code (also explains why the mixin is useful):
+
+    https://ludios.org/testing-your-eq-ne-cmp/
+
+    """
+
+    def assertReallyEqual(self, a, b):
+        # assertEqual first, because it will have a good message if the
+        # assertion fails.
+        self.assertEqual(a, b)
+        self.assertEqual(b, a)
+        self.assertTrue(a == b)
+        self.assertTrue(b == a)
+        self.assertFalse(a != b)
+        self.assertFalse(b != a)
+
+    def assertReallyNotEqual(self, a, b):
+        # assertNotEqual first, because it will have a good message if the
+        # assertion fails.
+        self.assertNotEqual(a, b)
+        self.assertNotEqual(b, a)
+        self.assertFalse(a == b)
+        self.assertFalse(b == a)
+        self.assertTrue(a != b)
+        self.assertTrue(b != a)

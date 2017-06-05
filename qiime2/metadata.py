@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import itertools
 import sqlite3
 import uuid
 
@@ -14,6 +15,11 @@ import pandas as pd
 
 class Metadata:
     def __init__(self, dataframe):
+        # Not using DataFrame.empty because empty columns are allowed.
+        if dataframe.index.empty:
+            raise ValueError("Metadata is empty, there must be at least one "
+                             "ID associated with it.")
+
         # `/` and `\0` aren't permitted because they are invalid filename
         # characters on *nix filesystems. The remaining values aren't permitted
         # because they *could* be misinterpreted by a shell (e.g. `*`, `|`).
@@ -41,7 +47,7 @@ class Metadata:
                 raise ValueError(invalid_metadata_template % msg)
 
         self._dataframe = dataframe
-        self._artifact = None
+        self._artifacts = []
 
     def __repr__(self):
         return repr(self._dataframe)
@@ -49,9 +55,19 @@ class Metadata:
     def _repr_html_(self):
         return self._dataframe._repr_html_()
 
+    def __eq__(self, other):
+        return (
+            isinstance(other, self.__class__) and
+            self._artifacts == other._artifacts and
+            self._dataframe.equals(other._dataframe)
+        )
+
+    def __ne__(self, other):
+        return not (self == other)
+
     @property
-    def artifact(self):
-        return self._artifact
+    def artifacts(self):
+        return self._artifacts
 
     @classmethod
     def from_artifact(cls, artifact):
@@ -65,17 +81,12 @@ class Metadata:
         -------
         qiime2.Metadata
         """
-        # check to see if it has metadata
         if not artifact.has_metadata():
             raise ValueError('Artifact has no metadata.')
 
         md = artifact.view(cls)
-        md._add_artifact(artifact)
+        md._artifacts.append(artifact)
         return md
-
-    def _add_artifact(self, artifact):
-        """ Adds the artifact to self."""
-        self._artifact = artifact
 
     @classmethod
     def load(cls, path):
@@ -91,6 +102,69 @@ class Metadata:
             raise ValueError(invalid_metadata_template % msg)
         return cls(df)
 
+    def merge(self, *others):
+        """Merge this ``Metadata`` object with other ``Metadata`` objects.
+
+        Returns a new ``Metadata`` object containing the merged contents of
+        this ``Metadata`` object and `others`. The merge is not in-place and
+        will always return a **new** merged ``Metadata`` object.
+
+        The merge will include only those IDs that are shared across **all**
+        ``Metadata`` objects being merged (i.e. the merge is an *inner join*).
+
+        Each column being merged must be unique; merging metadata with
+        overlapping columns will result in an error.
+
+        Parameters
+        ----------
+        others : tuple
+            Zero or more ``Metadata`` objects to merge with this ``Metadata``
+            object.
+
+        Returns
+        -------
+        Metadata
+            New object containing merged metadata. The merged IDs will be in
+            the same relative order as the IDs in this ``Metadata`` object
+            after performing the inner join. The merged column order will
+            match the column order of ``Metadata`` objects being merged
+            from left to right.
+
+        Notes
+        -----
+        The merged metadata object tracks all source artifacts that it was
+        built from to preserve provenance (i.e. the ``.artifacts`` property
+        on all ``Metadata`` objects is merged).
+
+        """
+        dfs = []
+        columns = []
+        artifacts = []
+        for md in itertools.chain([self], others):
+            df = md._dataframe
+            dfs.append(df)
+            columns.extend(df.columns.tolist())
+            artifacts.extend(md.artifacts)
+
+        columns = pd.Index(columns)
+        if columns.has_duplicates:
+            raise ValueError(
+                "Cannot merge metadata with overlapping columns. The "
+                "following columns overlap: %s" %
+                ', '.join([repr(e) for e in columns.get_duplicates()]))
+
+        merged_df = dfs[0].join(dfs[1:], how='inner')
+
+        # Not using DataFrame.empty because empty columns are allowed.
+        if merged_df.index.empty:
+            raise ValueError(
+                "Cannot merge because there are no IDs shared across metadata "
+                "objects.")
+
+        merged_md = self.__class__(merged_df)
+        merged_md._artifacts = artifacts
+        return merged_md
+
     def get_category(self, *names):
         if len(names) != 1:
             # TODO: Make this work with multiple columns as a single series
@@ -104,7 +178,7 @@ class Metadata:
                 'categories are %s.' %
                 (names[0], ', '.join(self._dataframe.columns)))
         else:
-            result._add_artifact(self.artifact)
+            result._artifacts.extend(self.artifacts)
         return result
 
     def to_dataframe(self):
@@ -188,7 +262,7 @@ class Metadata:
 class MetadataCategory:
     def __init__(self, series):
         self._series = series
-        self._artifact = None
+        self._artifacts = []
 
     def __repr__(self):
         return repr(self._series)
@@ -201,8 +275,8 @@ class MetadataCategory:
         return self._series.copy()
 
     @property
-    def artifact(self):
-        return self._artifact
+    def artifacts(self):
+        return self._artifacts
 
     @classmethod
     def from_artifact(cls, artifact, category):
@@ -217,10 +291,6 @@ class MetadataCategory:
         qiime.Metadata
         """
         return Metadata.from_artifact(artifact).get_category(category)
-
-    def _add_artifact(self, artifact):
-        """ Adds the artifact to self."""
-        self._artifact = artifact
 
 
 invalid_metadata_template = "%s. There may be more errors present in this " \
