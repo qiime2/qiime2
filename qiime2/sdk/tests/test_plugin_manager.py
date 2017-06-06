@@ -69,21 +69,23 @@ class TestPluginManager(unittest.TestCase):
     # TODO: add tests for type/directory/transformer registrations
 
     def test_importable_formats(self):
-        obs = [f.format for f in self.pm.importable_formats]
+        obs = self.pm.importable_formats
         exp = {
-            IntSequenceDirectoryFormat,
-            MappingDirectoryFormat,
-            IntSequenceV2DirectoryFormat,
-            IntSequenceFormatV2,
-            FourIntsDirectoryFormat,
-            IntSequenceFormat
+            'IntSequenceDirectoryFormat': IntSequenceDirectoryFormat,
+            'MappingDirectoryFormat': MappingDirectoryFormat,
+            'IntSequenceV2DirectoryFormat': IntSequenceV2DirectoryFormat,
+            'IntSequenceFormatV2': IntSequenceFormatV2,
+            'FourIntsDirectoryFormat': FourIntsDirectoryFormat,
+            'IntSequenceFormat': IntSequenceFormat
         }
-        self.assertEqual(set(obs), exp)
+        self.assertEqual(set(obs), set(exp))
 
     def test_importable_formats_with_dummy(self):
         obs = self.pm.importable_formats
-        self.assertFalse(UnimportableFormat in obs)
-        self.assertFalse(UnimportableDirectoryFormat in obs)
+        self.assertFalse('UnimportableFormat' in obs.keys())
+        self.assertFalse(UnimportableFormat in obs.values())
+        self.assertFalse('UnimportableDirectoryFormat' in obs.keys())
+        self.assertFalse(UnimportableDirectoryFormat in obs.values())
 
         obs = self.pm.formats.items()
         exp = {

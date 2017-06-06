@@ -16,8 +16,7 @@ from .format import (
     IntSequenceFormatV2,
     SingleIntFormat,
     MappingFormat,
-    UnimportableFormat,
-    UnimportableDirectoryFormat
+    UnimportableFormat
 )
 from .plugin import dummy_plugin
 
@@ -154,8 +153,3 @@ def _1(data: list) -> FourIntsDirectoryFormat:
 @dummy_plugin.register_transformer
 def _4(ff: UnimportableFormat) -> int:
     return 1
-
-
-@dummy_plugin.register_transformer
-def _6(df: UnimportableDirectoryFormat) -> int:
-    return 2

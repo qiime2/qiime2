@@ -100,17 +100,17 @@ class PluginManager:
         into at least one of the canonical semantic type formats.
 
         """
-        _importable_formats = set()
-        for record in self.formats.values():
+        importable_formats = {}
+        for name, record in self.formats.items():
             for type_format in self.type_formats:
                 from_type = transform.ModelType.from_view_type(
                     record.format)
                 to_type = transform.ModelType.from_view_type(
                     type_format.format)
                 if from_type.has_transformation(to_type):
-                    _importable_formats.add(record)
+                    importable_formats[name] = record
                     break
-        return _importable_formats
+        return importable_formats
 
     @property
     def importable_types(self):
@@ -120,11 +120,11 @@ class PluginManager:
         directory format.
 
         """
-        _importable_types = set()
+        importable_types = set()
         for type_format in self.type_formats:
             for type in type_format.type_expression:
-                _importable_types.add(type)
-        return _importable_types
+                importable_types.add(type)
+        return importable_types
 
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):

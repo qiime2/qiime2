@@ -108,9 +108,5 @@ class UnimportableFormat(TextFileFormat):
     """
 
 
-class UnimportableDirectoryFormat(model.DirectoryFormat):
-    """
-    Useless format which maps to nothing, used for testing the plugin
-    manager.
-
-    """
+UnimportableDirectoryFormat = model.SingleFileDirectoryFormat(
+    'UnimportableDirectoryFormat', 'ints.txt', UnimportableFormat)
