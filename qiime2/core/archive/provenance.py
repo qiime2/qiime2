@@ -260,9 +260,12 @@ class ActionProvenanceCapture(ProvenanceCapture):
             raise NotImplementedError
 
         uuid_ref = ""
-        if value.artifact is not None:
-            uuid_ref = str(value.artifact.uuid) + ":"
-            self.add_ancestor(value.artifact)
+        if value.artifacts:
+            uuids = []
+            for artifact in value.artifacts:
+                uuids.append(str(artifact.uuid))
+                self.add_ancestor(artifact)
+            uuid_ref = ",".join(uuids) + ":"
 
         relpath = name + '.tsv'
         pandas_obj.to_csv(str(self.action_dir / relpath), sep='\t')

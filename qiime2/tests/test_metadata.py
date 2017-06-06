@@ -15,7 +15,7 @@ import pandas as pd
 import pandas.util.testing as pdt
 
 import qiime2
-from qiime2.core.testing.util import get_dummy_plugin
+from qiime2.core.testing.util import get_dummy_plugin, ReallyEqualMixin
 
 
 class TestMetadata(unittest.TestCase):
@@ -47,6 +47,41 @@ class TestMetadata(unittest.TestCase):
             df, exp_df, check_dtype=True, check_index_type=True,
             check_column_type=True, check_frame_type=True, check_names=True,
             check_exact=True)
+
+    def test_valid_metadata_no_columns(self):
+        exp_index = pd.Index(['a', 'b', 'c'], dtype=object)
+        exp_df = pd.DataFrame({}, index=exp_index, dtype=object)
+
+        metadata = qiime2.Metadata(exp_df)
+        obs_df = metadata.to_dataframe()
+
+        self.assertFalse(obs_df.index.empty)
+        self.assertTrue(obs_df.columns.empty)
+        pdt.assert_frame_equal(
+            obs_df, exp_df, check_dtype=True, check_index_type=True,
+            check_column_type=True, check_frame_type=True, check_names=True,
+            check_exact=True)
+
+    def test_artifacts(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3']}, index=index, dtype=object)
+
+        metadata = qiime2.Metadata(df)
+
+        self.assertEqual(metadata.artifacts, [])
+
+    def test_empty_metadata(self):
+        # No index, no columns.
+        df = pd.DataFrame([], index=[])
+
+        with self.assertRaisesRegex(ValueError, 'Metadata is empty'):
+            qiime2.Metadata(df)
+
+        # No index, has columns.
+        df = pd.DataFrame([], index=[], columns=['a', 'b'])
+
+        with self.assertRaisesRegex(ValueError, 'Metadata is empty'):
+            qiime2.Metadata(df)
 
     def test_invalid_metadata_characters_in_category(self):
         for val in self.illegal_chars:
@@ -93,6 +128,23 @@ class TestMetadata(unittest.TestCase):
 
 
 class TestMetadataLoad(unittest.TestCase):
+    def test_no_columns(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata-no-columns.tsv')
+
+        metadata = qiime2.Metadata.load(fp)
+        obs_df = metadata.to_dataframe()
+
+        exp_index = pd.Index(['a', 'b', 'id'], name='my-index', dtype=object)
+        exp_df = pd.DataFrame({}, index=exp_index, dtype=object)
+
+        self.assertFalse(obs_df.index.empty)
+        self.assertTrue(obs_df.columns.empty)
+        pdt.assert_frame_equal(
+            obs_df, exp_df, check_dtype=True, check_index_type=True,
+            check_column_type=True, check_frame_type=True, check_names=True,
+            check_exact=True)
+
     def test_does_not_cast_index_or_column_types(self):
         fp = pkg_resources.resource_filename(
             'qiime2.tests', 'data/metadata-no-type-cast.tsv')
@@ -110,6 +162,14 @@ class TestMetadataLoad(unittest.TestCase):
             df, exp_df, check_dtype=True, check_index_type=True,
             check_column_type=True, check_frame_type=True, check_names=True,
             check_exact=True)
+
+    def test_artifacts(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata.tsv')
+
+        metadata = qiime2.Metadata.load(fp)
+
+        self.assertEqual(metadata.artifacts, [])
 
     def test_invalid_metadata_characters_in_category(self):
         fp = pkg_resources.resource_filename(
@@ -154,13 +214,221 @@ class TestMetadataFromArtifact(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Invalid characters'):
             qiime2.Metadata.from_artifact(A)
 
-    def test_artifact(self):
+    def test_artifacts(self):
         A = qiime2.Artifact.import_data('Mapping', {'a': ['1', '2'],
                                                     'b': ['2', '3']})
         md = qiime2.Metadata.from_artifact(A)
-        art = md.artifact
-        self.assertIsInstance(art, qiime2.Artifact)
-        self.assertEqual(art, A)
+        obs = md.artifacts
+        self.assertEqual(obs, [A])
+
+
+class TestGetCategory(unittest.TestCase):
+    def setUp(self):
+        get_dummy_plugin()
+
+    def test_artifacts_are_propagated(self):
+        A = qiime2.Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
+        md = qiime2.Metadata.from_artifact(A)
+
+        obs = md.get_category('b')
+
+        self.assertEqual(obs.artifacts, [A])
+        pdt.assert_series_equal(obs.to_series(),
+                                pd.Series(['3'], index=['0'], name='b'))
+
+
+class TestMerge(unittest.TestCase):
+    def setUp(self):
+        get_dummy_plugin()
+
+    def test_merging_one(self):
+        md = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2, 3], 'b': [4, 5, 6]}, index=['id1', 'id2', 'id3']))
+
+        obs = md.merge()
+
+        self.assertIsNot(obs, md)
+        self.assertEqual(obs, md)
+
+    def test_merging_two(self):
+        md1 = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2, 3], 'b': [4, 5, 6]}, index=['id1', 'id2', 'id3']))
+        md2 = qiime2.Metadata(pd.DataFrame(
+            {'c': [7, 8, 9], 'd': [10, 11, 12]}, index=['id1', 'id2', 'id3']))
+
+        obs = md1.merge(md2)
+
+        exp = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2, 3], 'b': [4, 5, 6],
+             'c': [7, 8, 9], 'd': [10, 11, 12]}, index=['id1', 'id2', 'id3']))
+        self.assertEqual(obs, exp)
+
+    def test_merging_three(self):
+        md1 = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2, 3], 'b': [4, 5, 6]}, index=['id1', 'id2', 'id3']))
+        md2 = qiime2.Metadata(pd.DataFrame(
+            {'c': [7, 8, 9], 'd': [10, 11, 12]}, index=['id1', 'id2', 'id3']))
+        md3 = qiime2.Metadata(pd.DataFrame(
+            {'e': [13, 14, 15], 'f': [16, 17, 18]},
+            index=['id1', 'id2', 'id3']))
+
+        obs = md1.merge(md2, md3)
+
+        exp = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2, 3], 'b': [4, 5, 6],
+             'c': [7, 8, 9], 'd': [10, 11, 12],
+             'e': [13, 14, 15], 'f': [16, 17, 18]},
+            index=['id1', 'id2', 'id3']))
+        self.assertEqual(obs, exp)
+
+    def test_merging_unaligned_indices(self):
+        md1 = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2, 3], 'b': [4, 5, 6]}, index=['id1', 'id2', 'id3']))
+        md2 = qiime2.Metadata(pd.DataFrame(
+            {'c': [9, 8, 7], 'd': [12, 11, 10]}, index=['id3', 'id2', 'id1']))
+        md3 = qiime2.Metadata(pd.DataFrame(
+            {'e': [13, 15, 14], 'f': [16, 18, 17]},
+            index=['id1', 'id3', 'id2']))
+
+        obs = md1.merge(md2, md3)
+
+        exp = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2, 3], 'b': [4, 5, 6],
+             'c': [7, 8, 9], 'd': [10, 11, 12],
+             'e': [13, 14, 15], 'f': [16, 17, 18]},
+            index=['id1', 'id2', 'id3']))
+        self.assertEqual(obs, exp)
+
+    def test_inner_join(self):
+        md1 = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2, 3], 'b': [4, 5, 6]}, index=['id1', 'id2', 'id3']))
+        md2 = qiime2.Metadata(pd.DataFrame(
+            {'c': [7, 8, 9], 'd': [10, 11, 12]}, index=['id2', 'X', 'Y']))
+        md3 = qiime2.Metadata(pd.DataFrame(
+            {'e': [13, 14, 15], 'f': [16, 17, 18]}, index=['X', 'id3', 'id2']))
+
+        # Single shared ID.
+        obs = md1.merge(md2, md3)
+
+        exp = qiime2.Metadata(pd.DataFrame(
+            {'a': [2], 'b': [5], 'c': [7], 'd': [10], 'e': [15], 'f': [18]},
+            index=['id2']))
+        self.assertEqual(obs, exp)
+
+        # Multiple shared IDs.
+        obs = md1.merge(md3)
+
+        exp = qiime2.Metadata(pd.DataFrame(
+            {'a': [2, 3], 'b': [5, 6], 'e': [15, 14], 'f': [18, 17]},
+            index=['id2', 'id3']))
+        self.assertEqual(obs, exp)
+
+    def test_index_and_column_merge_order(self):
+        md1 = qiime2.Metadata(pd.DataFrame(
+            [[1], [2], [3], [4]],
+            index=['id1', 'id2', 'id3', 'id4'], columns=['a']))
+        md2 = qiime2.Metadata(pd.DataFrame(
+            [[5], [6], [7]], index=['id4', 'id3', 'id1'], columns=['b']))
+        md3 = qiime2.Metadata(pd.DataFrame(
+            [[8], [9], [10]], index=['id1', 'id4', 'id3'], columns=['c']))
+
+        obs = md1.merge(md2, md3)
+
+        exp = qiime2.Metadata(pd.DataFrame(
+            [[1, 7, 8], [3, 6, 10], [4, 5, 9]],
+            index=['id1', 'id3', 'id4'], columns=['a', 'b', 'c']))
+        self.assertEqual(obs, exp)
+
+        # Merging in different order produces different index/column order.
+        obs = md2.merge(md1, md3)
+
+        exp = qiime2.Metadata(pd.DataFrame(
+            [[5, 4, 9], [6, 3, 10], [7, 1, 8]],
+            index=['id4', 'id3', 'id1'], columns=['b', 'a', 'c']))
+        self.assertEqual(obs, exp)
+
+    def test_no_columns(self):
+        md1 = qiime2.Metadata(pd.DataFrame({}, index=['id1', 'id2', 'id3']))
+        md2 = qiime2.Metadata(pd.DataFrame({}, index=['id2', 'X', 'id1']))
+        md3 = qiime2.Metadata(pd.DataFrame({}, index=['id1', 'id3', 'id2']))
+
+        obs = md1.merge(md2, md3)
+
+        exp = qiime2.Metadata(pd.DataFrame({}, index=['id1', 'id2']))
+        self.assertEqual(obs, exp)
+
+    def test_index_and_column_names(self):
+        md1 = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2]},
+            index=pd.Index(['id1', 'id2'], name='foo'),
+            columns=pd.Index(['a'], name='abc')))
+        md2 = qiime2.Metadata(pd.DataFrame(
+            {'b': [3, 4]},
+            index=pd.Index(['id1', 'id2'], name='bar'),
+            columns=pd.Index(['b'], name='def')))
+
+        obs = md1.merge(md2)
+
+        exp = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2], 'b': [3, 4]}, index=['id1', 'id2']))
+        self.assertEqual(obs, exp)
+        self.assertIsNone(obs._dataframe.index.name)
+        self.assertIsNone(obs._dataframe.columns.name)
+
+    def test_no_artifacts(self):
+        md1 = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2]}, index=['id1', 'id2']))
+        md2 = qiime2.Metadata(pd.DataFrame(
+            {'b': [3, 4]}, index=['id1', 'id2']))
+
+        metadata = md1.merge(md2)
+
+        self.assertEqual(metadata.artifacts, [])
+
+    def test_with_artifacts(self):
+        artifact1 = qiime2.Artifact.import_data('Mapping',
+                                                {'a': '1', 'b': '2'})
+        artifact2 = qiime2.Artifact.import_data('Mapping', {'d': '4'})
+
+        md_from_artifact1 = qiime2.Metadata.from_artifact(artifact1)
+        md_from_artifact2 = qiime2.Metadata.from_artifact(artifact2)
+        md_no_artifact = qiime2.Metadata(pd.DataFrame(
+            {'c': ['3', '42']}, index=['0', '1']))
+
+        # Merge three metadata objects -- the first has an artifact, the second
+        # does not, and the third has an artifact.
+        obs = md_from_artifact1.merge(md_no_artifact, md_from_artifact2)
+
+        exp = pd.DataFrame(
+            {'a': '1', 'b': '2', 'c': '3', 'd': '4'}, index=['0'])
+        pdt.assert_frame_equal(obs.to_dataframe(), exp)
+        self.assertEqual(obs.artifacts, [artifact1, artifact2])
+
+    def test_disjoint_indices(self):
+        md1 = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2, 3], 'b': [4, 5, 6]}, index=['id1', 'id2', 'id3']))
+        md2 = qiime2.Metadata(pd.DataFrame(
+            {'c': [7, 8, 9], 'd': [10, 11, 12]}, index=['X', 'Y', 'Z']))
+
+        with self.assertRaisesRegex(ValueError, 'no IDs shared'):
+            md1.merge(md2)
+
+    def test_duplicate_columns(self):
+        md1 = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2], 'b': [3, 4]}, index=['id1', 'id2']))
+        md2 = qiime2.Metadata(pd.DataFrame(
+            {'c': [5, 6], 'b': [7, 8]}, index=['id1', 'id2']))
+
+        with self.assertRaisesRegex(ValueError, "categories overlap: 'b'"):
+            md1.merge(md2)
+
+    def test_duplicate_columns_self_merge(self):
+        md = qiime2.Metadata(pd.DataFrame(
+            {'a': [1, 2], 'b': [3, 4]}, index=['id1', 'id2']))
+
+        with self.assertRaisesRegex(ValueError,
+                                    "categories overlap: 'a', 'b'"):
+            md.merge(md)
 
 
 class TestIDs(unittest.TestCase):
@@ -290,6 +558,88 @@ class TestIDs(unittest.TestCase):
         actual = metadata.ids(where="id='S2' OR id='S1'")
         expected = {'S1', 'S2'}
         self.assertEqual(actual, expected)
+
+    def test_no_columns(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata-no-columns.tsv')
+        metadata = qiime2.Metadata.load(fp)
+
+        obs = metadata.ids()
+
+        exp = {'a', 'b', 'id'}
+        self.assertEqual(obs, exp)
+
+
+class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
+    def setUp(self):
+        get_dummy_plugin()
+
+    def test_type_mismatch(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata.tsv')
+        md = qiime2.Metadata.load(fp)
+        mdc = qiime2.MetadataCategory.load(fp, 'col1')
+
+        self.assertIsInstance(md, qiime2.Metadata)
+        self.assertIsInstance(mdc, qiime2.MetadataCategory)
+        self.assertReallyNotEqual(md, mdc)
+
+    def test_source_mismatch(self):
+        # Metadata created from an artifact vs not shouldn't compare equal,
+        # even if the data is the same.
+        artifact = qiime2.Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
+        md_from_artifact = qiime2.Metadata.from_artifact(artifact)
+        md_no_artifact = qiime2.Metadata(pd.DataFrame(
+            {'a': '1', 'b': '2'}, index=['0']))
+
+        pdt.assert_frame_equal(md_from_artifact.to_dataframe(),
+                               md_no_artifact.to_dataframe())
+        self.assertReallyNotEqual(md_from_artifact, md_no_artifact)
+
+    def test_artifact_mismatch(self):
+        # Metadata created from different artifacts shouldn't compare equal,
+        # even if the data is the same.
+        artifact1 = qiime2.Artifact.import_data('Mapping',
+                                                {'a': '1', 'b': '2'})
+        artifact2 = qiime2.Artifact.import_data('Mapping',
+                                                {'a': '1', 'b': '2'})
+
+        md1 = qiime2.Metadata.from_artifact(artifact1)
+        md2 = qiime2.Metadata.from_artifact(artifact2)
+
+        pdt.assert_frame_equal(md1.to_dataframe(), md2.to_dataframe())
+        self.assertReallyNotEqual(md1, md2)
+
+    def test_index_mismatch(self):
+        md1 = qiime2.Metadata(pd.DataFrame({'a': '1', 'b': '2'}, index=['0']))
+        md2 = qiime2.Metadata(pd.DataFrame({'a': '1', 'b': '2'}, index=['1']))
+
+        self.assertReallyNotEqual(md1, md2)
+
+    def test_column_mismatch(self):
+        md1 = qiime2.Metadata(pd.DataFrame({'a': '1', 'b': '2'}, index=['0']))
+        md2 = qiime2.Metadata(pd.DataFrame({'a': '1', 'c': '2'}, index=['0']))
+
+        self.assertReallyNotEqual(md1, md2)
+
+    def test_data_mismatch(self):
+        md1 = qiime2.Metadata(pd.DataFrame({'a': '1', 'b': '3'}, index=['0']))
+        md2 = qiime2.Metadata(pd.DataFrame({'a': '1', 'b': '2'}, index=['0']))
+
+        self.assertReallyNotEqual(md1, md2)
+
+    def test_equality_without_artifact(self):
+        md1 = qiime2.Metadata(pd.DataFrame({'a': '1', 'b': '3'}, index=['0']))
+        md2 = qiime2.Metadata(pd.DataFrame({'a': '1', 'b': '3'}, index=['0']))
+
+        self.assertReallyEqual(md1, md2)
+
+    def test_equality_with_artifact(self):
+        artifact = qiime2.Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
+        md1 = qiime2.Metadata.from_artifact(artifact)
+        md2 = qiime2.Metadata.from_artifact(artifact)
+
+        self.assertReallyEqual(md1, md2)
 
 
 if __name__ == '__main__':
