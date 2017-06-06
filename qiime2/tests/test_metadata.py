@@ -419,14 +419,15 @@ class TestMerge(unittest.TestCase):
         md2 = qiime2.Metadata(pd.DataFrame(
             {'c': [5, 6], 'b': [7, 8]}, index=['id1', 'id2']))
 
-        with self.assertRaisesRegex(ValueError, "columns overlap: 'b'"):
+        with self.assertRaisesRegex(ValueError, "categories overlap: 'b'"):
             md1.merge(md2)
 
     def test_duplicate_columns_self_merge(self):
         md = qiime2.Metadata(pd.DataFrame(
             {'a': [1, 2], 'b': [3, 4]}, index=['id1', 'id2']))
 
-        with self.assertRaisesRegex(ValueError, "columns overlap: 'a', 'b'"):
+        with self.assertRaisesRegex(ValueError,
+                                    "categories overlap: 'a', 'b'"):
             md.merge(md)
 
 

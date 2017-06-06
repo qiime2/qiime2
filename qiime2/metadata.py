@@ -112,8 +112,8 @@ class Metadata:
         The merge will include only those IDs that are shared across **all**
         ``Metadata`` objects being merged (i.e. the merge is an *inner join*).
 
-        Each column being merged must be unique; merging metadata with
-        overlapping columns will result in an error.
+        Each metadata category (i.e. column) being merged must be unique;
+        merging metadata with overlapping categories will result in an error.
 
         Parameters
         ----------
@@ -126,9 +126,9 @@ class Metadata:
         Metadata
             New object containing merged metadata. The merged IDs will be in
             the same relative order as the IDs in this ``Metadata`` object
-            after performing the inner join. The merged column order will
-            match the column order of ``Metadata`` objects being merged
-            from left to right.
+            after performing the inner join. The merged category order
+            (i.e. column order) will match the category order of ``Metadata``
+            objects being merged from left to right.
 
         Notes
         -----
@@ -149,8 +149,9 @@ class Metadata:
         columns = pd.Index(columns)
         if columns.has_duplicates:
             raise ValueError(
-                "Cannot merge metadata with overlapping columns. The "
-                "following columns overlap: %s" %
+                "Cannot merge metadata with overlapping categories "
+                "(i.e. overlapping columns). The following categories "
+                "overlap: %s" %
                 ', '.join([repr(e) for e in columns.get_duplicates()]))
 
         merged_df = dfs[0].join(dfs[1:], how='inner')
