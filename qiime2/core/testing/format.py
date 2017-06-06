@@ -102,9 +102,7 @@ class FourIntsDirectoryFormat(model.DirectoryFormat):
 
 class UnimportableFormat(TextFileFormat):
     """
-    Useless format which maps to nothing, used for testing the plugin
-    manager.
-
+    Unimportable format used for testing.
     """
 
 
