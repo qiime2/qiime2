@@ -19,7 +19,9 @@ from .format import (
     IntSequenceDirectoryFormat,
     IntSequenceV2DirectoryFormat,
     MappingDirectoryFormat,
-    FourIntsDirectoryFormat
+    FourIntsDirectoryFormat,
+    UnimportableFormat,
+    UnimportableDirectoryFormat
 )
 
 from .type import (IntSequence1, IntSequence2, Mapping, FourInts,
@@ -51,7 +53,8 @@ dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, Mapping,
 dummy_plugin.register_formats(
     IntSequenceFormat, IntSequenceFormatV2, MappingFormat, SingleIntFormat,
     IntSequenceDirectoryFormat, IntSequenceV2DirectoryFormat,
-    MappingDirectoryFormat, FourIntsDirectoryFormat
+    MappingDirectoryFormat, FourIntsDirectoryFormat, UnimportableFormat,
+    UnimportableDirectoryFormat
 )
 
 dummy_plugin.register_semantic_type_to_format(

@@ -98,3 +98,13 @@ class FourIntsDirectoryFormat(model.DirectoryFormat):
             return 'nested/file%d.txt' % num
         else:
             return 'file%d.txt' % num
+
+
+class UnimportableFormat(TextFileFormat):
+    """
+    Unimportable format used for testing.
+    """
+
+
+UnimportableDirectoryFormat = model.SingleFileDirectoryFormat(
+    'UnimportableDirectoryFormat', 'ints.txt', UnimportableFormat)

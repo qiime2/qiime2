@@ -10,10 +10,16 @@ import unittest
 
 import qiime2.plugin
 import qiime2.sdk
-from qiime2.plugin.plugin import SemanticTypeRecord
+from qiime2.plugin.plugin import SemanticTypeRecord, FormatRecord
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
                                       FourInts, Kennel, Dog, Cat)
+from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
+                                        MappingDirectoryFormat,
+                                        IntSequenceV2DirectoryFormat,
+                                        IntSequenceFormatV2,
+                                        FourIntsDirectoryFormat,
+                                        IntSequenceFormat)
 from qiime2.core.testing.util import get_dummy_plugin
 
 
@@ -59,6 +65,39 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(types, exp)
 
     # TODO: add tests for type/directory/transformer registrations
+
+    def test_importable_formats(self):
+        obs = self.pm.importable_formats
+        exp = {
+            'IntSequenceDirectoryFormat':
+                FormatRecord(format=IntSequenceDirectoryFormat,
+                             plugin=self.plugin),
+            'MappingDirectoryFormat':
+                FormatRecord(format=MappingDirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceV2DirectoryFormat':
+                FormatRecord(format=IntSequenceV2DirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceFormatV2':
+                FormatRecord(format=IntSequenceFormatV2,
+                             plugin=self.plugin),
+            'FourIntsDirectoryFormat':
+                FormatRecord(format=FourIntsDirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceFormat':
+                FormatRecord(format=IntSequenceFormat,
+                             plugin=self.plugin)
+        }
+        self.assertEqual(obs, exp)
+
+    def test_importable_formats_excludes_unimportables(self):
+        obs = self.pm.importable_formats
+        self.assertNotIn('UnimportableFormat', obs)
+        self.assertNotIn('UnimportableDirectoryFormat', obs)
+
+        obs = self.pm.formats
+        self.assertIn('UnimportableFormat', obs)
+        self.assertIn('UnimportableDirectoryFormat', obs)
 
 
 if __name__ == '__main__':

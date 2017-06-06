@@ -9,7 +9,7 @@
 import collections
 import os
 import pkg_resources
-
+import qiime2.core.transform as transform
 import qiime2.core.type
 
 
@@ -93,6 +93,26 @@ class PluginManager:
     # databases rollback/commit
 
     @property
+    def importable_formats(self):
+        """Return formats that are importable.
+
+        A format is importable in a QIIME 2 deployment if it can be transformed
+        into at least one of the canonical semantic type formats.
+
+        """
+        importable_formats = {}
+        for name, record in self.formats.items():
+            from_type = transform.ModelType.from_view_type(
+                record.format)
+            for type_format in self.type_formats:
+                to_type = transform.ModelType.from_view_type(
+                    type_format.format)
+                if from_type.has_transformation(to_type):
+                    importable_formats[name] = record
+                    break
+        return importable_formats
+
+    @property
     def importable_types(self):
         """Return set of concrete semantic types that are importable.
 
@@ -100,11 +120,11 @@ class PluginManager:
         directory format.
 
         """
-        types = set()
-        for record in self.type_formats:
-            for type in record.type_expression:
-                types.add(type)
-        return types
+        importable_types = set()
+        for type_format in self.type_formats:
+            for type in type_format.type_expression:
+                importable_types.add(type)
+        return importable_types
 
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):
