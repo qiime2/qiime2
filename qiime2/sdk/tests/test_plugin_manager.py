@@ -90,12 +90,12 @@ class TestPluginManager(unittest.TestCase):
         }
         self.assertEqual(obs, exp)
 
-    def test_importable_formats_with_dummy(self):
+    def test_importable_formats_excludes_unimportables(self):
         obs = self.pm.importable_formats
-        self.assertNotIn('UnimportableFormat', obs.keys())
-        self.assertNotIn('UnimportableDirectoryFormat', obs.keys())
+        self.assertNotIn('UnimportableFormat', obs)
+        self.assertNotIn('UnimportableDirectoryFormat', obs)
 
-        obs = self.pm.formats.keys()
+        obs = self.pm.formats
         self.assertIn('UnimportableFormat', obs)
         self.assertIn('UnimportableDirectoryFormat', obs)
 
