@@ -19,9 +19,7 @@ from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
                                         IntSequenceV2DirectoryFormat,
                                         IntSequenceFormatV2,
                                         FourIntsDirectoryFormat,
-                                        IntSequenceFormat,
-                                        UnimportableFormat,
-                                        UnimportableDirectoryFormat)
+                                        IntSequenceFormat)
 from qiime2.core.testing.util import get_dummy_plugin
 
 
@@ -71,32 +69,35 @@ class TestPluginManager(unittest.TestCase):
     def test_importable_formats(self):
         obs = self.pm.importable_formats
         exp = {
-            'IntSequenceDirectoryFormat': IntSequenceDirectoryFormat,
-            'MappingDirectoryFormat': MappingDirectoryFormat,
-            'IntSequenceV2DirectoryFormat': IntSequenceV2DirectoryFormat,
-            'IntSequenceFormatV2': IntSequenceFormatV2,
-            'FourIntsDirectoryFormat': FourIntsDirectoryFormat,
-            'IntSequenceFormat': IntSequenceFormat
+            'IntSequenceDirectoryFormat':
+                FormatRecord(format=IntSequenceDirectoryFormat,
+                             plugin=self.plugin),
+            'MappingDirectoryFormat':
+                FormatRecord(format=MappingDirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceV2DirectoryFormat':
+                FormatRecord(format=IntSequenceV2DirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceFormatV2':
+                FormatRecord(format=IntSequenceFormatV2,
+                             plugin=self.plugin),
+            'FourIntsDirectoryFormat':
+                FormatRecord(format=FourIntsDirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceFormat':
+                FormatRecord(format=IntSequenceFormat,
+                             plugin=self.plugin)
         }
-        self.assertEqual(set(obs), set(exp))
+        self.assertEqual(obs, exp)
 
     def test_importable_formats_with_dummy(self):
         obs = self.pm.importable_formats
-        self.assertFalse('UnimportableFormat' in obs.keys())
-        self.assertFalse(UnimportableFormat in obs.values())
-        self.assertFalse('UnimportableDirectoryFormat' in obs.keys())
-        self.assertFalse(UnimportableDirectoryFormat in obs.values())
+        self.assertNotIn('UnimportableFormat', obs.keys())
+        self.assertNotIn('UnimportableDirectoryFormat', obs.keys())
 
-        obs = self.pm.formats.items()
-        exp = {
-                ('UnimportableFormat',
-                 FormatRecord(format=UnimportableFormat,
-                              plugin=self.plugin)),
-                ('UnimportableDirectoryFormat',
-                 FormatRecord(format=UnimportableDirectoryFormat,
-                              plugin=self.plugin))
-        }
-        self.assertTrue(exp.issubset(obs))
+        obs = self.pm.formats.keys()
+        self.assertIn('UnimportableFormat', obs)
+        self.assertIn('UnimportableDirectoryFormat', obs)
 
 
 if __name__ == '__main__':

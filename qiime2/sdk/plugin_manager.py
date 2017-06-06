@@ -94,7 +94,7 @@ class PluginManager:
 
     @property
     def importable_formats(self):
-        """Return set of formats that are importable.
+        """Return formats that are importable.
 
         A format is importable in a QIIME 2 deployment if it can be transformed
         into at least one of the canonical semantic type formats.
@@ -102,9 +102,9 @@ class PluginManager:
         """
         importable_formats = {}
         for name, record in self.formats.items():
+            from_type = transform.ModelType.from_view_type(
+                record.format)
             for type_format in self.type_formats:
-                from_type = transform.ModelType.from_view_type(
-                    record.format)
                 to_type = transform.ModelType.from_view_type(
                     type_format.format)
                 if from_type.has_transformation(to_type):
