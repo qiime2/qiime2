@@ -41,7 +41,7 @@ def _async_action(action, args, kwargs):
 
 
 class Action(metaclass=abc.ABCMeta):
-    """ QIIME 2 Action """
+    """QIIME 2 Action"""
 
     type = 'action'
 
@@ -258,7 +258,7 @@ class Action(metaclass=abc.ABCMeta):
         wrapper.__name__ = wrapper.__qualname__ = name
         wrapper.__module__ = self.package
         wrapper.__doc__ = "{}\n\n{}".format(
-            self.name, '\n'.join(textwrap.wrap(self.description, width=79)))
+            self.name, textwrap.fill(self.description, width=79))
         del wrapper.__annotations__
         # This is necessary so that `inspect` doesn't display the wrapped
         # function's annotations (the annotations apply to the "view API" and
@@ -270,7 +270,7 @@ class Action(metaclass=abc.ABCMeta):
 
 
 class Method(Action):
-    """ QIIME 2 Method """
+    """QIIME 2 Method"""
 
     type = 'method'
 
@@ -326,7 +326,7 @@ class Method(Action):
 
 
 class Visualizer(Action):
-    """ QIIME 2 Visualizer """
+    """QIIME 2 Visualizer"""
 
     type = 'visualizer'
 

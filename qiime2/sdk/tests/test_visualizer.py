@@ -403,6 +403,17 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         self.assertIsInstance(output, Results)
         self.assertIsInstance(output.visualization, Visualization)
 
+    def test_docstring(self):
+        visualizer = self.plugin.visualizers['mapping_viz']
+        exp = "QIIME 2 Visualizer"
+        self.assertEqual(exp, visualizer.__doc__)
+        obs = visualizer.__call__.__doc__.split('\n')
+        self.assertTrue(obs[0].startswith('Visualize two'))
+        self.assertEqual(len(obs[1]), 0)
+        self.assertTrue(obs[2].startswith('This visualizer produces an HTML'))
+        self.assertTrue(obs[3].startswith('sorted in alphabetical'))
+
+
 
 if __name__ == '__main__':
     unittest.main()
