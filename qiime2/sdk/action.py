@@ -11,6 +11,7 @@ import concurrent.futures
 import inspect
 import os.path
 import tempfile
+import textwrap
 
 import decorator
 
@@ -40,6 +41,8 @@ def _async_action(action, args, kwargs):
 
 
 class Action(metaclass=abc.ABCMeta):
+    """ QIIME 2 Action """
+
     type = 'action'
 
     __call__ = LateBindingAttribute('_dynamic_call')
@@ -254,6 +257,8 @@ class Action(metaclass=abc.ABCMeta):
     def _set_wrapper_properties(self, wrapper, name):
         wrapper.__name__ = wrapper.__qualname__ = name
         wrapper.__module__ = self.package
+        wrapper.__doc__ = "{}\n\n{}".format(
+            self.name, '\n'.join(textwrap.wrap(self.description, width=79)))
         del wrapper.__annotations__
         # This is necessary so that `inspect` doesn't display the wrapped
         # function's annotations (the annotations apply to the "view API" and
@@ -265,6 +270,8 @@ class Action(metaclass=abc.ABCMeta):
 
 
 class Method(Action):
+    """ QIIME 2 Method """
+
     type = 'method'
 
     # Abstract method implementations:
@@ -319,6 +326,8 @@ class Method(Action):
 
 
 class Visualizer(Action):
+    """ QIIME 2 Visualizer """
+
     type = 'visualizer'
 
     # Abstract method implementations:
