@@ -418,6 +418,16 @@ class TestMethod(unittest.TestCase):
         self.assertEqual(result.left.view(list), [0, 42])
         self.assertEqual(result.right.view(list), [-2, 43, 6])
 
+    def test_docstring(self):
+        method = self.plugin.methods['split_ints']
+        exp = "QIIME 2 Method"
+        self.assertEqual(exp, method.__doc__)
+        obs = method.__call__.__doc__.split('\n')
+        self.assertTrue(obs[0].startswith('Split sequence of integers'))
+        self.assertEqual(len(obs[1]), 0)
+        self.assertTrue(obs[2].startswith('This method splits'))
+        self.assertTrue(obs[3].startswith('(left and'))
+
 
 if __name__ == '__main__':
     unittest.main()
