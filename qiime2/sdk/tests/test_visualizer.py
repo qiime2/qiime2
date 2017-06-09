@@ -414,6 +414,5 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         self.assertTrue(obs[3].startswith('sorted in alphabetical'))
 
 
-
 if __name__ == '__main__':
     unittest.main()
