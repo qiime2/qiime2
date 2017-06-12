@@ -13,7 +13,7 @@ import unittest
 import uuid
 
 import qiime2.plugin
-from qiime2.core.type import MethodSignature
+from qiime2.core.type import MethodSignature, Int
 from qiime2.sdk import Artifact, Method, Results
 
 from qiime2.core.testing.method import (concatenate_ints, merge_mappings,
@@ -172,18 +172,40 @@ class TestMethod(unittest.TestCase):
         concatenate_ints = self.plugin.methods['concatenate_ints']
         merge_mappings = self.plugin.methods['merge_mappings']
 
-        for method in concatenate_ints, merge_mappings:
+        concatenate_exp = {
+            'int2': Int, 'ints2': IntSequence1, 'return': (IntSequence1,),
+            'int1': Int, 'ints3': IntSequence2,
+            'ints1': IntSequence1 | IntSequence2}
+        merge_exp = {
+            'mapping2': Mapping, 'mapping1': Mapping, 'return': (Mapping,)}
+
+        mapper = {
+            concatenate_ints: concatenate_exp,
+            merge_mappings: merge_exp}
+
+        for method, exp in mapper.items():
             self.assertEqual(method.__call__.__name__, '__call__')
-            self.assertEqual(method.__call__.__annotations__, {})
+            self.assertEqual(method.__call__.__annotations__, exp)
             self.assertFalse(hasattr(method.__call__, '__wrapped__'))
 
     def test_async_properties(self):
         concatenate_ints = self.plugin.methods['concatenate_ints']
         merge_mappings = self.plugin.methods['merge_mappings']
 
-        for method in concatenate_ints, merge_mappings:
+        concatenate_exp = {
+            'int2': Int, 'ints2': IntSequence1, 'return': (IntSequence1,),
+            'int1': Int, 'ints3': IntSequence2,
+            'ints1': IntSequence1 | IntSequence2}
+        merge_exp = {
+            'mapping2': Mapping, 'mapping1': Mapping, 'return': (Mapping,)}
+
+        mapper = {
+            concatenate_ints: concatenate_exp,
+            merge_mappings: merge_exp}
+
+        for method, exp in mapper.items():
             self.assertEqual(method.async.__name__, 'async')
-            self.assertEqual(method.async.__annotations__, {})
+            self.assertEqual(method.async.__annotations__, exp)
             self.assertFalse(hasattr(method.async, '__wrapped__'))
 
     def test_callable_and_async_signature_with_artifacts_and_parameters(self):
@@ -197,16 +219,19 @@ class TestMethod(unittest.TestCase):
 
             kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
             exp_parameters = [
-                ('ints1', inspect.Parameter('ints1', kind)),
-                ('ints2', inspect.Parameter('ints2', kind)),
-                ('ints3', inspect.Parameter('ints3', kind)),
-                ('int1', inspect.Parameter('int1', kind)),
-                ('int2', inspect.Parameter('int2', kind))
+                ('ints1', inspect.Parameter(
+                    'ints1', kind, annotation=IntSequence1 | IntSequence2)),
+                ('ints2', inspect.Parameter(
+                    'ints2', kind, annotation=IntSequence1)),
+                ('ints3', inspect.Parameter(
+                    'ints3', kind, annotation=IntSequence2)),
+                ('int1', inspect.Parameter(
+                    'int1', kind, annotation=Int)),
+                ('int2', inspect.Parameter(
+                    'int2', kind, annotation=Int))
             ]
-            self.assertEqual(parameters, exp_parameters)
 
-            self.assertEqual(signature.return_annotation,
-                             inspect.Signature.empty)
+            self.assertEqual(parameters, exp_parameters)
 
     def test_callable_and_async_signature_with_no_parameters(self):
         # Signature without parameters (i.e. primitives), only input artifacts.
@@ -219,13 +244,13 @@ class TestMethod(unittest.TestCase):
 
             kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
             exp_parameters = [
-                ('mapping1', inspect.Parameter('mapping1', kind)),
-                ('mapping2', inspect.Parameter('mapping2', kind))
+                ('mapping1', inspect.Parameter(
+                    'mapping1', kind, annotation=Mapping)),
+                ('mapping2', inspect.Parameter(
+                    'mapping2', kind, annotation=Mapping))
             ]
-            self.assertEqual(parameters, exp_parameters)
 
-            self.assertEqual(signature.return_annotation,
-                             inspect.Signature.empty)
+            self.assertEqual(parameters, exp_parameters)
 
     def test_call_with_artifacts_and_parameters(self):
         concatenate_ints = self.plugin.methods['concatenate_ints']

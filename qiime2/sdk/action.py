@@ -259,11 +259,30 @@ class Action(metaclass=abc.ABCMeta):
         wrapper.__module__ = self.package
         wrapper.__doc__ = "{}\n\n{}".format(
             self.name, textwrap.fill(self.description, width=79))
-        del wrapper.__annotations__
+        wrapper.__annotations__ = self._build_annotations()
         # This is necessary so that `inspect` doesn't display the wrapped
         # function's annotations (the annotations apply to the "view API" and
         # not the "artifact API").
         del wrapper.__wrapped__
+
+    def _build_annotations(self):
+        annotations = {}
+        sig = self.signature
+
+        for inpt in sig.inputs:
+            annotations[inpt] = sig.inputs[inpt].qiime_type
+
+        for param in sig.parameters:
+            annotations[param] = sig.parameters[param].qiime_type
+
+        output = []
+        for out in sig.outputs:
+            output.append(sig.outputs[out].qiime_type)
+        output = tuple(output)
+
+        annotations["return"] = output
+
+        return annotations
 
     def _is_subprocess(self):
         return self._pid != os.getpid()
