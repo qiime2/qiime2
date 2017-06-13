@@ -268,7 +268,12 @@ class PipelineSignature:
     def decode_parameters(self, **kwargs):
         params = {}
         for key, spec in self.parameters.items():
-            params[key] = spec.qiime_type.decode(kwargs[key])
+            if (spec.has_default() and
+                    spec.default is None and
+                    kwargs[key] is None):
+                params[key] = None
+            else:
+                params[key] = spec.qiime_type.decode(kwargs[key])
         return params
 
     def check_types(self, **kwargs):
@@ -282,7 +287,8 @@ class PipelineSignature:
                 # A type mismatch is unacceptable unless the value is None
                 # and this parameter's default value is None.
                 if not (spec.has_default() and
-                        spec.default is kwargs[name] is None):
+                        spec.default is None and
+                        kwargs[name] is None):
                     raise TypeError("Argument to parameter %r is not a "
                                     "subtype of %r." % (name, spec.qiime_type))
 
