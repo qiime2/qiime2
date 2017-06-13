@@ -15,7 +15,8 @@ import uuid
 
 import qiime2.plugin
 import qiime2.core.type
-from qiime2.core.type import VisualizerSignature
+from qiime2.core.type import VisualizerSignature, Str
+from qiime2.core.type.visualization import Visualization as VisualizationType
 from qiime2.sdk import Artifact, Visualization, Visualizer, Results
 
 from qiime2.core.testing.visualizer import (most_common_viz, mapping_viz,
@@ -133,18 +134,40 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         mapping_viz = self.plugin.visualizers['mapping_viz']
         most_common_viz = self.plugin.visualizers['most_common_viz']
 
-        for visualizer in mapping_viz, most_common_viz:
+        mapping_exp = {
+            'mapping1': Mapping, 'return': (VisualizationType,),
+            'key_label': Str, 'mapping2': Mapping, 'value_label': Str}
+        most_common_exp = {
+            'ints': IntSequence1 | IntSequence2,
+            'return': (VisualizationType,)}
+
+        mapper = {
+            mapping_viz: mapping_exp,
+            most_common_viz: most_common_exp}
+
+        for visualizer, exp in mapper.items():
             self.assertEqual(visualizer.__call__.__name__, '__call__')
-            self.assertEqual(visualizer.__call__.__annotations__, {})
+            self.assertEqual(visualizer.__call__.__annotations__, exp)
             self.assertFalse(hasattr(visualizer.__call__, '__wrapped__'))
 
     def test_async_properties(self):
         mapping_viz = self.plugin.visualizers['mapping_viz']
         most_common_viz = self.plugin.visualizers['most_common_viz']
 
-        for visualizer in mapping_viz, most_common_viz:
+        mapping_exp = {
+            'mapping1': Mapping, 'return': (VisualizationType,),
+            'key_label': Str, 'mapping2': Mapping, 'value_label': Str}
+        most_common_exp = {
+            'ints': IntSequence1 | IntSequence2,
+            'return': (VisualizationType,)}
+
+        mapper = {
+            mapping_viz: mapping_exp,
+            most_common_viz: most_common_exp}
+
+        for visualizer, exp in mapper.items():
             self.assertEqual(visualizer.async.__name__, 'async')
-            self.assertEqual(visualizer.async.__annotations__, {})
+            self.assertEqual(visualizer.async.__annotations__, exp)
             self.assertFalse(hasattr(visualizer.async, '__wrapped__'))
 
     def test_callable_and_async_signature(self):
@@ -157,15 +180,17 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
 
             kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
             exp_parameters = [
-                ('mapping1', inspect.Parameter('mapping1', kind)),
-                ('mapping2', inspect.Parameter('mapping2', kind)),
-                ('key_label', inspect.Parameter('key_label', kind)),
-                ('value_label', inspect.Parameter('value_label', kind))
+                ('mapping1', inspect.Parameter(
+                    'mapping1', kind, annotation=Mapping)),
+                ('mapping2', inspect.Parameter(
+                    'mapping2', kind, annotation=Mapping)),
+                ('key_label', inspect.Parameter(
+                    'key_label', kind, annotation=Str)),
+                ('value_label', inspect.Parameter(
+                    'value_label', kind, annotation=Str))
             ]
-            self.assertEqual(parameters, exp_parameters)
 
-            self.assertEqual(signature.return_annotation,
-                             inspect.Signature.empty)
+            self.assertEqual(parameters, exp_parameters)
 
     def test_callable_and_async_different_signature(self):
         # Test that a different Visualizer object has a different dynamic
@@ -179,12 +204,11 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
 
             kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
             exp_parameters = [
-                ('ints', inspect.Parameter('ints', kind))
+                ('ints', inspect.Parameter(
+                    'ints', kind, annotation=IntSequence1 | IntSequence2))
             ]
-            self.assertEqual(parameters, exp_parameters)
 
-            self.assertEqual(signature.return_annotation,
-                             inspect.Signature.empty)
+            self.assertEqual(parameters, exp_parameters)
 
     def test_call_with_artifacts_and_parameters(self):
         mapping_viz = self.plugin.visualizers['mapping_viz']
