@@ -268,7 +268,10 @@ class PipelineSignature:
     def decode_parameters(self, **kwargs):
         params = {}
         for key, spec in self.parameters.items():
-            params[key] = spec.qiime_type.decode(kwargs[key])
+            if spec.has_default() and spec.default is kwargs[key] is None:
+                params[key] = None
+            else:
+                params[key] = spec.qiime_type.decode(kwargs[key])
         return params
 
     def check_types(self, **kwargs):
