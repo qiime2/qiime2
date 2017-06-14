@@ -52,3 +52,13 @@ def identity_with_metadata(ints: list, metadata: qiime2.Metadata) -> list:
 def identity_with_metadata_category(ints: list,
                                     metadata: qiime2.MetadataCategory) -> list:
     return ints
+
+
+def identity_with_optional_metadata(ints: list,
+                                    metadata: qiime2.Metadata=None) -> list:
+    return ints
+
+
+def identity_with_optional_metadata_category(
+        ints: list, metadata: qiime2.MetadataCategory=None) -> list:
+    return ints

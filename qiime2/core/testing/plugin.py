@@ -28,6 +28,8 @@ from .type import (IntSequence1, IntSequence2, Mapping, FourInts,
                    Kennel, Dog, Cat)
 from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_category,
+                     identity_with_optional_metadata,
+                     identity_with_optional_metadata_category,
                      params_only_method, no_input_method)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
@@ -161,6 +163,38 @@ dummy_plugin.methods.register_function(
     ],
     name='Identity',
     description='This method does nothing, but takes a metadata category'
+)
+
+
+dummy_plugin.methods.register_function(
+    function=identity_with_optional_metadata,
+    inputs={
+        'ints': IntSequence1 | IntSequence2
+    },
+    parameters={
+        'metadata': qiime2.plugin.Metadata
+    },
+    outputs=[
+        ('out', IntSequence1)
+    ],
+    name='Identity',
+    description='This method does nothing, but takes optional metadata'
+)
+
+dummy_plugin.methods.register_function(
+    function=identity_with_optional_metadata_category,
+    inputs={
+        'ints': IntSequence1 | IntSequence2
+    },
+    parameters={
+        'metadata': qiime2.plugin.MetadataCategory
+    },
+    outputs=[
+        ('out', IntSequence1)
+    ],
+    name='Identity',
+    description='This method does nothing, but takes an optional metadata '
+                'category'
 )
 
 
