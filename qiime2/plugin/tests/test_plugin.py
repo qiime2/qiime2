@@ -76,6 +76,8 @@ class TestPlugin(unittest.TestCase):
                           'most_common_viz', 'mapping_viz',
                           'identity_with_metadata',
                           'identity_with_metadata_category',
+                          'identity_with_optional_metadata',
+                          'identity_with_optional_metadata_category',
                           'params_only_method', 'no_input_method',
                           'params_only_viz', 'no_input_viz'})
         for action in actions.values():
@@ -94,6 +96,8 @@ class TestPlugin(unittest.TestCase):
                          {'merge_mappings', 'concatenate_ints', 'split_ints',
                           'identity_with_metadata',
                           'identity_with_metadata_category',
+                          'identity_with_optional_metadata',
+                          'identity_with_optional_metadata_category',
                           'params_only_method', 'no_input_method'})
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Action)
