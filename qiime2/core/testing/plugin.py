@@ -30,7 +30,8 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_category,
                      identity_with_optional_metadata,
                      identity_with_optional_metadata_category,
-                     params_only_method, no_input_method)
+                     params_only_method, no_input_method,
+                     optional_artifacts_method)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 
@@ -222,6 +223,26 @@ dummy_plugin.methods.register_function(
     ],
     name='No input method',
     description='This method does not accept any type of input.'
+)
+
+
+dummy_plugin.methods.register_function(
+    function=optional_artifacts_method,
+    inputs={
+        'ints': IntSequence1,
+        'optional1': IntSequence1,
+        'optional2': IntSequence1 | IntSequence2
+    },
+    parameters={
+        'num1': qiime2.plugin.Int,
+        'num2': qiime2.plugin.Int
+    },
+    outputs=[
+        ('output', IntSequence1)
+    ],
+    name='Optional artifacts method',
+    description='This method declares optional artifacts and concatenates '
+                'whatever integers are supplied as input.'
 )
 
 

@@ -13,6 +13,7 @@ import pandas.util.testing as pdt
 
 import qiime2
 from qiime2.plugins import dummy_plugin
+from qiime2.core.testing.type import IntSequence1
 
 
 class TestProvenanceIntegration(unittest.TestCase):
@@ -116,6 +117,30 @@ class TestProvenanceIntegration(unittest.TestCase):
         self.assertTrue((p_dir / 'artifacts' / str(md_artifact1.uuid) /
                          'action' / 'action.yaml').exists())
         self.assertTrue((p_dir / 'artifacts' / str(md_artifact2.uuid) /
+                         'action' / 'action.yaml').exists())
+
+    def test_with_optional_artifacts(self):
+        ints1 = qiime2.Artifact.import_data(IntSequence1, [0, 42, 43])
+        ints2 = qiime2.Artifact.import_data(IntSequence1, [99, -22])
+
+        # One optional artifact is provided (`optional1`) while `optional2` is
+        # omitted.
+        obs = dummy_plugin.actions.optional_artifacts_method(
+            ints1, 42, optional1=ints2).output
+
+        p_dir = obs._archiver.provenance_dir
+        with (p_dir / 'action' / 'action.yaml').open() as fh:
+            yaml = fh.read()
+
+        self.assertIn('ints: %s' % ints1.uuid, yaml)
+        self.assertIn('optional1: %s' % ints2.uuid, yaml)
+        self.assertIn('optional2: null', yaml)
+        self.assertIn('num1: 42', yaml)
+        self.assertIn('num2: null', yaml)
+
+        self.assertTrue((p_dir / 'artifacts' / str(ints1.uuid) /
+                         'action' / 'action.yaml').exists())
+        self.assertTrue((p_dir / 'artifacts' / str(ints2.uuid) /
                          'action' / 'action.yaml').exists())
 
 

@@ -163,14 +163,8 @@ class Action(metaclass=abc.ABCMeta):
             # function's signature.
             args = args[1:]
 
-            # TODO this may be able to be simplified once Signature respects
-            # order.
-            wrapper_sig = self._callable_sig_converter_(self._callable)
-            wrapper_sig = inspect.Signature.from_callable(wrapper_sig)
-            wrapper_params = wrapper_sig.parameters
-
             user_input = {name: value for value, name in
-                          zip(args, wrapper_params)}
+                          zip(args, self.signature.ordered_parameters)}
             user_input.update(kwargs)
 
             self.signature.check_types(**user_input)
@@ -180,7 +174,7 @@ class Action(metaclass=abc.ABCMeta):
             for name in self.signature.inputs:
                 artifact = artifacts[name] = user_input[name]
                 provenance.add_input(name, artifact)
-                if self._is_subprocess():
+                if self._is_subprocess() and artifact is not None:
                     # Cleanup shouldn't be handled in the subprocess, it
                     # doesn't own any of these inputs, they were just provided.
                     # We also can't rely on the subprocess preventing atexit
@@ -196,8 +190,11 @@ class Action(metaclass=abc.ABCMeta):
             view_args = parameters.copy()
             for name, spec in self.signature.inputs.items():
                 recorder = provenance.transformation_recorder(name)
-                view_args[name] = artifacts[name]._view(spec.view_type,
-                                                        recorder)
+                artifact = artifacts[name]
+                if artifact is None:
+                    view_args[name] = artifact
+                else:
+                    view_args[name] = artifact._view(spec.view_type, recorder)
 
             outputs = self._callable_executor_(self._callable, view_args,
                                                output_types, provenance)
@@ -267,17 +264,12 @@ class Action(metaclass=abc.ABCMeta):
 
     def _build_annotations(self):
         annotations = {}
-        sig = self.signature
-
-        for inpt in sig.inputs:
-            annotations[inpt] = sig.inputs[inpt].qiime_type
-
-        for param in sig.parameters:
-            annotations[param] = sig.parameters[param].qiime_type
+        for name, spec in self.signature.ordered_parameters.items():
+            annotations[name] = spec.qiime_type
 
         output = []
-        for out in sig.outputs:
-            output.append(sig.outputs[out].qiime_type)
+        for spec in self.signature.outputs.values():
+            output.append(spec.qiime_type)
         output = tuple(output)
 
         annotations["return"] = output

@@ -284,11 +284,14 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.parameters[name] = handler(parameter)
 
     def add_input(self, name, artifact):
-        ancestral_provenance = self.add_ancestor(artifact)
-        if ancestral_provenance is NotImplemented:
-            self.inputs[name] = NoProvenance(artifact.uuid)
+        if artifact is None:
+            self.inputs[name] = artifact
         else:
-            self.inputs[name] = str(artifact.uuid)
+            ancestral_provenance = self.add_ancestor(artifact)
+            if ancestral_provenance is NotImplemented:
+                self.inputs[name] = NoProvenance(artifact.uuid)
+            else:
+                self.inputs[name] = str(artifact.uuid)
 
     def make_action_section(self):
         action = collections.OrderedDict()

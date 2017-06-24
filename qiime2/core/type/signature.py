@@ -92,9 +92,10 @@ class PipelineSignature:
             Output name to description string.
 
         """
-        inputs, parameters, outputs = self._parse_signature(
-            callable, inputs, parameters, outputs, input_descriptions,
-            parameter_descriptions, output_descriptions)
+        inputs, parameters, outputs, ordered_parameters = \
+            self._parse_signature(callable, inputs, parameters, outputs,
+                                  input_descriptions, parameter_descriptions,
+                                  output_descriptions)
 
         self._assert_valid_inputs(inputs)
         self._assert_valid_parameters(parameters)
@@ -103,12 +104,13 @@ class PipelineSignature:
         self.inputs = inputs
         self.parameters = parameters
         self.outputs = outputs
+        self.ordered_parameters = ordered_parameters
 
     @property
     def defaults(self):
         return collections.OrderedDict([
-            (name, spec.default) for name, spec in self.parameters.items()
-            if spec.has_default()])
+            (name, spec.default) for name, spec in
+            self.ordered_parameters.items() if spec.has_default()])
 
     def _parse_signature(self, callable, inputs, parameters, outputs,
                          input_descriptions=None, parameter_descriptions=None,
@@ -132,8 +134,8 @@ class PipelineSignature:
         annotated_inputs = collections.OrderedDict()
         annotated_parameters = collections.OrderedDict()
         annotated_outputs = collections.OrderedDict()
+        ordered_parameters = collections.OrderedDict()
 
-        in_parameter_section = False
         for name, parameter in inspect.signature(callable).parameters.items():
             if (parameter.kind == parameter.VAR_POSITIONAL or
                     parameter.kind == parameter.VAR_KEYWORD):
@@ -155,23 +157,21 @@ class PipelineSignature:
                 default = parameter.default
 
             if name in inputs:
-                if in_parameter_section:
-                    # Mixing "parameters" into the "input" section is not
-                    # allowed
-                    raise TypeError("Artifact inputs must come before"
-                                    " parameters in callable signature.")
                 description = input_descriptions.pop(name,
                                                      ParameterSpec.NOVALUE)
-                annotated_inputs[name] = ParameterSpec(
+                param_spec = ParameterSpec(
                     qiime_type=inputs.pop(name), view_type=view_type,
                     default=default, description=description)
+                annotated_inputs[name] = param_spec
+                ordered_parameters[name] = param_spec
             elif name in parameters:
-                in_parameter_section = True
                 description = parameter_descriptions.pop(name,
                                                          ParameterSpec.NOVALUE)
-                annotated_parameters[name] = ParameterSpec(
+                param_spec = ParameterSpec(
                     qiime_type=parameters.pop(name), view_type=view_type,
                     default=default, description=description)
+                annotated_parameters[name] = param_spec
+                ordered_parameters[name] = param_spec
             elif name not in self.builtin_args:
                 raise TypeError("Parameter in callable without QIIME type:"
                                 " %r" % name)
@@ -210,7 +210,8 @@ class PipelineSignature:
                                       *parameter_descriptions,
                                       *output_descriptions])
 
-        return annotated_inputs, annotated_parameters, annotated_outputs
+        return (annotated_inputs, annotated_parameters, annotated_outputs,
+                ordered_parameters)
 
     def _assert_valid_inputs(self, inputs):
         for input_name, spec in inputs.items():
@@ -224,9 +225,11 @@ class PipelineSignature:
                     "Input %r must be a complete semantic type expression, "
                     "not %r" % (input_name, spec.qiime_type))
 
-            if spec.has_default():
-                raise ValueError("Input %r must not have a default value"
-                                 % input_name)
+            if spec.has_default() and spec.default is not None:
+                raise ValueError(
+                    "Input %r has a default value of %r. Only a default "
+                    "value of `None` is supported for inputs."
+                    % (input_name, spec.default))
 
     def _assert_valid_parameters(self, parameters):
         for param_name, spec in parameters.items():
@@ -244,7 +247,7 @@ class PipelineSignature:
                     spec.default is not None and
                     spec.default not in spec.qiime_type):
                 raise TypeError("Default value for parameter %r is not of "
-                                "semantic QIIME type %r or None."
+                                "semantic QIIME type %r or `None`."
                                 % (param_name, spec.qiime_type))
 
     def _assert_valid_outputs(self, outputs):
@@ -277,12 +280,7 @@ class PipelineSignature:
         return params
 
     def check_types(self, **kwargs):
-        for name, spec in self.inputs.items():
-            if kwargs[name] not in spec.qiime_type:
-                raise TypeError("Argument to input %r is not a subtype of"
-                                " %r." % (name, spec.qiime_type))
-
-        for name, spec in self.parameters.items():
+        for name, spec in self.ordered_parameters.items():
             if kwargs[name] not in spec.qiime_type:
                 # A type mismatch is unacceptable unless the value is None
                 # and this parameter's default value is None.
@@ -320,7 +318,8 @@ class PipelineSignature:
         return (type(self) is type(other) and
                 self.inputs == other.inputs and
                 self.parameters == other.parameters and
-                self.outputs == other.outputs)
+                self.outputs == other.outputs and
+                self.ordered_parameters == other.ordered_parameters)
 
     def __ne__(self, other):
         return not (self == other)
@@ -357,5 +356,5 @@ class VisualizerSignature(PipelineSignature):
         if output.has_view_type() and output.view_type is not None:
             raise TypeError(
                 "Visualizer callable cannot return anything. Its return "
-                "annotation must be None, not %r. Write output to "
+                "annotation must be `None`, not %r. Write output to "
                 "`output_dir`." % output.view_type)
