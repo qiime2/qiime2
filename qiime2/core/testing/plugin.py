@@ -125,10 +125,15 @@ dummy_plugin.methods.register_function(
         'mapping1': Mapping,
         'mapping2': Mapping
     },
+    input_descriptions={
+        'mapping1': 'Mapping object to be merged'
+    },
     parameters={},
     outputs=[
         ('merged_mapping', Mapping)
     ],
+    output_descriptions={
+        'merged_mapping': 'Resulting merged Mapping object'},
     name='Merge mappings',
     description='This method merges two mappings into a single new mapping. '
                 'If a key is shared between mappings and the values differ, '

@@ -11,7 +11,6 @@ import concurrent.futures
 import inspect
 import os.path
 import tempfile
-import textwrap
 
 import decorator
 
@@ -257,8 +256,7 @@ class Action(metaclass=abc.ABCMeta):
     def _set_wrapper_properties(self, wrapper, name):
         wrapper.__name__ = wrapper.__qualname__ = name
         wrapper.__module__ = self.package
-        wrapper.__doc__ = "{}\n\n{}".format(
-            self.name, textwrap.fill(self.description, width=79))
+        wrapper.__doc__ = self._build_numpydoc()
         wrapper.__annotations__ = self._build_annotations()
         # This is necessary so that `inspect` doesn't display the wrapped
         # function's annotations (the annotations apply to the "view API" and
@@ -283,6 +281,46 @@ class Action(metaclass=abc.ABCMeta):
         annotations["return"] = output
 
         return annotations
+
+    def _build_numpydoc(self):
+        numpydoc = ""
+        numpydoc += "{}\n\n".format(self.name)
+        numpydoc += "{}\n\n".format(self.description)
+
+        sig = self.signature
+
+        numpydoc += "{}".format(self._build_section(
+            "Parameters", sig.inputs))
+        numpydoc += "{}".format(self._build_section(
+            "Parameters", sig.parameters, parameters=True))
+        numpydoc += ("\n" if len(sig.parameters) != 0 or
+                     len(sig.inputs) != 0 else "")
+        numpydoc += "{}\n".format(self._build_section(
+            "Returns", sig.outputs))
+
+        return numpydoc
+
+    def _build_section(self, header, iterable, parameters=False):
+        section = ""
+
+        if len(iterable) != 0:
+            if not parameters:
+                section += "{}\n".format(header)
+                section += "{}\n".format(''.join(['-' for char in header]))
+            for item in iterable:
+                item_obj = iterable[item]
+                section += "{}: {}".format(item, item_obj.qiime_type)
+                if type(item_obj.default).__name__ != "_NoValue":
+                    section += ", optional\n"
+                else:
+                    section += "\n"
+                if type(item_obj.description).__name__ == "_NoValue":
+                    description = "No description available"
+                else:
+                    description = item_obj.description
+                section += "    {}\n".format(description)
+
+        return section
 
     def _is_subprocess(self):
         return self._pid != os.getpid()
