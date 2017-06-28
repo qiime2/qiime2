@@ -192,7 +192,7 @@ class Action(metaclass=abc.ABCMeta):
                 recorder = provenance.transformation_recorder(name)
                 artifact = artifacts[name]
                 if artifact is None:
-                    view_args[name] = artifact
+                    view_args[name] = None
                 else:
                     view_args[name] = artifact._view(spec.view_type, recorder)
 

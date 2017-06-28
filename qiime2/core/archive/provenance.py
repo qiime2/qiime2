@@ -285,7 +285,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
 
     def add_input(self, name, artifact):
         if artifact is None:
-            self.inputs[name] = artifact
+            self.inputs[name] = None
         else:
             ancestral_provenance = self.add_ancestor(artifact)
             if ancestral_provenance is NotImplemented:
