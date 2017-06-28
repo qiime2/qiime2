@@ -164,7 +164,7 @@ class Action(metaclass=abc.ABCMeta):
             args = args[1:]
 
             user_input = {name: value for value, name in
-                          zip(args, self.signature.ordered_parameters)}
+                          zip(args, self.signature.signature_order)}
             user_input.update(kwargs)
 
             self.signature.check_types(**user_input)
@@ -264,7 +264,7 @@ class Action(metaclass=abc.ABCMeta):
 
     def _build_annotations(self):
         annotations = {}
-        for name, spec in self.signature.ordered_parameters.items():
+        for name, spec in self.signature.signature_order.items():
             annotations[name] = spec.qiime_type
 
         output = []
