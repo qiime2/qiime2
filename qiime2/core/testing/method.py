@@ -62,3 +62,15 @@ def identity_with_optional_metadata(ints: list,
 def identity_with_optional_metadata_category(
         ints: list, metadata: qiime2.MetadataCategory=None) -> list:
     return ints
+
+
+def optional_artifacts_method(ints: list, num1: int, optional1: list=None,
+                              optional2: list=None, num2: int=None) -> list:
+    result = ints + [num1]
+    if optional1 is not None:
+        result += optional1
+    if optional2 is not None:
+        result += optional2
+    if num2 is not None:
+        result += [num2]
+    return result
