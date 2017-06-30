@@ -288,11 +288,12 @@ class Action(metaclass=abc.ABCMeta):
         numpydoc += "{}\n\n".format(self.description)
 
         sig = self.signature
+        params = True if len(sig.inputs) != 0 else False
 
         numpydoc += "{}".format(self._build_section(
             "Parameters", sig.inputs))
         numpydoc += "{}".format(self._build_section(
-            "Parameters", sig.parameters, parameters=True))
+            "Parameters", sig.parameters, parameters=params))
         numpydoc += ("\n" if len(sig.parameters) != 0 or
                      len(sig.inputs) != 0 else "")
         numpydoc += "{}\n".format(self._build_section(

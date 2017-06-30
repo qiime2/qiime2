@@ -459,7 +459,7 @@ class TestMethod(unittest.TestCase):
         self.assertEqual(merge_mappings.__doc__, 'QIIME 2 Method')
 
         merge_calldoc = merge_mappings.__call__.__doc__
-        self.assertEqual(merge_calldoc, exp_merge_calldoc)
+        self.assertEqual(exp_merge_calldoc, merge_calldoc)
         self.assertIn("No description available", merge_calldoc)
 
         split_ints_return = split_ints.__call__.__doc__.split('\n\n')[3]
@@ -471,6 +471,9 @@ class TestMethod(unittest.TestCase):
 
         no_input_method = no_input_method.__call__.__doc__
         self.assertEqual(exp_no_input_method, no_input_method)
+
+        params_only = params_only_method.__call__.__doc__
+        self.assertEqual(exp_params_only, params_only)
 
 
 exp_merge_calldoc = """\
@@ -516,6 +519,25 @@ exp_no_input_method = """\
 No input method
 
 This method does not accept any type of input.
+
+Returns
+-------
+out: Mapping
+    No description available
+
+"""
+
+exp_params_only = """\
+Parameters only method
+
+This method only accepts parameters.
+
+Parameters
+----------
+name: Str
+    No description available
+age: Int
+    No description available
 
 Returns
 -------
