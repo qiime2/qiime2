@@ -455,6 +455,7 @@ class TestMethod(unittest.TestCase):
         identity_with_optional_metadata = (
             self.plugin.methods['identity_with_optional_metadata'])
         no_input_method = self.plugin.methods['no_input_method']
+        params_only_method = self.plugin.methods['params_only_method']
 
         self.assertEqual(merge_mappings.__doc__, 'QIIME 2 Method')
 
