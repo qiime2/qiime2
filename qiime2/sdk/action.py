@@ -11,6 +11,7 @@ import concurrent.futures
 import inspect
 import os.path
 import tempfile
+import textwrap
 
 import decorator
 
@@ -283,45 +284,54 @@ class Action(metaclass=abc.ABCMeta):
         return annotations
 
     def _build_numpydoc(self):
-        numpydoc = ""
-        numpydoc += "{}\n\n".format(self.name)
-        numpydoc += "{}\n\n".format(self.description)
+        numpydoc = []
+        numpydoc.append(textwrap.fill(self.name, width=79))
+        numpydoc.append(textwrap.fill(self.description, width=79))
 
         sig = self.signature
         params = True if len(sig.inputs) != 0 else False
 
-        numpydoc += "{}".format(self._build_section(
-            "Parameters", sig.inputs))
-        numpydoc += "{}".format(self._build_section(
-            "Parameters", sig.parameters, parameters=params))
-        numpydoc += ("\n" if len(sig.parameters) != 0 or
-                     len(sig.inputs) != 0 else "")
-        numpydoc += "{}\n".format(self._build_section(
-            "Returns", sig.outputs))
+        inputs = self._build_section("Parameters", sig.inputs)
+        parameters = self._build_section("Parameters", sig.parameters,
+                                         parameters=params)
+        returns = self._build_section("Returns", sig.outputs)
 
-        return numpydoc
+        if len(inputs) != 0 and len(parameters) != 0:
+            parameters = '\n'.join([inputs, parameters])
+            inputs = None
+
+        if inputs is not None:
+            for section in [inputs, parameters, returns]:
+                if len(section) != 0:
+                    numpydoc.append(section)
+        else:
+            numpydoc.append(parameters)
+            numpydoc.append(returns)
+
+        return '\n\n'.join(numpydoc)
 
     def _build_section(self, header, iterable, parameters=False):
-        section = ""
+        section = []
 
         if len(iterable) != 0:
             if not parameters:
-                section += "{}\n".format(header)
-                section += "{}\n".format(''.join(['-' for char in header]))
+                section.append(header)
+                section.append('-'*len(header))
             for item in iterable:
                 item_obj = iterable[item]
-                section += "{}: {}".format(item, item_obj.qiime_type)
-                if type(item_obj.default).__name__ != "_NoValue":
-                    section += ", optional\n"
-                else:
-                    section += "\n"
-                if type(item_obj.description).__name__ == "_NoValue":
-                    description = "No description available"
-                else:
-                    description = item_obj.description
-                section += "    {}\n".format(description)
+                info = {'item': item, 'type': item_obj.qiime_type}
+                section.append("{item} : {type}".format(**info))
+                if item_obj.has_default():
+                    section[-1] += ", optional"
+                if str(item_obj.description) != "NOVALUE":
+                    section.append("    {}".format(item_obj.description))
 
-        return section
+        for idx in range(len(section)):
+            section[idx] = textwrap.fill(section[idx], width=79)
+        if len(section) != 0:
+            return '\n'.join(section).strip()
+        else:
+            return ""
 
     def _is_subprocess(self):
         return self._pid != os.getpid()

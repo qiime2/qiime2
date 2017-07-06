@@ -461,10 +461,9 @@ class TestMethod(unittest.TestCase):
 
         merge_calldoc = merge_mappings.__call__.__doc__
         self.assertEqual(exp_merge_calldoc, merge_calldoc)
-        self.assertIn("No description available", merge_calldoc)
 
         split_ints_return = split_ints.__call__.__doc__.split('\n\n')[3]
-        self.assertEqual(exp_split_ints_reuturn, split_ints_return)
+        self.assertEqual(exp_split_ints_return, split_ints_return)
 
         optional_params = (
             identity_with_optional_metadata.__call__.__doc__.split('\n\n')[2])
@@ -480,40 +479,34 @@ class TestMethod(unittest.TestCase):
 exp_merge_calldoc = """\
 Merge mappings
 
-This method merges two mappings into a single new mapping. If a key is \
-shared between mappings and the values differ, an error will be raised.
+This method merges two mappings into a single new mapping. If a key is shared
+between mappings and the values differ, an error will be raised.
 
 Parameters
 ----------
-mapping1: Mapping
+mapping1 : Mapping
     Mapping object to be merged
-mapping2: Mapping
-    No description available
+mapping2 : Mapping
 
 Returns
 -------
-merged_mapping: Mapping
-    Resulting merged Mapping object
-
+merged_mapping : Mapping
+    Resulting merged Mapping object\
 """
 
-exp_split_ints_reuturn = """\
+exp_split_ints_return = """\
 Returns
 -------
-left: IntSequence1
-    No description available
-right: IntSequence1
-    No description available\
+left : IntSequence1
+right : IntSequence1\
 """
 
 
 exp_optional_params = """\
 Parameters
 ----------
-ints: IntSequence1 | IntSequence2
-    No description available
-metadata: Metadata, optional
-    No description available\
+ints : IntSequence1 | IntSequence2
+metadata : Metadata, optional\
 """
 
 exp_no_input_method = """\
@@ -523,9 +516,7 @@ This method does not accept any type of input.
 
 Returns
 -------
-out: Mapping
-    No description available
-
+out : Mapping\
 """
 
 exp_params_only = """\
@@ -535,16 +526,12 @@ This method only accepts parameters.
 
 Parameters
 ----------
-name: Str
-    No description available
-age: Int
-    No description available
+name : Str
+age : Int
 
 Returns
 -------
-out: Mapping
-    No description available
-
+out : Mapping\
 """
 
 
