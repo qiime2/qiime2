@@ -31,7 +31,7 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_optional_metadata,
                      identity_with_optional_metadata_category,
                      params_only_method, no_input_method,
-                     long_description_method)
+                     optional_artifacts_method, long_description_method)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 
