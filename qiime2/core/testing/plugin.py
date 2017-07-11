@@ -249,6 +249,26 @@ dummy_plugin.methods.register_function(
 )
 
 
+dummy_plugin.methods.register_function(
+    function=optional_artifacts_method,
+    inputs={
+        'ints': IntSequence1,
+        'optional1': IntSequence1,
+        'optional2': IntSequence1 | IntSequence2
+    },
+    parameters={
+        'num1': qiime2.plugin.Int,
+        'num2': qiime2.plugin.Int
+    },
+    outputs=[
+        ('output', IntSequence1)
+    ],
+    name='Optional artifacts method',
+    description='This method declares optional artifacts and concatenates '
+                'whatever integers are supplied as input.'
+)
+
+
 dummy_plugin.visualizers.register_function(
     function=params_only_viz,
     inputs={},

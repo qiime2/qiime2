@@ -372,6 +372,34 @@ class TestMethod(unittest.TestCase):
         self.assertIsInstance(result.uuid, uuid.UUID)
         self.assertEqual(result.view(dict), {'foo': '42'})
 
+    def test_call_with_optional_artifacts(self):
+        method = self.plugin.methods['optional_artifacts_method']
+
+        ints1 = Artifact.import_data(IntSequence1, [0, 42, 43])
+        ints2 = Artifact.import_data(IntSequence1, [99, -22])
+        ints3 = Artifact.import_data(IntSequence2, [43, 43])
+
+        # No optional artifacts provided.
+        obs = method(ints1, 42).output
+
+        self.assertEqual(obs.view(list), [0, 42, 43, 42])
+
+        # One optional artifact provided.
+        obs = method(ints1, 42, optional1=ints2).output
+
+        self.assertEqual(obs.view(list), [0, 42, 43, 42, 99, -22])
+
+        # All optional artifacts provided.
+        obs = method(
+            ints1, 42, optional1=ints2, optional2=ints3, num2=111).output
+
+        self.assertEqual(obs.view(list), [0, 42, 43, 42, 99, -22, 43, 43, 111])
+
+        # Invalid type provided as optional artifact.
+        with self.assertRaisesRegex(TypeError,
+                                    'not a subtype of IntSequence1'):
+            method(ints1, 42, optional1=ints3)
+
     def test_async(self):
         concatenate_ints = self.plugin.methods['concatenate_ints']
 
