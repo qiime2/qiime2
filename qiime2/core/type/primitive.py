@@ -82,8 +82,6 @@ class _CollectionPrimitive(_PrimitiveBase):
 
         super().__init__(*args, **kwargs)
 
-        super().__init__(*args, **kwargs)
-
     def encode(self, value):
         return self._encode(self, value)
 
