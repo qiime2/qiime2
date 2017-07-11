@@ -11,9 +11,10 @@ from .plugin import Plugin
 
 from qiime2.core.type import (SemanticType, Int, Str, Float, Color, Metadata,
                               MetadataCategory, Properties, Range, Choices,
-                              Arguments, Bool)
+                              Arguments, Bool, Set, List)
 
 
 __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
-           'SemanticType', 'Bool', 'Int', 'Str', 'Float', 'Color', 'Metadata',
-           'MetadataCategory', 'Properties', 'Range', 'Choices', 'Arguments']
+           'SemanticType', 'Set', 'List', 'Bool', 'Int', 'Str', 'Float',
+           'Color', 'Metadata', 'MetadataCategory', 'Properties', 'Range',
+           'Choices', 'Arguments']
