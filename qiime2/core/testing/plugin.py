@@ -30,7 +30,8 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_category,
                      identity_with_optional_metadata,
                      identity_with_optional_metadata_category,
-                     params_only_method, no_input_method)
+                     params_only_method, no_input_method,
+                     long_description_method)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 
@@ -153,6 +154,24 @@ dummy_plugin.methods.register_function(
     ],
     name='Identity',
     description='This method does nothing, but takes metadata'
+)
+
+dummy_plugin.methods.register_function(
+    function=long_description_method,
+    inputs={},
+    parameters={
+        'name': qiime2.plugin.Str,
+        'age': qiime2.plugin.Int
+    },
+    parameter_descriptions={
+        'name': """This is a very long description. If asked about its length,\
+ I would have to say it is greater than 79 characters."""
+    },
+    outputs=[
+        ('out', Mapping)
+    ],
+    name="Long Description",
+    description="This method does nothing, but includes a long annotation"
 )
 
 dummy_plugin.methods.register_function(

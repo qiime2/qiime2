@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import abc
+import collections
 import concurrent.futures
 import inspect
 import os.path
@@ -289,46 +290,35 @@ class Action(metaclass=abc.ABCMeta):
         numpydoc.append(textwrap.fill(self.description, width=79))
 
         sig = self.signature
-        params = True if len(sig.inputs) != 0 else False
+        params = collections.OrderedDict()
+        params.update(sig.inputs)
+        params.update(sig.parameters)
 
-        inputs = self._build_section("Parameters", sig.inputs)
-        parameters = self._build_section("Parameters", sig.parameters,
-                                         parameters=params)
+        parameters = self._build_section("Parameters", params)
         returns = self._build_section("Returns", sig.outputs)
 
-        if len(inputs) != 0 and len(parameters) != 0:
-            parameters = '\n'.join([inputs, parameters])
-            inputs = None
+        for section in (parameters, returns):
+            if section:
+                numpydoc.append(section)
 
-        if inputs is not None:
-            for section in [inputs, parameters, returns]:
-                if len(section) != 0:
-                    numpydoc.append(section)
-        else:
-            numpydoc.append(parameters)
-            numpydoc.append(returns)
+        return '\n\n'.join(numpydoc) + '\n'
 
-        return '\n\n'.join(numpydoc)
-
-    def _build_section(self, header, iterable, parameters=False):
+    def _build_section(self, header, iterable):
         section = []
 
-        if len(iterable) != 0:
-            if not parameters:
-                section.append(header)
-                section.append('-'*len(header))
-            for item in iterable:
-                item_obj = iterable[item]
-                info = {'item': item, 'type': item_obj.qiime_type}
-                section.append("{item} : {type}".format(**info))
-                if item_obj.has_default():
+        if iterable:
+            section.append(header)
+            section.append('-'*len(header))
+            for key, value in iterable.items():
+                section.append(
+                    "{item} : {type}".format(item=key, type=value.qiime_type))
+                if value.has_default():
                     section[-1] += ", optional"
-                if str(item_obj.description) != "NOVALUE":
-                    section.append("    {}".format(item_obj.description))
+                if value.has_description():
+                    section.append(textwrap.indent(textwrap.fill(
+                        str(value.description), width=79), '    '))
 
-        for idx in range(len(section)):
-            section[idx] = textwrap.fill(section[idx], width=79)
-        if len(section) != 0:
+        if section:
             return '\n'.join(section).strip()
         else:
             return ""

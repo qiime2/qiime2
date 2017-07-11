@@ -456,6 +456,8 @@ class TestMethod(unittest.TestCase):
             self.plugin.methods['identity_with_optional_metadata'])
         no_input_method = self.plugin.methods['no_input_method']
         params_only_method = self.plugin.methods['params_only_method']
+        long_description_method = self.plugin.methods[
+            'long_description_method']
 
         self.assertEqual(merge_mappings.__doc__, 'QIIME 2 Method')
 
@@ -475,6 +477,9 @@ class TestMethod(unittest.TestCase):
         params_only = params_only_method.__call__.__doc__
         self.assertEqual(exp_params_only, params_only)
 
+        long_desc = long_description_method.__call__.__doc__.split('\n\n')[2]
+        self.assertEqual(exp_long_description, long_desc)
+
 
 exp_merge_calldoc = """\
 Merge mappings
@@ -491,14 +496,14 @@ mapping2 : Mapping
 Returns
 -------
 merged_mapping : Mapping
-    Resulting merged Mapping object\
+    Resulting merged Mapping object
 """
 
 exp_split_ints_return = """\
 Returns
 -------
 left : IntSequence1
-right : IntSequence1\
+right : IntSequence1
 """
 
 
@@ -516,7 +521,7 @@ This method does not accept any type of input.
 
 Returns
 -------
-out : Mapping\
+out : Mapping
 """
 
 exp_params_only = """\
@@ -531,9 +536,18 @@ age : Int
 
 Returns
 -------
-out : Mapping\
+out : Mapping
 """
 
+exp_long_description = """\
+Parameters
+----------
+name : Str
+    This is a very long description. If asked about its length, I would have \
+to say
+    it is greater than 79 characters.
+age : Int\
+"""
 
 if __name__ == '__main__':
     unittest.main()
