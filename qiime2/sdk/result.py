@@ -256,10 +256,7 @@ class Visualization(Result):
 
     @classmethod
     def _is_valid_type(cls, type_):
-        if type_ == qiime2.core.type.Visualization:
-            return True
-        else:
-            return False
+        return type_ == qiime2.core.type.Visualization
 
     @classmethod
     def _from_data_dir(cls, data_dir, provenance_capture):
