@@ -505,15 +505,15 @@ class TestMethod(unittest.TestCase):
         params_only = params_only_method.__call__.__doc__
         self.assertEqual(exp_params_only, params_only)
 
-        long_desc = long_description_method.__call__.__doc__.split('\n\n')[2]
+        long_desc = long_description_method.__call__.__doc__
         self.assertEqual(exp_long_description, long_desc)
 
 
 exp_merge_calldoc = """\
 Merge mappings
 
-This method merges two mappings into a single new mapping. If a key is shared
-between mappings and the values differ, an error will be raised.
+This method merges two mappings into a single new mapping. If a key is
+shared between mappings and the values differ, an error will be raised.
 
 Parameters
 ----------
@@ -568,13 +568,26 @@ out : Mapping
 """
 
 exp_long_description = """\
+Long Description
+
+This is a very long description. If asked about its length, I would have to
+say it is greater than 79 characters.
+
 Parameters
 ----------
+mapping1 : Mapping
+    This is a very long description. If asked about its length, I would
+    have to say it is greater than 79 characters.
 name : Str
-    This is a very long description. If asked about its length, I would have \
-to say
-    it is greater than 79 characters.
-age : Int\
+    This is a very long description. If asked about its length, I would
+    have to say it is greater than 79 characters.
+age : Int
+
+Returns
+-------
+out : Mapping
+    This is a very long description. If asked about its length, I would
+    have to say it is greater than 79 characters.
 """
 
 if __name__ == '__main__':

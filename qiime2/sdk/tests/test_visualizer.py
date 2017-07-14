@@ -428,10 +428,81 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         self.assertIsInstance(output.visualization, Visualization)
 
     def test_docstring(self):
-        visualizer = self.plugin.visualizers['mapping_viz']
-        exp = "QIIME 2 Visualizer"
-        self.assertEqual(exp, visualizer.__doc__)
+        mapping_viz = self.plugin.visualizers['mapping_viz']
+        common_viz = self.plugin.visualizers['most_common_viz']
+        params_only_viz = self.plugin.visualizers['params_only_viz']
+        no_input_viz = self.plugin.visualizers['no_input_viz']
+
+        obs = mapping_viz.__call__.__doc__
+        self.assertEqual(obs, exp_mapping_viz)
+
+        obs = common_viz.__call__.__doc__
+        self.assertEqual(obs, exp_common_viz)
+
+        obs = params_only_viz.__call__.__doc__
+        self.assertEqual(obs, exp_params_only_viz)
+
+        obs= no_input_viz.__call__.__doc__
+        self.assertEqual(obs, exp_no_input_viz)
 
 
+exp_mapping_viz = """\
+Visualize two mappings
+
+This visualizer produces an HTML visualization of two key-value mappings,
+each sorted in alphabetical order by key.
+
+Parameters
+----------
+mapping1 : Mapping
+mapping2 : Mapping
+key_label : Str
+value_label : Str
+
+Returns
+-------
+visualization : Visualization
+"""
+
+exp_common_viz = """\
+Visualize most common integers
+
+This visualizer produces HTML and TSV outputs containing the input sequence
+of integers ordered from most- to least-frequently occurring, along with
+their respective frequencies.
+
+Parameters
+----------
+ints : IntSequence1 | IntSequence2
+
+Returns
+-------
+visualization : Visualization
+"""
+
+exp_params_only_viz = """\
+Parameters only viz
+
+This visualizer only accepts parameters.
+
+Parameters
+----------
+name : Str, optional
+age : Int, optional
+
+Returns
+-------
+visualization : Visualization
+"""
+
+exp_no_input_viz = """\
+No input viz
+
+This visualizer does not accept any type of input.
+
+Returns
+-------
+visualization : Visualization
+"""
 if __name__ == '__main__':
     unittest.main()

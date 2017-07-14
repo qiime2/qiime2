@@ -158,20 +158,32 @@ dummy_plugin.methods.register_function(
 
 dummy_plugin.methods.register_function(
     function=long_description_method,
-    inputs={},
+    inputs={
+        'mapping1': Mapping
+    },
+    input_descriptions={
+        'mapping1': ("This is a very long description. If asked about its "
+                     "length, I would have to say it is greater than 79 "
+                     "characters.")
+    },
     parameters={
         'name': qiime2.plugin.Str,
         'age': qiime2.plugin.Int
     },
     parameter_descriptions={
-        'name': """This is a very long description. If asked about its length,\
- I would have to say it is greater than 79 characters."""
+        'name': ("This is a very long description. If asked about its length,"
+                 " I would have to say it is greater than 79 characters.")
     },
     outputs=[
         ('out', Mapping)
     ],
+    output_descriptions={
+        'out': ("This is a very long description. If asked about its length,"
+                 " I would have to say it is greater than 79 characters.")
+    },
     name="Long Description",
-    description="This method does nothing, but includes a long annotation"
+    description=("This is a very long description. If asked about its length,"
+                 " I would have to say it is greater than 79 characters.")
 )
 
 dummy_plugin.methods.register_function(

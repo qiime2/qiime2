@@ -278,8 +278,8 @@ class Action(metaclass=abc.ABCMeta):
 
     def _build_numpydoc(self):
         numpydoc = []
-        numpydoc.append(textwrap.fill(self.name, width=79))
-        numpydoc.append(textwrap.fill(self.description, width=79))
+        numpydoc.append(textwrap.fill(self.name, width=75))
+        numpydoc.append(textwrap.fill(self.description, width=75))
 
         sig = self.signature
         params = collections.OrderedDict()
@@ -302,18 +302,16 @@ class Action(metaclass=abc.ABCMeta):
             section.append(header)
             section.append('-'*len(header))
             for key, value in iterable.items():
-                section.append(
+                variable_line = (
                     "{item} : {type}".format(item=key, type=value.qiime_type))
                 if value.has_default():
-                    section[-1] += ", optional"
+                    variable_line += ", optional"
+                section.append(variable_line)
                 if value.has_description():
                     section.append(textwrap.indent(textwrap.fill(
-                        str(value.description), width=79), '    '))
+                        str(value.description), width=71), '    '))
 
-        if section:
-            return '\n'.join(section).strip()
-        else:
-            return ""
+        return '\n'.join(section).strip()
 
     def _is_subprocess(self):
         return self._pid != os.getpid()
