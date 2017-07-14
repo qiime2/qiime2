@@ -45,7 +45,7 @@ def no_input_method() -> dict:
     return {'foo': 42}
 
 
-def long_description_method(mapping1:dict, name: str, age: int) -> dict:
+def long_description_method(mapping1: dict, name: str, age: int) -> dict:
     return {name: age}
 
 

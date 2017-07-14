@@ -179,7 +179,7 @@ dummy_plugin.methods.register_function(
     ],
     output_descriptions={
         'out': ("This is a very long description. If asked about its length,"
-                 " I would have to say it is greater than 79 characters.")
+                " I would have to say it is greater than 79 characters.")
     },
     name="Long Description",
     description=("This is a very long description. If asked about its length,"

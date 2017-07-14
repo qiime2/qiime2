@@ -442,7 +442,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         obs = params_only_viz.__call__.__doc__
         self.assertEqual(obs, exp_params_only_viz)
 
-        obs= no_input_viz.__call__.__doc__
+        obs = no_input_viz.__call__.__doc__
         self.assertEqual(obs, exp_no_input_viz)
 
 
