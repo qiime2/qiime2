@@ -130,7 +130,7 @@ class TestMetadata(unittest.TestCase):
 class TestMetadataLoad(unittest.TestCase):
     def test_no_columns(self):
         fp = pkg_resources.resource_filename(
-            'qiime2.tests', 'data/metadata-no-columns.tsv')
+            'qiime2.tests', 'data/metadata/no-columns.tsv')
 
         metadata = qiime2.Metadata.load(fp)
         obs_df = metadata.to_dataframe()
@@ -147,7 +147,7 @@ class TestMetadataLoad(unittest.TestCase):
 
     def test_does_not_cast_index_or_column_types(self):
         fp = pkg_resources.resource_filename(
-            'qiime2.tests', 'data/metadata-no-type-cast.tsv')
+            'qiime2.tests', 'data/metadata/no-type-cast.tsv')
 
         metadata = qiime2.Metadata.load(fp)
         df = metadata.to_dataframe()
@@ -165,7 +165,7 @@ class TestMetadataLoad(unittest.TestCase):
 
     def test_artifacts(self):
         fp = pkg_resources.resource_filename(
-            'qiime2.tests', 'data/metadata.tsv')
+            'qiime2.tests', 'data/metadata/simple.tsv')
 
         metadata = qiime2.Metadata.load(fp)
 
@@ -173,7 +173,7 @@ class TestMetadataLoad(unittest.TestCase):
 
     def test_invalid_metadata_characters_in_category(self):
         fp = pkg_resources.resource_filename(
-            'qiime2.tests', 'data/metadata-illegal-categories-characters.tsv')
+            'qiime2.tests', 'data/metadata/illegal-categories-characters.tsv')
 
         with self.assertRaisesRegex(ValueError,
                                     'Invalid characters.*category'):
@@ -181,7 +181,7 @@ class TestMetadataLoad(unittest.TestCase):
 
     def test_invalid_metadata_characters_in_index(self):
         fp = pkg_resources.resource_filename(
-            'qiime2.tests', 'data/metadata-illegal-index-characters.tsv')
+            'qiime2.tests', 'data/metadata/illegal-index-characters.tsv')
 
         with self.assertRaisesRegex(ValueError,
                                     'Invalid characters.*index'):
@@ -561,7 +561,7 @@ class TestIDs(unittest.TestCase):
 
     def test_no_columns(self):
         fp = pkg_resources.resource_filename(
-            'qiime2.tests', 'data/metadata-no-columns.tsv')
+            'qiime2.tests', 'data/metadata/no-columns.tsv')
         metadata = qiime2.Metadata.load(fp)
 
         obs = metadata.ids()
@@ -576,7 +576,7 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
 
     def test_type_mismatch(self):
         fp = pkg_resources.resource_filename(
-            'qiime2.tests', 'data/metadata.tsv')
+            'qiime2.tests', 'data/metadata/simple.tsv')
         md = qiime2.Metadata.load(fp)
         mdc = qiime2.MetadataCategory.load(fp, 'col1')
 
