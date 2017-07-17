@@ -45,6 +45,10 @@ def no_input_method() -> dict:
     return {'foo': 42}
 
 
+def long_description_method(mapping1: dict, name: str, age: int) -> dict:
+    return {name: age}
+
+
 def identity_with_metadata(ints: list, metadata: qiime2.Metadata) -> list:
     return ints
 

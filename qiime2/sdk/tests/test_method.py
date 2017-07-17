@@ -107,10 +107,16 @@ class TestMethod(unittest.TestCase):
                 'mapping1': Mapping,
                 'mapping2': Mapping
             },
+            input_descriptions={
+                'mapping1': 'Mapping object to be merged'
+            },
             parameters={},
             outputs=[
                 ('merged_mapping', Mapping)
-            ]
+            ],
+            output_descriptions={
+                'merged_mapping': 'Resulting merged Mapping object'
+            }
         )
         self.assertEqual(method.signature, exp_sig)
 
@@ -472,15 +478,117 @@ class TestMethod(unittest.TestCase):
         self.assertEqual(result.right.view(list), [-2, 43, 6])
 
     def test_docstring(self):
-        method = self.plugin.methods['split_ints']
-        exp = "QIIME 2 Method"
-        self.assertEqual(exp, method.__doc__)
-        obs = method.__call__.__doc__.split('\n')
-        self.assertTrue(obs[0].startswith('Split sequence of integers'))
-        self.assertEqual(len(obs[1]), 0)
-        self.assertTrue(obs[2].startswith('This method splits'))
-        self.assertTrue(obs[3].startswith('(left and'))
+        merge_mappings = self.plugin.methods['merge_mappings']
+        split_ints = self.plugin.methods['split_ints']
+        identity_with_optional_metadata = (
+            self.plugin.methods['identity_with_optional_metadata'])
+        no_input_method = self.plugin.methods['no_input_method']
+        params_only_method = self.plugin.methods['params_only_method']
+        long_description_method = self.plugin.methods[
+            'long_description_method']
 
+        self.assertEqual(merge_mappings.__doc__, 'QIIME 2 Method')
+
+        merge_calldoc = merge_mappings.__call__.__doc__
+        self.assertEqual(exp_merge_calldoc, merge_calldoc)
+
+        split_ints_return = split_ints.__call__.__doc__.split('\n\n')[3]
+        self.assertEqual(exp_split_ints_return, split_ints_return)
+
+        optional_params = (
+            identity_with_optional_metadata.__call__.__doc__.split('\n\n')[2])
+        self.assertEqual(exp_optional_params, optional_params)
+
+        no_input_method = no_input_method.__call__.__doc__
+        self.assertEqual(exp_no_input_method, no_input_method)
+
+        params_only = params_only_method.__call__.__doc__
+        self.assertEqual(exp_params_only, params_only)
+
+        long_desc = long_description_method.__call__.__doc__
+        self.assertEqual(exp_long_description, long_desc)
+
+
+exp_merge_calldoc = """\
+Merge mappings
+
+This method merges two mappings into a single new mapping. If a key is
+shared between mappings and the values differ, an error will be raised.
+
+Parameters
+----------
+mapping1 : Mapping
+    Mapping object to be merged
+mapping2 : Mapping
+
+Returns
+-------
+merged_mapping : Mapping
+    Resulting merged Mapping object
+"""
+
+exp_split_ints_return = """\
+Returns
+-------
+left : IntSequence1
+right : IntSequence1
+"""
+
+
+exp_optional_params = """\
+Parameters
+----------
+ints : IntSequence1 | IntSequence2
+metadata : Metadata, optional\
+"""
+
+exp_no_input_method = """\
+No input method
+
+This method does not accept any type of input.
+
+Returns
+-------
+out : Mapping
+"""
+
+exp_params_only = """\
+Parameters only method
+
+This method only accepts parameters.
+
+Parameters
+----------
+name : Str
+age : Int
+
+Returns
+-------
+out : Mapping
+"""
+
+exp_long_description = """\
+Long Description
+
+This is a very long description. If asked about its length, I would have to
+say it is greater than 79 characters.
+
+Parameters
+----------
+mapping1 : Mapping
+    This is a very long description. If asked about its length, I would
+    have to say it is greater than 79 characters.
+name : Str
+    This is a very long description. If asked about its length, I would
+    have to say it is greater than 79 characters.
+age : Int
+
+Returns
+-------
+out : Mapping
+    This is a very long description. If asked about its length, I would
+    have to say it is greater than 79 characters.
+"""
 
 if __name__ == '__main__':
     unittest.main()

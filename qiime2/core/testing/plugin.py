@@ -31,7 +31,7 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_optional_metadata,
                      identity_with_optional_metadata_category,
                      params_only_method, no_input_method,
-                     optional_artifacts_method)
+                     optional_artifacts_method, long_description_method)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 
@@ -126,10 +126,15 @@ dummy_plugin.methods.register_function(
         'mapping1': Mapping,
         'mapping2': Mapping
     },
+    input_descriptions={
+        'mapping1': 'Mapping object to be merged'
+    },
     parameters={},
     outputs=[
         ('merged_mapping', Mapping)
     ],
+    output_descriptions={
+        'merged_mapping': 'Resulting merged Mapping object'},
     name='Merge mappings',
     description='This method merges two mappings into a single new mapping. '
                 'If a key is shared between mappings and the values differ, '
@@ -149,6 +154,36 @@ dummy_plugin.methods.register_function(
     ],
     name='Identity',
     description='This method does nothing, but takes metadata'
+)
+
+dummy_plugin.methods.register_function(
+    function=long_description_method,
+    inputs={
+        'mapping1': Mapping
+    },
+    input_descriptions={
+        'mapping1': ("This is a very long description. If asked about its "
+                     "length, I would have to say it is greater than 79 "
+                     "characters.")
+    },
+    parameters={
+        'name': qiime2.plugin.Str,
+        'age': qiime2.plugin.Int
+    },
+    parameter_descriptions={
+        'name': ("This is a very long description. If asked about its length,"
+                 " I would have to say it is greater than 79 characters.")
+    },
+    outputs=[
+        ('out', Mapping)
+    ],
+    output_descriptions={
+        'out': ("This is a very long description. If asked about its length,"
+                " I would have to say it is greater than 79 characters.")
+    },
+    name="Long Description",
+    description=("This is a very long description. If asked about its length,"
+                 " I would have to say it is greater than 79 characters.")
 )
 
 dummy_plugin.methods.register_function(

@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import abc
+import collections
 import concurrent.futures
 import inspect
 import os.path
@@ -254,8 +255,7 @@ class Action(metaclass=abc.ABCMeta):
     def _set_wrapper_properties(self, wrapper, name):
         wrapper.__name__ = wrapper.__qualname__ = name
         wrapper.__module__ = self.package
-        wrapper.__doc__ = "{}\n\n{}".format(
-            self.name, textwrap.fill(self.description, width=79))
+        wrapper.__doc__ = self._build_numpydoc()
         wrapper.__annotations__ = self._build_annotations()
         # This is necessary so that `inspect` doesn't display the wrapped
         # function's annotations (the annotations apply to the "view API" and
@@ -275,6 +275,43 @@ class Action(metaclass=abc.ABCMeta):
         annotations["return"] = output
 
         return annotations
+
+    def _build_numpydoc(self):
+        numpydoc = []
+        numpydoc.append(textwrap.fill(self.name, width=75))
+        numpydoc.append(textwrap.fill(self.description, width=75))
+
+        sig = self.signature
+        params = collections.OrderedDict()
+        params.update(sig.inputs)
+        params.update(sig.parameters)
+
+        parameters = self._build_section("Parameters", params)
+        returns = self._build_section("Returns", sig.outputs)
+
+        for section in (parameters, returns):
+            if section:
+                numpydoc.append(section)
+
+        return '\n\n'.join(numpydoc) + '\n'
+
+    def _build_section(self, header, iterable):
+        section = []
+
+        if iterable:
+            section.append(header)
+            section.append('-'*len(header))
+            for key, value in iterable.items():
+                variable_line = (
+                    "{item} : {type}".format(item=key, type=value.qiime_type))
+                if value.has_default():
+                    variable_line += ", optional"
+                section.append(variable_line)
+                if value.has_description():
+                    section.append(textwrap.indent(textwrap.fill(
+                        str(value.description), width=71), '    '))
+
+        return '\n'.join(section).strip()
 
     def _is_subprocess(self):
         return self._pid != os.getpid()

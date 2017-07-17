@@ -80,7 +80,7 @@ class TestPlugin(unittest.TestCase):
                           'identity_with_optional_metadata_category',
                           'params_only_method', 'no_input_method',
                           'optional_artifacts_method', 'params_only_viz',
-                          'no_input_viz'})
+                          'no_input_viz', 'long_description_method'})
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
 
@@ -100,7 +100,8 @@ class TestPlugin(unittest.TestCase):
                           'identity_with_optional_metadata',
                           'identity_with_optional_metadata_category',
                           'params_only_method', 'no_input_method',
-                          'optional_artifacts_method'})
+                          'optional_artifacts_method',
+                          'long_description_method'})
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Action)
 
