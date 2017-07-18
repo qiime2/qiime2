@@ -9,7 +9,6 @@
 import pkg_resources
 import sqlite3
 import unittest
-import tempfile
 
 import pandas as pd
 import pandas.util.testing as pdt
@@ -128,6 +127,43 @@ class TestMetadata(unittest.TestCase):
 
 
 class TestMetadataLoad(unittest.TestCase):
+    def test_comments_and_blank_lines(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata/comments-n-blanks.tsv')
+
+        obs_df = qiime2.Metadata.load(fp).to_dataframe()
+
+        exp_index = pd.Index(['id1', 'id2', 'id3'], name='ID',
+                             dtype=object)
+        exp_df = pd.DataFrame({'col1': ['1', '2', '3'],
+                               'col2': ['a', 'b', 'c'],
+                               'col3': ['foo', 'bar', '42']},
+                              index=exp_index, dtype=object)
+
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_qiime1_mapping_file(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata/qiime1.tsv')
+
+        obs_df = qiime2.Metadata.load(fp).to_dataframe()
+
+        exp_index = pd.Index(['id1', 'id2', 'id3'], name='#SampleID',
+                             dtype=object)
+        exp_df = pd.DataFrame({'col1': ['1', '2', '3'],
+                               'col2': ['a', 'b', 'c'],
+                               'col3': ['foo', 'bar', '42']},
+                              index=exp_index, dtype=object)
+
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_qiime1_empty_mapping_file(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata/qiime1-empty.tsv')
+
+        with self.assertRaisesRegex(ValueError, 'empty'):
+            qiime2.Metadata.load(fp)
+
     def test_no_columns(self):
         fp = pkg_resources.resource_filename(
             'qiime2.tests', 'data/metadata/no-columns.tsv')
@@ -187,11 +223,12 @@ class TestMetadataLoad(unittest.TestCase):
                                     'Invalid characters.*index'):
             qiime2.Metadata.load(fp)
 
-    def test_non_tsv_metadata_file(self):
-        with tempfile.TemporaryFile() as bad_file:
-            bad_file.write(b'\x07\x08\x07')
-            with self.assertRaisesRegex(ValueError, 'No columns to parse'):
-                qiime2.Metadata.load(bad_file)
+    def test_empty(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata/empty')
+
+        with self.assertRaises(pd.errors.EmptyDataError):
+            qiime2.Metadata.load(fp)
 
 
 class TestMetadataFromArtifact(unittest.TestCase):

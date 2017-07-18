@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import itertools
+import os.path
 import sqlite3
 import uuid
 
@@ -90,13 +91,22 @@ class Metadata:
 
     @classmethod
     def load(cls, path):
-        try:
-            df = pd.read_csv(path, sep='\t', dtype=object)
-            df.set_index(df.columns[0], drop=True, append=False, inplace=True)
-        except OSError:
+        if not os.path.exists(path):
             raise OSError(
                 "Metadata file %s doesn't exist or isn't accessible (e.g., "
                 "due to incompatible file permissions)." % path)
+
+        read_csv_kwargs = {}
+        with open(path, 'r') as fh:
+            peek = fh.readline().rstrip('\n')
+            if peek.startswith('#SampleID'):
+                header = peek.split('\t')
+                read_csv_kwargs = {'header': None, 'names': header}
+
+        try:
+            df = pd.read_csv(path, sep='\t', dtype=object, comment='#',
+                             skip_blank_lines=True, **read_csv_kwargs)
+            df.set_index(df.columns[0], drop=True, append=False, inplace=True)
         except (pd.io.common.CParserError, KeyError):
             msg = 'Metadata file format is invalid for file %s' % path
             raise ValueError(invalid_metadata_template % msg)
