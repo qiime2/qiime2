@@ -13,6 +13,30 @@ import uuid
 
 import pandas as pd
 
+class IdSet:
+    def __init__(self, ids):
+        validate_ids(ids)
+        self.ids = set(ids)
+
+    def validate_ids(self, ids):
+        # check for disallowed chars, duplicates, integers(?), ...
+        # raise ValueError on invalid, otherwise nothing
+
+    def merge(self, other, how='left'):
+        if how == 'inner':
+            result = self.ids & other.ids
+        elif how == 'outer':
+            result = self.ids | other.ids
+        # are left and right needed? i don't think so
+        elif how == 'left':
+            result = self.ids
+        elif how == 'right':
+            result = other.ids
+        else:
+            raise ValueError('Unknown operation provided for `how`: %s. '
+                             'Known operations are inner, outer, left, and '
+                             'right.')
+        return IdSet(result)
 
 class Metadata:
     def __init__(self, dataframe):
@@ -192,8 +216,13 @@ class Metadata:
             result._artifacts.extend(self.artifacts)
         return result
 
-    def to_dataframe(self):
-        return self._dataframe.copy()
+    def to_dataframe(self, cast_numeric=False):
+        df = self._dataframe.copy()
+
+        if cast_to_numeric:
+            df = df.apply(lambda x: pd.to_numeric(x, errors='ignore'))
+
+        return df
 
     def ids(self, where=None):
         """Retrieve IDs matching search criteria.
@@ -268,6 +297,36 @@ class Metadata:
             name = str(uuid.uuid4())
             if name not in self._dataframe.columns:
                 return name
+
+    def _filter_columns_by_type(self, type, exclude_all_unique=False,
+                               exclude_zero_variance=False):
+        known_types = set('continuous', 'categorical')
+        if type not in known_types:
+            raise ValueError('Unknown column type: %s. Known types are: %s' %
+                             ', '.join(known_types))
+
+        df = self.to_dataframe(cast_numeric=True)
+        # do checks on the number of unique values here...
+
+        if type == 'continuous':
+            df = df.select_dtypes(include=[np.number])
+        elif type == 'categorical':
+            df = df.select_dtypes(exclude=[np.number])
+        else:
+            pass
+
+        return Metadata(df)
+
+    def _filter_rows_by_ids(self, ids):
+        # if any id(s) are not in self, raise KeyError
+        df = self.to_dataframe().loc[ids]
+        return Metadata(df)
+
+    def where(self, where):
+        return _filter_rows_by_ids(self.ids(where))
+
+    def filter(self, column_type='all', ids=None,
+               exclude_all_unique=False, exclude_zero_variance=False):
 
 
 class MetadataCategory:
