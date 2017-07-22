@@ -172,7 +172,7 @@ class PipelineSignature:
         # we should have popped both of these empty by this point
         if inputs or parameters:
             raise TypeError("Callable does not have parameter(s): %r"
-                            % list(inputs) + list(parameters))
+                            % (list(inputs) + list(parameters)))
 
         if 'return' in callable.__annotations__:
             output_views = qiime2.core.util.tuplize(
