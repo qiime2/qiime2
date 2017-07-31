@@ -16,8 +16,7 @@ install:
   - source activate test-env
   - pip install -q flake8
   - conda install nose
-  - python setup.py install
+  - make install
 script:
-  - flake8
-  - python ../q2lint/q2lint.py
-  - QIIMETEST= nosetests
+  - make lint
+  - QIIMETEST= make test-cov
