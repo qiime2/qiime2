@@ -1,4 +1,4 @@
-.PHONY: all lint test clean
+.PHONY: all lint test test-cov install dev clean distclean
 
 all: ;
 
