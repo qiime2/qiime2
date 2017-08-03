@@ -126,6 +126,65 @@ class TestMetadata(unittest.TestCase):
             qiime2.Metadata(df)
 
 
+class TestMetadataFilter(unittest.TestCase):
+
+    def test_filter_to_numeric(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['two', 'one', 'three']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(column_type='numeric').to_dataframe()
+        exp_df = pd.DataFrame({'col1': [2, 1, 3]}, index=index)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['two', 'one', 'three'],
+                           'col3': ['4.0', '5.2', '6.9']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(column_type='numeric').to_dataframe()
+        exp_df = pd.DataFrame({'col1': [2, 1, 3],
+                               'col3': [4.0, 5.2, 6.9]}, index=index)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_filter_to_categorical(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(column_type='categorical').to_dataframe()
+        exp_df = pd.DataFrame({'col2': ['a', 'b', 'c']}, index=index)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c'],
+                           'col3': ['peanut', 'hotdog', 'gwar']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(column_type='categorical').to_dataframe()
+        exp_df = pd.DataFrame({'col2': ['a', 'b', 'c'],
+                               'col3': ['peanut', 'hotdog', 'gwar']},
+                              index=index)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_filter_invalid_type(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['two', 'one', 'three']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        with self.assertRaisesRegex(ValueError,
+                                    expected_regex='Unknown column type: not'):
+            metadata.filter(column_type='not-a-type')
+
+
 class TestMetadataLoad(unittest.TestCase):
     def test_comments_and_blank_lines(self):
         fp = pkg_resources.resource_filename(

@@ -12,8 +12,9 @@ import sqlite3
 import uuid
 
 import pandas as pd
+import numpy as np
 
-class IdSet:
+class IDSet:
     def __init__(self, ids):
         validate_ids(ids)
         self.ids = set(ids)
@@ -21,22 +22,7 @@ class IdSet:
     def validate_ids(self, ids):
         # check for disallowed chars, duplicates, integers(?), ...
         # raise ValueError on invalid, otherwise nothing
-
-    def merge(self, other, how='left'):
-        if how == 'inner':
-            result = self.ids & other.ids
-        elif how == 'outer':
-            result = self.ids | other.ids
-        # are left and right needed? i don't think so
-        elif how == 'left':
-            result = self.ids
-        elif how == 'right':
-            result = other.ids
-        else:
-            raise ValueError('Unknown operation provided for `how`: %s. '
-                             'Known operations are inner, outer, left, and '
-                             'right.')
-        return IdSet(result)
+        raise NotImplementedError
 
 class Metadata:
     def __init__(self, dataframe):
@@ -219,7 +205,7 @@ class Metadata:
     def to_dataframe(self, cast_numeric=False):
         df = self._dataframe.copy()
 
-        if cast_to_numeric:
+        if cast_numeric:
             df = df.apply(lambda x: pd.to_numeric(x, errors='ignore'))
 
         return df
@@ -298,36 +284,65 @@ class Metadata:
             if name not in self._dataframe.columns:
                 return name
 
-    def _filter_columns_by_type(self, type, exclude_all_unique=False,
-                               exclude_zero_variance=False):
-        known_types = set('continuous', 'categorical')
-        if type not in known_types:
+    def _filter_columns_by_type(self, df, column_type):
+        known_types = {'numeric', 'categorical'}
+        if column_type not in known_types:
             raise ValueError('Unknown column type: %s. Known types are: %s' %
-                             ', '.join(known_types))
+                             (column_type, ', '.join(known_types)))
 
-        df = self.to_dataframe(cast_numeric=True)
-        # do checks on the number of unique values here...
+        df = df.apply(lambda x: pd.to_numeric(x, errors='ignore'))
 
-        if type == 'continuous':
+        if column_type == 'numeric':
             df = df.select_dtypes(include=[np.number])
-        elif type == 'categorical':
+        else: # type == 'categorical'
             df = df.select_dtypes(exclude=[np.number])
-        else:
-            pass
 
-        return Metadata(df)
+        return df
 
-    def _filter_rows_by_ids(self, ids):
+    def _filter_rows_by_ids(self, df, ids):
         # if any id(s) are not in self, raise KeyError
-        df = self.to_dataframe().loc[ids]
-        return Metadata(df)
+        df = df.loc[ids]
+        return df
+
+    def _filter_columns_by_variance(self, df, exclude_all_unique=False,
+                                    exclude_zero_variance=False):
+        num_samples = df.shape[0]
+        all_unique = []
+        zero_variance = []
+        for column in df.columns:
+            num_unique_values = len(df[column].unique())
+            if num_unique_values == num_samples:
+                all_unique.append(column)
+            elif num_unique_values == 1:
+                zero_variance.append(column)
+        excludes = []
+
+        if exclude_all_unique:
+            df = df.drop(all_unique)
+
+        if exclude_zero_variance:
+            df = df.drop(zero_variance)
+
+        return df
 
     def where(self, where):
         return _filter_rows_by_ids(self.ids(where))
 
-    def filter(self, column_type='all', ids=None,
+    def filter(self, column_type=None, ids=None,
                exclude_all_unique=False, exclude_zero_variance=False):
+        df = self.to_dataframe()
 
+        if column_type is not None:
+            df = self._filter_columns_by_type(df, column_type)
+
+        if ids is not None:
+            df = self._filter_rows_by_ids(df, ids)
+
+        if exclude_all_unique or exclude_zero_variance:
+            df = self._filter_columns_by_variance(df, exclude_all_unique,
+                                                  exclude_zero_variance)
+
+        return self.__class__(df)
 
 class MetadataCategory:
     def __init__(self, series):
