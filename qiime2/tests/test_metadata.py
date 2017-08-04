@@ -140,7 +140,7 @@ class TestMetadataFilter(unittest.TestCase):
         pdt.assert_frame_equal(obs_df, exp_df)
 
         df = pd.DataFrame({'col1': ['2', '1', '3'],
-                           'col2': ['two', 'one', 'three'],
+                           'col2': ['2', '1', 'three'],
                            'col3': ['4.0', '5.2', '6.9']},
                               index=index, dtype=object)
         metadata = qiime2.Metadata(df)
@@ -183,6 +183,55 @@ class TestMetadataFilter(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,
                                     expected_regex='Unknown column type: not'):
             metadata.filter(column_type='not-a-type')
+
+    def test_filter_ids(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        # keep all ids
+        obs_df = metadata.filter(ids=['a', 'b', 'c']).to_dataframe()
+        exp_index = pd.Index(['a', 'b', 'c'], dtype=object)
+        exp_df = pd.DataFrame({'col1': ['2', '1', '3'],
+                               'col2': ['a', 'b', 'c']},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        obs_df = metadata.filter(ids=['a', 'c']).to_dataframe()
+        exp_index = pd.Index(['a', 'c'], dtype=object)
+        exp_df = pd.DataFrame({'col1': ['2', '3'],
+                               'col2': ['a', 'c']},
+                              index=exp_index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        obs_df = metadata.filter(ids=['c']).to_dataframe()
+        exp_index = pd.Index(['c'], dtype=object)
+        exp_df = pd.DataFrame({'col1': ['3'],
+                               'col2': ['c']},
+                              index=exp_index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_filter_ids_invalid_id(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+        with self.assertRaisesRegex(ValueError, expected_regex='d'):
+            metadata.filter(ids=['a', 'd', 'c']).to_dataframe()
+
+    def test_filter_ids_invalid_id(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+        with self.assertRaisesRegex(ValueError,
+                                    expected_regex='Metadata is empty'):
+            metadata.filter(ids=[]).to_dataframe()
+
 
 
 class TestMetadataLoad(unittest.TestCase):

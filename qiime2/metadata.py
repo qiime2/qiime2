@@ -326,17 +326,18 @@ class Metadata:
         return df
 
     def where(self, where):
-        return _filter_rows_by_ids(self.ids(where))
+        df = _filter_rows_by_ids(self.ids(where))
+        return self.__class__(df)
 
     def filter(self, column_type=None, ids=None,
                exclude_all_unique=False, exclude_zero_variance=False):
         df = self.to_dataframe()
 
-        if column_type is not None:
-            df = self._filter_columns_by_type(df, column_type)
-
         if ids is not None:
             df = self._filter_rows_by_ids(df, ids)
+
+        if column_type is not None:
+            df = self._filter_columns_by_type(df, column_type)
 
         if exclude_all_unique or exclude_zero_variance:
             df = self._filter_columns_by_variance(df, exclude_all_unique,
