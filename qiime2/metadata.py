@@ -333,6 +333,31 @@ class Metadata:
 
     def filter(self, column_type=None, ids=None,
                drop_all_unique=False, drop_zero_variance=False):
+        """
+        Parameters
+        ----------
+        column_type : str, optional
+            If supplied, will retain only columns where data is
+            of the specified type. The currently supported types are
+            'numeric' and 'categorical', where 'numeric' columns are
+            those where all values can be cast to `numpy.number` and
+            'categorical' columns are those where all values cannot
+            be cast to `numpy.number`.
+        ids : iterable, optional
+            Row ids that should be retained in the resulting `qiime2.Metadata`
+            object. By default, all rows will be retained. This filter is
+            applied before any of the other (column-based) filters.
+        drop_all_unique : bool, optional
+            If True, columns that contain a unique value for every row will
+            be dropped.
+        drop_zero_variance : bool, optional
+            If True, columns that contain the same value for every row will
+            be dropped.
+
+        Returns
+        -------
+        qiime2.Metadata : the filtered metadata
+        """
         df = self.to_dataframe()
 
         if ids is not None:
