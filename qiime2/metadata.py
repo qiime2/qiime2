@@ -300,9 +300,12 @@ class Metadata:
         return df
 
     def _filter_rows_by_ids(self, df, ids):
-        # if any id(s) are not in self, raise KeyError
-        df = df.loc[ids]
-        return df
+        missing_ids = set(ids) - set(df.index)
+        if len(missing_ids) > 0:
+            raise KeyError(
+                'All ids must be present in Metadata, but the '
+                'following are missing: %s' % ', '.join(missing_ids))
+        return df.filter(items=ids, axis=0)
 
     def _filter_columns_by_variance(self, df, exclude_all_unique=False,
                                     exclude_zero_variance=False):

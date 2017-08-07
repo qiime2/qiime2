@@ -219,10 +219,13 @@ class TestMetadataFilter(unittest.TestCase):
                            'col2': ['a', 'b', 'c']},
                               index=index, dtype=object)
         metadata = qiime2.Metadata(df)
-        with self.assertRaisesRegex(ValueError, expected_regex='d'):
+        with self.assertRaisesRegex(KeyError, expected_regex='missing: d'):
             metadata.filter(ids=['a', 'd', 'c']).to_dataframe()
 
-    def test_filter_ids_invalid_id(self):
+        with self.assertRaisesRegex(KeyError, expected_regex='missing:'):
+            metadata.filter(ids=['d', 'e']).to_dataframe()
+
+    def test_filter_ids_all_filtered(self):
         index = pd.Index(['a', 'b', 'c'], dtype=object)
         df = pd.DataFrame({'col1': ['2', '1', '3'],
                            'col2': ['a', 'b', 'c']},
