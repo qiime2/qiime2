@@ -235,6 +235,88 @@ class TestMetadataFilter(unittest.TestCase):
                                     expected_regex='Metadata is empty'):
             metadata.filter(ids=[]).to_dataframe()
 
+    def test_filter_drop_all_unique(self):
+        # no columns contain all unique values
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '2', '3'],
+                           'col2': ['a', 'b', 'a']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_all_unique=True).to_dataframe()
+        exp_index = pd.Index(['a', 'b', 'c'], dtype=object)
+        exp_df = pd.DataFrame({'col1': ['2', '2', '3'],
+                               'col2': ['a', 'b', 'a']},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        # some columns contain all unique values
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'a']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_all_unique=True).to_dataframe()
+        exp_index = pd.Index(['a', 'b', 'c'], dtype=object)
+        exp_df = pd.DataFrame({'col2': ['a', 'b', 'a']},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        # all columns contain all unique values
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_all_unique=True).to_dataframe()
+        exp_index = pd.Index(['a', 'b', 'c'], dtype=object)
+        exp_df = pd.DataFrame({},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_filter_drop_zero_variance(self):
+        # no columns contain zero variance
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['1', '2', '3'],
+                           'col2': ['a', 'b', 'c']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_zero_variance=True).to_dataframe()
+        exp_index = pd.Index(['a', 'b', 'c'], dtype=object)
+        exp_df = pd.DataFrame({'col1': ['1', '2', '3'],
+                               'col2': ['a', 'b', 'c']},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        # some columns contain zero variance
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '2', '2'],
+                           'col2': ['a', 'b', 'a']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_zero_variance=True).to_dataframe()
+        exp_index = pd.Index(['a', 'b', 'c'], dtype=object)
+        exp_df = pd.DataFrame({'col2': ['a', 'b', 'a']},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        # all columns contain zero variance
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '2', '2'],
+                           'col2': ['a', 'a', 'a']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_zero_variance=True).to_dataframe()
+        exp_index = pd.Index(['a', 'b', 'c'], dtype=object)
+        exp_df = pd.DataFrame({},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
 
 
 class TestMetadataLoad(unittest.TestCase):

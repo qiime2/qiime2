@@ -307,8 +307,8 @@ class Metadata:
                 'following are missing: %s' % ', '.join(missing_ids))
         return df.filter(items=ids, axis=0)
 
-    def _filter_columns_by_variance(self, df, exclude_all_unique=False,
-                                    exclude_zero_variance=False):
+    def _filter_columns_by_variance(self, df, drop_all_unique=False,
+                                    drop_zero_variance=False):
         num_samples = df.shape[0]
         all_unique = []
         zero_variance = []
@@ -318,13 +318,12 @@ class Metadata:
                 all_unique.append(column)
             elif num_unique_values == 1:
                 zero_variance.append(column)
-        excludes = []
 
-        if exclude_all_unique:
-            df = df.drop(all_unique)
+        if drop_all_unique:
+            df = df.drop(all_unique, axis=1)
 
-        if exclude_zero_variance:
-            df = df.drop(zero_variance)
+        if drop_zero_variance:
+            df = df.drop(zero_variance, axis=1)
 
         return df
 
@@ -333,7 +332,7 @@ class Metadata:
         return self.__class__(df)
 
     def filter(self, column_type=None, ids=None,
-               exclude_all_unique=False, exclude_zero_variance=False):
+               drop_all_unique=False, drop_zero_variance=False):
         df = self.to_dataframe()
 
         if ids is not None:
@@ -342,9 +341,9 @@ class Metadata:
         if column_type is not None:
             df = self._filter_columns_by_type(df, column_type)
 
-        if exclude_all_unique or exclude_zero_variance:
-            df = self._filter_columns_by_variance(df, exclude_all_unique,
-                                                  exclude_zero_variance)
+        if drop_all_unique or drop_zero_variance:
+            df = self._filter_columns_by_variance(df, drop_all_unique,
+                                                  drop_zero_variance)
 
         return self.__class__(df)
 
