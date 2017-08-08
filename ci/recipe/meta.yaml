@@ -9,7 +9,7 @@ source:
   path: ../..
 
 build:
-  script: python setup.py install
+  script: make install
 
 requirements:
   build:
