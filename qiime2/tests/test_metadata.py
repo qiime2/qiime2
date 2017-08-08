@@ -126,6 +126,22 @@ class TestMetadata(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Duplicate.*index values'):
             qiime2.Metadata(df)
 
+    def test_to_dataframe_cast_numeric(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['2', '1', 'three'],
+                           'col3': ['4.0', '5.2', '6.9']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.to_dataframe(cast_numeric=False)
+        self.assertEqual(dict(obs_df.dtypes),
+                         {'col1': object, 'col2': object, 'col3': object})
+
+        obs_df = metadata.to_dataframe(cast_numeric=True)
+        self.assertEqual(dict(obs_df.dtypes),
+                         {'col1': np.int, 'col2': object, 'col3': np.float})
+
 
 class TestMetadataFilter(unittest.TestCase):
 
