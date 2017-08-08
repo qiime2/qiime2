@@ -12,6 +12,7 @@ import unittest
 
 import pandas as pd
 import pandas.util.testing as pdt
+import numpy as np
 
 import qiime2
 from qiime2.core.testing.util import get_dummy_plugin, ReallyEqualMixin
@@ -124,6 +125,276 @@ class TestMetadata(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, 'Duplicate.*index values'):
             qiime2.Metadata(df)
+
+    def test_to_dataframe_cast_numeric(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['2', '1', 'three'],
+                           'col3': ['4.0', '5.2', '6.9']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.to_dataframe(cast_numeric=False)
+        self.assertEqual(dict(obs_df.dtypes),
+                         {'col1': object, 'col2': object, 'col3': object})
+
+        obs_df = metadata.to_dataframe(cast_numeric=True)
+        self.assertEqual(dict(obs_df.dtypes),
+                         {'col1': np.int, 'col2': object, 'col3': np.float})
+
+
+class TestMetadataFilter(unittest.TestCase):
+
+    def test_filter_to_numeric(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['two', 'one', 'three']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(column_type='numeric').to_dataframe()
+        exp_df = pd.DataFrame({'col1': [2, 1, 3]}, dtype=np.int, index=index)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['2', '1', 'three'],
+                           'col3': ['4.0', '5.2', '6.9']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(column_type='numeric').to_dataframe()
+        exp_df = pd.DataFrame({'col1': [2, 1, 3],
+                               'col3': [4.0, 5.2, 6.9]}, index=index)
+        pdt.assert_frame_equal(obs_df, exp_df)
+        self.assertEqual(dict(obs_df.dtypes),
+                         {'col1': np.int, 'col3': np.float})
+
+    def test_filter_to_categorical(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(column_type='categorical').to_dataframe()
+        exp_df = pd.DataFrame({'col2': ['a', 'b', 'c']}, index=index)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c'],
+                           'col3': ['peanut', 'hotdog', 'gwar']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(column_type='categorical').to_dataframe()
+        exp_df = pd.DataFrame({'col2': ['a', 'b', 'c'],
+                               'col3': ['peanut', 'hotdog', 'gwar']},
+                              index=index)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_filter_invalid_type(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['two', 'one', 'three']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        with self.assertRaisesRegex(ValueError,
+                                    expected_regex='Unknown column type: not'):
+            metadata.filter(column_type='not-a-type')
+
+    def test_filter_ids(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        # keep all ids
+        obs_df = metadata.filter(ids=['a', 'b', 'c']).to_dataframe()
+        exp_df = pd.DataFrame({'col1': ['2', '1', '3'],
+                               'col2': ['a', 'b', 'c']},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        obs_df = metadata.filter(ids=['a', 'c']).to_dataframe()
+        exp_index = pd.Index(['a', 'c'], dtype=object)
+        exp_df = pd.DataFrame({'col1': ['2', '3'],
+                               'col2': ['a', 'c']},
+                              index=exp_index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        obs_df = metadata.filter(ids=['c']).to_dataframe()
+        exp_index = pd.Index(['c'], dtype=object)
+        exp_df = pd.DataFrame({'col1': ['3'],
+                               'col2': ['c']},
+                              index=exp_index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_filter_ids_invalid_id(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+        with self.assertRaisesRegex(KeyError, expected_regex='missing: d'):
+            metadata.filter(ids=['a', 'd', 'c']).to_dataframe()
+
+        with self.assertRaisesRegex(KeyError, expected_regex='missing:'):
+            metadata.filter(ids=['d', 'e']).to_dataframe()
+
+    def test_filter_ids_all_filtered(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+        with self.assertRaisesRegex(ValueError,
+                                    expected_regex='Metadata is empty'):
+            metadata.filter(ids=[]).to_dataframe()
+
+    def test_filter_drop_all_unique(self):
+        # no columns contain all unique values
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '2', '3'],
+                           'col2': ['a', 'b', 'a']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_all_unique=True).to_dataframe()
+        exp_df = pd.DataFrame({'col1': ['2', '2', '3'],
+                               'col2': ['a', 'b', 'a']},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        # some columns contain all unique values
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'a']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_all_unique=True).to_dataframe()
+        exp_df = pd.DataFrame({'col2': ['a', 'b', 'a']},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        # all columns contain all unique values
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_all_unique=True).to_dataframe()
+        exp_df = pd.DataFrame({},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_filter_drop_zero_variance(self):
+        # no columns contain zero variance
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['1', '2', '3'],
+                           'col2': ['a', 'b', 'c']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_zero_variance=True).to_dataframe()
+        exp_df = pd.DataFrame({'col1': ['1', '2', '3'],
+                               'col2': ['a', 'b', 'c']},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        # some columns contain zero variance
+        df = pd.DataFrame({'col1': ['2', '2', '2'],
+                           'col2': ['a', 'b', 'a']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_zero_variance=True).to_dataframe()
+        exp_df = pd.DataFrame({'col2': ['a', 'b', 'a']},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+        # all columns contain zero variance
+        df = pd.DataFrame({'col1': ['2', '2', '2'],
+                           'col2': ['a', 'a', 'a']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter(drop_zero_variance=True).to_dataframe()
+        exp_df = pd.DataFrame({},
+                              index=index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_rows_filtered_before_zero_variance(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '2', '3'],
+                           'col2': ['a', 'b', 'a']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        # after filtering row c, col1 has zero variance
+        obs_df = metadata.filter(ids=['a', 'b'],
+                                 drop_zero_variance=True).to_dataframe()
+        exp_index = pd.Index(['a', 'b'], dtype=object)
+        exp_df = pd.DataFrame({'col2': ['a', 'b']},
+                              index=exp_index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_rows_filtered_before_all_unique(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '2', '3'],
+                           'col2': ['a', 'b', 'a']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+        # after filtering row c, col2 is all unique
+        obs_df = metadata.filter(ids=['a', 'b'],
+                                 drop_all_unique=True).to_dataframe()
+        exp_index = pd.Index(['a', 'b'], dtype=object)
+        exp_df = pd.DataFrame({'col1': ['2', '2']},
+                              index=exp_index, dtype=object)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_rows_filtered_before_column_types(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '3', 'a']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+        # after filtering row c, col2 is all unique
+        obs_df = metadata.filter(ids=['a', 'b'],
+                                 column_type='numeric').to_dataframe()
+        exp_index = pd.Index(['a', 'b'], dtype=object)
+        exp_df = pd.DataFrame({'col1': [2, 3]},
+                              index=exp_index, dtype=np.int)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_all_filters(self):
+        index = pd.Index(['a', 'b', 'c', 'd'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '2', '2', '3'],  # zero var
+                           'col2': ['a', 'b', 'c', 'd'],  # all uniq
+                           'col3': ['cat', 'dog', 'chicken', 'cat'],  # categ
+                           'col4': ['1', '2', '2', '4']},  # numeric
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        exp_index = pd.Index(['a', 'c', 'd'], dtype=object)
+        exp_df = pd.DataFrame({'col3': ['cat', 'chicken', 'cat']},
+                              index=exp_index, dtype=object)
+
+        obs_df = metadata.filter(ids=['a', 'c', 'd'],
+                                 drop_all_unique=True,
+                                 drop_zero_variance=True,
+                                 column_type='categorical').to_dataframe()
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_no_filters(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter().to_dataframe()
+        pdt.assert_frame_equal(obs_df, df)
 
 
 class TestMetadataLoad(unittest.TestCase):

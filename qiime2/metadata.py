@@ -12,6 +12,7 @@ import sqlite3
 import uuid
 
 import pandas as pd
+import numpy as np
 
 
 class Metadata:
@@ -192,8 +193,13 @@ class Metadata:
             result._artifacts.extend(self.artifacts)
         return result
 
-    def to_dataframe(self):
-        return self._dataframe.copy()
+    def to_dataframe(self, cast_numeric=False):
+        df = self._dataframe.copy()
+
+        if cast_numeric:
+            df = df.apply(lambda x: pd.to_numeric(x, errors='ignore'))
+
+        return df
 
     def ids(self, where=None):
         """Retrieve IDs matching search criteria.
@@ -268,6 +274,90 @@ class Metadata:
             name = str(uuid.uuid4())
             if name not in self._dataframe.columns:
                 return name
+
+    def _filter_columns_by_type(self, df, column_type):
+        known_types = {'numeric', 'categorical'}
+        if column_type not in known_types:
+            raise ValueError('Unknown column type: %s. Known types are: %s' %
+                             (column_type, ', '.join(known_types)))
+
+        df = df.apply(lambda x: pd.to_numeric(x, errors='ignore'))
+
+        if column_type == 'numeric':
+            df = df.select_dtypes(include=[np.number])
+        else:  # type == 'categorical'
+            df = df.select_dtypes(exclude=[np.number])
+
+        return df
+
+    def _filter_rows_by_ids(self, df, ids):
+        missing_ids = set(ids) - set(df.index)
+        if len(missing_ids) > 0:
+            raise KeyError(
+                'All ids must be present in Metadata, but the '
+                'following are missing: %s' % ', '.join(missing_ids))
+        return df.filter(items=ids, axis=0)
+
+    def _filter_columns_by_variance(self, df, drop_all_unique=False,
+                                    drop_zero_variance=False):
+        num_samples = df.shape[0]
+        all_unique = []
+        zero_variance = []
+        for column in df.columns:
+            num_unique_values = len(df[column].unique())
+            if num_unique_values == num_samples:
+                all_unique.append(column)
+            elif num_unique_values == 1:
+                zero_variance.append(column)
+
+        if drop_all_unique:
+            df = df.drop(all_unique, axis=1)
+
+        if drop_zero_variance:
+            df = df.drop(zero_variance, axis=1)
+
+        return df
+
+    def filter(self, column_type=None, ids=None,
+               drop_all_unique=False, drop_zero_variance=False):
+        """
+        Parameters
+        ----------
+        column_type : str, optional
+            If supplied, will retain only columns where data is
+            of the specified type. The currently supported types are
+            'numeric' and 'categorical', where 'numeric' columns are
+            those where all values can be cast to `numpy.number` and
+            'categorical' columns are those where all values cannot
+            be cast to `numpy.number`.
+        ids : iterable, optional
+            Row ids that should be retained in the resulting `qiime2.Metadata`
+            object. By default, all rows will be retained. This filter is
+            applied before any of the other (column-based) filters.
+        drop_all_unique : bool, optional
+            If True, columns that contain a unique value for every row will
+            be dropped.
+        drop_zero_variance : bool, optional
+            If True, columns that contain the same value for every row will
+            be dropped.
+
+        Returns
+        -------
+        qiime2.Metadata : the filtered metadata
+        """
+        df = self.to_dataframe()
+
+        if ids is not None:
+            df = self._filter_rows_by_ids(df, ids)
+
+        if column_type is not None:
+            df = self._filter_columns_by_type(df, column_type)
+
+        if drop_all_unique or drop_zero_variance:
+            df = self._filter_columns_by_variance(df, drop_all_unique,
+                                                  drop_zero_variance)
+
+        return self.__class__(df)
 
 
 class MetadataCategory:
