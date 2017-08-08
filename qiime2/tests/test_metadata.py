@@ -12,6 +12,7 @@ import unittest
 
 import pandas as pd
 import pandas.util.testing as pdt
+import numpy as np
 
 import qiime2
 from qiime2.core.testing.util import get_dummy_plugin, ReallyEqualMixin
@@ -136,7 +137,7 @@ class TestMetadataFilter(unittest.TestCase):
         metadata = qiime2.Metadata(df)
 
         obs_df = metadata.filter(column_type='numeric').to_dataframe()
-        exp_df = pd.DataFrame({'col1': [2, 1, 3]}, index=index)
+        exp_df = pd.DataFrame({'col1': [2, 1, 3]}, dtype=np.int, index=index)
         pdt.assert_frame_equal(obs_df, exp_df)
 
         df = pd.DataFrame({'col1': ['2', '1', '3'],
@@ -149,6 +150,8 @@ class TestMetadataFilter(unittest.TestCase):
         exp_df = pd.DataFrame({'col1': [2, 1, 3],
                                'col3': [4.0, 5.2, 6.9]}, index=index)
         pdt.assert_frame_equal(obs_df, exp_df)
+        self.assertEqual(dict(obs_df.dtypes),
+                         {'col1': np.int, 'col3': np.float})
 
     def test_filter_to_categorical(self):
         index = pd.Index(['a', 'b', 'c'], dtype=object)
@@ -337,9 +340,48 @@ class TestMetadataFilter(unittest.TestCase):
                               index=exp_index, dtype=object)
         pdt.assert_frame_equal(obs_df, exp_df)
 
-# test:
-#  * combinations of filters,
-# * rows filtered before column types
+    def test_rows_filtered_before_column_types(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '3', 'a']},
+                              index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+        # after filtering row c, col2 is all unique
+        obs_df = metadata.filter(ids=['a', 'b'],
+                                 column_type='numeric').to_dataframe()
+        exp_index = pd.Index(['a', 'b'], dtype=object)
+        exp_df = pd.DataFrame({'col1': [2, 3]},
+                              index=exp_index, dtype=np.int)
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_all_filters(self):
+        index = pd.Index(['a', 'b', 'c', 'd'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '2', '2', '3'], # zero var
+                           'col2': ['a', 'b', 'c', 'd'], # all uniq
+                           'col3': ['cat', 'dog', 'chicken', 'cat'], # categ
+                           'col4': ['1', '2', '2', '4']}, # numeric
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        exp_index = pd.Index(['a', 'c', 'd'], dtype=object)
+        exp_df = pd.DataFrame({'col3': ['cat', 'chicken', 'cat']},
+                              index=exp_index, dtype=object)
+
+        obs_df = metadata.filter(ids=['a', 'c', 'd'],
+                                 drop_all_unique=True,
+                                 drop_zero_variance=True,
+                                 column_type='categorical').to_dataframe()
+        pdt.assert_frame_equal(obs_df, exp_df)
+
+    def test_no_filters(self):
+        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        df = pd.DataFrame({'col1': ['2', '1', '3'],
+                           'col2': ['a', 'b', 'c']},
+                          index=index, dtype=object)
+        metadata = qiime2.Metadata(df)
+
+        obs_df = metadata.filter().to_dataframe()
+        pdt.assert_frame_equal(obs_df, df)
+
 
 class TestMetadataLoad(unittest.TestCase):
     def test_comments_and_blank_lines(self):
