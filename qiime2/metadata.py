@@ -14,15 +14,6 @@ import uuid
 import pandas as pd
 import numpy as np
 
-class IDSet:
-    def __init__(self, ids):
-        validate_ids(ids)
-        self.ids = set(ids)
-
-    def validate_ids(self, ids):
-        # check for disallowed chars, duplicates, integers(?), ...
-        # raise ValueError on invalid, otherwise nothing
-        raise NotImplementedError
 
 class Metadata:
     def __init__(self, dataframe):
@@ -294,7 +285,7 @@ class Metadata:
 
         if column_type == 'numeric':
             df = df.select_dtypes(include=[np.number])
-        else: # type == 'categorical'
+        else:  # type == 'categorical'
             df = df.select_dtypes(exclude=[np.number])
 
         return df
@@ -326,10 +317,6 @@ class Metadata:
             df = df.drop(zero_variance, axis=1)
 
         return df
-
-    def where(self, where):
-        df = _filter_rows_by_ids(self.ids(where))
-        return self.__class__(df)
 
     def filter(self, column_type=None, ids=None,
                drop_all_unique=False, drop_zero_variance=False):
@@ -371,6 +358,7 @@ class Metadata:
                                                   drop_zero_variance)
 
         return self.__class__(df)
+
 
 class MetadataCategory:
     def __init__(self, series):
