@@ -19,4 +19,4 @@ install:
   - make install
 script:
   - make lint
-  - QIIMETEST= make test-cov
+  - make test
