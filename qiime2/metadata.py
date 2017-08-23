@@ -15,38 +15,44 @@ import pandas as pd
 import numpy as np
 
 
+def _validate_pandas_index(index, label):
+    # `/` and `\0` aren't permitted because they are invalid filename
+    # characters on *nix filesystems. The remaining values aren't permitted
+    # because they *could* be misinterpreted by a shell (e.g. `*`, `|`).
+    illegal_chars = ['/', '\0', '\\', '*', '<', '>', '?', '|', '$']
+    chars_for_msg = ", ".join("%r" % i for i in illegal_chars)
+    illegal_chars = set(illegal_chars)
+
+    # First check the index dtype and ensure there are no null values
+    if index.dtype_str not in ['object', 'str'] or pd.isnull(index).any():
+        msg = "Non-string Metadata %s values detected" % label
+        raise ValueError(invalid_metadata_template % msg)
+
+    # Then check for invalid characters along index
+    for value in index:
+        if not value or illegal_chars & set(value):
+            msg = "Invalid characters (e.g. %s) or empty ID detected in " \
+                  "metadata %s: %r" % (chars_for_msg, label, value)
+            raise ValueError(invalid_metadata_template % msg)
+
+    # Finally, ensure unique values along index
+    if len(index) != len(set(index)):
+        msg = "Duplicate Metadata %s values detected" % label
+        raise ValueError(invalid_metadata_template % msg)
+
+
 class Metadata:
     def __init__(self, dataframe):
+        if not isinstance(dataframe, pd.DataFrame):
+            raise TypeError('%r is not a pandas.DataFrame object.')
+
         # Not using DataFrame.empty because empty columns are allowed.
         if dataframe.index.empty:
             raise ValueError("Metadata is empty, there must be at least one "
                              "ID associated with it.")
 
-        # `/` and `\0` aren't permitted because they are invalid filename
-        # characters on *nix filesystems. The remaining values aren't permitted
-        # because they *could* be misinterpreted by a shell (e.g. `*`, `|`).
-        illegal_chars = ['/', '\0', '\\', '*', '<', '>', '?', '|', '$']
-        chars_for_msg = ", ".join("%r" % i for i in illegal_chars)
-        illegal_chars = set(illegal_chars)
-
-        for (axis, label) in [(dataframe.columns, 'category label'),
-                              (dataframe.index, 'index')]:
-            # First check the axis dtype
-            if axis.dtype_str not in ['object', 'str']:
-                msg = "Non-string Metadata %s values detected" % label
-                raise ValueError(invalid_metadata_template % msg)
-
-            # Then check for invalid characters along axis
-            for value in axis:
-                if illegal_chars & set(value):
-                    msg = "Invalid characters (e.g. %s) detected in " \
-                          "metadata %s: %r" % (chars_for_msg, label, value)
-                    raise ValueError(invalid_metadata_template % msg)
-
-            # Finally, ensure unique values along axis
-            if len(axis) != len(set(axis)):
-                msg = "Duplicate Metadata %s values detected" % label
-                raise ValueError(invalid_metadata_template % msg)
+        _validate_pandas_index(dataframe.columns, 'category label')
+        _validate_pandas_index(dataframe.index, 'index')
 
         self._dataframe = dataframe
         self._artifacts = []
@@ -362,6 +368,11 @@ class Metadata:
 
 class MetadataCategory:
     def __init__(self, series):
+        if not isinstance(series, pd.Series):
+            raise TypeError('%r is not a pandas.Series object' % series)
+
+        _validate_pandas_index(series.index, 'index')
+
         self._series = series
         self._artifacts = []
 

@@ -83,6 +83,13 @@ class TestMetadata(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Metadata is empty'):
             qiime2.Metadata(df)
 
+    def test_wrong_obj(self):
+        with self.assertRaisesRegex(TypeError, 'pandas.DataFrame'):
+            qiime2.Metadata(pd.Series([1, 2, 3]))
+
+        with self.assertRaisesRegex(TypeError, 'pandas.DataFrame'):
+            qiime2.Metadata({})
+
     def test_invalid_metadata_characters_in_category(self):
         for val in self.illegal_chars:
             index = pd.Index(['a', 'b', 'c'], dtype=object)
@@ -92,6 +99,9 @@ class TestMetadata(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,
                                         'Invalid characters.*category'):
                 qiime2.Metadata(df)
+
+        with self.assertRaisesRegex(ValueError, 'empty ID.*category'):
+            qiime2.Metadata(pd.DataFrame({'': ['1']}, index=['a']))
 
     def test_invalid_metadata_characters_in_index(self):
         for val in self.illegal_chars:
@@ -103,9 +113,34 @@ class TestMetadata(unittest.TestCase):
                                         'Invalid character.*index'):
                 qiime2.Metadata(df)
 
+        with self.assertRaisesRegex(ValueError, 'empty ID.*index'):
+            qiime2.Metadata(pd.DataFrame({'a': ['1']}, index=['']))
+
+    def test_invalid_column_dtype_w_null(self):
+        with self.assertRaisesRegex(ValueError, 'Non-string.*category label'):
+            columns = pd.Index(['a', float('nan')], dtype=object)
+            qiime2.Metadata(pd.DataFrame([['a', 'b']], index=['x'],
+                            columns=columns))
+
+        with self.assertRaisesRegex(ValueError, 'Non-string.*category label'):
+            columns = pd.Index(['a', None], dtype=object)
+            qiime2.Metadata(pd.DataFrame([['a', 'b']], index=['x'],
+                            columns=columns))
+
     def test_invalid_columns_dtype(self):
         with self.assertRaisesRegex(ValueError, 'Non-string.*category label'):
             qiime2.Metadata(pd.DataFrame(['a', 'b', 'c']))
+
+    def test_invalid_index_dtype_w_null(self):
+        with self.assertRaisesRegex(ValueError, 'Non-string.*index'):
+            index = pd.Index(['a', float('nan'), 'b'], dtype=object)
+            qiime2.Metadata(pd.DataFrame(['a', 'b', 'c'], index=index,
+                            columns=['x']))
+
+        with self.assertRaisesRegex(ValueError, 'Non-string.*index'):
+            index = pd.Index(['a', None, 'c'], dtype=object)
+            qiime2.Metadata(pd.DataFrame(['a', 'b', 'c'], index=index,
+                            columns=['x']))
 
     def test_invalid_index_dtype(self):
         with self.assertRaisesRegex(ValueError, 'Non-string.*index values'):
@@ -477,6 +512,13 @@ class TestMetadataLoad(unittest.TestCase):
         metadata = qiime2.Metadata.load(fp)
 
         self.assertEqual(metadata.artifacts, [])
+
+    def test_empty_metadata_id_in_index(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata/comments-n-blanks-n-empty-id.tsv')
+
+        with self.assertRaisesRegex(ValueError, 'Non-string.*index values'):
+            qiime2.Metadata.load(fp)
 
     def test_invalid_metadata_characters_in_category(self):
         fp = pkg_resources.resource_filename(
@@ -948,6 +990,15 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
         md2 = qiime2.Metadata.from_artifact(artifact)
 
         self.assertReallyEqual(md1, md2)
+
+
+class TestMetadataCategory(unittest.TestCase):
+    def test_wrong_obj(self):
+        with self.assertRaisesRegex(TypeError, 'pandas.Series'):
+            qiime2.MetadataCategory(pd.DataFrame([[1, 2, 3]]))
+
+        with self.assertRaisesRegex(TypeError, 'pandas.Series'):
+            qiime2.MetadataCategory({})
 
 
 if __name__ == '__main__':
