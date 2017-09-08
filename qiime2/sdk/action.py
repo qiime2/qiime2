@@ -348,14 +348,15 @@ class Method(Action):
                 % (len(output_views), len(output_types)))
 
         output_artifacts = []
-        for output_view, spec in zip(output_views, output_types.values()):
+        for output_view, (name, spec) in zip(output_views,
+                                             output_types.items()):
             if type(output_view) is not spec.view_type:
                 raise TypeError(
                     "Expected output view type %r, received %r" %
                     (spec.view_type.__name__, type(output_view).__name__))
             artifact = qiime2.sdk.Artifact._from_view(
                 spec.qiime_type, output_view, spec.view_type,
-                provenance.fork())
+                provenance.fork(name))
             output_artifacts.append(artifact)
             if is_subprocess:
                 _FAILURE_PROCESS_CLEANUP.append(artifact._archiver)
@@ -394,6 +395,7 @@ class Visualizer(Action):
                 raise TypeError(
                     "Visualizer %r should not return anything. "
                     "Received %r as a return value." % (self, ret_val))
+            provenance.output_name = 'visualization'
             viz = qiime2.sdk.Visualization._from_data_dir(temp_dir,
                                                           provenance)
             if self._is_subprocess():
