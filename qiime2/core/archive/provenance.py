@@ -247,6 +247,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.action_type = action_type
         self.inputs = OrderedKeyValue()
         self.parameters = OrderedKeyValue()
+        self.output_name = ''
 
     def handle_metadata(self, name, value):
         if value is None:
@@ -300,5 +301,11 @@ class ActionProvenanceCapture(ProvenanceCapture):
         action['action'] = self.action.id
         action['inputs'] = self.inputs
         action['parameters'] = self.parameters
+        action['output-name'] = self.output_name
 
         return action
+
+    def fork(self, name):
+        forked = super().fork()
+        forked.output_name = name
+        return forked

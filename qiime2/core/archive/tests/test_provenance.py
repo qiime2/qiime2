@@ -143,6 +143,39 @@ class TestProvenanceIntegration(unittest.TestCase):
         self.assertTrue((p_dir / 'artifacts' / str(ints2.uuid) /
                          'action' / 'action.yaml').exists())
 
+    def test_output_name_different(self):
+        ints = qiime2.Artifact.import_data(IntSequence1, [0, 1, 2, 3])
+
+        left, right = dummy_plugin.actions.split_ints(ints)
+
+        left_p_dir = left._archiver.provenance_dir
+        right_p_dir = right._archiver.provenance_dir
+
+        with (left_p_dir / 'action' / 'action.yaml').open() as fh:
+            left_yaml = fh.read()
+
+        with (right_p_dir / 'action' / 'action.yaml').open() as fh:
+            right_yaml = fh.read()
+
+        self.assertNotEqual(left_yaml, right_yaml)
+        self.assertIn('output-name: left', left_yaml)
+        self.assertIn('output-name: right', right_yaml)
+
+    def test_output_name_visualization(self):
+        viz, = dummy_plugin.actions.no_input_viz()
+
+        viz_p_dir = viz._archiver.provenance_dir
+
+        with (viz_p_dir / 'action' / 'action.yaml').open() as fh:
+            self.assertIn('output-name: visualization', fh.read())
+
+    def test_no_output_name_import(self):
+        ints = qiime2.Artifact.import_data(IntSequence1, [0, 2, 4])
+        ints_p_dir = ints._archiver.provenance_dir
+
+        with (ints_p_dir / 'action' / 'action.yaml').open() as fh:
+            self.assertNotIn('output-name:', fh.read())
+
 
 if __name__ == '__main__':
     unittest.main()
