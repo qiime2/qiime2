@@ -257,7 +257,7 @@ class Archiver:
         return archive
 
     @classmethod
-    def _futuristic_archive_error(filepath, archive):
+    def _futuristic_archive_error(cls, filepath, archive):
         raise ValueError("%s was created by 'QIIME %s'. The currently"
                          " installed framework cannot interpret archive"
                          " version %r."
