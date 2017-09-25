@@ -324,7 +324,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             fh.write('abc\n')
             fh.write('123\n')
 
-        error_regex = "foo.txt.*IntSequenceFormat"
+        error_regex = "foo.txt.*IntSequenceFormat.*Line 3"
         with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(IntSequence1, fp)
 
@@ -342,7 +342,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         with open(os.path.join(nested, 'file4.txt'), 'w') as fh:
             fh.write('foo\n')
 
-        error_regex = "file4.txt.*SingleIntFormat"
+        error_regex = "file4.txt.*SingleIntFormat.*integer"
         with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(FourInts, data_dir)
 
