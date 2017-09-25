@@ -6,7 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .model import TextFileFormat, BinaryFileFormat, DirectoryFormat
+from .model import (TextFileFormat, BinaryFileFormat, DirectoryFormat,
+                    FormatError)
 from .plugin import Plugin
 
 from qiime2.core.type import (SemanticType, Int, Str, Float, Color, Metadata,
@@ -17,4 +18,4 @@ from qiime2.core.type import (SemanticType, Int, Str, Float, Color, Metadata,
 __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
            'SemanticType', 'Set', 'List', 'Bool', 'Int', 'Str', 'Float',
            'Color', 'Metadata', 'MetadataCategory', 'Properties', 'Range',
-           'Choices', 'Arguments']
+           'Choices', 'Arguments', 'FormatError']

@@ -16,6 +16,7 @@ import pathlib
 import qiime2.core.type
 from qiime2.sdk import Artifact
 from qiime2.sdk.result import ResultMetadata
+from qiime2.plugin.model import ValidationError
 import qiime2.core.archive as archive
 
 from qiime2.core.testing.type import IntSequence1, FourInts, Mapping
@@ -285,7 +286,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         data_dir = os.path.join(self.test_dir.name, 'test')
         os.mkdir(data_dir)
         error_regex = ("Missing.*MappingDirectoryFormat.*mapping.tsv")
-        with self.assertRaisesRegex(ValueError, error_regex):
+        with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(Mapping, data_dir)
 
     def test_import_data_with_unrecognized_files(self):
@@ -303,7 +304,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             fh.write('45\n')
 
         error_regex = ("Unrecognized.*foo.txt.*FourIntsDirectoryFormat")
-        with self.assertRaisesRegex(ValueError, error_regex):
+        with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(FourInts, data_dir)
 
     def test_import_data_with_unreachable_path(self):
@@ -324,7 +325,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             fh.write('123\n')
 
         error_regex = "foo.txt.*IntSequenceFormat"
-        with self.assertRaisesRegex(ValueError, error_regex):
+        with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(IntSequence1, fp)
 
     def test_import_data_with_invalid_format_multi_file(self):
@@ -342,7 +343,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             fh.write('foo\n')
 
         error_regex = "file4.txt.*SingleIntFormat"
-        with self.assertRaisesRegex(ValueError, error_regex):
+        with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(FourInts, data_dir)
 
     def test_import_data_with_filepath(self):

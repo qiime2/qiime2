@@ -10,8 +10,9 @@ from .directory_format import (
     DirectoryFormat, File, FileCollection, SingleFileDirectoryFormat,
     SingleFileDirectoryFormatBase)
 from .file_format import TextFileFormat, BinaryFileFormat
+from .base import FormatError, ValidationError
 
 
 __all__ = ['DirectoryFormat', 'File', 'FileCollection', 'TextFileFormat',
            'BinaryFileFormat', 'SingleFileDirectoryFormat',
-           'SingleFileDirectoryFormatBase']
+           'SingleFileDirectoryFormatBase', 'FormatError', 'ValidationError']

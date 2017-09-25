@@ -31,3 +31,11 @@ class FormatBase:
 
     def __str__(self):
         return str(self.path)
+
+
+class FormatError(Exception):
+    pass
+
+
+class ValidationError(Exception):
+    pass
