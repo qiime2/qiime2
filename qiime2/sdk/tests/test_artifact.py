@@ -19,7 +19,7 @@ from qiime2.sdk.result import ResultMetadata
 from qiime2.plugin.model import ValidationError
 import qiime2.core.archive as archive
 
-from qiime2.core.testing.type import IntSequence1, FourInts, Mapping
+from qiime2.core.testing.type import IntSequence1, FourInts, Mapping, SingleInt
 from qiime2.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 
 
@@ -345,6 +345,29 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         error_regex = "file4.txt.*SingleIntFormat.*integer"
         with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(FourInts, data_dir)
+
+    def test_import_data_with_good_validation_multi_files(self):
+        data_dir = os.path.join(self.test_dir.name, 'test')
+        os.mkdir(data_dir)
+        with open(os.path.join(data_dir, 'file1.txt'), 'w') as fh:
+            fh.write('1\n')
+        with open(os.path.join(data_dir, 'file2.txt'), 'w') as fh:
+            fh.write('1\n')
+
+        a = Artifact.import_data(SingleInt, data_dir)
+        self.assertEqual(1, a.view(int))
+
+    def test_import_data_with_bad_validation_multi_files(self):
+        data_dir = os.path.join(self.test_dir.name, 'test')
+        os.mkdir(data_dir)
+        with open(os.path.join(data_dir, 'file1.txt'), 'w') as fh:
+            fh.write('1\n')
+        with open(os.path.join(data_dir, 'file2.txt'), 'w') as fh:
+            fh.write('2\n')
+
+        error_regex = "test.*RedundantSingleIntDirectoryFormat.*does not match"
+        with self.assertRaisesRegex(ValidationError, error_regex):
+            Artifact.import_data(SingleInt, data_dir)
 
     def test_import_data_with_filepath(self):
         data_dir = os.path.join(self.test_dir.name, 'test')

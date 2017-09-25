@@ -13,13 +13,14 @@ import qiime2.sdk
 from qiime2.plugin.plugin import SemanticTypeRecord, FormatRecord
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
-                                      FourInts, Kennel, Dog, Cat)
+                                      FourInts, Kennel, Dog, Cat, SingleInt)
 from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
                                         MappingDirectoryFormat,
                                         IntSequenceV2DirectoryFormat,
                                         IntSequenceFormatV2,
                                         FourIntsDirectoryFormat,
-                                        IntSequenceFormat)
+                                        IntSequenceFormat,
+                                        RedundantSingleIntDirectoryFormat)
 from qiime2.core.testing.util import get_dummy_plugin
 
 
@@ -53,6 +54,8 @@ class TestPluginManager(unittest.TestCase):
                                       plugin=self.plugin),
             'Cat': SemanticTypeRecord(semantic_type=Cat,
                                       plugin=self.plugin),
+            'SingleInt': SemanticTypeRecord(semantic_type=SingleInt,
+                                            plugin=self.plugin)
         }
 
         self.assertEqual(types, exp)
@@ -61,7 +64,7 @@ class TestPluginManager(unittest.TestCase):
         types = self.pm.importable_types
 
         exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],
-               Kennel[Cat]}
+               Kennel[Cat], SingleInt}
         self.assertEqual(types, exp)
 
     # TODO: add tests for type/directory/transformer registrations
@@ -86,6 +89,9 @@ class TestPluginManager(unittest.TestCase):
                              plugin=self.plugin),
             'IntSequenceFormat':
                 FormatRecord(format=IntSequenceFormat,
+                             plugin=self.plugin),
+            'RedundantSingleIntDirectoryFormat':
+                FormatRecord(format=RedundantSingleIntDirectoryFormat,
                              plugin=self.plugin)
         }
         self.assertEqual(obs, exp)

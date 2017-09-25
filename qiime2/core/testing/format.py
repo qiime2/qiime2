@@ -101,6 +101,19 @@ class FourIntsDirectoryFormat(model.DirectoryFormat):
             return 'file%d.txt' % num
 
 
+class RedundantSingleIntDirectoryFormat(model.DirectoryFormat):
+    """
+    Two files of SingleIntFormat which are exactly the same.
+
+    """
+    int1 = model.File('file1.txt', format=SingleIntFormat)
+    int2 = model.File('file2.txt', format=SingleIntFormat)
+
+    def validate(self):
+        if self.int1.view(int) != self.int2.view(int):
+            raise ValidationError("file1.txt does not match file2.txt")
+
+
 class UnimportableFormat(TextFileFormat):
     """
     Unimportable format used for testing.
