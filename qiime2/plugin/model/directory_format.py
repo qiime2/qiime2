@@ -10,7 +10,7 @@ import re
 import pathlib
 
 from qiime2.core import transform
-from .base import FormatBase, FormatError, ValidationError
+from .base import FormatBase, ValidationError
 
 
 class PathMakerDescriptor:
@@ -92,6 +92,7 @@ class BoundFile:
         for path in collected_paths:
             if re.match(self.pathspec, str(path.relative_to(root))):
                 if collected_paths[path]:
+                    # Not a ValidationError, this just shouldn't happen.
                     raise ValueError("%r was already validated by another"
                                      " field, the pathspecs (regexes) must"
                                      " overlap." % path)
@@ -176,14 +177,11 @@ class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
         if hasattr(self, 'validate'):
             try:
                 self.validate()
-            except FormatError as e:
+            except ValidationError as e:
                 raise ValidationError(
                     "%s is not a(n) %s: %r"
                     % (self.path, self.__class__.__name__, str(e))
                     ) from e
-            except Exception as e:
-                raise ValidationError("An unexpected error occured: %r"
-                                      % str(e)) from e
 
 
 class SingleFileDirectoryFormatBase(DirectoryFormat):

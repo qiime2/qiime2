@@ -33,9 +33,5 @@ class FormatBase:
         return str(self.path)
 
 
-class FormatError(Exception):
-    pass
-
-
 class ValidationError(Exception):
     pass

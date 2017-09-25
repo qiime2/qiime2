@@ -8,11 +8,10 @@
 
 import abc
 
-from .base import FormatBase, FormatError, ValidationError
+from .base import FormatBase, ValidationError
 
 
 class _FileFormat(FormatBase, metaclass=abc.ABCMeta):
-    # TODO: define an abc.abstractmethod for `validate` when sniff is removed
 
     def _validate_(self):
         if not self.path.is_file():
@@ -21,24 +20,19 @@ class _FileFormat(FormatBase, metaclass=abc.ABCMeta):
         if hasattr(self, 'validate'):
             try:
                 self.validate()
-            except FormatError as e:
+            except ValidationError as e:
                 raise ValidationError(
                     "%s is not a %s file: %r"
                     % (self.path, self.__class__.__name__, str(e))
                     ) from e
-            except Exception as e:
-                raise ValidationError("An unexpected error occured: %r"
-                                      % str(e)) from e
         # TODO: remove this branch
         elif hasattr(self, 'sniff'):
-            try:
-                is_member = self.sniff()
-            except Exception as e:
-                raise ValidationError("An unexpected error occured: %r"
-                                      % str(e)) from e
-            if not is_member:
+            if not self.sniff():
                 raise ValidationError("%s is not a(n) %s file"
                                       % (self.path, self.__class__.__name__))
+
+        # TODO: define an abc.abstractmethod for `validate` when sniff is
+        # removed instead of this
         else:
             raise NotImplementedError("%r does not implement validate."
                                       % type(self))
