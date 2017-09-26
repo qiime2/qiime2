@@ -10,7 +10,7 @@ import re
 import pathlib
 
 from qiime2.core import transform
-from .base import FormatBase
+from .base import FormatBase, ValidationError
 
 
 class PathMakerDescriptor:
@@ -92,16 +92,17 @@ class BoundFile:
         for path in collected_paths:
             if re.match(self.pathspec, str(path.relative_to(root))):
                 if collected_paths[path]:
+                    # Not a ValidationError, this just shouldn't happen.
                     raise ValueError("%r was already validated by another"
                                      " field, the pathspecs (regexes) must"
                                      " overlap." % path)
                 collected_paths[path] = True
                 found_members = True
-                self.format(path, mode='r').validate()
+                self.format(path, mode='r')._validate_()
         if not found_members:
-            raise ValueError("Missing one or more files for %s: %r"
-                             % (self._directory_format.__class__.__name__,
-                                self.pathspec))
+            raise ValidationError(
+                "Missing one or more files for %s: %r"
+                % (self._directory_format.__class__.__name__, self.pathspec))
 
     @property
     def path_maker(self):
@@ -158,9 +159,9 @@ class _DirectoryMeta(type):
 
 
 class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
-    def validate(self):
+    def _validate_(self):
         if not self.path.is_dir():
-            raise ValueError("%r is not a directory." % self.path)
+            raise ValidationError("%s is not a directory." % self.path)
         collected_paths = {p: None for p in self.path.glob('**/*')
                            if not p.name.startswith('.') and
                            p.is_file()}
@@ -171,8 +172,16 @@ class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
             if value:
                 continue
             if value is None:
-                raise ValueError("Unrecognized file (%r) for %r."
-                                 % (path, self.__class__.__name__))
+                raise ValidationError("Unrecognized file (%s) for %s."
+                                      % (path, self.__class__.__name__))
+        if hasattr(self, 'validate'):
+            try:
+                self.validate()
+            except ValidationError as e:
+                raise ValidationError(
+                    "%s is not a(n) %s: %r"
+                    % (self.path, self.__class__.__name__, str(e))
+                    ) from e
 
 
 class SingleFileDirectoryFormatBase(DirectoryFormat):

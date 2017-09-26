@@ -128,7 +128,7 @@ class FormatType(ModelType):
             raise TypeError("%r is not an instance of %r."
                             % (view, self._view_type))
         # Formats have a validate method, so defer to it
-        view.validate()
+        view._validate_()
 
     def set_user_owned(self, view, value):
         view.path._user_owned = value

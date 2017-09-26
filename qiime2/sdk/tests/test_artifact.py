@@ -13,12 +13,14 @@ import unittest
 import uuid
 import pathlib
 
+import qiime2.plugin
 import qiime2.core.type
 from qiime2.sdk import Artifact
 from qiime2.sdk.result import ResultMetadata
+from qiime2.plugin.model import ValidationError
 import qiime2.core.archive as archive
 
-from qiime2.core.testing.type import IntSequence1, FourInts, Mapping
+from qiime2.core.testing.type import IntSequence1, FourInts, Mapping, SingleInt
 from qiime2.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 
 
@@ -277,7 +279,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         with open(fp, 'w') as fh:
             fh.write('42\n')
 
-        with self.assertRaisesRegex(ValueError,
+        with self.assertRaisesRegex(qiime2.plugin.ValidationError,
                                     "FourIntsDirectoryFormat.*directory"):
             Artifact.import_data(FourInts, fp)
 
@@ -285,7 +287,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         data_dir = os.path.join(self.test_dir.name, 'test')
         os.mkdir(data_dir)
         error_regex = ("Missing.*MappingDirectoryFormat.*mapping.tsv")
-        with self.assertRaisesRegex(ValueError, error_regex):
+        with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(Mapping, data_dir)
 
     def test_import_data_with_unrecognized_files(self):
@@ -303,15 +305,17 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             fh.write('45\n')
 
         error_regex = ("Unrecognized.*foo.txt.*FourIntsDirectoryFormat")
-        with self.assertRaisesRegex(ValueError, error_regex):
+        with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(FourInts, data_dir)
 
     def test_import_data_with_unreachable_path(self):
-        with self.assertRaisesRegex(ValueError, "does not exist"):
+        with self.assertRaisesRegex(qiime2.plugin.ValidationError,
+                                    "does not exist"):
             Artifact.import_data(IntSequence1,
                                  os.path.join(self.test_dir.name, 'foo.txt'))
 
-        with self.assertRaisesRegex(ValueError, "does not exist"):
+        with self.assertRaisesRegex(qiime2.plugin.ValidationError,
+                                    "does not exist"):
             Artifact.import_data(FourInts,
                                  os.path.join(self.test_dir.name, 'bar', ''))
 
@@ -323,8 +327,8 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             fh.write('abc\n')
             fh.write('123\n')
 
-        error_regex = "foo.txt.*IntSequenceFormat"
-        with self.assertRaisesRegex(ValueError, error_regex):
+        error_regex = "foo.txt.*IntSequenceFormat.*Line 3"
+        with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(IntSequence1, fp)
 
     def test_import_data_with_invalid_format_multi_file(self):
@@ -341,9 +345,32 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         with open(os.path.join(nested, 'file4.txt'), 'w') as fh:
             fh.write('foo\n')
 
-        error_regex = "file4.txt.*SingleIntFormat"
-        with self.assertRaisesRegex(ValueError, error_regex):
+        error_regex = "file4.txt.*SingleIntFormat.*integer"
+        with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(FourInts, data_dir)
+
+    def test_import_data_with_good_validation_multi_files(self):
+        data_dir = os.path.join(self.test_dir.name, 'test')
+        os.mkdir(data_dir)
+        with open(os.path.join(data_dir, 'file1.txt'), 'w') as fh:
+            fh.write('1\n')
+        with open(os.path.join(data_dir, 'file2.txt'), 'w') as fh:
+            fh.write('1\n')
+
+        a = Artifact.import_data(SingleInt, data_dir)
+        self.assertEqual(1, a.view(int))
+
+    def test_import_data_with_bad_validation_multi_files(self):
+        data_dir = os.path.join(self.test_dir.name, 'test')
+        os.mkdir(data_dir)
+        with open(os.path.join(data_dir, 'file1.txt'), 'w') as fh:
+            fh.write('1\n')
+        with open(os.path.join(data_dir, 'file2.txt'), 'w') as fh:
+            fh.write('2\n')
+
+        error_regex = "test.*RedundantSingleIntDirectoryFormat.*does not match"
+        with self.assertRaisesRegex(ValidationError, error_regex):
+            Artifact.import_data(SingleInt, data_dir)
 
     def test_import_data_with_filepath(self):
         data_dir = os.path.join(self.test_dir.name, 'test')

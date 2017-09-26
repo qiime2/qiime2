@@ -16,7 +16,8 @@ from .format import (
     IntSequenceFormatV2,
     SingleIntFormat,
     MappingFormat,
-    UnimportableFormat
+    UnimportableFormat,
+    RedundantSingleIntDirectoryFormat
 )
 from .plugin import dummy_plugin
 
@@ -90,6 +91,11 @@ def _1000(ff: IntSequenceFormat) -> IntSequenceFormatV2:
             new_fh.write(line)
 
     return new_ff
+
+
+@dummy_plugin.register_transformer
+def _2020(ff: RedundantSingleIntDirectoryFormat) -> int:
+    return ff.int1.view(int)  # int2 must be the same for this format
 
 
 @dummy_plugin.register_transformer

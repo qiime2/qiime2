@@ -6,7 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from qiime2.plugin import TextFileFormat
+from qiime2.plugin import TextFileFormat, ValidationError
 import qiime2.plugin.model as model
 
 
@@ -16,14 +16,13 @@ class IntSequenceFormat(TextFileFormat):
     sequence, the integers have an order and repetition of elements is allowed.
 
     """
-    def sniff(self):
+    def validate(self):
         with self.open() as fh:
-            for line, _ in zip(fh, range(5)):
+            for line, idx in zip(fh, range(1, 6)):
                 try:
                     int(line.rstrip('\n'))
                 except (TypeError, ValueError):
-                    return False
-            return True
+                    raise ValidationError("Line %d is not an integer." % idx)
 
 
 class IntSequenceFormatV2(IntSequenceFormat):
@@ -31,9 +30,10 @@ class IntSequenceFormatV2(IntSequenceFormat):
     Same as IntSequenceFormat, but has a header "VERSION 2"
 
     """
-    def sniff(self):
+    def validate(self):
         with self.open() as fh:
-            return fh.readline() == 'VERSION 2\n'
+            if fh.readline() != 'VERSION 2\n':
+                raise ValidationError("Missing header: VERSION 2")
 
 
 class MappingFormat(TextFileFormat):
@@ -43,13 +43,13 @@ class MappingFormat(TextFileFormat):
     disallowed.
 
     """
-    def sniff(self):
+    def validate(self):
         with self.open() as fh:
-            for line, _ in zip(fh, range(5)):
+            for line, idx in zip(fh, range(1, 6)):
                 cells = line.rstrip('\n').split('\t')
                 if len(cells) != 2:
-                    return False
-            return True
+                    raise ValidationError("Line %d does not have exactly 2 "
+                                          "elements seperated by a tab." % idx)
 
 
 class SingleIntFormat(TextFileFormat):
@@ -57,13 +57,14 @@ class SingleIntFormat(TextFileFormat):
     Exactly one int on a single line in the file.
 
     """
-    def sniff(self):
+    def validate(self):
         with self.open() as fh:
             try:
                 int(fh.readline().rstrip('\n'))
             except (TypeError, ValueError):
-                return False
-        return True
+                raise ValidationError("File does not contain an integer")
+            if fh.readline():
+                raise ValidationError("Too many lines in file.")
 
 
 IntSequenceDirectoryFormat = model.SingleFileDirectoryFormat(
@@ -98,6 +99,19 @@ class FourIntsDirectoryFormat(model.DirectoryFormat):
             return 'nested/file%d.txt' % num
         else:
             return 'file%d.txt' % num
+
+
+class RedundantSingleIntDirectoryFormat(model.DirectoryFormat):
+    """
+    Two files of SingleIntFormat which are exactly the same.
+
+    """
+    int1 = model.File('file1.txt', format=SingleIntFormat)
+    int2 = model.File('file2.txt', format=SingleIntFormat)
+
+    def validate(self):
+        if self.int1.view(int) != self.int2.view(int):
+            raise ValidationError("file1.txt does not match file2.txt")
 
 
 class UnimportableFormat(TextFileFormat):

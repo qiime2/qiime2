@@ -8,27 +8,34 @@
 
 import abc
 
-from .base import FormatBase
+from .base import FormatBase, ValidationError
 
 
 class _FileFormat(FormatBase, metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def sniff(self):
-        pass
 
-    def validate(self):
+    def _validate_(self):
         if not self.path.is_file():
-            raise ValueError("%r is not a file." % self.path)
-        try:
-            is_member = self.sniff()
-        except Exception:
-            raise ValueError("Failed to sniff %r as %s. There may be a"
-                             " problem with the sniffer."
-                             % (self.path, self.__class__.__name__))
+            raise ValidationError("%s is not a file." % self.path)
 
-        if not is_member:
-            raise ValueError("%r is not formatted as a %s file."
-                             % (self.path, self.__class__.__name__))
+        if hasattr(self, 'validate'):
+            try:
+                self.validate()
+            except ValidationError as e:
+                raise ValidationError(
+                    "%s is not a %s file: %r"
+                    % (self.path, self.__class__.__name__, str(e))
+                    ) from e
+        # TODO: remove this branch
+        elif hasattr(self, 'sniff'):
+            if not self.sniff():
+                raise ValidationError("%s is not a(n) %s file"
+                                      % (self.path, self.__class__.__name__))
+
+        # TODO: define an abc.abstractmethod for `validate` when sniff is
+        # removed instead of this
+        else:
+            raise NotImplementedError("%r does not implement validate."
+                                      % type(self))
 
 
 class TextFileFormat(_FileFormat):

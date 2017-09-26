@@ -20,11 +20,12 @@ from .format import (
     IntSequenceV2DirectoryFormat,
     MappingDirectoryFormat,
     FourIntsDirectoryFormat,
+    RedundantSingleIntDirectoryFormat,
     UnimportableFormat,
     UnimportableDirectoryFormat
 )
 
-from .type import (IntSequence1, IntSequence2, Mapping, FourInts,
+from .type import (IntSequence1, IntSequence2, Mapping, FourInts, SingleInt,
                    Kennel, Dog, Cat)
 from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_category,
@@ -50,14 +51,14 @@ import_module('qiime2.core.testing.transformer')
 
 # Register semantic types
 dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, Mapping,
-                                     FourInts, Kennel, Dog, Cat)
+                                     FourInts, Kennel, Dog, Cat, SingleInt)
 
 # Register formats
 dummy_plugin.register_formats(
     IntSequenceFormat, IntSequenceFormatV2, MappingFormat, SingleIntFormat,
     IntSequenceDirectoryFormat, IntSequenceV2DirectoryFormat,
     MappingDirectoryFormat, FourIntsDirectoryFormat, UnimportableFormat,
-    UnimportableDirectoryFormat
+    UnimportableDirectoryFormat, RedundantSingleIntDirectoryFormat
 )
 
 dummy_plugin.register_semantic_type_to_format(
@@ -75,6 +76,10 @@ dummy_plugin.register_semantic_type_to_format(
 dummy_plugin.register_semantic_type_to_format(
     FourInts,
     artifact_format=FourIntsDirectoryFormat
+)
+dummy_plugin.register_semantic_type_to_format(
+    SingleInt,
+    artifact_format=RedundantSingleIntDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     Kennel[Dog | Cat],
