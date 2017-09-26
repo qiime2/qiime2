@@ -11,6 +11,7 @@ import distutils.dir_util
 import pathlib
 
 import qiime2.metadata
+import qiime2.plugin
 import qiime2.sdk
 import qiime2.core.type
 import qiime2.core.transform as transform
@@ -167,9 +168,9 @@ class Artifact(Result):
                 if pathlib.Path(view).is_file():
                     if not issubclass(output_dir_fmt,
                                       model.SingleFileDirectoryFormatBase):
-                        raise ValueError("Importing %r requires a"
-                                         " directory, not %s"
-                                         % (output_dir_fmt.__name__, view))
+                        raise qiime2.plugin.ValidationError(
+                            "Importing %r requires a directory, not %s"
+                            % (output_dir_fmt.__name__, view))
                     view_type = output_dir_fmt.file.format
                 else:
                     view_type = output_dir_fmt
@@ -185,7 +186,8 @@ class Artifact(Result):
             elif path.is_dir():
                 md5sums = util.md5sum_directory(path)
             else:
-                raise ValueError("Path '%s' does not exist." % path)
+                raise qiime2.plugin.ValidationError(
+                    "Path '%s' does not exist." % path)
             format_ = view_type
 
         provenance_capture = archive.ImportProvenanceCapture(format_, md5sums)

@@ -13,6 +13,7 @@ import unittest
 import uuid
 import pathlib
 
+import qiime2.plugin
 import qiime2.core.type
 from qiime2.sdk import Artifact
 from qiime2.sdk.result import ResultMetadata
@@ -278,7 +279,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         with open(fp, 'w') as fh:
             fh.write('42\n')
 
-        with self.assertRaisesRegex(ValueError,
+        with self.assertRaisesRegex(qiime2.plugin.ValidationError,
                                     "FourIntsDirectoryFormat.*directory"):
             Artifact.import_data(FourInts, fp)
 
@@ -308,11 +309,13 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             Artifact.import_data(FourInts, data_dir)
 
     def test_import_data_with_unreachable_path(self):
-        with self.assertRaisesRegex(ValueError, "does not exist"):
+        with self.assertRaisesRegex(qiime2.plugin.ValidationError,
+                                    "does not exist"):
             Artifact.import_data(IntSequence1,
                                  os.path.join(self.test_dir.name, 'foo.txt'))
 
-        with self.assertRaisesRegex(ValueError, "does not exist"):
+        with self.assertRaisesRegex(qiime2.plugin.ValidationError,
+                                    "does not exist"):
             Artifact.import_data(FourInts,
                                  os.path.join(self.test_dir.name, 'bar', ''))
 
