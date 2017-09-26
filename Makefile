@@ -10,7 +10,11 @@ test: all
 	QIIMETEST= nosetests
 
 install: all
-	python setup.py install
+	python setup.py install && \
+	mkdir -p $(CONDA_PREFIX)/etc/conda/activate.d && \
+	cp scripts/activate_matplotlib.sh $(CONDA_PREFIX)/etc/conda/activate.d/ && \
+	mkdir -p $(CONDA_PREFIX)/etc/conda/deactivate.d && \
+	cp scripts/deactivate_matplotlib.sh $(CONDA_PREFIX)/etc/conda/deactivate.d/
 
 dev: all
 	pip install -e .
