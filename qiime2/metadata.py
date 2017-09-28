@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import io
 import itertools
 import os.path
 import sqlite3
@@ -110,21 +111,28 @@ class Metadata:
                 header = peek.split('\t')
                 read_csv_kwargs = {'header': None, 'names': header}
 
+        # HACK: Preprocess file to remove whitespace-only lines (including
+        # lines with tabs). Lines containing tabs can trip up pandas so we
+        # exclude them entirely here. This is a performance hog and can likely
+        # be reverted with the `csv` stdlib module is used to parse.
+        buffer = io.StringIO()
+        with open(path, 'r') as fh:
+            for line in fh:
+                if line.strip():
+                    # Don't write the stripped line because we want to keep
+                    # leading/trailing empty cells, as those may be valid data.
+                    buffer.write(line)
+        buffer.seek(0)
+
         try:
-            df = pd.read_csv(path, sep='\t', dtype=object, comment='#',
+            df = pd.read_csv(buffer, sep='\t', dtype=object, comment='#',
                              skip_blank_lines=True, **read_csv_kwargs)
-
-            # Drop empty rows. This must happen before setting an index because
-            # `dropna()` drops rows regardless of index value. This becomes
-            # problematic when there are no columns (something we allow for);
-            # in that case `dropna()` will drop all rows. We only want to drop
-            # rows if both the index and all cells are empty.
-            df.dropna(axis='index', how='all', inplace=True)
-
             df.set_index(df.columns[0], drop=True, append=False, inplace=True)
         except (pd.io.common.CParserError, KeyError):
             msg = 'Metadata file format is invalid for file %s' % path
             raise ValueError(invalid_metadata_template % msg)
+        finally:
+            buffer.close()
 
         return cls(df)
 
