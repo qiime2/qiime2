@@ -113,10 +113,19 @@ class Metadata:
         try:
             df = pd.read_csv(path, sep='\t', dtype=object, comment='#',
                              skip_blank_lines=True, **read_csv_kwargs)
+
+            # Drop empty rows. This must happen before setting an index because
+            # `dropna()` drops rows regardless of index value. This becomes
+            # problematic when there are no columns (something we allow for);
+            # in that case `dropna()` will drop all rows. We only want to drop
+            # rows if both the index and all cells are empty.
+            df.dropna(axis='index', how='all', inplace=True)
+
             df.set_index(df.columns[0], drop=True, append=False, inplace=True)
         except (pd.io.common.CParserError, KeyError):
             msg = 'Metadata file format is invalid for file %s' % path
             raise ValueError(invalid_metadata_template % msg)
+
         return cls(df)
 
     def merge(self, *others):
@@ -406,6 +415,5 @@ class MetadataCategory:
 
 
 invalid_metadata_template = "%s. There may be more errors present in this " \
-    "metadata. Currently only QIIME 1 sample/feature metadata mapping files " \
-    "are officially supported. Sample metadata files can be validated using " \
-    "Keemei: http://keemei.qiime.org."
+    "metadata. Sample/feature metadata files can be validated using " \
+    "Keemei: http://keemei.qiime.org"

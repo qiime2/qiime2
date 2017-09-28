@@ -448,6 +448,22 @@ class TestMetadataLoad(unittest.TestCase):
 
         pdt.assert_frame_equal(obs_df, exp_df)
 
+    def test_empty_rows(self):
+        fp = pkg_resources.resource_filename(
+            'qiime2.tests', 'data/metadata/empty-rows.tsv')
+
+        metadata = qiime2.Metadata.load(fp)
+        obs_df = metadata.to_dataframe()
+
+        exp_index = pd.Index(['id1', 'id2', 'id3'], name='my-index',
+                             dtype=object)
+        exp_df = pd.DataFrame({'col1': ['1', '2', '3'],
+                               'col2': ['a', 'b', 'c'],
+                               'col3': ['foo', 'bar', '42']},
+                              index=exp_index, dtype=object)
+
+        pdt.assert_frame_equal(obs_df, exp_df)
+
     def test_qiime1_mapping_file(self):
         fp = pkg_resources.resource_filename(
             'qiime2.tests', 'data/metadata/qiime1.tsv')
