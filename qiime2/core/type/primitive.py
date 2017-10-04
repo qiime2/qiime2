@@ -145,10 +145,8 @@ class Range(Predicate):
 
     def __repr__(self):
         args = []
-        if self.start is not _RANGE_DEFAULT_START:
-            args.append(repr(self.start))
-        if self.end is not _RANGE_DEFAULT_END:
-            args.append(repr(self.end))
+        args.append(repr(self.start))
+        args.append(repr(self.end))
         if self.inclusive_start is not _RANGE_DEFAULT_INCLUSIVE_START:
             args.append('inclusive_start=%r' % self.inclusive_start)
         if self.inclusive_end is not _RANGE_DEFAULT_INCLUSIVE_END:
