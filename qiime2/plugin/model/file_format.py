@@ -8,18 +8,20 @@
 
 import abc
 
-from .base import FormatBase, ValidationError
+from .base import FormatBase, ValidationError, _check_validation_level
 
 
 class _FileFormat(FormatBase, metaclass=abc.ABCMeta):
 
-    def _validate_(self):
+    def validate(self, level='max'):
+        _check_validation_level(level)
+
         if not self.path.is_file():
             raise ValidationError("%s is not a file." % self.path)
 
-        if hasattr(self, 'validate'):
+        if hasattr(self, '_validate_'):
             try:
-                self.validate()
+                self._validate_(level)
             except ValidationError as e:
                 raise ValidationError(
                     "%s is not a %s file: %r"

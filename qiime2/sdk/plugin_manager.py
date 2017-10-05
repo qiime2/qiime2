@@ -85,6 +85,15 @@ class PluginManager:
                     " and %r" %
                     (name, record.plugin.name, self.formats[name].plugin.name)
                 )
+
+            fmt = record.format
+            if hasattr(fmt, 'sniff') and hasattr(fmt, '_validate_'):
+                raise RuntimeError(
+                    'Format %r registered in plugin %r defines sniff and'
+                    '_validate_ methods - only one is permitted.' %
+                    (name, record.plugin.name)
+                )
+
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
 
