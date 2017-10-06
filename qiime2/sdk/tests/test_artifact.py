@@ -476,6 +476,29 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertNotEqual(artifact, faker)
 
+    def test_artifact_validate_max(self):
+        A = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
+        A.validate()
+        self.assertTrue(True)  # Checkpoint assertion
+        A.validate(level='max')
+        self.assertTrue(True)  # Checkpoint assertion
+        A = Artifact.import_data('IntSequence1', [1, 2, 3, 4, 5, 6, 7, 10])
+        with self.assertRaisesRegex(ValidationError, '3 more'):
+            A.validate('max')
+
+    def test_artifact_validate_min(self):
+        A = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
+        A.validate(level='min')
+        self.assertTrue(True)  # Checkpoint assertion
+        A = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
+        A.validate(level='min')
+        self.assertTrue(True)  # Checkpoint assertion
+
+    def test_artifact_validate_invalid_level(self):
+        A = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
+        with self.assertRaisesRegex(ValueError, 'peanut'):
+            A.validate(level='peanut')
+
 
 if __name__ == '__main__':
     unittest.main()

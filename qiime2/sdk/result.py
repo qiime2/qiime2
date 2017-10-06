@@ -252,6 +252,16 @@ class Artifact(Result):
         to_type = transform.ModelType.from_view_type(qiime2.Metadata)
         return from_type.has_transformation(to_type)
 
+    def validate(self, level='max'):
+        """ Validates the data contents of an artifact
+
+        Raises
+        ------
+        ValidationError
+            If the artifact is invalid at the specified level of validation.
+        """
+        self.format.validate(self.view(self.format), level)
+
 
 class Visualization(Result):
     extension = '.qzv'

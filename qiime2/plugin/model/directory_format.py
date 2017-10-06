@@ -10,7 +10,7 @@ import re
 import pathlib
 
 from qiime2.core import transform
-from .base import FormatBase, ValidationError
+from .base import FormatBase, ValidationError, _check_validation_level
 
 
 class PathMakerDescriptor:
@@ -86,7 +86,7 @@ class BoundFile:
         result = transformation(view)
         result.path._move_or_copy(self.path_maker(**kwargs))
 
-    def _validate_members(self, collected_paths):
+    def _validate_members(self, collected_paths, level):
         found_members = False
         root = pathlib.Path(self._directory_format.path)
         for path in collected_paths:
@@ -98,7 +98,7 @@ class BoundFile:
                                      " overlap." % path)
                 collected_paths[path] = True
                 found_members = True
-                self.format(path, mode='r')._validate_()
+                self.format(path, mode='r').validate(level)
         if not found_members:
             raise ValidationError(
                 "Missing one or more files for %s: %r"
@@ -159,14 +159,16 @@ class _DirectoryMeta(type):
 
 
 class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
-    def _validate_(self):
+    def validate(self, level='max'):
+        _check_validation_level(level)
+
         if not self.path.is_dir():
             raise ValidationError("%s is not a directory." % self.path)
         collected_paths = {p: None for p in self.path.glob('**/*')
                            if not p.name.startswith('.') and
                            p.is_file()}
         for field in self._fields:
-            getattr(self, field)._validate_members(collected_paths)
+            getattr(self, field)._validate_members(collected_paths, level)
 
         for path, value in collected_paths.items():
             if value:
@@ -174,9 +176,9 @@ class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
             if value is None:
                 raise ValidationError("Unrecognized file (%s) for %s."
                                       % (path, self.__class__.__name__))
-        if hasattr(self, 'validate'):
+        if hasattr(self, '_validate_'):
             try:
-                self.validate()
+                self._validate_(level)
             except ValidationError as e:
                 raise ValidationError(
                     "%s is not a(n) %s: %r"

@@ -13,16 +13,29 @@ import qiime2.plugin.model as model
 class IntSequenceFormat(TextFileFormat):
     """
     A sequence of integers stored on new lines in a file. Since this is a
-    sequence, the integers have an order and repetition of elements is allowed.
+    sequence, the integers have an order and repetition of elements is
+    allowed. Sequential values must have an inter-value distance other than 3
+    to be valid.
 
     """
-    def validate(self):
+    def _validate_n_ints(self, n):
         with self.open() as fh:
-            for line, idx in zip(fh, range(1, 6)):
+            last_val = None
+            for idx, line in enumerate(fh, 1):
+                if n is not None and idx >= n:
+                    break
                 try:
-                    int(line.rstrip('\n'))
+                    val = int(line.rstrip('\n'))
                 except (TypeError, ValueError):
                     raise ValidationError("Line %d is not an integer." % idx)
+                if last_val is not None and last_val + 3 == val:
+                    raise ValidationError("Line %d is 3 more than line %d"
+                                          % (idx, idx-1))
+                last_val = val
+
+    def _validate_(self, level):
+        record_map = {'min': 5, 'max': None}
+        self._validate_n_ints(record_map[level])
 
 
 class IntSequenceFormatV2(IntSequenceFormat):
@@ -30,7 +43,7 @@ class IntSequenceFormatV2(IntSequenceFormat):
     Same as IntSequenceFormat, but has a header "VERSION 2"
 
     """
-    def validate(self):
+    def _validate_(self, level):
         with self.open() as fh:
             if fh.readline() != 'VERSION 2\n':
                 raise ValidationError("Missing header: VERSION 2")
@@ -43,7 +56,7 @@ class MappingFormat(TextFileFormat):
     disallowed.
 
     """
-    def validate(self):
+    def _validate_(self, level):
         with self.open() as fh:
             for line, idx in zip(fh, range(1, 6)):
                 cells = line.rstrip('\n').split('\t')
@@ -57,7 +70,7 @@ class SingleIntFormat(TextFileFormat):
     Exactly one int on a single line in the file.
 
     """
-    def validate(self):
+    def _validate_(self, level):
         with self.open() as fh:
             try:
                 int(fh.readline().rstrip('\n'))
@@ -109,7 +122,7 @@ class RedundantSingleIntDirectoryFormat(model.DirectoryFormat):
     int1 = model.File('file1.txt', format=SingleIntFormat)
     int2 = model.File('file2.txt', format=SingleIntFormat)
 
-    def validate(self):
+    def _validate_(self, level):
         if self.int1.view(int) != self.int2.view(int):
             raise ValidationError("file1.txt does not match file2.txt")
 
