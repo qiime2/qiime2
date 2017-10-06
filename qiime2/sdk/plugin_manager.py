@@ -86,6 +86,7 @@ class PluginManager:
                     (name, record.plugin.name, self.formats[name].plugin.name)
                 )
 
+            # TODO: remove this when `sniff` is removed
             fmt = record.format
             if hasattr(fmt, 'sniff') and hasattr(fmt, '_validate_'):
                 raise RuntimeError(
