@@ -62,9 +62,6 @@ class ParameterSpec(ImmutableBase):
         return not (self == other)
 
 
-# Note: Pipeline doesn't exist yet but it is expected to accept zero or more
-# input semantic types, zero or more parameters, and produce one or more output
-# semantic types or Visualization types.
 class PipelineSignature:
     builtin_args = ('ctx',)
 

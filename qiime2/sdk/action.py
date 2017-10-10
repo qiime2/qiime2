@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import abc
+import copy
 import collections
 import concurrent.futures
 import inspect
@@ -43,8 +44,8 @@ def _async_action(action, args, kwargs):
 
 class Action(metaclass=abc.ABCMeta):
     """QIIME 2 Action"""
-
     type = 'action'
+    _ProvCaptureCls = archive.ActionProvenanceCapture
 
     __call__ = LateBindingAttribute('_dynamic_call')
     async = LateBindingAttribute('_dynamic_async')
@@ -113,6 +114,11 @@ class Action(metaclass=abc.ABCMeta):
         raise NotImplementedError(
             "%s constructor is private." % self.__class__.__name__)
 
+    def copy(self, pid=None):
+        action = copy.copy(self)
+        action._pid = os.getpid() if pid is None else pid
+        return action
+
     @property
     def source(self):
         """
@@ -153,8 +159,7 @@ class Action(metaclass=abc.ABCMeta):
 
     def _get_callable_wrapper(self):
         def callable_wrapper(*args, **kwargs):
-            provenance = archive.ActionProvenanceCapture(
-                self.type, self.package, self.id)
+            provenance = self._ProvCaptureCls(self.type, self.package, self.id)
             if self._is_subprocess():
                 _ALWAYS_PROCESS_CLEANUP.append(provenance)
 
@@ -190,12 +195,14 @@ class Action(metaclass=abc.ABCMeta):
 
             view_args = parameters.copy()
             for name, spec in self.signature.inputs.items():
-                recorder = provenance.transformation_recorder(name)
                 artifact = artifacts[name]
                 if artifact is None:
                     view_args[name] = None
-                else:
+                elif spec.has_view_type():
+                    recorder = provenance.transformation_recorder(name)
                     view_args[name] = artifact._view(spec.view_type, recorder)
+                else:
+                    view_args[name] = artifact
 
             outputs = self._callable_executor_(self._callable, view_args,
                                                output_types, provenance)
@@ -409,6 +416,55 @@ class Visualizer(Action):
         signature = qtype.VisualizerSignature(callable, inputs, parameters,
                                               input_descriptions,
                                               parameter_descriptions)
+        return super()._init(callable, signature, package, name, description)
+
+
+class Pipeline(Action):
+    """QIIME 2 Pipeline"""
+    type = 'pipeline'
+    _ProvCaptureCls = archive.PipelineProvenanceCapture
+
+    def _callable_sig_converter_(self, callable):
+        return DropFirstParameter.from_function(callable)
+
+    def _callable_executor_(self, callable, view_args, output_types,
+                            provenance):
+        is_subprocess = self._is_subprocess()
+        ctx = qiime2.sdk.Context()
+        outputs = callable(ctx, **view_args)
+        outputs = tuplize(outputs)
+        if is_subprocess:
+            for result in ctx._locals:
+                _ALWAYS_PROCESS_CLEANUP.append(result._archiver)
+
+        if len(outputs) != len(output_types):
+            raise TypeError(
+                "Number of outputs must match number of output "
+                "semantic types: %d != %d"
+                % (len(outputs), len(output_types)))
+
+        output_results = []
+        for output, (name, spec) in zip(outputs, output_types.items()):
+            if not (output.type <= spec.qiime_type):
+                raise TypeError(
+                    "Expected output type %r, received %r" %
+                    (spec.qiime_type, output.type))
+            aliased_result = output._alias(provenance.fork(name, output))
+            output_results.append(aliased_result)
+
+            if is_subprocess:
+                _FAILURE_PROCESS_CLEANUP.append(aliased_result._archiver)
+
+        return tuple(output_results)
+
+    @classmethod
+    def _init(cls, callable, inputs, parameters, outputs, package, name,
+              description, input_descriptions, parameter_descriptions,
+              output_descriptions):
+        signature = qtype.PipelineSignature(callable, inputs, parameters,
+                                            outputs, input_descriptions,
+                                            parameter_descriptions,
+                                            output_descriptions)
         return super()._init(callable, signature, package, name, description)
 
 

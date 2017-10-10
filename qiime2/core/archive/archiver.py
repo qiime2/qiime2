@@ -341,3 +341,6 @@ class Archiver:
 
     def orphan(self):
         self.path.orphan()
+
+    def _destructor(self):
+        self.path._destructor()
