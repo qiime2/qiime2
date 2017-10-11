@@ -9,6 +9,7 @@
 import collections
 import inspect
 import copy
+import itertools
 
 import qiime2.sdk
 from .grammar import TypeExpression
@@ -97,6 +98,7 @@ class PipelineSignature:
         self._assert_valid_inputs(inputs)
         self._assert_valid_parameters(parameters)
         self._assert_valid_outputs(outputs)
+        self._assert_valid_views(inputs, parameters, outputs)
 
         self.inputs = inputs
         self.parameters = parameters
@@ -259,6 +261,15 @@ class PipelineSignature:
                     "Output %r must be a complete type expression, not %r"
                     % (output_name, spec.qiime_type))
 
+    def _assert_valid_views(self, inputs, parameters, outputs):
+        for name, spec in itertools.chain(inputs.items(),
+                                          parameters.items(),
+                                          outputs.items()):
+            if spec.has_view_type():
+                raise TypeError(
+                    " Pipelines do not support function annotations (found one"
+                    " for %r)." % name)
+
     def decode_parameters(self, **kwargs):
         params = {}
         for key, spec in self.parameters.items():
@@ -329,6 +340,14 @@ class MethodSignature(PipelineSignature):
                     "Output %r must be a semantic QIIME type, not %r" %
                     (output_name, spec.qiime_type))
 
+    def _assert_valid_views(self, inputs, parameters, outputs):
+        for name, spec in itertools.chain(inputs.items(),
+                                          parameters.items(),
+                                          outputs.items()):
+            if not spec.has_view_type():
+                raise TypeError(
+                    "Method is missing a function annotation for %r." % name)
+
 
 class VisualizerSignature(PipelineSignature):
     builtin_args = ('output_dir',)
@@ -349,3 +368,9 @@ class VisualizerSignature(PipelineSignature):
                 "Visualizer callable cannot return anything. Its return "
                 "annotation must be `None`, not %r. Write output to "
                 "`output_dir`." % output.view_type)
+
+    def _assert_valid_views(self, inputs, parameters, outputs):
+        for name, spec in itertools.chain(inputs.items(), parameters.items()):
+            if not spec.has_view_type():
+                raise TypeError("Visualizer is missing a function annotation"
+                                " for %r." % name)
