@@ -188,6 +188,10 @@ class Range(Predicate):
 
 class Choices(Predicate):
     def __init__(self, choices):
+
+        if not choices:
+            raise ValueError("Choices must have a minimum of one value.")
+
         self.choices = set(choices)
 
         super().__init__(choices)
