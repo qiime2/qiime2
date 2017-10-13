@@ -19,13 +19,19 @@ from .visualization import Visualization
 from ..util import ImmutableBase
 
 
-class _NoValue:
+class __NoValueMeta(type):
     def __repr__(self):
         return "NOVALUE"
 
 
+# This sentinel is a class so that it retains the correct memory address when
+# pickled
+class _NOVALUE(metaclass=__NoValueMeta):
+    pass
+
+
 class ParameterSpec(ImmutableBase):
-    NOVALUE = _NoValue()
+    NOVALUE = _NOVALUE
 
     def __init__(self, qiime_type=NOVALUE, view_type=NOVALUE, default=NOVALUE,
                  description=NOVALUE):
