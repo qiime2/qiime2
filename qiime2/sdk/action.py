@@ -431,11 +431,13 @@ class Pipeline(Action):
                             provenance):
         is_subprocess = self._is_subprocess()
         ctx = qiime2.sdk.Context()
-        outputs = callable(ctx, **view_args)
-        outputs = tuplize(outputs)
-        if is_subprocess:
-            for result in ctx._locals:
-                _ALWAYS_PROCESS_CLEANUP.append(result._archiver)
+        try:
+            outputs = callable(ctx, **view_args)
+            outputs = tuplize(outputs)
+        finally:
+            if is_subprocess:
+                for result in ctx._locals:
+                    _ALWAYS_PROCESS_CLEANUP.append(result._archiver)
 
         if len(outputs) != len(output_types):
             raise TypeError(
