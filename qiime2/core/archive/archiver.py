@@ -339,8 +339,6 @@ class Archiver:
     def save(self, filepath):
         self.CURRENT_ARCHIVE.save(self.path, filepath)
 
-    def orphan(self):
-        self.path.orphan()
-
+    @property
     def _destructor(self):
-        self.path._destructor()
+        return self.path._destructor

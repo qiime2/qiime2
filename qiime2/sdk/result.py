@@ -130,8 +130,9 @@ class Result:
         # format tranformations may return the invoked transformers
         return None
 
-    def _orphan(self):
-        self._archiver.orphan()
+    @property
+    def _destructor(self):
+        return self._archiver._destructor
 
     def save(self, filepath):
         if not filepath.endswith(self.extension):

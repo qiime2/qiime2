@@ -103,8 +103,9 @@ class ProvenanceCapture:
 
         self._build_paths()
 
+    @property
     def _destructor(self):
-        self.path._destructor()
+        return self.path._destructor
 
     def _build_paths(self):
         self.path = qiime2.core.path.ProvenancePath()
