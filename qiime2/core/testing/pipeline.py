@@ -87,15 +87,28 @@ def pointless_pipeline(ctx):
     return ctx.make_artifact(SingleInt, 4)
 
 
-def failing_pipeline(ctx, break_from='arity'):
+def failing_pipeline(ctx, int_sequence, break_from='arity'):
     merge_mappings = ctx.import_action('dummy-plugin', 'merge_mappings')
+
+    l = int_sequence.view(list)
+    if l:
+        integer = l[0]
+    else:
+        integer = 0
+
+    # Made here so that we can make sure it gets cleaned up
+    wrong_output = ctx.make_artifact(SingleInt, integer)
+
     if break_from == 'arity':
-        return
+        return int_sequence, int_sequence, int_sequence
+    elif break_from == 'return-view':
+        return None
     elif break_from == 'type':
-        return ctx.make_artifact(SingleInt, 0)
+        return wrong_output
     elif break_from == 'method':
         a = ctx.make_artifact(Mapping, {'foo': 'a'})
         b = ctx.make_artifact(Mapping, {'foo': 'b'})
+        # has the same key
         merge_mappings(a, b)
     else:
         raise ValueError('this never works')

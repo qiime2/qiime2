@@ -163,6 +163,31 @@ class TestPipeline(unittest.TestCase):
             self.assertEqual(single_int.type, SingleInt)
             self.assertEqual(single_int.view(int), 4)
 
+    def test_failing_from_arity(self):
+        for call in self.iter_callables('failing_pipeline'):
+            with self.assertRaisesRegex(TypeError, 'match number.*3.*1'):
+                call(self.int_sequence, break_from='arity')
+
+    def test_failing_from_return_view(self):
+        for call in self.iter_callables('failing_pipeline'):
+            with self.assertRaisesRegex(TypeError, 'Result objects'):
+                call(self.int_sequence, break_from='return-view')
+
+    def test_failing_from_method(self):
+        for call in self.iter_callables('failing_pipeline'):
+            with self.assertRaisesRegex(ValueError, "Key 'foo' exists"):
+                call(self.int_sequence, break_from='method')
+
+    def test_failing_from_type(self):
+        for call in self.iter_callables('failing_pipeline'):
+            with self.assertRaisesRegex(TypeError, 'Mapping.*SingleInt'):
+                call(self.int_sequence, break_from='type')
+
+    def test_failing_from_internal(self):
+        for call in self.iter_callables('failing_pipeline'):
+            with self.assertRaisesRegex(ValueError, 'this never works'):
+                call(self.int_sequence, break_from='internal')
+
 
 if __name__ == '__main__':
     unittest.main()

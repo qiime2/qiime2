@@ -13,7 +13,7 @@ import pandas.util.testing as pdt
 
 import qiime2
 from qiime2.plugins import dummy_plugin
-from qiime2.core.testing.type import IntSequence1
+from qiime2.core.testing.type import IntSequence1, Mapping
 
 
 class TestProvenanceIntegration(unittest.TestCase):
@@ -175,6 +175,25 @@ class TestProvenanceIntegration(unittest.TestCase):
 
         with (ints_p_dir / 'action' / 'action.yaml').open() as fh:
             self.assertNotIn('output-name:', fh.read())
+
+    def test_pipeline_alias_of(self):
+        ints = qiime2.Artifact.import_data(IntSequence1, [1, 2, 3])
+        mapping = qiime2.Artifact.import_data(Mapping, {'foo': '42'})
+        r = dummy_plugin.actions.typical_pipeline(ints, mapping, False)
+
+        # mapping is a pass-through
+        new_mapping = r.out_map
+        new_mapping_p_dir = new_mapping._archiver.provenance_dir
+
+        with (new_mapping_p_dir / 'action' / 'action.yaml').open() as fh:
+            new_mapping_yaml = fh.read()
+
+        # Basic sanity check
+        self.assertIn('type: pipeline', new_mapping_yaml)
+        self.assertIn('int_sequence: %s' % ints.uuid, new_mapping_yaml)
+        self.assertIn('mapping: %s' % mapping.uuid, new_mapping_yaml)
+        # Remembers the original mapping uuid
+        self.assertIn('alias-of: %s' % mapping.uuid, new_mapping_yaml)
 
 
 if __name__ == '__main__':

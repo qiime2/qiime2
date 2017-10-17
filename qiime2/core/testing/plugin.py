@@ -37,7 +37,8 @@ from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
-                       pipelines_in_pipeline, pointless_pipeline)
+                       pipelines_in_pipeline, pointless_pipeline,
+                       failing_pipeline)
 
 dummy_plugin = qiime2.plugin.Plugin(
     name='dummy-plugin',
@@ -471,4 +472,19 @@ dummy_plugin.pipelines.register_function(
     outputs=[('random_int', SingleInt)],
     name='Get an integer',
     description='Integer was chosen to be 4 by a random dice roll'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=failing_pipeline,
+    inputs={
+        'int_sequence': IntSequence1
+    },
+    parameters={
+        'break_from': qiime2.plugin.Str % qiime2.plugin.Choices(
+            {'arity', 'return-view', 'type', 'method', 'internal'})
+    },
+    outputs=[('mapping', Mapping)],
+    name='Test different ways of failing',
+    description=('This is useful to make sure all of the intermediate stuff is'
+                 ' cleaned up the way it should be.')
 )

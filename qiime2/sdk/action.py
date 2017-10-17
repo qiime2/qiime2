@@ -34,6 +34,10 @@ def _subprocess_apply(action, args, kwargs):
 
     results = action(*args, **kwargs)
     for r in results:
+        # The destructor doesn't keep its detatched state when sent back to the
+        # main process. Something about the context-manager from ctx seems to
+        # cause a GC of the artifacts before the process actually ends, so we
+        # do need to detach these. The specifics are not understood.
         r._destructor.detach()
     return results
 
@@ -185,9 +189,8 @@ class Action(metaclass=abc.ABCMeta):
                         callable_args[name] = artifact
 
                 # Execute
-                outputs = self._callable_executor_(
-                    scope, self._callable, callable_args, output_types,
-                    provenance)
+                outputs = self._callable_executor_(scope, callable_args,
+                                                   output_types, provenance)
 
                 if len(outputs) != len(self.signature.outputs):
                     raise ValueError(
@@ -319,9 +322,8 @@ class Method(Action):
         # No conversion necessary.
         return callable
 
-    def _callable_executor_(self, scope, callable, view_args, output_types,
-                            provenance):
-        output_views = callable(**view_args)
+    def _callable_executor_(self, scope, view_args, output_types, provenance):
+        output_views = self._callable(**view_args)
         output_views = tuplize(output_views)
 
         # TODO this won't work if the user has annotated their "view API" to
@@ -377,13 +379,12 @@ class Visualizer(Action):
     def _callable_sig_converter_(self, callable):
         return DropFirstParameter.from_function(callable)
 
-    def _callable_executor_(self, scope, callable, view_args, output_types,
-                            provenance):
+    def _callable_executor_(self, scope, view_args, output_types, provenance):
         # TODO use qiime2.plugin.OutPath when it exists, and update visualizers
         # to work with OutPath instead of str. Visualization._from_data_dir
         # will also need to be updated to support OutPath instead of str.
         with tempfile.TemporaryDirectory(prefix='qiime2-temp-') as temp_dir:
-            ret_val = callable(output_dir=temp_dir, **view_args)
+            ret_val = self._callable(output_dir=temp_dir, **view_args)
             if ret_val is not None:
                 raise TypeError(
                     "Visualizer %r should not return anything. "
@@ -412,10 +413,14 @@ class Pipeline(Action):
     def _callable_sig_converter_(self, callable):
         return DropFirstParameter.from_function(callable)
 
-    def _callable_executor_(self, scope, callable, view_args, output_types,
-                            provenance):
-        outputs = callable(scope.ctx, **view_args)
+    def _callable_executor_(self, scope, view_args, output_types, provenance):
+        outputs = self._callable(scope.ctx, **view_args)
         outputs = tuplize(outputs)
+
+        for output in outputs:
+            if not isinstance(output, qiime2.sdk.Result):
+                raise TypeError("Pipelines must return Result objects, not %r"
+                                % output)
 
         if len(outputs) != len(output_types):
             raise TypeError(
@@ -423,7 +428,7 @@ class Pipeline(Action):
                 "semantic types: %d != %d"
                 % (len(outputs), len(output_types)))
 
-        output_results = []
+        results = []
         for output, (name, spec) in zip(outputs, output_types.items()):
             if not (output.type <= spec.qiime_type):
                 raise TypeError(
@@ -435,9 +440,9 @@ class Pipeline(Action):
             aliased_result = output._alias(prov)
             scope.add_reference(aliased_result, hoist=True)
 
-            output_results.append(aliased_result)
+            results.append(aliased_result)
 
-        return tuple(output_results)
+        return tuple(results)
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, package, name,
