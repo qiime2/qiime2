@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import os
+import shutil
 import collections
 import distutils.dir_util
 import pathlib
@@ -128,14 +130,29 @@ class Result:
         # format tranformations may return the invoked transformers
         return None
 
-    def _orphan(self):
-        self._archiver.orphan()
+    @property
+    def _destructor(self):
+        return self._archiver._destructor
 
     def save(self, filepath):
         if not filepath.endswith(self.extension):
             filepath += self.extension
         self._archiver.save(filepath)
         return filepath
+
+    def _alias(self, provenance_capture):
+        def clone_original(into):
+            # directory is empty, this function is meant to fix that, so we
+            # can rmdir so that copytree is happy
+            into.rmdir()
+            shutil.copytree(str(self._archiver.data_dir), str(into),
+                            copy_function=os.link)  # Use hardlinks
+
+        cls = type(self)
+        alias = cls.__new__(cls)
+        alias._archiver = archive.Archiver.from_data(
+            self.type, self.format, clone_original, provenance_capture)
+        return alias
 
 
 class Artifact(Result):

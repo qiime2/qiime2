@@ -7,13 +7,14 @@
 # ----------------------------------------------------------------------------
 
 import unittest
+import re
 
 import pandas as pd
 import pandas.util.testing as pdt
 
 import qiime2
 from qiime2.plugins import dummy_plugin
-from qiime2.core.testing.type import IntSequence1
+from qiime2.core.testing.type import IntSequence1, Mapping
 
 
 class TestProvenanceIntegration(unittest.TestCase):
@@ -175,6 +176,65 @@ class TestProvenanceIntegration(unittest.TestCase):
 
         with (ints_p_dir / 'action' / 'action.yaml').open() as fh:
             self.assertNotIn('output-name:', fh.read())
+
+    def test_pipeline_alias_of(self):
+        ints = qiime2.Artifact.import_data(IntSequence1, [1, 2, 3])
+        mapping = qiime2.Artifact.import_data(Mapping, {'foo': '42'})
+        r = dummy_plugin.actions.typical_pipeline(ints, mapping, False)
+
+        # mapping is a pass-through
+        new_mapping = r.out_map
+        new_mapping_p_dir = new_mapping._archiver.provenance_dir
+
+        with (new_mapping_p_dir / 'action' / 'action.yaml').open() as fh:
+            new_mapping_yaml = fh.read()
+
+        # Basic sanity check
+        self.assertIn('type: pipeline', new_mapping_yaml)
+        self.assertIn('int_sequence: %s' % ints.uuid, new_mapping_yaml)
+        self.assertIn('mapping: %s' % mapping.uuid, new_mapping_yaml)
+        # Remembers the original mapping uuid
+        self.assertIn('alias-of: %s' % mapping.uuid, new_mapping_yaml)
+
+    def test_nested_pipeline_alias_of(self):
+        ints = qiime2.Artifact.import_data(IntSequence1, [1, 2, 3])
+        mapping = qiime2.Artifact.import_data(Mapping, {'foo': '42'})
+        r = dummy_plugin.actions.pipelines_in_pipeline(ints, mapping)
+
+        right_p_dir = r.right._archiver.provenance_dir
+
+        with (right_p_dir / 'action' / 'action.yaml').open() as fh:
+            right_yaml = fh.read()
+
+        self.assertIn('type: pipeline', right_yaml)
+        self.assertIn('action: pipelines_in_pipeline', right_yaml)
+        self.assertIn('int_sequence: %s' % ints.uuid, right_yaml)
+
+        match = re.search(r'alias\-of: ([a-zA-Z0-9\-]+)$', right_yaml,
+                          flags=re.MULTILINE)
+        first_alias = match.group(1)
+
+        with (right_p_dir / 'artifacts' / first_alias / 'action' /
+              'action.yaml').open() as fh:
+            first_alias_yaml = fh.read()
+
+        # Should be the same input
+        self.assertIn('type: pipeline', first_alias_yaml)
+        self.assertIn('int_sequence: %s' % ints.uuid, first_alias_yaml)
+        self.assertIn('action: typical_pipeline', first_alias_yaml)
+
+        match = re.search(r'alias\-of: ([a-zA-Z0-9\-]+)$', first_alias_yaml,
+                          flags=re.MULTILINE)
+
+        second_alias = match.group(1)
+
+        with (right_p_dir / 'artifacts' / second_alias / 'action' /
+              'action.yaml').open() as fh:
+            actual_method_yaml = fh.read()
+
+        self.assertIn('type: method', actual_method_yaml)
+        self.assertIn('ints: %s' % ints.uuid, actual_method_yaml)
+        self.assertIn('action: split_ints', actual_method_yaml)
 
 
 if __name__ == '__main__':

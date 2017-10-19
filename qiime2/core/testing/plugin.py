@@ -35,6 +35,10 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      optional_artifacts_method, long_description_method)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
+from .pipeline import (parameter_only_pipeline, typical_pipeline,
+                       optional_artifact_pipeline, visualizer_only_pipeline,
+                       pipelines_in_pipeline, pointless_pipeline,
+                       failing_pipeline)
 
 dummy_plugin = qiime2.plugin.Plugin(
     name='dummy-plugin',
@@ -334,4 +338,154 @@ dummy_plugin.visualizers.register_function(
     name='Visualize two mappings',
     description='This visualizer produces an HTML visualization of two '
                 'key-value mappings, each sorted in alphabetical order by key.'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=parameter_only_pipeline,
+    inputs={},
+    parameters={
+        'int1': qiime2.plugin.Int,
+        'int2': qiime2.plugin.Int,
+        'metadata': qiime2.plugin.Metadata
+    },
+    outputs=[
+        ('foo', IntSequence2),
+        ('bar', IntSequence1)
+    ],
+    name='Do multiple things',
+    description='This pipeline only accepts parameters',
+    parameter_descriptions={
+        'int1': 'An integer, the first one in fact',
+        'int2': 'An integer, the second one',
+        'metadata': 'Very little is done with this'
+    },
+    output_descriptions={
+        'foo': 'Foo - "The Integers of 2"',
+        'bar': 'Bar - "What a sequences"'
+    }
+)
+
+dummy_plugin.pipelines.register_function(
+    function=typical_pipeline,
+    inputs={
+        'int_sequence': IntSequence1,
+        'mapping': Mapping
+    },
+    parameters={
+        'do_extra_thing': qiime2.plugin.Bool,
+        'add': qiime2.plugin.Int
+    },
+    outputs=[
+        ('out_map', Mapping),
+        ('left', IntSequence1),
+        ('right', IntSequence1),
+        ('left_viz', qiime2.plugin.Visualization),
+        ('right_viz', qiime2.plugin.Visualization)
+    ],
+    input_descriptions={
+        'int_sequence': 'A sequence of ints',
+        'mapping': 'A map to a number other than 42 will fail'
+    },
+    parameter_descriptions={
+        'do_extra_thing': 'Increment `left` by `add` if true',
+        'add': 'Unused if `do_extra_thing` is false'
+    },
+    output_descriptions={
+        'out_map': 'Same as input',
+        'left': 'Left side of `int_sequence` unless `do_extra_thing`',
+        'right': 'Right side of `int_sequence`',
+        'left_viz': '`left` visualized',
+        'right_viz': '`right` visualized'
+    },
+    name='A typical pipeline with the potential to raise an error',
+    description='Waste some time shuffling data around for no reason'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=optional_artifact_pipeline,
+    inputs={
+        'int_sequence': IntSequence1,
+        'single_int': SingleInt
+    },
+    parameters={},
+    outputs=[
+        ('ints', IntSequence1)
+    ],
+    input_descriptions={
+        'int_sequence': 'Some integers',
+        'single_int': 'An integer'
+    },
+    output_descriptions={
+        'ints': 'More integers'
+    },
+    name='Do stuff normally, but override this one step sometimes',
+    description='Creates its own single_int, unless provided'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=visualizer_only_pipeline,
+    inputs={
+        'mapping': Mapping
+    },
+    parameters={},
+    outputs=[
+        ('viz1', qiime2.plugin.Visualization),
+        ('viz2', qiime2.plugin.Visualization)
+    ],
+    input_descriptions={
+        'mapping': 'A mapping to look at twice'
+    },
+    output_descriptions={
+        'viz1': 'The no input viz',
+        'viz2': 'Our `mapping` seen through the lense of "foo" *and* "bar"'
+    },
+    name='Visualize many things',
+    description='Looks at both nothing and a mapping'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=pipelines_in_pipeline,
+    inputs={
+        'int_sequence': IntSequence1,
+        'mapping': Mapping
+    },
+    parameters={},
+    outputs=[
+        ('int1', SingleInt),
+        ('out_map', Mapping),
+        ('left', IntSequence1),
+        ('right', IntSequence1),
+        ('left_viz', qiime2.plugin.Visualization),
+        ('right_viz', qiime2.plugin.Visualization),
+        ('viz1', qiime2.plugin.Visualization),
+        ('viz2', qiime2.plugin.Visualization)
+    ],
+    name='Do a great many things',
+    description=('Mapping is chained from typical_pipeline into '
+                 'visualizer_only_pipeline')
+)
+
+dummy_plugin.pipelines.register_function(
+    function=pointless_pipeline,
+    inputs={},
+    parameters={},
+    outputs=[('random_int', SingleInt)],
+    name='Get an integer',
+    description='Integer was chosen to be 4 by a random dice roll'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=failing_pipeline,
+    inputs={
+        'int_sequence': IntSequence1
+    },
+    parameters={
+        'break_from': qiime2.plugin.Str % qiime2.plugin.Choices(
+            {'arity', 'return-view', 'type', 'method', 'internal', 'no-plugin',
+             'no-action'})
+    },
+    outputs=[('mapping', Mapping)],
+    name='Test different ways of failing',
+    description=('This is useful to make sure all of the intermediate stuff is'
+                 ' cleaned up the way it should be.')
 )

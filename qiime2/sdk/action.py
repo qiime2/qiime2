@@ -10,9 +10,9 @@ import abc
 import collections
 import concurrent.futures
 import inspect
-import os.path
 import tempfile
 import textwrap
+import itertools
 
 import decorator
 
@@ -22,29 +22,30 @@ import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 
 
-# These aren't globals as much as a process locals. This is necessary because
-# atexit handlers aren't invoked during a subprocess exit (`_exit` is called)
-_FAILURE_PROCESS_CLEANUP = []
-_ALWAYS_PROCESS_CLEANUP = []
+def _subprocess_apply(action, args, kwargs):
+    # Preprocess input artifacts as we've got pickled clones which shouldn't
+    # self-destruct.
+    for arg in itertools.chain(args, kwargs.values()):
+        if isinstance(arg, qiime2.sdk.Artifact):
+            # We can't rely on the subprocess preventing atexit hooks as the
+            # destructor is also called when the artifact goes out of scope
+            # (which happens).
+            arg._destructor.detach()
 
-
-def _async_action(action, args, kwargs):
-    """Helper to cleanup because atexit destructors are not called"""
-    try:
-        return action(*args, **kwargs)
-    except:  # This is cleanup, even KeyboardInterrupt should be caught
-        for garbage in _FAILURE_PROCESS_CLEANUP:
-            garbage._destructor()
-        raise
-    finally:
-        for garbage in _ALWAYS_PROCESS_CLEANUP:
-            garbage._destructor()
+    results = action(*args, **kwargs)
+    for r in results:
+        # The destructor doesn't keep its detatched state when sent back to the
+        # main process. Something about the context-manager from ctx seems to
+        # cause a GC of the artifacts before the process actually ends, so we
+        # do need to detach these. The specifics are not understood.
+        r._destructor.detach()
+    return results
 
 
 class Action(metaclass=abc.ABCMeta):
     """QIIME 2 Action"""
-
     type = 'action'
+    _ProvCaptureCls = archive.ActionProvenanceCapture
 
     __call__ = LateBindingAttribute('_dynamic_call')
     async = LateBindingAttribute('_dynamic_async')
@@ -67,7 +68,7 @@ class Action(metaclass=abc.ABCMeta):
     # callable. `output_types` is an OrderedDict mapping output name to QIIME
     # type (e.g. semantic type).
     @abc.abstractmethod
-    def _callable_executor_(self, callable, view_args, output_types):
+    def _callable_executor_(self, scope, view_args, output_types):
         raise NotImplementedError
 
     # Private constructor
@@ -93,8 +94,7 @@ class Action(metaclass=abc.ABCMeta):
     # This "extra private" constructor is necessary because `Action` objects
     # can be initialized from a static (classmethod) context or on an
     # existing instance (see `_init` and `__setstate__`, respectively).
-    def __init(self, callable, signature, package, name, description,
-               pid=None):
+    def __init(self, callable, signature, package, name, description):
         self._callable = callable
         self.signature = signature
         self.package = package
@@ -102,10 +102,6 @@ class Action(metaclass=abc.ABCMeta):
         self.description = description
 
         self.id = callable.__name__
-        if pid is None:
-            pid = os.getpid()
-        self._pid = pid
-
         self._dynamic_call = self._get_callable_wrapper()
         self._dynamic_async = self._get_async_wrapper()
 
@@ -144,79 +140,106 @@ class Action(metaclass=abc.ABCMeta):
             'signature': self.signature,
             'package': self.package,
             'name': self.name,
-            'description': self.description,
-            'pid': self._pid
+            'description': self.description
         }
 
     def __setstate__(self, state):
         self.__init(**state)
 
-    def _get_callable_wrapper(self):
-        def callable_wrapper(*args, **kwargs):
-            provenance = archive.ActionProvenanceCapture(
-                self.type, self.package, self.id)
-            if self._is_subprocess():
-                _ALWAYS_PROCESS_CLEANUP.append(provenance)
+    def _bind(self, context_factory):
+        """Bind an action to a Context factory, returning a decorated function.
 
+        This is a very primitive API and should be used primarily by the
+        framework and very advanced interfaces which need deep control over
+        the calling semantics of pipelines and garbage collection.
+
+        The basic idea behind this is outlined as follows:
+
+        Every action is defined as an *instance* that a plugin constructs.
+        This means that `self` represents the internal details as to what
+        the action is. If you need to associate additional state with the
+        *application* of an action, you cannot mutate `self` without
+        changing all future applications. So there needs to be an
+        additional instance variable that can serve as the state of a given
+        application. We call this a Context object. It is also important
+        that each application of an action has *independent* state, so
+        providing an instance of Context won't work. We need a factory.
+
+        Parameterizing the context is necessary because it is possible for
+        an action to call other actions. The details need to be coordinated
+        behind the scenes to the user, so we can parameterize the behavior
+        by providing different context factories to `bind` at different
+        points in the "call stack".
+
+        """
+        def bound_callable(*args, **kwargs):
             # This function's signature is rewritten below using
-            # `decorator.decorator`. When the signature is rewritten, args[0]
-            # is the function whose signature was used to rewrite this
-            # function's signature.
+            # `decorator.decorator`. When the signature is rewritten,
+            # args[0] is the function whose signature was used to rewrite
+            # this function's signature.
             args = args[1:]
+            ctx = context_factory()
+            # Set up a scope under which we can track destructable references
+            # if something goes wrong, the __exit__ handler of this context
+            # manager will clean up. (It also cleans up when things go right)
+            with ctx as scope:
+                provenance = self._ProvCaptureCls(
+                    self.type, self.package, self.id)
+                scope.add_reference(provenance)
 
-            user_input = {name: value for value, name in
-                          zip(args, self.signature.signature_order)}
-            user_input.update(kwargs)
+                # Collate user arguments
+                user_input = {name: value for value, name in
+                              zip(args, self.signature.signature_order)}
+                user_input.update(kwargs)
 
-            self.signature.check_types(**user_input)
-            output_types = self.signature.solve_output(**user_input)
+                # Type management
+                self.signature.check_types(**user_input)
+                output_types = self.signature.solve_output(**user_input)
+                callable_args = {}
 
-            artifacts = {}
-            for name in self.signature.inputs:
-                artifact = artifacts[name] = user_input[name]
-                provenance.add_input(name, artifact)
-                if self._is_subprocess() and artifact is not None:
-                    # Cleanup shouldn't be handled in the subprocess, it
-                    # doesn't own any of these inputs, they were just provided.
-                    # We also can't rely on the subprocess preventing atexit
-                    # hooks as the destructor is also called when the artifact
-                    # goes out of scope (which happens).
-                    artifact._orphan()
+                # Record parameters
+                for name, spec in self.signature.parameters.items():
+                    parameter = callable_args[name] = user_input[name]
+                    provenance.add_parameter(name, spec.qiime_type, parameter)
 
-            parameters = {}
-            for name, spec in self.signature.parameters.items():
-                parameter = parameters[name] = user_input[name]
-                provenance.add_parameter(name, spec.qiime_type, parameter)
+                # Record and transform inputs
+                for name, spec in self.signature.inputs.items():
+                    artifact = user_input[name]
+                    provenance.add_input(name, artifact)
+                    if artifact is None:
+                        callable_args[name] = None
+                    elif spec.has_view_type():
+                        recorder = provenance.transformation_recorder(name)
+                        callable_args[name] = artifact._view(
+                            spec.view_type, recorder)
+                    else:
+                        callable_args[name] = artifact
 
-            view_args = parameters.copy()
-            for name, spec in self.signature.inputs.items():
-                recorder = provenance.transformation_recorder(name)
-                artifact = artifacts[name]
-                if artifact is None:
-                    view_args[name] = None
-                else:
-                    view_args[name] = artifact._view(spec.view_type, recorder)
+                # Execute
+                outputs = self._callable_executor_(scope, callable_args,
+                                                   output_types, provenance)
 
-            outputs = self._callable_executor_(self._callable, view_args,
-                                               output_types, provenance)
-            # The outputs don't need to be orphaned, because their destructors
-            # aren't invoked in atexit for a subprocess, instead the
-            # `_async_action` helper will detect failure and cleanup if needed.
-            # These are meant to be owned by the parent process.
+                if len(outputs) != len(self.signature.outputs):
+                    raise ValueError(
+                        "Number of callable outputs must match number of "
+                        "outputs defined in signature: %d != %d" %
+                        (len(outputs), len(self.signature.outputs)))
 
-            if len(outputs) != len(self.signature.outputs):
-                raise ValueError(
-                    "Number of callable outputs must match number of outputs "
-                    "defined in signature: %d != %d" %
-                    (len(outputs), len(self.signature.outputs)))
+                # Wrap in a Results object mapping output name to value so
+                # users have access to outputs by name or position.
+                return qiime2.sdk.Results(self.signature.outputs.keys(),
+                                          outputs)
 
-            # Wrap in a Results object mapping output name to value so users
-            # have access to outputs by name or position.
-            return qiime2.sdk.Results(self.signature.outputs.keys(),
-                                      outputs)
+        bound_callable = self._rewrite_wrapper_signature(bound_callable)
+        self._set_wrapper_properties(bound_callable)
+        self._set_wrapper_name(bound_callable, self.id)
+        return bound_callable
 
-        callable_wrapper = self._rewrite_wrapper_signature(callable_wrapper)
-        self._set_wrapper_properties(callable_wrapper, '__call__')
+    def _get_callable_wrapper(self):
+        # This is a "root" level invocation (not a nested call within a
+        # pipeline), so no special factory is needed.
+        callable_wrapper = self._bind(qiime2.sdk.Context)
+        self._set_wrapper_name(callable_wrapper, '__call__')
         return callable_wrapper
 
     def _get_async_wrapper(self):
@@ -238,12 +261,13 @@ class Action(metaclass=abc.ABCMeta):
             args = args[1:]
 
             pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)
-            future = pool.submit(_async_action, self, args, kwargs)
+            future = pool.submit(_subprocess_apply, self, args, kwargs)
             pool.shutdown(wait=False)
             return future
 
         async_wrapper = self._rewrite_wrapper_signature(async_wrapper)
-        self._set_wrapper_properties(async_wrapper, 'async')
+        self._set_wrapper_properties(async_wrapper)
+        self._set_wrapper_name(async_wrapper, 'async')
         return async_wrapper
 
     def _rewrite_wrapper_signature(self, wrapper):
@@ -252,8 +276,10 @@ class Action(metaclass=abc.ABCMeta):
         return decorator.decorator(
             wrapper, self._callable_sig_converter_(self._callable))
 
-    def _set_wrapper_properties(self, wrapper, name):
+    def _set_wrapper_name(self, wrapper, name):
         wrapper.__name__ = wrapper.__qualname__ = name
+
+    def _set_wrapper_properties(self, wrapper):
         wrapper.__module__ = self.package
         wrapper.__doc__ = self._build_numpydoc()
         wrapper.__annotations__ = self._build_annotations()
@@ -313,9 +339,6 @@ class Action(metaclass=abc.ABCMeta):
 
         return '\n'.join(section).strip()
 
-    def _is_subprocess(self):
-        return self._pid != os.getpid()
-
 
 class Method(Action):
     """QIIME 2 Method"""
@@ -328,10 +351,8 @@ class Method(Action):
         # No conversion necessary.
         return callable
 
-    def _callable_executor_(self, callable, view_args, output_types,
-                            provenance):
-        is_subprocess = self._is_subprocess()
-        output_views = callable(**view_args)
+    def _callable_executor_(self, scope, view_args, output_types, provenance):
+        output_views = self._callable(**view_args)
         output_views = tuplize(output_views)
 
         # TODO this won't work if the user has annotated their "view API" to
@@ -354,12 +375,15 @@ class Method(Action):
                 raise TypeError(
                     "Expected output view type %r, received %r" %
                     (spec.view_type.__name__, type(output_view).__name__))
+
+            prov = provenance.fork(name)
+            scope.add_reference(prov)
+
             artifact = qiime2.sdk.Artifact._from_view(
-                spec.qiime_type, output_view, spec.view_type,
-                provenance.fork(name))
+                spec.qiime_type, output_view, spec.view_type, prov)
+            scope.add_parent_reference(artifact)
+
             output_artifacts.append(artifact)
-            if is_subprocess:
-                _FAILURE_PROCESS_CLEANUP.append(artifact._archiver)
 
         return tuple(output_artifacts)
 
@@ -384,13 +408,12 @@ class Visualizer(Action):
     def _callable_sig_converter_(self, callable):
         return DropFirstParameter.from_function(callable)
 
-    def _callable_executor_(self, callable, view_args, output_types,
-                            provenance):
+    def _callable_executor_(self, scope, view_args, output_types, provenance):
         # TODO use qiime2.plugin.OutPath when it exists, and update visualizers
         # to work with OutPath instead of str. Visualization._from_data_dir
         # will also need to be updated to support OutPath instead of str.
         with tempfile.TemporaryDirectory(prefix='qiime2-temp-') as temp_dir:
-            ret_val = callable(output_dir=temp_dir, **view_args)
+            ret_val = self._callable(output_dir=temp_dir, **view_args)
             if ret_val is not None:
                 raise TypeError(
                     "Visualizer %r should not return anything. "
@@ -398,8 +421,7 @@ class Visualizer(Action):
             provenance.output_name = 'visualization'
             viz = qiime2.sdk.Visualization._from_data_dir(temp_dir,
                                                           provenance)
-            if self._is_subprocess():
-                _FAILURE_PROCESS_CLEANUP.append(viz._archiver)
+            scope.add_parent_reference(viz)
 
             return (viz,)
 
@@ -409,6 +431,61 @@ class Visualizer(Action):
         signature = qtype.VisualizerSignature(callable, inputs, parameters,
                                               input_descriptions,
                                               parameter_descriptions)
+        return super()._init(callable, signature, package, name, description)
+
+
+class Pipeline(Action):
+    """QIIME 2 Pipeline"""
+    type = 'pipeline'
+    _ProvCaptureCls = archive.PipelineProvenanceCapture
+
+    def _callable_sig_converter_(self, callable):
+        return DropFirstParameter.from_function(callable)
+
+    def _callable_executor_(self, scope, view_args, output_types, provenance):
+        outputs = self._callable(scope.ctx, **view_args)
+        outputs = tuplize(outputs)
+
+        for output in outputs:
+            if not isinstance(output, qiime2.sdk.Result):
+                raise TypeError("Pipelines must return Result objects, not %r"
+                                % output)
+
+        # This condition *is* tested by the caller of _callable_executor_, but
+        # the kinds of errors a plugin developer see will make more sense if
+        # this check happens before the subtype check. Otherwise forgetting an
+        # output would more likely error as a wrong type, which while correct,
+        # isn't root of the problem.
+        if len(outputs) != len(output_types):
+            raise TypeError(
+                "Number of outputs must match number of output "
+                "semantic types: %d != %d"
+                % (len(outputs), len(output_types)))
+
+        results = []
+        for output, (name, spec) in zip(outputs, output_types.items()):
+            if not (output.type <= spec.qiime_type):
+                raise TypeError(
+                    "Expected output type %r, received %r" %
+                    (spec.qiime_type, output.type))
+            prov = provenance.fork(name, output)
+            scope.add_reference(prov)
+
+            aliased_result = output._alias(prov)
+            scope.add_parent_reference(aliased_result)
+
+            results.append(aliased_result)
+
+        return tuple(results)
+
+    @classmethod
+    def _init(cls, callable, inputs, parameters, outputs, package, name,
+              description, input_descriptions, parameter_descriptions,
+              output_descriptions):
+        signature = qtype.PipelineSignature(callable, inputs, parameters,
+                                            outputs, input_descriptions,
+                                            parameter_descriptions,
+                                            output_descriptions)
         return super()._init(callable, signature, package, name, description)
 
 

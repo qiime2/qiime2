@@ -55,8 +55,11 @@ class QIIMEArtifactAPIImporter:
             return self._make_spec(name, plugin, ('visualizers',))
         elif plugin_details[1] == 'methods':
             return self._make_spec(name, plugin, ('methods',))
+        elif plugin_details[1] == 'pipelines':
+            return self._make_spec(name, plugin, ('pipelines',))
         elif plugin_details[1] == 'actions':
-            return self._make_spec(name, plugin, ('methods', 'visualizers'))
+            return self._make_spec(name, plugin, ('methods', 'visualizers',
+                                                  'pipelines'))
         return None
 
     def _make_spec(self, name, plugin, action_types=None):
@@ -85,6 +88,8 @@ class QIIMEArtifactAPIImporter:
                                                      package=spec.name)
             module.visualizers = importlib.import_module('.visualizers',
                                                          package=spec.name)
+            module.pipelines = importlib.import_module('.pipelines',
+                                                       package=spec.name)
             module.actions = importlib.import_module('.actions',
                                                      package=spec.name)
         else:

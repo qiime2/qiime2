@@ -80,7 +80,11 @@ class TestPlugin(unittest.TestCase):
                           'identity_with_optional_metadata_category',
                           'params_only_method', 'no_input_method',
                           'optional_artifacts_method', 'params_only_viz',
-                          'no_input_viz', 'long_description_method'})
+                          'no_input_viz', 'long_description_method',
+                          'parameter_only_pipeline', 'typical_pipeline',
+                          'optional_artifact_pipeline', 'pointless_pipeline',
+                          'visualizer_only_pipeline', 'pipelines_in_pipeline',
+                          'failing_pipeline'})
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
 
@@ -103,7 +107,7 @@ class TestPlugin(unittest.TestCase):
                           'optional_artifacts_method',
                           'long_description_method'})
         for method in methods.values():
-            self.assertIsInstance(method, qiime2.sdk.Action)
+            self.assertIsInstance(method, qiime2.sdk.Method)
 
     def test_visualizers(self):
         visualizers = self.plugin.visualizers
@@ -112,7 +116,18 @@ class TestPlugin(unittest.TestCase):
                          {'most_common_viz', 'mapping_viz', 'params_only_viz',
                           'no_input_viz'})
         for viz in visualizers.values():
-            self.assertIsInstance(viz, qiime2.sdk.Action)
+            self.assertIsInstance(viz, qiime2.sdk.Visualizer)
+
+    def test_pipelines(self):
+        pipelines = self.plugin.pipelines
+
+        self.assertEqual(pipelines.keys(),
+                         {'parameter_only_pipeline', 'typical_pipeline',
+                          'optional_artifact_pipeline', 'pointless_pipeline',
+                          'visualizer_only_pipeline', 'pipelines_in_pipeline',
+                          'failing_pipeline'})
+        for pipeline in pipelines.values():
+            self.assertIsInstance(pipeline, qiime2.sdk.Pipeline)
 
     # TODO test registration of directory formats.
 

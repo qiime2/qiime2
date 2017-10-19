@@ -6,8 +6,10 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .provenance import ImportProvenanceCapture, ActionProvenanceCapture
+from .provenance import (ImportProvenanceCapture, ActionProvenanceCapture,
+                         PipelineProvenanceCapture)
 from .archiver import Archiver
 
 
-__all__ = ['Archiver', 'ImportProvenanceCapture', 'ActionProvenanceCapture']
+__all__ = ['Archiver', 'ImportProvenanceCapture', 'ActionProvenanceCapture',
+           'PipelineProvenanceCapture']

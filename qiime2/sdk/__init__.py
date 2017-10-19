@@ -6,12 +6,13 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .action import Action, Method, Visualizer
+from .context import Context
+from .action import Action, Method, Visualizer, Pipeline
 from .plugin_manager import PluginManager
 from .result import Result, Artifact, Visualization
 from .results import Results
 from .util import parse_type, parse_format, UnknownTypeError
 
 __all__ = ['Result', 'Results', 'Artifact', 'Visualization', 'Action',
-           'Method', 'Visualizer', 'PluginManager', 'parse_type',
-           'parse_format', 'UnknownTypeError']
+           'Method', 'Visualizer', 'Pipeline', 'PluginManager', 'parse_type',
+           'parse_format', 'UnknownTypeError', 'Context']

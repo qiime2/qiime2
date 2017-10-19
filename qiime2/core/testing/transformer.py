@@ -94,6 +94,14 @@ def _1000(ff: IntSequenceFormat) -> IntSequenceFormatV2:
 
 
 @dummy_plugin.register_transformer
+def _0202(data: int) -> RedundantSingleIntDirectoryFormat:
+    df = RedundantSingleIntDirectoryFormat()
+    df.int1.write_data(data, int)
+    df.int2.write_data(data, int)
+    return df
+
+
+@dummy_plugin.register_transformer
 def _2020(ff: RedundantSingleIntDirectoryFormat) -> int:
     return ff.int1.view(int)  # int2 must be the same for this format
 

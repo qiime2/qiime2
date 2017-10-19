@@ -124,9 +124,6 @@ class InternalDirectory(_ConcretePath):
         # Same reasoning as truediv
         return _ConcretePath(path, str(self))
 
-    def orphan(self):
-        self._destructor.detach()
-
 
 class ArchivePath(InternalDirectory):
     DEFAULT_PREFIX = 'qiime2-archive-'

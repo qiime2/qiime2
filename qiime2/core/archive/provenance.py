@@ -103,8 +103,9 @@ class ProvenanceCapture:
 
         self._build_paths()
 
+    @property
     def _destructor(self):
-        self.path._destructor()
+        return self.path._destructor
 
     def _build_paths(self):
         self.path = qiime2.core.path.ProvenancePath()
@@ -308,4 +309,18 @@ class ActionProvenanceCapture(ProvenanceCapture):
     def fork(self, name):
         forked = super().fork()
         forked.output_name = name
+        return forked
+
+
+class PipelineProvenanceCapture(ActionProvenanceCapture):
+    def make_action_section(self):
+        action = super().make_action_section()
+        action['alias-of'] = str(self.alias.uuid)
+
+        return action
+
+    def fork(self, name, alias):
+        forked = super().fork(name)
+        forked.alias = alias
+        forked.add_ancestor(alias)
         return forked
