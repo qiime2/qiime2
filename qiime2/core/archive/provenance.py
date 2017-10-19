@@ -83,7 +83,7 @@ yaml.add_representer(NoProvenance, lambda dumper, data:
                      dumper.represent_scalar('!no-provenance', str(data.uuid)))
 
 
-# A reference to Metadata and MetadataCategory who's data can be found at the
+# A reference to Metadata and MetadataColumn whose data can be found at the
 # relative path indicated as its value
 yaml.add_representer(MetadataPath, lambda dumper, data:
                      dumper.represent_scalar('!metadata', data.path))
@@ -262,13 +262,6 @@ class ActionProvenanceCapture(ProvenanceCapture):
         if value is None:
             return None
 
-        if isinstance(value, qiime2.MetadataCategory):
-            pandas_obj = value.to_series()
-        elif isinstance(value, qiime2.Metadata):
-            pandas_obj = value.to_dataframe()
-        else:
-            raise NotImplementedError
-
         uuid_ref = ""
         if value.artifacts:
             uuids = []
@@ -278,7 +271,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
             uuid_ref = ",".join(uuids) + ":"
 
         relpath = name + '.tsv'
-        pandas_obj.to_csv(str(self.action_dir / relpath), sep='\t')
+        value.save(str(self.action_dir / relpath))
 
         return MetadataPath(uuid_ref + relpath)
 
@@ -286,7 +279,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
         type_map = {
             'Color': ColorPrimitive,
             'Metadata': lambda x: self.handle_metadata(name, x),
-            'MetadataCategory': lambda x: self.handle_metadata(name, x)
+            'MetadataColumn': lambda x: self.handle_metadata(name, x)
             # TODO: handle collection primitives (not currently used)
         }
 

@@ -17,10 +17,12 @@ _RESERVED_NAMES = {
     # Predicates:
     'range', 'choice', 'properties', 'arguments',
     # Primitives:
-    'integer', 'int', 'string', 'str', 'metadata', 'metadatacolumn', 'column',
-    'metacol', 'metadatacategory', 'float', 'double', 'number', 'set', 'list',
-    'bag', 'multiset', 'map', 'dict', 'ordinal', 'categorical', 'interval',
-    'continuous', 'discrete',
+    'integer', 'int', 'string', 'str', 'metadata', 'metadatacolumn',
+    'categoricalmetadatacolumn', 'numericmetadatacolumn', 'column',
+    'categoricalcolumn', 'numericcolumn', 'metacol', 'categoricalmetacol',
+    'numericmetacol', 'metadatacategory', 'float', 'double', 'number', 'set',
+    'list', 'bag', 'multiset', 'map', 'dict', 'nominal', 'ordinal',
+    'categorical', 'numeric', 'interval', 'ratio', 'continuous', 'discrete',
     # Type System:
     'semantictype', 'propertymap', 'propertiesmap', 'typemap', 'typevariable',
     'predicate'

@@ -16,6 +16,51 @@ import dateutil.relativedelta as relativedelta
 import qiime2.core.util as util
 
 
+class TestFindDuplicates(unittest.TestCase):
+    # NOTE: wrapping each input in `iter()` because that is the interface
+    # expected by `find_duplicates`, and avoids the need to test other iterable
+    # types, e.g. list, tuples, generators, etc.
+
+    def test_empty_iterable(self):
+        obs = util.find_duplicates(iter([]))
+
+        self.assertEqual(obs, set())
+
+    def test_single_value(self):
+        obs = util.find_duplicates(iter(['foo']))
+
+        self.assertEqual(obs, set())
+
+    def test_multiple_values_no_duplicates(self):
+        obs = util.find_duplicates(iter(['foo', 'bar']))
+
+        self.assertEqual(obs, set())
+
+    def test_one_duplicate(self):
+        obs = util.find_duplicates(iter(['foo', 'bar', 'foo']))
+
+        self.assertEqual(obs, {'foo'})
+
+    def test_multiple_duplicates(self):
+        obs = util.find_duplicates(
+                iter(['foo', 'bar', 'foo', 'baz', 'foo', 'bar']))
+
+        self.assertEqual(obs, {'foo', 'bar'})
+
+    def test_all_duplicates(self):
+        obs = util.find_duplicates(
+                iter(['foo', 'bar', 'baz', 'baz', 'bar', 'foo']))
+
+        self.assertEqual(obs, {'foo', 'bar', 'baz'})
+
+    def test_different_hashables(self):
+        iterable = iter(['foo', 42, -9.999, 'baz', ('a', 'b'), 42, 'foo',
+                         ('a', 'b', 'c'), ('a', 'b')])
+        obs = util.find_duplicates(iterable)
+
+        self.assertEqual(obs, {'foo', 42, ('a', 'b')})
+
+
 class TestDurationTime(unittest.TestCase):
 
     def test_time_travel(self):
@@ -86,6 +131,9 @@ class TestMD5Sum(unittest.TestCase):
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         self.test_path = pathlib.Path(self.test_dir.name)
 
+    def tearDown(self):
+        self.test_dir.cleanup()
+
     def make_file(self, bytes_):
         path = self.test_path / 'file'
         with path.open(mode='wb') as fh:
@@ -117,6 +165,9 @@ class TestMD5SumDirectory(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         self.test_path = pathlib.Path(self.test_dir.name)
+
+    def tearDown(self):
+        self.test_dir.cleanup()
 
     def make_file(self, bytes_, relpath):
         path = self.test_path / relpath

@@ -256,6 +256,9 @@ class Artifact(Result):
                                                        recorder=recorder)
         result = transformation(self._archiver.data_dir)
 
+        if view_type is qiime2.metadata.Metadata:
+            result._add_artifacts([self])
+
         to_type.set_user_owned(result, True)
         return result
 
