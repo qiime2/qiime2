@@ -10,10 +10,9 @@ from .type import SingleInt, Mapping
 
 
 def parameter_only_pipeline(ctx, int1, int2=2, metadata=None):
-    identity_with_optional_metadata = ctx.import_action(
+    identity_with_optional_metadata = ctx.get_action(
         'dummy-plugin', 'identity_with_optional_metadata')
-    concatenate_ints = ctx.import_action(
-        'dummy-plugin', 'concatenate_ints')
+    concatenate_ints = ctx.get_action('dummy-plugin', 'concatenate_ints')
 
     ints1 = ctx.make_artifact('IntSequence2', [int1, int2, 3])
     ints2, = identity_with_optional_metadata(ints1, metadata)
@@ -24,8 +23,8 @@ def parameter_only_pipeline(ctx, int1, int2=2, metadata=None):
 
 
 def typical_pipeline(ctx, int_sequence, mapping, do_extra_thing, add=1):
-    split_ints = ctx.import_action('dummy-plugin', 'split_ints')
-    most_common_viz = ctx.import_action('dummy-plugin', 'most_common_viz')
+    split_ints = ctx.get_action('dummy-plugin', 'split_ints')
+    most_common_viz = ctx.get_action('dummy-plugin', 'most_common_viz')
 
     left, right = split_ints(int_sequence)
     if do_extra_thing:
@@ -44,7 +43,7 @@ def typical_pipeline(ctx, int_sequence, mapping, do_extra_thing, add=1):
 
 
 def optional_artifact_pipeline(ctx, int_sequence, single_int=None):
-    optional_artifact_method = ctx.import_action(
+    optional_artifact_method = ctx.get_action(
         'dummy-plugin', 'optional_artifacts_method')
 
     if single_int is None:
@@ -57,8 +56,8 @@ def optional_artifact_pipeline(ctx, int_sequence, single_int=None):
 
 
 def visualizer_only_pipeline(ctx, mapping):
-    no_input_viz = ctx.import_action('dummy-plugin', 'no_input_viz')
-    mapping_viz = ctx.import_action('dummy-plugin', 'mapping_viz')
+    no_input_viz = ctx.get_action('dummy-plugin', 'no_input_viz')
+    mapping_viz = ctx.get_action('dummy-plugin', 'mapping_viz')
 
     viz1, = no_input_viz()
     viz2, = mapping_viz(mapping, mapping, 'foo', 'bar')
@@ -67,10 +66,9 @@ def visualizer_only_pipeline(ctx, mapping):
 
 
 def pipelines_in_pipeline(ctx, int_sequence, mapping):
-    pointless_pipeline = ctx.import_action(
-        'dummy-plugin', 'pointless_pipeline')
-    typical_pipeline = ctx.import_action('dummy-plugin', 'typical_pipeline')
-    visualizer_only_pipeline = ctx.import_action(
+    pointless_pipeline = ctx.get_action('dummy-plugin', 'pointless_pipeline')
+    typical_pipeline = ctx.get_action('dummy-plugin', 'typical_pipeline')
+    visualizer_only_pipeline = ctx.get_action(
         'dummy-plugin', 'visualizer_only_pipeline')
 
     results = []
@@ -88,7 +86,7 @@ def pointless_pipeline(ctx):
 
 
 def failing_pipeline(ctx, int_sequence, break_from='arity'):
-    merge_mappings = ctx.import_action('dummy-plugin', 'merge_mappings')
+    merge_mappings = ctx.get_action('dummy-plugin', 'merge_mappings')
 
     l = int_sequence.view(list)
     if l:

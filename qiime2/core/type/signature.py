@@ -274,7 +274,7 @@ class PipelineSignature:
             if spec.has_view_type():
                 raise TypeError(
                     " Pipelines do not support function annotations (found one"
-                    " for %r)." % name)
+                    " for parameter: %r)." % name)
 
     def decode_parameters(self, **kwargs):
         params = {}
@@ -351,8 +351,8 @@ class MethodSignature(PipelineSignature):
                                           parameters.items(),
                                           outputs.items()):
             if not spec.has_view_type():
-                raise TypeError(
-                    "Method is missing a function annotation for %r." % name)
+                raise TypeError("Method is missing a function annotation for"
+                                " parameter: %r" % name)
 
 
 class VisualizerSignature(PipelineSignature):
@@ -379,4 +379,4 @@ class VisualizerSignature(PipelineSignature):
         for name, spec in itertools.chain(inputs.items(), parameters.items()):
             if not spec.has_view_type():
                 raise TypeError("Visualizer is missing a function annotation"
-                                " for %r." % name)
+                                " for parameter: %r" % name)

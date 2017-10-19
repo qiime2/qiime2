@@ -68,7 +68,7 @@ class Action(metaclass=abc.ABCMeta):
     # callable. `output_types` is an OrderedDict mapping output name to QIIME
     # type (e.g. semantic type).
     @abc.abstractmethod
-    def _callable_executor_(self, scope, callable, view_args, output_types):
+    def _callable_executor_(self, scope, view_args, output_types):
         raise NotImplementedError
 
     # Private constructor
@@ -146,7 +146,32 @@ class Action(metaclass=abc.ABCMeta):
     def __setstate__(self, state):
         self.__init(**state)
 
-    def bind(self, context_factory):
+    def _bind(self, context_factory):
+        """Bind an action to a Context factory, returning a decorated function.
+
+        This is a very primitive API and should be used primarily by the
+        framework and very advanced interfaces which need deep control over
+        the calling semantics of pipelines and garbage collection.
+
+        The basic idea behind this is outlined as follows:
+
+        Every action is defined as an *instance* that a plugin constructs.
+        This means that `self` represents the internal details as to what
+        the action is. If you need to associate additional state with the
+        *application* of an action, you cannot mutate `self` without
+        changing all future applications. So there needs to be an
+        additional instance variable that can serve as the state of a given
+        application. We call this a Context object. It is also important
+        that each application of an action has *independent* state, so
+        providing an instance of Context won't work. We need a factory.
+
+        Parameterizing the context is necessary because it is possible for
+        an action to call other actions. The details need to be coordinated
+        behind the scenes to the user, so we can parameterize the behavior
+        by providing different context factories to `bind` at different
+        points in the "call stack".
+
+        """
         def bound_callable(*args, **kwargs):
             # This function's signature is rewritten below using
             # `decorator.decorator`. When the signature is rewritten,
@@ -154,7 +179,9 @@ class Action(metaclass=abc.ABCMeta):
             # this function's signature.
             args = args[1:]
             ctx = context_factory()
-
+            # Set up a scope under which we can track destructable references
+            # if something goes wrong, the __exit__ handler of this context
+            # manager will clean up. (It also cleans up when things go right)
             with ctx as scope:
                 provenance = self._ProvCaptureCls(
                     self.type, self.package, self.id)
@@ -209,7 +236,9 @@ class Action(metaclass=abc.ABCMeta):
         return bound_callable
 
     def _get_callable_wrapper(self):
-        callable_wrapper = self.bind(qiime2.sdk.Context)
+        # This is a "root" level invocation (not a nested call within a
+        # pipeline), so no special factory is needed.
+        callable_wrapper = self._bind(qiime2.sdk.Context)
         self._set_wrapper_name(callable_wrapper, '__call__')
         return callable_wrapper
 
@@ -352,7 +381,7 @@ class Method(Action):
 
             artifact = qiime2.sdk.Artifact._from_view(
                 spec.qiime_type, output_view, spec.view_type, prov)
-            scope.add_reference(artifact, hoist=True)
+            scope.add_parent_reference(artifact)
 
             output_artifacts.append(artifact)
 
@@ -392,7 +421,7 @@ class Visualizer(Action):
             provenance.output_name = 'visualization'
             viz = qiime2.sdk.Visualization._from_data_dir(temp_dir,
                                                           provenance)
-            scope.add_reference(viz, hoist=True)
+            scope.add_parent_reference(viz)
 
             return (viz,)
 
@@ -422,6 +451,11 @@ class Pipeline(Action):
                 raise TypeError("Pipelines must return Result objects, not %r"
                                 % output)
 
+        # This condition *is* tested by the caller of _callable_executor_, but
+        # the kinds of errors a plugin developer see will make more sense if
+        # this check happens before the subtype check. Otherwise forgetting an
+        # output would more likely error as a wrong type, which while correct,
+        # isn't root of the problem.
         if len(outputs) != len(output_types):
             raise TypeError(
                 "Number of outputs must match number of output "
@@ -438,7 +472,7 @@ class Pipeline(Action):
             scope.add_reference(prov)
 
             aliased_result = output._alias(prov)
-            scope.add_reference(aliased_result, hoist=True)
+            scope.add_parent_reference(aliased_result)
 
             results.append(aliased_result)
 
