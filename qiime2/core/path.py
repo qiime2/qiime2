@@ -75,6 +75,10 @@ class OutPath(OwnedPath):
             name = tempfile.mkdtemp(**kwargs)
         else:
             fd, name = tempfile.mkstemp(**kwargs)
+            # fd is now assigned to our process table, but we don't need to do
+            # anything with the file. We will call `open` on the `name` later
+            # producing a different file descriptor, so close this one to
+            # prevent a resource leak.
             os.close(fd)
         obj = super().__new__(cls, name)
         obj._destructor = weakref.finalize(obj, cls._destruct, str(obj))
