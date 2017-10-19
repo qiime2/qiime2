@@ -22,12 +22,21 @@ class Context:
         """
         pm = qiime2.sdk.PluginManager()
         plugin = plugin.replace('_', '-')
-        action = pm.plugins[plugin].actions[action]
+        try:
+            plugin_obj = pm.plugins[plugin]
+        except KeyError:
+            raise ValueError("A plugin named %r could not be found." % plugin)
+
+        try:
+            action_obj = plugin_obj.actions[action]
+        except KeyError:
+            raise ValueError("An action named %r was not found for plugin %r"
+                             % (action, plugin))
         # This factory will create new Contexts with this context as their
         # parent. This allows scope cleanup to happen recursively.
         # A factory is necessary so that independent applications of the
         # returned callable recieve their own Context objects.
-        return action._bind(lambda: Context(parent=self))
+        return action_obj._bind(lambda: Context(parent=self))
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.

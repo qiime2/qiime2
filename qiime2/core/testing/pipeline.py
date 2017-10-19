@@ -108,5 +108,9 @@ def failing_pipeline(ctx, int_sequence, break_from='arity'):
         b = ctx.make_artifact(Mapping, {'foo': 'b'})
         # has the same key
         merge_mappings(a, b)
+    elif break_from == 'no-plugin':
+        ctx.get_action('not%a$plugin', 'foo')
+    elif break_from == 'no-action':
+        ctx.get_action('dummy_plugin', 'not%a$method')
     else:
         raise ValueError('this never works')

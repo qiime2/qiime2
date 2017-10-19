@@ -481,7 +481,8 @@ dummy_plugin.pipelines.register_function(
     },
     parameters={
         'break_from': qiime2.plugin.Str % qiime2.plugin.Choices(
-            {'arity', 'return-view', 'type', 'method', 'internal'})
+            {'arity', 'return-view', 'type', 'method', 'internal', 'no-plugin',
+             'no-action'})
     },
     outputs=[('mapping', Mapping)],
     name='Test different ways of failing',
