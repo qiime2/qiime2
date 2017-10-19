@@ -74,7 +74,8 @@ class OutPath(OwnedPath):
         if dir:
             name = tempfile.mkdtemp(**kwargs)
         else:
-            _, name = tempfile.mkstemp(**kwargs)
+            fd, name = tempfile.mkstemp(**kwargs)
+            os.close(fd)
         obj = super().__new__(cls, name)
         obj._destructor = weakref.finalize(obj, cls._destruct, str(obj))
         return obj
