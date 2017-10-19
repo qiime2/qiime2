@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import unittest
+import re
 
 import pandas as pd
 import pandas.util.testing as pdt
@@ -194,6 +195,46 @@ class TestProvenanceIntegration(unittest.TestCase):
         self.assertIn('mapping: %s' % mapping.uuid, new_mapping_yaml)
         # Remembers the original mapping uuid
         self.assertIn('alias-of: %s' % mapping.uuid, new_mapping_yaml)
+
+    def test_nested_pipeline_alias_of(self):
+        ints = qiime2.Artifact.import_data(IntSequence1, [1, 2, 3])
+        mapping = qiime2.Artifact.import_data(Mapping, {'foo': '42'})
+        r = dummy_plugin.actions.pipelines_in_pipeline(ints, mapping)
+
+        right_p_dir = r.right._archiver.provenance_dir
+
+        with (right_p_dir / 'action' / 'action.yaml').open() as fh:
+            right_yaml = fh.read()
+
+        self.assertIn('type: pipeline', right_yaml)
+        self.assertIn('action: pipelines_in_pipeline', right_yaml)
+        self.assertIn('int_sequence: %s' % ints.uuid, right_yaml)
+
+        match = re.search(r'alias\-of: ([a-zA-Z0-9\-]+)$', right_yaml,
+                          flags=re.MULTILINE)
+        first_alias = match.group(1)
+
+        with (right_p_dir / 'artifacts' / first_alias / 'action' /
+              'action.yaml').open() as fh:
+            first_alias_yaml = fh.read()
+
+        # Should be the same input
+        self.assertIn('type: pipeline', first_alias_yaml)
+        self.assertIn('int_sequence: %s' % ints.uuid, first_alias_yaml)
+        self.assertIn('action: typical_pipeline', first_alias_yaml)
+
+        match = re.search(r'alias\-of: ([a-zA-Z0-9\-]+)$', first_alias_yaml,
+                          flags=re.MULTILINE)
+
+        second_alias = match.group(1)
+
+        with (right_p_dir / 'artifacts' / second_alias / 'action' /
+              'action.yaml').open() as fh:
+            actual_method_yaml = fh.read()
+
+        self.assertIn('type: method', actual_method_yaml)
+        self.assertIn('ints: %s' % ints.uuid, actual_method_yaml)
+        self.assertIn('action: split_ints', actual_method_yaml)
 
 
 if __name__ == '__main__':

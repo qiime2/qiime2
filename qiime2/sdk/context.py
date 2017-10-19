@@ -21,6 +21,7 @@ class Context:
         cleanup as appropriate.
         """
         pm = qiime2.sdk.PluginManager()
+        plugin = plugin.replace('_', '-')
         action = pm.plugins[plugin].actions[action]
         # This factory will create new Contexts with this context as their
         # parent. This allows scope cleanup to happen recursively.
