@@ -181,7 +181,7 @@ class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
                 self._validate_(level)
             except ValidationError as e:
                 raise ValidationError(
-                    "%s is not a(n) %s: %r"
+                    "%s is not a(n) %s:\n\n%s"
                     % (self.path, self.__class__.__name__, str(e))
                     ) from e
 

@@ -24,7 +24,7 @@ class _FileFormat(FormatBase, metaclass=abc.ABCMeta):
                 self._validate_(level)
             except ValidationError as e:
                 raise ValidationError(
-                    "%s is not a %s file: %r"
+                    "%s is not a(n) %s file:\n\n%s"
                     % (self.path, self.__class__.__name__, str(e))
                     ) from e
         # TODO: remove this branch
