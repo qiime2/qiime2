@@ -88,9 +88,9 @@ def pointless_pipeline(ctx):
 def failing_pipeline(ctx, int_sequence, break_from='arity'):
     merge_mappings = ctx.get_action('dummy_plugin', 'merge_mappings')
 
-    l = int_sequence.view(list)
-    if l:
-        integer = l[0]
+    list_ = int_sequence.view(list)
+    if list_:
+        integer = list_[0]
     else:
         integer = 0
 
