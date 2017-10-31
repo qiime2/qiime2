@@ -190,7 +190,8 @@ class Choices(Predicate):
     def __init__(self, choices):
 
         if not choices:
-            raise ValueError("'Choices' cannot be instantiated with an empty set.")
+            raise ValueError("'Choices' cannot be instantiated with an empty"
+                             " set.")
 
         self.choices = set(choices)
 
