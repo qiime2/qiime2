@@ -19,7 +19,8 @@ from qiime2.sdk import Artifact, Method, Results
 from qiime2.core.testing.method import (concatenate_ints, merge_mappings,
                                         split_ints, params_only_method,
                                         no_input_method)
-from qiime2.core.testing.type import IntSequence1, IntSequence2, Mapping
+from qiime2.core.testing.type import (
+    IntSequence1, IntSequence2, SingleInt, Mapping)
 from qiime2.core.testing.util import get_dummy_plugin
 
 
@@ -399,6 +400,20 @@ class TestMethod(unittest.TestCase):
         with self.assertRaisesRegex(TypeError,
                                     'not a subtype of IntSequence1'):
             method(ints1, 42, optional1=ints3)
+
+    def test_call_with_variadic_inputs(self):
+        method = self.plugin.methods['variadic_input_method']
+
+        ints = [Artifact.import_data(IntSequence1, [1, 2, 3]),
+                Artifact.import_data(IntSequence2, [4, 5, 6])]
+        int_set = {Artifact.import_data(SingleInt, 7),
+                   Artifact.import_data(SingleInt, 8)}
+        nums = {9, 10}
+        opt_nums = [11, 12, 13]
+
+        result, = method(ints, int_set, nums, opt_nums)
+
+        self.assertEqual(result.view(list), list(range(1, 14)))
 
     def test_async(self):
         concatenate_ints = self.plugin.methods['concatenate_ints']

@@ -109,6 +109,9 @@ class Result:
         return ("<%s: %r uuid: %s>"
                 % (self.__class__.__name__.lower(), self.type, self.uuid))
 
+    def __hash__(self):
+        return hash(self.uuid)
+
     def __eq__(self, other):
         # Checking the UUID is mostly sufficient but requiring an exact type
         # match makes it safer in case `other` is a subclass or a completely

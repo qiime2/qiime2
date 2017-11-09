@@ -51,6 +51,14 @@ yaml.add_representer(collections.OrderedDict, lambda dumper, data:
                      dumper.represent_dict(data.items()))
 
 
+# YAML libraries aren't good at writing a clean version of this, and typically
+# the fact that it is a set is irrelevant to tools that use provenance
+# so add a custom tag and treat it like a sequence. Then code doesn't need to
+# special case set vs list in their business logic when it isn't important.
+yaml.add_representer(set, lambda dumper, data:
+                     dumper.represent_sequence('!set', data))
+
+
 # LiteralString uses the | character and has literal newlines
 yaml.add_representer(LiteralString, lambda dumper, data:
                      dumper.represent_scalar('tag:yaml.org,2002:str',
@@ -126,26 +134,26 @@ class ProvenanceCapture:
             # version 0 artifacts in the wild to be important in practice.
             # NOTE: this implies that it is possible for an action.yaml file to
             # contain an artifact UUID that is not in the artifacts/ directory.
-            return NotImplemented
+            return NoProvenance(artifact.uuid)
 
         destination = self.ancestor_dir / str(artifact.uuid)
-        if destination.exists():
-            # This artifact is already in the provenance (and so are its
-            # ancestors)
-            return
+        # If it exists, then the artifact is already in the provenance
+        # (and so are its ancestors)
+        if not destination.exists():
+            # Handle root node of ancestor
+            shutil.copytree(
+                str(other_path), str(destination),
+                ignore=shutil.ignore_patterns(self.ANCESTOR_DIR + '*'))
 
-        # Handle root node of ancestor
-        shutil.copytree(
-            str(other_path), str(destination),
-            ignore=shutil.ignore_patterns(self.ANCESTOR_DIR + '*'))
+            # Handle ancestral nodes of ancestor
+            grandcestor_path = other_path / self.ANCESTOR_DIR
+            if grandcestor_path.exists():
+                for grandcestor in grandcestor_path.iterdir():
+                    destination = self.ancestor_dir / grandcestor.name
+                    if not destination.exists():
+                        shutil.copytree(str(grandcestor), str(destination))
 
-        # Handle ancestral nodes of ancestor
-        grandcestor_path = other_path / self.ANCESTOR_DIR
-        if grandcestor_path.exists():
-            for grandcestor in grandcestor_path.iterdir():
-                destination = self.ancestor_dir / grandcestor.name
-                if not destination.exists():
-                    shutil.copytree(str(grandcestor), str(destination))
+        return str(artifact.uuid)
 
     def reference_plugin(self, plugin):
         self.plugins[plugin.name] = plugin
@@ -285,15 +293,17 @@ class ActionProvenanceCapture(ProvenanceCapture):
         handler = type_map.get(type_expr.to_ast()['name'], lambda x: x)
         self.parameters[name] = handler(parameter)
 
-    def add_input(self, name, artifact):
-        if artifact is None:
+    def add_input(self, name, input):
+        if input is None:
             self.inputs[name] = None
+        elif isinstance(input, collections.Iterable):
+            values = []
+            for artifact in input:
+                record = self.add_ancestor(artifact)
+                values.append(record)
+            self.inputs[name] = type(input)(values)
         else:
-            ancestral_provenance = self.add_ancestor(artifact)
-            if ancestral_provenance is NotImplemented:
-                self.inputs[name] = NoProvenance(artifact.uuid)
-            else:
-                self.inputs[name] = str(artifact.uuid)
+            self.inputs[name] = self.add_ancestor(input)
 
     def make_action_section(self):
         action = collections.OrderedDict()

@@ -78,3 +78,17 @@ def optional_artifacts_method(ints: list, num1: int, optional1: list=None,
     if num2 is not None:
         result += [num2]
     return result
+
+
+def variadic_input_method(ints: list, int_set: int, nums: int,
+                          opt_nums: int=None) -> list:
+    results = []
+
+    for int_list in ints:
+        results += int_list
+    results += sorted(int_set)
+    results += nums
+    if opt_nums:
+        results += opt_nums
+
+    return results
