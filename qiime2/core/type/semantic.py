@@ -234,12 +234,6 @@ class _SemanticUnionType(grammar.UnionTypeExpression, _SemanticMixin):
     def is_variant(self, varfield):
         return all(m.is_variant(varfield) for m in self)
 
-    def _is_element_(self, value):
-        import qiime2.sdk
-        if not isinstance(value, qiime2.sdk.Artifact):
-            return False
-        return value.type <= self
-
 
 class Properties(grammar.Predicate):
     def __init__(self, include=(), exclude=()):

@@ -222,13 +222,14 @@ class _ZipArchive(_Archive):
 
 
 class Archiver:
-    CURRENT_FORMAT_VERSION = '2'
+    CURRENT_FORMAT_VERSION = '3'
     CURRENT_ARCHIVE = _ZipArchive
     _FORMAT_REGISTRY = {
         # NOTE: add more archive formats as things change
         '0': 'qiime2.core.archive.format.v0:ArchiveFormat',
         '1': 'qiime2.core.archive.format.v1:ArchiveFormat',
-        '2': 'qiime2.core.archive.format.v2:ArchiveFormat'
+        '2': 'qiime2.core.archive.format.v2:ArchiveFormat',
+        '3': 'qiime2.core.archive.format.v3:ArchiveFormat',
     }
 
     @classmethod

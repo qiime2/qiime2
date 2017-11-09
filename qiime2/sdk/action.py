@@ -210,8 +210,16 @@ class Action(metaclass=abc.ABCMeta):
                         callable_args[name] = None
                     elif spec.has_view_type():
                         recorder = provenance.transformation_recorder(name)
-                        callable_args[name] = artifact._view(
-                            spec.view_type, recorder)
+                        if qtype.is_collection_type(spec.qiime_type):
+                            # Always put in a list. Sometimes the view isn't
+                            # hashable, which isn't relevant, but would break
+                            # a Set[SomeType].
+                            callable_args[name] = [
+                                a._view(spec.view_type, recorder)
+                                for a in user_input[name]]
+                        else:
+                            callable_args[name] = artifact._view(
+                                spec.view_type, recorder)
                     else:
                         callable_args[name] = artifact
 

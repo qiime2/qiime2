@@ -79,12 +79,12 @@ class TestPlugin(unittest.TestCase):
                           'identity_with_optional_metadata',
                           'identity_with_optional_metadata_category',
                           'params_only_method', 'no_input_method',
-                          'optional_artifacts_method', 'params_only_viz',
-                          'no_input_viz', 'long_description_method',
-                          'parameter_only_pipeline', 'typical_pipeline',
-                          'optional_artifact_pipeline', 'pointless_pipeline',
-                          'visualizer_only_pipeline', 'pipelines_in_pipeline',
-                          'failing_pipeline'})
+                          'optional_artifacts_method', 'variadic_input_method',
+                          'params_only_viz', 'no_input_viz',
+                          'long_description_method', 'parameter_only_pipeline',
+                          'typical_pipeline', 'optional_artifact_pipeline',
+                          'pointless_pipeline', 'visualizer_only_pipeline',
+                          'pipelines_in_pipeline', 'failing_pipeline'})
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
 
@@ -105,7 +105,8 @@ class TestPlugin(unittest.TestCase):
                           'identity_with_optional_metadata_category',
                           'params_only_method', 'no_input_method',
                           'optional_artifacts_method',
-                          'long_description_method'})
+                          'long_description_method',
+                          'variadic_input_method'})
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)
 

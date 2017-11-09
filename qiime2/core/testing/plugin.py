@@ -32,7 +32,8 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_optional_metadata,
                      identity_with_optional_metadata_category,
                      params_only_method, no_input_method,
-                     optional_artifacts_method, long_description_method)
+                     optional_artifacts_method, long_description_method,
+                     variadic_input_method)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -289,6 +290,34 @@ dummy_plugin.methods.register_function(
                 'whatever integers are supplied as input.'
 )
 
+dummy_plugin.methods.register_function(
+    function=variadic_input_method,
+    inputs={
+        'ints': qiime2.plugin.List[IntSequence1 | IntSequence2],
+        'int_set': qiime2.plugin.Set[SingleInt]
+    },
+    parameters={
+        'nums': qiime2.plugin.Set[qiime2.plugin.Int],
+        'opt_nums': qiime2.plugin.List[
+            qiime2.plugin.Int % qiime2.plugin.Range(10, 20)]
+    },
+    outputs=[
+        ('output', IntSequence1)
+    ],
+    name='Test variadic inputs',
+    description='This method concatenates all of its variadic inputs',
+    input_descriptions={
+        'ints': 'A list of int artifacts',
+        'int_set': 'A set of int artifacts'
+    },
+    parameter_descriptions={
+        'nums': 'A set of ints',
+        'opt_nums': 'An optional list of ints'
+    },
+    output_descriptions={
+        'output': 'All of the above mashed together'
+    }
+)
 
 dummy_plugin.visualizers.register_function(
     function=params_only_viz,

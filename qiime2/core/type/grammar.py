@@ -43,6 +43,10 @@ class CompositeType(_TypeBase):
 
         self._freeze_()
 
+    def __contains__(self, value):
+        raise TypeError("Cannot check membership of %r, %r is missing"
+                        " arguments for its fields." % (value, self))
+
     def __mod__(self, predicate):
         raise TypeError("Cannot apply predicate %r, %r is missing arguments"
                         " for its fields." % (predicate, self))
@@ -309,6 +313,9 @@ class _SetOperationBase(TypeExpression):
 
     def _validate_predicate_(self, predicate):
         raise TypeError("Cannot apply predicates to union/intersection types.")
+
+    def _is_element_(self, value):
+        return any(value in member for member in self.members)
 
     def to_ast(self):
         return {

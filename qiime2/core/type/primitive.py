@@ -6,12 +6,10 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import json
 import numbers
 import re
-import collections.abc
 
-from qiime2.core.type.grammar import TypeExpression, CompositeType, Predicate
+from qiime2.core.type.grammar import TypeExpression, Predicate
 import qiime2.metadata as metadata
 
 
@@ -52,56 +50,6 @@ class _Primitive(_PrimitiveBase):
     def to_ast(self):
         ast = super().to_ast()
         ast['type'] = 'primitive'
-        return ast
-
-
-class _Collection(CompositeType):
-    def _validate_field_(self, name, value):
-        if not isinstance(value, _Primitive):
-            if isinstance(value, _CollectionPrimitive):
-                raise TypeError("Cannot nest collection types.")
-            else:
-                raise TypeError("Collection type (%r) must be provided"
-                                " primitives as arguments to its fields,"
-                                " not %r" % (self, value))
-
-        super()._validate_field_(name, value)
-
-    def _apply_fields_(self, fields):
-        return _CollectionPrimitive(self._is_element_.__func__,
-                                    self.encode.__func__, self.decode.__func__,
-                                    self.name, fields=fields)
-
-
-class _CollectionPrimitive(_PrimitiveBase):
-    def __init__(self, is_element, encode, decode, *args, **kwargs):
-        # TODO: This is a nasty hack
-        self._encode = encode
-        self._decode = decode
-        self._is_element = is_element
-
-        super().__init__(*args, **kwargs)
-
-    def encode(self, value):
-        return self._encode(self, value)
-
-    def decode(self, string):
-        return self._decode(self, string)
-
-    def _is_element_(self, value):
-        return self._is_element(self, value)
-
-    def _validate_predicate_(self, predicate):
-        raise TypeError("Predicates cannot be applied directly to collection"
-                        " types.")
-
-    def _apply_fields_(self, fields):
-        return _CollectionPrimitive(self._is_element, self._encode,
-                                    self._decode, self.name, fields=fields)
-
-    def to_ast(self):
-        ast = super().to_ast()
-        ast['type'] = 'collection'
         return ast
 
 
@@ -219,96 +167,8 @@ class Choices(Predicate):
         return ast
 
 
-class Arguments(Predicate):
-    def __init__(self, parameter):
-        self.parameter = parameter
-
-        super().__init__(parameter)
-
-    def __hash__(self):
-        return hash(type(self)) ^ hash(self.parameter)
-
-    def __eq__(self, other):
-        return type(self) == type(other) and self.parameter == other.parameter
-
-    def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, self.parameter)
-
-    def _is_element_(self, value):
-        raise NotImplementedError("Membership cannot be determined by this"
-                                  " predicate directly.")
-
-    def iter_boundaries(self):
-        yield from []
-
-    def to_ast(self):
-        ast = super().to_ast()
-        ast['parameter'] = self.parameter
-        return ast
-
-
-class _Dict(_Collection):
-    def _is_element_(self, value):
-        if not isinstance(value, collections.abc.Mapping):
-            return False
-        key_type, value_type = self.fields
-        for k, v in value.items():
-            if k not in key_type or v not in value_type:
-                return False
-        return True
-
-    def decode(self, string):
-        return json.loads(string)
-
-    def encode(self, value):
-        return json.dumps(value)
-
-
-Dict = _Dict('Dict', field_names=['keys', 'values'])
-
-
-class _List(_Collection):
-    def _is_element_(self, value):
-        if not isinstance(value, collections.abc.Sequence):
-            return False
-        element_type, = self.fields
-        for v in value:
-            if v not in element_type:
-                return False
-        return True
-
-    def decode(self, string):
-        return json.loads(string)
-
-    def encode(self, value):
-        return json.dumps(value)
-
-
-List = _List('List', field_names=['elements'])
-
-
-class _Set(_Collection):
-    def _is_element_(self, value):
-        if not isinstance(value, collections.abc.Set):
-            return False
-        element_type, = self.fields
-        for v in value:
-            if v not in element_type:
-                return False
-        return True
-
-    def decode(self, string):
-        return set(json.loads(string))
-
-    def encode(self, value):
-        return json.dumps(list(value))
-
-
-Set = _Set('Set', field_names=['elements'])
-
-
 class _Int(_Primitive):
-    _valid_predicates = {Range, Arguments}
+    _valid_predicates = {Range}
 
     def _is_element_(self, value):
         # Works with numpy just fine.
@@ -327,11 +187,8 @@ class _Int(_Primitive):
         return str(value)
 
 
-Int = _Int('Int')
-
-
 class _Str(_Primitive):
-    _valid_predicates = {Choices, Arguments}
+    _valid_predicates = {Choices}
     decode = encode = lambda self, arg: arg
 
     def _is_element_(self, value):
@@ -339,11 +196,8 @@ class _Str(_Primitive):
         return isinstance(value, str)
 
 
-Str = _Str('Str')
-
-
 class _Float(_Primitive):
-    _valid_predicates = {Range, Arguments}
+    _valid_predicates = {Range}
 
     def _is_element_(self, value):
         # Works with numpy just fine.
@@ -356,11 +210,8 @@ class _Float(_Primitive):
         return str(value)
 
 
-Float = _Float('Float')
-
-
 class _Bool(_Primitive):
-    _valid_predicates = {Arguments, }
+    _valid_predicates = set()
 
     def _is_element_(self, value):
         return isinstance(value, bool)
@@ -378,16 +229,10 @@ class _Bool(_Primitive):
             return 'false'
 
 
-Bool = _Bool('Bool')
-
-
-class _Color(type(Str)):
+class _Color(_Str):
     def _is_element_(self, value):
         # Regex from: http://stackoverflow.com/a/1636354/579416
         return bool(re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', value))
-
-
-Color = Colour = _Color('Color')
 
 
 class _Metadata(_Primitive):
@@ -409,9 +254,6 @@ class _Metadata(_Primitive):
         return value
 
 
-Metadata = _Metadata('Metadata')
-
-
 class _MetadataCategory(_Primitive):
     _valid_predicates = set()
 
@@ -431,4 +273,10 @@ class _MetadataCategory(_Primitive):
         return value
 
 
+Bool = _Bool('Bool')
+Int = _Int('Int')
+Float = _Float('Float')
+Str = _Str('Str')
+Color = _Color('Color')
+Metadata = _Metadata('Metadata')
 MetadataCategory = _MetadataCategory('MetadataCategory')
