@@ -343,7 +343,10 @@ class UnionTypeExpression(_SetOperationBase):
 
 class Predicate(_TypeBase):
     def __init__(self, *args, **kwargs):
-        self._truthy = any(map(bool, args)) or any(map(bool, kwargs.values()))
+        truthy = any(map(bool, args)) or any(map(bool, kwargs.values()))
+        if not truthy:
+            raise TypeError("Predicate %r has no arguments or cannot "
+                            "constrain the type." % self.__class__.__name__)
 
         self._freeze_()
 
@@ -362,17 +365,17 @@ class Predicate(_TypeBase):
     def _is_element_(self, value):
         return True
 
-    def __bool__(self):
-        return self._truthy
-
     def __le__(self, other):
         if other is None:
-            other = self.__class__()
+            # The definition of a predicate type is some constraint. So if
+            # there isn't a predicate, then `self` must be a subset. There are
+            # no "identity" predicates which would complicate this.
+            return True
         return self._is_subtype_(other)
 
     def __ge__(self, other):
         if other is None:
-            other = self.__class__()
+            return False
         return other._is_subtype_(self)
 
     def _aug_is_subtype(self, other):

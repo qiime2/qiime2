@@ -196,7 +196,7 @@ class TestTypeExpression(unittest.TestCase):
         a = grammar.TypeExpression('X')
         b = grammar.TypeExpression('Y', fields=(a,))
         c = grammar.TypeExpression('Y', fields=(a,))
-        d = grammar.TypeExpression('Z', predicate=grammar.Predicate())
+        d = grammar.TypeExpression('Z', predicate=grammar.Predicate("stuff"))
 
         self.assertIsInstance(a, collections.Hashable)
         # There really shouldn't be a collision between these:
@@ -435,8 +435,8 @@ class TestTypeExpressionMod(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, 'predicate'):
             X % grammar.Predicate('Other')
 
-    def test_mod_w_falsy_predicate(self):
-        X = grammar.TypeExpression('X', predicate=grammar.Predicate())
+    def test_mod_w_none_predicate(self):
+        X = grammar.TypeExpression('X', predicate=None)
         predicate = grammar.Predicate("Truthy")
         self.assertIs((X % predicate).predicate, predicate)
 
