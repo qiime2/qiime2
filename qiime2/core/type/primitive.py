@@ -75,7 +75,8 @@ class Range(Predicate):
         self.inclusive_start = inclusive_start
         self.inclusive_end = inclusive_end
 
-        super().__init__(args)
+        truthy = self.start is not None or self.end is not None
+        super().__init__(truthy)
 
     def __hash__(self):
         return (hash(type(self)) ^
