@@ -25,6 +25,14 @@ requirements:
     - tzlocal
     - python-dateutil
 
+  run_constrained:
+    # html5lib is not a direct dependency, but it is picked up as a dependency
+    # of ipywidgets (which is included in our plugins that utilize seaborn).
+    # As of 2018.01.04, the build of html5lib on conda-forge breaks deployments
+    # of QIIME 2 when using conda 4.4. This `run_constrained` directive ensures
+    # that if html5lib is to be installed, it uses the defaults channel.
+    - defaults::html5lib
+
 test:
   imports:
     - qiime2
