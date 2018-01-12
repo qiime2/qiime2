@@ -11,7 +11,8 @@ before_install:
   - conda update -q conda
   - conda info -a
 install:
-  - conda create -q -n test-env --file https://raw.githubusercontent.com/qiime2/environment-files/master/latest/staging/qiime2-latest-conda-linux-64.txt
+  - wget -q https://raw.githubusercontent.com/qiime2/environment-files/master/latest/staging/qiime2-latest-py35-linux-conda.yml
+  - conda env create -q -n test-env --file qiime2-latest-py35-linux-conda.yml
   - source activate test-env
   - pip install -q flake8
   - conda install nose
