@@ -19,25 +19,27 @@ from qiime2.core.testing.type import IntSequence1, Mapping
 
 class TestProvenanceIntegration(unittest.TestCase):
     def test_chain_with_metadata(self):
-        df = pd.DataFrame({'a': ['1', '2', '3']}, index=['0', '1', '2'])
+        df = pd.DataFrame({'a': ['1', '2', '3']},
+                          index=pd.Index(['0', '1', '2'], name='feature ID'))
 
         a = qiime2.Artifact.import_data('IntSequence1', [1, 2, 3])
         m = qiime2.Metadata(df)
-        mc = qiime2.MetadataCategory(df['a'])
+        mc = qiime2.CategoricalMetadataColumn(df['a'])
 
         b = dummy_plugin.actions.identity_with_metadata(a, m).out
-        c = dummy_plugin.actions.identity_with_metadata_category(b, mc).out
+        c = dummy_plugin.actions.identity_with_metadata_column(b, mc).out
 
         p_dir = c._archiver.provenance_dir
 
         new_m = qiime2.Metadata.load(
             str(p_dir / 'artifacts' / str(b.uuid) / 'action' / 'metadata.tsv'))
 
-        pdt.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe(),
-                               check_names=False)
+        pdt.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe())
 
         with (p_dir / 'action' / 'metadata.tsv').open() as fh:
-            self.assertEqual(fh.read(), '0\t1\n1\t2\n2\t3\n')
+            self.assertEqual(
+                fh.read(),
+                'feature ID\ta\n#q2:types\tcategorical\n0\t1\n1\t2\n2\t3\n')
 
     def test_chain_with_artifact_metadata(self):
         metadata_artifact_1 = qiime2.Artifact.import_data(
@@ -45,12 +47,12 @@ class TestProvenanceIntegration(unittest.TestCase):
         metadata_artifact_2 = qiime2.Artifact.import_data(
             'Mapping', {'c': 'baz'})
         m = qiime2.Metadata.from_artifact(metadata_artifact_1)
-        mc = qiime2.MetadataCategory.from_artifact(metadata_artifact_2, 'c')
+        mc = qiime2.Metadata.from_artifact(metadata_artifact_2).get_column('c')
 
         a = qiime2.Artifact.import_data('IntSequence1', [1, 2, 3])
 
         b = dummy_plugin.actions.identity_with_metadata(a, m).out
-        c = dummy_plugin.actions.identity_with_metadata_category(b, mc).out
+        c = dummy_plugin.actions.identity_with_metadata_column(b, mc).out
 
         p_dir = c._archiver.provenance_dir
 
@@ -68,8 +70,7 @@ class TestProvenanceIntegration(unittest.TestCase):
         new_m = qiime2.Metadata.load(
             str(p_dir / 'artifacts' / str(b.uuid) / 'action' / 'metadata.tsv'))
 
-        pdt.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe(),
-                               check_names=False)
+        pdt.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe())
 
         # Check that provenance of originating metadata artifact exists
         self.assertTrue((p_dir / 'artifacts' / str(metadata_artifact_1.uuid) /
@@ -85,12 +86,12 @@ class TestProvenanceIntegration(unittest.TestCase):
         md1 = qiime2.Metadata.from_artifact(md_artifact1)
         md2 = qiime2.Metadata.from_artifact(md_artifact2)
         merged_md = md1.merge(md2)
-        merged_mdc = merged_md.get_category('c')
+        merged_mdc = merged_md.get_column('c')
 
         a = qiime2.Artifact.import_data('IntSequence1', [1, 2, 3])
 
         b = dummy_plugin.actions.identity_with_metadata(a, merged_md).out
-        c = dummy_plugin.actions.identity_with_metadata_category(
+        c = dummy_plugin.actions.identity_with_metadata_column(
             b, merged_mdc).out
 
         p_dir = c._archiver.provenance_dir
@@ -107,12 +108,13 @@ class TestProvenanceIntegration(unittest.TestCase):
 
         # Check that metadata is written out fully
         with (p_dir / 'action' / 'metadata.tsv').open() as fh:
-            self.assertEqual(fh.read(), '0\tbaz\n')
+            self.assertEqual(fh.read(),
+                             'id\tc\n#q2:types\tcategorical\n0\tbaz\n')
 
         new_merged_md = qiime2.Metadata.load(
             str(p_dir / 'artifacts' / str(b.uuid) / 'action' / 'metadata.tsv'))
         pdt.assert_frame_equal(new_merged_md.to_dataframe(),
-                               merged_md.to_dataframe(), check_names=False)
+                               merged_md.to_dataframe())
 
         # Check that provenance of originating metadata artifacts exists
         self.assertTrue((p_dir / 'artifacts' / str(md_artifact1.uuid) /

@@ -6,12 +6,11 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import qiime2.core  # noqa
-from qiime2.metadata import Metadata, MetadataCategory
-import qiime2.sdk as _sdk
+from qiime2.sdk import Artifact, Visualization
+from qiime2.metadata import (Metadata, MetadataColumn,
+                             CategoricalMetadataColumn, NumericMetadataColumn)
 from ._version import get_versions
 
-__all__ = ['Metadata', 'MetadataCategory', 'Visualization', 'Artifact']
 __version__ = get_versions()['version']
 del get_versions
 
@@ -20,7 +19,5 @@ del get_versions
 # to be compatible.
 __release__ = '.'.join(__version__.split('.')[:2])
 
-# `from qiime2 import Artifact` fails if `from qiime2.sdk` is used above so
-# import and alias instead
-Visualization = _sdk.Visualization
-Artifact = _sdk.Artifact
+__all__ = ['Artifact', 'Visualization', 'Metadata', 'MetadataColumn',
+           'CategoricalMetadataColumn', 'NumericMetadataColumn']

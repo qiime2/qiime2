@@ -50,21 +50,42 @@ def long_description_method(mapping1: dict, name: str, age: int) -> dict:
 
 
 def identity_with_metadata(ints: list, metadata: qiime2.Metadata) -> list:
+    assert isinstance(metadata, qiime2.Metadata)
     return ints
 
 
-def identity_with_metadata_category(ints: list,
-                                    metadata: qiime2.MetadataCategory) -> list:
+# TODO unit tests (test_method.py) for 3 variations of MetadataColumn methods
+# below
+def identity_with_metadata_column(ints: list,
+                                  metadata: qiime2.MetadataColumn) -> list:
+    assert isinstance(metadata, (qiime2.CategoricalMetadataColumn,
+                                 qiime2.NumericMetadataColumn))
+    return ints
+
+
+def identity_with_categorical_metadata_column(
+        ints: list, metadata: qiime2.CategoricalMetadataColumn) -> list:
+    assert isinstance(metadata, qiime2.CategoricalMetadataColumn)
+    return ints
+
+
+def identity_with_numeric_metadata_column(
+        ints: list, metadata: qiime2.NumericMetadataColumn) -> list:
+    assert isinstance(metadata, qiime2.NumericMetadataColumn)
     return ints
 
 
 def identity_with_optional_metadata(ints: list,
                                     metadata: qiime2.Metadata=None) -> list:
+    assert isinstance(metadata, (qiime2.Metadata, type(None)))
     return ints
 
 
-def identity_with_optional_metadata_category(
-        ints: list, metadata: qiime2.MetadataCategory=None) -> list:
+def identity_with_optional_metadata_column(
+        ints: list, metadata: qiime2.MetadataColumn=None) -> list:
+    assert isinstance(metadata, (qiime2.CategoricalMetadataColumn,
+                                 qiime2.NumericMetadataColumn,
+                                 type(None)))
     return ints
 
 

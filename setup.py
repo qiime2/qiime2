@@ -23,7 +23,7 @@ setup(
         ]
     },
     package_data={
-        'qiime2.tests': ['data/metadata/*']
+        'qiime2.metadata.tests': ['data/*']
     },
     zip_safe=False,
 )

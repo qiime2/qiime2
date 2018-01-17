@@ -8,8 +8,9 @@
 
 from importlib import import_module
 
-import qiime2
-import qiime2.plugin
+from qiime2.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
+                           Visualization, Metadata, MetadataColumn,
+                           Categorical, Numeric)
 
 from .format import (
     IntSequenceFormat,
@@ -28,9 +29,11 @@ from .format import (
 from .type import (IntSequence1, IntSequence2, Mapping, FourInts, SingleInt,
                    Kennel, Dog, Cat)
 from .method import (concatenate_ints, split_ints, merge_mappings,
-                     identity_with_metadata, identity_with_metadata_category,
+                     identity_with_metadata, identity_with_metadata_column,
+                     identity_with_categorical_metadata_column,
+                     identity_with_numeric_metadata_column,
                      identity_with_optional_metadata,
-                     identity_with_optional_metadata_category,
+                     identity_with_optional_metadata_column,
                      params_only_method, no_input_method,
                      optional_artifacts_method, long_description_method,
                      variadic_input_method)
@@ -41,7 +44,7 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        pipelines_in_pipeline, pointless_pipeline,
                        failing_pipeline)
 
-dummy_plugin = qiime2.plugin.Plugin(
+dummy_plugin = Plugin(
     name='dummy-plugin',
     description='Description of dummy plugin.',
     short_description='Dummy plugin for testing.',
@@ -100,8 +103,8 @@ dummy_plugin.methods.register_function(
         'ints3': IntSequence2
     },
     parameters={
-        'int1': qiime2.plugin.Int,
-        'int2': qiime2.plugin.Int
+        'int1': Int,
+        'int2': Int
     },
     outputs=[
         ('concatenated_ints', IntSequence1)
@@ -157,7 +160,7 @@ dummy_plugin.methods.register_function(
         'ints': IntSequence1 | IntSequence2
     },
     parameters={
-        'metadata': qiime2.plugin.Metadata
+        'metadata': Metadata
     },
     outputs=[
         ('out', IntSequence1)
@@ -177,8 +180,8 @@ dummy_plugin.methods.register_function(
                      "characters.")
     },
     parameters={
-        'name': qiime2.plugin.Str,
-        'age': qiime2.plugin.Int
+        'name': Str,
+        'age': Int
     },
     parameter_descriptions={
         'name': ("This is a very long description. If asked about its length,"
@@ -197,18 +200,51 @@ dummy_plugin.methods.register_function(
 )
 
 dummy_plugin.methods.register_function(
-    function=identity_with_metadata_category,
+    function=identity_with_metadata_column,
     inputs={
         'ints': IntSequence1 | IntSequence2
     },
     parameters={
-        'metadata': qiime2.plugin.MetadataCategory
+        'metadata': MetadataColumn[Categorical | Numeric]
     },
     outputs=[
         ('out', IntSequence1)
     ],
     name='Identity',
-    description='This method does nothing, but takes a metadata category'
+    description='This method does nothing, but takes a generic metadata column'
+)
+
+
+dummy_plugin.methods.register_function(
+    function=identity_with_categorical_metadata_column,
+    inputs={
+        'ints': IntSequence1 | IntSequence2
+    },
+    parameters={
+        'metadata': MetadataColumn[Categorical]
+    },
+    outputs=[
+        ('out', IntSequence1)
+    ],
+    name='Identity',
+    description='This method does nothing, but takes a categorical metadata '
+                'column'
+)
+
+
+dummy_plugin.methods.register_function(
+    function=identity_with_numeric_metadata_column,
+    inputs={
+        'ints': IntSequence1 | IntSequence2
+    },
+    parameters={
+        'metadata': MetadataColumn[Numeric]
+    },
+    outputs=[
+        ('out', IntSequence1)
+    ],
+    name='Identity',
+    description='This method does nothing, but takes a numeric metadata column'
 )
 
 
@@ -218,7 +254,7 @@ dummy_plugin.methods.register_function(
         'ints': IntSequence1 | IntSequence2
     },
     parameters={
-        'metadata': qiime2.plugin.Metadata
+        'metadata': Metadata
     },
     outputs=[
         ('out', IntSequence1)
@@ -228,19 +264,19 @@ dummy_plugin.methods.register_function(
 )
 
 dummy_plugin.methods.register_function(
-    function=identity_with_optional_metadata_category,
+    function=identity_with_optional_metadata_column,
     inputs={
         'ints': IntSequence1 | IntSequence2
     },
     parameters={
-        'metadata': qiime2.plugin.MetadataCategory
+        'metadata': MetadataColumn[Numeric | Categorical]
     },
     outputs=[
         ('out', IntSequence1)
     ],
     name='Identity',
-    description='This method does nothing, but takes an optional metadata '
-                'category'
+    description='This method does nothing, but takes an optional generic '
+                'metadata column'
 )
 
 
@@ -248,8 +284,8 @@ dummy_plugin.methods.register_function(
     function=params_only_method,
     inputs={},
     parameters={
-        'name': qiime2.plugin.Str,
-        'age': qiime2.plugin.Int
+        'name': Str,
+        'age': Int
     },
     outputs=[
         ('out', Mapping)
@@ -279,8 +315,8 @@ dummy_plugin.methods.register_function(
         'optional2': IntSequence1 | IntSequence2
     },
     parameters={
-        'num1': qiime2.plugin.Int,
-        'num2': qiime2.plugin.Int
+        'num1': Int,
+        'num2': Int
     },
     outputs=[
         ('output', IntSequence1)
@@ -293,13 +329,12 @@ dummy_plugin.methods.register_function(
 dummy_plugin.methods.register_function(
     function=variadic_input_method,
     inputs={
-        'ints': qiime2.plugin.List[IntSequence1 | IntSequence2],
-        'int_set': qiime2.plugin.Set[SingleInt]
+        'ints': List[IntSequence1 | IntSequence2],
+        'int_set': Set[SingleInt]
     },
     parameters={
-        'nums': qiime2.plugin.Set[qiime2.plugin.Int],
-        'opt_nums': qiime2.plugin.List[
-            qiime2.plugin.Int % qiime2.plugin.Range(10, 20)]
+        'nums': Set[Int],
+        'opt_nums': List[Int % Range(10, 20)]
     },
     outputs=[
         ('output', IntSequence1)
@@ -323,8 +358,8 @@ dummy_plugin.visualizers.register_function(
     function=params_only_viz,
     inputs={},
     parameters={
-        'name': qiime2.plugin.Str,
-        'age': qiime2.plugin.Int
+        'name': Str,
+        'age': Int
     },
     name='Parameters only viz',
     description='This visualizer only accepts parameters.'
@@ -361,8 +396,8 @@ dummy_plugin.visualizers.register_function(
         'mapping2': Mapping
     },
     parameters={
-        'key_label': qiime2.plugin.Str,
-        'value_label': qiime2.plugin.Str
+        'key_label': Str,
+        'value_label': Str
     },
     name='Visualize two mappings',
     description='This visualizer produces an HTML visualization of two '
@@ -373,9 +408,9 @@ dummy_plugin.pipelines.register_function(
     function=parameter_only_pipeline,
     inputs={},
     parameters={
-        'int1': qiime2.plugin.Int,
-        'int2': qiime2.plugin.Int,
-        'metadata': qiime2.plugin.Metadata
+        'int1': Int,
+        'int2': Int,
+        'metadata': Metadata
     },
     outputs=[
         ('foo', IntSequence2),
@@ -401,15 +436,15 @@ dummy_plugin.pipelines.register_function(
         'mapping': Mapping
     },
     parameters={
-        'do_extra_thing': qiime2.plugin.Bool,
-        'add': qiime2.plugin.Int
+        'do_extra_thing': Bool,
+        'add': Int
     },
     outputs=[
         ('out_map', Mapping),
         ('left', IntSequence1),
         ('right', IntSequence1),
-        ('left_viz', qiime2.plugin.Visualization),
-        ('right_viz', qiime2.plugin.Visualization)
+        ('left_viz', Visualization),
+        ('right_viz', Visualization)
     ],
     input_descriptions={
         'int_sequence': 'A sequence of ints',
@@ -458,8 +493,8 @@ dummy_plugin.pipelines.register_function(
     },
     parameters={},
     outputs=[
-        ('viz1', qiime2.plugin.Visualization),
-        ('viz2', qiime2.plugin.Visualization)
+        ('viz1', Visualization),
+        ('viz2', Visualization)
     ],
     input_descriptions={
         'mapping': 'A mapping to look at twice'
@@ -484,10 +519,10 @@ dummy_plugin.pipelines.register_function(
         ('out_map', Mapping),
         ('left', IntSequence1),
         ('right', IntSequence1),
-        ('left_viz', qiime2.plugin.Visualization),
-        ('right_viz', qiime2.plugin.Visualization),
-        ('viz1', qiime2.plugin.Visualization),
-        ('viz2', qiime2.plugin.Visualization)
+        ('left_viz', Visualization),
+        ('right_viz', Visualization),
+        ('viz1', Visualization),
+        ('viz2', Visualization)
     ],
     name='Do a great many things',
     description=('Mapping is chained from typical_pipeline into '
@@ -509,7 +544,7 @@ dummy_plugin.pipelines.register_function(
         'int_sequence': IntSequence1
     },
     parameters={
-        'break_from': qiime2.plugin.Str % qiime2.plugin.Choices(
+        'break_from': Str % Choices(
             {'arity', 'return-view', 'type', 'method', 'internal', 'no-plugin',
              'no-action'})
     },

@@ -11,11 +11,12 @@ from .model import (TextFileFormat, BinaryFileFormat, DirectoryFormat,
 from .plugin import Plugin
 
 from qiime2.core.type import (SemanticType, Int, Str, Float, Color, Metadata,
-                              MetadataCategory, Properties, Range, Choices,
-                              Bool, Set, List, Visualization)
+                              MetadataColumn, Categorical, Numeric, Properties,
+                              Range, Choices, Bool, Set, List, Visualization)
 
 
 __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
            'SemanticType', 'Set', 'List', 'Bool', 'Int', 'Str', 'Float',
-           'Color', 'Metadata', 'MetadataCategory', 'Properties', 'Range',
-           'Choices', 'Visualization', 'ValidationError']
+           'Color', 'Metadata', 'MetadataColumn', 'Categorical', 'Numeric',
+           'Properties', 'Range', 'Choices', 'Visualization',
+           'ValidationError']

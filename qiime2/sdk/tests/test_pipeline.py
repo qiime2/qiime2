@@ -97,7 +97,7 @@ class TestPipeline(unittest.TestCase):
         yield lambda *args, **kwargs: pipeline.async(*args, **kwargs).result()
 
     def test_parameter_only_pipeline(self):
-        index = pd.Index(['a', 'b', 'c'], dtype=object)
+        index = pd.Index(['a', 'b', 'c'], name='id', dtype=object)
         df = pd.DataFrame({'col1': ['2', '1', '3']}, index=index, dtype=object)
         metadata = qiime2.Metadata(df)
         for call in self.iter_callables('parameter_only_pipeline'):

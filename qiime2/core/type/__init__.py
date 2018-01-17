@@ -8,8 +8,9 @@
 
 from .collection import List, Set, is_collection_type
 from .semantic import SemanticType, is_semantic_type, Properties
-from .primitive import (Str, Int, Float, Color, Metadata, Bool,
-                        MetadataCategory, Range, Choices, is_primitive_type)
+from .primitive import (Str, Int, Float, Color, Metadata, Bool, MetadataColumn,
+                        Categorical, Numeric, Range, Choices,
+                        is_primitive_type)
 from .visualization import Visualization
 from .signature import PipelineSignature, MethodSignature, VisualizerSignature
 
@@ -22,8 +23,8 @@ __all__ = [
     'SemanticType',
     'Properties',
     # Primitive Types
-    'Str', 'Int', 'Float', 'Bool', 'Color', 'Metadata', 'MetadataCategory',
-    'Range', 'Choices',
+    'Str', 'Int', 'Float', 'Bool', 'Color', 'Metadata', 'MetadataColumn',
+    'Categorical', 'Numeric', 'Range', 'Choices',
     # Visualization Type
     'Visualization',
     # Signatures

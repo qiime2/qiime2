@@ -9,8 +9,7 @@
 import json
 
 from . import grammar
-from .primitive import (
-    _PrimitiveBase, is_primitive_type, Metadata, MetadataCategory)
+from .primitive import _PrimitiveBase, is_primitive_type, Metadata
 from .semantic import _SemanticMixin, is_semantic_type
 
 
@@ -33,7 +32,9 @@ class _CollectionBase(grammar.CompositeType):
         elif is_semantic_type(elements):
             return _CollectionSemantic(self.name, self._view, fields=fields)
         elif is_primitive_type(elements):
-            if elements is Metadata or elements is MetadataCategory:
+            # TODO consider making an `is_metadata_type` helper if this check
+            # is repeated in other parts of the codebase
+            if elements is Metadata or elements.name == 'MetadataColumn':
                 raise TypeError("Cannot use collections on metadata.")
             return _CollectionPrimitive(self.name, self._view, fields=fields)
         else:

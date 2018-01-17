@@ -10,7 +10,7 @@ import unittest
 
 from qiime2.core.type import (
     is_collection_type, is_primitive_type, is_semantic_type, Set, List,
-    SemanticType, Int, Metadata, MetadataCategory, Range)
+    SemanticType, Int, Metadata, MetadataColumn, Categorical, Numeric, Range)
 
 
 class TestIsTypes(unittest.TestCase):
@@ -48,13 +48,19 @@ class TestCollectionBase(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, 'metadata'):
             List[Metadata]
 
-    def test_no_list_metadata_category(self):
+    def test_no_list_metadata_column(self):
         with self.assertRaisesRegex(TypeError, 'metadata'):
-            List[MetadataCategory]
+            List[MetadataColumn[Categorical]]
 
-    def test_no_set_metadata_category(self):
         with self.assertRaisesRegex(TypeError, 'metadata'):
-            Set[MetadataCategory]
+            List[MetadataColumn[Numeric]]
+
+    def test_no_set_metadata_column(self):
+        with self.assertRaisesRegex(TypeError, 'metadata'):
+            Set[MetadataColumn[Categorical]]
+
+        with self.assertRaisesRegex(TypeError, 'metadata'):
+            Set[MetadataColumn[Numeric]]
 
     def test_no_nesting_list_list(self):
         with self.assertRaisesRegex(TypeError, 'nest'):

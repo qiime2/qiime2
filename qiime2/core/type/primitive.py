@@ -9,7 +9,8 @@
 import numbers
 import re
 
-from qiime2.core.type.grammar import TypeExpression, Predicate
+from qiime2.core.type.grammar import (
+    TypeExpression, CompositeType, Predicate, UnionTypeExpression)
 import qiime2.metadata as metadata
 
 
@@ -255,23 +256,55 @@ class _Metadata(_Primitive):
         return value
 
 
-class _MetadataCategory(_Primitive):
+class _MetadataColumn(CompositeType):
+    def _validate_field_(self, name, value):
+        if not isinstance(value, (_MetadataColumnType,
+                                  _MetadataColumnTypeUnion)):
+            raise TypeError("Unsupported type in field: %r" % value)
+
+    def _apply_fields_(self, fields):
+        return _MetadataColumnExpression(self.name, fields=fields)
+
+
+class _MetadataColumnExpression(_Primitive):
     _valid_predicates = set()
 
     def _is_element_(self, value):
-        return isinstance(value, metadata.MetadataCategory)
+        return value in self.fields[0]
 
-    def decode(self, metadata_category):
+    def decode(self, metadata_column):
         # This interface should have already retrieved this object.
-        if not self._is_element_(metadata_category):
-            raise TypeError("`MetadataCategory` must be provided by the"
-                            " interface directly.")
-        return metadata_category
+        if metadata_column not in self:
+            raise TypeError("`MetadataColumn` must be provided by the "
+                            "interface directly.")
+        return metadata_column
 
     def encode(self, value):
         # TODO: Should this be the provenance representation? Does that affect
         # decode?
         return value
+
+
+class _MetadataColumnType(_Primitive):
+    _valid_predicates = set()
+
+    def __init__(self, name, view, fields=(), predicate=None):
+        self._view = view
+        super().__init__(name, fields, predicate)
+
+    def _is_element_(self, value):
+        return isinstance(value, self._view)
+
+    def _validate_union_(self, other, handshake=False):
+        if not isinstance(other, self.__class__):
+            raise TypeError("Unsupported union: %r" % other)
+
+    def _build_union_(self, members):
+        return _MetadataColumnTypeUnion(members)
+
+
+class _MetadataColumnTypeUnion(UnionTypeExpression):
+    pass
 
 
 Bool = _Bool('Bool')
@@ -280,4 +313,7 @@ Float = _Float('Float')
 Str = _Str('Str')
 Color = _Color('Color')
 Metadata = _Metadata('Metadata')
-MetadataCategory = _MetadataCategory('MetadataCategory')
+MetadataColumn = _MetadataColumn('MetadataColumn', field_names=['type'])
+Numeric = _MetadataColumnType('Numeric', metadata.NumericMetadataColumn)
+Categorical = _MetadataColumnType('Categorical',
+                                  metadata.CategoricalMetadataColumn)
