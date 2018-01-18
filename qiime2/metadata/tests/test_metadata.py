@@ -264,6 +264,22 @@ class TestMetadataLoad(unittest.TestCase):
                                     'locate header.*file may be empty'):
             Metadata.load(fp)
 
+    def test_jagged_trailing_columns(self):
+        # Test case based on https://github.com/qiime2/qiime2/issues/335
+        fp = pkg_resources.resource_filename(
+            'qiime2.metadata.tests', 'data/jagged-trailing-columns.tsv')
+
+        obs_md = Metadata.load(fp)
+
+        exp_index = pd.Index(['id1', 'id2', 'id3'], name='id', dtype=object)
+        exp_df = pd.DataFrame({'col1': [1.0, 2.0, 3.0],
+                               'col2': ['a', 'b', 'c'],
+                               'col3': ['foo', 'bar', '42']},
+                              index=exp_index)
+        exp_md = Metadata(exp_df)
+
+        self.assertEqual(obs_md, exp_md)
+
 
 class TestMetadataFromArtifact(unittest.TestCase):
     def setUp(self):
