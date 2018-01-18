@@ -217,7 +217,7 @@ class MetadataReader:
             record = record + [''] * (header_len - record_len)
         elif record_len > header_len:
             trailing_record = record[header_len:]
-            if not self._is_empty_record(trailing_record):
+            if not self._is_empty(trailing_record):
                 raise MetadataFileError(
                     "Metadata record contains more fields than are declared "
                     "by the header. The record has %d field(s), and the "
