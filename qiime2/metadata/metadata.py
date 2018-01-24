@@ -135,10 +135,12 @@ class _MetadataBase:
                     "Detected metadata %s that conflicts with a name reserved "
                     "for ID headers: %r" % (label, value))
 
-        # TODO use qiime2.core.util.find_duplicates in error message
-        if len(index) != len(set(e.lower() for e in index)):
+        if len(index) != len(set(index)):
+            duplicates = find_duplicates(index)
             raise ValueError(
-                "Detected duplicate metadata %s(s) (case-insensitive)" % label)
+                "Metadata %ss must be unique. The following %ss are "
+                "duplicated: %s" %
+                (label, label, ', '.join(repr(e) for e in sorted(duplicates))))
 
 
 # Other properties such as units can be included here in the future!

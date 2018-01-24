@@ -49,6 +49,21 @@ class TestMetadata(unittest.TestCase):
         self.assertEqual(metadata.id_count, 3)
         self.assertEqual(metadata.column_count, 0)
 
+    def test_case_insensitive_duplicate_ids(self):
+        index = pd.Index(['a', 'b', 'A'], name='id')
+        df = pd.DataFrame({'column': ['1', '2', '3']}, index=index)
+        metadata = Metadata(df)
+
+        self.assertEqual(metadata.ids, ('a', 'b', 'A'))
+
+    def test_case_insensitive_duplicate_column_names(self):
+        index = pd.Index(['a', 'b', 'c'], name='id')
+        df = pd.DataFrame({'column': ['1', '2', '3'],
+                           'Column': ['4', '5', '6']}, index=index)
+        metadata = Metadata(df)
+
+        self.assertEqual(set(metadata.columns), {'column', 'Column'})
+
     def test_artifacts(self):
         index = pd.Index(['a', 'b', 'c'], name='id', dtype=object)
         df = pd.DataFrame({'col1': ['2', '1', '3']}, index=index, dtype=object)
@@ -130,14 +145,16 @@ class TestMetadata(unittest.TestCase):
         df = pd.DataFrame({'foo': [1, 2], 'bar': [3, 4]}, index=index)
         df.columns = ['foo', 'foo']
 
-        with self.assertRaisesRegex(ValueError, 'duplicate.*column'):
+        with self.assertRaisesRegex(ValueError,
+                                    "column names must be unique.*'foo'"):
             Metadata(df)
 
     def test_duplicate_indices(self):
         index = pd.Index(['a', 'b', 'b'], name='id', dtype=object)
         df = pd.DataFrame({'foo': [1, 2, 3]}, index=index)
 
-        with self.assertRaisesRegex(ValueError, 'duplicate.*ID'):
+        with self.assertRaisesRegex(ValueError,
+                                    "IDs must be unique.*'b'"):
             Metadata(df)
 
     def test_to_dataframe(self):
