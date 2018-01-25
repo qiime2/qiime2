@@ -298,42 +298,13 @@ class TestMetadataLoad(unittest.TestCase):
         self.assertEqual(obs_md, exp_md)
 
 
-class TestMetadataFromArtifact(unittest.TestCase):
-    def setUp(self):
-        get_dummy_plugin()
-
-    def test_from_artifact(self):
-        A = Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
-
-        obs_md = Metadata.from_artifact(A)
-
-        exp_df = pd.DataFrame({'a': '1', 'b': '3'},
-                              index=pd.Index(['0'], name='id', dtype=object),
-                              dtype=object)
-        exp_md = Metadata(exp_df)
-        exp_md._add_artifacts([A])
-
-        self.assertEqual(obs_md, exp_md)
-
-    def test_from_bad_artifact(self):
-        A = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
-        with self.assertRaisesRegex(ValueError, 'Artifact has no metadata'):
-            Metadata.from_artifact(A)
-
-    def test_artifacts(self):
-        A = Artifact.import_data('Mapping', {'a': 'abc', 'b': '-42'})
-        md = Metadata.from_artifact(A)
-        obs = md.artifacts
-        self.assertEqual(obs, (A,))
-
-
 class TestGetColumn(unittest.TestCase):
     def setUp(self):
         get_dummy_plugin()
 
     def test_artifacts_are_propagated(self):
         A = Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
-        md = Metadata.from_artifact(A)
+        md = A.view(Metadata)
 
         obs = md.get_column('b')
 
@@ -513,8 +484,8 @@ class TestMerge(unittest.TestCase):
         artifact1 = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
         artifact2 = Artifact.import_data('Mapping', {'d': '4'})
 
-        md_from_artifact1 = Metadata.from_artifact(artifact1)
-        md_from_artifact2 = Metadata.from_artifact(artifact2)
+        md_from_artifact1 = artifact1.view(Metadata)
+        md_from_artifact2 = artifact2.view(Metadata)
         md_no_artifact = Metadata(pd.DataFrame(
             {'c': ['3', '42']}, index=pd.Index(['0', '1'], name='id')))
 
@@ -700,7 +671,7 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
         # Metadata created from an artifact vs not shouldn't compare equal,
         # even if the data is the same.
         artifact = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
-        md_from_artifact = Metadata.from_artifact(artifact)
+        md_from_artifact = artifact.view(Metadata)
 
         md_no_artifact = Metadata(md_from_artifact.to_dataframe())
 
@@ -714,8 +685,8 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
         artifact1 = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
         artifact2 = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
 
-        md1 = Metadata.from_artifact(artifact1)
-        md2 = Metadata.from_artifact(artifact2)
+        md1 = artifact1.view(Metadata)
+        md2 = artifact2.view(Metadata)
 
         pdt.assert_frame_equal(md1.to_dataframe(), md2.to_dataframe())
         self.assertReallyNotEqual(md1, md2)
@@ -754,8 +725,8 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
 
     def test_equality_with_artifact(self):
         artifact = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
-        md1 = Metadata.from_artifact(artifact)
-        md2 = Metadata.from_artifact(artifact)
+        md1 = artifact.view(Metadata)
+        md2 = artifact.view(Metadata)
 
         self.assertReallyEqual(md1, md2)
 

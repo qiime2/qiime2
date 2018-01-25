@@ -249,6 +249,10 @@ class Artifact(Result):
         return self._view(view_type)
 
     def _view(self, view_type, recorder=None):
+        if view_type is qiime2.Metadata and not self.has_metadata():
+            raise TypeError(
+                "Artifact %r cannot be viewed as QIIME 2 Metadata." % self)
+
         from_type = transform.ModelType.from_view_type(self.format)
         to_type = transform.ModelType.from_view_type(view_type)
 
@@ -256,7 +260,7 @@ class Artifact(Result):
                                                        recorder=recorder)
         result = transformation(self._archiver.data_dir)
 
-        if view_type is qiime2.metadata.Metadata:
+        if view_type is qiime2.Metadata:
             result._add_artifacts([self])
 
         to_type.set_user_owned(result, True)
@@ -268,7 +272,8 @@ class Artifact(Result):
         Returns
         -------
         bool
-           True if the artifact has metadata, False otherwise.
+           True if the artifact has metadata (i.e. can be viewed as
+           ``qiime2.Metadata``), False otherwise.
 
         """
         from_type = transform.ModelType.from_view_type(self.format)

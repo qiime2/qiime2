@@ -180,24 +180,6 @@ class Metadata(_MetadataBase):
         return MetadataReader(filepath).read(into=cls,
                                              column_types=column_types)
 
-    @classmethod
-    def from_artifact(cls, artifact):
-        """
-        Parameters
-        ----------
-        artifact : qiime2.Artifact
-           Loaded artifact object.
-
-        Returns
-        -------
-        Metadata
-
-        """
-        if not artifact.has_metadata():
-            raise ValueError('Artifact has no metadata.')
-
-        return artifact.view(cls)
-
     @property
     def columns(self):
         """Ordered mapping of column names to ColumnProperties.
