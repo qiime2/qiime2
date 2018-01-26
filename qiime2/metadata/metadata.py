@@ -318,13 +318,13 @@ class Metadata(_MetadataBase):
         The merge will include only those IDs that are shared across **all**
         ``Metadata`` objects being merged (i.e. the merge is an *inner join*).
 
-        Each metadata column being merged must be unique; merging metadata with
-        overlapping columns will result in an error.
+        Each metadata column being merged must have a unique name; merging
+        metadata with overlapping column names will result in an error.
 
         Parameters
         ----------
         others : tuple
-            Zero or more ``Metadata`` objects to merge with this ``Metadata``
+            One or more ``Metadata`` objects to merge with this ``Metadata``
             object.
 
         Returns
@@ -336,13 +336,28 @@ class Metadata(_MetadataBase):
             the column order of ``Metadata`` objects being merged from left to
             right.
 
+        Raises
+        ------
+        ValueError
+            If zero ``Metadata`` objects are provided in `others` (there is
+            nothing to merge in this case).
+
         Notes
         -----
-        The merged metadata object tracks all source artifacts that it was
+        The merged ``Metadata`` object will always have its ``id_header``
+        property set to ``'id'``, regardless of the ``id_header`` values on the
+        ``Metadata`` objects being merged.
+
+        The merged ``Metadata`` object tracks all source artifacts that it was
         built from to preserve provenance (i.e. the ``.artifacts`` property
         on all ``Metadata`` objects is merged).
 
         """
+        if len(others) < 1:
+            raise ValueError(
+                "At least one Metadata object must be provided to merge into "
+                "this Metadata object (otherwise there is nothing to merge).")
+
         dfs = []
         columns = []
         artifacts = []

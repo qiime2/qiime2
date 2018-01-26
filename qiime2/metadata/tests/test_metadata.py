@@ -319,15 +319,14 @@ class TestMerge(unittest.TestCase):
     def setUp(self):
         get_dummy_plugin()
 
-    def test_merging_one(self):
+    def test_merging_nothing(self):
         md = Metadata(pd.DataFrame(
             {'a': [1, 2, 3], 'b': [4, 5, 6]},
             index=pd.Index(['id1', 'id2', 'id3'], name='id')))
 
-        obs = md.merge()
-
-        self.assertIsNot(obs, md)
-        self.assertEqual(obs, md)
+        with self.assertRaisesRegex(ValueError,
+                                    'At least one Metadata.*nothing to merge'):
+            md.merge()
 
     def test_merging_two(self):
         md1 = Metadata(pd.DataFrame(
