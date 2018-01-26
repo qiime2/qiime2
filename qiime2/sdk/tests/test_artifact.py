@@ -13,8 +13,11 @@ import unittest
 import uuid
 import pathlib
 
+import pandas as pd
+
 import qiime2.plugin
 import qiime2.core.type
+from qiime2 import Metadata
 from qiime2.sdk import Artifact
 from qiime2.sdk.result import ResultMetadata
 from qiime2.plugin.model import ValidationError
@@ -499,6 +502,33 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         A = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
         with self.assertRaisesRegex(ValueError, 'peanut'):
             A.validate(level='peanut')
+
+    def test_view_as_metadata(self):
+        A = Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
+
+        obs_md = A.view(Metadata)
+
+        exp_df = pd.DataFrame({'a': '1', 'b': '3'},
+                              index=pd.Index(['0'], name='id', dtype=object),
+                              dtype=object)
+        exp_md = Metadata(exp_df)
+        exp_md._add_artifacts([A])
+
+        self.assertEqual(obs_md, exp_md)
+
+        # This check is redundant because `Metadata.__eq__` being used above
+        # takes source artifacts into account. Doesn't hurt to have an explicit
+        # check though, since this API didn't always track source artifacts
+        # (this check also future-proofs the test in case `Metadata.__eq__`
+        # changes in the future).
+        self.assertEqual(obs_md.artifacts, (A,))
+
+    def test_cannot_be_viewed_as_metadata(self):
+        A = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
+        with self.assertRaisesRegex(TypeError,
+                                    'Artifact.*IntSequence1.*cannot be viewed '
+                                    'as QIIME 2 Metadata'):
+            A.view(Metadata)
 
 
 if __name__ == '__main__':

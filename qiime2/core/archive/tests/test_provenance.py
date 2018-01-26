@@ -46,8 +46,8 @@ class TestProvenanceIntegration(unittest.TestCase):
             'Mapping', {'a': 'foo', 'b': 'bar'})
         metadata_artifact_2 = qiime2.Artifact.import_data(
             'Mapping', {'c': 'baz'})
-        m = qiime2.Metadata.from_artifact(metadata_artifact_1)
-        mc = qiime2.Metadata.from_artifact(metadata_artifact_2).get_column('c')
+        m = metadata_artifact_1.view(qiime2.Metadata)
+        mc = metadata_artifact_2.view(qiime2.Metadata).get_column('c')
 
         a = qiime2.Artifact.import_data('IntSequence1', [1, 2, 3])
 
@@ -83,8 +83,8 @@ class TestProvenanceIntegration(unittest.TestCase):
             'Mapping', {'a': 'foo', 'b': 'bar'})
         md_artifact2 = qiime2.Artifact.import_data(
             'Mapping', {'c': 'baz'})
-        md1 = qiime2.Metadata.from_artifact(md_artifact1)
-        md2 = qiime2.Metadata.from_artifact(md_artifact2)
+        md1 = md_artifact1.view(qiime2.Metadata)
+        md2 = md_artifact2.view(qiime2.Metadata)
         merged_md = md1.merge(md2)
         merged_mdc = merged_md.get_column('c')
 
