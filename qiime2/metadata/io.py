@@ -24,17 +24,40 @@ class MetadataFileError(Exception):
         "http://keemei.qiime.org\n\nFind details on QIIME 2 metadata "
         "requirements here: https://docs.qiime2.org/%s/tutorials/metadata/")
 
-    def __init__(self, message):
+    def __init__(self, message, include_suffix=True):
         # Lazy import because `qiime2.__release__` is available at runtime but
         # not at import time (otherwise the release value could be interpolated
         # into `_suffix` in the class definition above).
         import qiime2
 
-        super().__init__(message + '\n\n' + self._suffix % qiime2.__release__)
+        if include_suffix:
+            message = message + '\n\n' + self._suffix % qiime2.__release__
+        super().__init__(message)
 
 
 class MetadataReader:
     _supported_column_types = {'categorical', 'numeric'}
+
+    _supported_id_headers = {
+        'case_insensitive': {
+            'id', 'sampleid', 'sample id', 'sample-id', 'featureid',
+            'feature id', 'feature-id'
+        },
+
+        # For backwards-compatibility with existing formats.
+        'exact_match': {
+            # QIIME 1 mapping files. "#Sample ID" was never supported, but
+            # we're including it here for symmetry with the other supported
+            # headers that allow a space between words.
+            '#SampleID', '#Sample ID',
+
+            # biom-format: observation metadata and "classic" (TSV) OTU tables.
+            '#OTUID', '#OTU ID',
+
+            # Qiita sample/prep information files.
+            'sample_name'
+        }
+    }
 
     def __init__(self, filepath):
         if not os.path.isfile(filepath):
@@ -46,10 +69,10 @@ class MetadataReader:
 
         self._filepath = filepath
 
-        # Used by `read()` to store an iterator yielding records with
+        # Used by `read()` to store an iterator yielding rows with
         # leading/trailing whitespace stripped from their cells (this is a
-        # preprocessing step that should happen with *every* record). The
-        # iterator protocol is the only guaranteed API on this object.
+        # preprocessing step that should happen with *every* row). The iterator
+        # protocol is the only guaranteed API on this object.
         self._reader = None
 
     def read(self, into, column_types=None):
@@ -61,11 +84,15 @@ class MetadataReader:
             #     https://docs.python.org/3/library/csv.html#id3
             with open(self._filepath, 'r', newline='', encoding='utf-8') as fh:
                 tsv_reader = csv.reader(fh, dialect='excel-tab', strict=True)
-                self._reader = (self._strip_cell_whitespace(record)
-                                for record in tsv_reader)
+                self._reader = (self._strip_cell_whitespace(row)
+                                for row in tsv_reader)
                 header = self._read_header()
                 directives = self._read_directives(header)
                 ids, data = self._read_data(header)
+        except UnicodeDecodeError as e:
+            raise MetadataFileError(
+                "Metadata file must be encoded as UTF-8 or ASCII. The "
+                "following error occurred when decoding the file:\n\n%s" % e)
         finally:
             self._reader = None
 
@@ -77,20 +104,33 @@ class MetadataReader:
         for name, type in column_types.items():
             if name not in df.columns:
                 raise MetadataFileError(
-                    "Unrecognized column name %r specified in `column_types`."
-                    % name)
+                    "Column name %r specified in `column_types` is not a "
+                    "column in the metadata file." % name)
             if type not in self._supported_column_types:
+                fmt_column_types = ', '.join(
+                    repr(e) for e in sorted(self._supported_column_types))
                 raise MetadataFileError(
-                    "Unrecognized column type %r specified in `column_types`. "
-                    "Supported column types: %s" %
-                    (type, ', '.join(sorted(self._supported_column_types))))
+                    "Column name %r specified in `column_types` has an "
+                    "unrecognized column type %r. Supported column types: %s" %
+                    (name, type, fmt_column_types))
 
         resolved_column_types = directives.get('types', {})
         resolved_column_types.update(column_types)
 
-        # Cast each column to the appropriate dtype based on column type.
-        df = df.apply(self._cast_column, axis='index',
-                      column_types=resolved_column_types)
+        try:
+            # Cast each column to the appropriate dtype based on column type.
+            df = df.apply(self._cast_column, axis='index',
+                          column_types=resolved_column_types)
+        except MetadataFileError as e:
+            # HACK: If an exception is raised within `DataFrame.apply`, pandas
+            # adds an extra tuple element to `e.args`, making the original
+            # error message difficult to read because a tuple is repr'd instead
+            # of a string. To work around this, we catch and reraise a
+            # MetadataFileError with the original error message. We use
+            # `include_suffix=False` to avoid adding another suffix to the
+            # error message we're reraising.
+            msg = e.args[0]
+            raise MetadataFileError(msg, include_suffix=False)
 
         try:
             return into(df)
@@ -100,27 +140,30 @@ class MetadataReader:
 
     def _read_header(self):
         header = None
-        for record in self._reader:
-            if self._is_header(record):
-                header = record
+        for row in self._reader:
+            if self._is_header(row):
+                header = row
                 break
-            elif self._is_comment(record):
+            elif self._is_comment(row):
                 continue
-            elif self._is_empty(record):
+            elif self._is_empty(row):
                 continue
-            elif self._is_directive(record):
+            elif self._is_directive(row):
                 raise MetadataFileError(
-                    "Found directive %r when searching for header. Directives "
-                    "may only appear immediately after the header."
-                    % record[0])
+                    "Found directive %r while searching for header. "
+                    "Directives may only appear immediately after the header."
+                    % row[0])
             else:
-                # TODO better error message to hint at what to do
-                raise MetadataFileError("Invalid header: %r" % record)
+                raise MetadataFileError(
+                    "Found unrecognized ID column name %r while searching for "
+                    "header. The first column name in the header defines the "
+                    "ID column, and must be one of these values:\n\n%s" %
+                    (row[0], self._get_id_headers_for_err_msg()))
 
         if header is None:
             raise MetadataFileError(
                 "Failed to locate header. The metadata file may be empty, or "
-                "consists only of comments or empty records.")
+                "consists only of comments or empty rows.")
 
         # Trim trailing empty cells from header.
         data_extent = None
@@ -140,152 +183,137 @@ class MetadataReader:
         elif len(header) != len(column_names):
             duplicates = find_duplicates(header)
             raise MetadataFileError(
-                "Column names must be unique. The following column name(s) "
-                "are duplicated: %s" %
+                "Column names must be unique. The following column names are "
+                "duplicated: %s" %
                 (', '.join(repr(e) for e in sorted(duplicates))))
+
+        # Skip the first element of the header because we know it is a valid ID
+        # header. The other column names are validated to ensure they *aren't*
+        # valid ID headers.
+        for column_name in header[1:]:
+            if self._is_header([column_name]):
+                raise MetadataFileError(
+                    "Metadata column name %r conflicts with a name reserved "
+                    "for the ID column header. Reserved ID column headers:"
+                    "\n\n%s"
+                    % (column_name, self._get_id_headers_for_err_msg()))
 
         return header
 
     def _read_directives(self, header):
         directives = {}
-        for record in self._reader:
-            if not self._is_directive(record):
-                self._reader = itertools.chain([record], self._reader)
+        for row in self._reader:
+            if not self._is_directive(row):
+                self._reader = itertools.chain([row], self._reader)
                 break
 
-            if not self._is_column_types_directive(record):
+            if not self._is_column_types_directive(row):
                 raise MetadataFileError(
                         "Unrecognized directive %r. Only the #q2:types "
-                        "directive is supported at this time." % record[0])
+                        "directive is supported at this time." % row[0])
             if 'types' in directives:
                 raise MetadataFileError(
                     "Found duplicate directive %r. Each directive may "
-                    "only be specified a single time." % record[0])
+                    "only be specified a single time." % row[0])
 
-            record = self._match_header_len(record, header)
+            row = self._match_header_len(row, header)
 
             column_types = {}
-            for column_name, column_type in zip(header[1:], record[1:]):
+            for column_name, column_type in zip(header[1:], row[1:]):
                 if column_type:
                     type_nocase = column_type.lower()
                     if type_nocase in self._supported_column_types:
                         column_types[column_name] = type_nocase
                     else:
-                        supported_column_types = ', '.join(
-                                sorted(self._supported_column_types))
+                        fmt_column_types = ', '.join(
+                            repr(e) for e in
+                            sorted(self._supported_column_types))
                         raise MetadataFileError(
-                            "Column %r has unrecognized column type %r "
+                            "Column %r has an unrecognized column type %r "
                             "specified in its #q2:types directive. "
                             "Supported column types (case-insensitive): %s"
-                            % (column_name, column_type,
-                               supported_column_types))
+                            % (column_name, column_type, fmt_column_types))
             directives['types'] = column_types
         return directives
 
     def _read_data(self, header):
         ids = []
         data = []
-        for record in self._reader:
-            if self._is_comment(record):
+        for row in self._reader:
+            if self._is_comment(row):
                 continue
-            elif self._is_empty(record):
+            elif self._is_empty(row):
                 continue
-            elif self._is_directive(record):
+            elif self._is_directive(row):
                 raise MetadataFileError(
                     "Found directive %r outside of the directives section of "
                     "the file. Directives may only appear immediately after "
-                    "the header." % record[0])
-            elif self._is_header(record):
+                    "the header." % row[0])
+            elif self._is_header(row):
                 raise MetadataFileError(
-                    "Detected metadata ID that conflicts with a name reserved "
-                    "for headers: %r" % record[0])
+                    "Metadata ID %r conflicts with a name reserved for the ID "
+                    "column header. Reserved ID column headers:\n\n%s" %
+                    (row[0], self._get_id_headers_for_err_msg()))
 
-            record = self._match_header_len(record, header)
-            ids.append(record[0])
-            data.append(record[1:])
+            row = self._match_header_len(row, header)
+            ids.append(row[0])
+            data.append(row[1:])
         return ids, data
 
-    def _strip_cell_whitespace(self, record):
-        return [cell.strip() for cell in record]
+    def _strip_cell_whitespace(self, row):
+        return [cell.strip() for cell in row]
 
-    def _match_header_len(self, record, header):
-        record_len = len(record)
+    def _match_header_len(self, row, header):
+        row_len = len(row)
         header_len = len(header)
 
-        if record_len < header_len:
-            # Pad record with empty cells to match header length.
-            record = record + [''] * (header_len - record_len)
-        elif record_len > header_len:
-            trailing_record = record[header_len:]
-            if not self._is_empty(trailing_record):
+        if row_len < header_len:
+            # Pad row with empty cells to match header length.
+            row = row + [''] * (header_len - row_len)
+        elif row_len > header_len:
+            trailing_row = row[header_len:]
+            if not self._is_empty(trailing_row):
                 raise MetadataFileError(
-                    "Metadata record contains more fields than are declared "
-                    "by the header. The record has %d field(s), and the "
-                    "header declares %d field(s)."
-                    % (record_len, header_len))
-            record = record[:header_len]
-        return record
+                    "Metadata row contains more cells than are declared by "
+                    "the header. The row has %d cells, while the header "
+                    "declares %d cells." % (row_len, header_len))
+            row = row[:header_len]
+        return row
 
-    def _is_empty(self, record):
+    def _is_empty(self, row):
         # `all` returns True for an empty iterable, so this check works for a
-        # record of zero elements (corresponds to a blank line in the file).
-        return all((cell == '' for cell in record))
+        # row of zero elements (corresponds to a blank line in the file).
+        return all((cell == '' for cell in row))
 
-    def _is_comment(self, record):
+    def _is_comment(self, row):
         return (
-            len(record) > 0 and
-            record[0].startswith('#') and
-            not self._is_directive(record) and
-            not self._is_header(record)
+            len(row) > 0 and
+            row[0].startswith('#') and
+            not self._is_directive(row) and
+            not self._is_header(row)
         )
 
-    def _is_header(self, record):
-        if len(record) == 0:
+    def _is_header(self, row):
+        if len(row) == 0:
             return False
 
-        # TODO call predicate when it exists
-        try:
-            self._assert_valid_id_header(record[0])
-        except MetadataFileError:
-            return False
-        else:
-            return True
+        exact_match = self._supported_id_headers['exact_match']
+        case_insensitive = self._supported_id_headers['case_insensitive']
+        return row[0] in exact_match or row[0].lower() in case_insensitive
 
-    def _is_directive(self, record):
-        return len(record) > 0 and record[0].startswith('#q2:')
+    def _is_directive(self, row):
+        return len(row) > 0 and row[0].startswith('#q2:')
 
-    def _is_column_types_directive(self, record):
-        return len(record) > 0 and record[0] == '#q2:types'
+    def _is_column_types_directive(self, row):
+        return len(row) > 0 and row[0] == '#q2:types'
 
-    # TODO add a predicate version of this, and then have this method call the
-    # predicate
-    # TODO this code is duplicated from metadata.py, refactor to avoid that
-    def _assert_valid_id_header(self, name):
-        case_insensitive = {'id', 'sampleid', 'sample id', 'sample-id',
-                            'featureid', 'feature id', 'feature-id'}
+    def _get_id_headers_for_err_msg(self):
+        case_insensitive = self._supported_id_headers['case_insensitive']
+        exact_match = self._supported_id_headers['exact_match']
 
-        # For backwards-compatibility with existing formats.
-        exact_match = {
-            # QIIME 1 mapping files. "#Sample ID" was never supported, but
-            # we're including it here for symmetry with the other supported
-            # headers that allow a space between words.
-            '#SampleID', '#Sample ID',
-
-            # biom-format: observation metadata and "classic" (TSV) OTU tables.
-            '#OTUID', '#OTU ID',
-
-            # Qiita sample/prep information files.
-            'sample_name'
-        }
-
-        if not (name and
-                (name in exact_match or name.lower() in case_insensitive)):
-            raise MetadataFileError(
-                "Metadata ID header must be one of the following values, not "
-                "%r:\n\ncase-insensitive: %s\n\nexact match: %s" %
-                (name,
-                 ', '.join(sorted(case_insensitive)),
-                 ', '.join(sorted(exact_match))))
+        return "Case-insensitive: %s\n\nCase-sensitive: %s" % (
+                ', '.join(repr(e) for e in sorted(case_insensitive)),
+                ', '.join(repr(e) for e in sorted(exact_match)))
 
     def _cast_column(self, series, column_types):
         if series.name in column_types:
@@ -307,8 +335,8 @@ class MetadataReader:
         else:
             non_numerics = series[~is_numeric].unique()
             raise MetadataFileError(
-                "Cannot convert column %r to numeric. The following value(s) "
-                "could not be interpreted as numeric: %s" %
+                "Cannot convert metadata column %r to numeric. The following "
+                "values could not be interpreted as numeric: %s" %
                 (series.name,
                  ', '.join(repr(e) for e in sorted(non_numerics))))
 
