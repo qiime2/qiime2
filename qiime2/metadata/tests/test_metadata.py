@@ -15,14 +15,11 @@ import numpy as np
 
 from qiime2 import Artifact
 from qiime2.metadata import (Metadata, CategoricalMetadataColumn,
-                             NumericMetadataColumn, MetadataFileError)
+                             NumericMetadataColumn)
 from qiime2.core.testing.util import get_dummy_plugin, ReallyEqualMixin
 
 
 class TestMetadata(unittest.TestCase):
-    def setUp(self):
-        self.illegal_chars = ['/', '\0', '\\', '*', '<', '>', '?', '|', '$']
-
     def test_valid_metadata(self):
         index = pd.Index(['a', 'b', 'c'], name='feature ID', dtype=object)
         df = pd.DataFrame({'col1': ['2', '1', '3']}, index=index, dtype=object)
@@ -76,14 +73,14 @@ class TestMetadata(unittest.TestCase):
         # No index, no columns.
         df = pd.DataFrame([], index=pd.Index([], name='id'))
 
-        with self.assertRaisesRegex(ValueError, 'Metadata.*empty'):
+        with self.assertRaisesRegex(ValueError, 'Metadata.*at least one ID'):
             Metadata(df)
 
         # No index, has columns.
         df = pd.DataFrame([], index=pd.Index([], name='id'),
                           columns=['a', 'b'])
 
-        with self.assertRaisesRegex(ValueError, 'Metadata.*empty'):
+        with self.assertRaisesRegex(ValueError, 'Metadata.*at least one ID'):
             Metadata(df)
 
     def test_wrong_obj(self):
@@ -172,130 +169,6 @@ class TestMetadata(unittest.TestCase):
         self.assertEqual(dict(obs_df.dtypes),
                          {'col1': np.float, 'col2': object, 'col3': object,
                           'col4': np.float, 'col5': object})
-
-
-class TestMetadataLoad(unittest.TestCase):
-    def test_comments_and_blank_lines(self):
-        fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/comments-n-blanks.tsv')
-
-        obs_md = Metadata.load(fp)
-
-        exp_index = pd.Index(['id1', 'id2', 'id3'], name='ID',
-                             dtype=object)
-        exp_df = pd.DataFrame({'col1': [1.0, 2.0, 3.0],
-                               'col2': ['a', 'b', 'c'],
-                               'col3': ['foo', 'bar', '42']},
-                              index=exp_index)
-        exp_md = Metadata(exp_df)
-
-        self.assertEqual(obs_md, exp_md)
-
-    def test_empty_rows(self):
-        fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/empty-rows.tsv')
-
-        obs_md = Metadata.load(fp)
-
-        exp_index = pd.Index(['id1', 'id2', 'id3'], name='id', dtype=object)
-        exp_df = pd.DataFrame({'col1': [1.0, 2.0, 3.0],
-                               'col2': ['a', 'b', 'c'],
-                               'col3': ['foo', 'bar', '42']},
-                              index=exp_index)
-        exp_md = Metadata(exp_df)
-
-        self.assertEqual(obs_md, exp_md)
-
-    def test_qiime1_mapping_file(self):
-        fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/qiime1.tsv')
-
-        obs_md = Metadata.load(fp)
-
-        exp_index = pd.Index(['id1', 'id2', 'id3'], name='#SampleID',
-                             dtype=object)
-        exp_df = pd.DataFrame({'col1': [1.0, 2.0, 3.0],
-                               'col2': ['a', 'b', 'c'],
-                               'col3': ['foo', 'bar', '42']},
-                              index=exp_index)
-        exp_md = Metadata(exp_df)
-
-        self.assertEqual(obs_md, exp_md)
-
-    def test_qiime1_empty_mapping_file(self):
-        fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/qiime1-empty.tsv')
-
-        with self.assertRaisesRegex(MetadataFileError,
-                                    'at least one ID.*empty'):
-            Metadata.load(fp)
-
-    def test_no_columns(self):
-        fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/no-columns.tsv')
-
-        obs_md = Metadata.load(fp)
-
-        exp_index = pd.Index(['a', 'b', 'my-id'], name='id', dtype=object)
-        exp_df = pd.DataFrame({}, index=exp_index, dtype=object)
-        exp_md = Metadata(exp_df)
-
-        self.assertEqual(obs_md, exp_md)
-
-    def test_does_not_cast_ids(self):
-        fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/no-type-cast.tsv')
-
-        obs_md = Metadata.load(fp)
-
-        exp_index = pd.Index(['0.000001', '0.004000', '0.000000'],
-                             dtype=object, name='id')
-        exp_df = pd.DataFrame({'col1': [2.0, 1.0, 3.0],
-                               'col2': ['b', 'b', 'c'],
-                               'col3': [2.5, 4.2, -9.999]},
-                              index=exp_index)
-        exp_md = Metadata(exp_df)
-
-        self.assertEqual(obs_md, exp_md)
-
-    def test_artifacts(self):
-        fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/simple.tsv')
-
-        metadata = Metadata.load(fp)
-
-        self.assertEqual(metadata.artifacts, ())
-
-    def test_empty_id(self):
-        fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/comments-n-blanks-n-empty-id.tsv')
-
-        with self.assertRaisesRegex(MetadataFileError, 'empty metadata ID'):
-            Metadata.load(fp)
-
-    def test_empty_file(self):
-        fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/empty')
-
-        with self.assertRaisesRegex(MetadataFileError,
-                                    'locate header.*file may be empty'):
-            Metadata.load(fp)
-
-    def test_jagged_trailing_columns(self):
-        # Test case based on https://github.com/qiime2/qiime2/issues/335
-        fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/jagged-trailing-columns.tsv')
-
-        obs_md = Metadata.load(fp)
-
-        exp_index = pd.Index(['id1', 'id2', 'id3'], name='id', dtype=object)
-        exp_df = pd.DataFrame({'col1': [1.0, 2.0, 3.0],
-                               'col2': ['a', 'b', 'c'],
-                               'col3': ['foo', 'bar', '42']},
-                              index=exp_index)
-        exp_md = Metadata(exp_df)
-
-        self.assertEqual(obs_md, exp_md)
 
 
 class TestGetColumn(unittest.TestCase):
@@ -642,7 +515,7 @@ class TestGetIDs(unittest.TestCase):
 
     def test_no_columns(self):
         fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/no-columns.tsv')
+            'qiime2.metadata.tests', 'data/valid/no-columns.tsv')
         metadata = Metadata.load(fp)
 
         obs = metadata.get_ids()
@@ -658,7 +531,7 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
 
     def test_type_mismatch(self):
         fp = pkg_resources.resource_filename(
-            'qiime2.metadata.tests', 'data/simple.tsv')
+            'qiime2.metadata.tests', 'data/valid/simple.tsv')
         md = Metadata.load(fp)
         mdc = md.get_column('col1')
 

@@ -39,8 +39,7 @@ class _MetadataBase:
     def __init__(self, index):
         if index.empty:
             raise ValueError(
-                "%s must contain at least one ID and cannot be empty." %
-                self.__class__.__name__)
+                "%s must contain at least one ID." % self.__class__.__name__)
 
         id_header = index.name
         self._assert_valid_id_header(id_header)
@@ -113,7 +112,8 @@ class _MetadataBase:
 
             if not value:
                 raise ValueError(
-                    "Detected empty metadata %s: %r" % (label, value))
+                    "Detected empty metadata %s. %ss must consist of at least "
+                    "one character." % (label, label))
 
             if value != value.strip():
                 raise ValueError(
