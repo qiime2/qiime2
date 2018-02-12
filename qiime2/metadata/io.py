@@ -21,7 +21,7 @@ class MetadataFileError(Exception):
     _suffix = (
         "There may be more errors present in the metadata file. To get a full "
         "report, sample/feature metadata files can be validated with Keemei: "
-        "http://keemei.qiime.org\n\nFind details on QIIME 2 metadata "
+        "https://keemei.qiime2.org\n\nFind details on QIIME 2 metadata "
         "requirements here: https://docs.qiime2.org/%s/tutorials/metadata/")
 
     def __init__(self, message, include_suffix=True):
@@ -98,8 +98,6 @@ class MetadataReader:
 
         index = pd.Index(ids, name=header[0], dtype=object)
         df = pd.DataFrame(data, columns=header[1:], index=index, dtype=object)
-
-        df.replace('', np.nan, inplace=True)
 
         for name, type in column_types.items():
             if name not in df.columns:
@@ -320,15 +318,29 @@ class MetadataReader:
             if column_types[series.name] == 'numeric':
                 return self._to_numeric(series)
             else:  # 'categorical'
-                return series
+                return self._to_categorical(series)
         else:
             # Infer type
             try:
                 return self._to_numeric(series)
             except MetadataFileError:
-                return series
+                return self._to_categorical(series)
+
+    def _to_categorical(self, series):
+        # Replace empty strings with `None` to force the series to remain
+        # dtype=object (this only matters if the series consists solely of
+        # missing data). Replacing with np.nan and casting to dtype=object
+        # won't retain the correct dtype in the resulting dataframe
+        # (`DataFrame.apply` seems to force series consisting solely of np.nan
+        # to dtype=float64, even if dtype=object is specified.
+        #
+        # To replace a value with `None`, the following invocation of
+        # `Series.replace` must be used because `None` is a sentinel:
+        #     https://stackoverflow.com/a/17097397/3776794
+        return series.replace([''], [None])
 
     def _to_numeric(self, series):
+        series = series.replace('', np.nan)
         is_numeric = series.apply(self._is_numeric)
         if is_numeric.all():
             return pd.to_numeric(series, errors='raise')

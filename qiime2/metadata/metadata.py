@@ -271,6 +271,10 @@ class Metadata(_MetadataBase):
     def __eq__(self, other):
         return (
             isinstance(other, self.__class__) and
+            # ID header check is necessary because `DataFrame.equals` doesn't
+            # consider the index name in its comparisons (neither does
+            # `Index.equals`).
+            self._id_header == other._id_header and
             self._artifacts == other._artifacts and
             self._columns == other._columns and
             self._dataframe.equals(other._dataframe)
