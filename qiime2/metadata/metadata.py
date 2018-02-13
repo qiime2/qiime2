@@ -443,10 +443,15 @@ class Metadata(_MetadataBase):
 
         try:
             c.execute(query)
-        except sqlite3.OperationalError:
+        except sqlite3.OperationalError as e:
             conn.close()
-            raise ValueError("Selection of IDs failed with query:\n %s"
-                             % query)
+            raise ValueError("Selection of IDs failed with query:\n %s\n\n"
+                             "If one of the metadata column names specified "
+                             "in the `where` statement is on this list "
+                             "of reserved keywords "
+                             "(http://www.sqlite.org/lang_keywords.html), "
+                             "please ensure it is quoted appropriately in the "
+                             "`where` statement." % query) from e
 
         ids = set(c.fetchall())
         conn.close()
