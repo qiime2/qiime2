@@ -446,7 +446,7 @@ class Metadata(_MetadataBase):
         except sqlite3.OperationalError as e:
             conn.close()
             raise ValueError("Selection of IDs failed with query:\n %s\n\n"
-                             "If one of the  metadata column names specified "
+                             "If one of the metadata column names specified "
                              "in the `where` statement is on this list "
                              "of reserved keywords "
                              "(http://www.sqlite.org/lang_keywords.html), "
