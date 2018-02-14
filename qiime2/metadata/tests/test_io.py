@@ -15,7 +15,8 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from qiime2.metadata import Metadata, MetadataFileError
+from qiime2.metadata import (Metadata, CategoricalMetadataColumn,
+                             NumericMetadataColumn, MetadataFileError)
 
 
 def get_data_path(filename):
@@ -676,9 +677,9 @@ class TestLoadSuccess(unittest.TestCase):
         obs_md = Metadata.load(fp)
 
         exp_index = pd.Index(['id1', 'id2', 'id3', 'id4', 'id5', 'id6', 'id7',
-                              'id8'], name='id')
+                              'id8', 'id9', 'id10', 'id11', 'id12'], name='id')
         exp_df = pd.DataFrame({'col1': [0.0, 2.0, 0.0003, -4.2, 1e-4, 1e4,
-                                        1.5e2, np.nan]},
+                                        1.5e2, np.nan, 1.0, 0.5, 1e-8, -0.0]},
                               index=exp_index)
         exp_md = Metadata(exp_df)
 
@@ -690,9 +691,10 @@ class TestLoadSuccess(unittest.TestCase):
         obs_md = Metadata.load(fp, column_types={'col1': 'categorical'})
 
         exp_index = pd.Index(['id1', 'id2', 'id3', 'id4', 'id5', 'id6', 'id7',
-                              'id8'], name='id')
+                              'id8', 'id9', 'id10', 'id11', 'id12'], name='id')
         exp_df = pd.DataFrame({'col1': ['0', '2.0', '0.00030', '-4.2', '1e-4',
-                                        '1e4', '+1.5E+2', np.nan]},
+                                        '1e4', '+1.5E+2', np.nan, '1.', '.5',
+                                        '1e-08', '-0']},
                               index=exp_index)
         exp_md = Metadata(exp_df)
 
@@ -775,6 +777,333 @@ class TestLoadSuccess(unittest.TestCase):
         exp_md = Metadata(exp_df)
 
         self.assertEqual(obs_md, exp_md)
+
+
+class TestSave(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir_obj = tempfile.TemporaryDirectory(
+            prefix='qiime2-metadata-tests-temp-')
+        self.temp_dir = self.temp_dir_obj.name
+
+        self.filepath = os.path.join(self.temp_dir, 'metadata.tsv')
+
+    def tearDown(self):
+        self.temp_dir_obj.cleanup()
+
+    def test_simple(self):
+        md = Metadata(pd.DataFrame(
+            {'col1': [1.0, 2.0, 3.0],
+             'col2': ['a', 'b', 'c'],
+             'col3': ['foo', 'bar', '42']},
+            index=pd.Index(['id1', 'id2', 'id3'], name='id')))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcol1\tcol2\tcol3\n"
+            "#q2:types\tnumeric\tcategorical\tcategorical\n"
+            "id1\t1\ta\tfoo\n"
+            "id2\t2\tb\tbar\n"
+            "id3\t3\tc\t42\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_different_file_extension(self):
+        md = Metadata(pd.DataFrame(
+            {'col1': [1.0, 2.0, 3.0],
+             'col2': ['a', 'b', 'c'],
+             'col3': ['foo', 'bar', '42']},
+            index=pd.Index(['id1', 'id2', 'id3'], name='id')))
+
+        filepath = os.path.join(self.temp_dir, 'metadata.txt')
+        md.save(filepath)
+
+        with open(filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcol1\tcol2\tcol3\n"
+            "#q2:types\tnumeric\tcategorical\tcategorical\n"
+            "id1\t1\ta\tfoo\n"
+            "id2\t2\tb\tbar\n"
+            "id3\t3\tc\t42\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_some_missing_data(self):
+        md = Metadata(
+            pd.DataFrame({'col1': [42.0, np.nan, -3.5],
+                          'col2': ['a', np.nan, np.nan]},
+                         index=pd.Index(['id1', 'id2', 'id3'], name='id')))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcol1\tcol2\n"
+            "#q2:types\tnumeric\tcategorical\n"
+            "id1\t42\ta\n"
+            "id2\t\t\n"
+            "id3\t-3.5\t\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_all_missing_data(self):
+        # nan-only columns that are numeric or categorical.
+        md = Metadata(
+            pd.DataFrame({'col1': [np.nan, np.nan, np.nan],
+                          'col2': np.array([np.nan, np.nan, np.nan],
+                                           dtype=object)},
+                         index=pd.Index(['id1', 'id2', 'id3'], name='id')))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcol1\tcol2\n"
+            "#q2:types\tnumeric\tcategorical\n"
+            "id1\t\t\n"
+            "id2\t\t\n"
+            "id3\t\t\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_unsorted_column_order(self):
+        index = pd.Index(['id1', 'id2', 'id3'], name='id')
+        columns = ['z', 'b', 'y']
+        data = [
+            [1.0, 'a', 'foo'],
+            [2.0, 'b', 'bar'],
+            [3.0, 'c', '42']
+        ]
+        md = Metadata(pd.DataFrame(data, index=index, columns=columns))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tz\tb\ty\n"
+            "#q2:types\tnumeric\tcategorical\tcategorical\n"
+            "id1\t1\ta\tfoo\n"
+            "id2\t2\tb\tbar\n"
+            "id3\t3\tc\t42\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_alternate_id_header(self):
+        md = Metadata(pd.DataFrame(
+            {'col1': [1.0, 2.0, 3.0],
+             'col2': ['a', 'b', 'c'],
+             'col3': ['foo', 'bar', '42']},
+            index=pd.Index(['id1', 'id2', 'id3'], name='#SampleID')))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "#SampleID\tcol1\tcol2\tcol3\n"
+            "#q2:types\tnumeric\tcategorical\tcategorical\n"
+            "id1\t1\ta\tfoo\n"
+            "id2\t2\tb\tbar\n"
+            "id3\t3\tc\t42\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_various_numbers(self):
+        numbers = [
+            0.0, -0.0, np.nan, 1.0, 42.0, -33.0, 1e-10, 1.5e15, 0.0003, -4.234,
+            # This last number should be rounded because it exceeds 15 digits
+            # of precision.
+            12.34567891234567
+        ]
+        index = pd.Index(['id1', 'id2', 'id3', 'id4', 'id5', 'id6', 'id7',
+                          'id8', 'id9', 'id10', 'id11'], name='ID')
+        md = Metadata(pd.DataFrame({'numbers': numbers}, index=index))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "ID\tnumbers\n"
+            "#q2:types\tnumeric\n"
+            "id1\t0\n"
+            "id2\t-0\n"
+            "id3\t\n"
+            "id4\t1\n"
+            "id5\t42\n"
+            "id6\t-33\n"
+            "id7\t1e-10\n"
+            "id8\t1.5e+15\n"
+            "id9\t0.0003\n"
+            "id10\t-4.234\n"
+            "id11\t12.3456789123457\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_minimal(self):
+        md = Metadata(pd.DataFrame({}, index=pd.Index(['my-id'], name='id')))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\n"
+            "#q2:types\n"
+            "my-id\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_single_id(self):
+        md = Metadata(pd.DataFrame(
+            {'col1': ['foo'], 'col2': [4.002]},
+            index=pd.Index(['my-id'], name='featureid')))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "featureid\tcol1\tcol2\n"
+            "#q2:types\tcategorical\tnumeric\n"
+            "my-id\tfoo\t4.002\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_no_columns(self):
+        md = Metadata(pd.DataFrame(
+            {}, index=pd.Index(['foo', 'bar', 'baz'], name='id')))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\n"
+            "#q2:types\n"
+            "foo\n"
+            "bar\n"
+            "baz\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_single_column(self):
+        md = Metadata(pd.DataFrame(
+            {'col1': ['42', '4.3', '4.4000']},
+            index=pd.Index(['foo', 'bar', 'baz'], name='id')))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcol1\n"
+            "#q2:types\tcategorical\n"
+            "foo\t42\n"
+            "bar\t4.3\n"
+            "baz\t4.4000\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_ids_and_column_names_as_numeric_strings(self):
+        index = pd.Index(['0.000001', '0.004000', '0.000000'],
+                         dtype=object, name='id')
+        columns = ['42.0', '1000', '-4.2']
+        data = [
+            [2.0, 'b', 2.5],
+            [1.0, 'b', 4.2],
+            [3.0, 'c', -9.999]
+        ]
+        df = pd.DataFrame(data, index=index, columns=columns)
+        md = Metadata(df)
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\t42.0\t1000\t-4.2\n"
+            "#q2:types\tnumeric\tcategorical\tnumeric\n"
+            "0.000001\t2\tb\t2.5\n"
+            "0.004000\t1\tb\t4.2\n"
+            "0.000000\t3\tc\t-9.999\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    # A couple of basic tests for CategoricalMetadataColumn and
+    # NumericMetadataColumn below. Those classes simply transform themselves
+    # into single-column Metadata objects within `MetadataColumn.save()` and
+    # use the same writer code from there on.
+
+    def test_categorical_metadata_column(self):
+        mdc = CategoricalMetadataColumn(pd.Series(
+            ['foo', 'bar', '42.50'], name='categorical-column',
+            index=pd.Index(['id1', 'id2', 'id3'], name='id')))
+
+        mdc.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcategorical-column\n"
+            "#q2:types\tcategorical\n"
+            "id1\tfoo\n"
+            "id2\tbar\n"
+            "id3\t42.50\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_numeric_metadata_column(self):
+        mdc = NumericMetadataColumn(pd.Series(
+            [1e-15, 42.50, -999.0], name='numeric-column',
+            index=pd.Index(['id1', 'id2', 'id3'], name='#OTU ID')))
+
+        mdc.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "#OTU ID\tnumeric-column\n"
+            "#q2:types\tnumeric\n"
+            "id1\t1e-15\n"
+            "id2\t42.5\n"
+            "id3\t-999\n"
+        )
+
+        self.assertEqual(obs, exp)
 
 
 if __name__ == '__main__':
