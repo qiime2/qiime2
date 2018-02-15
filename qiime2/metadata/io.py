@@ -378,10 +378,39 @@ class MetadataWriter:
 
             df = md.to_dataframe()
             df.fillna('', inplace=True)
-            # TODO if writing floats, don't include trailing `.0` so that those
-            # numbers look like ints
-            df = df.applymap(lambda e: e if isinstance(e, str) else repr(e))
+            df = df.applymap(self._format)
             tsv_writer.writerows(df.itertuples(index=True))
+
+    def _format(self, value):
+        if isinstance(value, str):
+            return value
+        elif isinstance(value, float):
+            # Use fixed precision or scientific notation as necessary (both are
+            # roundtrippable in the metadata file format), with up to 15 digits
+            # *total* precision (i.e. before and after the decimal point),
+            # rounding if necessary. Trailing zeros or decimal points will not
+            # be included in the formatted string (e.g. 42.0 will be formatted
+            # as "42"). A precision of 15 digits is used because that is within
+            # the 64-bit floating point spec (things get weird after that).
+            #
+            # Using repr() and str() each have their own predefined precision
+            # which varies across Python versions. Using the string formatting
+            # presentation types (e.g. %g, %f) without specifying a precision
+            # will usually default to 6 digits past the decimal point, which
+            # seems a little low.
+            #
+            # References:
+            #
+            # - https://stackoverflow.com/a/2440786/3776794
+            # - https://stackoverflow.com/a/2440708/3776794
+            # - https://docs.python.org/3/library/string.html#
+            #       format-specification-mini-language
+            # - https://stackoverflow.com/a/20586479/3776794
+            # - https://drj11.wordpress.com/2007/07/03/python-poor-printing-
+            #       of-floating-point/
+            return '{0:.15g}'.format(value)
+        else:
+            raise NotImplementedError
 
 
 # Credit: https://stackoverflow.com/a/4703508/3776794

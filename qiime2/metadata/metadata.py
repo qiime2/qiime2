@@ -88,14 +88,11 @@ class _MetadataBase:
 
         if not (name and
                 (name in exact_match or name.lower() in case_insensitive)):
-            # TODO reference `df.index.name` since this error will only happen
-            # at the API level (loading the metadata file should provide its
-            # own error message)
             # TODO this code overlaps with similar checks in MetadataReader --
             # refactor to avoid duplication
             raise ValueError(
-                "Metadata ID header must be one of the following values, not "
-                "%r:\n\ncase-insensitive: %s\n\nexact match: %s" %
+                "DataFrame or Series Index name must be one of the following "
+                "values, not %r:\n\ncase-insensitive: %s\n\nexact match: %s" %
                 (name,
                  ', '.join(sorted(case_insensitive)),
                  ', '.join(sorted(exact_match))))
