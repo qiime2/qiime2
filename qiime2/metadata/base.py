@@ -38,5 +38,23 @@ FORMATTED_ID_HEADERS = "Case-insensitive: %s\n\nCase-sensitive: %s" % (
 
 
 def is_id_header(name):
+    """Determine if a name is a valid ID column header.
+
+    This function may be used to determine if a value in a metadata file is a
+    valid ID column header, or if a pandas ``Index.name`` matches the ID header
+    requirements. The "ID header" corresponds to the ``Metadata.id_header``
+    and ``MetadataColumn.id_header`` properties.
+
+    Parameters
+    ----------
+    name : string or None
+        Name to check against ID header requirements.
+
+    Returns
+    -------
+    bool
+        ``True`` if `name` is a valid ID column header, ``False`` otherwise.
+
+    """
     return name and (name in SUPPORTED_ID_HEADERS['exact_match'] or
                      name.lower() in SUPPORTED_ID_HEADERS['case_insensitive'])
