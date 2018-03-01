@@ -15,6 +15,8 @@ import numpy as np
 import pandas as pd
 
 from qiime2.core.util import find_duplicates
+from .base import SUPPORTED_COLUMN_TYPES, FORMATTED_ID_HEADERS, is_id_header
+from .metadata import Metadata, MetadataColumn
 
 
 class MetadataFileError(Exception):
@@ -36,29 +38,6 @@ class MetadataFileError(Exception):
 
 
 class MetadataReader:
-    _supported_column_types = {'categorical', 'numeric'}
-
-    _supported_id_headers = {
-        'case_insensitive': {
-            'id', 'sampleid', 'sample id', 'sample-id', 'featureid',
-            'feature id', 'feature-id'
-        },
-
-        # For backwards-compatibility with existing formats.
-        'exact_match': {
-            # QIIME 1 mapping files. "#Sample ID" was never supported, but
-            # we're including it here for symmetry with the other supported
-            # headers that allow a space between words.
-            '#SampleID', '#Sample ID',
-
-            # biom-format: observation metadata and "classic" (TSV) OTU tables.
-            '#OTUID', '#OTU ID',
-
-            # Qiita sample/prep information files.
-            'sample_name'
-        }
-    }
-
     def __init__(self, filepath):
         if not os.path.isfile(filepath):
             raise MetadataFileError(
@@ -104,9 +83,9 @@ class MetadataReader:
                 raise MetadataFileError(
                     "Column name %r specified in `column_types` is not a "
                     "column in the metadata file." % name)
-            if type not in self._supported_column_types:
+            if type not in SUPPORTED_COLUMN_TYPES:
                 fmt_column_types = ', '.join(
-                    repr(e) for e in sorted(self._supported_column_types))
+                    repr(e) for e in sorted(SUPPORTED_COLUMN_TYPES))
                 raise MetadataFileError(
                     "Column name %r specified in `column_types` has an "
                     "unrecognized column type %r. Supported column types: %s" %
@@ -156,7 +135,7 @@ class MetadataReader:
                     "Found unrecognized ID column name %r while searching for "
                     "header. The first column name in the header defines the "
                     "ID column, and must be one of these values:\n\n%s" %
-                    (row[0], self._get_id_headers_for_err_msg()))
+                    (row[0], FORMATTED_ID_HEADERS))
 
         if header is None:
             raise MetadataFileError(
@@ -189,12 +168,11 @@ class MetadataReader:
         # header. The other column names are validated to ensure they *aren't*
         # valid ID headers.
         for column_name in header[1:]:
-            if self._is_header([column_name]):
+            if is_id_header(column_name):
                 raise MetadataFileError(
                     "Metadata column name %r conflicts with a name reserved "
                     "for the ID column header. Reserved ID column headers:"
-                    "\n\n%s"
-                    % (column_name, self._get_id_headers_for_err_msg()))
+                    "\n\n%s" % (column_name, FORMATTED_ID_HEADERS))
 
         return header
 
@@ -220,12 +198,11 @@ class MetadataReader:
             for column_name, column_type in zip(header[1:], row[1:]):
                 if column_type:
                     type_nocase = column_type.lower()
-                    if type_nocase in self._supported_column_types:
+                    if type_nocase in SUPPORTED_COLUMN_TYPES:
                         column_types[column_name] = type_nocase
                     else:
                         fmt_column_types = ', '.join(
-                            repr(e) for e in
-                            sorted(self._supported_column_types))
+                            repr(e) for e in sorted(SUPPORTED_COLUMN_TYPES))
                         raise MetadataFileError(
                             "Column %r has an unrecognized column type %r "
                             "specified in its #q2:types directive. "
@@ -251,7 +228,7 @@ class MetadataReader:
                 raise MetadataFileError(
                     "Metadata ID %r conflicts with a name reserved for the ID "
                     "column header. Reserved ID column headers:\n\n%s" %
-                    (row[0], self._get_id_headers_for_err_msg()))
+                    (row[0], FORMATTED_ID_HEADERS))
 
             row = self._match_header_len(row, header)
             ids.append(row[0])
@@ -294,24 +271,13 @@ class MetadataReader:
     def _is_header(self, row):
         if len(row) == 0:
             return False
-
-        exact_match = self._supported_id_headers['exact_match']
-        case_insensitive = self._supported_id_headers['case_insensitive']
-        return row[0] in exact_match or row[0].lower() in case_insensitive
+        return is_id_header(row[0])
 
     def _is_directive(self, row):
         return len(row) > 0 and row[0].startswith('#q2:')
 
     def _is_column_types_directive(self, row):
         return len(row) > 0 and row[0] == '#q2:types'
-
-    def _get_id_headers_for_err_msg(self):
-        case_insensitive = self._supported_id_headers['case_insensitive']
-        exact_match = self._supported_id_headers['exact_match']
-
-        return "Case-insensitive: %s\n\nCase-sensitive: %s" % (
-                ', '.join(repr(e) for e in sorted(case_insensitive)),
-                ', '.join(repr(e) for e in sorted(exact_match)))
 
     def _cast_column(self, series, column_types):
         if series.name in column_types:
@@ -370,9 +336,17 @@ class MetadataWriter:
             md = self._metadata
             header = [md.id_header]
             types_directive = ['#q2:types']
-            for name, props in md.columns.items():
-                header.append(name)
-                types_directive.append(props.type)
+
+            if isinstance(md, Metadata):
+                for name, props in md.columns.items():
+                    header.append(name)
+                    types_directive.append(props.type)
+            elif isinstance(md, MetadataColumn):
+                header.append(md.name)
+                types_directive.append(md.type)
+            else:
+                raise NotImplementedError
+
             tsv_writer.writerow(header)
             tsv_writer.writerow(types_directive)
 
