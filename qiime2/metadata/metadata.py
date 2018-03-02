@@ -21,20 +21,69 @@ from .base import SUPPORTED_COLUMN_TYPES, FORMATTED_ID_HEADERS, is_id_header
 
 
 class _MetadataBase:
+    """Base class for functionality shared between Metadata and MetadataColumn.
+
+    Parameters
+    ----------
+    index : pandas.Index
+        IDs associated with the metadata.
+
+    """
+
     @property
     def id_header(self):
+        """Name identifying the IDs associated with the metadata.
+
+        This property is read-only.
+
+        Returns
+        -------
+        str
+            Name of IDs associated with the metadata.
+
+        """
         return self._id_header
 
     @property
     def ids(self):
+        """IDs associated with the metadata.
+
+        This property is read-only.
+
+        Returns
+        -------
+        tuple of str
+            Metadata IDs.
+
+        """
         return self._ids
 
     @property
     def id_count(self):
+        """Number of metadata IDs.
+
+        This property is read-only.
+
+        Returns
+        -------
+        int
+            Number of metadata IDs.
+
+        """
         return len(self._ids)
 
     @property
     def artifacts(self):
+        """Artifacts that are the source of the metadata.
+
+        This property is read-only.
+
+        Returns
+        -------
+        tuple of qiime2.Artifact
+            Source artifacts of the metadata.
+
+        """
         return tuple(self._artifacts)
 
     def __init__(self, index):
@@ -164,9 +213,74 @@ ColumnProperties = collections.namedtuple('ColumnProperties', ['type'])
 
 
 class Metadata(_MetadataBase):
+    """Store metadata associated with identifiers in a study.
+
+    Metadata is tabular in nature, mapping study identifiers (e.g. sample or
+    feature IDs) to columns of metadata associated with each ID.
+
+    For more details about metadata in QIIME 2, including the TSV metadata file
+    format, see the Metadata Tutorial at https://docs.qiime2.org.
+
+    The following text focuses on design and considerations when working with
+    ``Metadata`` objects at the API level.
+
+    A ``Metadata`` object is composed of zero or more ``MetadataColumn``
+    objects. A ``Metadata`` object always contains at least one ID, regardless
+    of the number of columns. Each column in the ``Metadata`` object has an
+    associated column type representing either *categorical* or *numeric*
+    data. Each metadata column is represented by an object corresponding to the
+    column's type: ``CategoricalMetadataColumn`` or ``NumericMetadataColumn``,
+    respectively.
+
+    A ``Metadata`` object is closely linked to its corresponding TSV metadata
+    file format described at https://docs.qiime2.org. Therefore, certain
+    requirements present in the file format are also enforced on the in-memory
+    object in order to make serialized ``Metadata`` objects roundtrippable when
+    loaded from disk again. For example, IDs cannot begin with a pound
+    character (``#``) because those IDs would be interpreted as comment rows
+    when written to disk as TSV. See the metadata file format spec for more
+    details about data formatting requirements.
+
+    In addition to being loaded from or saved to disk, a ``Metadata`` object
+    can be constructed from a ``pandas.DataFrame`` object. See the *Parameters*
+    section below for details on how to construct ``Metadata`` objects from
+    dataframes.
+
+    ``Metadata`` objects have various methods to access, filter, and merge
+    data. A dataframe can be retrieved from the ``Metadata`` object for further
+    data manipulation using the pandas API. Individual ``MetadataColumn``
+    objects can be retrieved to gain access to APIs applicable to a single
+    metadata column.
+
+    Parameters
+    ----------
+    dataframe : pandas.DataFrame
+        Dataframe containing metadata. The dataframe's index defines the IDs,
+        and the index name (``Index.name``) must match one of the required ID
+        headers described in the metadata file format spec. Each column in the
+        dataframe defines a metadata column, and the metadata column's type
+        (i.e. *categorical* or *numeric*) is determined based on the column's
+        dtype. If a column has ``dtype=object``, it may contain strings or
+        pandas missing values (e.g. ``np.nan``, ``None``). Columns matching
+        this requirement are assumed to be *categorical*. If a column in the
+        dataframe has ``dtype=float`` or ``dtype=int``, it may contain floating
+        point numbers or integers, as well as pandas missing values
+        (e.g. ``np.nan``). Columns matching this requirement are assumed to be
+        *numeric*. Regardless of column type (categorical vs numeric), the
+        dataframe stored within the ``Metadata`` object will have any missing
+        values normalized to ``np.nan``. Columns with ``dtype=int`` will be
+        cast to ``dtype=float``. To obtain a dataframe from the ``Metadata``
+        object containing these normalized data types and values, use
+        ``Metadata.to_dataframe()``.
+
+    """
+
     @classmethod
     def load(cls, filepath, column_types=None):
         """Load a TSV metadata file.
+
+        The TSV metadata file format is described at https://docs.qiime2.org in
+        the Metadata Tutorial.
 
         Parameters
         ----------
@@ -190,6 +304,10 @@ class Metadata(_MetadataBase):
             If the metadata file is invalid in any way (e.g. doesn't meet the
             file format's requirements).
 
+        See Also
+        --------
+        save
+
         """
         from .io import MetadataReader
         return MetadataReader(filepath).read(into=cls,
@@ -199,7 +317,13 @@ class Metadata(_MetadataBase):
     def columns(self):
         """Ordered mapping of column names to ColumnProperties.
 
-        Mapping is read-only.
+        The mapping that is returned is read-only. This property is also
+        read-only.
+
+        Returns
+        -------
+        types.MappingProxyType
+            Ordered mapping of column names to ColumnProperties.
 
         """
         # Read-only proxy to the OrderedDict mapping column names to
@@ -210,9 +334,20 @@ class Metadata(_MetadataBase):
     def column_count(self):
         """Number of metadata columns.
 
+        This property is read-only.
+
+        Returns
+        -------
+        int
+            Number of metadata columns.
+
         Notes
         -----
         Zero metadata columns are allowed.
+
+        See Also
+        --------
+        id_count
 
         """
         return len(self._columns)
@@ -256,6 +391,7 @@ class Metadata(_MetadataBase):
         return column
 
     def __repr__(self):
+        """String summary of the metadata and its columns."""
         lines = []
 
         # Header
@@ -283,6 +419,27 @@ class Metadata(_MetadataBase):
         return '\n'.join(lines)
 
     def __eq__(self, other):
+        """Determine if this metadata is equal to another.
+
+        ``Metadata`` objects are equal if their IDs, columns (including column
+        names, types, and ordering), ID headers, source artifacts, and metadata
+        values are equal.
+
+        Parameters
+        ----------
+        other : Metadata
+            Metadata to test for equality.
+
+        Returns
+        -------
+        bool
+            Indicates whether this ``Metadata`` object is equal to `other`.
+
+        See Also
+        --------
+        __ne__
+
+        """
         return (
             super().__eq__(other) and
             self._columns == other._columns and
@@ -290,13 +447,67 @@ class Metadata(_MetadataBase):
         )
 
     def __ne__(self, other):
+        """Determine if this metadata is not equal to another.
+
+        ``Metadata`` objects are not equal if their IDs, columns (including
+        column names, types, or ordering), ID headers, source artifacts, or
+        metadata values are not equal.
+
+        Parameters
+        ----------
+        other : Metadata
+            Metadata to test for inequality.
+
+        Returns
+        -------
+        bool
+            Indicates whether this ``Metadata`` object is not equal to `other`.
+
+        See Also
+        --------
+        __eq__
+
+        """
         return not (self == other)
 
     def save(self, filepath):
+        """Save a TSV metadata file.
+
+        The TSV metadata file format is described at https://docs.qiime2.org in
+        the Metadata Tutorial.
+
+        The file will always include the ``#q2:types`` directive in order to
+        make the file roundtrippable without relying on column type inference.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to save TSV metadata file at.
+
+        See Also
+        --------
+        load
+
+        """
         from .io import MetadataWriter
         MetadataWriter(self).write(filepath)
 
     def to_dataframe(self):
+        """Create a pandas dataframe from the metadata.
+
+        The dataframe's index name (``Index.name``) will match this metadata
+        object's ``id_header``, and the index will contain this metadata
+        object's IDs. The dataframe's column names will match the column names
+        in this metadata. Categorical columns will be stored as
+        ``dtype=object`` (containing strings), and numeric columns will be
+        stored as ``dtype=float``.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Dataframe constructed from the metadata.
+
+        """
         return self._dataframe.copy()
 
     def get_column(self, name):
@@ -310,7 +521,12 @@ class Metadata(_MetadataBase):
         Returns
         -------
         MetadataColumn
-            Requested metadata column.
+            Requested metadata column (``CategoricalMetadataColumn`` or
+            ``NumericMetadataColumn``).
+
+        See Also
+        --------
+        get_ids
 
         """
         try:
@@ -339,6 +555,13 @@ class Metadata(_MetadataBase):
         See Also
         --------
         ids
+        filter_ids
+        get_column
+
+        Notes
+        -----
+        The ID header (``Metadata.id_header``) may be used in the `where`
+        clause to query the table's ID column.
 
         """
         if where is None:
@@ -486,6 +709,11 @@ class Metadata(_MetadataBase):
         Metadata
             The metadata filtered by IDs.
 
+        See Also
+        --------
+        get_ids
+        filter_columns
+
         """
         filtered_df = self._filter_ids_helper(self._dataframe, self.get_ids(),
                                               ids_to_keep)
@@ -503,19 +731,27 @@ class Metadata(_MetadataBase):
             If supplied, will retain only columns of this type. The currently
             supported column types are 'numeric' and 'categorical'.
         drop_all_unique : bool, optional
-            If True, columns that contain a unique value for every ID will be
-            dropped.
+            If ``True``, columns that contain a unique value for every ID will
+            be dropped. Missing data (``np.nan``) are ignored when determining
+            unique values. If a column consists solely of missing data, it will
+            be dropped.
         drop_zero_variance : bool, optional
-            If True, columns that contain the same value for every ID will be
+            If ``True``, columns that contain the same value for every ID will
+            be dropped. Missing data (``np.nan``) are ignored when determining
+            variance. If a column consists solely of missing data, it will be
             dropped.
         drop_all_missing : bool, optional
-            If True, columns that have a missing value for every ID will be
-            dropped.
+            If ``True``, columns that have a missing value (``np.nan``) for
+            every ID will be dropped.
 
         Returns
         -------
         Metadata
             The metadata filtered by columns.
+
+        See Also
+        --------
+        filter_ids
 
         """
         if (column_type is not None and
@@ -560,12 +796,34 @@ class Metadata(_MetadataBase):
 
 
 class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
+    """Abstract base class representing a single metadata column.
+
+    Concrete subclasses represent specific metadata column types, e.g.
+    ``CategoricalMetadataColumn`` and ``NumericMetadataColumn``.
+
+    See the ``Metadata`` class docstring for details about ``Metadata`` and
+    ``MetadataColumn`` objects, including a description of column types.
+
+    The main difference in constructing ``MetadataColumn`` vs ``Metadata``
+    objects is that ``MetadataColumn`` objects are constructed from a
+    ``pandas.Series`` object instead of a ``pandas.DataFrame``. Otherwise, the
+    same restrictions, considerations, and data normalization are applied as
+    with ``Metadata`` objects.
+
+    """
     # Abstract, must be defined by subclasses.
     type = None
 
     @classmethod
     @abc.abstractmethod
     def _is_supported_dtype(cls, dtype):
+        """
+
+        Contract: Return ``True`` if the series `dtype` is supported by this
+        object and can be handled appropriately by ``_normalize_``. Return
+        ``False`` otherwise.
+
+        """
         raise NotImplementedError
 
     @classmethod
@@ -584,6 +842,16 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
     @property
     def name(self):
+        """Metadata column name.
+
+        This property is read-only.
+
+        Returns
+        -------
+        str
+            Metadata column name.
+
+        """
         return self._series.name
 
     def __init__(self, series):
@@ -604,10 +872,32 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         self._series = self._normalize_(series)
 
     def __repr__(self):
+        """String summary of the metadata column."""
         return '<%s name=%r id_count=%d>' % (self.__class__.__name__,
                                              self.name, self.id_count)
 
     def __eq__(self, other):
+        """Determine if this metadata column is equal to another.
+
+        ``MetadataColumn`` objects are equal if their IDs, column names, column
+        types, ID headers, source artifacts, and metadata values are equal.
+
+        Parameters
+        ----------
+        other : MetadataColumn
+            Metadata column to test for equality.
+
+        Returns
+        -------
+        bool
+            Indicates whether this ``MetadataColumn`` object is equal to
+            `other`.
+
+        See Also
+        --------
+        __ne__
+
+        """
         return (
             super().__eq__(other) and
             self.name == other.name and
@@ -615,27 +905,136 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         )
 
     def __ne__(self, other):
+        """Determine if this metadata column is not equal to another.
+
+        ``MetadataColumn`` objects are not equal if their IDs, column names,
+        column types, ID headers, source artifacts, or metadata values are not
+        equal.
+
+        Parameters
+        ----------
+        other : MetadataColumn
+            Metadata column to test for inequality.
+
+        Returns
+        -------
+        bool
+            Indicates whether this ``MetadataColumn`` object is not equal to
+            `other`.
+
+        See Also
+        --------
+        __eq__
+
+        """
         return not (self == other)
 
     def save(self, filepath):
+        """Save a TSV metadata file containing this metadata column.
+
+        The TSV metadata file format is described at https://docs.qiime2.org in
+        the Metadata Tutorial.
+
+        The file will always include the ``#q2:types`` directive in order to
+        make the file roundtrippable without relying on column type inference.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to save TSV metadata file at.
+
+        """
         from .io import MetadataWriter
         MetadataWriter(self).write(filepath)
 
     def to_series(self):
+        """Create a pandas series from the metadata column.
+
+        The series index name (``Index.name``) will match this metadata
+        column's ``id_header``, and the index will contain this metadata
+        column's IDs. The series name will match this metadata column's name.
+
+        Returns
+        -------
+        pandas.Series
+            Series constructed from the metadata column.
+
+        See Also
+        --------
+        to_dataframe
+
+        """
         return self._series.copy()
 
     def to_dataframe(self):
+        """Create a pandas dataframe from the metadata column.
+
+        The dataframe will contain exactly one column. The dataframe's index
+        name (``Index.name``) will match this metadata column's ``id_header``,
+        and the index will contain this metadata column's IDs. The dataframe's
+        column name will match this metadata column's name.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Dataframe constructed from the metadata column.
+
+        See Also
+        --------
+        to_series
+
+        """
         return self._series.to_frame()
 
     def get_value(self, id):
+        """Retrieve metadata column value associated with an ID.
+
+        Parameters
+        ----------
+        id : str
+            ID corresponding to the metadata column value to retrieve.
+
+        Returns
+        -------
+        object
+            Value associated with the provided `id`.
+
+        """
         if id not in self._series.index:
             raise ValueError("ID %r is not present in %r" % (id, self))
         return self._series.loc[id]
 
     def has_missing_values(self):
+        """Determine if the metadata column has one or more missing values.
+
+        Returns
+        -------
+        bool
+            ``True`` if the metadata column has one or more missing values
+            (``np.nan``), ``False`` otherwise.
+
+        See Also
+        --------
+        drop_missing_values
+        get_ids
+
+        """
         return len(self.get_ids(where_values_missing=True)) > 0
 
     def drop_missing_values(self):
+        """Filter out missing values from the metadata column.
+
+        Returns
+        -------
+        MetadataColumn
+            Metadata column with missing values removed.
+
+        See Also
+        --------
+        has_missing_values
+        get_ids
+
+        """
         missing = self.get_ids(where_values_missing=True)
         present = self.get_ids() - missing
         return self.filter_ids(present)
@@ -646,8 +1045,9 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         Parameters
         ----------
         where_values_missing : bool, optional
-            If ``True``, only return IDs that have missing values. If ``False``
-            (the default), return all IDs.
+            If ``True``, only return IDs that are associated with missing
+            values (``np.nan``). If ``False`` (the default), return all IDs in
+            the metadata column.
 
         Returns
         -------
@@ -657,6 +1057,9 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         See Also
         --------
         ids
+        filter_ids
+        has_missing_values
+        drop_missing_values
 
         """
         if where_values_missing:
@@ -666,6 +1069,29 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         return set(ids)
 
     def filter_ids(self, ids_to_keep):
+        """Filter metadata column by IDs.
+
+        Parameters
+        ----------
+        ids_to_keep : iterable of str
+            IDs that should be retained in the filtered ``MetadataColumn``
+            object. If any IDs in `ids_to_keep` are not contained in this
+            ``MetadataColumn`` object, a ``ValueError`` will be raised. The
+            filtered ``MetadataColumn`` object will retain the same relative
+            ordering of IDs in this ``MetadataColumn`` object. Thus, the
+            ordering of IDs in `ids_to_keep` does not determine the ordering of
+            IDs in the filtered ``MetadataColumn`` object.
+
+        Returns
+        -------
+        MetadataColumn
+            The metadata column filtered by IDs.
+
+        See Also
+        --------
+        get_ids
+
+        """
         filtered_series = self._filter_ids_helper(self._series, self.get_ids(),
                                                   ids_to_keep)
         filtered_mdc = self.__class__(filtered_series)
@@ -674,6 +1100,13 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
 
 class CategoricalMetadataColumn(MetadataColumn):
+    """A single metadata column containing categorical data.
+
+    See the ``Metadata`` class docstring for details about ``Metadata`` and
+    ``MetadataColumn`` objects, including a description of column types and
+    supported data formats.
+
+    """
     type = 'categorical'
 
     @classmethod
@@ -710,6 +1143,13 @@ class CategoricalMetadataColumn(MetadataColumn):
 
 
 class NumericMetadataColumn(MetadataColumn):
+    """A single metadata column containing numeric data.
+
+    See the ``Metadata`` class docstring for details about ``Metadata`` and
+    ``MetadataColumn`` objects, including a description of column types and
+    supported data formats.
+
+    """
     type = 'numeric'
 
     @classmethod
