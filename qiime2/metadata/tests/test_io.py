@@ -1106,5 +1106,106 @@ class TestSave(unittest.TestCase):
         self.assertEqual(obs, exp)
 
 
+# TODO this class spot-checks some of the more "difficult" valid files to make
+# sure they can be read, written to disk, and read again in a lossless way.
+# A more complete strategy (with fewer test cases) would be performing a
+# roundtrip test on every valid file under the `data` directory (e.g. with a
+# `glob` and for loop).
+class TestRoundtrip(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir_obj = tempfile.TemporaryDirectory(
+            prefix='qiime2-metadata-tests-temp-')
+        self.temp_dir = self.temp_dir_obj.name
+
+        self.filepath = os.path.join(self.temp_dir, 'metadata.tsv')
+
+    def tearDown(self):
+        self.temp_dir_obj.cleanup()
+
+    def test_simple(self):
+        fp = get_data_path('valid/simple.tsv')
+        md1 = Metadata.load(fp)
+
+        md1.save(self.filepath)
+        md2 = Metadata.load(self.filepath)
+
+        self.assertEqual(md1, md2)
+
+    def test_non_standard_characters(self):
+        fp = get_data_path('valid/non-standard-characters.tsv')
+        md1 = Metadata.load(fp)
+
+        md1.save(self.filepath)
+        md2 = Metadata.load(self.filepath)
+
+        self.assertEqual(md1, md2)
+
+    def test_missing_data(self):
+        fp = get_data_path('valid/missing-data.tsv')
+        md1 = Metadata.load(fp)
+
+        md1.save(self.filepath)
+        md2 = Metadata.load(self.filepath)
+
+        self.assertEqual(md1, md2)
+
+    def test_minimal_file(self):
+        fp = get_data_path('valid/minimal.tsv')
+        md1 = Metadata.load(fp)
+
+        md1.save(self.filepath)
+        md2 = Metadata.load(self.filepath)
+
+        self.assertEqual(md1, md2)
+
+    def test_numeric_column(self):
+        fp = get_data_path('valid/numeric-column.tsv')
+        md1 = Metadata.load(fp)
+
+        md1.save(self.filepath)
+        md2 = Metadata.load(self.filepath)
+
+        self.assertEqual(md1, md2)
+
+    def test_all_cells_padded(self):
+        fp = get_data_path('valid/all-cells-padded.tsv')
+        md1 = Metadata.load(fp)
+
+        md1.save(self.filepath)
+        md2 = Metadata.load(self.filepath)
+
+        self.assertEqual(md1, md2)
+
+    def test_categorical_metadata_column(self):
+        fp = get_data_path('valid/simple.tsv')
+        md1 = Metadata.load(fp)
+        mdc1 = md1.get_column('col2')
+
+        self.assertIsInstance(mdc1, CategoricalMetadataColumn)
+
+        mdc1.save(self.filepath)
+
+        md2 = Metadata.load(self.filepath)
+        mdc2 = md2.get_column('col2')
+
+        self.assertIsInstance(mdc1, CategoricalMetadataColumn)
+        self.assertEqual(mdc1, mdc2)
+
+    def test_numeric_metadata_column(self):
+        fp = get_data_path('valid/simple.tsv')
+        md1 = Metadata.load(fp)
+        mdc1 = md1.get_column('col1')
+
+        self.assertIsInstance(mdc1, NumericMetadataColumn)
+
+        mdc1.save(self.filepath)
+
+        md2 = Metadata.load(self.filepath)
+        mdc2 = md2.get_column('col1')
+
+        self.assertIsInstance(mdc1, NumericMetadataColumn)
+        self.assertEqual(mdc1, mdc2)
+
+
 if __name__ == '__main__':
     unittest.main()

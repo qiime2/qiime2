@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import os.path
+import tempfile
 import unittest
 
 import pandas as pd
@@ -421,6 +423,46 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
             index=pd.Index(['id1', 'id2', 'id3', 'id4'], name='id')))
 
         self.assertReallyEqual(mdc1, mdc2)
+
+
+# Extensive tests of the MetadataWriter are performed in test_io.py. This test
+# is a sanity check that a new MetadataColumn subclass (DummyMetadataColumn)
+# can be written to disk with its column type preserved. This test would have
+# caught a bug in the original implementation of MetadataColumn.save(), which
+# converted itself into a Metadata object, losing the "dummy" column type and
+# replacing it with "numeric". In order for a MetadataColumn to turn itself
+# into a Metadata object in a lossless/safe way, the Metadata constructor needs
+# a `column_types` parameter to preserve column types.
+class TestSave(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir_obj = tempfile.TemporaryDirectory(
+            prefix='qiime2-metadata-tests-temp-')
+        self.temp_dir = self.temp_dir_obj.name
+
+        self.filepath = os.path.join(self.temp_dir, 'metadata.tsv')
+
+    def tearDown(self):
+        self.temp_dir_obj.cleanup()
+
+    def test_basic(self):
+        mdc = DummyMetadataColumn(pd.Series(
+            [42, 42.5, -999.123], name='dummy-column',
+            index=pd.Index(['id1', 'id2', 'id3'], name='id')))
+
+        mdc.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tdummy-column\n"
+            "#q2:types\tdummy\n"
+            "id1\t42\n"
+            "id2\t42.5\n"
+            "id3\t-999.123\n"
+        )
+
+        self.assertEqual(obs, exp)
 
 
 class TestToSeries(unittest.TestCase):
