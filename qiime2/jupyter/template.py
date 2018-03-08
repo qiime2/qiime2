@@ -34,7 +34,7 @@ fetch(url).then(function(res) {
         div.innerHTML = 'Install QIIME 2 Jupyter extension with:<br />' +
                         '<code>jupyter serverextension enable --py qiime2' +
                         ' --sys-prefix</code><br />then restart your server.';
-    } else if (res.status === 428) {
+    } else if (res.status === 409) {
         div.innerHTML = 'Visualization no longer in scope. Re-run this cell' +
                         ' to see the visualization.';
     } else if (res.ok) {

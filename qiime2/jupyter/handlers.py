@@ -36,7 +36,7 @@ class QIIME2RedirectHandler(IPythonHandler):
         location = self.get_query_argument('location')
         if not os.path.exists(location):
             # Client DOM should explain that the user should re-run the cell
-            self.send_error(428)  # Precondition Required
+            self.send_error(409)  # Conflict
             return
         # is it actually a QIIME 2 result, or a random part of the filesystem
         archive = _ArchiveCheck(pathlib.Path(location))
