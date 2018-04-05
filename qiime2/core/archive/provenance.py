@@ -20,6 +20,7 @@ import distutils
 import yaml
 import tzlocal
 import dateutil.relativedelta as relativedelta
+import bibtexparser as bp
 
 import qiime2
 import qiime2.core.util as util
@@ -31,6 +32,7 @@ NoProvenance = collections.namedtuple('NoProvenance', ['uuid'])
 MetadataPath = collections.namedtuple('MetadataPath', ['path'])
 ColorPrimitive = collections.namedtuple('ColorPrimitive', ['hex'])
 LiteralString = collections.namedtuple('LiteralString', ['string'])
+CitationKey = collections.namedtuple('CitationKey', ['key'])
 
 
 class OrderedKeyValue(collections.OrderedDict):
@@ -92,11 +94,15 @@ yaml.add_representer(MetadataPath, lambda dumper, data:
 yaml.add_representer(ColorPrimitive, lambda dumper, data:
                      dumper.represent_scalar('!color', data.hex))
 
+yaml.add_representer(CitationKey, lambda dumper, data:
+                     dumper.represent_scalar('!cite', data.key))
+
 
 class ProvenanceCapture:
     ANCESTOR_DIR = 'artifacts'
     ACTION_DIR = 'action'
     ACTION_FILE = 'action.yaml'
+    CITATION_FILE = 'citations.bib'
 
     def __init__(self):
         self.start = time.time()
@@ -108,6 +114,7 @@ class ProvenanceCapture:
         # we expect to transform this later when serializing, but this lets
         # us treat all transformations uniformly.
         self.transformers = collections.OrderedDict()
+        self.citations = collections.OrderedDict()
 
         self._build_paths()
 
@@ -156,7 +163,22 @@ class ProvenanceCapture:
         return str(artifact.uuid)
 
     def reference_plugin(self, plugin):
-        self.plugins[plugin.name] = plugin
+        entry = collections.OrderedDict()
+
+        plugin_citations = []
+        for idx, citation in enumerate(plugin.citations):
+            citation_key = 'plugin|%s|%s|%d' % (
+                plugin.name, plugin.version, idx)
+            self.citations[citation_key] = citation
+            plugin_citations.append(CitationKey(citation_key))
+
+        entry['version'] = plugin.version
+        entry['website'] = plugin.website
+        if plugin_citations:
+            entry['citations'] = plugin_citations
+
+        self.plugins[plugin.name] = entry
+
         return ForwardRef('environment:plugins:' + plugin.name)
 
     def capture_env(self):
@@ -164,9 +186,47 @@ class ProvenanceCapture:
             (d.project_name, d.version) for d in pkg_resources.working_set)
 
     def transformation_recorder(self, name):
-        # TODO: this is currently stubbed, but not used.
-        record = self.transformers[name] = []
-        return record.append
+        section = self.transformers[name] = []
+
+        def recorder(transformer_record, input_name, input_record, output_name,
+                     output_record):
+            entry = collections.OrderedDict()
+            entry['from'] = input_name
+            entry['to'] = output_name
+            citation_keys = []
+
+            if transformer_record is not None:
+                plugin = transformer_record.plugin
+                entry['plugin'] = self.reference_plugin(plugin)
+
+                for idx, citation in enumerate(transformer_record.citations):
+                    citation_key = 'transformer|%s->%s|%s|%d' % (
+                        input_record.name, output_record.name,
+                        plugin.version, idx)
+                    self.citations[citation_key] = citation
+                    citation_keys.append(CitationKey(citation_key))
+
+            if input_record is not None:
+                self.reference_plugin(input_record.plugin)
+                for idx, citation in enumerate(input_record.citations):
+                    citation_key = 'view|%s|%s|%d' % (
+                        input_record.name, input_record.plugin.version, idx)
+                    self.citations[citation_key] = citation
+                    citation_keys.append(CitationKey(citation_key))
+
+            if output_record is not None:
+                self.reference_plugin(output_record.plugin)
+                for idx, citation in enumerate(output_record.citations):
+                    citation_key = 'view|%s|%s|%d' % (
+                        output_record.name, output_record.plugin.version, idx)
+                    self.citations[citation_key] = citation
+                    citation_keys.append(CitationKey(citation_key))
+
+            if citation_keys:
+                entry['citations'] = citation_keys
+            section.append(entry)
+
+        return recorder
 
     def _ts_to_date(self, ts):
         return datetime.fromtimestamp(ts, tzlocal.get_localzone())
@@ -181,6 +241,16 @@ class ProvenanceCapture:
             util.duration_time(relativedelta.relativedelta(end, start))
 
         return execution
+
+    def make_transformers_section(self):
+        transformers = collections.OrderedDict()
+        data = self.transformers.copy()
+        output = data.pop('return', None)
+        if data:
+            transformers['inputs'] = data
+        if output is not None:
+            transformers['output'] = output
+        return transformers
 
     def make_env_section(self):
         env = collections.OrderedDict()
@@ -203,9 +273,29 @@ class ProvenanceCapture:
             fh.write('\n')
             fh.write(yaml.dump({'action': self.make_action_section()},
                                **settings))
+            if self.transformers:  # pipelines don't have these
+                fh.write('\n')
+                fh.write(yaml.dump(
+                    {'transformers': self.make_transformers_section()},
+                    **settings))
             fh.write('\n')
             fh.write(yaml.dump({'environment': self.make_env_section()},
                                **settings))
+
+    def write_citations_bib(self):
+        entries = []
+        for key, citation in self.citations.items():
+            entry = citation.fields.copy()
+            entry['ID'] = key
+            entry['ENTRYTYPE'] = citation.type
+
+            entries.append(entry)
+
+        db = bp.bibdatabase.BibDatabase()
+        db.entries = entries
+
+        with (self.path / self.CITATION_FILE).open('w') as fh:
+            bp.dump(db, fh)
 
     def finalize(self, final_path, node_members):
         self.end = time.time()
@@ -214,13 +304,16 @@ class ProvenanceCapture:
             shutil.copy(str(member), str(self.path))
 
         self.write_action_yaml()
+        self.write_citations_bib()
 
         self.path.rename(final_path)
 
     def fork(self):
         forked = copy.copy(self)
-        # Unique `result` key for each output of an action
+        # Unique state for each output of an action
+        forked.plugins = forked.plugins.copy()
         forked.transformers = forked.transformers.copy()
+        forked.citations = forked.citations.copy()
         # create a copy of the backing dir so factory (the hard stuff is
         # mostly done by this point)
         forked._build_paths()
@@ -306,6 +399,17 @@ class ActionProvenanceCapture(ProvenanceCapture):
         action['inputs'] = self.inputs
         action['parameters'] = self.parameters
         action['output-name'] = self.output_name
+
+        action_citations = []
+        for idx, citation in enumerate(self.action.citations):
+            citation_key = 'action|%s|%s|%d' % (
+                self.action.get_import_path(repr=False),
+                self._plugin.version, idx)
+            self.citations[citation_key] = citation
+            action_citations.append(CitationKey(citation_key))
+
+        if action_citations:
+            action['citations'] = action_citations
 
         return action
 

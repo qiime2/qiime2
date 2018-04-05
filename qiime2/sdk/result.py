@@ -233,7 +233,7 @@ class Artifact(Result):
         from_type = transform.ModelType.from_view_type(view_type)
         to_type = transform.ModelType.from_view_type(output_dir_fmt)
 
-        recorder = provenance_capture.transformation_recorder('result')
+        recorder = provenance_capture.transformation_recorder('return')
         transformation = from_type.make_transformation(to_type,
                                                        recorder=recorder)
         result = transformation(view)

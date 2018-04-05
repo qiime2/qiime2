@@ -73,7 +73,7 @@ class Action(metaclass=abc.ABCMeta):
 
     # Private constructor
     @classmethod
-    def _init(cls, callable, signature, package, name, description):
+    def _init(cls, callable, signature, package, name, description, citations):
         """
 
         Parameters
@@ -88,18 +88,20 @@ class Action(metaclass=abc.ABCMeta):
 
         """
         self = cls.__new__(cls)
-        self.__init(callable, signature, package, name, description)
+        self.__init(callable, signature, package, name, description, citations)
         return self
 
     # This "extra private" constructor is necessary because `Action` objects
     # can be initialized from a static (classmethod) context or on an
     # existing instance (see `_init` and `__setstate__`, respectively).
-    def __init(self, callable, signature, package, name, description):
+    def __init(self, callable, signature, package, name, description,
+               citations):
         self._callable = callable
         self.signature = signature
         self.package = package
         self.name = name
         self.description = description
+        self.citations = citations
 
         self.id = callable.__name__
         self._dynamic_call = self._get_callable_wrapper()
@@ -128,8 +130,9 @@ class Action(metaclass=abc.ABCMeta):
                 self._callable.__name__)
         return markdown_source_template % {'source': source}
 
-    def get_import_path(self):
-        return self.package + '.' + self.id
+    def get_import_path(self, repr=True):
+        d = '.' if repr else ':'
+        return ''.join([self.package, d, self.id])
 
     def __repr__(self):
         return "<%s %s>" % (self.type, self.get_import_path())
@@ -140,7 +143,8 @@ class Action(metaclass=abc.ABCMeta):
             'signature': self.signature,
             'package': self.package,
             'name': self.name,
-            'description': self.description
+            'description': self.description,
+            'citations': self.citations
         }
 
     def __setstate__(self, state):
@@ -398,12 +402,13 @@ class Method(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, package, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions):
+              output_descriptions, citations):
         signature = qtype.MethodSignature(callable, inputs, parameters,
                                           outputs, input_descriptions,
                                           parameter_descriptions,
                                           output_descriptions)
-        return super()._init(callable, signature, package, name, description)
+        return super()._init(callable, signature, package, name, description,
+                             citations)
 
 
 class Visualizer(Action):
@@ -435,11 +440,12 @@ class Visualizer(Action):
 
     @classmethod
     def _init(cls, callable, inputs, parameters, package, name, description,
-              input_descriptions, parameter_descriptions):
+              input_descriptions, parameter_descriptions, citations):
         signature = qtype.VisualizerSignature(callable, inputs, parameters,
                                               input_descriptions,
                                               parameter_descriptions)
-        return super()._init(callable, signature, package, name, description)
+        return super()._init(callable, signature, package, name, description,
+                             citations)
 
 
 class Pipeline(Action):
@@ -489,12 +495,13 @@ class Pipeline(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, package, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions):
+              output_descriptions, citations):
         signature = qtype.PipelineSignature(callable, inputs, parameters,
                                             outputs, input_descriptions,
                                             parameter_descriptions,
                                             output_descriptions)
-        return super()._init(callable, signature, package, name, description)
+        return super()._init(callable, signature, package, name, description,
+                             citations)
 
 
 markdown_source_template = """

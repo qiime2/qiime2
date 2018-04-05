@@ -9,6 +9,7 @@
 from .model import (TextFileFormat, BinaryFileFormat, DirectoryFormat,
                     ValidationError)
 from .plugin import Plugin
+from .cite import Citations, CitationRecord
 
 from qiime2.core.type import (SemanticType, Int, Str, Float, Color, Metadata,
                               MetadataColumn, Categorical, Numeric, Properties,
@@ -19,4 +20,4 @@ __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
            'SemanticType', 'Set', 'List', 'Bool', 'Int', 'Str', 'Float',
            'Color', 'Metadata', 'MetadataColumn', 'Categorical', 'Numeric',
            'Properties', 'Range', 'Choices', 'Visualization',
-           'ValidationError']
+           'ValidationError', 'Citations', 'CitationRecord']

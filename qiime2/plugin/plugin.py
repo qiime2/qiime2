@@ -9,55 +9,59 @@
 import collections
 import types
 
-import yaml
-
 import qiime2.sdk
 import qiime2.core.type.grammar as grammar
 from qiime2.plugin.model import DirectoryFormat
 from qiime2.plugin.model.base import FormatBase
+from qiime2.plugin.cite import Citations
 from qiime2.core.type import is_semantic_type
+from qiime2.core.util import get_view_name
 
 
 TransformerRecord = collections.namedtuple(
-    'TransformerRecord', ['transformer', 'restrict', 'plugin'])
+    'TransformerRecord', ['transformer', 'plugin', 'citations'])
 SemanticTypeRecord = collections.namedtuple(
     'SemanticTypeRecord', ['semantic_type', 'plugin'])
 FormatRecord = collections.namedtuple('FormatRecord', ['format', 'plugin'])
+ViewRecord = collections.namedtuple(
+    'ViewRecord', ['name', 'view', 'plugin', 'citations'])
 TypeFormatRecord = collections.namedtuple(
     'TypeFormatRecord', ['type_expression', 'format', 'plugin'])
 
 
 class Plugin:
-    @staticmethod
-    def yaml_representer(dumper, data):
-        items = [
-            ('version', data.version),
-            ('website', data.website)
-        ]
-        return dumper.represent_dict(items)
-
     def __init__(self, name, version, website, package,
                  citation_text=None, user_support_text=None,
-                 short_description=None, description=None):
+                 short_description=None, description=None, citations=None):
         self.name = name
         self.version = version
         self.website = website
         self.package = package
-        if citation_text is None:
-            self.citation_text = ('No citation available. Cite plugin '
-                                  'website: %s' % self.website)
+        if citations is None:
+            if citation_text:
+                # Use legacy citation system
+                self.citations = [
+                    Citations.unformatted_citation(citation_text)]
+            else:
+                self.citations = [Citations.website_citation(self.website)]
+        elif citation_text is not None:
+            raise ValueError("citation_text should not be used if citations"
+                             " are available.")
         else:
-            self.citation_text = citation_text
+            self.citations = list(citations)
+
         if user_support_text is None:
             self.user_support_text = ('Please post to the QIIME 2 forum for '
                                       'help with this plugin: https://forum.'
                                       'qiime2.org')
         else:
             self.user_support_text = user_support_text
+
         if short_description is None:
             self.short_description = ''
         else:
             self.short_description = short_description
+
         if description is None:
             self.description = ('No description available. '
                                 'See plugin website: %s'
@@ -70,6 +74,7 @@ class Plugin:
         self.pipelines = PluginPipelines(self)
 
         self.formats = {}
+        self.views = {}
         self.types = {}
         self.transformers = {}
         self.type_formats = []
@@ -86,17 +91,39 @@ class Plugin:
         actions.update(self.pipelines)
         return types.MappingProxyType(actions)
 
-    def register_formats(self, *formats):
+    def register_formats(self, *formats, citations=None):
         for format in formats:
             if not issubclass(format, FormatBase):
                 raise TypeError("%r is not a valid format." % format)
-            if format.__name__ in self.formats:
-                raise NameError("%r is already a registered format." % format)
 
-            self.formats[format.__name__] = FormatRecord(format=format,
-                                                         plugin=self)
+        self.register_views(*formats, citations=citations)
 
-    def register_transformer(self, _fn=None, *, restrict=None):
+    def register_views(self, *views, citations=None):
+        if citations is None:
+            citations = []
+        else:
+            citations = list(citations)
+
+        for view in views:
+            if not isinstance(view, type):
+                raise TypeError("%r should be a class." % view)
+
+            is_format = False
+            if issubclass(view, FormatBase):
+                is_format = True
+
+            name = get_view_name(view)
+            if name in self.views:
+                raise NameError("View %r is already registered by this "
+                                "plugin." % name)
+
+            self.views[name] = ViewRecord(
+                name=name, view=view, plugin=self, citations=citations)
+
+            if is_format:
+                self.formats[name] = FormatRecord(format=view, plugin=self)
+
+    def register_transformer(self, _fn=None, *, citations=None):
         """
         A transformer has the type Callable[[type], type]
         """
@@ -113,6 +140,10 @@ class Plugin:
         # def _(x: A) -> B:
         #   ...
         # ```
+        if citations is None:
+            citations = []
+        else:
+            citations = list(citations)
 
         def decorator(transformer):
             annotations = transformer.__annotations__.copy()
@@ -138,7 +169,7 @@ class Plugin:
                                 % (transformer, input, output))
 
             self.transformers[input, output] = TransformerRecord(
-                transformer=transformer, restrict=restrict, plugin=self)
+                transformer=transformer, plugin=self, citations=citations)
             return transformer
 
         if _fn is None:
@@ -182,9 +213,6 @@ class Plugin:
             format=artifact_format, plugin=self))
 
 
-yaml.add_representer(Plugin, Plugin.yaml_representer)
-
-
 class PluginActions(dict):
     _subpackage = None
 
@@ -203,12 +231,17 @@ class PluginMethods(PluginActions):
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
-                          output_descriptions=None):
+                          output_descriptions=None, citations=None):
+        if citations is None:
+            citations = []
+        else:
+            citations = list(citations)
+
         method = qiime2.sdk.Method._init(function, inputs, parameters, outputs,
                                          self._package, name, description,
                                          input_descriptions,
                                          parameter_descriptions,
-                                         output_descriptions)
+                                         output_descriptions, citations)
         self[method.id] = method
 
 
@@ -217,12 +250,18 @@ class PluginVisualizers(PluginActions):
 
     def register_function(self, function, inputs, parameters, name,
                           description, input_descriptions=None,
-                          parameter_descriptions=None):
+                          parameter_descriptions=None, citations=None):
+        if citations is None:
+            citations = []
+        else:
+            citations = list(citations)
+
         visualizer = qiime2.sdk.Visualizer._init(function, inputs, parameters,
                                                  self._package, name,
                                                  description,
                                                  input_descriptions,
-                                                 parameter_descriptions)
+                                                 parameter_descriptions,
+                                                 citations)
         self[visualizer.id] = visualizer
 
 
@@ -232,10 +271,15 @@ class PluginPipelines(PluginActions):
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
-                          output_descriptions=None):
+                          output_descriptions=None, citations=None):
+        if citations is None:
+            citations = []
+        else:
+            citations = list(citations)
+
         pipeline = qiime2.sdk.Pipeline._init(function, inputs, parameters,
                                              outputs, self._package, name,
                                              description, input_descriptions,
                                              parameter_descriptions,
-                                             output_descriptions)
+                                             output_descriptions, citations)
         self[pipeline.id] = pipeline
