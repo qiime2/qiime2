@@ -116,6 +116,10 @@ class ProvenanceCapture:
         self.transformers = collections.OrderedDict()
         self.citations = collections.OrderedDict()
 
+        for idx, citation in enumerate(qiime2.__citations__):
+            citation_key = 'framework|qiime2|%s|%d' % (qiime2.__version__, idx)
+            self.citations[citation_key] = citation
+
         self._build_paths()
 
     @property
@@ -294,8 +298,10 @@ class ProvenanceCapture:
         db = bp.bibdatabase.BibDatabase()
         db.entries = entries
 
+        writer = bp.bwriter.BibTexWriter()
+        writer.order_entries_by = tuple(self.citations.keys())
         with (self.path / self.CITATION_FILE).open('w') as fh:
-            bp.dump(db, fh)
+            bp.dump(db, fh, writer=writer)
 
     def finalize(self, final_path, node_members):
         self.end = time.time()
@@ -351,6 +357,14 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.parameters = OrderedKeyValue()
         self.output_name = ''
 
+        self._action_citations = []
+        for idx, citation in enumerate(self.action.citations):
+            citation_key = 'action|%s|%s|%d' % (
+                self.action.get_import_path(repr=False),
+                self._plugin.version, idx)
+            self.citations[citation_key] = citation
+            self._action_citations.append(CitationKey(citation_key))
+
     def handle_metadata(self, name, value):
         if value is None:
             return None
@@ -400,16 +414,9 @@ class ActionProvenanceCapture(ProvenanceCapture):
         action['parameters'] = self.parameters
         action['output-name'] = self.output_name
 
-        action_citations = []
-        for idx, citation in enumerate(self.action.citations):
-            citation_key = 'action|%s|%s|%d' % (
-                self.action.get_import_path(repr=False),
-                self._plugin.version, idx)
-            self.citations[citation_key] = citation
-            action_citations.append(CitationKey(citation_key))
 
-        if action_citations:
-            action['citations'] = action_citations
+        if self._action_citations:
+            action['citations'] = self._action_citations
 
         return action
 

@@ -12,7 +12,7 @@ class Citations(dict):
     @classmethod
     def load(cls, path, package=None):
         if package is not None:
-            root = pkg_resources.resource_filename(package, '..')
+            root = pkg_resources.resource_filename(package, '.')
             root = os.path.abspath(root)
             path = os.path.join(root, path)
 

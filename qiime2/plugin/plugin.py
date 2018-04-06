@@ -31,24 +31,12 @@ TypeFormatRecord = collections.namedtuple(
 
 class Plugin:
     def __init__(self, name, version, website, package,
-                 citation_text=None, user_support_text=None,
-                 short_description=None, description=None, citations=None):
+                 user_support_text=None, short_description=None,
+                 description=None, citations=None):
         self.name = name
         self.version = version
         self.website = website
         self.package = package
-        if citations is None:
-            if citation_text:
-                # Use legacy citation system
-                self.citations = [
-                    Citations.unformatted_citation(citation_text)]
-            else:
-                self.citations = [Citations.website_citation(self.website)]
-        elif citation_text is not None:
-            raise ValueError("citation_text should not be used if citations"
-                             " are available.")
-        else:
-            self.citations = list(citations)
 
         if user_support_text is None:
             self.user_support_text = ('Please post to the QIIME 2 forum for '
@@ -68,6 +56,11 @@ class Plugin:
                                 % self.website)
         else:
             self.description = description
+
+        if citations is None:
+            self.citations = []
+        else:
+            self.citations = tuple(citations)
 
         self.methods = PluginMethods(self)
         self.visualizers = PluginVisualizers(self)
@@ -102,7 +95,7 @@ class Plugin:
         if citations is None:
             citations = []
         else:
-            citations = list(citations)
+            citations = tuple(citations)
 
         for view in views:
             if not isinstance(view, type):
@@ -143,7 +136,7 @@ class Plugin:
         if citations is None:
             citations = []
         else:
-            citations = list(citations)
+            citations = tuple(citations)
 
         def decorator(transformer):
             annotations = transformer.__annotations__.copy()
@@ -235,7 +228,7 @@ class PluginMethods(PluginActions):
         if citations is None:
             citations = []
         else:
-            citations = list(citations)
+            citations = tuple(citations)
 
         method = qiime2.sdk.Method._init(function, inputs, parameters, outputs,
                                          self._package, name, description,
@@ -254,7 +247,7 @@ class PluginVisualizers(PluginActions):
         if citations is None:
             citations = []
         else:
-            citations = list(citations)
+            citations = tuple(citations)
 
         visualizer = qiime2.sdk.Visualizer._init(function, inputs, parameters,
                                                  self._package, name,
@@ -275,7 +268,7 @@ class PluginPipelines(PluginActions):
         if citations is None:
             citations = []
         else:
-            citations = list(citations)
+            citations = tuple(citations)
 
         pipeline = qiime2.sdk.Pipeline._init(function, inputs, parameters,
                                              outputs, self._package, name,
