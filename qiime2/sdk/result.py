@@ -94,6 +94,10 @@ class Result:
     def format(self):
         return self._archiver.format
 
+    @property
+    def citations(self):
+        return self._archiver.citations
+
     def __init__(self):
         raise NotImplementedError(
             "%(classname)s constructor is private, use `%(classname)s.load`, "

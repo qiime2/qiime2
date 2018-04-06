@@ -104,6 +104,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'data/nested/file4.txt',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -164,6 +165,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'data/nested/file4.txt',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -179,6 +181,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'data/nested/file4.txt',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -251,6 +254,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'data/nested/file4.txt',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 

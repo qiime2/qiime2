@@ -20,10 +20,10 @@ import distutils
 import yaml
 import tzlocal
 import dateutil.relativedelta as relativedelta
-import bibtexparser as bp
 
 import qiime2
 import qiime2.core.util as util
+from qiime2.core.cite import Citations
 
 
 # Used to give PyYAML something to recognize for custom tags
@@ -114,7 +114,7 @@ class ProvenanceCapture:
         # we expect to transform this later when serializing, but this lets
         # us treat all transformations uniformly.
         self.transformers = collections.OrderedDict()
-        self.citations = collections.OrderedDict()
+        self.citations = Citations()
 
         for idx, citation in enumerate(qiime2.__citations__):
             citation_key = 'framework|qiime2|%s|%d' % (qiime2.__version__, idx)
@@ -287,21 +287,7 @@ class ProvenanceCapture:
                                **settings))
 
     def write_citations_bib(self):
-        entries = []
-        for key, citation in self.citations.items():
-            entry = citation.fields.copy()
-            entry['ID'] = key
-            entry['ENTRYTYPE'] = citation.type
-
-            entries.append(entry)
-
-        db = bp.bibdatabase.BibDatabase()
-        db.entries = entries
-
-        writer = bp.bwriter.BibTexWriter()
-        writer.order_entries_by = tuple(self.citations.keys())
-        with (self.path / self.CITATION_FILE).open('w') as fh:
-            bp.dump(db, fh, writer=writer)
+        self.citations.save(str(self.path / self.CITATION_FILE))
 
     def finalize(self, final_path, node_members):
         self.end = time.time()
@@ -413,7 +399,6 @@ class ActionProvenanceCapture(ProvenanceCapture):
         action['inputs'] = self.inputs
         action['parameters'] = self.parameters
         action['output-name'] = self.output_name
-
 
         if self._action_citations:
             action['citations'] = self._action_citations

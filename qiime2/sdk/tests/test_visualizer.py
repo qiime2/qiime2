@@ -245,12 +245,15 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/VERSION' % artifact1.uuid,
+            'provenance/artifacts/%s/citations.bib' % artifact1.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/metadata.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/VERSION' % artifact2.uuid,
+            'provenance/artifacts/%s/citations.bib' % artifact2.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid
         }
 
@@ -290,9 +293,11 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'data/index.tsv',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact.uuid,
             'provenance/artifacts/%s/VERSION' % artifact.uuid,
+            'provenance/artifacts/%s/citations.bib' % artifact.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact.uuid
         }
 
@@ -318,6 +323,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'data/index.html',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -342,6 +348,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'data/index.html',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -385,12 +392,15 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/VERSION' % artifact1.uuid,
+            'provenance/artifacts/%s/citations.bib' % artifact1.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/metadata.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/VERSION' % artifact2.uuid,
+            'provenance/artifacts/%s/citations.bib' % artifact2.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid
         }
 

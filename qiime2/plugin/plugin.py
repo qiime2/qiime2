@@ -13,7 +13,6 @@ import qiime2.sdk
 import qiime2.core.type.grammar as grammar
 from qiime2.plugin.model import DirectoryFormat
 from qiime2.plugin.model.base import FormatBase
-from qiime2.plugin.cite import Citations
 from qiime2.core.type import is_semantic_type
 from qiime2.core.util import get_view_name
 
@@ -30,7 +29,7 @@ TypeFormatRecord = collections.namedtuple(
 
 
 class Plugin:
-    def __init__(self, name, version, website, package,
+    def __init__(self, name, version, website, package, citation_text=None,
                  user_support_text=None, short_description=None,
                  description=None, citations=None):
         self.name = name
@@ -58,7 +57,7 @@ class Plugin:
             self.description = description
 
         if citations is None:
-            self.citations = []
+            self.citations = ()
         else:
             self.citations = tuple(citations)
 
@@ -93,7 +92,7 @@ class Plugin:
 
     def register_views(self, *views, citations=None):
         if citations is None:
-            citations = []
+            citations = ()
         else:
             citations = tuple(citations)
 
@@ -134,7 +133,7 @@ class Plugin:
         #   ...
         # ```
         if citations is None:
-            citations = []
+            citations = ()
         else:
             citations = tuple(citations)
 
@@ -226,7 +225,7 @@ class PluginMethods(PluginActions):
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None):
         if citations is None:
-            citations = []
+            citations = ()
         else:
             citations = tuple(citations)
 
@@ -245,7 +244,7 @@ class PluginVisualizers(PluginActions):
                           description, input_descriptions=None,
                           parameter_descriptions=None, citations=None):
         if citations is None:
-            citations = []
+            citations = ()
         else:
             citations = tuple(citations)
 
@@ -266,7 +265,7 @@ class PluginPipelines(PluginActions):
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None):
         if citations is None:
-            citations = []
+            citations = ()
         else:
             citations = tuple(citations)
 

@@ -52,10 +52,10 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
             version = zf.read(os.path.join(root_dir, 'VERSION'))
         self.assertRegex(str(version), '^.*archive: 0.*$')
 
-    def test_write_v1_archive(self):
+    def test_write_v4_archive(self):
         fp = os.path.join(self.temp_dir.name, 'artifact_v1.qza')
 
-        with artifact_version(1):
+        with artifact_version(4):
             artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
                                            self.provenance_capture)
             artifact.save(fp)
@@ -70,10 +70,11 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
             'data/nested/file4.txt',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml',
         }
         self.assertArchiveMembers(fp, root_dir, expected)
 
         with zipfile.ZipFile(fp, mode='r') as zf:
             version = zf.read(os.path.join(root_dir, 'VERSION'))
-        self.assertRegex(str(version), '^.*archive: 1.*$')
+        self.assertRegex(str(version), '^.*archive: 4.*$')

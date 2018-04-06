@@ -4,11 +4,10 @@ import collections
 
 import bibtexparser as bp
 
-
 CitationRecord = collections.namedtuple('CitationRecord', ['type', 'fields'])
 
 
-class Citations(dict):
+class Citations(collections.OrderedDict):
     @classmethod
     def load(cls, path, package=None):
         if package is not None:
@@ -16,9 +15,13 @@ class Citations(dict):
             root = os.path.abspath(root)
             path = os.path.join(root, path)
 
+        parser = bp.bparser.BibTexParser()
+        # Downstream tooling is much easier with unicode. For actual latex
+        # users, use the modern biber backend instead of bibtex
+        parser.customization = bp.customization.convert_to_unicode
         with open(path) as fh:
             try:
-                db = bp.load(fh)
+                db = bp.load(fh, parser=parser)
             except Exception as e:
                 raise ValueError("There was a problem loading the BiBTex file:"
                                  "%r" % path) from e
@@ -46,3 +49,20 @@ class Citations(dict):
 
     def __iter__(self):
         yield from self.values()
+
+    def save(self, filepath):
+        entries = []
+        for key, citation in self.items():
+            entry = citation.fields.copy()
+            entry['ID'] = key
+            entry['ENTRYTYPE'] = citation.type
+
+            entries.append(entry)
+
+        db = bp.bibdatabase.BibDatabase()
+        db.entries = entries
+
+        writer = bp.bwriter.BibTexWriter()
+        writer.order_entries_by = tuple(self.keys())
+        with open(filepath, 'w') as fh:
+            bp.dump(db, fh, writer=writer)

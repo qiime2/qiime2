@@ -8,6 +8,7 @@
 
 from importlib import import_module
 
+import qiime2
 from qiime2.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
                            Visualization, Metadata, MetadataColumn,
                            Categorical, Numeric)
@@ -51,8 +52,8 @@ dummy_plugin = Plugin(
     version='0.0.0-dev',
     website='https://github.com/qiime2/qiime2',
     package='qiime2.core.testing',
-    citation_text='No relevant citation.',
-    user_support_text='For help, see https://qiime2.org'
+    user_support_text='For help, see https://qiime2.org',
+    citations=qiime2.__citations__
 )
 
 import_module('qiime2.core.testing.transformer')

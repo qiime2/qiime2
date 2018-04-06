@@ -83,6 +83,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -120,6 +121,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -133,6 +135,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -207,6 +210,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 

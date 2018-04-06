@@ -90,6 +90,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'data/ints.txt',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -107,6 +108,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'data/ints.txt',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -150,6 +152,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '%s/data/ints.txt' % root_dir,
                 '%s/provenance/metadata.yaml' % root_dir,
                 '%s/provenance/VERSION' % root_dir,
+                '%s/provenance/citations.bib' % root_dir,
                 '%s/provenance/action/action.yaml' % root_dir
             }
 
@@ -196,6 +199,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'data/nested/foo.txt',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -218,6 +222,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'data/nested/foo.txt',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -279,6 +284,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '%s/data/ints.txt' % root_dir,
                 '%s/provenance/metadata.yaml' % root_dir,
                 '%s/provenance/VERSION' % root_dir,
+                '%s/provenance/citations.bib' % root_dir,
                 '%s/provenance/action/action.yaml' % root_dir,
                 '%s/VERSION' % second_root_dir
             }
