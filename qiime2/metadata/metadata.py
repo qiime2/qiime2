@@ -11,6 +11,7 @@ import collections
 import itertools
 import sqlite3
 import types
+import warnings
 
 import pandas as pd
 import numpy as np
@@ -570,8 +571,13 @@ class Metadata(_MetadataBase):
         conn = sqlite3.connect(':memory:')
         conn.row_factory = lambda cursor, row: row[0]
 
-        self._dataframe.to_sql('metadata', conn, index=True,
-                               index_label=self.id_header)
+        # https://github.com/pandas-dev/pandas/blob/
+        # 7c7bd569ce8e0f117c618d068e3d2798134dbc73/pandas/io/sql.py#L1306
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore', 'The spaces in these column names will not.*')
+            self._dataframe.to_sql('metadata', conn, index=True,
+                                   index_label=self.id_header)
         c = conn.cursor()
 
         # In general we wouldn't want to format our query in this way because
