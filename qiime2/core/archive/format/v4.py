@@ -12,10 +12,14 @@ from qiime2.core.cite import Citations
 
 
 class ArchiveFormat(v3.ArchiveFormat):
-    # Adds a transformers section to action.yaml and adds citations via the
-    # !cite yaml type which references the /provenance/citations.bib file
-    # (this is nested like everything else in the /provenance/artifacts/
-    # directories).
+    # - Adds a transformers section to action.yaml
+    # - Adds citations via the !cite yaml type which references the
+    #   /provenance/citations.bib file (this is nested like everything else
+    #                                   in the /provenance/artifacts/
+    #                                   directories).
+    # - environment:framework has been updated to be a nested object,
+    #   its schema is identical to a environment:plugins:<entry> object.
+    #   Prior to v4, it was only a version string.
 
     @property
     def citations(self):

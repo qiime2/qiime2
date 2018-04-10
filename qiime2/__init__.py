@@ -20,6 +20,7 @@ del get_versions
 # to be compatible.
 __release__ = '.'.join(__version__.split('.')[:2])
 __citations__ = tuple(Citations.load('citations.bib', package='qiime2'))
+__website__ = 'https://qiime2.org'
 
 __all__ = ['Artifact', 'Visualization', 'Metadata', 'MetadataColumn',
            'CategoricalMetadataColumn', 'NumericMetadataColumn']

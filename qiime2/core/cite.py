@@ -1,3 +1,11 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2016-2018, QIIME 2 development team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+# ----------------------------------------------------------------------------
+
 import os
 import pkg_resources
 import collections
@@ -25,7 +33,8 @@ class Citations(collections.OrderedDict):
             except Exception as e:
                 raise ValueError("There was a problem loading the BiBTex file:"
                                  "%r" % path) from e
-        entries = {}
+
+        entries = collections.OrderedDict()
         for entry in db.entries:
             id_ = entry.pop('ID')
             type_ = entry.pop('ENTRYTYPE')
@@ -36,19 +45,8 @@ class Citations(collections.OrderedDict):
 
         return cls(entries)
 
-    @classmethod
-    def unformatted_citation(cls, text):
-        return CitationRecord('misc', {'note': text})
-
-    @classmethod
-    def website_citation(cls, url):
-        return CitationRecord('misc', {
-            'note': 'No citation available. Cite plugin website.',
-            'url': url
-        })
-
     def __iter__(self):
-        yield from self.values()
+        return iter(self.values())
 
     def save(self, filepath):
         entries = []

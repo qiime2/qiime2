@@ -115,10 +115,12 @@ class ProvenanceCapture:
         # us treat all transformations uniformly.
         self.transformers = collections.OrderedDict()
         self.citations = Citations()
+        self._framework_citations = []
 
         for idx, citation in enumerate(qiime2.__citations__):
-            citation_key = 'framework|qiime2|%s|%d' % (qiime2.__version__, idx)
-            self.citations[citation_key] = citation
+            citation_key = self.make_citation_key('framework')
+            self.citations[citation_key.key] = citation
+            self._framework_citations.append(citation_key)
 
         self._build_paths()
 
@@ -166,22 +168,36 @@ class ProvenanceCapture:
 
         return str(artifact.uuid)
 
-    def reference_plugin(self, plugin):
+    def make_citation_key(self, domain, package=None, identifier=None,
+                          index=0):
+        if domain == 'framework':
+            package, version = 'qiime2', qiime2.__version__
+        else:
+            package, version = package.name, package.version
+        id_block = [] if identifier is None else [identifier]
+
+        return CitationKey('|'.join(
+            [domain, package + ':' + version] + id_block + [str(index)]))
+
+    def make_software_entry(self, version, website, citations=()):
         entry = collections.OrderedDict()
 
+        entry['version'] = version
+        entry['website'] = website
+        if citations:
+            entry['citations'] = citations
+
+        return entry
+
+    def reference_plugin(self, plugin):
         plugin_citations = []
         for idx, citation in enumerate(plugin.citations):
-            citation_key = 'plugin|%s|%s|%d' % (
-                plugin.name, plugin.version, idx)
-            self.citations[citation_key] = citation
-            plugin_citations.append(CitationKey(citation_key))
+            citation_key = self.make_citation_key('plugin', plugin, index=idx)
+            self.citations[citation_key.key] = citation
+            plugin_citations.append(citation_key)
 
-        entry['version'] = plugin.version
-        entry['website'] = plugin.website
-        if plugin_citations:
-            entry['citations'] = plugin_citations
-
-        self.plugins[plugin.name] = entry
+        self.plugins[plugin.name] = self.make_software_entry(
+            plugin.version, plugin.website, plugin_citations)
 
         return ForwardRef('environment:plugins:' + plugin.name)
 
@@ -204,27 +220,24 @@ class ProvenanceCapture:
                 entry['plugin'] = self.reference_plugin(plugin)
 
                 for idx, citation in enumerate(transformer_record.citations):
-                    citation_key = 'transformer|%s->%s|%s|%d' % (
-                        input_record.name, output_record.name,
-                        plugin.version, idx)
-                    self.citations[citation_key] = citation
-                    citation_keys.append(CitationKey(citation_key))
+                    citation_key = self.make_citation_key(
+                        'transformer', plugin,
+                        '%s->%s' % (input_name, output_name), idx)
+                    self.citations[citation_key.key] = citation
+                    citation_keys.append(citation_key)
 
+            records = []
             if input_record is not None:
-                self.reference_plugin(input_record.plugin)
-                for idx, citation in enumerate(input_record.citations):
-                    citation_key = 'view|%s|%s|%d' % (
-                        input_record.name, input_record.plugin.version, idx)
-                    self.citations[citation_key] = citation
-                    citation_keys.append(CitationKey(citation_key))
-
+                records.append(input_record)
             if output_record is not None:
-                self.reference_plugin(output_record.plugin)
-                for idx, citation in enumerate(output_record.citations):
-                    citation_key = 'view|%s|%s|%d' % (
-                        output_record.name, output_record.plugin.version, idx)
-                    self.citations[citation_key] = citation
-                    citation_keys.append(CitationKey(citation_key))
+                records.append(output_record)
+            for record in records:
+                self.reference_plugin(record.plugin)
+                for idx, citation in enumerate(record.citations):
+                    citation_key = self.make_citation_key(
+                        'view', record.plugin, record.name, idx)
+                    self.citations[citation_key.key] = citation
+                    citation_keys.append(citation_key)
 
             if citation_keys:
                 entry['citations'] = citation_keys
@@ -263,7 +276,8 @@ class ProvenanceCapture:
         # use literal formatting.
         env['python'] = LiteralString('\n'.join(line.strip() for line in
                                       sys.version.split('\n')))
-        env['framework'] = qiime2.__version__
+        env['framework'] = self.make_software_entry(
+            qiime2.__version__, qiime2.__website__, self._framework_citations)
         env['plugins'] = self.plugins
         env['python-packages'] = self.capture_env()
 
@@ -345,11 +359,11 @@ class ActionProvenanceCapture(ProvenanceCapture):
 
         self._action_citations = []
         for idx, citation in enumerate(self.action.citations):
-            citation_key = 'action|%s|%s|%d' % (
-                self.action.get_import_path(repr=False),
-                self._plugin.version, idx)
-            self.citations[citation_key] = citation
-            self._action_citations.append(CitationKey(citation_key))
+            citation_key = self.make_citation_key(
+                'action', self._plugin,
+                ':'.join([self.action_type, self.action.id]), idx)
+            self.citations[citation_key.key] = citation
+            self._action_citations.append(citation_key)
 
     def handle_metadata(self, name, value):
         if value is None:

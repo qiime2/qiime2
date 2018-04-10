@@ -19,7 +19,7 @@ from .format import (
     UnimportableFormat,
     RedundantSingleIntDirectoryFormat
 )
-from .plugin import dummy_plugin
+from .plugin import dummy_plugin, citations
 
 
 @dummy_plugin.register_transformer
@@ -36,7 +36,7 @@ def _5(ff: SingleIntFormat) -> int:
         return int(fh.read())
 
 
-@dummy_plugin.register_transformer
+@dummy_plugin.register_transformer(citations=[citations['krauth2012depth']])
 def _7(data: list) -> IntSequenceFormat:
     ff = IntSequenceFormat()
     with ff.open() as fh:
@@ -45,7 +45,7 @@ def _7(data: list) -> IntSequenceFormat:
     return ff
 
 
-@dummy_plugin.register_transformer
+@dummy_plugin.register_transformer(citations=citations)
 def _77(data: list) -> IntSequenceFormatV2:
     ff = IntSequenceFormatV2()
     with ff.open() as fh:
@@ -122,7 +122,7 @@ def _12(data: dict) -> MappingFormat:
     return ff
 
 
-@dummy_plugin.register_transformer
+@dummy_plugin.register_transformer(citations=[citations['silvers1997effects']])
 def _13(df: MappingDirectoryFormat) -> dict:
     # If this had been a `SingleFileDirectoryFormat` then this entire
     # transformer would have been redundant (the framework could infer it).

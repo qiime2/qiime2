@@ -130,9 +130,8 @@ class Action(metaclass=abc.ABCMeta):
                 self._callable.__name__)
         return markdown_source_template % {'source': source}
 
-    def get_import_path(self, repr=True):
-        d = '.' if repr else ':'
-        return ''.join([self.package, d, self.id])
+    def get_import_path(self):
+        return self.package + '.' + self.id
 
     def __repr__(self):
         return "<%s %s>" % (self.type, self.get_import_path())
