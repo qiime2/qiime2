@@ -8,6 +8,7 @@
 
 import collections
 import unittest
+import warnings
 
 import pandas as pd
 import pandas.util.testing as pdt
@@ -926,6 +927,18 @@ class TestGetIDs(unittest.TestCase):
         obs = metadata.get_ids(where="Weight < 100")
         exp = {'S1', 'S2'}
         self.assertEqual(obs, exp)
+
+    def test_column_with_space_in_name(self):
+        df = pd.DataFrame({'Subject': ['subject-1', 'subject-1', 'subject-2'],
+                           'Sample Type': ['gut', 'tongue', 'gut']},
+                          index=pd.Index(['S1', 'S2', 'S3'], name='id'))
+        metadata = Metadata(df)
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter('always')
+            metadata.get_ids()
+            # The list of captured warnings should be empty
+            self.assertFalse(w)
 
 
 class TestMerge(unittest.TestCase):
