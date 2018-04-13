@@ -96,6 +96,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
             'data/nested/file4.txt',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 
@@ -119,6 +120,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
+            'provenance/citations.bib',
             'provenance/action/action.yaml'
         }
 

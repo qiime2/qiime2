@@ -9,6 +9,7 @@ import pathlib
 
 from qiime2 import sdk
 from qiime2.plugin import model
+from qiime2.core import util
 
 
 def identity_transformer(view):
@@ -44,13 +45,23 @@ class ModelType:
     def __init__(self, view_type):
         self._pm = sdk.PluginManager()
         self._view_type = view_type
+        self._view_name = util.get_view_name(self._view_type)
+        self._record = None
+
+        if self._view_name in self._pm.views:
+            self._record = self._pm.views[self._view_name]
 
     def make_transformation(self, other, recorder=None):
-        # TODO: do something with the recorder.
-        transformer = self._get_transformer_to(other)
+        # record may be None in case of identity transformer
+        transformer, transformer_record = self._get_transformer_to(other)
         if transformer is None:
             raise Exception("No transformation from %r to %r" %
                             (self._view_type, other._view_type))
+
+        if recorder is not None:
+            recorder(transformer_record, input_name=self._view_name,
+                     input_record=self._record, output_name=other._view_name,
+                     output_record=other._record)
 
         def transformation(view):
             view = self.coerce_view(view)
@@ -69,12 +80,12 @@ class ModelType:
         return transformation
 
     def _get_transformer_to(self, other):
-        transformer = self._lookup_transformer(self._view_type,
-                                               other._view_type)
+        transformer, record = self._lookup_transformer(self._view_type,
+                                                       other._view_type)
         if transformer is None:
             return other._get_transformer_from(self)
 
-        return transformer
+        return transformer, record
 
     def has_transformation(self, other):
         """ Checks to see if there exist transformers for other
@@ -90,22 +101,23 @@ class ModelType:
             Does the specified transformer exist for other?
         """
 
-        transformer = self._get_transformer_to(other)
+        transformer, _ = self._get_transformer_to(other)
         return transformer is not None
 
     def _get_transformer_from(self, other):
-        return None
+        return None, None
 
     def coerce_view(self, view):
         return view
 
     def _lookup_transformer(self, from_, to_):
         if from_ == to_:
-            return identity_transformer
+            return identity_transformer, None
         try:
-            return self._pm.transformers[from_][to_].transformer
+            record = self._pm.transformers[from_][to_]
+            return record.transformer, record
         except KeyError:
-            return None
+            return None, None
 
     def set_user_owned(self, view, value):
         pass
@@ -154,24 +166,25 @@ class SingleFileDirectoryFormatType(FormatType):
         # It looks like all permutations because it is...
 
         # Dx -> y | Dy via Dx => y | Dy
-        transformer = self._wrap_transformer(self, other)
+        transformer, record = self._wrap_transformer(self, other)
         if transformer is not None:
-            return transformer
+            return transformer, record
 
         # Dx -> Dy via Dx -> x => y | Dy
-        transformer = self._wrap_transformer(self, other, wrap_input=True)
+        transformer, record = self._wrap_transformer(self, other,
+                                                     wrap_input=True)
         if transformer is not None:
-            return transformer
+            return transformer, record
 
         if type(other) is type(self):
             # Dx -> Dy via Dx -> x => y -> Dy
-            transformer = self._wrap_transformer(
+            transformer, record = self._wrap_transformer(
                 self, other, wrap_input=True, wrap_output=True)
             if transformer is not None:
-                return transformer
+                return transformer, record
 
         # Out of options, try for Dx -> Dy via Dx => y -> Dy
-        return other._get_transformer_from(self)
+        return other._get_transformer_from(self)  # record is included
 
     def _get_transformer_from(self, other):
         # x | Dx -> Dy via x | Dx => y -> Dy
@@ -183,9 +196,9 @@ class SingleFileDirectoryFormatType(FormatType):
         input = in_._wrapped_view_type if wrap_input else in_._view_type
         output = out_._wrapped_view_type if wrap_output else out_._view_type
 
-        transformer = self._lookup_transformer(input, output)
+        transformer, record = self._lookup_transformer(input, output)
         if transformer is None:
-            return None
+            return None, None
 
         if wrap_input:
             transformer = in_._wrap_input(transformer)
@@ -193,7 +206,7 @@ class SingleFileDirectoryFormatType(FormatType):
         if wrap_output:
             transformer = out_._wrap_output(transformer)
 
-        return transformer
+        return transformer, record
 
     def _wrap_input(self, transformer):
         def wrapped(view):

@@ -50,6 +50,7 @@ class PluginManager:
         self.semantic_types = {}
         self.transformers = collections.defaultdict(dict)
         self.formats = {}
+        self.views = {}
         self.type_formats = []
 
         # These are all dependent loops, each requires the loop above it to
@@ -78,14 +79,16 @@ class PluginManager:
                                  % transformer_record)
             self.transformers[input][output] = transformer_record
 
-        for name, record in plugin.formats.items():
-            if name in self.formats:
+        for name, record in plugin.views.items():
+            if name in self.views:
                 raise NameError(
-                    "Duplicate format registration (%r) defined in plugins: %r"
+                    "Duplicate view registration (%r) defined in plugins: %r"
                     " and %r" %
                     (name, record.plugin.name, self.formats[name].plugin.name)
                 )
+            self.views[name] = record
 
+        for name, record in plugin.formats.items():
             # TODO: remove this when `sniff` is removed
             fmt = record.format
             if hasattr(fmt, 'sniff') and hasattr(fmt, '_validate_'):

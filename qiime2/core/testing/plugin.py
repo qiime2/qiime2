@@ -43,7 +43,9 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
                        pipelines_in_pipeline, pointless_pipeline,
                        failing_pipeline)
+from ..cite import Citations
 
+citations = Citations.load('citations.bib', package='qiime2.core.testing')
 dummy_plugin = Plugin(
     name='dummy-plugin',
     description='Description of dummy plugin.',
@@ -51,8 +53,8 @@ dummy_plugin = Plugin(
     version='0.0.0-dev',
     website='https://github.com/qiime2/qiime2',
     package='qiime2.core.testing',
-    citation_text='No relevant citation.',
-    user_support_text='For help, see https://qiime2.org'
+    user_support_text='For help, see https://qiime2.org',
+    citations=[citations['unger1998does'], citations['berry1997flying']]
 )
 
 import_module('qiime2.core.testing.transformer')
@@ -63,11 +65,17 @@ dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, Mapping,
 
 # Register formats
 dummy_plugin.register_formats(
-    IntSequenceFormat, IntSequenceFormatV2, MappingFormat, SingleIntFormat,
-    IntSequenceDirectoryFormat, IntSequenceV2DirectoryFormat,
-    MappingDirectoryFormat, FourIntsDirectoryFormat, UnimportableFormat,
-    UnimportableDirectoryFormat, RedundantSingleIntDirectoryFormat
-)
+    IntSequenceFormatV2, MappingFormat, IntSequenceV2DirectoryFormat,
+    MappingDirectoryFormat)
+
+dummy_plugin.register_formats(
+    FourIntsDirectoryFormat, UnimportableDirectoryFormat, UnimportableFormat,
+    citations=[citations['baerheim1994effect']])
+
+dummy_plugin.register_views(
+    int, IntSequenceFormat, IntSequenceDirectoryFormat,
+    SingleIntFormat, RedundantSingleIntDirectoryFormat,
+    citations=[citations['mayer2012walking']])
 
 dummy_plugin.register_semantic_type_to_format(
     IntSequence1,
@@ -111,7 +119,8 @@ dummy_plugin.methods.register_function(
     ],
     name='Concatenate integers',
     description='This method concatenates integers into a single sequence in '
-                'the order they are provided.'
+                'the order they are provided.',
+    citations=[citations['baerheim1994effect']]
 )
 
 # TODO update to use TypeMap so IntSequence1 | IntSequence2 are accepted, and
@@ -130,7 +139,9 @@ dummy_plugin.methods.register_function(
     description='This method splits a sequence of integers in half, returning '
                 'the two halves (left and right). If the input sequence\'s '
                 'length is not evenly divisible by 2, the right half will '
-                'have one more element than the left.'
+                'have one more element than the left.',
+    citations=[
+        citations['witcombe2006sword'], citations['reimers2012response']]
 )
 
 dummy_plugin.methods.register_function(
@@ -385,7 +396,8 @@ dummy_plugin.visualizers.register_function(
     description='This visualizer produces HTML and TSV outputs containing the '
                 'input sequence of integers ordered from most- to '
                 'least-frequently occurring, along with their respective '
-                'frequencies.'
+                'frequencies.',
+    citations=[citations['barbeito1967microbiological']]
 )
 
 # TODO add optional parameters to this method when they are supported
@@ -426,7 +438,7 @@ dummy_plugin.pipelines.register_function(
     output_descriptions={
         'foo': 'Foo - "The Integers of 2"',
         'bar': 'Bar - "What a sequences"'
-    }
+    },
 )
 
 dummy_plugin.pipelines.register_function(
@@ -462,7 +474,8 @@ dummy_plugin.pipelines.register_function(
         'right_viz': '`right` visualized'
     },
     name='A typical pipeline with the potential to raise an error',
-    description='Waste some time shuffling data around for no reason'
+    description='Waste some time shuffling data around for no reason',
+    citations=citations  # ALL of them.
 )
 
 dummy_plugin.pipelines.register_function(

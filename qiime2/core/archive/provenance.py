@@ -23,6 +23,7 @@ import dateutil.relativedelta as relativedelta
 
 import qiime2
 import qiime2.core.util as util
+from qiime2.core.cite import Citations
 
 
 # Used to give PyYAML something to recognize for custom tags
@@ -31,6 +32,7 @@ NoProvenance = collections.namedtuple('NoProvenance', ['uuid'])
 MetadataPath = collections.namedtuple('MetadataPath', ['path'])
 ColorPrimitive = collections.namedtuple('ColorPrimitive', ['hex'])
 LiteralString = collections.namedtuple('LiteralString', ['string'])
+CitationKey = collections.namedtuple('CitationKey', ['key'])
 
 
 class OrderedKeyValue(collections.OrderedDict):
@@ -92,11 +94,15 @@ yaml.add_representer(MetadataPath, lambda dumper, data:
 yaml.add_representer(ColorPrimitive, lambda dumper, data:
                      dumper.represent_scalar('!color', data.hex))
 
+yaml.add_representer(CitationKey, lambda dumper, data:
+                     dumper.represent_scalar('!cite', data.key))
+
 
 class ProvenanceCapture:
     ANCESTOR_DIR = 'artifacts'
     ACTION_DIR = 'action'
     ACTION_FILE = 'action.yaml'
+    CITATION_FILE = 'citations.bib'
 
     def __init__(self):
         self.start = time.time()
@@ -108,6 +114,13 @@ class ProvenanceCapture:
         # we expect to transform this later when serializing, but this lets
         # us treat all transformations uniformly.
         self.transformers = collections.OrderedDict()
+        self.citations = Citations()
+        self._framework_citations = []
+
+        for idx, citation in enumerate(qiime2.__citations__):
+            citation_key = self.make_citation_key('framework')
+            self.citations[citation_key.key] = citation
+            self._framework_citations.append(citation_key)
 
         self._build_paths()
 
@@ -155,8 +168,37 @@ class ProvenanceCapture:
 
         return str(artifact.uuid)
 
+    def make_citation_key(self, domain, package=None, identifier=None,
+                          index=0):
+        if domain == 'framework':
+            package, version = 'qiime2', qiime2.__version__
+        else:
+            package, version = package.name, package.version
+        id_block = [] if identifier is None else [identifier]
+
+        return CitationKey('|'.join(
+            [domain, package + ':' + version] + id_block + [str(index)]))
+
+    def make_software_entry(self, version, website, citations=()):
+        entry = collections.OrderedDict()
+
+        entry['version'] = version
+        entry['website'] = website
+        if citations:
+            entry['citations'] = citations
+
+        return entry
+
     def reference_plugin(self, plugin):
-        self.plugins[plugin.name] = plugin
+        plugin_citations = []
+        for idx, citation in enumerate(plugin.citations):
+            citation_key = self.make_citation_key('plugin', plugin, index=idx)
+            self.citations[citation_key.key] = citation
+            plugin_citations.append(citation_key)
+
+        self.plugins[plugin.name] = self.make_software_entry(
+            plugin.version, plugin.website, plugin_citations)
+
         return ForwardRef('environment:plugins:' + plugin.name)
 
     def capture_env(self):
@@ -164,9 +206,44 @@ class ProvenanceCapture:
             (d.project_name, d.version) for d in pkg_resources.working_set)
 
     def transformation_recorder(self, name):
-        # TODO: this is currently stubbed, but not used.
-        record = self.transformers[name] = []
-        return record.append
+        section = self.transformers[name] = []
+
+        def recorder(transformer_record, input_name, input_record, output_name,
+                     output_record):
+            entry = collections.OrderedDict()
+            entry['from'] = input_name
+            entry['to'] = output_name
+            citation_keys = []
+
+            if transformer_record is not None:
+                plugin = transformer_record.plugin
+                entry['plugin'] = self.reference_plugin(plugin)
+
+                for idx, citation in enumerate(transformer_record.citations):
+                    citation_key = self.make_citation_key(
+                        'transformer', plugin,
+                        '%s->%s' % (input_name, output_name), idx)
+                    self.citations[citation_key.key] = citation
+                    citation_keys.append(citation_key)
+
+            records = []
+            if input_record is not None:
+                records.append(input_record)
+            if output_record is not None:
+                records.append(output_record)
+            for record in records:
+                self.reference_plugin(record.plugin)
+                for idx, citation in enumerate(record.citations):
+                    citation_key = self.make_citation_key(
+                        'view', record.plugin, record.name, idx)
+                    self.citations[citation_key.key] = citation
+                    citation_keys.append(citation_key)
+
+            if citation_keys:
+                entry['citations'] = citation_keys
+            section.append(entry)
+
+        return recorder
 
     def _ts_to_date(self, ts):
         return datetime.fromtimestamp(ts, tzlocal.get_localzone())
@@ -182,6 +259,16 @@ class ProvenanceCapture:
 
         return execution
 
+    def make_transformers_section(self):
+        transformers = collections.OrderedDict()
+        data = self.transformers.copy()
+        output = data.pop('return', None)
+        if data:
+            transformers['inputs'] = data
+        if output is not None:
+            transformers['output'] = output
+        return transformers
+
     def make_env_section(self):
         env = collections.OrderedDict()
         env['platform'] = pkg_resources.get_build_platform()
@@ -189,7 +276,8 @@ class ProvenanceCapture:
         # use literal formatting.
         env['python'] = LiteralString('\n'.join(line.strip() for line in
                                       sys.version.split('\n')))
-        env['framework'] = qiime2.__version__
+        env['framework'] = self.make_software_entry(
+            qiime2.__version__, qiime2.__website__, self._framework_citations)
         env['plugins'] = self.plugins
         env['python-packages'] = self.capture_env()
 
@@ -203,9 +291,17 @@ class ProvenanceCapture:
             fh.write('\n')
             fh.write(yaml.dump({'action': self.make_action_section()},
                                **settings))
+            if self.transformers:  # pipelines don't have these
+                fh.write('\n')
+                fh.write(yaml.dump(
+                    {'transformers': self.make_transformers_section()},
+                    **settings))
             fh.write('\n')
             fh.write(yaml.dump({'environment': self.make_env_section()},
                                **settings))
+
+    def write_citations_bib(self):
+        self.citations.save(str(self.path / self.CITATION_FILE))
 
     def finalize(self, final_path, node_members):
         self.end = time.time()
@@ -214,13 +310,16 @@ class ProvenanceCapture:
             shutil.copy(str(member), str(self.path))
 
         self.write_action_yaml()
+        self.write_citations_bib()
 
         self.path.rename(final_path)
 
     def fork(self):
         forked = copy.copy(self)
-        # Unique `result` key for each output of an action
+        # Unique state for each output of an action
+        forked.plugins = forked.plugins.copy()
         forked.transformers = forked.transformers.copy()
+        forked.citations = forked.citations.copy()
         # create a copy of the backing dir so factory (the hard stuff is
         # mostly done by this point)
         forked._build_paths()
@@ -257,6 +356,14 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.inputs = OrderedKeyValue()
         self.parameters = OrderedKeyValue()
         self.output_name = ''
+
+        self._action_citations = []
+        for idx, citation in enumerate(self.action.citations):
+            citation_key = self.make_citation_key(
+                'action', self._plugin,
+                ':'.join([self.action_type, self.action.id]), idx)
+            self.citations[citation_key.key] = citation
+            self._action_citations.append(citation_key)
 
     def handle_metadata(self, name, value):
         if value is None:
@@ -306,6 +413,9 @@ class ActionProvenanceCapture(ProvenanceCapture):
         action['inputs'] = self.inputs
         action['parameters'] = self.parameters
         action['output-name'] = self.output_name
+
+        if self._action_citations:
+            action['citations'] = self._action_citations
 
         return action
 

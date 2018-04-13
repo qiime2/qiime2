@@ -23,7 +23,9 @@ setup(
         ]
     },
     package_data={
-        'qiime2.metadata.tests': ['data/*/*']
+        'qiime2.metadata.tests': ['data/*/*'],
+        'qiime2.core.testing': ['citations.bib'],
+        'qiime2': ['citations.bib']
     },
     zip_safe=False,
 )

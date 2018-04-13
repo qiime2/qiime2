@@ -16,6 +16,18 @@ import collections
 import decorator
 
 
+def get_view_name(view):
+    from .format import FormatBase
+    if not isinstance(view, type):
+        view = view.__class__
+
+    if issubclass(view, FormatBase):
+        # Not qualname because we don't have a notion of "nested" formats
+        return view.__name__
+
+    return ':'.join([view.__module__, view.__qualname__])
+
+
 def tuplize(x):
     if type(x) is not tuple:
         return (x,)

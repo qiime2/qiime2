@@ -222,7 +222,7 @@ class _ZipArchive(_Archive):
 
 
 class Archiver:
-    CURRENT_FORMAT_VERSION = '3'
+    CURRENT_FORMAT_VERSION = '4'
     CURRENT_ARCHIVE = _ZipArchive
     _FORMAT_REGISTRY = {
         # NOTE: add more archive formats as things change
@@ -230,6 +230,7 @@ class Archiver:
         '1': 'qiime2.core.archive.format.v1:ArchiveFormat',
         '2': 'qiime2.core.archive.format.v2:ArchiveFormat',
         '3': 'qiime2.core.archive.format.v3:ArchiveFormat',
+        '4': 'qiime2.core.archive.format.v4:ArchiveFormat',
     }
 
     @classmethod
@@ -336,6 +337,10 @@ class Archiver:
     @property
     def provenance_dir(self):
         return getattr(self._fmt, 'provenance_dir', None)
+
+    @property
+    def citations(self):
+        return getattr(self._fmt, 'citations', ())
 
     def save(self, filepath):
         self.CURRENT_ARCHIVE.save(self.path, filepath)
