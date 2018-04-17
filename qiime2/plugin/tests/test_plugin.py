@@ -33,8 +33,7 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(self.plugin.package, 'qiime2.core.testing')
 
     def test_citations(self):
-        self.assertEqual(next(iter(self.plugin.citations.values())).type,
-                         'article')
+        self.assertEqual(self.plugin.citations[0].type, 'article')
 
     def test_user_support_text(self):
         self.assertEqual(self.plugin.user_support_text,
@@ -54,7 +53,7 @@ class TestPlugin(unittest.TestCase):
             version='0.0.0-dev',
             website='https://github.com/qiime2/qiime2',
             package='qiime2.core.testing')
-        self.assertEqual(plugin.citations, qiime2.plugin.Citations())
+        self.assertEqual(plugin.citations, ())
 
     def test_user_support_text_default(self):
         plugin = qiime2.plugin.Plugin(

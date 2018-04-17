@@ -15,7 +15,6 @@ from qiime2.plugin.model import DirectoryFormat
 from qiime2.plugin.model.base import FormatBase
 from qiime2.core.type import is_semantic_type
 from qiime2.core.util import get_view_name
-from qiime2.core.cite import Citations
 
 
 TransformerRecord = collections.namedtuple(
@@ -58,11 +57,9 @@ class Plugin:
             self.description = description
 
         if citations is None:
-            citations = ()
-
-        self.citations = Citations([
-            ('plugin|%s:%s|%d' % (self.name, self.version, idx), entry)
-            for idx, entry in enumerate(citations)])
+            self.citations = ()
+        else:
+            self.citations = tuple(citations)
 
         self.methods = PluginMethods(self)
         self.visualizers = PluginVisualizers(self)
