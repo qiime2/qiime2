@@ -15,6 +15,7 @@ import os
 import io
 
 import qiime2
+import qiime2.core.cite as cite
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -340,7 +341,7 @@ class Archiver:
 
     @property
     def citations(self):
-        return getattr(self._fmt, 'citations', ())
+        return getattr(self._fmt, 'citations', cite.Citations())
 
     def save(self, filepath):
         self.CURRENT_ARCHIVE.save(self.path, filepath)
