@@ -12,7 +12,8 @@ from .plugin_manager import PluginManager
 from .result import Result, Artifact, Visualization
 from .results import Results
 from .util import parse_type, parse_format, UnknownTypeError
+from ..core.cite import Citations
 
 __all__ = ['Result', 'Results', 'Artifact', 'Visualization', 'Action',
            'Method', 'Visualizer', 'Pipeline', 'PluginManager', 'parse_type',
-           'parse_format', 'UnknownTypeError', 'Context']
+           'parse_format', 'UnknownTypeError', 'Context', 'Citations']

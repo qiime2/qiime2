@@ -48,7 +48,7 @@ class Citations(collections.OrderedDict):
     def __iter__(self):
         return iter(self.values())
 
-    def save(self, filepath):
+    def save(self, f):
         entries = []
         for key, citation in self.items():
             entry = citation.fields.copy()
@@ -62,5 +62,13 @@ class Citations(collections.OrderedDict):
 
         writer = bp.bwriter.BibTexWriter()
         writer.order_entries_by = tuple(self.keys())
-        with open(filepath, 'w') as fh:
-            bp.dump(db, fh, writer=writer)
+
+        owned = False
+        if type(f) is str:
+            f = open(f, 'w')
+            owned = True
+        try:
+            bp.dump(db, f, writer=writer)
+        finally:
+            if owned:
+                f.close()
