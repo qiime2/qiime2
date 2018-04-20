@@ -6,6 +6,12 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+r"""
+SDK (:mod:`qiime2.sdk`)
+=======================
+
+"""
+
 from .context import Context
 from .action import Action, Method, Visualizer, Pipeline
 from .plugin_manager import PluginManager
