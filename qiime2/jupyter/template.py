@@ -27,7 +27,15 @@ def make_html(location):
 # 302->200 - set up the iframe for that location
 _anonymous_function = '''\
 function(div, url){
-var baseURL = require.toUrl('').split('/').slice(0, -2).join('/');
+if (typeof require !== 'undefined') {
+    var baseURL = require.toUrl('').split('/').slice(0, -2).join('/');
+} else {
+    var baseURL = JSON.parse(
+        document.getElementById('jupyter-config-data').innerHTML).baseUrl;
+}
+if (baseURL === '/') {
+    baseURL = '';
+}
 url = baseURL + url;
 fetch(url).then(function(res) {
     if (res.status === 404) {
