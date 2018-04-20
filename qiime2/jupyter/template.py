@@ -31,17 +31,17 @@ if (typeof require !== 'undefined') {
     var baseURL = require.toUrl('').split('/').slice(0, -2).join('/');
 } else {
     var baseURL = JSON.parse(
-        document.getElementById('jupyter-config-data').innerHTML).baseUrl;
-}
-if (baseURL === '/') {
-    baseURL = '';
+        document.getElementById('jupyter-config-data').innerHTML
+    ).baseUrl.slice(0, -1);
 }
 url = baseURL + url;
 fetch(url).then(function(res) {
     if (res.status === 404) {
         div.innerHTML = 'Install QIIME 2 Jupyter extension with:<br />' +
                         '<code>jupyter serverextension enable --py qiime2' +
-                        ' --sys-prefix</code><br />then restart your server.';
+                        ' --sys-prefix</code><br />then restart your server.' +
+                        '<br /><br />(Interactive output not available on ' +
+                        'static notebook viewer services like nbviewer.)';
     } else if (res.status === 409) {
         div.innerHTML = 'Visualization no longer in scope. Re-run this cell' +
                         ' to see the visualization.';
