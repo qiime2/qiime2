@@ -332,3 +332,7 @@ class Visualization(Result):
                 else:
                     result[ext] = str(relpath) if relative else str(abspath)
         return result
+
+    def _repr_html_(self):
+        from qiime2.jupyter import make_html
+        return make_html(str(self._archiver.path))

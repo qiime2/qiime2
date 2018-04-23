@@ -24,3 +24,8 @@ __website__ = 'https://qiime2.org'
 
 __all__ = ['Artifact', 'Visualization', 'Metadata', 'MetadataColumn',
            'CategoricalMetadataColumn', 'NumericMetadataColumn']
+
+
+# Used by `jupyter serverextension enable`
+def _jupyter_server_extension_paths():
+    return [{"module": "qiime2.jupyter"}]
