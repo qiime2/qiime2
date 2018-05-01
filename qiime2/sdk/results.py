@@ -15,9 +15,9 @@
 # accessible as a module global, but this global type would be redefined each
 # time an `Action` is instantiated.
 class Results(tuple):
-    """Tuple class representing the named results of an `Action`.
+    """Tuple class representing the named results of an ``Action``.
 
-    Provides an interface similar to a `namedtuple` type (e.g. fields are
+    Provides an interface similar to a ``namedtuple`` type (e.g. fields are
     accessible as attributes).
 
     Users should not need to instantiate this class directly.
