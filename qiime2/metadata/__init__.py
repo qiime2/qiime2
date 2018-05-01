@@ -6,12 +6,6 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-r"""
-The Metadata (:mod:`qiime2.metadata`)
-=====================================
-
-"""
-
 from .metadata import (Metadata, MetadataColumn, NumericMetadataColumn,
                        CategoricalMetadataColumn)
 from .io import MetadataFileError
