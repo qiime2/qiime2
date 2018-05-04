@@ -19,10 +19,32 @@ from qiime2.plugin.model.base import FormatBase
 
 # TODO Split out into more specific subclasses if necessary.
 class TestPluginBase(unittest.TestCase):
+    """Test harness for simplifying testing QIIME 2 plugins.
+
+    ``TestPluginBase`` extends ``unittest.TestCase``, with a few extra helpers
+    and assertions.
+
+    Attributes
+    ----------
+    package : str
+        The name of the plugin package to be tested.
+    test_dir_prefix : str
+        The prefix for the temporary testing dir created by the harness.
+
+    """
+
     package = None
     test_dir_prefix = 'qiime2-plugin'
 
     def setUp(self):
+        """Test runner setup hook.
+
+        If overriding this hook in a test, call ``__super__`` to invoke this
+        method in the overridden hook, otherwise the harness might not work
+        as expected.
+
+        """
+
         try:
             package = self.package.split('.')[0]
         except AttributeError:
@@ -46,13 +68,54 @@ class TestPluginBase(unittest.TestCase):
             prefix='%s-test-temp-' % self.test_dir_prefix)
 
     def tearDown(self):
+        """Test runner teardown hook.
+
+        If overriding this hook in a test, call ``__super__`` to invoke this
+        method in the overridden hook, otherwise the harness might not work
+        as expected.
+
+        """
+
         self.temp_dir.cleanup()
 
     def get_data_path(self, filename):
+        """Convenience method for getting a data asset while testing.
+
+        Test data stored in the ``data/`` dir local to the running test
+        can be accessed via this method.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to look up.
+
+        Returns
+        -------
+        filepath : str
+            The materialized filepath to the requested test data.
+
+        """
+
         return pkg_resources.resource_filename(self.package,
                                                'data/%s' % filename)
 
     def get_transformer(self, from_type, to_type):
+        """Convenience method for getting a registered transformer.
+
+        Parameters
+        ----------
+        from_type : A View Type
+            The :term:`View` type of the source data.
+        to_type : A View Type
+            The :term:`View` type to transform to.
+
+        Returns
+        -------
+        transformer : A Transformer Function
+            The registered tranformer from ``from_type`` to ``to_type``.
+
+        """
+
         try:
             transformer_record = self.plugin.transformers[from_type, to_type]
         except KeyError:
@@ -63,6 +126,18 @@ class TestPluginBase(unittest.TestCase):
         return transformer_record.transformer
 
     def assertRegisteredSemanticType(self, semantic_type):
+        """Test assertion for ensuring a plugin's semantic type is registered.
+
+        Fails if the semantic type requested is not found in the Plugin
+        Manager.
+
+        Parameters
+        ----------
+        semantic_type : A Semantic Type
+            The :term:`Semantic Type` to test the presence of.
+
+        """
+
         try:
             semantic_type_record = self.plugin.types[semantic_type.name]
         except KeyError:
@@ -75,6 +150,22 @@ class TestPluginBase(unittest.TestCase):
         self.assertEqual(obs_semantic_type, semantic_type)
 
     def assertSemanticTypeRegisteredToFormat(self, semantic_type, exp_format):
+        """Test assertion for ensuring a semantic type is registered to a
+           format.
+
+        Fails if the semantic type requested is not registered to the format
+        specified with ``exp_format``. Also fails if the semantic type isn't
+        registered to **any** format.
+
+        Parameters
+        ----------
+        semantic_type : A Semantic Type
+            The :term:`Semantic Type` to check for.
+        exp_format : A Format
+            The :term:`Format` to check that the Semantic Type is registed on.
+
+        """
+
         obs_format = None
         for type_format_record in self.plugin.type_formats:
             if type_format_record.type_expression == semantic_type:
@@ -92,6 +183,35 @@ class TestPluginBase(unittest.TestCase):
 
     def transform_format(self, source_format, target, filename=None,
                          filenames=None):
+        """Helper utility for loading data and transforming it.
+
+        Combines several other utilities in this class, will load files from
+        ``data/``, as ``source_format``, then transform to the ``target`` view.
+
+        Parameters
+        ----------
+        source_format : A Format
+            The :term:`Format` to load the data as.
+        target : A View Type
+            The :term:`View Type <View>` to transform the data to.
+        filename : str
+            The name of the file to load from ``data``. Use this for formats
+            that use a single file in their format definition. Mutually
+            exclusive with the ``filenames`` parameter.
+        filenames : list[str]
+            The names of the files to load from ``data``. Use this for formats
+            that use multiple files in their format definition. Mutually
+            exclusive with the ``filename`` parameter.
+
+        Returns
+        -------
+        input : A Format
+            The data loaded from ``data`` as the specified ``source_format``.
+        obs : A View Type
+            The loaded data, transformed to the specified ``target`` view type.
+
+        """
+
         # Guard any non-QIIME2 Format sources from being tested
         if not issubclass(source_format, FormatBase):
             raise ValueError("`source_format` must be a subclass of "
