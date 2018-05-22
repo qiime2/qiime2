@@ -114,6 +114,7 @@ class Action(metaclass=abc.ABCMeta):
     @property
     def source(self):
         """
+        The source code for the action's callable.
 
         Returns
         -------

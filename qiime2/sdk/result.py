@@ -56,6 +56,7 @@ class Result:
 
     @classmethod
     def extract(cls, filepath, output_dir):
+        """Unzip contents of Artifacts and Visualizations."""
         return archive.Archiver.extract(filepath, output_dir)
 
     @classmethod
