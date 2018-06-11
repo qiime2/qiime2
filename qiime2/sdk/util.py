@@ -92,3 +92,29 @@ def parse_format(format_str):
     except KeyError:
         raise TypeError("No format: %s" % format_str)
     return format_record.format
+
+
+def artifact_actions(string):
+    """Plugins and actions that have as input the artifact type (string)
+
+    Parameters
+    ----------
+    string : str
+        QIIME2 artifact type
+
+    Returns
+    -------
+    list of tuples: [(q2.plugin, [q2.actions, ...]), ...]
+    """
+    commands = []
+
+    if string is not None:
+        pm = qiime2.sdk.PluginManager()
+        for pgn, pg in pm.plugins.items():
+            actions = list({a for an, a in pg.actions.items()
+                            for iname, i in a.signature.inputs.items()
+                            if str(i.qiime_type) == string})
+            if actions:
+                commands.append((pg, actions))
+
+    return commands
