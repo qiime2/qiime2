@@ -107,14 +107,16 @@ def artifact_actions(string):
     list of tuples: [(q2.plugin, [q2.actions, ...]), ...]
     """
     commands = []
-
     if string is not None:
-        pm = qiime2.sdk.PluginManager()
-        for pgn, pg in pm.plugins.items():
-            actions = list({a for an, a in pg.actions.items()
-                            for iname, i in a.signature.inputs.items()
-                            if str(i.qiime_type) == string})
-            if actions:
-                commands.append((pg, actions))
+        query_type = qiime2.sdk.util.parse_type(string)
+
+        if string is not None:
+            pm = qiime2.sdk.PluginManager()
+            for pgn, pg in pm.plugins.items():
+                actions = list({a for an, a in pg.actions.items()
+                                for iname, i in a.signature.inputs.items()
+                                if i.qiime_type >= query_type})
+                if actions:
+                    commands.append((pg, actions))
 
     return commands

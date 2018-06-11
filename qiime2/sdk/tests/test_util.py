@@ -17,9 +17,6 @@ class TestUtil(unittest.TestCase):
         obs = qiime2.sdk.util.artifact_actions(None)
         self.assertEqual(obs, [])
 
-        obs = qiime2.sdk.util.artifact_actions('ShouldBeEmpty')
-        self.assertEqual(obs, [])
-
         # For simplicity, we are gonna test the names of the plugin and
         # the actions
         obs = [(x.name, [yy.name for yy in y])
@@ -27,6 +24,14 @@ class TestUtil(unittest.TestCase):
         exp = [('dummy-plugin', [
             'Do stuff normally, but override this one step sometimes'])]
         self.assertEqual(obs, exp)
+
+        obs = [(x.name, [yy.name for yy in y])
+               for x, y in qiime2.sdk.util.artifact_actions('Kennel[Cat]')]
+        self.assertEqual(obs, [])
+
+        with self.assertRaises(qiime2.sdk.util.UnknownTypeError):
+            qiime2.sdk.util.artifact_actions('ShouldBeEmpty')
+
 
 
 if __name__ == '__main__':
