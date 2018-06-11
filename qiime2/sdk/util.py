@@ -110,13 +110,12 @@ def artifact_actions(string):
     if string is not None:
         query_type = qiime2.sdk.util.parse_type(string)
 
-        if string is not None:
-            pm = qiime2.sdk.PluginManager()
-            for pgn, pg in pm.plugins.items():
-                actions = list({a for an, a in pg.actions.items()
-                                for iname, i in a.signature.inputs.items()
-                                if i.qiime_type >= query_type})
-                if actions:
-                    commands.append((pg, actions))
+        pm = qiime2.sdk.PluginManager()
+        for pgn, pg in pm.plugins.items():
+            actions = list({a for an, a in pg.actions.items()
+                            for iname, i in a.signature.inputs.items()
+                            if i.qiime_type >= query_type})
+            if actions:
+                commands.append((pg, actions))
 
     return commands
