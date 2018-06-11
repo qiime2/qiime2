@@ -33,6 +33,5 @@ class TestUtil(unittest.TestCase):
             qiime2.sdk.util.artifact_actions('ShouldBeEmpty')
 
 
-
 if __name__ == '__main__':
     unittest.main()
