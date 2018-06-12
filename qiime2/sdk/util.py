@@ -94,7 +94,7 @@ def parse_format(format_str):
     return format_record.format
 
 
-def artifact_actions(string):
+def actions_by_input_type(string):
     """Plugins and actions that have as input the artifact type (string)
 
     Parameters
