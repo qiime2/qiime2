@@ -71,8 +71,6 @@ class TestDuplicate(unittest.TestCase):
 
     @mock.patch('qiime2.util.os.link', side_effect=EPERM)
     def test_perm_error_EPERM(self, mocked_link):
-        """Does util.duplicate still duplicate if "others" write permissions
-        are absent?"""
         util.duplicate(self.src, self.dst1)
 
         assert mocked_link.called
