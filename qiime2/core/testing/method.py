@@ -51,7 +51,7 @@ def long_description_method(mapping1: dict, name: str, age: int) -> dict:
 
 def docstring_order_method(req_input: dict, req_param: str,
                            opt_input: dict=None, opt_param: int=None) -> dict:
-    return{req_param: opt_param}
+    return {req_param: opt_param}
 
 
 def identity_with_metadata(ints: list, metadata: qiime2.Metadata) -> list:
