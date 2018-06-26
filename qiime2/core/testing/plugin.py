@@ -36,7 +36,7 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_optional_metadata_column,
                      params_only_method, no_input_method,
                      optional_artifacts_method, long_description_method,
-                     variadic_input_method)
+                     docstring_order_method, variadic_input_method)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -209,6 +209,36 @@ dummy_plugin.methods.register_function(
     description=("This is a very long description. If asked about its length,"
                  " I would have to say it is greater than 79 characters.")
 )
+
+dummy_plugin.methods.register_function(
+    function=docstring_order_method,
+    inputs={
+        'req_input': Mapping,
+        'opt_input': Mapping
+    },
+    input_descriptions={
+        'req_input': "This should show up first.",
+        'opt_input': "This should show up third."
+    },
+    parameters={
+        'req_param': Str,
+        'opt_param': Int
+    },
+    parameter_descriptions={
+        'req_param': "This should show up second.",
+        'opt_param': "This should show up fourth."
+    },
+    outputs=[
+        ('out', Mapping)
+    ],
+    output_descriptions={
+        'out': "This should show up last, in it's own section."
+    },
+    name="Docstring Order",
+    description=("Tests whether inputs and parameters are rendered in "
+                 "signature order")
+)
+
 
 dummy_plugin.methods.register_function(
     function=identity_with_metadata_column,

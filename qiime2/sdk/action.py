@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import abc
-import collections
 import concurrent.futures
 import inspect
 import tempfile
@@ -320,11 +319,7 @@ class Action(metaclass=abc.ABCMeta):
         numpydoc.append(textwrap.fill(self.description, width=75))
 
         sig = self.signature
-        params = collections.OrderedDict()
-        params.update(sig.inputs)
-        params.update(sig.parameters)
-
-        parameters = self._build_section("Parameters", params)
+        parameters = self._build_section("Parameters", sig.signature_order)
         returns = self._build_section("Returns", sig.outputs)
 
         for section in (parameters, returns):
