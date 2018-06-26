@@ -501,6 +501,7 @@ class TestMethod(unittest.TestCase):
         params_only_method = self.plugin.methods['params_only_method']
         long_description_method = self.plugin.methods[
             'long_description_method']
+        docstring_order_method = self.plugin.methods['docstring_order_method']
 
         self.assertEqual(merge_mappings.__doc__, 'QIIME 2 Method')
 
@@ -522,6 +523,9 @@ class TestMethod(unittest.TestCase):
 
         long_desc = long_description_method.__call__.__doc__
         self.assertEqual(exp_long_description, long_desc)
+
+        docstring_order = docstring_order_method.__call__.__doc__
+        self.assertEqual(exp_docstring_order, docstring_order)
 
 
 exp_merge_calldoc = """\
@@ -603,6 +607,28 @@ Returns
 out : Mapping
     This is a very long description. If asked about its length, I would
     have to say it is greater than 79 characters.
+"""
+
+exp_docstring_order = """\
+Docstring Order
+
+Tests whether inputs and parameters are rendered in signature order
+
+Parameters
+----------
+req_input : Mapping
+    This should show up first.
+req_param : Str
+    This should show up second.
+opt_input : Mapping, optional
+    This should show up third.
+opt_param : Int, optional
+    This should show up fourth.
+
+Returns
+-------
+out : Mapping
+    This should show up last, in it's own section.
 """
 
 if __name__ == '__main__':

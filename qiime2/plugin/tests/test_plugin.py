@@ -84,7 +84,8 @@ class TestPlugin(unittest.TestCase):
                           'long_description_method', 'parameter_only_pipeline',
                           'typical_pipeline', 'optional_artifact_pipeline',
                           'pointless_pipeline', 'visualizer_only_pipeline',
-                          'pipelines_in_pipeline', 'failing_pipeline'})
+                          'pipelines_in_pipeline', 'failing_pipeline',
+                          'docstring_order_method'})
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
 
@@ -108,7 +109,7 @@ class TestPlugin(unittest.TestCase):
                           'params_only_method', 'no_input_method',
                           'optional_artifacts_method',
                           'long_description_method',
-                          'variadic_input_method'})
+                          'variadic_input_method', 'docstring_order_method'})
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)
 
