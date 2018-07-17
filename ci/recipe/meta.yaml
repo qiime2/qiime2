@@ -25,6 +25,8 @@ requirements:
     - tzlocal
     - python-dateutil
     - bibtexparser
+    # HACK: temporarily pin this to prevent broken build from showing up
+    - future 0.16.0 py35_0
 
 test:
   imports:
