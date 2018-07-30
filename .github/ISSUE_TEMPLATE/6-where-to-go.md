@@ -4,6 +4,8 @@ about: I am a developer and I don't know which repo to file this in
 
 ---
 
+The repos within the QIIME 2 GitHub Organization are listed below, with a brief description about the repo.
+
 Sorted alphabetically by repo name.
 
 - The CI automation engine that builds and distributes QIIME 2

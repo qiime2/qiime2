@@ -4,11 +4,10 @@ about: I am a developer and I found a bug that I can describe
 
 ---
 
-**Describe the bug**
+**Bug Description**
 A clear and concise description of what the bug is.
 
-**To Reproduce**
-Steps to reproduce the behavior:
+**Steps to reproduce the behavior**
 1. Go to '...'
 2. Click on '....'
 3. Scroll down to '....'
@@ -24,8 +23,14 @@ If applicable, add screenshots to help explain your problem.
 - OS: [e.g. macOS High Sierra]
 - QIIME 2 Release [e.g. 2018.6]
 
-**Additional context**
-Add any other context about the problem here.
+**Questions**
+1. An enumerated list with any questions about the problem here.
+2. If not applicable, please delete this section.
+
+**Comments**
+1. An enumerated list with any other context or comments about the problem here.
+2. If not applicable, please delete this section.
 
 **References**
-- A list of links to relevant references, including forum posts, stack overflow, etc.
+1. An enumerated list of links to relevant references, including forum posts, stack overflow, etc.
+2. If not applicable, please delete this section.
