@@ -12,9 +12,9 @@ test: all
 install: all
 	python setup.py install && \
 	mkdir -p $(CONDA_PREFIX)/etc/conda/activate.d && \
-	cp scripts/activate_qiime2_envs.sh $(CONDA_PREFIX)/etc/conda/activate.d/ && \
+	cp hooks/00_activate_qiime2_envs.sh $(CONDA_PREFIX)/etc/conda/activate.d/ && \
 	mkdir -p $(CONDA_PREFIX)/etc/conda/deactivate.d && \
-	cp scripts/deactivate_qiime2_envs.sh $(CONDA_PREFIX)/etc/conda/deactivate.d/
+	cp hooks/00_deactivate_qiime2_envs.sh $(CONDA_PREFIX)/etc/conda/deactivate.d/
 
 dev: all
 	pip install -e .
