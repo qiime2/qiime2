@@ -15,6 +15,7 @@ import qiime2.core.type
 from qiime2.sdk import Result, Artifact, Visualization
 from qiime2.sdk.result import ResultMetadata
 import qiime2.core.archive as archive
+import qiime2.core.exceptions as exceptions
 
 from qiime2.core.testing.type import FourInts
 from qiime2.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
@@ -89,6 +90,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         expected = {
             'VERSION',
+            'checksums.md5',
             'metadata.yaml',
             'data/file1.txt',
             'data/file2.txt',
@@ -115,6 +117,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         expected = {
             'VERSION',
+            'checksums.md5',
             'metadata.yaml',
             'data/index.html',
             'data/css/style.css',
@@ -217,6 +220,37 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
     def test_artifact_has_metadata_false(self):
         A = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
         self.assertFalse(A.has_metadata())
+
+    def test_validate_artifact_good(self):
+        artifact = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
+
+        artifact.validate()
+        self.assertTrue(True)  # Checkpoint
+
+    def test_validate_artifact_bad(self):
+        artifact = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
+        with (artifact._archiver.root_dir / 'extra.file').open('w') as fh:
+            fh.write('uh oh')
+
+        with self.assertRaisesRegex(exceptions.ValidationError, 'extra\.file'):
+            artifact.validate()
+
+    def test_validate_vizualization_good(self):
+        visualization = Visualization._from_data_dir(
+             self.data_dir, self.make_provenance_capture())
+
+        visualization.validate()
+        self.assertTrue(True)  # Checkpoint
+
+    def test_validate_vizualization_bad(self):
+        visualization = Visualization._from_data_dir(
+             self.data_dir, self.make_provenance_capture())
+
+        with (visualization._archiver.root_dir / 'extra.file').open('w') as fh:
+            fh.write('uh oh')
+
+        with self.assertRaisesRegex(exceptions.ValidationError, 'extra\.file'):
+            visualization.validate()
 
 
 if __name__ == '__main__':

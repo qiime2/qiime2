@@ -17,6 +17,8 @@ import io
 import qiime2
 import qiime2.core.cite as cite
 
+from qiime2.core.util import md5sum_directory, from_checksum_format
+
 _VERSION_TEMPLATE = """\
 QIIME 2
 archive: %s
@@ -26,6 +28,9 @@ framework: %s
 ArchiveRecord = collections.namedtuple(
     'ArchiveRecord', ['root', 'version_fp', 'uuid', 'version',
                       'framework_version'])
+
+ChecksumDiff = collections.namedtuple(
+    'ChecksumDiff', ['added', 'removed', 'changed'])
 
 
 class _Archive:
@@ -223,7 +228,7 @@ class _ZipArchive(_Archive):
 
 
 class Archiver:
-    CURRENT_FORMAT_VERSION = '4'
+    CURRENT_FORMAT_VERSION = '5'
     CURRENT_ARCHIVE = _ZipArchive
     _FORMAT_REGISTRY = {
         # NOTE: add more archive formats as things change
@@ -232,6 +237,7 @@ class Archiver:
         '2': 'qiime2.core.archive.format.v2:ArchiveFormat',
         '3': 'qiime2.core.archive.format.v3:ArchiveFormat',
         '4': 'qiime2.core.archive.format.v4:ArchiveFormat',
+        '5': 'qiime2.core.archive.format.v5:ArchiveFormat'
     }
 
     @classmethod
@@ -345,6 +351,25 @@ class Archiver:
 
     def save(self, filepath):
         self.CURRENT_ARCHIVE.save(self.path, filepath)
+
+    def validate_checksums(self):
+        if not isinstance(self._fmt, self.get_format_class('5')):
+            return ChecksumDiff({}, {}, {})
+
+        obs = dict(x for x in md5sum_directory(str(self.root_dir)).items()
+                   if x[0] != self._fmt.CHECKSUM_FILE)
+        exp = dict(from_checksum_format(line) for line in
+                   (self.root_dir / self._fmt.CHECKSUM_FILE).open().readlines()
+                   )
+        obs_keys = set(obs)
+        exp_keys = set(exp)
+
+        added = {x: obs[x] for x in obs_keys - exp_keys}
+        removed = {x: exp[x] for x in exp_keys - obs_keys}
+        changed = {x: (exp[x], obs[x]) for x in exp_keys & obs_keys
+                   if exp[x] != obs[x]}
+
+        return ChecksumDiff(added=added, removed=removed, changed=changed)
 
     @property
     def _destructor(self):

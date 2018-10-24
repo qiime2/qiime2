@@ -7,13 +7,10 @@
 # ----------------------------------------------------------------------------
 
 from qiime2.core.format import FormatBase
+from qiime2.core.exceptions import ValidationError
 
 
 __all__ = ['FormatBase', 'ValidationError', '_check_validation_level']
-
-
-class ValidationError(Exception):
-    pass
 
 
 # TODO: once sniff is dropped, move this up into FormatBase as validate method
