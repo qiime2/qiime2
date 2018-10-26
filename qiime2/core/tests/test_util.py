@@ -295,11 +295,7 @@ class TestChecksumFormat(unittest.TestCase):
 
     def check_roundtrip(self, filepath, checksum):
         line = util.to_checksum_format(filepath, checksum)
-        print(line)
         new_fp, new_chks = util.from_checksum_format(line)
-
-        print(filepath)
-        print(new_fp)
 
         self.assertEqual(new_fp, filepath)
         self.assertEqual(new_chks, checksum)
