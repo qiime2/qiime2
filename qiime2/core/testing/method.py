@@ -50,7 +50,8 @@ def long_description_method(mapping1: dict, name: str, age: int) -> dict:
 
 
 def docstring_order_method(req_input: dict, req_param: str,
-                           opt_input: dict=None, opt_param: int=None) -> dict:
+                           opt_input: dict = None,
+                           opt_param: int = None) -> dict:
     return {req_param: opt_param}
 
 
@@ -81,21 +82,22 @@ def identity_with_numeric_metadata_column(
 
 
 def identity_with_optional_metadata(ints: list,
-                                    metadata: qiime2.Metadata=None) -> list:
+                                    metadata: qiime2.Metadata = None) -> list:
     assert isinstance(metadata, (qiime2.Metadata, type(None)))
     return ints
 
 
 def identity_with_optional_metadata_column(
-        ints: list, metadata: qiime2.MetadataColumn=None) -> list:
+        ints: list, metadata: qiime2.MetadataColumn = None) -> list:
     assert isinstance(metadata, (qiime2.CategoricalMetadataColumn,
                                  qiime2.NumericMetadataColumn,
                                  type(None)))
     return ints
 
 
-def optional_artifacts_method(ints: list, num1: int, optional1: list=None,
-                              optional2: list=None, num2: int=None) -> list:
+def optional_artifacts_method(ints: list, num1: int, optional1: list = None,
+                              optional2: list = None,
+                              num2: int = None) -> list:
     result = ints + [num1]
     if optional1 is not None:
         result += optional1
@@ -107,7 +109,7 @@ def optional_artifacts_method(ints: list, num1: int, optional1: list=None,
 
 
 def variadic_input_method(ints: list, int_set: int, nums: int,
-                          opt_nums: int=None) -> list:
+                          opt_nums: int = None) -> list:
     results = []
 
     for int_list in ints:

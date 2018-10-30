@@ -245,8 +245,8 @@ class TestLoadErrors(unittest.TestCase):
         # all values that couldn't be converted to numbers, making it possible
         # to test a variety of non-numeric strings in a single test case.
         msg = (r"column 'col2' to numeric.*could not be interpreted as "
-               "numeric: '\$42', '\+inf', '-inf', '0xAF', '1,000', "
-               "'1\.000\.0', '1_000_000', '1e3e4', 'Infinity', 'NA', 'NaN', "
+               r"numeric: '\$42', '\+inf', '-inf', '0xAF', '1,000', "
+               r"'1\.000\.0', '1_000_000', '1e3e4', 'Infinity', 'NA', 'NaN', "
                "'a', 'e3', 'foo', 'inf', 'nan', 'sample-1'")
         with self.assertRaisesRegex(MetadataFileError, msg):
             Metadata.load(fp)

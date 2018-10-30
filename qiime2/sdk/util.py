@@ -77,7 +77,7 @@ def parse_type(string, expect=None):
         return type_expr
     except NameError as e:
         # http://stackoverflow.com/a/2270822/579416
-        name, = re.findall("name '(\w+)' is not defined", str(e))
+        name, = re.findall(r"name '(\w+)' is not defined", str(e))
         raise UnknownTypeError("Name %r is not a defined QIIME type, a plugin"
                                " may be needed to define it." % name)
 

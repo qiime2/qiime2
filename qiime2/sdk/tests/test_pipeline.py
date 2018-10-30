@@ -190,12 +190,12 @@ class TestPipeline(unittest.TestCase):
 
     def test_failing_from_missing_plugin(self):
         for call in self.iter_callables('failing_pipeline'):
-            with self.assertRaisesRegex(ValueError, 'plugin.*not\%a\$plugin'):
+            with self.assertRaisesRegex(ValueError, r'plugin.*not\%a\$plugin'):
                 call(self.int_sequence, break_from='no-plugin')
 
     def test_failing_from_missing_action(self):
         for call in self.iter_callables('failing_pipeline'):
-            with self.assertRaisesRegex(ValueError, 'action.*not\%a\$method'):
+            with self.assertRaisesRegex(ValueError, r'action.*not\%a\$method'):
                 call(self.int_sequence, break_from='no-action')
 
 
