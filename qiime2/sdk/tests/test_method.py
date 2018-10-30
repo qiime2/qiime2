@@ -211,15 +211,15 @@ class TestMethod(unittest.TestCase):
             merge_mappings: merge_exp}
 
         for method, exp in mapper.items():
-            self.assertEqual(method.async.__name__, 'async')
-            self.assertEqual(method.async.__annotations__, exp)
-            self.assertFalse(hasattr(method.async, '__wrapped__'))
+            self.assertEqual(method.asynchronous.__name__, 'asynchronous')
+            self.assertEqual(method.asynchronous.__annotations__, exp)
+            self.assertFalse(hasattr(method.asynchronous, '__wrapped__'))
 
     def test_callable_and_async_signature_with_artifacts_and_parameters(self):
         # Signature with input artifacts and parameters (i.e. primitives).
         concatenate_ints = self.plugin.methods['concatenate_ints']
 
-        for callable_attr in '__call__', 'async':
+        for callable_attr in '__call__', 'asynchronous':
             signature = inspect.Signature.from_callable(
                 getattr(concatenate_ints, callable_attr))
             parameters = list(signature.parameters.items())
@@ -244,7 +244,7 @@ class TestMethod(unittest.TestCase):
         # Signature without parameters (i.e. primitives), only input artifacts.
         method = self.plugin.methods['merge_mappings']
 
-        for callable_attr in '__call__', 'async':
+        for callable_attr in '__call__', 'asynchronous':
             signature = inspect.Signature.from_callable(
                 getattr(method, callable_attr))
             parameters = list(signature.parameters.items())
@@ -415,13 +415,14 @@ class TestMethod(unittest.TestCase):
 
         self.assertEqual(result.view(list), list(range(1, 14)))
 
-    def test_async(self):
+    def test_asynchronous(self):
         concatenate_ints = self.plugin.methods['concatenate_ints']
 
         artifact1 = Artifact.import_data(IntSequence1, [0, 42, 43])
         artifact2 = Artifact.import_data(IntSequence2, [99, -22])
 
-        future = concatenate_ints.async(artifact1, artifact1, artifact2, 55, 1)
+        future = concatenate_ints.asynchronous(
+            artifact1, artifact1, artifact2, 55, 1)
 
         self.assertIsInstance(future, concurrent.futures.Future)
         result = future.result()
@@ -454,7 +455,8 @@ class TestMethod(unittest.TestCase):
 
         # Accepts IntSequence1 | IntSequence2
         artifact3 = Artifact.import_data(IntSequence2, [10, 20])
-        future = concatenate_ints.async(artifact3, artifact1, artifact2, 55, 1)
+        future = concatenate_ints.asynchronous(artifact3, artifact1, artifact2,
+                                               55, 1)
         result, = future.result()
 
         self.assertEqual(result.type, IntSequence1)
@@ -466,7 +468,7 @@ class TestMethod(unittest.TestCase):
 
         artifact = Artifact.import_data(IntSequence1, [0, 42, -2, 43, 6])
 
-        future = split_ints.async(artifact)
+        future = split_ints.asynchronous(artifact)
 
         self.assertIsInstance(future, concurrent.futures.Future)
         result = future.result()

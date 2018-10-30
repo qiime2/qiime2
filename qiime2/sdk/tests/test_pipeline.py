@@ -70,7 +70,7 @@ class TestPipeline(unittest.TestCase):
                 'add', kind, default=1, annotation=Int))
         ]
 
-        for callable_attr in '__call__', 'async':
+        for callable_attr in '__call__', 'asynchronous':
             signature = inspect.Signature.from_callable(
                 getattr(typical_pipeline, callable_attr))
             parameters = list(signature.parameters.items())
@@ -82,7 +82,7 @@ class TestPipeline(unittest.TestCase):
         parameter_only_pipeline = self.plugin.pipelines[
             'parameter_only_pipeline']
 
-        for callable_attr in '__call__', 'async':
+        for callable_attr in '__call__', 'asynchronous':
             signature_a = inspect.Signature.from_callable(
                 getattr(typical_pipeline, callable_attr))
 
@@ -94,7 +94,8 @@ class TestPipeline(unittest.TestCase):
     def iter_callables(self, name):
         pipeline = self.plugin.pipelines[name]
         yield pipeline
-        yield lambda *args, **kwargs: pipeline.async(*args, **kwargs).result()
+        yield lambda *args, **kwargs: pipeline.asynchronous(
+            *args, **kwargs).result()
 
     def test_parameter_only_pipeline(self):
         index = pd.Index(['a', 'b', 'c'], name='id', dtype=object)
