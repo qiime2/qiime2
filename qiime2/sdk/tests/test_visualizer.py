@@ -166,14 +166,14 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             most_common_viz: most_common_exp}
 
         for visualizer, exp in mapper.items():
-            self.assertEqual(visualizer.async.__name__, 'async')
-            self.assertEqual(visualizer.async.__annotations__, exp)
-            self.assertFalse(hasattr(visualizer.async, '__wrapped__'))
+            self.assertEqual(visualizer.asynchronous.__name__, 'asynchronous')
+            self.assertEqual(visualizer.asynchronous.__annotations__, exp)
+            self.assertFalse(hasattr(visualizer.asynchronous, '__wrapped__'))
 
     def test_callable_and_async_signature(self):
         mapping_viz = self.plugin.visualizers['mapping_viz']
 
-        for callable_attr in '__call__', 'async':
+        for callable_attr in '__call__', 'asynchronous':
             signature = inspect.Signature.from_callable(
                 getattr(mapping_viz, callable_attr))
             parameters = list(signature.parameters.items())
@@ -197,7 +197,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         # signature.
         most_common_viz = self.plugin.visualizers['most_common_viz']
 
-        for callable_attr in '__call__', 'async':
+        for callable_attr in '__call__', 'asynchronous':
             signature = inspect.Signature.from_callable(
                 getattr(most_common_viz, callable_attr))
             parameters = list(signature.parameters.items())
@@ -354,14 +354,14 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertArchiveMembers(filepath, root_dir, expected)
 
-    def test_async(self):
+    def test_asynchronous(self):
         mapping_viz = self.plugin.visualizers['mapping_viz']
 
         artifact1 = Artifact.import_data(Mapping, {'foo': 'abc', 'bar': 'def'})
         artifact2 = Artifact.import_data(
             Mapping, {'baz': 'abc', 'bazz': 'ghi'})
 
-        future = mapping_viz.async(artifact1, artifact2, 'Key', 'Value')
+        future = mapping_viz.asynchronous(artifact1, artifact2, 'Key', 'Value')
 
         self.assertIsInstance(future, concurrent.futures.Future)
         result = future.result()

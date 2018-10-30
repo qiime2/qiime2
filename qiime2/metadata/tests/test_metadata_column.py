@@ -50,11 +50,11 @@ class TestInvalidMetadataColumnConstruction(unittest.TestCase):
 
     def test_invalid_id_header(self):
         # default index name
-        with self.assertRaisesRegex(ValueError, 'Index\.name.*None'):
+        with self.assertRaisesRegex(ValueError, r'Index\.name.*None'):
             DummyMetadataColumn(pd.Series([1, 2, 3], name='col',
                                           index=pd.Index(['a', 'b', 'c'])))
 
-        with self.assertRaisesRegex(ValueError, 'Index\.name.*my-id-header'):
+        with self.assertRaisesRegex(ValueError, r'Index\.name.*my-id-header'):
             DummyMetadataColumn(pd.Series(
                 [1, 2, 3], name='col',
                 index=pd.Index(['a', 'b', 'c'], name='my-id-header')))
@@ -813,7 +813,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
     def test_unsupported_type_value(self):
         with self.assertRaisesRegex(
                 TypeError, "CategoricalMetadataColumn.*strings or missing "
-                           "values.*42\.5.*float.*'col1'"):
+                           r"values.*42\.5.*float.*'col1'"):
             CategoricalMetadataColumn(pd.Series(
                 ['foo', 'bar', 42.5], name='col1',
                 index=pd.Index(['a', 'b', 'c'], name='id')))

@@ -11,9 +11,9 @@
 # `namedtuple` directly because each `Action` will return a `Results` object
 # with `Action`-specific fields (`Action.signature` determines the fields).
 # Dynamically-defined namedtuple types aren't pickleable, which is necessary
-# for `async`. They aren't pickleable because the namedtuple type must be
-# accessible as a module global, but this global type would be redefined each
-# time an `Action` is instantiated.
+# for `asynchronous`. They aren't pickleable because the namedtuple type must
+# be accessible as a module global, but this global type would be redefined
+# each time an `Action` is instantiated.
 class Results(tuple):
     """Tuple class representing the named results of an ``Action``.
 

@@ -47,7 +47,7 @@ class Action(metaclass=abc.ABCMeta):
     _ProvCaptureCls = archive.ActionProvenanceCapture
 
     __call__ = LateBindingAttribute('_dynamic_call')
-    async = LateBindingAttribute('_dynamic_async')
+    asynchronous = LateBindingAttribute('_dynamic_async')
 
     # Converts a callable's signature into its wrapper's signature (i.e.
     # converts the "view API" signature into the "artifact API" signature).
@@ -256,7 +256,7 @@ class Action(metaclass=abc.ABCMeta):
     def _get_async_wrapper(self):
         def async_wrapper(*args, **kwargs):
             # TODO handle this better in the future, but stop the massive error
-            # caused by MacOSX async runs for now.
+            # caused by MacOSX asynchronous runs for now.
             try:
                 import matplotlib as plt
                 if plt.rcParams['backend'].lower() == 'macosx':
@@ -278,7 +278,7 @@ class Action(metaclass=abc.ABCMeta):
 
         async_wrapper = self._rewrite_wrapper_signature(async_wrapper)
         self._set_wrapper_properties(async_wrapper)
-        self._set_wrapper_name(async_wrapper, 'async')
+        self._set_wrapper_name(async_wrapper, 'asynchronous')
         return async_wrapper
 
     def _rewrite_wrapper_signature(self, wrapper):
@@ -507,7 +507,7 @@ markdown_source_template = """
 
 # TODO add unit test for callables raising this
 backend_error_template = """
-Your current matplotlib backend (MacOSX) does not work with async calls.
+Your current matplotlib backend (MacOSX) does not work with asynchronous calls.
 A recommended backend is Agg, and can be changed by modifying your
 matplotlibrc "backend" parameter, which can be found at: \n\n %s
 """
