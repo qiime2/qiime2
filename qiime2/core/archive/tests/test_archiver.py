@@ -16,6 +16,7 @@ import pathlib
 from qiime2.core.archive import Archiver
 from qiime2.core.archive import ImportProvenanceCapture
 from qiime2.core.archive.archiver import _ZipArchive
+from qiime2.core.archive.format.util import artifact_version
 from qiime2.core.testing.format import IntSequenceDirectoryFormat
 from qiime2.core.testing.type import IntSequence1
 from qiime2.core.testing.util import ArchiveTestingMixin
@@ -364,27 +365,12 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                                             'f47bc36040d5c7db08e4b3a457dcfbb2')
                           })
 
-    def setup_old_archiver(self):
-        class OldArchiver(Archiver):
-            # Quickest way to get the old code running
-            CURRENT_FORMAT_VERSION = '4'
-
-        def data_initializer(data_dir):
-            fp = os.path.join(str(data_dir), 'ints.txt')
-            with open(fp, 'w') as fh:
-                fh.write('1\n')
-                fh.write('2\n')
-                fh.write('3\n')
-
-        return OldArchiver.from_data(
-            IntSequence1, IntSequenceDirectoryFormat,
-            data_initializer=data_initializer,
-            provenance_capture=ImportProvenanceCapture())
-
     def test_checksum_backwards_compat(self):
-        archiver = self.setup_old_archiver()
+        self.tearDown()
+        with artifact_version(4):
+            self.setUp()
 
-        diff = archiver.validate_checksums()
+        diff = self.archiver.validate_checksums()
 
         self.assertEqual(diff.added, {})
         self.assertEqual(diff.removed, {})
