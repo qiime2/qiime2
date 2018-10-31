@@ -232,7 +232,8 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         with (artifact._archiver.root_dir / 'extra.file').open('w') as fh:
             fh.write('uh oh')
 
-        with self.assertRaisesRegex(exceptions.ValidationError, 'extra\.file'):
+        with self.assertRaisesRegex(exceptions.ValidationError,
+                                    r'extra\.file'):
             artifact.validate()
 
     def test_validate_vizualization_good(self):
@@ -249,7 +250,8 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         with (visualization._archiver.root_dir / 'extra.file').open('w') as fh:
             fh.write('uh oh')
 
-        with self.assertRaisesRegex(exceptions.ValidationError, 'extra\.file'):
+        with self.assertRaisesRegex(exceptions.ValidationError,
+                                    r'extra\.file'):
             visualization.validate()
 
 
