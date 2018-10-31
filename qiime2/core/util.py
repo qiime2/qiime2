@@ -117,6 +117,53 @@ def md5sum_directory(directory):
     return sums
 
 
+def to_checksum_format(filepath, checksum):
+    # see https://www.gnu.org
+    # /software/coreutils/manual/html_node/md5sum-invocation.html
+    if '\\' in filepath or '\n' in filepath:
+        filepath = filepath.replace('\\', '\\\\').replace('\n', '\\n')
+        checksum = '\\' + checksum
+
+    return '%s  %s' % (checksum, filepath)
+
+
+def from_checksum_format(line):
+    line = line.rstrip('\n')
+    parts = line.split('  ', 1)
+    if len(parts) < 2:
+        parts = line.split(' *', 1)
+
+    checksum, filepath = parts
+
+    if checksum[0] == '\\':
+        chars = ''
+        escape = False
+        # Gross, but regular `.replace` will overlap with itself and
+        # negative lookbehind in regex is *probably* harder than scanning
+        for char in filepath:
+            # 1) Escape next character
+            if not escape and char == '\\':
+                escape = True
+                continue
+
+            # 2) Handle escape sequence
+            if escape:
+                try:
+                    chars += {'\\': '\\', 'n': '\n'}[char]
+                except KeyError:
+                    chars += '\\' + char  # Wasn't an escape after all
+                escape = False
+                continue
+
+            # 3) Nothing interesting
+            chars += char
+
+        checksum = checksum[1:]
+        filepath = chars
+
+    return filepath, checksum
+
+
 @contextlib.contextmanager
 def warning():
     def _warnformat(msg, category, filename, lineno, file=None, line=None):

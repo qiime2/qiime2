@@ -16,6 +16,7 @@ import pathlib
 from qiime2.core.archive import Archiver
 from qiime2.core.archive import ImportProvenanceCapture
 from qiime2.core.archive.archiver import _ZipArchive
+from qiime2.core.archive.format.util import artifact_version
 from qiime2.core.testing.format import IntSequenceDirectoryFormat
 from qiime2.core.testing.type import IntSequence1
 from qiime2.core.testing.util import ArchiveTestingMixin
@@ -86,6 +87,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(archiver.uuid)
         expected = {
             'VERSION',
+            'checksums.md5',
             'metadata.yaml',
             'data/ints.txt',
             'provenance/metadata.yaml',
@@ -104,6 +106,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(self.archiver.uuid)
         expected = {
             'VERSION',
+            'checksums.md5',
             'metadata.yaml',
             'data/ints.txt',
             'provenance/metadata.yaml',
@@ -148,6 +151,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '.hidden-file',
                 '.hidden-dir/ignored-file',
                 '%s/VERSION' % root_dir,
+                '%s/checksums.md5' % root_dir,
                 '%s/metadata.yaml' % root_dir,
                 '%s/data/ints.txt' % root_dir,
                 '%s/provenance/metadata.yaml' % root_dir,
@@ -194,6 +198,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'data/',
             'data/nested/',
             'VERSION',
+            'checksums.md5',
             'metadata.yaml',
             'data/ints.txt',
             'data/nested/foo.txt',
@@ -217,6 +222,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             # Directory entries should not be present.
             'VERSION',
+            'checksums.md5',
             'metadata.yaml',
             'data/ints.txt',
             'data/nested/foo.txt',
@@ -280,6 +286,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             root_dir = str(self.archiver.uuid)
             expected = {
                 '%s/VERSION' % root_dir,
+                '%s/checksums.md5' % root_dir,
                 '%s/metadata.yaml' % root_dir,
                 '%s/data/ints.txt' % root_dir,
                 '%s/provenance/metadata.yaml' % root_dir,
@@ -330,6 +337,44 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                       uuid.uuid5(uuid.NAMESPACE_DNS, 'bar')):
             uuid_str = str(uuid_)
             self.assertFalse(_ZipArchive._is_uuid4(uuid_str))
+
+    def test_checksums_match(self):
+        diff = self.archiver.validate_checksums()
+
+        self.assertEqual(diff.added, {})
+        self.assertEqual(diff.removed, {})
+        self.assertEqual(diff.changed, {})
+
+    def test_checksums_mismatch(self):
+        with (self.archiver.root_dir / 'data' / 'ints.txt').open('w') as fh:
+            fh.write('999\n')
+        with (self.archiver.root_dir / 'tamper.txt').open('w') as fh:
+            fh.write('extra file')
+
+        (self.archiver.root_dir / 'VERSION').unlink()
+
+        diff = self.archiver.validate_checksums()
+
+        self.assertEqual(diff.added,
+                         {'tamper.txt': '296583001b00d2b811b5871b19e0ad28'})
+        # The contents of most files is either stochastic, or has the current
+        # version (which is an unknown commit sha1), so just check name
+        self.assertEqual(list(diff.removed.keys()), ['VERSION'])
+        self.assertEqual(diff.changed,
+                         {'data/ints.txt': ('c0710d6b4f15dfa88f600b0e6b624077',
+                                            'f47bc36040d5c7db08e4b3a457dcfbb2')
+                          })
+
+    def test_checksum_backwards_compat(self):
+        self.tearDown()
+        with artifact_version(4):
+            self.setUp()
+
+        diff = self.archiver.validate_checksums()
+
+        self.assertEqual(diff.added, {})
+        self.assertEqual(diff.removed, {})
+        self.assertEqual(diff.changed, {})
 
 
 if __name__ == '__main__':

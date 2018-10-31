@@ -254,5 +254,65 @@ class TestMD5SumDirectory(unittest.TestCase):
             ]))
 
 
+class TestChecksumFormat(unittest.TestCase):
+    def test_to_simple(self):
+        line = util.to_checksum_format('this/is/a/filepath',
+                                       'd9724aeba59d8cea5265f698b2c19684')
+        self.assertEqual(
+            line, 'd9724aeba59d8cea5265f698b2c19684  this/is/a/filepath')
+
+    def test_from_simple(self):
+        fp, chks = util.from_checksum_format(
+            'd9724aeba59d8cea5265f698b2c19684  this/is/a/filepath')
+
+        self.assertEqual(fp, 'this/is/a/filepath')
+        self.assertEqual(chks, 'd9724aeba59d8cea5265f698b2c19684')
+
+    def test_to_hard(self):
+        # two kinds of backslash n to trip up the escaping:
+        line = util.to_checksum_format('filepath/\n/with/\\newline',
+                                       '939aaaae6098ebdab049b0f3abe7b68c')
+
+        # Note raw string
+        self.assertEqual(
+            line,
+            r'\939aaaae6098ebdab049b0f3abe7b68c  filepath/\n/with/\\newline')
+
+    def test_from_hard(self):
+        fp, chks = util.from_checksum_format(
+            r'\939aaaae6098ebdab049b0f3abe7b68c  filepath/\n/with/\\newline'
+            + '\n')  # newline from a checksum "file"
+
+        self.assertEqual(fp, 'filepath/\n/with/\\newline')
+        self.assertEqual(chks, '939aaaae6098ebdab049b0f3abe7b68c')
+
+    def test_from_legacy_format(self):
+        fp, chks = util.from_checksum_format(
+            r'0ed29022ace300b4d96847882daaf0ef *this/means/binary/mode')
+
+        self.assertEqual(fp, 'this/means/binary/mode')
+        self.assertEqual(chks, '0ed29022ace300b4d96847882daaf0ef')
+
+    def check_roundtrip(self, filepath, checksum):
+        line = util.to_checksum_format(filepath, checksum)
+        new_fp, new_chks = util.from_checksum_format(line)
+
+        self.assertEqual(new_fp, filepath)
+        self.assertEqual(new_chks, checksum)
+
+    def test_nonsense(self):
+        self.check_roundtrip(
+            r'^~gpfh)bU)WvN/;3jR6H-*={iEBM`(flY2>_|5mp8{-h>Ou\{{ImLT>h;XuC,.#',
+            '89241859050e5a43ccb5f7aa0bca7a3a')
+
+        self.check_roundtrip(
+            r"l5AAPGKLP5Mcv0b`@zDR\XTTnF;[2M>O/>,d-^Nti'vpH\{>q)/4&CuU/xQ}z,O",
+            'c47d43cadb60faf30d9405a3e2592b26')
+
+        self.check_roundtrip(
+            r'FZ\rywG:7Q%"J@}Rk>\&zbWdS0nhEl_k1y1cMU#Lk_"*#*/uGi>Evl7M1suNNVE',
+            '9c7753f252116473994e8bffba2c620b')
+
+
 if __name__ == '__main__':
     unittest.main()

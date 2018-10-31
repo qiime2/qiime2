@@ -20,6 +20,7 @@ import qiime2.core.transform as transform
 import qiime2.core.archive as archive
 import qiime2.plugin.model as model
 import qiime2.core.util as util
+import qiime2.core.exceptions as exceptions
 
 # Note: Result, Artifact, and Visualization classes are in this file to avoid
 # circular dependencies between Result and its subclasses. Result is tightly
@@ -162,6 +163,26 @@ class Result:
             self.type, self.format, clone_original, provenance_capture)
         return alias
 
+    def validate(self, level=NotImplemented):
+        diff = self._archiver.validate_checksums()
+        if diff.changed or diff.added or diff.removed:
+            error = ""
+
+            if diff.added:
+                error += "Unrecognized files:\n"
+            for key in diff.added:
+                error += "  - %r\n" % key
+            if diff.removed:
+                error += "Missing files:\n"
+            for key in diff.removed:
+                error += "  - %r\n" % key
+            if diff.changed:
+                error += "Changed files:\n"
+            for (key, (exp, obs)) in diff.changed.items():
+                error += "  - %r: %s -> %s\n" % (key, exp, obs)
+
+            raise exceptions.ValidationError(error)
+
 
 class Artifact(Result):
     extension = '.qza'
@@ -293,6 +314,8 @@ class Artifact(Result):
         ValidationError
             If the artifact is invalid at the specified level of validation.
         """
+        super().validate()
+
         self.format.validate(self.view(self.format), level)
 
 

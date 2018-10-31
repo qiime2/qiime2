@@ -240,6 +240,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(result.uuid)
         expected = {
             'VERSION',
+            'checksums.md5',
             'metadata.yaml',
             'data/index.html',
             'data/css/style.css',
@@ -288,6 +289,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(result.uuid)
         expected = {
             'VERSION',
+            'checksums.md5',
             'metadata.yaml',
             'data/index.html',
             'data/index.tsv',
@@ -319,6 +321,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(result.uuid)
         expected = {
             'VERSION',
+            'checksums.md5',
             'metadata.yaml',
             'data/index.html',
             'provenance/metadata.yaml',
@@ -344,6 +347,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(result.uuid)
         expected = {
             'VERSION',
+            'checksums.md5',
             'metadata.yaml',
             'data/index.html',
             'provenance/metadata.yaml',
@@ -387,6 +391,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(result.uuid)
         expected = {
             'VERSION',
+            'checksums.md5',
             'metadata.yaml',
             'data/index.html',
             'data/css/style.css',
