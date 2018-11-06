@@ -71,6 +71,9 @@ Sorted alphabetically by repo name.
 - The q2-feature-table plugin
   https://github.com/qiime2/q2-feature-table/issues
 
+- The q2-fragment-insertion plugin
+  https://github.com/qiime2/q2-fragment-insertion/issues
+
 - The q2-gneiss plugin
   https://github.com/qiime2/q2-gneiss/issues
 

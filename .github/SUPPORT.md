@@ -60,6 +60,8 @@ Sorted alphabetically by repo name.
   | The q2-feature-classifier plugin
 - [q2-feature-table](https://github.com/qiime2/q2-feature-table/issues)
   | The q2-feature-table plugin
+- [q2-fragment-insertion](https://github.com/qiime2/q2-fragment-insertion/issues)
+  | The q2-fragment-insertion plugin
 - [q2-gneiss](https://github.com/qiime2/q2-gneiss/issues)
   | The q2-gneiss plugin
 - [q2-longitudinal](https://github.com/qiime2/q2-longitudinal/issues)
