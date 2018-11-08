@@ -295,8 +295,10 @@ class PipelineSignature:
                 if not (spec.has_default() and
                         spec.default is None and
                         kwargs[name] is None):
-                    raise TypeError("Argument to parameter %r is not a "
-                                    "subtype of %r." % (name, spec.qiime_type))
+                    raise TypeError(
+                        "Parameter %r received an argument of type %r. An "
+                        "argument of subtype %r is required." % (
+                            name, kwargs[name].type, spec.qiime_type))
 
     def solve_output(self, **input_types):
         # TODO implement solving here. The check for concrete output types may

@@ -398,7 +398,7 @@ class TestMethod(unittest.TestCase):
 
         # Invalid type provided as optional artifact.
         with self.assertRaisesRegex(TypeError,
-                                    'not a subtype of IntSequence1'):
+                                    'type IntSequence2.*subtype IntSequence1'):
             method(ints1, 42, optional1=ints3)
 
     def test_call_with_variadic_inputs(self):
