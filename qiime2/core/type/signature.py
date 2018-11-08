@@ -297,7 +297,7 @@ class PipelineSignature:
                         kwargs[name] is None):
                     raise TypeError(
                         "Parameter %r received an argument of type %r. An "
-                        "argument of type(s) %r is required." % (
+                        "argument of subtype %r is required." % (
                             name, kwargs[name].type, spec.qiime_type))
 
     def solve_output(self, **input_types):
