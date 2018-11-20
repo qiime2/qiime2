@@ -76,6 +76,8 @@ Sorted alphabetically by repo name.
   | The q2-quality-filter plugin
 - [q2-sample-classifier](https://github.com/qiime2/q2-sample-classifier/issues)
   | The q2-sample-classifier plugin
+- [q2-shogun](https://github.com/qiime2/q2-shogun/issues)
+  | The q2-shogun plugin
 - [q2-taxa](https://github.com/qiime2/q2-taxa/issues)
   | The q2-taxa plugin
 - [q2-types](https://github.com/qiime2/q2-types/issues)
