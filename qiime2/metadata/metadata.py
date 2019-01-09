@@ -681,7 +681,8 @@ class Metadata(_MetadataBase):
             raise ValueError(
                 "Cannot merge metadata with overlapping columns. The "
                 "following columns overlap: %s" %
-                ', '.join([repr(e) for e in columns.get_duplicates()]))
+                ', '.join([repr(e) for e in
+                           columns[columns.duplicated()].unique()]))
 
         merged_df = dfs[0].join(dfs[1:], how='inner')
 
