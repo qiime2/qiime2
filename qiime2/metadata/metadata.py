@@ -408,10 +408,11 @@ class Metadata(_MetadataBase):
         ))
 
         # Column properties
-        max_name_len = max((len(name) for name in self.columns))
-        for name, props in self.columns.items():
-            padding = ' ' * ((max_name_len - len(name)) + 1)
-            lines.append('%s:%s%r' % (name, padding, props))
+        if self.column_count != 0:
+            max_name_len = max((len(name) for name in self.columns))
+            for name, props in self.columns.items():
+                padding = ' ' * ((max_name_len - len(name)) + 1)
+                lines.append('%s:%s%r' % (name, padding, props))
 
         # Epilogue
         lines.append('')
