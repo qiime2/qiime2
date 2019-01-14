@@ -12,14 +12,11 @@ build:
   script: make install
 
 requirements:
-  build:
-    - setuptools
-
   host:
     - python {{ python }}
+    - setuptools
 
   run:
-    - setuptools
     - pyyaml
     - decorator
     - pandas
