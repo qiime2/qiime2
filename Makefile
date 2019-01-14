@@ -1,5 +1,7 @@
 .PHONY: all lint test install dev clean distclean
 
+PYTHON ?= python
+
 all: ;
 
 lint:
@@ -10,7 +12,7 @@ test: all
 	QIIMETEST= nosetests
 
 install: all
-	python setup.py install && \
+	$(PYTHON) setup.py install && \
 	mkdir -p $(CONDA_PREFIX)/etc/conda/activate.d && \
 	cp hooks/00_activate_qiime2_envs.sh $(CONDA_PREFIX)/etc/conda/activate.d/ && \
 	mkdir -p $(CONDA_PREFIX)/etc/conda/deactivate.d && \
