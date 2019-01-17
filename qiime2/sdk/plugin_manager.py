@@ -38,14 +38,14 @@ class PluginManager:
 
     # This class is a singleton as it is slow to create, represents the
     # state of a qiime2 installation, and is needed *everywhere*
-    def __new__(cls):
+    def __new__(cls, install_plugins=True):
         if cls.__instance is None:
             self = super().__new__(cls)
-            self._init()
+            self._init(install_plugins=install_plugins)
             cls.__instance = self
         return cls.__instance
 
-    def _init(self):
+    def _init(self, install_plugins):
         self.plugins = {}
         self.semantic_types = {}
         self.transformers = collections.defaultdict(dict)
@@ -53,14 +53,15 @@ class PluginManager:
         self.views = {}
         self.type_formats = []
 
-        # These are all dependent loops, each requires the loop above it to
-        # be completed.
-        for entry_point in self.iter_entry_points():
-            plugin = entry_point.load()
-            self.plugins[plugin.name] = plugin
+        if install_plugins:
+            # These are all dependent loops, each requires the loop above it to
+            # be completed.
+            for entry_point in self.iter_entry_points():
+                plugin = entry_point.load()
+                self.plugins[plugin.name] = plugin
 
-        for plugin in self.plugins.values():
-            self._integrate_plugin(plugin)
+            for plugin in self.plugins.values():
+                self._integrate_plugin(plugin)
 
     def _integrate_plugin(self, plugin):
         for type_name, type_record in plugin.types.items():
@@ -157,3 +158,7 @@ class PluginManager:
                 % semantic_type)
 
         return dir_fmt
+
+    def install_plugin(self, plugin):
+        self.plugins[plugin.name] = plugin
+        self._integrate_plugin(plugin)
