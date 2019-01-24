@@ -57,6 +57,20 @@ class TestLoadErrors(unittest.TestCase):
                                     'encoded as UTF-8 or ASCII'):
             Metadata.load(fp)
 
+    def test_utf_16_le_file(self):
+        fp = get_data_path('invalid/simple-utf-16le.txt')
+
+        with self.assertRaisesRegex(MetadataFileError,
+                                    'UTF-16 Unicode'):
+            Metadata.load(fp)
+
+    def test_utf_16_be_file(self):
+        fp = get_data_path('invalid/simple-utf-16be.txt')
+
+        with self.assertRaisesRegex(MetadataFileError,
+                                    'UTF-16 Unicode'):
+            Metadata.load(fp)
+
     def test_empty_file(self):
         fp = get_data_path('invalid/empty-file')
 
@@ -309,6 +323,14 @@ class TestLoadSuccess(unittest.TestCase):
         # multiple column types (numeric, categorical, and something that has
         # mixed numbers and strings, which must be interpreted as categorical).
         fp = get_data_path('valid/simple.tsv')
+
+        obs_md = Metadata.load(fp)
+
+        self.assertEqual(obs_md, self.simple_md)
+
+    def test_bom_simple_txt(self):
+        # This is the encoding that notepad.exe will use most commonly
+        fp = get_data_path('valid/BOM-simple.txt')
 
         obs_md = Metadata.load(fp)
 
@@ -811,6 +833,20 @@ class TestSave(unittest.TestCase):
         )
 
         self.assertEqual(obs, exp)
+
+    def test_no_bom(self):
+        md = Metadata(pd.DataFrame(
+            {'col1': [1.0, 2.0, 3.0],
+             'col2': ['a', 'b', 'c'],
+             'col3': ['foo', 'bar', '42']},
+            index=pd.Index(['id1', 'id2', 'id3'], name='id')))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'rb') as fh:
+            obs = fh.read(2)
+
+        self.assertEqual(obs, b'id')
 
     def test_different_file_extension(self):
         md = Metadata(pd.DataFrame(

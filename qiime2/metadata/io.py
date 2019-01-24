@@ -61,7 +61,10 @@ class MetadataReader:
         try:
             # Newline settings based on recommendation from csv docs:
             #     https://docs.python.org/3/library/csv.html#id3
-            with open(self._filepath, 'r', newline='', encoding='utf-8') as fh:
+
+            # Ignore BOM on read (but do not write BOM)
+            with open(self._filepath,
+                      'r', newline='', encoding='utf-8-sig') as fh:
                 tsv_reader = csv.reader(fh, dialect='excel-tab', strict=True)
                 self._reader = (self._strip_cell_whitespace(row)
                                 for row in tsv_reader)
@@ -69,6 +72,13 @@ class MetadataReader:
                 directives = self._read_directives(header)
                 ids, data = self._read_data(header)
         except UnicodeDecodeError as e:
+            if ('0xff in position 0' in str(e)
+                    or '0xfe in position 0' in str(e)):
+                raise MetadataFileError(
+                    "Metadata file must be encoded as UTF-8 or ASCII, found "
+                    "UTF-16. If this file is from Microsoft Excel, save "
+                    "as a plain text file, not 'UTF-16 Unicode'")
+
             raise MetadataFileError(
                 "Metadata file must be encoded as UTF-8 or ASCII. The "
                 "following error occurred when decoding the file:\n\n%s" % e)
@@ -330,6 +340,8 @@ class MetadataWriter:
     def write(self, filepath):
         # Newline settings based on recommendation from csv docs:
         #     https://docs.python.org/3/library/csv.html#id3
+
+        # Do NOT write a BOM, hence utf-8 not utf-8-sig
         with open(filepath, 'w', newline='', encoding='utf-8') as fh:
             tsv_writer = csv.writer(fh, dialect='excel-tab', strict=True)
 
