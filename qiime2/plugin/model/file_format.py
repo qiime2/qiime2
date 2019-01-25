@@ -43,7 +43,9 @@ class _FileFormat(FormatBase, metaclass=abc.ABCMeta):
 class TextFileFormat(_FileFormat):
     def open(self):
         mode = 'r' if self._mode == 'r' else 'r+'
-        return self.path.open(mode=mode, encoding='utf8')
+        # ignore BOM only when reading, do not emit BOM on write
+        encoding = 'utf-8-sig' if mode == 'r' else 'utf-8'
+        return self.path.open(mode=mode, encoding=encoding)
 
 
 class BinaryFileFormat(_FileFormat):
