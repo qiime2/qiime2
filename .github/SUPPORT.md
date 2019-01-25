@@ -22,8 +22,6 @@ Sorted alphabetically by repo name.
   | The CI automation engine that builds and distributes QIIME 2
 - [conda-channel-resource](https://github.com/qiime2/conda-channel-resource/issues)
   | A Concourse resource for working with conda
-- [conda-recipes](https://github.com/qiime2/conda-recipes/issues)
-  | Old conda recipes (repo is mostly unused now)
 - [data.qiime2.org](https://github.com/qiime2/data.qiime2.org/issues)
   | Web app for vanity URLs for QIIME 2 data assets
 - [dev-docs](https://github.com/qiime2/dev-docs/issues)
