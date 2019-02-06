@@ -110,7 +110,7 @@ class Range(Predicate):
                 if value < self.start:
                     return False
             elif value <= self.start:
-                    return False
+                return False
 
         if self.end is not None:
             if self.inclusive_end:
