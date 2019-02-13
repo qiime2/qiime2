@@ -59,6 +59,9 @@ Sorted alphabetically by repo name.
 - The q2-diversity plugin
   https://github.com/qiime2/q2-diversity/issues
 
+- The q2-diversity-lib plugin
+  https://github.com/qiime2/q2-diversity-lib/issues
+
 - The q2-emperor plugin
   https://github.com/qiime2/q2-emperor/issues
 

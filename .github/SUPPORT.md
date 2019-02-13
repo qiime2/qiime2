@@ -52,6 +52,8 @@ Sorted alphabetically by repo name.
   | The q2-demux plugin
 - [q2-diversity](https://github.com/qiime2/q2-diversity/issues)
   | The q2-diversity plugin
+- [q2-diversity-lib](https://github.com/qiime2/q2-diversity-lib/issues)
+  | The q2-diversity-lib plugin
 - [q2-emperor](https://github.com/qiime2/q2-emperor/issues)
   | The q2-emperor plugin
 - [q2-feature-classifier](https://github.com/qiime2/q2-feature-classifier/issues)
