@@ -284,20 +284,18 @@ class TestTypeExpression(unittest.TestCase):
         X = grammar.TypeExpression('X')
 
         class Example(grammar.TypeExpression):
-            def _validate_union_(self, other, handshake=False):
+            def _validate_union_(self, other):
                 local['other'] = other
-                local['handshake'] = handshake
 
-        X._validate_union_(Example('Example'))
+        X | Example('Example')
         self.assertIs(local['other'], X)
-        self.assertTrue(local['handshake'])
 
     def test_build_union(self):
         X = grammar.TypeExpression('X')
         Y = grammar.TypeExpression('Y')
-        union = X._build_union_((X, Y))
+        union = X._build_union_(X, Y)
         self.assertIsInstance(union, grammar.UnionTypeExpression)
-        self.assertEqual(union.members, frozenset({X, Y}))
+        self.assertEqual(union.members, (X, Y))
 
     def test_validate_intersection_w_nonsense(self):
         X = grammar.TypeExpression('X')
@@ -320,20 +318,18 @@ class TestTypeExpression(unittest.TestCase):
         X = grammar.TypeExpression('X')
 
         class Example(grammar.TypeExpression):
-            def _validate_intersection_(self, other, handshake=False):
+            def _validate_intersection_(self, other):
                 local['other'] = other
-                local['handshake'] = handshake
 
-        X._validate_intersection_(Example('Example'))
+        X & Example('Example')
         self.assertIs(local['other'], X)
-        self.assertTrue(local['handshake'])
 
     def test_build_intersection(self):
         X = grammar.TypeExpression('X')
         Y = grammar.TypeExpression('Y')
-        intersection = X._build_intersection_((X, Y))
-        self.assertIsInstance(intersection, grammar.IntersectionTypeExpression)
-        self.assertEqual(intersection.members, frozenset({X, Y}))
+        intersection = X._build_intersection_(X, Y)
+        # Should produce the bottom type:
+        self.assertEqual(intersection, grammar.UnionTypeExpression())
 
     def test_validate_predicate_w_nonsense(self):
         X = grammar.TypeExpression('X')
@@ -359,8 +355,12 @@ class TestTypeExpression(unittest.TestCase):
         Y = grammar.TypeExpression('Y')
         X = grammar.TypeExpression('X')
 
-        self.assertFalse(Y._is_subtype_(X))
-        self.assertFalse(X._is_subtype_(Y))
+        self.assertIs(Y._is_subtype_(X), NotImplemented)
+        self.assertIs(X._is_subtype_(Y), NotImplemented)
+        self.assertFalse(Y >= X)
+        self.assertFalse(Y >= X)
+        self.assertFalse(X <= Y)
+        self.assertFalse(X <= Y)
 
     def test_is_subtype_diff_fields(self):
         F1 = grammar.TypeExpression('F1')
@@ -378,7 +378,9 @@ class TestTypeExpression(unittest.TestCase):
                 super().__init__(value)
 
             def _is_subtype_(self, other):
-                return self.value <= other.value
+                if isinstance(other, self.__class__):
+                    return self.value <= other.value
+                return NotImplemented
 
         P1 = Pred(1)
         P2 = Pred(2)
@@ -413,7 +415,9 @@ class TestTypeExpression(unittest.TestCase):
                 super().__init__(value)
 
             def _is_subtype_(self, other):
-                return self.value <= other.value
+                if isinstance(other, self.__class__):
+                    return self.value <= other.value
+                return NotImplemented
 
         P1 = Pred(1)
         P1_ = Pred(1)
@@ -450,8 +454,9 @@ class TestTypeExpressionMod(unittest.TestCase):
                 self.local['predicate'] = predicate
 
         example = Example('Example')
-        example % 42
-        self.assertEqual(self.local['predicate'], 42)
+        p = grammar.Predicate()
+        example % p
+        self.assertIs(self.local['predicate'], p)
 
     def test_apply_predicate_called(self):
         class Example(grammar.TypeExpression):
@@ -487,27 +492,32 @@ class TestTypeExpressionOr(unittest.TestCase):
 
     def test_validate_union_called(self):
         class Example(grammar.TypeExpression):
-            def _validate_union_(s, other, handshake):
-                self.local['other'] = other
-                self.local['handshake'] = handshake
+            def _validate_union_(s, other):
+                if 'other' in self.local:
+                    self.local['self'] = other
+                else:
+                    self.local['other'] = other
 
-        example = Example('Example')
-        example | 42
-        self.assertEqual(self.local['other'], 42)
-        self.assertFalse(self.local['handshake'])
+        foo = Example('foo')
+        bar = Example('bar')
+        foo | bar
+        self.assertEqual(self.local['self'], foo)
+        self.assertEqual(self.local['other'], bar)
 
     def test_build_union_called(self):
         class Example(grammar.TypeExpression):
-            def _validate_union_(s, other, handshake):
+            def _validate_union_(s, other):
                 pass  # Let anything through
 
-            def _build_union_(s, members):
+            def _build_union_(s, *members):
                 self.local['members'] = members
                 return ...
 
-        example = Example('Example')
-        new_type_expr = example | 42
-        self.assertEqual(self.local['members'], (example, 42))
+        foo = Example('foo')
+        bar = Example('bar')
+        new_type_expr = foo | bar
+
+        self.assertEqual(self.local['members'], (foo, bar))
         self.assertIs(new_type_expr, ...)
 
 
@@ -525,32 +535,36 @@ class TestTypeExpressionAnd(unittest.TestCase):
         Y = grammar.TypeExpression('Y')
         Z = grammar.TypeExpression('Z')
 
-        self.assertIsInstance(X & Y & Z, grammar.IntersectionTypeExpression)
-        self.assertEqual(X & Y & Z & X & Z, Y & Z & X)
+        self.assertEqual(X & Y & Z & X & Z, grammar.UnionTypeExpression())
 
     def test_validate_intersection_called(self):
         class Example(grammar.TypeExpression):
-            def _validate_intersection_(s, other, handshake):
-                self.local['other'] = other
-                self.local['handshake'] = handshake
+            def _validate_intersection_(s, other):
+                if 'other' in self.local:
+                    self.local['self'] = other
+                else:
+                    self.local['other'] = other
 
-        example = Example('Example')
-        example & 42
-        self.assertEqual(self.local['other'], 42)
-        self.assertFalse(self.local['handshake'])
+        foo = Example('foo')
+        bar = Example('bar')
+        foo & bar
+        self.assertEqual(self.local['self'], foo)
+        self.assertEqual(self.local['other'], bar)
 
     def test_build_intersection_called(self):
         class Example(grammar.TypeExpression):
-            def _validate_intersection_(s, other, handshake):
+            def _validate_intersection_(s, other):
                 pass  # Let anything through
 
-            def _build_intersection_(s, members):
+            def _build_intersection_(s, *members):
                 self.local['members'] = members
                 return ...
 
-        example = Example('Example')
-        new_type_expr = example & 42
-        self.assertEqual(self.local['members'], (example, 42))
+        foo = Example('foo')
+        bar = Example('bar')
+        new_type_expr = foo & bar
+
+        self.assertEqual(self.local['members'], (foo, bar))
         self.assertIs(new_type_expr, ...)
 
 

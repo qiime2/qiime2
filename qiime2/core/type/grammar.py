@@ -6,11 +6,28 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import types
 import itertools
 
 from qiime2.core.util import tuplize
 from ..util import ImmutableBase
+
+
+def common_subtypes(*types):
+    smallest = []
+    greatest = []
+    for t in types:
+        for i, p in enumerate(greatest):
+            if t <= p:
+                smallest[i] = t
+                break
+            elif t >= p:
+                greatest[i] = t
+                break
+        else:  # evaled if the above loop did not break
+            smallest.append(t)
+            greatest.append(t)
+
+    return smallest, greatest
 
 
 class _TypeBase(ImmutableBase):
@@ -127,13 +144,134 @@ class CompositeType(_TypeBase):
         return False
 
 
-class TypeExpression(_TypeBase):
+class _Subtypeable(_TypeBase):
+    def __iter__(self):
+        yield self
+
+    def __le__(self, other):
+        r = self._is_subtype_(other)
+        if r is NotImplemented:
+            r = other._is_supertype_(self)
+            if r is NotImplemented:
+                return False
+        return r
+
+    def __ge__(self, other):
+        r = self._is_supertype_(other)
+        if r is NotImplemented:
+            r = other._is_subtype_(self)
+            if r is NotImplemented:
+                return False
+        return r
+
+    def _aug_is_subtype(self, other):
+        r = self._is_subtype_(other)
+        if r is NotImplemented:
+            r = other._is_supertype_(self)
+            if r is NotImplemented:
+                return False
+        return r
+
+    def _is_subtype_(self, other):
+        raise NotImplementedError('_is_subtype_')
+
+    def _is_supertype_(self, other):
+        raise NotImplementedError('_is_supertype_')
+
+    def __or__(self, other):
+        self._aug_validate_union(other)
+
+        if self >= other:
+            return self
+        if self <= other:
+            return other
+
+        _, greatest_common_subtypes = common_subtypes(*self, *other)
+        return self._build_union_(*greatest_common_subtypes)
+
+    def _aug_validate_union(self, other):
+        self._validate_union_(other)
+        if isinstance(other, _Subtypeable):
+            other._validate_union_(self)
+
+    def _validate_union_(self, other):
+        raise NotImplementedError('_validate_union_')
+
+    def _build_union_(self, *members):
+        raise NotImplementedError('_build_union_')
+
+    def __and__(self, other):
+        self._aug_validate_intersection(other)
+
+        if self >= other:
+            return other
+        if self <= other:
+            return self
+
+        t = self.get_bottom()
+        if isinstance(other, type(t)) or isinstance(self, type(t)):
+            for s, o in itertools.product(self, other):
+                t |= s & o
+            return t
+
+        try:
+            IntersectionType = type(self.get_top())
+        except NotImplementedError:
+            return self._build_intersection_(self, other)
+
+        this = self
+        # "unpack" intersections as their "iter" yields only themselves, not
+        # their components
+        if isinstance(self, IntersectionType):
+            self = self.members
+        if isinstance(other, IntersectionType):
+            other = other.members
+        least_common_subtypes, _ = common_subtypes(*self, *other)
+        return this._build_intersection_(*least_common_subtypes)
+
+    def _aug_validate_intersection(self, other):
+        self._validate_intersection_(other)
+        if isinstance(other, _Subtypeable):
+            other._validate_intersection_(self)
+
+    def _validate_intersection_(self, other):
+        raise NotImplementedError('_validate_intersection_')
+
+    def _build_intersection_(self, *members):
+        raise NotImplementedError('_build_intersection_')
+
+    def get_bottom(self):
+        return self._build_union_()
+
+    def is_bottom(self):
+        return self.equals(self.get_bottom())
+
+    def get_top(self):
+        return self._build_intersection_()
+
+    def is_top(self):
+        return self.equals(self.get_top())
+
+    def equals(self, other):
+        return self <= other <= self
+
+
+class TypeExpression(_Subtypeable):
     def __init__(self, name, fields=(), predicate=None):
         self.name = name
-        self.predicate = predicate
         self.fields = fields
 
+        if predicate is not None and predicate.is_top():
+            predicate = None
+        self.predicate = predicate
+
         self._freeze_()
+
+    @property
+    def evaled_predicate(self):
+        if self.predicate is None:
+            return IntersectionPredicate()
+        return self.predicate
 
     def __hash__(self):
         return (hash(self.__class__.__name__) ^
@@ -148,11 +286,6 @@ class TypeExpression(_TypeBase):
         return (self.name == other.name and
                 self.predicate == other.predicate and
                 self.fields == other.fields)
-
-    def equals(self, other):
-        # Different from __eq__ which has to match hashing but can't
-        # consider semantic equality
-        return self <= other <= self
 
     def __repr__(self):
         result = self.name
@@ -170,8 +303,7 @@ class TypeExpression(_TypeBase):
                               predicate=self.predicate)
 
     def __contains__(self, value):
-        return (self._is_element_(value) and
-                ((not self.predicate) or value in self.predicate))
+        return self._is_element_(value) and value in self.evaled_predicate
 
     def _is_element_(self, value):
         return False
@@ -190,16 +322,14 @@ class TypeExpression(_TypeBase):
             raise TypeError("%r is not a predicate." % predicate)
 
     def _apply_predicate_(self, predicate):
+        if isinstance(predicate, type(predicate.get_bottom())):
+            return self._build_union_(*(
+                self.__class__(self.name, fields=self.fields, predicate=p)
+                for p in predicate.members))
         return self.__class__(self.name, fields=self.fields,
                               predicate=predicate)
 
-    def __or__(self, other):
-        self._validate_union_(other, handshake=False)
-        if self == other:
-            return self
-        return self._build_union_((self, other))
-
-    def _validate_union_(self, other, handshake=False):
+    def _validate_union_(self, other):
         if not isinstance(other, TypeExpression):
             if isinstance(other, CompositeType):
                 raise TypeError("Cannot union an incomplete type %r with %r."
@@ -207,19 +337,10 @@ class TypeExpression(_TypeBase):
             else:
                 raise TypeError("%r is not a type expression." % other)
 
-        if not handshake:
-            other._validate_union_(self, handshake=True)
+    def _build_union_(self, *members):
+        return UnionTypeExpression(*members)
 
-    def _build_union_(self, members):
-        return UnionTypeExpression(members)
-
-    def __and__(self, other):
-        self._validate_intersection_(other, handshake=False)
-        if self == other:
-            return other
-        return self._build_intersection_((self, other))
-
-    def _validate_intersection_(self, other, handshake=False):
+    def _validate_intersection_(self, other):
         if not isinstance(other, TypeExpression):
             if isinstance(other, CompositeType):
                 raise TypeError("Cannot intersect an incomplete type %r with"
@@ -227,45 +348,60 @@ class TypeExpression(_TypeBase):
             else:
                 raise TypeError("%r is not a type expression." % other)
 
-        if not handshake:
-            other._validate_intersection_(self, handshake=True)
+    def _build_intersection_(self, *members):
+        try:
+            self, other = members
+        except ValueError:
+            raise NotImplementedError
 
-    def _build_intersection_(self, members):
-        return IntersectionTypeExpression(members)
+        if self.name != other.name:
+            return self.get_bottom()
 
-    def __le__(self, other):
-        return all(any(s._aug_is_subtype(o) for o in other) for s in self)
+        new_fields = tuple(s & o for s, o in itertools.zip_longest(
+            self.fields, other.fields, fillvalue=self.get_bottom()))
+        if any(f.is_bottom() for f in new_fields):
+            return self.get_bottom()
 
-    def __ge__(self, other):
-        return all(any(o._aug_is_subtype(s) for s in self) for o in other)
+        new_predicate = self.evaled_predicate & other.evaled_predicate
+        if new_predicate.is_bottom():
+            return self.get_bottom()
 
-    def _aug_is_subtype(self, other):
-        r = self._is_subtype_(other)
-        if r is NotImplemented:
-            return other._is_supertype_(self)
-        return r
+        return self._apply_fields_(new_fields)._apply_predicate_(new_predicate)
 
     def _is_subtype_(self, other):
-        if self.name != other.name:
-            return False
-        for f1, f2 in itertools.zip_longest(self.fields, other.fields):
+        if not hasattr(other, 'name') or self.name != other.name:
+            return NotImplemented
+
+        for f1, f2 in itertools.zip_longest(
+                self.fields, other.fields, fillvalue=self.get_bottom()):
             if not (f1 <= f2):
                 return False
-        if other.predicate and not self.predicate <= other.predicate:
+
+        if not (self.evaled_predicate <= other.evaled_predicate):
             return False
+
         return True
 
     def _is_supertype_(self, other):
-        # Invoked only when `other`'s `_is_subtype_` returned `NotImplemented`
-        # that really shouldn't be needed most of the time.
-        raise NotImplementedError
+        return NotImplemented
 
-    def __iter__(self):
-        yield from set(self._apply_fields_(fields=fields)
-                       for fields in itertools.product(*self.fields))
+    def iter_atomics(self):
+        seen = set()
+        for elem in self:
+            for fields in itertools.product(*elem.fields):
+                for predicate in elem.evaled_predicate:
+                    base = elem._apply_fields_(fields)
+                    refined = base._apply_predicate_(predicate)
+                    if refined not in seen:
+                        seen.add(refined)
+                        yield refined
 
     def is_concrete(self):
-        return len(list(self)) == 1
+        """Deprecated, use is_atomic"""
+        return self.is_atomic()
+
+    def is_atomic(self):
+        return len(list(self.iter_atomics())) == 1
 
     def iter_symbols(self):
         yield self.name
@@ -281,70 +417,58 @@ class TypeExpression(_TypeBase):
         }
 
 
-class _SetOperationBase(TypeExpression):
-    _operator = '?'  # Used for repr only - ? chosen as it is not a Python op.
-
-    def __init__(self, members):
-        m = []
-        for member in members:
-            # We can flatten the object a little, which will avoid excessive
-            # recursion (it would look like a cons-list otherwise)
-            if type(member) is type(self):
-                m.extend(member.members)
-            else:
-                m.append(member)
-
-        self.members = frozenset(m)
-
-        super().__init__('')  # Unions/intersections do not have a name
+class UnionTypeExpression(TypeExpression):
+    def __init__(self, *members):
+        # Constructing a Union directly will allow redundant/subtype members
+        # this is useful for structure types
+        self.members = members
+        super().__init__(name='')
 
     def __hash__(self):
         return super().__hash__() ^ hash(self.members)
 
     def __eq__(self, other):
-        super_eq = super().__eq__(other)
-        if super_eq is NotImplemented:
-            return NotImplemented
-        return super_eq and self.members == other.members
+        return (super().__eq__(other)
+                and set(self.members) == set(other.members))
+
+    def __iter__(self):
+        yield from self.members
 
     def __repr__(self):
-        return (" %s " % self._operator) \
-            .join(sorted([repr(m) for m in self.members]))
+        return " | ".join(repr(m) for m in self.members)
 
-    def _validate_predicate_(self, predicate):
-        raise TypeError("Cannot apply predicates to union/intersection types.")
+    def _build_union_(self, *members):
+        return self.__class__(*members)
 
     def _is_element_(self, value):
-        return any(value in member for member in self.members)
+        return any(value in s for s in self.members)
+
+    def _is_subtype_(self, other):
+        if isinstance(other, self.__class__):
+            return all(any(s <= o for o in other.members)
+                       for s in self.members)
+        return all(s <= other for s in self.members)
+
+    def _is_supertype_(self, other):
+        if isinstance(other, self.__class__):
+            return all(any(s >= o for s in self.members)
+                       for o in other.members)
+        return any(s >= other for s in self.members)
+
+    def _validate_predicate_(self, predicate):
+        raise TypeError("Cannot apply predicates to union types.")
 
     def to_ast(self):
         return {
+            'type': 'union',
             'members': [m.to_ast() for m in self.members]
         }
 
-    def __iter__(self):
-        yield from set(itertools.chain.from_iterable(self.members))
 
-
-class UnionTypeExpression(_SetOperationBase):
-    _operator = '|'
-
-    def _validate_intersection_(self, other, handshake=False):
-        raise TypeError("Cannot intersect %r with %r." % (self, other))
-
-    def _build_union_(self, members):
-        return self.__class__(members)
-
-    def to_ast(self):
-        r = super().to_ast()
-        r['type'] = 'union'
-        return r
-
-
-class Predicate(_TypeBase):
+class Predicate(_Subtypeable):
     def __init__(self, *args, **kwargs):
         truthy = any(map(bool, args)) or any(map(bool, kwargs.values()))
-        if not truthy:
+        if False and not truthy:
             raise TypeError("Predicate %r has no arguments or cannot "
                             "constrain the type." % self.__class__.__name__)
 
@@ -357,38 +481,33 @@ class Predicate(_TypeBase):
         return 0
 
     def __eq__(self, other):
-        raise NotImplementedError
+        return NotImplemented
 
     def __contains__(self, value):
         return self._is_element_(value)
 
     def _is_element_(self, value):
-        return True
-
-    def __le__(self, other):
-        if other is None:
-            # The definition of a predicate type is some constraint. So if
-            # there isn't a predicate, then `self` must be a subset. There are
-            # no "identity" predicates which would complicate this.
-            return True
-        return self._is_subtype_(other)
-
-    def __ge__(self, other):
-        if other is None:
-            return False
-        return other._is_subtype_(self)
-
-    def _aug_is_subtype(self, other):
-        r = self._is_subtype_(other)
-        if r is NotImplemented:
-            return other._is_supertype_(self)
-        return r
+        raise NotImplementedError('_is_element_')
 
     def _is_subtype_(self, other):
-        raise NotImplementedError
+        return NotImplemented
 
     def _is_supertype_(self, other):
-        raise NotImplementedError
+        return NotImplemented
+
+    def _validate_union_(self, other):
+        if not isinstance(other, Predicate):
+            raise TypeError("Cannot union %r and %r" % (self, other))
+
+    def _build_union_(self, *members):
+        return UnionPredicate(*members)
+
+    def _validate_intersection_(self, other):
+        if not isinstance(other, Predicate):
+            raise TypeError("Cannot intersect %r and %r" % (self, other))
+
+    def _build_intersection_(self, *members):
+        return IntersectionPredicate(*members)
 
     def to_ast(self):
         return {
@@ -397,70 +516,104 @@ class Predicate(_TypeBase):
         }
 
 
-# TODO: finish these classes:
-class IntersectionTypeExpression(_SetOperationBase):
-    _operator = '&'
+class _IdentityPredicateBase(Predicate):
+    _operator = '?'
 
-    def _validate_union_(self, other, handshake=False):
-        raise TypeError("Cannot union %r with %r." % (self, other))
-
-    def _build_intersection_(self, members):
-        return self.__class__(members)
-
-    def to_ast(self):
-        r = super().to_ast()
-        r['type'] = 'intersection'
-        return r
-
-
-class MappingTypeExpression(TypeExpression):
-    def __init__(self, name, mapping):
-        if type(mapping) is not dict:  # we really only want dict literals
-            raise ValueError()
-
-        if type(name) is not str:
-            raise ValueError()
-
-        for key in mapping:
-            self._validate_member_(key)
-        for value in mapping.values():
-            self._validate_member_(value)
-        # Read only proxy of mapping, mutation to `mapping` will be reflected
-        # but there isn't much we can do about that. Good use of this object
-        # would involve a dict literal anyway.
-        self.mapping = types.MappingProxyType(mapping)
-
-        super().__init__(name)
+    def __init__(self, *members):
+        self.members = members
+        self._freeze_()
 
     def __hash__(self):
-        return super().__hash__() ^ hash(frozenset(self.mapping.items()))
+        return super().__hash__() ^ hash(self.members)
 
     def __eq__(self, other):
-        super_eq = super().__eq__(other)
-        if super_eq is NotImplemented:
-            return NotImplemented
-        return super_eq and (set(self.mapping.items()) ==
-                             set(other.mapping.items()))
+        return super().__eq__(other) and self.members == other.members
 
-    def _validate_predicate_(self, predicate):
-        raise TypeError("Cannot apply predicates to type variables.")
+    def __repr__(self):
+        if not self.members:
+            return ""
+        return "(%s)" % (" %s " % self._operator).join(
+            repr(m) for m in self.members)
 
-    def _validate_intersection_(self, other, handshake=False):
-        if type(self) != type(other):
-            raise TypeError()
-        if set(self.mapping) != set(other.mapping):
-            raise TypeError()
 
-        super()._validate_intersection_(other, handshake=handshake)
+class UnionPredicate(_IdentityPredicateBase):
+    _operator = '|'
 
-    def _validate_union_(self, other, handshake=False):
-        # This has a reasonable definition (ensure disjoint sets on left-hand)
-        # the opposite of intersection, but there isn't really a good use-case
-        # for it at this time.
-        raise TypeError("Cannot union type variables.")
+    def __iter__(self):
+        yield from self.members
+
+    def _build_union_(self, *members):
+        return self.__class__(*members)
+
+    def _is_element_(self, value):
+        return any(value in s for s in self.members)
+
+    def _is_subtype_(self, other):
+        if isinstance(other, self.__class__):
+            return all(any(s <= o for o in other.members)
+                       for s in self.members)
+        return all(s <= other for s in self.members)
+
+    def _is_supertype_(self, other):
+        if isinstance(other, self.__class__):
+            return all(any(s >= o for s in self.members)
+                       for o in other.members)
+        return any(s >= other for s in self.members)
 
     def to_ast(self):
         return {
-            "type": "map",
-            "mapping": [list(item) for item in self.mapping.items()]
+            'type': 'union',
+            'members': [m.to_ast() for m in self.members]
         }
+
+
+class IntersectionPredicate(_IdentityPredicateBase):
+    _operator = '&'
+
+    def _build_intersection_(self, *members):
+        return self.__class__(*members)
+
+    def _is_element_(self, value):
+        return all(value in s for s in self.members)
+
+    def _is_subtype_(self, other):
+        if isinstance(other, self.__class__):
+            return all(any(s <= o for s in self.members)
+                       for o in other.members)
+        if isinstance(other, type(other.get_bottom())):
+            return other >= self
+        return any(m <= other for m in self.members)
+
+    def _is_supertype_(self, other):
+        if isinstance(other, self.__class__):
+            return all(any(s >= o for o in other.members)
+                       for s in self.members)
+        if isinstance(other, type(other.get_bottom())):
+            return other <= self
+        return all(m >= other for m in self.members)
+
+    def to_ast(self):
+        return {
+            'type': 'intersection',
+            'members': [m.to_ast() for m in self.members]
+        }
+
+
+class TestPredicate(Predicate):
+    def __init__(self, name):
+        self.name = name
+
+        self._freeze_()
+
+    def __repr__(self):
+        return self.name
+
+    def _is_subtype_(self, other):
+        if isinstance(other, self.__class__):
+            return self.name == other.name
+        return NotImplemented
+
+    def _is_supertype_(self, other):
+        if isinstance(other, self.__class__):
+            return self.name == other.name
+        return NotImplemented

@@ -295,12 +295,16 @@ class _MetadataColumnType(_Primitive):
     def _is_element_(self, value):
         return isinstance(value, self._view)
 
+    def _apply_fields_(self, fields):
+        self.__class__(self.name, self._view, fields=fields,
+                       predicate=self.predicate)
+
     def _validate_union_(self, other, handshake=False):
         if not isinstance(other, self.__class__):
             raise TypeError("Unsupported union: %r" % other)
 
-    def _build_union_(self, members):
-        return _MetadataColumnTypeUnion(members)
+    def _build_union_(self, *members):
+        return _MetadataColumnTypeUnion(*members)
 
 
 class _MetadataColumnTypeUnion(UnionTypeExpression):

@@ -204,11 +204,10 @@ class _SemanticType(grammar.TypeExpression, _SemanticMixin):
                               predicate=self.predicate)
 
     def _validate_intersection_(self, other, handshake=False):
-        raise TypeError("Cannot intersect %r and %r. (Only semantic type"
-                        " variables can be intersected.)" % (self, other))
+        pass
 
-    def _build_union_(self, members):
-        return _SemanticUnionType(members)
+    def _build_union_(self, *members):
+        return _SemanticUnionType(*members)
 
     def _validate_predicate_(self, predicate):
         if not isinstance(predicate, Properties):
@@ -270,10 +269,7 @@ class Properties(grammar.Predicate):
         return "%s(%s)" % (self.__class__.__name__, ', '.join(args))
 
     def _is_subtype_(self, other):
-        if other is None:
-            return True
-        if type(other) != type(self):
-            # For PropertyMap or other complex comparisons
+        if not isinstance(other, self.__class__):
             return NotImplemented
         return (set(other.include) <= set(self.include) and
                 set(other.exclude) <= set(self.exclude))
@@ -283,46 +279,3 @@ class Properties(grammar.Predicate):
         ast['include'] = self.include
         ast['exclude'] = self.exclude
         return ast
-
-
-# TODO: Implement these classes:
-class _SemanticIntersectionType(grammar.IntersectionTypeExpression,
-                                _SemanticMixin):
-    def __init__(self):
-        # IMPORTANT! Remove this __init__ method.
-        raise NotImplementedError("TODO")
-
-    @overrides(_SemanticMixin)
-    def is_variant(self, varfield):
-        return all(m.is_variant(varfield) for m in self)
-
-
-class SemanticMap(grammar.MappingTypeExpression, _SemanticMixin):
-    def __init__(self):
-        # IMPORTANT! Remove this __init__ method.
-        raise NotImplementedError("TODO")
-
-    @overrides(_SemanticMixin)
-    def is_variant(self, varfield):
-        # A TypeMap may be on either side of the signature, we only know
-        # which side once it is placed in a signature. Otherwise, either
-        # construction is completely valid as long as all members agree.
-        return (all(m.is_variant(varfield) for m in self.mapping) or
-                all(m.is_variant(varfield) for m in self.mapping.values()))
-
-    def _validate_member_(self, member):
-        if not member.is_concrete():
-            raise ValueError("")
-
-    def _build_intersection_(self, members):
-        return _SemanticIntersectionType(members)
-
-
-class PropertyMap(Properties):
-    def __init__(self, name, mapping):
-        raise NotImplementedError("TODO")
-        self.name = name
-        self.mapping = mapping
-
-    def __repr__(self):
-        return self.name
