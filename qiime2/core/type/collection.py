@@ -80,6 +80,11 @@ class _CollectionExpression(grammar.TypeExpression):
         # Something like `MinLen(...)` might be handy...
         raise TypeError("There are no predicates for collection types.")
 
+    def _apply_predicate_(self, predicate):
+        # Exists for "top" predicate
+        return self.__class__(self.name, self._view, fields=self.fields,
+                              predicate=predicate)
+
     def _apply_fields_(self, fields):
         # Just pass the `view` along.
         return self.__class__(self.name, self._view, fields=fields,

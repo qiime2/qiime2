@@ -468,7 +468,7 @@ class UnionTypeExpression(TypeExpression):
 class Predicate(_Subtypeable):
     def __init__(self, *args, **kwargs):
         truthy = any(map(bool, args)) or any(map(bool, kwargs.values()))
-        if False and not truthy:
+        if not truthy:
             raise TypeError("Predicate %r has no arguments or cannot "
                             "constrain the type." % self.__class__.__name__)
 

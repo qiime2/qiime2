@@ -8,10 +8,14 @@
 
 import numbers
 import re
+import functools
+import itertools
 
 from qiime2.core.type.grammar import (
-    TypeExpression, CompositeType, Predicate, UnionTypeExpression)
+    TypeExpression, CompositeType, Predicate, UnionTypeExpression,
+    IntersectionPredicate, UnionPredicate)
 import qiime2.metadata as metadata
+import qiime2.core.util as util
 
 
 def is_primitive_type(type_):
@@ -19,25 +23,25 @@ def is_primitive_type(type_):
 
 
 class _PrimitiveBase(TypeExpression):
-    def _validate_union_(self, other, handshake=False):
-        # It is possible we may want this someday: `Int | Str`, but order of
-        # encode/decode dispatch wouldn't be straight-forward.
-        # Order of the declaration could indicate "MRO", but then equality
-        # must consider Int | Str != Str | Int, which feels weird.
-        raise TypeError("Cannot union primitive types.")
+    def _validate_union_(self, other):
+        pass
 
-    def _validate_intersection_(self, other, handshake=False):
-        # This literally makes no sense for primitives. Even less sense than
-        # C's Union type (which is actually an intersection type...)
-        raise TypeError("Cannot intersect primitive types.")
+    def _validate_intersection_(self, other):
+        pass
 
 
 class _Primitive(_PrimitiveBase):
+
+    def _build_union_(self, *members):
+        return UnionPrimitiveType(*members)
+
     def _validate_predicate_(self, predicate):
         super()._validate_predicate_(predicate)
         # _valid_predicates will be on the class obj of the primitives to
         # make defining them easy
-        if not isinstance(predicate, tuple(self._valid_predicates)):
+        valid = tuple(self._valid_predicates) + (
+            UnionPrimitivePredicate, IntersectionPrimitivePredicate)
+        if not isinstance(predicate, valid):
             raise TypeError("Cannot supply %r as a predicate to %r type,"
                             " permitted predicates: %r"
                             % (predicate, self,
@@ -54,13 +58,60 @@ class _Primitive(_PrimitiveBase):
         return ast
 
 
-_RANGE_DEFAULT_START = None
-_RANGE_DEFAULT_END = None
+class UnionPrimitiveType(_Primitive, UnionTypeExpression):
+    def _get_order(self):
+        order = []
+        for t in (Bool, Int, Float, Str):
+            for m in self.members:
+                if m.name == t.name:
+                    order.append(m)
+
+        return order
+
+    def encode(self, value):
+        for m in self._get_order():
+            if value in m:
+                return m.encode(value)
+
+    def decode(self, string):
+        for m in self._get_order():
+            try:
+                value = m.decode(string)
+            except:
+                pass
+            else:
+                break
+        return value
+
+
+class _PrimitivePredicate(Predicate):
+    def _build_union_(self, *members):
+        return UnionPrimitivePredicate(*members)
+
+    def _build_intersection_(self, *members):
+        return IntersectionPrimitivePredicate(*members)
+
+
+class UnionPrimitivePredicate(_PrimitivePredicate, UnionPredicate):
+    def iter_boundaries(self):
+        for m in self.members:
+            yield from m.iter_boundaries()
+
+
+class IntersectionPrimitivePredicate(_PrimitivePredicate,
+                                     IntersectionPredicate):
+    def iter_boundaries(self):
+        for m in self.members:
+            yield from m.iter_boundaries()
+
+
+_RANGE_DEFAULT_START = float('-inf')
+_RANGE_DEFAULT_END = float('inf')
 _RANGE_DEFAULT_INCLUSIVE_START = True
 _RANGE_DEFAULT_INCLUSIVE_END = False
 
 
-class Range(Predicate):
+class Range(_PrimitivePredicate):
     def __init__(self, *args, inclusive_start=_RANGE_DEFAULT_INCLUSIVE_START,
                  inclusive_end=_RANGE_DEFAULT_INCLUSIVE_END):
         if len(args) == 2:
@@ -76,8 +127,18 @@ class Range(Predicate):
         self.inclusive_start = inclusive_start
         self.inclusive_end = inclusive_end
 
-        truthy = self.start is not None or self.end is not None
-        super().__init__(truthy)
+        if self.start is None:
+            self.start = _RANGE_DEFAULT_START
+        if self.end is None:
+            self.end = _RANGE_DEFAULT_END
+
+        if self.end < self.start:
+            raise ValueError("End of range precedes start.")
+
+        falsey = (self.start == _RANGE_DEFAULT_START
+                  and self.end == _RANGE_DEFAULT_END)
+
+        super().__init__(not falsey)
 
     def __hash__(self):
         return (hash(type(self)) ^
@@ -121,10 +182,98 @@ class Range(Predicate):
 
         return True
 
+    def _is_subtype_(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+
+        if other.start > self.start:
+            return False
+        elif (other.start == self.start
+                and (not other.inclusive_start)
+                and self.inclusive_start):
+            return False
+
+        if other.end < self.end:
+            return False
+        elif (other.end == self.end
+                and (not other.inclusive_end)
+                and self.inclusive_end):
+            return False
+
+        return True
+
+    def _is_supertype_(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+
+        if other.start < self.start:
+            return False
+        elif (other.start == self.start
+                and (not self.inclusive_start)
+                and other.inclusive_start):
+            return False
+
+        if other.end > self.end:
+            return False
+        elif (other.end == self.end
+                and (not self.inclusive_end)
+                and other.inclusive_end):
+            return False
+
+        return True
+
+    def _build_intersection_(self, *members):
+        if not members:
+            return super()._build_intersection_()
+
+        for m in members:
+            if not isinstance(m, self.__class__):
+                return self.get_bottom()
+
+        r = functools.reduce(self.intersect_two_ranges, members)
+        if r is None:
+            return self.get_bottom()
+        return r
+
+
+    @classmethod
+    def intersect_two_ranges(cls, a, b):
+        if a is None or b is None:
+            return None
+
+        if a.start < b.start:
+            new_start = b.start
+            new_inclusive_start = b.inclusive_start
+        elif b.start < a.start:
+            new_start = a.start
+            new_inclusive_start = a.inclusive_start
+        else:
+            new_start = a.start
+            new_inclusive_start = a.inclusive_start and b.inclusive_start
+
+        if a.end > b.end:
+            new_end = b.end
+            new_inclusive_end = b.inclusive_end
+        elif b.end > a.end:
+            new_end = a.end
+            new_inclusive_end = a.inclusive_end
+        else:
+            new_end = a.end
+            new_inclusive_end = a.inclusive_end and b.inclusive_end
+
+        if new_end < new_start:
+            return None
+        if (new_start == new_end
+                and not (new_inclusive_start and new_inclusive_end)):
+            return None
+
+        return cls(new_start, new_end, inclusive_start=new_inclusive_start,
+                   inclusive_end=new_inclusive_end)
+
     def iter_boundaries(self):
-        if self.start is not None:
+        if self.start != float('-inf'):
             yield self.start
-        if self.end is not None:
+        if self.end != float('inf'):
             yield self.end
 
     def to_ast(self):
@@ -136,14 +285,29 @@ class Range(Predicate):
         return ast
 
 
-class Choices(Predicate):
-    def __init__(self, choices):
+def Start(start, inclusive=_RANGE_DEFAULT_INCLUSIVE_START):
+    return Range(start, _RANGE_DEFAULT_END, inclusive_start=inclusive)
 
+
+def End(end, inclusive=_RANGE_DEFAULT_INCLUSIVE_END):
+    return Range(_RANGE_DEFAULT_START, end, inclusive_end=inclusive)
+
+
+class Choices(_PrimitivePredicate):
+    def __init__(self, *choices):
         if not choices:
             raise ValueError("'Choices' cannot be instantiated with an empty"
                              " set.")
 
-        self.choices = set(choices)
+        # Backwards compatibility with old Choices({1, 2, 3}) syntax
+        if len(choices) == 1:
+            if isinstance(choices[0], (list, set, tuple, frozenset)):
+                choices = choices[0]
+
+        self.choices = tuple(choices)
+        if len(choices) != len(set(choices)):
+            raise ValueError("Duplicates found in choices: %r"
+                             % util.find_duplicates(choices))
 
         super().__init__(choices)
 
@@ -151,14 +315,53 @@ class Choices(Predicate):
         return hash(type(self)) ^ hash(frozenset(self.choices))
 
     def __eq__(self, other):
-        return type(self) == type(other) and self.choices == other.choices
+        return (type(self) == type(other)
+                and set(self.choices) == set(other.choices))
 
     def __repr__(self):
-        return "%s({%s})" % (self.__class__.__name__,
-                             repr(sorted(self.choices))[1:-1])
+        return "%s(%s)" % (self.__class__.__name__,
+                           repr(list(self.choices))[1:-1])
 
     def _is_element_(self, value):
         return value in self.choices
+
+    def _is_subtype_(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+
+        return set(self.choices) <= set(other.choices)
+
+    def _is_supertype_(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+
+        return set(self.choices) >= set(other.choices)
+
+    def _build_intersection_(self, *members):
+        if not members:
+            return super()._build_intersection_()
+
+        for m in members:
+            if not isinstance(m, self.__class__):
+                return self.get_bottom()
+
+        members_iter = iter(members)
+
+        new_choices_set = set(next(members_iter).choices)
+        for m in members_iter:
+            new_choices_set &= set(m.choices)
+
+        if not new_choices_set:
+            return self.get_bottom()
+
+        # order by appearance:
+        new_choices = []
+        for c in itertools.chain.from_iterable(m.choices for m in members):
+            if c in new_choices_set:
+                new_choices.append(c)
+                new_choices_set.remove(c)
+
+        return self.__class__(new_choices)
 
     def iter_boundaries(self):
         yield from self.choices
@@ -174,11 +377,13 @@ class _Int(_Primitive):
 
     def _is_element_(self, value):
         # Works with numpy just fine.
-        return isinstance(value, numbers.Integral)
+        return (isinstance(value, numbers.Integral)
+                and value is not True
+                and value is not False)
 
     def _is_subtype_(self, other):
         if (isinstance(other, type(Float)) and
-                self.predicate <= other.predicate):
+                self.evaled_predicate <= other.evaled_predicate):
             return True
         return super()._is_subtype_(other)
 
@@ -213,7 +418,7 @@ class _Float(_Primitive):
 
 
 class _Bool(_Primitive):
-    _valid_predicates = set()
+    _valid_predicates = {Choices}
 
     def _is_element_(self, value):
         return isinstance(value, bool)
@@ -229,12 +434,6 @@ class _Bool(_Primitive):
             return 'true'
         else:
             return 'false'
-
-
-class _Color(_Str):
-    def _is_element_(self, value):
-        # Regex from: http://stackoverflow.com/a/1636354/579416
-        return bool(re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', value))
 
 
 class _Metadata(_Primitive):
@@ -315,7 +514,6 @@ Bool = _Bool('Bool')
 Int = _Int('Int')
 Float = _Float('Float')
 Str = _Str('Str')
-Color = _Color('Color')
 Metadata = _Metadata('Metadata')
 MetadataColumn = _MetadataColumn('MetadataColumn', field_names=['type'])
 Numeric = _MetadataColumnType('Numeric', metadata.NumericMetadataColumn)
