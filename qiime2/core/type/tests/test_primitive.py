@@ -46,6 +46,5 @@ class TestIntersectTwoRanges(unittest.TestCase):
         self.assertIntersectEqual(a, b, None)
 
 
-
 if __name__ == '__main__':
     unittest.main()

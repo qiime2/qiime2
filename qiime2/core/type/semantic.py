@@ -23,6 +23,7 @@ _RESERVED_NAMES = {
     'numericmetacol', 'metadatacategory', 'float', 'double', 'number', 'set',
     'list', 'bag', 'multiset', 'map', 'dict', 'nominal', 'ordinal',
     'categorical', 'numeric', 'interval', 'ratio', 'continuous', 'discrete',
+    'tuple', 'row', 'record',
     # Type System:
     'semantictype', 'propertymap', 'propertiesmap', 'typemap', 'typevariable',
     'predicate'
@@ -203,17 +204,23 @@ class _SemanticType(grammar.TypeExpression, _SemanticMixin):
         return self.__class__(self.name, self.variant_of, fields=fields,
                               predicate=self.predicate)
 
-    def _validate_intersection_(self, other, handshake=False):
-        pass
+    def _validate_intersection_(self, other):
+        super()._validate_intersection_(other)
 
     def _build_union_(self, *members):
         return _SemanticUnionType(*members)
 
     def _validate_predicate_(self, predicate):
-        if not isinstance(predicate, Properties):
+        if not isinstance(predicate, (Properties,
+                                      grammar.IntersectionPredicate,
+                                      grammar.UnionPredicate)):
             raise TypeError()
 
     def _apply_predicate_(self, predicate):
+        if isinstance(predicate, type(predicate.get_bottom())):
+            return self._build_union_(*(
+                self.__class__(self.name, self.variant_of, fields=self.fields,
+                               predicate=p) for p in predicate.members))
         return self.__class__(self.name, self.variant_of,
                               fields=self.fields, predicate=predicate)
 
@@ -237,14 +244,16 @@ class _SemanticUnionType(grammar.UnionTypeExpression, _SemanticMixin):
 
 
 class Properties(grammar.Predicate):
-    def __init__(self, include=(), exclude=()):
-        if type(include) is str:
-            include = (include,)
+    def __init__(self, *include, exclude=()):
+        if len(include) == 1 and isinstance(include[0],
+                                            (list, tuple, set, frozenset)):
+            include = tuple(include[0])
+
         if type(exclude) is str:
             exclude = (exclude,)
 
-        self.include = list(include)
-        self.exclude = list(exclude)
+        self.include = tuple(include)
+        self.exclude = tuple(exclude)
         for prop in itertools.chain(self.include, self.exclude):
             if type(prop) is not str:
                 raise TypeError("%r in %r is not a string." % (prop, self))
@@ -252,19 +261,19 @@ class Properties(grammar.Predicate):
         super().__init__(include, exclude)
 
     def __hash__(self):
-        return hash(tuple(self.include)) ^ hash(tuple(self.exclude))
+        return hash(frozenset(self.include)) ^ hash(frozenset(self.exclude))
 
     def __eq__(self, other):
         return (type(self) is type(other) and
-                self.include == other.include and
-                self.exclude == other.exclude)
+                set(self.include) == set(other.include) and
+                set(self.exclude) == set(other.exclude))
 
     def __repr__(self):
         args = []
         if self.include:
-            args.append("%r" % self.include)
+            args.append(', '.join(repr(s) for s in self.include))
         if self.exclude:
-            args.append("exclude=%r" % self.exclude)
+            args.append("exclude=%r" % list(self.exclude))
 
         return "%s(%s)" % (self.__class__.__name__, ', '.join(args))
 
@@ -273,6 +282,43 @@ class Properties(grammar.Predicate):
             return NotImplemented
         return (set(other.include) <= set(self.include) and
                 set(other.exclude) <= set(self.exclude))
+
+    def _is_supertype_(self, other):
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        return (set(other.include) >= set(self.include) and
+                set(other.exclude) >= set(self.exclude))
+
+    def _build_intersection_(self, *members):
+        if not members:
+            return super()._build_intersection_()
+
+        for m in members:
+            if not isinstance(m, self.__class__):
+                return super()._build_intersection_(*members)
+
+        members_iter = iter(members)
+
+        m = next(members_iter)
+        new_include_set = set(m.include)
+        new_exclude_set = set(m.exclude)
+
+        for m in members_iter:
+            new_include_set |= set(m.include)
+            new_exclude_set |= set(m.exclude)
+
+        new_include = []
+        new_exclude = []
+        for inc in itertools.chain.from_iterable(m.include for m in members):
+            if inc in new_include_set:
+                new_include.append(inc)
+                new_include_set.remove(inc)
+        for exc in itertools.chain.from_iterable(m.exclude for m in members):
+            if exc in new_exclude_set:
+                new_exclude.append(exc)
+                new_exclude_set.remove(exc)
+
+        return self.__class__(*new_include, exclude=new_exclude)
 
     def to_ast(self):
         ast = super().to_ast()

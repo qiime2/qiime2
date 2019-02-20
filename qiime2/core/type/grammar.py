@@ -144,7 +144,7 @@ class CompositeType(_TypeBase):
         return False
 
 
-class _Subtypeable(_TypeBase):
+class AlgebraicType(_TypeBase):
     def __iter__(self):
         yield self
 
@@ -191,7 +191,7 @@ class _Subtypeable(_TypeBase):
 
     def _aug_validate_union(self, other):
         self._validate_union_(other)
-        if isinstance(other, _Subtypeable):
+        if isinstance(other, AlgebraicType):
             other._validate_union_(self)
 
     def _validate_union_(self, other):
@@ -231,7 +231,7 @@ class _Subtypeable(_TypeBase):
 
     def _aug_validate_intersection(self, other):
         self._validate_intersection_(other)
-        if isinstance(other, _Subtypeable):
+        if isinstance(other, AlgebraicType):
             other._validate_intersection_(self)
 
     def _validate_intersection_(self, other):
@@ -256,7 +256,7 @@ class _Subtypeable(_TypeBase):
         return self <= other <= self
 
 
-class TypeExpression(_Subtypeable):
+class TypeExpression(AlgebraicType):
     def __init__(self, name, fields=(), predicate=None):
         self.name = name
         self.fields = fields
@@ -465,7 +465,7 @@ class UnionTypeExpression(TypeExpression):
         }
 
 
-class Predicate(_Subtypeable):
+class Predicate(AlgebraicType):
     def __init__(self, *args, **kwargs):
         truthy = any(map(bool, args)) or any(map(bool, kwargs.values()))
         if not truthy:

@@ -454,7 +454,7 @@ class TestTypeExpressionMod(unittest.TestCase):
                 self.local['predicate'] = predicate
 
         example = Example('Example')
-        p = grammar.Predicate()
+        p = grammar.Predicate(...)
         example % p
         self.assertIs(self.local['predicate'], p)
 

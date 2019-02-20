@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import numbers
-import re
 import functools
 import itertools
 
@@ -77,7 +76,7 @@ class UnionPrimitiveType(_Primitive, UnionTypeExpression):
         for m in self._get_order():
             try:
                 value = m.decode(string)
-            except:
+            except Exception:
                 pass
             else:
                 break
@@ -234,7 +233,6 @@ class Range(_PrimitivePredicate):
         if r is None:
             return self.get_bottom()
         return r
-
 
     @classmethod
     def intersect_two_ranges(cls, a, b):
