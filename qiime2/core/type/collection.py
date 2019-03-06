@@ -8,106 +8,84 @@
 
 import json
 
-from . import grammar
-from .primitive import _PrimitiveBase, is_primitive_type, Metadata
-from .semantic import _SemanticMixin, is_semantic_type
 
+from qiime2.core.type.template import TypeTemplate, instantiate
 
-def is_collection_type(type_):
-    return isinstance(type_, (_CollectionBase, _CollectionExpression))
+def is_collection_type(x):
+    raise TypeError
 
+class _CollectionBase(TypeTemplate):
+    def __init__(self, fields=()):
+        self.fields = fields
 
-class _CollectionBase(grammar.CompositeType):
-    def __init__(self, name, view):
-        # Only 1d collections are supported for now
-        self._view = view
-        super().__init__(name, field_names=['elements'])
+    def __eq__(self, other):
+        return type(self) is type(other) and self.fields == other.fields
 
-    def _apply_fields_(self, fields):
-        elements, = fields
-        if is_collection_type(elements):
-            # This must be the first branch, as is_primitive/semantic is true
-            # for collections types as well.
-            raise TypeError("Cannot nest collection types.")
-        elif is_semantic_type(elements):
-            return _CollectionSemantic(self.name, self._view, fields=fields)
-        elif is_primitive_type(elements):
-            # TODO consider making an `is_metadata_type` helper if this check
-            # is repeated in other parts of the codebase
-            if elements is Metadata or elements.name == 'MetadataColumn':
-                raise TypeError("Cannot use collections on metadata.")
-            return _CollectionPrimitive(self.name, self._view, fields=fields)
-        else:
-            raise NotImplementedError
+    def get_name(self):
+        return self.__class__.__name__
 
+    def get_kind(self):
+        if self.fields:
+            return self.fields[0].template.get_kind()
+        return "collection"
 
-class _CollectionExpression(grammar.TypeExpression):
-    def __init__(self, name, view, fields=(), predicate=None):
-        self._view = view
-        super().__init__(name, fields, predicate)
+    def specialize(self, fields):
+        return self.__class__(fields).template
 
-    def _is_element_(self, value):
-        contained_type, = self.fields
-        if not isinstance(value, self._view):
-            return False
-        if not value:
-            # Collections of size 1 are not allowed as it overlaps with
-            # optional values in an awkward way that is difficult to explain
-            # to end-users and make interfaces more difficult.
-            return False
-        for el in value:
-            if el not in contained_type:
-                return False
-
-        return True
-
-    def to_ast(self):
-        ast = super().to_ast()
-        ast['type'] = 'collection'
-        return ast
-
-    def _validate_union_(self, other, handshake=False):
-        # This is actually handled really well by the grammar, but interfaces
-        # would need to observe unions which may have multiple collections
-        # or mixes of collections and singletons, which is more complicated
-        # and we don't need it.
-        # If this is supported in the future, we should check that the type
-        # of self and other are the same so that we don't mix primitive and
-        # semantic types.
-        raise TypeError("Unions of collection types are not supported.")
-
-    def _validate_predicate_(self, predicate):
-        # Something like `MinLen(...)` might be handy...
-        raise TypeError("There are no predicates for collection types.")
-
-    def _apply_predicate_(self, predicate):
-        # Exists for "top" predicate
-        return self.__class__(self.name, self._view, fields=self.fields,
-                              predicate=predicate)
-
-    def _apply_fields_(self, fields):
-        # Just pass the `view` along.
-        return self.__class__(self.name, self._view, fields=fields,
-                              predicate=self.predicate)
-
-    def is_concrete(self):
-        # Prevent use as an output or artifact type
+    def is_variant(self):
         return False
 
+    def validate_predicate(self, predicate, expr):
+        raise TypeError("Predicates cannot be applied to %r" % expr)
 
-class _CollectionPrimitive(_CollectionExpression, _PrimitiveBase):
-    def encode(self, value):
-        return json.dumps(list(value))
+    def validate_fields(self, fields, expr):
+        try:
+            field, = fields
+        except ValueError:
+            raise TypeError
 
-    def decode(self, string):
-        return self._view(json.loads(string))
+        if isinstance(field, self.__class__):
+            raise TypeError
 
+    def validate_union(self, other):
+        if type(other) is not type(self):
+            raise TypeError
 
-class _CollectionSemantic(_CollectionExpression, _SemanticMixin):
-    def is_variant(self, varfield):
-        # Collections shouldn't be part of a composite type
+        if other.kind != self.kind:
+            raise TypeError
+
+    def is_element(self, value, expr):
+        if isinstance(value, self.view) and len(value) > 0:
+            return all(v in expr.fields[0] for v in value)
         return False
 
+    def validate_intersection(self, other):
+        pass
 
-List = _CollectionBase('List', list)
-Set = _CollectionBase('Set', set)
+
+class _1DCollectionBase(_CollectionBase):
+    def get_field_names(self):
+        return ['type']
+
+
+
+@instantiate
+class Set(_1DCollectionBase):
+    view = set
+
+@instantiate
+class List(_1DCollectionBase):
+    view = list
+
+@instantiate
+class Tuple(_CollectionBase):
+    view = tuple
+
+    def get_field_names(self):
+        return ['*types']
+
+    def validate_fields(self, fields, expr):
+        # Tuples may contain anything, and as many fields as desired
+        pass
+
+

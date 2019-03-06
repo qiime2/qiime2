@@ -12,7 +12,7 @@ import copy
 import itertools
 
 import qiime2.sdk
-from .grammar import TypeExpression
+from .grammar import TypeExp, UnionExp
 from .primitive import is_primitive_type
 from .semantic import is_semantic_type
 from .visualization import Visualization
@@ -219,7 +219,7 @@ class PipelineSignature:
                     "Input %r must be a semantic QIIME type, not %r"
                     % (input_name, spec.qiime_type))
 
-            if not isinstance(spec.qiime_type, TypeExpression):
+            if not isinstance(spec.qiime_type, (TypeExp, UnionExp)):
                 raise TypeError(
                     "Input %r must be a complete semantic type expression, "
                     "not %r" % (input_name, spec.qiime_type))
@@ -237,7 +237,7 @@ class PipelineSignature:
                     "Parameter %r must be a primitive QIIME type, not %r"
                     % (param_name, spec.qiime_type))
 
-            if not isinstance(spec.qiime_type, TypeExpression):
+            if not isinstance(spec.qiime_type, TypeExp):
                 raise TypeError(
                     "Parameter %r must be a complete primitive type "
                     "expression, not %r" % (param_name, spec.qiime_type))
@@ -262,7 +262,7 @@ class PipelineSignature:
                     "Visualization, not %r"
                     % (output_name, spec.qiime_type))
 
-            if not isinstance(spec.qiime_type, TypeExpression):
+            if not isinstance(spec.qiime_type, TypeExp):
                 raise TypeError(
                     "Output %r must be a complete type expression, not %r"
                     % (output_name, spec.qiime_type))

@@ -175,7 +175,7 @@ class Plugin:
             if not is_semantic_type(semantic_type):
                 raise TypeError("%r is not a semantic type." % semantic_type)
 
-            if not (isinstance(semantic_type, grammar.CompositeType) or
+            if not (isinstance(semantic_type, grammar.IncompleteExp) or
                     (semantic_type.is_concrete() and
                     not semantic_type.fields)):
                 raise ValueError("%r is not a semantic type symbol."
@@ -193,7 +193,7 @@ class Plugin:
             raise TypeError("%r is not a directory format." % artifact_format)
         if not is_semantic_type(semantic_type):
             raise TypeError("%r is not a semantic type." % semantic_type)
-        if not isinstance(semantic_type, grammar.TypeExpression):
+        if not isinstance(semantic_type, grammar.TypeExp):
             raise ValueError("%r is not a semantic type expression."
                              % semantic_type)
         if semantic_type.predicate is not None:
