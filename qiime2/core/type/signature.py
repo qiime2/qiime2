@@ -289,16 +289,15 @@ class PipelineSignature:
 
     def check_types(self, **kwargs):
         for name, spec in self.signature_order.items():
-            if kwargs[name] not in spec.qiime_type:
-                # A type mismatch is unacceptable unless the value is None
-                # and this parameter's default value is None.
-                if not (spec.has_default() and
-                        spec.default is None and
-                        kwargs[name] is None):
-                    raise TypeError(
-                        "Parameter %r received an argument of type %r. An "
-                        "argument of subtype %r is required." % (
-                            name, kwargs[name].type, spec.qiime_type))
+            # A type mismatch is unacceptable unless the value is None
+            # and this parameter's default value is None.
+            if ((kwargs[name] not in spec.qiime_type) and
+                    not (spec.has_default() and spec.default is None
+                         and kwargs[name] is None)):
+                raise TypeError(
+                    "Parameter %r received an argument of type %r. An "
+                    "argument of subtype %r is required." % (
+                        name, kwargs[name].type, spec.qiime_type))
 
     def solve_output(self, **input_types):
         # TODO implement solving here. The check for concrete output types may
