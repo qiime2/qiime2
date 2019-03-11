@@ -71,9 +71,27 @@ class TestBadInputs(TestPluginBase):
 
     def test_artifact_passed_as_param(self):
         # TODO: implement
+        # passed as params
+        # passed as metadata
+        # etc?
         pass
 
-    def test_artifact_passed_as_metadata(self):
+    def test_incorrect_artifact_type(self):
+        # method = self.plugin.methods['optional_artifacts_method']
+        # ints1 = Artifact.import_data(IntSequence1, [0, 42, 43])
+        # testDoc = Artifact.import_data
+        #
+        #
+        # with self.assertRaisesRegex(
+        #         TypeError, 'Visualizations may not be used as inputs.'):
+        #     method(saved_viz, 42)
+        pass
+
+    def test_incorrect_artifact_subtype(self):
+        # TODO: implement
+        pass
+
+    def incorrect_primitive_type(self):
         # TODO: implement
         pass
 
@@ -82,8 +100,30 @@ class TestBadInputs(TestPluginBase):
         pass
 
     def test_primitive_passed_as_input(self):
-        # TODO: implement
-        pass
+        # generate params
+        concatenate_ints = self.plugin.methods['concatenate_ints']
+        identity_with_metadata = self.plugin.methods['identity_with_metadata']
+        params_only_method = self.plugin.methods['params_only_method']
+        ints1 = Artifact.import_data(IntSequence1, [0, 42, 43])
+        ints3 = Artifact.import_data(IntSequence1, [99, -22])
+        int1 = 4
+        int2 = 5
+        arbitrary_int = 43
+
+        # tests primitive passed as IntSequence artifact
+        with self.assertRaisesRegex(TypeError,
+                                    'type IntSequence1.*type \'int\''):
+            concatenate_ints(ints1, arbitrary_int, ints3, int1, int2)
+
+        # tests primitive passed as metadata
+        with self.assertRaisesRegex(TypeError,
+                                    'type Metadata.*type \'int\''):
+            identity_with_metadata(ints1, arbitrary_int)
+
+        # tests wrong type of primitive passed
+        with self.assertRaisesRegex(TypeError,
+                                    'type Int.*type \'str\''):
+            params_only_method('key string', 'arbitrary string shuld be int')
 
     def test_primitive_param_out_of_range(self):
         # TODO: implement

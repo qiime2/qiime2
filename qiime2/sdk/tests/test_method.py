@@ -399,7 +399,7 @@ class TestMethod(unittest.TestCase):
         # TODO: break this out into section with other "bad input" tests?
         # Invalid type provided as optional artifact.
         with self.assertRaisesRegex(TypeError,
-                                    'type IntSequence2.*subtype IntSequence1'):
+                                    'type IntSequence1.*type IntSequence2'):
             method(ints1, 42, optional1=ints3)
 
     def test_call_with_variadic_inputs(self):
