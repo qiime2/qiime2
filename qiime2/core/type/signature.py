@@ -302,16 +302,18 @@ class PipelineSignature:
                         "argument. Visualizations may not be used as inputs."
                         % name)
 
-                # Check if is Artifact
-                isArtifact = isinstance(kwargs[name], qiime2.sdk.Artifact)
-                # kwargHasTypeAttribute = is_semantic_type(kwargs[name])
-                passed_type = (kwargs[name].type if isArtifact
+                # store parameter type for later use
+                kwargIsArtifact = isinstance(kwargs[name], qiime2.sdk.Artifact)
+                passed_type = (kwargs[name].type if kwargIsArtifact
                                else type(kwargs[name]).__name__)
+
                 raise TypeError(
-                    "Parameter %r received an argument of type %r. An "
-                    "argument of subtype %r is required." % (
-                        name, passed_type,
-                        spec.qiime_type))
+                    "Parameter %r requires an argument of type %r. An "
+                    "argument of type %r was passed." % (
+                        name, spec.qiime_type,
+                        passed_type))
+
+                # handle artifacts with same types, different subtypes:
 
     def solve_output(self, **input_types):
         # TODO implement solving here. The check for concrete output types may
