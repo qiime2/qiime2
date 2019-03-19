@@ -21,11 +21,11 @@ class Visualization(TypeTemplate):
     def get_name(self):
         return self.__class__.__name__
 
-    def is_element(self, value, expr):
+    def is_element(self, value):
         import qiime2.sdk
         return isinstance(value, qiime2.sdk.Visualization)
 
-    def validate_fields(self, fields, expr):
+    def validate_field(self, name, field):
         raise TypeError
 
     def validate_intersection(self, other):

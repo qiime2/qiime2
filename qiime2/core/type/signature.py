@@ -13,9 +13,10 @@ import itertools
 
 import qiime2.sdk
 from .grammar import TypeExp, UnionExp
-from .primitive import is_primitive_type
+from .primitive import is_primitive_type, infer_primitive_type
 from .semantic import is_semantic_type
 from .visualization import Visualization
+from . import meta
 from ..util import ImmutableBase
 
 
@@ -230,6 +231,14 @@ class PipelineSignature:
                     "value of `None` is supported for inputs."
                     % (input_name, spec.default))
 
+            for var_selector in meta.select_variables(spec.qiime_type):
+                var = var_selector(spec.qiime_type)
+                if not var.input:
+                    raise TypeError("An output variable has been associated"
+                                    " with an input type: %r"
+                                    % spec.qiime_type)
+
+
     def _assert_valid_parameters(self, parameters):
         for param_name, spec in parameters.items():
             if not is_primitive_type(spec.qiime_type):
@@ -249,6 +258,14 @@ class PipelineSignature:
                                 "semantic QIIME type %r or `None`."
                                 % (param_name, spec.qiime_type))
 
+            for var_selector in meta.select_variables(spec.qiime_type):
+                var = var_selector(spec.qiime_type)
+                if not var.input:
+                    raise TypeError("An output variable has been associated"
+                                    " with an input type: %r"
+                                    % spec.qiime_type)
+
+
     def _assert_valid_outputs(self, outputs):
         if len(outputs) == 0:
             raise TypeError("%s requires at least one output"
@@ -266,6 +283,13 @@ class PipelineSignature:
                 raise TypeError(
                     "Output %r must be a complete type expression, not %r"
                     % (output_name, spec.qiime_type))
+
+            for var_selector in meta.select_variables(spec.qiime_type):
+                var = var_selector(spec.qiime_type)
+                if not var.output:
+                    raise TypeError("An input variable has been associated"
+                                    " with an input type: %r")
+
 
     def _assert_valid_views(self, inputs, parameters, outputs):
         for name, spec in itertools.chain(inputs.items(),
@@ -300,12 +324,24 @@ class PipelineSignature:
                         "argument of subtype %r is required." % (
                             name, kwargs[name].type, spec.qiime_type))
 
-    def solve_output(self, **input_types):
-        # TODO implement solving here. The check for concrete output types may
-        # be unnecessary here if the signature's constructor can detect
-        # unsolvable signatures and ensure that solving will always produce
-        # concrete output types.
-        solved_outputs = self.outputs
+    def solve_output(self, **kwargs):
+        solved_outputs = None
+        for spec in _, spec in self.outputs:
+            if list(select_variables(spec.qiime_type)):
+                break  # a variable exists, do the hard work
+        else:
+            # no variables
+            solved_outputs = self.outputs
+
+        if solved_outputs is None:
+            inputs = {**{k: s.qiime_type for k, s in self.inputs.items()}
+                      **{k: s.qiime_type for k, s in self.parameters.items()}}
+            outputs = {k: s.qiime_type for k, s in self.outputs}
+            input_types = {k: self._infer_type(v) for k, v in kwargs.items()}
+
+            solved = meta.match(input_types, inputs, outputs)
+            solved_outputs = [(k, s.duplicate(qiime_type=solved[k]))
+                              for k, s in self.outputs]
 
         for output_name, spec in solved_outputs.items():
             if not spec.qiime_type.is_concrete():
@@ -314,6 +350,16 @@ class PipelineSignature:
                     (output_name, spec.qiime_type))
 
         return solved_outputs
+
+    def _infer_type(self, value):
+        if type(value) is list:
+            return List[UnionExp({self._infer_type(v) for v in value})]
+        if type(value) is set:
+            return Set[UnionExp({self._infer_type(v) for v in value})]
+        if isinstance(value, qiime2.sdk.Artifact):
+            return value.type
+        else:
+            return infer_primitive_type(value)
 
     def __repr__(self):
         lines = []

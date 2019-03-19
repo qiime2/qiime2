@@ -89,7 +89,7 @@ class Range(_PrimitivePredicateBase):
 
         return "Range(%s)" % (', '.join(args),)
 
-    def is_element(self, value, expr):
+    def is_element(self, value):
         if self.inclusive_start:
             if value < self.start:
                 return False
@@ -177,7 +177,7 @@ class Range(_PrimitivePredicateBase):
 
         return self.__class__(new_start, new_end,
                               inclusive_start=new_inclusive_start,
-                              inclusive_end=new_inclusive_end)
+                              inclusive_end=new_inclusive_end).template
 
 
     def iter_boundaries(self):
@@ -223,7 +223,7 @@ class Choices(_PrimitivePredicateBase):
         return "%s(%s)" % (self.__class__.__name__,
                            repr(list(self.choices))[1:-1])
 
-    def is_element(self, value, expr):
+    def is_element(self, value):
         return value in self.choices
 
     def is_subtype(self, other):
@@ -253,7 +253,7 @@ class Choices(_PrimitivePredicateBase):
                 new_choices.append(c)
                 new_choices_set.remove(c)
 
-        return self.__class__(new_choices)
+        return self.__class__(new_choices).template
 
     def iter_boundaries(self):
         yield from self.choices
@@ -275,18 +275,23 @@ class _PrimitiveTemplateBase(TypeTemplate):
     def get_field_names(self):
         return []
 
-    def validate_fields(self, fields, expr):
+    def validate_field(self, name, field):
         raise TypeError
 
-    def validate_predicate(self, predicate, expr):
-        return
-
+    def validate_predicate_expr(self, self_expr, predicate_expr):
+        predicate = predicate_expr.template
         if type(predicate) not in self._valid_predicates:
-            raise TypeError
+            raise TypeError(str(predicate_expr))
 
         for bound in predicate.iter_boundaries():
-            if not self.is_element(bound, expr):
-                raise TypeError
+            if not self.is_element_expr(self_expr, bound):
+                print(type(self_expr), self_expr)
+                raise TypeError(bound)
+
+        self.validate_predicate(predicate_expr.template)
+
+    def validate_predicate(self, predicate):
+        pass
 
     def validate_union(self, other):
         pass
@@ -299,7 +304,7 @@ class _PrimitiveTemplateBase(TypeTemplate):
 class Int(_PrimitiveTemplateBase):
     _valid_predicates = {Range}
 
-    def is_element(self, value, expr):
+    def is_element(self, value):
         return (value is not True and value is not False
                 and isinstance(value, numbers.Integral))
 
@@ -313,7 +318,7 @@ class Int(_PrimitiveTemplateBase):
 class Str(_PrimitiveTemplateBase):
     _valid_predicates = {Choices}
 
-    def is_element(self, value, expr):
+    def is_element(self, value):
         return isinstance(value, str)
 
 
@@ -321,24 +326,31 @@ class Str(_PrimitiveTemplateBase):
 class Float(_PrimitiveTemplateBase):
     _valid_predicates = {Range}
 
-    def is_element(self, value, expr):
+    def is_element(self, value):
         # Works with numpy just fine.
-        return isinstance(value, numbers.Real)
+        return (value is not True and value is not False
+                and isinstance(value, numbers.Real))
 
 
 @instantiate
 class Bool(_PrimitiveTemplateBase):
     _valid_predicates = {Choices}
 
-    def is_element(self, value, expr):
+    def is_element(self, value):
         return value is True or value is False
+
+    def validate_predicate(self, predicate):
+        if type(predicate) is Choices:
+            if set(predicate.iter_boundaries()) == {True, False}:
+                raise TypeError("Choices should be ommitted when "
+                                "Choices(True, False).")
 
 
 @instantiate
 class Metadata(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
-    def is_element(self, value, expr):
+    def is_element(self, value):
         return isinstance(value, metadata.Metadata)
 
 
@@ -346,27 +358,26 @@ class Metadata(_PrimitiveTemplateBase):
 class MetadataColumn(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
-    def is_element(self, value, expr):
-        return value in expr.fields[0]
+    def is_element_expr(self, self_expr, value):
+        return value in self_expr.fields[0]
+
+    def is_element(self, value):
+        raise NotImplementedError
 
     def get_field_names(self):
         return ["type"]
 
-    def validate_fields(self, fields, expr):
-        try:
-            field, = fields
-        except ValueError:
-            raise TypeError("%r given too many fields: %r" % (self, fields))
-
-        if field.get_name() not in ["Numeric", "Categorical"]:
-            raise TypeError("Unsupported type in field: %r" % (field,))
+    def validate_field(self, name, field):
+        if field.get_name() not in ("Numeric", "Categorical"):
+            raise TypeError("Unsupported type in field: %r"
+                            % (field.get_name(),))
 
 
 @instantiate
 class Categorical(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
-    def is_element(self, value, expr):
+    def is_element(self, value):
         return isinstance(value, metadata.CategoricalMetadataColumn)
 
 
@@ -374,5 +385,18 @@ class Categorical(_PrimitiveTemplateBase):
 class Numeric(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
-    def is_element(self, value, expr):
+    def is_element(self, value):
         return isinstance(value, metadata.NumericMetadataColumn)
+
+
+def infer_primitive_type(value):
+    for t in (Int, Float):
+        if value in t:
+            return t % Range(value, value, inclusive_end=True)
+    for t in (Bool, Str):
+        if value in t:
+            return t % Choices(value)
+    for t in (Metadata, MetadataColumn[Categorical], MetadataColumn[Numeric]):
+        if value in t:
+            return t
+    raise ValueError("Unknown primitive type: %r" % (value,))

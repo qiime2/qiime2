@@ -48,7 +48,7 @@ def superscript(number):
         '0': chr(8304), '1': chr(185), '2': chr(178), '3': chr(179),
         **{str(i): chr(x) for i, x in enumerate(range(8308, 8314), 4)},
         'a': chr(7491), 'e': chr(7497), 'f': chr(7584), 'i': chr(8305),
-        'n': chr(8319), '-': chr(8315), '.': chr(39)
+        'n': chr(8319), '-': chr(8315), '.': chr(39), ',': chr(39)
     }
     return ''.join([table[d] for d in str(number)])
 

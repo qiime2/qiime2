@@ -10,33 +10,7 @@ import itertools
 from abc import ABCMeta, abstractmethod
 
 from qiime2.core.util import tuplize
-from ..util import ImmutableBase
-
-
-def least_common_subtypes(*types):
-    least = []
-    for t in types:
-        for idx, partition_rep in enumerate(least):
-            if t <= partition_rep:
-                least[idx] = t
-                break
-        else:  # evaled if the above loop did not break
-            least.append(t)
-
-    return least
-
-
-def greatest_common_subtypes(*types):
-    greatest = []
-    for t in types:
-        for idx, partition_rep in enumerate(greatest):
-            if t >= partition_rep:
-                greatest[idx] = t
-                break
-        else:  # evaled if the above loop did not break
-            greatest.append(t)
-
-    return greatest
+from .poset import maximum_antichain, minimum_antichain
 
 
 class _ExpBase(metaclass=ABCMeta):
@@ -44,7 +18,7 @@ class _ExpBase(metaclass=ABCMeta):
         self.template = template
 
     def __getattr__(self, name):
-        if name in self.template.public_proxy:
+        if self.template is not None and name in self.template.public_proxy:
             return getattr(self.template, name)
 
         raise AttributeError("%r object has no attribute %r"
@@ -52,11 +26,11 @@ class _ExpBase(metaclass=ABCMeta):
 
     @property
     def name(self):
-        return self.template.get_name()
+        return self.template.get_name_expr(self)
 
     @property
     def kind(self):
-        return self.template.get_kind()
+        return self.template.get_kind_expr(self)
 
     @abstractmethod
     def __eq__(self, other):
@@ -100,7 +74,7 @@ class IncompleteExp(_ExpBase):
         return type(self) is type(other) and self.name == other.name
 
     def __hash__(self):
-        return hash(type(self) ^ hash(self.name))
+        return hash(type(self)) ^ hash(self.name)
 
     def __repr__(self):
         fields = ', '.join('{%s}' % f for f in self.template.get_field_names())
@@ -132,10 +106,8 @@ class IncompleteExp(_ExpBase):
 
     def __getitem__(self, fields):
         fields = tuplize(fields)
-        self.template.validate_fields(tuple(f.template for f in fields),
-                                      fields)
-        template = self.template.specialize(fields)
-        return TypeExp(template, fields=fields)
+        self.template.validate_fields_expr(self, fields)
+        return TypeExp(self.template, fields=fields)
 
     def equals(self, other):
         return self == other
@@ -165,21 +137,25 @@ class _AlgebraicExpBase(_ExpBase):
         return False
 
     def __or__(self, other):
-        self.template.validate_union(other.template)
-        other.template.validate_union(self.template)
+        if not self.is_defined() or not other.is_defined():
+            raise TypeError("Cannot union %r and %r" % (self, other))
+        if self.template is not None and other.template is not None:
+            self.template.validate_union_expr(self, other)
+            other.template.validate_union_expr(other, self)
 
         if self >= other:
             return self
         if self <= other:
             return other
 
-        members = greatest_common_subtypes(*self.unpack_union(),
-                                           *other.unpack_union())
-        return UnionExp(members, template=self.template)
+        members = maximum_antichain(*self.unpack_union(),
+                                    *other.unpack_union())
+        return UnionExp(members)
 
     def __and__(self, other):
-        self.template.validate_intersection(other.template)
-        other.template.validate_intersection(self.template)
+        if self.template is not None and other.template is not None:
+            self.template.validate_intersection_expr(self, other)
+            other.template.validate_intersection_expr(other, self)
 
         # inverse of __or__
         if self >= other:
@@ -188,7 +164,7 @@ class _AlgebraicExpBase(_ExpBase):
             return self
 
         # Distribute over union
-        t = UnionExp(template=self.template)
+        t = UnionExp()
         if isinstance(self, UnionExp) or isinstance(other, UnionExp):
             for s, o in itertools.product(self.unpack_union(),
                                           other.unpack_union()):
@@ -202,9 +178,9 @@ class _AlgebraicExpBase(_ExpBase):
             return collapse
 
         # Back to the regularly scheduled inverse of __or__
-        members = least_common_subtypes(*self.unpack_intersection(),
-                                        *other.unpack_intersection())
-        return IntersectionExp(members, template=self.template)
+        members = minimum_antichain(*self.unpack_intersection(),
+                                    *other.unpack_intersection())
+        return IntersectionExp(members)
 
     def _collapse_intersection_(self, other):
         return NotImplemented
@@ -229,13 +205,19 @@ class _AlgebraicExpBase(_ExpBase):
     def unpack_intersection(self):
         yield self
 
+    # These methods are to be overridden by type variables
+    def is_defined(self):
+        return True
+
 
 class TypeExp(_AlgebraicExpBase):
     def __init__(self, template, fields=(), predicate=None):
         super().__init__(template)
+        if predicate is not None and predicate.is_top():
+            predicate = None
+
         self.fields = tuple(fields)
         self.predicate = predicate
-
 
     @property
     def full_predicate(self):
@@ -261,24 +243,30 @@ class TypeExp(_AlgebraicExpBase):
             result += '[%s]' % ', '.join(repr(f) for f in self.fields)
         if self.predicate:
             predicate = repr(self.predicate)
-            if isinstance(predicate, (IntersectionExp, UnionExp)):
+            if self.predicate.template is None:  # is _IdentityExpBase
                 predicate = '(%s)' % predicate
             result += ' % ' + predicate
         return result
 
+    def __getitem__(self, fields):
+        raise TypeError("Cannot apply fields (%r) to %r,"
+                        " fields already present." % (fields, self))
+
     def __contains__(self, value):
-        return (self.template.is_element(value, self)
+        return (self.template.is_element_expr(self, value)
                 and value in self.full_predicate)
 
     def _is_subtype_(self, other):
-        if not self.template.is_subtype(other.template):
+        if other.template is None:
             return NotImplemented
 
+        if not self.template.is_symbol_subtype_expr(self, other):
+            return False
         for f1, f2 in itertools.zip_longest(self.fields, other.fields,
+                                            # more fields = more specific
                                             fillvalue=IntersectionExp()):
             if not (f1 <= f2):
                 return False
-
         if not (self.full_predicate <= other.full_predicate):
             return False
 
@@ -291,13 +279,12 @@ class TypeExp(_AlgebraicExpBase):
         if self.predicate:
             raise TypeError("%r already has a predicate, will not add %r"
                             % (self, predicate))
-        if predicate is None:
+        if predicate is None or predicate.is_top():
             return self
 
-        if isinstance(predicate, UnionExp):
-            return UnionExp((self.duplicate(predicate=p)
-                             for p in predicate.members),
-                            template=self.template)
+        if type(predicate) is UnionExp:  # do not include meta.TypeVarExp
+            return UnionExp(self.duplicate(predicate=p)
+                            for p in predicate.members)
 
         return self.duplicate(predicate=predicate)
 
@@ -309,43 +296,63 @@ class TypeExp(_AlgebraicExpBase):
         if fields == ():
             fields = self.fields
         else:
-            self.template.validate_fields((f.template for f in fields), self)
+            self.template.validate_fields_expr(self, fields)
 
         if predicate is None:
             predicate = self.predicate
+        elif predicate.is_top():
+            predicate = None
         else:
-            self.template.validate_predicate(predicate.template, self)
+            self.template.validate_predicate_expr(self, predicate)
 
         return self.__class__(self.template, fields=fields,
                               predicate=predicate)
 
     def _collapse_intersection_(self, other):
         if self.name != other.name:
-            return UnionExp(template=self.template)
+            return UnionExp()
 
-        new_fields = tuple(s & o for s, o in itertools.zip_longest(
-            self.fields, other.fields,
-            fillvalue=UnionExp(template=self.template)))
+        new_fields = tuple(
+            s & o for s, o in itertools.zip_longest(self.fields, other.fields,
+                                                    # same as a type mismatch
+                                                    fillvalue=UnionExp()))
         if any(f.is_bottom() for f in new_fields):
-            return UnionExp(template=self.template)
+            return UnionExp()
 
         new_predicate = self.full_predicate & other.full_predicate
         if new_predicate.is_bottom():
-            return UnionExp(template=self.template)
+            return UnionExp()
 
         return self.duplicate(fields=new_fields, predicate=new_predicate)
 
     def is_concrete(self):
-        if not super().is_concrete():
-            return False
+        return self._bool_attr_method('is_concrete')
 
-        if not self.full_predicate.is_concrete():
-            return False
+    def is_defined(self):
+        return self._bool_attr_method('is_defined')
 
-        if any(not f.is_concrete() for f in self.fields):
+    def _bool_attr_method(self, method_name):
+        method = lambda s: getattr(s, method_name)()
+
+        if not method(super()):
+            return False
+        if any(not method(f) for f in self.fields):
+            return False
+        if not method(self.full_predicate):
             return False
 
         return True
+
+    def to_ast(self):
+        return {
+            "type": "type",
+            "kind": self.kind,
+            "name": self.name,
+            "contents": {
+                "predicate": self.predicate.to_ast() if self.predicate else {},
+                "fields": [field.to_ast() for field in self.fields]
+            }
+        }
 
 
 class PredicateExp(_AlgebraicExpBase):
@@ -356,7 +363,7 @@ class PredicateExp(_AlgebraicExpBase):
         return hash(self.template)
 
     def __contains__(self, value):
-        return self.template.is_element(value, self)
+        return self.template.is_element_expr(self, value)
 
     def __repr__(self):
         return repr(self.template)
@@ -388,24 +395,40 @@ class PredicateExp(_AlgebraicExpBase):
 
         return NotImplemented
 
+    def to_ast(self):
+        return {
+            "type": "predicate",
+            "kind": self.kind,
+            "name": self.name,
+        }
+
 
 class _IdentityExpBase(_AlgebraicExpBase):
+    """
+    Base class for IntersectionExp and UnionExp.
+
+    If there are no members, then they are Top or Bottom types respectively
+    and represent identity values (like 1 for mul and 0 for add) for the
+    type algebra.
+
+    There is no template object for these expressions. That property will
+    always be `None`.
+    """
     _operator = ' ? '
+
+    def __init__(self, members=()):
+        super().__init__(template=None)
+        self.members = tuple(members)
 
     @property
     def kind(self):
-        if self.template is not None:
-            return super().kind
-
-        return "<identity>"
+        if not self.members:
+            return "identity"
+        return self.members[0].kind
 
     @property
     def name(self):
         return ""
-
-    def __init__(self, members=(), template=None):
-        super().__init__(template)
-        self.members = tuple(members)
 
     def __eq__(self, other):
         return (type(self) is type(other)
@@ -417,29 +440,22 @@ class _IdentityExpBase(_AlgebraicExpBase):
     def __repr__(self):
         if not self.members:
             return self.__class__.__name__ + "()"
-
         return self._operator.join(repr(m) for m in self.members)
-
-    def _is_subtype_(self, other):
-        return self <= other
-
-    def _is_supertype_(self, other):
-        return self >= other
 
 
 class UnionExp(_IdentityExpBase):
-    _operator = ' | '
+    _operator = ' | '  # used by _IdentityExpBase.__repr__
 
     def __contains__(self, value):
         return any(value in s for s in self.members)
 
-    def __le__(self, other):
+    def _is_subtype_(self, other):
         if isinstance(other, UnionExp):
             return all(any(s <= o for o in other.members)
                        for s in self.members)
         return all(s <= other for s in self.members)
 
-    def __ge__(self, other):
+    def _is_supertype_(self, other):
         if isinstance(other, self.__class__):
             return all(any(s >= o for s in self.members)
                        for o in other.members)
@@ -452,22 +468,35 @@ class UnionExp(_IdentityExpBase):
         yield from self.members
 
 
+    def to_ast(self):
+        return {
+            "type": "union",
+            "kind": self.kind,
+            "name": "",
+            "members": [m.to_ast() for m in self.members]
+        }
+
+
 class IntersectionExp(_IdentityExpBase):
-    _operator = ' & '
+    _operator = ' & '  # used by _IdentityExpBase.__repr__
 
     def __contains__(self, value):
         return all(value in s for s in self.members)
 
-    def __le__(self, other):
+    def _is_subtype_(self, other):
         if isinstance(other, UnionExp):
+            # Union will treat `self` as an atomic type, comparing
+            # its elements against `self`. This in turn will recurse back to
+            # `self` allowing it to check if it is a subtype of the union
+            # elements. That check will ultimately compare the elements of
+            # `self` against a single element of the union.
             return other >= self
-
         if isinstance(other, IntersectionExp):
             return all(any(s <= o for s in self.members)
                        for o in other.members)
         return any(m <= other for m in self.members)
 
-    def __ge__(self, other):
+    def _is_supertype_(self, other):
         if isinstance(other, UnionExp):
             return other <= self
 
@@ -481,3 +510,12 @@ class IntersectionExp(_IdentityExpBase):
 
     def unpack_intersection(self):
         yield from self.members
+
+    def to_ast(self):
+        return {
+            "type": "intersection",
+            "kind": self.kind,
+            "name": self.name,
+            "members": [m.to_ast() for m in self.members]
+        }
+

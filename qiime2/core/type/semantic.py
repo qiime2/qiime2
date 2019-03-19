@@ -171,7 +171,7 @@ class VariantField:
 
 
 class SemanticTemplate(TypeTemplate):
-    public_proxy = ['field']
+    public_proxy = 'field',
 
     def __init__(self, name, field_names, field_members, variant_of):
         self.name = name
@@ -191,7 +191,6 @@ class SemanticTemplate(TypeTemplate):
         return (hash(type(self)) ^ hash(self.name)
                 ^ hash(self.fields) ^ hash(self.variant_of))
 
-
     def get_kind(self):
         return 'semantic-type'
 
@@ -201,42 +200,36 @@ class SemanticTemplate(TypeTemplate):
     def get_field_names(self):
         return self.field_names
 
-    def is_subtype(self, other):
-        return self.get_name() == other.get_name()
-
-    def is_supertype(self, other):
-        return self.get_name() == other.get_name()
-
-    def is_element(self, value, expr):
+    def is_element_expr(self, self_expr, value):
         import qiime2.sdk
         if not isinstance(value, qiime2.sdk.Artifact):
             return False
-        return value.type <= expr
+        return value.type <= self_expr
 
-    def validate_fields(self, fields, expr):
-        if len(fields) != len(self.field_names):
-            raise TypeError
+    def is_element(self, value):
+        raise NotImplementedError
 
-        for f, e, varf in zip(fields, expr, [self.field[n]
-                                             for n in self.field_names]):
-            if not f.is_variant(varf, e):
+    def validate_field(self, name, field):
+        raise NotImplementedError
+
+    def validate_fields_expr(self, self_expr, fields_expr):
+        self.validate_field_count(len(fields_expr))
+        for expr, varf in zip(fields_expr,
+                              [self.field[n] for n in self.field_names]):
+            if not self.is_variant(expr, varf):
                 raise TypeError
 
-    def is_variant(self, varfield, expr):
-        if type(expr) is UnionExp:
-            return all(t.is_variant(varfield, e)
-                       for t, e in zip((m.template for m in expr.members),
-                                       expr.unpack_union()))
+    @classmethod
+    def is_variant(cls, expr, varf):
+        if isinstance(expr, UnionExp):
+            return all(cls.is_variant(e, varf) for e in expr.unpack_union())
+        if isinstance(expr, IntersectionExp):
+            return any(cls.is_variant(e, varf)
+                       for e in expr.unpack_intersection())
+        return (varf in expr.template.variant_of
+                or varf.is_member(expr.template))
 
-        if type(expr) is IntersectionExp:
-            return any(t.is_variant(varfield, e)
-                       for t, e in zip((m.template for m in expr.members),
-                                       expr.unpack_intersection()))
-
-        return varfield in self.variant_of or varfield.is_member(expr)
-
-
-    def validate_predicate(self, predicate, exp):
+    def validate_predicate(self, predicate):
         if not isinstance(predicate, Properties):
             raise TypeError()
 

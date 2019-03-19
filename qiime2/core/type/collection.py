@@ -24,13 +24,13 @@ class _CollectionBase(TypeTemplate):
     def get_name(self):
         return self.__class__.__name__
 
-    def get_kind(self):
-        if self.fields:
-            return self.fields[0].template.get_kind()
-        return "collection"
+    def get_kind_expr(self, self_expr):
+        if self_expr.fields:
+            return self_expr.fields[0].kind
+        return ""
 
-    def specialize(self, fields):
-        return self.__class__(fields).template
+    def get_kind(self):
+        raise NotImplementedError
 
     def is_variant(self):
         return False
@@ -38,12 +38,7 @@ class _CollectionBase(TypeTemplate):
     def validate_predicate(self, predicate, expr):
         raise TypeError("Predicates cannot be applied to %r" % expr)
 
-    def validate_fields(self, fields, expr):
-        try:
-            field, = fields
-        except ValueError:
-            raise TypeError
-
+    def validate_field(self, name, field):
         if isinstance(field, self.__class__):
             raise TypeError
 
@@ -51,16 +46,22 @@ class _CollectionBase(TypeTemplate):
         if type(other) is not type(self):
             raise TypeError
 
-        if other.kind != self.kind:
-            raise TypeError
-
-    def is_element(self, value, expr):
-        if isinstance(value, self.view) and len(value) > 0:
-            return all(v in expr.fields[0] for v in value)
+    def is_element_expr(self, self_expr, value):
+        contained_expr = self_expr.fields[0]
+        if isinstance(value, self._view) and len(value) > 0:
+            return all(v in contained_expr for v in value)
         return False
+
+    def is_element(self, value):
+        raise NotImplementedError
 
     def validate_intersection(self, other):
         pass
+
+    def to_ast(self):
+        ast = super().to_ast()
+        ast['type'] = "collection"
+        return ast
 
 
 class _1DCollectionBase(_CollectionBase):
@@ -68,23 +69,29 @@ class _1DCollectionBase(_CollectionBase):
         return ['type']
 
 
-
 @instantiate
 class Set(_1DCollectionBase):
-    view = set
+    _view = set
 
 @instantiate
 class List(_1DCollectionBase):
-    view = list
+    _view = list
 
 @instantiate
 class Tuple(_CollectionBase):
-    view = tuple
+    _view = tuple
+
+    def get_kind_expr(self, self_expr):
+        return ""
 
     def get_field_names(self):
         return ['*types']
 
-    def validate_fields(self, fields, expr):
+    def validate_field_count(self, count):
+        if not count:
+            raise TypeError("Tuple type must contain at least one element.")
+
+    def validate_field(self, name, field):
         # Tuples may contain anything, and as many fields as desired
         pass
 
