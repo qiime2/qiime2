@@ -24,6 +24,13 @@ class _ExpBase(metaclass=ABCMeta):
         raise AttributeError("%r object has no attribute %r"
                              % (type(self), name))
 
+    # Prevent infinite recursion when pickling due to __getattr__
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+
     @property
     def name(self):
         return self.template.get_name_expr(self)

@@ -10,7 +10,7 @@ from importlib import import_module
 
 from qiime2.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
                            Visualization, Metadata, MetadataColumn,
-                           Categorical, Numeric, TypeMap, TypeMatch)
+                           Categorical, Numeric)
 
 from .format import (
     IntSequenceFormat,

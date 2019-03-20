@@ -174,10 +174,13 @@ class SemanticTemplate(TypeTemplate):
     def __init__(self, name, field_names, field_members, variant_of):
         self.name = name
         self.field_names = field_names
-        self.field = types.MappingProxyType({
-            f: VariantField(name, f, field_members[f])
-            for f in self.field_names})
+        self.__field = {f: VariantField(name, f, field_members[f])
+                        for f in self.field_names}
         self.variant_of = variant_of
+
+    @property
+    def field(self):
+        return types.MappingProxyType(self.__field)
 
     def __eq__(self, other):
         return (type(self) is type(other)

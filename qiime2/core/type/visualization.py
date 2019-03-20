@@ -6,11 +6,10 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from qiime2.core.type.template import TypeTemplate, instantiate
+from qiime2.core.type.template import TypeTemplate
 
 
-@instantiate
-class Visualization(TypeTemplate):
+class _Visualization(TypeTemplate):
     def get_kind(self):
         return "visualization"
 
@@ -21,7 +20,7 @@ class Visualization(TypeTemplate):
         return []
 
     def get_name(self):
-        return self.__class__.__name__
+        return "Visualization"
 
     def is_element(self, value):
         import qiime2.sdk
@@ -42,3 +41,6 @@ class Visualization(TypeTemplate):
 
     def validate_predicate(self, predicate, expr):
         raise TypeError
+
+
+Visualization = _Visualization()

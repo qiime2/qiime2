@@ -8,7 +8,7 @@
 
 import json
 
-from qiime2.core.type.template import TypeTemplate, instantiate
+from qiime2.core.type.template import TypeTemplate
 
 
 def is_collection_type(expr):
@@ -28,7 +28,7 @@ class _CollectionBase(TypeTemplate):
         return type(self) is type(other) and self.fields == other.fields
 
     def get_name(self):
-        return self.__class__.__name__
+        return self.__class__.__name__[1:]  # drop `_`
 
     def get_kind_expr(self, self_expr):
         if self_expr.fields:
@@ -80,18 +80,15 @@ class _1DCollectionBase(_CollectionBase):
         return ['type']
 
 
-@instantiate
-class Set(_1DCollectionBase):
+class _Set(_1DCollectionBase):
     _view = set
 
 
-@instantiate
-class List(_1DCollectionBase):
+class _List(_1DCollectionBase):
     _view = list
 
 
-@instantiate
-class Tuple(_CollectionBase):
+class _Tuple(_CollectionBase):
     _view = tuple
 
     def get_kind_expr(self, self_expr):
@@ -107,3 +104,8 @@ class Tuple(_CollectionBase):
     def validate_field(self, name, field):
         # Tuples may contain anything, and as many fields as desired
         pass
+
+
+Set = _Set()
+List = _List()
+Tuple = _Tuple()

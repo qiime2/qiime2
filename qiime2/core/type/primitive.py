@@ -9,8 +9,7 @@
 import numbers
 import itertools
 
-from qiime2.core.type.template import (
-    TypeTemplate, PredicateTemplate, instantiate)
+from qiime2.core.type.template import TypeTemplate, PredicateTemplate
 import qiime2.metadata as metadata
 import qiime2.core.util as util
 
@@ -275,7 +274,7 @@ class _PrimitiveTemplateBase(TypeTemplate):
         return hash(type(self))
 
     def get_name(self):
-        return self.__class__.__name__
+        return self.__class__.__name__[1:]  # drop `_`
 
     def get_kind(self):
         return 'primitive'
@@ -311,8 +310,7 @@ class _PrimitiveTemplateBase(TypeTemplate):
         ast['type'] = 'primitive'
 
 
-@instantiate
-class Int(_PrimitiveTemplateBase):
+class _Int(_PrimitiveTemplateBase):
     _valid_predicates = {Range}
 
     def is_element(self, value):
@@ -331,8 +329,7 @@ class Int(_PrimitiveTemplateBase):
         return str(value)
 
 
-@instantiate
-class Str(_PrimitiveTemplateBase):
+class _Str(_PrimitiveTemplateBase):
     _valid_predicates = {Choices}
 
     def is_element(self, value):
@@ -345,8 +342,7 @@ class Str(_PrimitiveTemplateBase):
         return str(value)
 
 
-@instantiate
-class Float(_PrimitiveTemplateBase):
+class _Float(_PrimitiveTemplateBase):
     _valid_predicates = {Range}
 
     def is_element(self, value):
@@ -361,8 +357,7 @@ class Float(_PrimitiveTemplateBase):
         return str(value)
 
 
-@instantiate
-class Bool(_PrimitiveTemplateBase):
+class _Bool(_PrimitiveTemplateBase):
     _valid_predicates = {Choices}
 
     def is_element(self, value):
@@ -387,8 +382,7 @@ class Bool(_PrimitiveTemplateBase):
             return 'false'
 
 
-@instantiate
-class Metadata(_PrimitiveTemplateBase):
+class _Metadata(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
     def is_element(self, value):
@@ -408,8 +402,7 @@ class Metadata(_PrimitiveTemplateBase):
         return value
 
 
-@instantiate
-class MetadataColumn(_PrimitiveTemplateBase):
+class _MetadataColumn(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
     def is_element_expr(self, self_expr, value):
@@ -440,20 +433,28 @@ class MetadataColumn(_PrimitiveTemplateBase):
         return value
 
 
-@instantiate
-class Categorical(_PrimitiveTemplateBase):
+class _Categorical(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
     def is_element(self, value):
         return isinstance(value, metadata.CategoricalMetadataColumn)
 
 
-@instantiate
-class Numeric(_PrimitiveTemplateBase):
+class _Numeric(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
     def is_element(self, value):
         return isinstance(value, metadata.NumericMetadataColumn)
+
+
+Int = _Int()
+Float = _Float()
+Bool = _Bool()
+Str = _Str()
+Metadata = _Metadata()
+MetadataColumn = _MetadataColumn()
+Categorical = _Categorical()
+Numeric = _Numeric()
 
 
 def infer_primitive_type(value):

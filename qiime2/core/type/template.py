@@ -1,18 +1,19 @@
 
 from abc import ABCMeta, abstractmethod
 import itertools
+import inspect
 
 
 from qiime2.core.type.grammar import (IncompleteExp, TypeExp, PredicateExp,
                                       IntersectionExp)
 
 
-def instantiate(cls):
-    return cls()
-
-
 class _BaseTemplate(metaclass=ABCMeta):
     public_proxy = ()
+
+    @property
+    def __signature__(self):
+        return inspect.signature(self.__init__)
 
     @abstractmethod
     def __eq__(self, other):
@@ -79,14 +80,20 @@ class _BaseTemplate(metaclass=ABCMeta):
 
 
 class TypeTemplate(_BaseTemplate):
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, _pickle=False, **kwargs):
         self = super().__new__(cls)
-        self.__init__(*args, **kwargs)
+        self.__new__.__wrapped__ = self.__init__
+        if _pickle:
+            return self
 
+        self.__init__(*args, **kwargs)
         if list(self.get_field_names()):
             return IncompleteExp(self)
         else:
             return TypeExp(self)
+
+    def __getnewargs_ex__(self):
+        return ((), {'_pickle': True})
 
     def get_field_names_expr(self, expr):
         return self.get_field_names()
@@ -131,10 +138,16 @@ class TypeTemplate(_BaseTemplate):
 
 
 class PredicateTemplate(_BaseTemplate):
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, _pickle=False, **kwargs):
         self = super().__new__(cls)
+        if _pickle:
+            return self
+
         self.__init__(*args, **kwargs)
         return PredicateExp(self)
+
+    def __getnewargs_ex__(self):
+        return ((), {'_pickle': True})
 
     @abstractmethod
     def __hash__(self, other):
