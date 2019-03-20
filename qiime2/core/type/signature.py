@@ -325,8 +325,8 @@ class PipelineSignature:
     def solve_output(self, **kwargs):
         solved_outputs = None
         for _, spec in itertools.chain(self.inputs.items(),
-                                       self.parameter.items(),
-                                       self.outputs):
+                                       self.parameters.items(),
+                                       self.outputs.items()):
             if list(meta.select_variables(spec.qiime_type)):
                 break  # a variable exists, do the hard work
         else:
@@ -340,8 +340,9 @@ class PipelineSignature:
             input_types = {k: self._infer_type(v) for k, v in kwargs.items()}
 
             solved = meta.match(input_types, inputs, outputs)
-            solved_outputs = [(k, s.duplicate(qiime_type=solved[k]))
-                              for k, s in self.outputs]
+            solved_outputs = collections.OrderedDict(
+                (k, s.duplicate(qiime_type=solved[k]))
+                for k, s in self.outputs)
 
         for output_name, spec in solved_outputs.items():
             if not spec.qiime_type.is_concrete():

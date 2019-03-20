@@ -6,16 +6,23 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import json
+
 from qiime2.core.type.template import TypeTemplate, instantiate
 
 
-def is_collection_type(x):
-    raise TypeError
+def is_collection_type(expr):
+    return expr.to_ast()['type'] == 'collection'
 
 
 class _CollectionBase(TypeTemplate):
+    public_proxy = 'encode', 'decode'
+
     def __init__(self, fields=()):
         self.fields = fields
+
+        # For semantic types
+        self.variant_of = frozenset()
 
     def __eq__(self, other):
         return type(self) is type(other) and self.fields == other.fields
@@ -59,6 +66,13 @@ class _CollectionBase(TypeTemplate):
 
     def update_ast(self, ast):
         ast['type'] = "collection"
+
+    # For primitive types
+    def encode(self, value):
+        return json.dumps(list(value))
+
+    def decode(self, string):
+        return self._view(json.loads(string))
 
 
 class _1DCollectionBase(_CollectionBase):

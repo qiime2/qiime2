@@ -59,7 +59,9 @@ def parse_type(string, expect=None):
     locals_.update({k: v.semantic_type for k, v in pm.semantic_types.items()})
 
     try:
-        type_expr = eval(string, {'__builtins__': {}}, locals_)
+        type_expr = eval(string, {'__builtins__': {'inf': float('inf'),
+                                                   '-inf': float('-inf')
+                                                   }}, locals_)
         if expect is None:
             pass
         elif expect == 'semantic' and qtype.is_semantic_type(type_expr):

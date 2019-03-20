@@ -266,6 +266,8 @@ class Choices(_PrimitivePredicateBase):
 
 
 class _PrimitiveTemplateBase(TypeTemplate):
+    public_proxy = 'encode', 'decode'
+
     def __eq__(self, other):
         return type(self) is type(other)
 
@@ -322,6 +324,12 @@ class Int(_PrimitiveTemplateBase):
             return True
         return super().is_subtype(other)
 
+    def decode(self, string):
+        return int(string)
+
+    def encode(self, value):
+        return str(value)
+
 
 @instantiate
 class Str(_PrimitiveTemplateBase):
@@ -329,6 +337,12 @@ class Str(_PrimitiveTemplateBase):
 
     def is_element(self, value):
         return isinstance(value, str)
+
+    def decode(self, string):
+        return str(string)
+
+    def encode(self, value):
+        return str(value)
 
 
 @instantiate
@@ -339,6 +353,12 @@ class Float(_PrimitiveTemplateBase):
         # Works with numpy just fine.
         return (value is not True and value is not False
                 and isinstance(value, numbers.Real))
+
+    def decode(self, string):
+        return float(string)
+
+    def encode(self, value):
+        return str(value)
 
 
 @instantiate
@@ -354,6 +374,18 @@ class Bool(_PrimitiveTemplateBase):
                 raise TypeError("Choices should be ommitted when "
                                 "Choices(True, False).")
 
+    def decode(self, string):
+        if string not in ('false', 'true'):
+            raise TypeError("%s is neither 'true' or 'false'" % string)
+
+        return string == 'true'
+
+    def encode(self, value):
+        if value:
+            return 'true'
+        else:
+            return 'false'
+
 
 @instantiate
 class Metadata(_PrimitiveTemplateBase):
@@ -361,6 +393,19 @@ class Metadata(_PrimitiveTemplateBase):
 
     def is_element(self, value):
         return isinstance(value, metadata.Metadata)
+
+    def decode(self, metadata):
+        # This interface should have already retrieved this object.
+        if not self.is_element(metadata):
+            raise TypeError("`Metadata` must be provided by the interface"
+                            " directly.")
+        return metadata
+
+    def encode(self, value):
+        # TODO: Should this be the provenance representation? Does that affect
+        # decode?
+
+        return value
 
 
 @instantiate
@@ -380,6 +425,19 @@ class MetadataColumn(_PrimitiveTemplateBase):
         if field.get_name() not in ("Numeric", "Categorical"):
             raise TypeError("Unsupported type in field: %r"
                             % (field.get_name(),))
+
+    def decode(self, metadata):
+        # This interface should have already retrieved this object.
+        if not self.is_element(metadata):
+            raise TypeError("`Metadata` must be provided by the interface"
+                            " directly.")
+        return metadata
+
+    def encode(self, value):
+        # TODO: Should this be the provenance representation? Does that affect
+        # decode?
+
+        return value
 
 
 @instantiate
