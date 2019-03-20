@@ -13,6 +13,7 @@ from .primitive import (Str, Int, Float, Metadata, Bool, MetadataColumn,
                         is_primitive_type)
 from .visualization import Visualization
 from .signature import PipelineSignature, MethodSignature, VisualizerSignature
+from .meta import TypeMap, TypeMatch
 
 __all__ = [
     # Type Helpers
@@ -28,5 +29,7 @@ __all__ = [
     # Visualization Type
     'Visualization',
     # Signatures
-    'PipelineSignature', 'MethodSignature', 'VisualizerSignature'
+    'PipelineSignature', 'MethodSignature', 'VisualizerSignature',
+    # Variables
+    'TypeMap', 'TypeMatch'
 ]

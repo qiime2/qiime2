@@ -13,11 +13,12 @@ from qiime2.core.cite import Citations, CitationRecord
 from qiime2.core.type import (SemanticType, Int, Str, Float, Metadata,
                               MetadataColumn, Categorical, Numeric, Properties,
                               Range, Start, End, Choices, Bool, Set, List,
-                              Visualization)
+                              Visualization, TypeMap, TypeMatch)
 
 
 __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
            'SemanticType', 'Set', 'List', 'Bool', 'Int', 'Str', 'Float',
            'Metadata', 'MetadataColumn', 'Categorical', 'Numeric',
            'Properties', 'Range', 'Start', 'End', 'Choices', 'Visualization',
-           'ValidationError', 'Citations', 'CitationRecord']
+           'TypeMap', 'TypeMatch', 'ValidationError', 'Citations',
+           'CitationRecord']

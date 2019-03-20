@@ -471,6 +471,7 @@ class TestMethod(unittest.TestCase):
         future = split_ints.asynchronous(artifact)
 
         self.assertIsInstance(future, concurrent.futures.Future)
+        print("test")
         result = future.result()
 
         self.assertIsInstance(result, tuple)
