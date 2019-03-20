@@ -72,6 +72,12 @@ class _BaseTemplate(metaclass=ABCMeta):
     def is_symbol_supertype(self, other):
         return self.get_name() == other.get_name()
 
+    def update_ast_expr(self, self_expr, ast):
+        self.update_ast(ast)
+
+    def update_ast(self, ast):
+        pass  # default is to do nothing
+
 
 class TypeTemplate(_BaseTemplate):
     def __new__(cls, *args, **kwargs):

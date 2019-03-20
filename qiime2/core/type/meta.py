@@ -48,6 +48,9 @@ class TypeVarExp(UnionExp):
     def __hash__(self):
         return hash(self.index) ^ hash(self.mapping)
 
+    def is_concrete(self):
+        return False
+
 
 class TypeMap:
     def __init__(self, mapping):

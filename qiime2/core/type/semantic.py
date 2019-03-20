@@ -239,6 +239,10 @@ class SemanticTemplate(TypeTemplate):
     def validate_intersection(self, other):
         pass
 
+    def update_ast_expr(self, self_expr, ast):
+        ast['type'] = 'semantic-type'
+        ast['concrete'] = self_expr.is_concrete()
+
 
 class Properties(PredicateTemplate):
     def __init__(self, *include, exclude=()):
@@ -323,3 +327,7 @@ class Properties(PredicateTemplate):
 
     def validate_union(self, other):
         pass
+
+    def update_ast(self, ast):
+        ast['include'] = list(self.include)
+        ast['exclude'] = list(self.exclude)

@@ -179,12 +179,17 @@ class Range(_PrimitivePredicateBase):
                               inclusive_start=new_inclusive_start,
                               inclusive_end=new_inclusive_end).template
 
-
     def iter_boundaries(self):
         if self.start != float('-inf'):
             yield self.start
         if self.end != float('inf'):
             yield self.end
+
+    def update_ast(self, ast):
+        ast['start'] = self.start
+        ast['end'] = self.end
+        ast['inclusive-start'] = self.inclusive_start
+        ast['inclusive-end'] = self.inclusive_end
 
 
 def Start(start, inclusive=_RANGE_DEFAULT_INCLUSIVE_START):
@@ -258,6 +263,9 @@ class Choices(_PrimitivePredicateBase):
     def iter_boundaries(self):
         yield from self.choices
 
+    def update_ast(self, ast):
+        ast['choices'] = list(self.choices)
+
 
 class _PrimitiveTemplateBase(TypeTemplate):
     def __eq__(self, other):
@@ -298,6 +306,9 @@ class _PrimitiveTemplateBase(TypeTemplate):
 
     def validate_intersection(self, other):
         pass
+
+    def update_ast(self, ast):
+        ast['type'] = 'primitive'
 
 
 @instantiate

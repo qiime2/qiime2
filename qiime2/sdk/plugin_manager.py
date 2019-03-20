@@ -135,7 +135,7 @@ class PluginManager:
         """
         importable_types = set()
         for type_format in self.type_formats:
-            for type in type_format.type_expression.iter_atomics():
+            for type in type_format.type_expression:
                 importable_types.add(type)
         return importable_types
 

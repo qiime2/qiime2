@@ -58,10 +58,8 @@ class _CollectionBase(TypeTemplate):
     def validate_intersection(self, other):
         pass
 
-    def to_ast(self):
-        ast = super().to_ast()
+    def update_ast(self, ast):
         ast['type'] = "collection"
-        return ast
 
 
 class _1DCollectionBase(_CollectionBase):

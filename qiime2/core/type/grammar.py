@@ -68,6 +68,9 @@ class _ExpBase(metaclass=ABCMeta):
     def is_concrete(self):
         return False
 
+    def iter_symbols(self):
+        yield self.name
+
 
 class IncompleteExp(_ExpBase):
     def __eq__(self, other):
@@ -256,6 +259,15 @@ class TypeExp(_AlgebraicExpBase):
         return (self.template.is_element_expr(self, value)
                 and value in self.full_predicate)
 
+    def __iter__(self):
+        yield from {self.duplicate(fields=fields)
+                    for fields in itertools.product(*self.fields)}
+
+    def iter_symbols(self):
+        yield self.name
+        for field in self.fields:
+            yield from field.iter_symbols()
+
     def _is_subtype_(self, other):
         if other.template is None:
             return NotImplemented
@@ -344,15 +356,14 @@ class TypeExp(_AlgebraicExpBase):
         return True
 
     def to_ast(self):
-        return {
-            "type": "type",
-            "kind": self.kind,
+        ast = {
+            "type": "expression",
             "name": self.name,
-            "contents": {
-                "predicate": self.predicate.to_ast() if self.predicate else {},
-                "fields": [field.to_ast() for field in self.fields]
-            }
+            "predicate": self.predicate.to_ast() if self.predicate else {},
+            "fields": [field.to_ast() for field in self.fields]
         }
+        self.template.update_ast_expr(self, ast)
+        return ast
 
 
 class PredicateExp(_AlgebraicExpBase):
@@ -396,11 +407,12 @@ class PredicateExp(_AlgebraicExpBase):
         return NotImplemented
 
     def to_ast(self):
-        return {
+        ast = {
             "type": "predicate",
-            "kind": self.kind,
             "name": self.name,
         }
+        self.template.update_ast_expr(self, ast)
+        return ast
 
 
 class _IdentityExpBase(_AlgebraicExpBase):
@@ -442,6 +454,13 @@ class _IdentityExpBase(_AlgebraicExpBase):
             return self.__class__.__name__ + "()"
         return self._operator.join(repr(m) for m in self.members)
 
+    def __iter__(self):
+        yield from self.unpack_union()
+
+    def iter_symbols(self):
+        for m in self.unpack_union():
+            yield from m.iter_symbols()
+
 
 class UnionExp(_IdentityExpBase):
     _operator = ' | '  # used by _IdentityExpBase.__repr__
@@ -471,8 +490,6 @@ class UnionExp(_IdentityExpBase):
     def to_ast(self):
         return {
             "type": "union",
-            "kind": self.kind,
-            "name": "",
             "members": [m.to_ast() for m in self.members]
         }
 
@@ -514,8 +531,6 @@ class IntersectionExp(_IdentityExpBase):
     def to_ast(self):
         return {
             "type": "intersection",
-            "kind": self.kind,
-            "name": self.name,
             "members": [m.to_ast() for m in self.members]
         }
 

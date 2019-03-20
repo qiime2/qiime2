@@ -326,7 +326,9 @@ class PipelineSignature:
 
     def solve_output(self, **kwargs):
         solved_outputs = None
-        for spec in _, spec in self.outputs:
+        for spec in _, spec in itertools.chain(self.inputs.items(),
+                                               self.parameter.items(),
+                                               self.outputs):
             if list(select_variables(spec.qiime_type)):
                 break  # a variable exists, do the hard work
         else:
