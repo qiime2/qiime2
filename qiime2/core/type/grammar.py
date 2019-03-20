@@ -344,7 +344,7 @@ class TypeExp(_AlgebraicExpBase):
         return self._bool_attr_method('is_defined')
 
     def _bool_attr_method(self, method_name):
-        method = lambda s: getattr(s, method_name)()
+        def method(s): return getattr(s, method_name)()
 
         if not method(super()):
             return False
@@ -486,7 +486,6 @@ class UnionExp(_IdentityExpBase):
     def unpack_union(self):
         yield from self.members
 
-
     def to_ast(self):
         return {
             "type": "union",
@@ -533,4 +532,3 @@ class IntersectionExp(_IdentityExpBase):
             "type": "intersection",
             "members": [m.to_ast() for m in self.members]
         }
-

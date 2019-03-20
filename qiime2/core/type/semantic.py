@@ -12,7 +12,6 @@ import itertools
 
 from qiime2.core.type.grammar import IncompleteExp, UnionExp, IntersectionExp
 from qiime2.core.type.template import TypeTemplate, PredicateTemplate
-from qiime2.core.util import overrides
 
 _RESERVED_NAMES = {
     # Predicates:
@@ -73,7 +72,6 @@ def SemanticType(name, field_names=None, field_members=None, variant_of=None):
     field_members = _munge_field_members(field_names, field_members)
 
     return SemanticTemplate(name, field_names, field_members, variant_of)
-
 
 
 def _munge_variant_of(variant_of):
@@ -259,7 +257,6 @@ class Properties(PredicateTemplate):
             if type(prop) is not str:
                 raise TypeError("%r in %r is not a string." % (prop, self))
 
-
     def __hash__(self):
         return hash(frozenset(self.include)) ^ hash(frozenset(self.exclude))
 
@@ -294,8 +291,6 @@ class Properties(PredicateTemplate):
     def collapse_intersection(self, other):
         if type(self) is not type(other):
             return None
-
-        members_iter = iter(members)
 
         new_include_set = set(self.include) | set(other.include)
         new_exclude_set = set(self.exclude) | set(other.exclude)

@@ -8,10 +8,12 @@
 
 from qiime2.core.type.template import TypeTemplate, instantiate
 
+
 @instantiate
 class Visualization(TypeTemplate):
     def get_kind(self):
         return "visualization"
+
     def __eq__(self, other):
         return type(self) is type(other)
 
@@ -23,6 +25,7 @@ class Visualization(TypeTemplate):
 
     def is_element(self, value):
         import qiime2.sdk
+
         return isinstance(value, qiime2.sdk.Visualization)
 
     def validate_field(self, name, field):

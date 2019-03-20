@@ -58,7 +58,6 @@ class POSet:
                 if d in decendents:
                     yield d
 
-
     def __init__(self, *items):
         self._maximum_antichain = []
         self._minimum_antichain = []
@@ -136,7 +135,6 @@ class POSet:
             # maximum antichain phase, and the minimum would have been updated
             self._minimum_antichain = new_minimum_antichain + [new]
             return
-
 
         # The new entry is not in the minimum or maximum antichains.
         # No further maintenance is needed on those items, now we just need

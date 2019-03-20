@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import numbers
-import functools
 import itertools
 
 from qiime2.core.type.template import (
@@ -215,7 +214,6 @@ class Choices(_PrimitivePredicateBase):
         if len(choices) != len(set(choices)):
             raise ValueError("Duplicates found in choices: %r"
                              % util.find_duplicates(choices))
-
 
     def __hash__(self):
         return hash(type(self)) ^ hash(frozenset(self.choices))

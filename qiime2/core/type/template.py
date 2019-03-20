@@ -7,7 +7,6 @@ from qiime2.core.type.grammar import (IncompleteExp, TypeExp, PredicateExp,
                                       IntersectionExp)
 
 
-
 def instantiate(cls):
     return cls()
 
@@ -67,7 +66,7 @@ class _BaseTemplate(metaclass=ABCMeta):
         return self.get_name() == other.get_name()
 
     def is_symbol_supertype_expr(self, self_expr, other_expr):
-        return self.is_symbol_supertype(other.template)
+        return self.is_symbol_supertype(other_expr.template)
 
     def is_symbol_supertype(self, other):
         return self.get_name() == other.get_name()

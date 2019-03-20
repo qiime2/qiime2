@@ -6,13 +6,12 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import json
-
-
 from qiime2.core.type.template import TypeTemplate, instantiate
+
 
 def is_collection_type(x):
     raise TypeError
+
 
 class _CollectionBase(TypeTemplate):
     def __init__(self, fields=()):
@@ -71,9 +70,11 @@ class _1DCollectionBase(_CollectionBase):
 class Set(_1DCollectionBase):
     _view = set
 
+
 @instantiate
 class List(_1DCollectionBase):
     _view = list
+
 
 @instantiate
 class Tuple(_CollectionBase):
@@ -92,5 +93,3 @@ class Tuple(_CollectionBase):
     def validate_field(self, name, field):
         # Tuples may contain anything, and as many fields as desired
         pass
-
-

@@ -13,6 +13,7 @@ import itertools
 
 import qiime2.sdk
 from .grammar import TypeExp, UnionExp
+from .collection import List, Set
 from .primitive import is_primitive_type, infer_primitive_type
 from .semantic import is_semantic_type
 from .visualization import Visualization
@@ -238,7 +239,6 @@ class PipelineSignature:
                                     " with an input type: %r"
                                     % spec.qiime_type)
 
-
     def _assert_valid_parameters(self, parameters):
         for param_name, spec in parameters.items():
             if not is_primitive_type(spec.qiime_type):
@@ -265,7 +265,6 @@ class PipelineSignature:
                                     " with an input type: %r"
                                     % spec.qiime_type)
 
-
     def _assert_valid_outputs(self, outputs):
         if len(outputs) == 0:
             raise TypeError("%s requires at least one output"
@@ -289,7 +288,6 @@ class PipelineSignature:
                 if not var.output:
                     raise TypeError("An input variable has been associated"
                                     " with an input type: %r")
-
 
     def _assert_valid_views(self, inputs, parameters, outputs):
         for name, spec in itertools.chain(inputs.items(),
@@ -326,17 +324,17 @@ class PipelineSignature:
 
     def solve_output(self, **kwargs):
         solved_outputs = None
-        for spec in _, spec in itertools.chain(self.inputs.items(),
-                                               self.parameter.items(),
-                                               self.outputs):
-            if list(select_variables(spec.qiime_type)):
+        for _, spec in itertools.chain(self.inputs.items(),
+                                       self.parameter.items(),
+                                       self.outputs):
+            if list(meta.select_variables(spec.qiime_type)):
                 break  # a variable exists, do the hard work
         else:
             # no variables
             solved_outputs = self.outputs
 
         if solved_outputs is None:
-            inputs = {**{k: s.qiime_type for k, s in self.inputs.items()}
+            inputs = {**{k: s.qiime_type for k, s in self.inputs.items()},
                       **{k: s.qiime_type for k, s in self.parameters.items()}}
             outputs = {k: s.qiime_type for k, s in self.outputs}
             input_types = {k: self._infer_type(v) for k, v in kwargs.items()}

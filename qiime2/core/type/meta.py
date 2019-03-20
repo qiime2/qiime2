@@ -3,7 +3,7 @@ from types import MappingProxyType
 
 from ..util import superscript, tuplize
 from .grammar import UnionExp, TypeExp
-from .collection import Tuple, List, Set
+from .collection import Tuple
 from .poset import POSet
 
 
@@ -38,8 +38,8 @@ class TypeVarExp(UnionExp):
         chosen by the type map.
 
         """
-        a_branches = [m for m in self.members if a.expr <= m]
-        b_branches = [m for m in self.members if b.expr <= m]
+        a_branches = [m for m in self.members if a_expr <= m]
+        b_branches = [m for m in self.members if b_expr <= m]
         return a_branches == b_branches
 
     def __eq__(self, other):
