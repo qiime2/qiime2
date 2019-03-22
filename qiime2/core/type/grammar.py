@@ -375,6 +375,7 @@ class TypeExp(_AlgebraicExpBase):
         return self.duplicate(fields=new_fields, predicate=new_predicate)
 
     def unpack_union(self):
+        # (A % P) | (A % Q) <=> A % (P | Q)
         for predicate in self.full_predicate.unpack_union():
             yield self.duplicate(predicate=predicate)
 
@@ -515,16 +516,13 @@ class UnionExp(_IdentityExpBase):
         return any(value in s for s in self.members)
 
     def _is_subtype_(self, other):
-        if isinstance(other, UnionExp):
-            return all(any(s <= o for o in other.unpack_union())
-                       for s in self.members)
-        return all(s <= other for s in self.members)
+        # if other isn't a union, becomes all(s <= other for s in self.members)
+        return all(any(s <= o for o in other.unpack_union())
+                   for s in self.members)
 
     def _is_supertype_(self, other):
-        if isinstance(other, self.__class__):
-            return all(any(s >= o for s in self.members)
-                       for o in other.members)
-        return any(s >= other for s in self.members)
+        return all(any(s >= o for s in self.members)
+                   for o in other.unpack_union())
 
     def is_bottom(self):
         return not self.members
@@ -553,19 +551,16 @@ class IntersectionExp(_IdentityExpBase):
             # elements. That check will ultimately compare the elements of
             # `self` against a single element of the union.
             return other >= self
-        if isinstance(other, IntersectionExp):
-            return all(any(s <= o for s in self.members)
-                       for o in other.members)
-        return any(m <= other for m in self.members)
+
+        return all(any(s <= o for s in self.members)
+                   for o in other.unpack_intersection())
 
     def _is_supertype_(self, other):
         if isinstance(other, UnionExp):
             return other <= self
 
-        if isinstance(other, IntersectionExp):
-            return all(any(s >= o for o in other.members)
-                       for s in self.members)
-        return all(m >= other for m in self.members)
+        return all(any(s >= o for o in other.unpack_intersection())
+                   for s in self.members)
 
     def is_top(self):
         return not self.members
