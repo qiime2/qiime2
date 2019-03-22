@@ -43,13 +43,13 @@ def SemanticType(name, field_names=None, field_members=None, variant_of=None):
     Parameters
     ----------
     name : str
-        The name of the semantic type, this should match the variable which it
-        is assigned to.
+        The name of the semantic type: this should match the variable to which
+        the semantic type is assigned.
     field_names : str, iterable of str, optional
-        Name(s) of the fields where member types and can be placed. This makes
-        the type a composite type, meaning that fields must be provided to be
-        a realized semantic type. These names will define an ad-hoc variant
-        types accessible as `name`.field[`field_names` member].
+        Name(s) of the fields where member types can be placed. This makes
+        the type a composite type, meaning that fields must be provided to
+        produce realized semantic types. These names will define ad-hoc
+        variant types accessible as `name`.field[`field_names` member].
     field_members : mapping, optional
         A mapping of strings in `field_names` to one or more semantic types
         which are known to be members of the field (the variant type).
