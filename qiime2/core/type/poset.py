@@ -1,3 +1,11 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2016-2019, QIIME 2 development team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+# ----------------------------------------------------------------------------
+
 
 def maximum_antichain(*types):
     return POSet(*types).maximum_antichain
@@ -52,9 +60,7 @@ class POSet:
 
         def shared_decendents(self, other):
             decendents = set(self.iter_decendents())
-            print(decendents)
             for d in other.iter_decendents():
-                print(d)
                 if d in decendents:
                     yield d
 

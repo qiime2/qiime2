@@ -44,13 +44,8 @@ class _CollectionBase(TypeTemplate):
     def validate_predicate(self, predicate, expr):
         raise TypeError("Predicates cannot be applied to %r" % expr)
 
-    def validate_field(self, name, field):
-        if isinstance(field, self.__class__):
-            raise TypeError
-
-    def validate_union(self, other):
-        if type(other) is not type(self):
-            raise TypeError
+    def can_union(self):
+        return False
 
     def is_element_expr(self, self_expr, value):
         contained_expr = self_expr.fields[0]
@@ -60,9 +55,6 @@ class _CollectionBase(TypeTemplate):
 
     def is_element(self, value):
         raise NotImplementedError
-
-    def validate_intersection(self, other):
-        pass
 
     def update_ast(self, ast):
         ast['type'] = "collection"
@@ -76,6 +68,12 @@ class _CollectionBase(TypeTemplate):
 
 
 class _1DCollectionBase(_CollectionBase):
+    def validate_field(self, name, field):
+        if isinstance(field, _1DCollectionBase):
+            raise TypeError
+        if field.get_name() in {'MetadataColumn', 'Metadata'}:
+            raise TypeError
+
     def get_field_names(self):
         return ['type']
 
@@ -90,6 +88,10 @@ class _List(_1DCollectionBase):
 
 class _Tuple(_CollectionBase):
     _view = tuple
+
+    def validate_field(self, name, field):
+        if isinstance(field, self.__class__):
+            raise TypeError
 
     def get_kind_expr(self, self_expr):
         return ""

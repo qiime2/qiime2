@@ -31,12 +31,6 @@ class _PrimitivePredicateBase(PredicateTemplate):
     def get_name(self):
         return self.__class__.__name__
 
-    def validate_union(self, other):
-        pass
-
-    def validate_intersection(self, other):
-        pass
-
 
 class Range(_PrimitivePredicateBase):
     def __init__(self, *args, inclusive_start=_RANGE_DEFAULT_INCLUSIVE_START,
@@ -102,7 +96,7 @@ class Range(_PrimitivePredicateBase):
 
         return True
 
-    def is_subtype(self, other):
+    def is_symbol_subtype(self, other):
         if type(self) is not type(other):
             return False
 
@@ -122,7 +116,7 @@ class Range(_PrimitivePredicateBase):
 
         return True
 
-    def is_supertype(self, other):
+    def is_symbol_supertype(self, other):
         if type(self) is not type(other):
             return False
 
@@ -228,13 +222,13 @@ class Choices(_PrimitivePredicateBase):
     def is_element(self, value):
         return value in self.choices
 
-    def is_subtype(self, other):
+    def is_symbol_subtype(self, other):
         if type(self) is not type(other):
             return False
 
         return set(self.choices) <= set(other.choices)
 
-    def is_supertype(self, other):
+    def is_symbol_supertype(self, other):
         if type(self) is not type(other):
             return False
 
@@ -283,7 +277,7 @@ class _PrimitiveTemplateBase(TypeTemplate):
         return []
 
     def validate_field(self, name, field):
-        raise TypeError
+        raise NotImplementedError
 
     def validate_predicate_expr(self, self_expr, predicate_expr):
         predicate = predicate_expr.template
@@ -292,19 +286,13 @@ class _PrimitiveTemplateBase(TypeTemplate):
 
         for bound in predicate.iter_boundaries():
             if not self.is_element_expr(self_expr, bound):
-                print(type(self_expr), self_expr)
                 raise TypeError(bound)
 
-        self.validate_predicate(predicate_expr.template)
-
     def validate_predicate(self, predicate):
-        pass
+        raise NotImplementedError
 
-    def validate_union(self, other):
-        pass
-
-    def validate_intersection(self, other):
-        pass
+    def can_union(self):
+        return True  # TODO: FIX
 
     def update_ast(self, ast):
         ast['type'] = 'primitive'
@@ -436,12 +424,24 @@ class _MetadataColumn(_PrimitiveTemplateBase):
 class _Categorical(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
+    def get_kind(self):
+        return 'partial-primitive'
+
+    def is_union_allowed(self):
+        return True
+
     def is_element(self, value):
         return isinstance(value, metadata.CategoricalMetadataColumn)
 
 
 class _Numeric(_PrimitiveTemplateBase):
     _valid_predicates = set()
+
+    def get_kind(self):
+        return 'partial-primitive'
+
+    def is_union_allowed(self):
+        return True
 
     def is_element(self, value):
         return isinstance(value, metadata.NumericMetadataColumn)

@@ -1,7 +1,7 @@
 import itertools
 from types import MappingProxyType
 
-from ..util import superscript, tuplize
+from ..util import superscript, tuplize, ImmutableBase
 from .grammar import UnionExp, TypeExp
 from .collection import Tuple
 from .poset import POSet
@@ -9,11 +9,12 @@ from .poset import POSet
 
 class TypeVarExp(UnionExp):
     def __init__(self, members, tmap, input=False, output=False, index=None):
-        super().__init__(members)
         self.mapping = tmap
         self.input = input
         self.output = output
         self.index = index
+
+        super().__init__(members)
 
     def __repr__(self):
         numbers = {}
@@ -23,9 +24,6 @@ class TypeVarExp(UnionExp):
             else:
                 numbers[m] = superscript(idx)
         return " or ".join([repr(k) + v for k, v in numbers.items()])
-
-    def is_defined(self):
-        return False
 
     def uniq_upto_sub(self, a_expr, b_expr):
         """
@@ -51,15 +49,25 @@ class TypeVarExp(UnionExp):
     def is_concrete(self):
         return False
 
+    def can_intersect(self):
+        return False
 
-class TypeMap:
+    def can_union(self):
+        return False
+
+
+class TypeMap(ImmutableBase):
     def __init__(self, mapping):
         unsorted = {Tuple[tuplize(k)]: Tuple[tuplize(v)]
                     for k, v in mapping.items()}
 
         poset = POSet(*unsorted)
         for a, b in itertools.combinations(poset.iter_nodes(), 2):
-            intersection = a.item & b.item
+            try:
+                intersection = a.item & b.item
+            except TypeError:
+                raise TypeError("Cannot place %r and %r in the same "
+                                "type variable." % (a.item, b.item))
             if (intersection.is_bottom()
                     or intersection is a.item
                     or intersection is b.item):
@@ -76,7 +84,13 @@ class TypeMap:
                                                      a.item.fields,
                                                      b.item.fields))
 
-        self.lifted = MappingProxyType({k: unsorted[k] for k in poset})
+        self.__lifted = {k: unsorted[k] for k in poset}
+
+        super()._freeze_()
+
+    @property
+    def lifted(self):
+        return MappingProxyType(self.__lifted)
 
     def __eq__(self, other):
         return self is other
@@ -100,11 +114,12 @@ class TypeMap:
     def input_width(self):
         return len(next(iter(self.lifted.keys())).fields)
 
-    def iter_outputs(self):
+    def iter_outputs(self, *, _double_as_input=False):
         start = self.input_width()
         for idx, members in enumerate(
                 zip(*(v.fields for v in self.lifted.values())), start):
-            yield TypeVarExp(members, self, output=True, index=idx)
+            yield TypeVarExp(members, self, output=True, index=idx,
+                             input=_double_as_input)
 
 
 def _get_intersections(listing):
@@ -119,13 +134,12 @@ def _get_intersections(listing):
 
 def TypeMatch(listing):
     listing = list(listing)
-#    intersections = _get_intersections(listing)
-#    while intersections:
-#        listing.extend(intersections)
-#        intersections = _get_intersections(intersections)
+    intersections = _get_intersections(listing)
+    while intersections:
+        listing.extend(intersections)
+        intersections = _get_intersections(intersections)
     mapping = TypeMap({l: l for l in listing})
-    for var in mapping.iter_outputs():  # used by match
-        var.input = True
+    for var in mapping.iter_outputs(_double_as_input=True):  # used by match
         return var  # typematch only matches one variable
 
 

@@ -234,12 +234,6 @@ class SemanticTemplate(TypeTemplate):
         if not isinstance(predicate, Properties):
             raise TypeError()
 
-    def validate_union(self, other):
-        pass
-
-    def validate_intersection(self, other):
-        pass
-
     def update_ast_expr(self, self_expr, ast):
         ast['type'] = 'semantic-type'
         ast['concrete'] = self_expr.is_concrete()

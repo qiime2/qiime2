@@ -10,6 +10,7 @@ from qiime2.core.type.grammar import (IncompleteExp, TypeExp, PredicateExp,
 
 class _BaseTemplate(metaclass=ABCMeta):
     public_proxy = ()
+    is_template = True  # for smoke-testing
 
     @property
     def __signature__(self):
@@ -36,19 +37,8 @@ class _BaseTemplate(metaclass=ABCMeta):
     def get_kind(self):
         raise NotImplementedError
 
-    def validate_union_expr(self, self_expr, other_expr):
-        return self.validate_union(other_expr.template)
-
-    @abstractmethod
-    def validate_union(self, other):
-        raise NotImplementedError
-
-    def validate_intersection_expr(self, self_expr, other_expr):
-        return self.validate_intersection(other_expr.template)
-
-    @abstractmethod
-    def validate_intersection(self, other):
-        raise NotImplementedError
+    def can_union(self):
+        return True
 
     def is_element_expr(self, self_expr, value):
         return self.is_element(value)
@@ -82,7 +72,6 @@ class _BaseTemplate(metaclass=ABCMeta):
 class TypeTemplate(_BaseTemplate):
     def __new__(cls, *args, _pickle=False, **kwargs):
         self = super().__new__(cls)
-        self.__new__.__wrapped__ = self.__init__
         if _pickle:
             return self
 
@@ -104,9 +93,9 @@ class TypeTemplate(_BaseTemplate):
 
     def validate_fields_expr(self, self_expr, fields_expr):
         self.validate_field_count(len(fields_expr))
-        for expr, name in itertools.zip_longest(fields_expr,
-                                                self.get_field_names(),
-                                                fillvalue=IntersectionExp()):
+        for expr, name in itertools.zip_longest(
+                fields_expr, self.get_field_names_expr(self_expr),
+                fillvalue=IntersectionExp()):
             if expr.template is None:
                 for exp in expr.members:
                     if exp.template is None:
@@ -118,8 +107,9 @@ class TypeTemplate(_BaseTemplate):
                 self.validate_field(name, expr.template)
 
     def validate_field_count(self, count):
-        if count != len(self.get_field_names()):
-            raise TypeError
+        exp = len(self.get_field_names())
+        if count != exp:
+            raise TypeError("Expected only %r fields, got %r" % (exp, count))
 
     @abstractmethod
     def validate_field(self, name, field):
@@ -151,4 +141,12 @@ class PredicateTemplate(_BaseTemplate):
 
     @abstractmethod
     def __hash__(self, other):
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_symbol_subtype(self, other):
+        raise NotImplementedError
+
+    @abstractmethod
+    def is_symbol_supertype(self, other):
         raise NotImplementedError

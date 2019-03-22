@@ -9,16 +9,20 @@
 import itertools
 from abc import ABCMeta, abstractmethod
 
-from qiime2.core.util import tuplize
+from qiime2.core.util import tuplize, ImmutableBase
 from .poset import maximum_antichain, minimum_antichain
 
 
-class _ExpBase(metaclass=ABCMeta):
+class _ExpBase(ImmutableBase, metaclass=ABCMeta):
     def __init__(self, template):
+        # Super basic smoke-test
+        assert template is None or template.is_template
         self.template = template
 
     def __getattr__(self, name):
-        if self.template is not None and name in self.template.public_proxy:
+        if ('template' in self.__dict__
+                and self.template is not None
+                and name in self.template.public_proxy):
             return getattr(self.template, name)
 
         raise AttributeError("%r object has no attribute %r"
@@ -80,14 +84,30 @@ class _ExpBase(metaclass=ABCMeta):
 
 
 class IncompleteExp(_ExpBase):
+    def __init__(self, template):
+        super().__init__(template)
+
+        if (self.template is None
+                or not list(self.template.get_field_names_expr(self))):
+            raise ValueError("Template %r has no fields, should not be used"
+                             " with a IncompleteExp." % (template,))
+
     def __eq__(self, other):
-        return type(self) is type(other) and self.name == other.name
+        if type(self) is not type(other):
+            return NotImplemented
+
+        return (self.name == other.name
+                and tuple(self.template.get_field_names_expr(self))
+                == tuple(other.template.get_field_names_expr(self)))
 
     def __hash__(self):
-        return hash(type(self)) ^ hash(self.name)
+        return (hash(type(self))
+                ^ hash(self.name)
+                ^ hash(tuple(self.template.get_field_names_expr(self))))
 
     def __repr__(self):
-        fields = ', '.join('{%s}' % f for f in self.template.get_field_names())
+        fields = ', '.join(
+            '{%s}' % f for f in self.template.get_field_names_expr(self))
         return self.name + ('[%s]' % fields)
 
     def __le__(self, other):
@@ -116,6 +136,10 @@ class IncompleteExp(_ExpBase):
 
     def __getitem__(self, fields):
         fields = tuplize(fields)
+        for field in fields:
+            if not isinstance(field, _AlgebraicExpBase):
+                raise TypeError("Field %r is not complete type expression."
+                                % (field,))
         self.template.validate_fields_expr(self, fields)
         return TypeExp(self.template, fields=fields)
 
@@ -147,11 +171,10 @@ class _AlgebraicExpBase(_ExpBase):
         return False
 
     def __or__(self, other):
-        if not self.is_defined() or not other.is_defined():
+        if (not self.can_union() or not other.can_union()
+                or (self.kind != other.kind
+                    and not (self.is_bottom() or other.is_bottom()))):
             raise TypeError("Cannot union %r and %r" % (self, other))
-        if self.template is not None and other.template is not None:
-            self.template.validate_union_expr(self, other)
-            other.template.validate_union_expr(other, self)
 
         if self >= other:
             return self
@@ -163,9 +186,10 @@ class _AlgebraicExpBase(_ExpBase):
         return UnionExp(members)
 
     def __and__(self, other):
-        if self.template is not None and other.template is not None:
-            self.template.validate_intersection_expr(self, other)
-            other.template.validate_intersection_expr(other, self)
+        if (not self.can_intersect() or not other.can_intersect()
+                or (self.kind != other.kind
+                    and not (self.is_top() or other.is_top()))):
+            raise TypeError("Cannot intersect %r and %r" % (self, other))
 
         # inverse of __or__
         if self >= other:
@@ -201,6 +225,15 @@ class _AlgebraicExpBase(_ExpBase):
     def is_concrete(self):
         return len(list(self.unpack_union())) == 1
 
+    def can_union(self):
+        if self.template is not None:
+            return self.template.can_union()
+
+        return True
+
+    def can_intersect(self):
+        return True
+
     # These methods are to be overridden by UnionExp
     def is_bottom(self):
         return False
@@ -215,9 +248,6 @@ class _AlgebraicExpBase(_ExpBase):
     def unpack_intersection(self):
         yield self
 
-    # These methods are to be overridden by type variables
-    def is_defined(self):
-        return True
 
 
 class TypeExp(_AlgebraicExpBase):
@@ -229,6 +259,8 @@ class TypeExp(_AlgebraicExpBase):
         self.fields = tuple(fields)
         self.predicate = predicate
 
+        super()._freeze_()
+
     @property
     def full_predicate(self):
         if self.predicate is None:
@@ -236,8 +268,10 @@ class TypeExp(_AlgebraicExpBase):
         return self.predicate
 
     def __eq__(self, other):
-        return (type(self) is type(other)
-                and self.kind == other.kind
+        if type(self) is not type(other):
+            return NotImplemented
+
+        return (self.kind == other.kind
                 and self.name == other.name
                 and self.fields == other.fields
                 and self.predicate == other.predicate)
@@ -301,10 +335,6 @@ class TypeExp(_AlgebraicExpBase):
         if predicate is None or predicate.is_top():
             return self
 
-        if type(predicate) is UnionExp:  # do not include meta.TypeVarExp
-            return UnionExp(self.duplicate(predicate=p)
-                            for p in predicate.members)
-
         return self.duplicate(predicate=predicate)
 
     def __rmod__(self, other):
@@ -321,7 +351,7 @@ class TypeExp(_AlgebraicExpBase):
             predicate = self.predicate
         elif predicate.is_top():
             predicate = None
-        else:
+        elif predicate.template is not None:
             self.template.validate_predicate_expr(self, predicate)
 
         return self.__class__(self.template, fields=fields,
@@ -344,6 +374,10 @@ class TypeExp(_AlgebraicExpBase):
 
         return self.duplicate(fields=new_fields, predicate=new_predicate)
 
+    def unpack_union(self):
+        for predicate in self.full_predicate.unpack_union():
+            yield self.duplicate(predicate=predicate)
+
     def is_concrete(self):
         return self._bool_attr_method('is_concrete')
 
@@ -353,8 +387,6 @@ class TypeExp(_AlgebraicExpBase):
     def _bool_attr_method(self, method_name):
         def method(s): return getattr(s, method_name)()
 
-        if not method(super()):
-            return False
         if any(not method(f) for f in self.fields):
             return False
         if not method(self.full_predicate):
@@ -374,6 +406,10 @@ class TypeExp(_AlgebraicExpBase):
 
 
 class PredicateExp(_AlgebraicExpBase):
+    def __init__(self, template):
+        super().__init__(template)
+        super()._freeze_()
+
     def __eq__(self, other):
         return self.template == other.template
 
@@ -387,13 +423,13 @@ class PredicateExp(_AlgebraicExpBase):
         return repr(self.template)
 
     def _is_subtype_(self, other):
-        if self.template.is_subtype(other.template):
+        if self.template.is_symbol_subtype_expr(self, other):
             return True
 
         return NotImplemented
 
     def _is_supertype_(self, other):
-        if self.template.is_supertype(other.template):
+        if self.template.is_symbol_supertype_expr(self, other):
             return True
 
         return NotImplemented
@@ -439,6 +475,8 @@ class _IdentityExpBase(_AlgebraicExpBase):
         super().__init__(template=None)
         self.members = tuple(members)
 
+        super()._freeze_()
+
     @property
     def kind(self):
         if not self.members:
@@ -447,7 +485,7 @@ class _IdentityExpBase(_AlgebraicExpBase):
 
     @property
     def name(self):
-        return ""
+        return "foo"
 
     def __eq__(self, other):
         return (type(self) is type(other)
@@ -462,7 +500,8 @@ class _IdentityExpBase(_AlgebraicExpBase):
         return self._operator.join(repr(m) for m in self.members)
 
     def __iter__(self):
-        yield from self.unpack_union()
+        for m in self.unpack_union():
+            yield from m
 
     def iter_symbols(self):
         for m in self.unpack_union():
@@ -477,7 +516,7 @@ class UnionExp(_IdentityExpBase):
 
     def _is_subtype_(self, other):
         if isinstance(other, UnionExp):
-            return all(any(s <= o for o in other.members)
+            return all(any(s <= o for o in other.unpack_union())
                        for s in self.members)
         return all(s <= other for s in self.members)
 

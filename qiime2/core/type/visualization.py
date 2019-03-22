@@ -30,14 +30,8 @@ class _Visualization(TypeTemplate):
     def validate_field(self, name, field):
         raise TypeError
 
-    def validate_intersection(self, other):
-        pass
-
-    def collapse_intersection(self, other):
-        return self
-
-    def validate_union(self, other):
-        raise TypeError
+    def can_union(self):
+        return False
 
     def validate_predicate(self, predicate, expr):
         raise TypeError
