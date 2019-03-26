@@ -25,6 +25,7 @@ requirements:
     - python-dateutil
     - pyparsing ==2.3.0
     - bibtexparser
+    - networkx
 
 test:
   imports:
