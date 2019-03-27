@@ -199,7 +199,270 @@ class TestTypeMatch(unittest.TestCase):
 
 
 class TestMatch(unittest.TestCase):
-    pass
+    def test_single_variable(self):
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        P = MockPredicate('P')
+        X, Y = meta.TypeMap({
+            Foo % P: Foo,
+            Bar % P: Foo % P,
+            Foo: Bar,
+            Bar: Bar % P
+        })
+        input_signature = dict(input1=X)
+        output_signature = dict(output1=Y)
+        foop = dict(input1=Foo % P)
+        barp = dict(input1=Bar % P)
+        foo = dict(input1=Foo)
+        bar = dict(input1=Bar)
+
+        self.assertEqual(meta.match(foop, input_signature, output_signature),
+                         dict(output1=Foo))
+        self.assertEqual(meta.match(barp, input_signature, output_signature),
+                         dict(output1=Foo % P))
+        self.assertEqual(meta.match(foo, input_signature, output_signature),
+                         dict(output1=Bar))
+        self.assertEqual(meta.match(bar, input_signature, output_signature),
+                         dict(output1=Bar % P))
+
+
+    def test_nested_match(self):
+        C2 = MockTemplate('C2', fields=('a', 'b'))
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        P = MockPredicate('P')
+        X, Y = meta.TypeMap({
+            Foo % P: Foo,
+            Bar % P: Foo % P,
+            Foo: Bar,
+            Bar: Bar % P
+        })
+        input_signature = dict(input1=C2[X, Bar])
+        output_signature = dict(output1=C2[Bar, Y])
+        foop = dict(input1=C2[Foo % P, Bar])
+        barp = dict(input1=C2[Bar % P, Bar])
+        foo = dict(input1=C2[Foo, Foo])
+        bar = dict(input1=C2[Bar, Foo])
+
+        self.assertEqual(meta.match(foop, input_signature, output_signature),
+                         dict(output1=C2[Bar, Foo]))
+        self.assertEqual(meta.match(barp, input_signature, output_signature),
+                         dict(output1=C2[Bar, Foo % P]))
+        self.assertEqual(meta.match(foo, input_signature, output_signature),
+                         dict(output1=C2[Bar, Bar]))
+        self.assertEqual(meta.match(bar, input_signature, output_signature),
+                         dict(output1=C2[Bar, Bar % P]))
+
+
+    def test_multiple_variables(self):
+        C2 = MockTemplate('C2', fields=('a', 'b'))
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        P = MockPredicate('P')
+        A, B, C, Y, Z = meta.TypeMap({
+            (Foo % P, Bar, Bar): (Foo, Foo),
+            (Foo, Bar % P, Foo): (Bar, Foo),
+            (Foo, Foo, Bar): (Foo, Bar),
+            (Bar, Bar % P, Foo): (Bar, Bar)
+        })
+
+        input_signature = dict(input1=C2[A, B], input2=C)
+        output_signature = dict(output1=C2[Y, Z])
+
+        fbb = dict(input1=C2[Foo % P, Bar], input2=Bar)
+        fbf = dict(input1=C2[Foo, Bar % P], input2=Foo)
+        ffb = dict(input1=C2[Foo, Foo], input2=Bar % P)  # subtype on in2!
+        bbf = dict(input1=C2[Bar % P, Bar % P], input2=Foo)  # subtype on in1
+
+        self.assertEqual(meta.match(fbb, input_signature, output_signature),
+                         dict(output1=C2[Foo, Foo]))
+        self.assertEqual(meta.match(fbf, input_signature, output_signature),
+                         dict(output1=C2[Bar, Foo]))
+        self.assertEqual(meta.match(ffb, input_signature, output_signature),
+                         dict(output1=C2[Foo, Bar]))
+        self.assertEqual(meta.match(bbf, input_signature, output_signature),
+                         dict(output1=C2[Bar, Bar]))
+
+    def test_multiple_mappings(self):
+        C2 = MockTemplate('C2', fields=('a', 'b'))
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        P = MockPredicate('P')
+
+        X, Y = meta.TypeMap({
+            Foo % P: Foo,
+            Bar % P: Foo % P,
+            Foo: Bar,
+            Bar: Bar % P
+        })
+
+        T, R = meta.TypeMap({
+            Bar % P: Foo,
+            Foo % P: Foo % P,
+            Bar: Bar,
+            Foo: Bar % P
+        })
+
+        input_signature = dict(input1=C2[X, T])
+        output_signature = dict(output1=C2[R, Y])
+        foop = dict(input1=C2[Foo % P, Bar])
+        barp = dict(input1=C2[Bar % P, Bar % P])
+        foo = dict(input1=C2[Foo, Foo])
+        bar = dict(input1=C2[Bar, Foo])
+
+        self.assertEqual(meta.match(foop, input_signature, output_signature),
+                         dict(output1=C2[Bar, Foo]))
+        self.assertEqual(meta.match(barp, input_signature, output_signature),
+                         dict(output1=C2[Foo, Foo % P]))
+        self.assertEqual(meta.match(foo, input_signature, output_signature),
+                         dict(output1=C2[Bar % P, Bar]))
+        self.assertEqual(meta.match(bar, input_signature, output_signature),
+                         dict(output1=C2[Bar % P, Bar % P]))
+
+
+    def test_no_solution(self):
+        C2 = MockTemplate('C2', fields=('a', 'b'))
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        P = MockPredicate('P')
+        A, B, C, Y, Z = meta.TypeMap({
+            (Foo % P, Bar, Bar): (Foo, Foo),
+            (Foo, Bar % P, Foo): (Bar, Foo),
+            (Foo, Foo, Bar): (Foo, Bar),
+            (Bar, Bar % P, Foo): (Bar, Bar)
+        })
+
+        input_signature = dict(input1=C2[A, B], input2=C)
+        output_signature = dict(output1=C2[Y, Z])
+
+        with self.assertRaisesRegex(ValueError, 'No solution'):
+            meta.match(dict(input1=C2[Foo, Foo], input2=Foo),
+                       input_signature, output_signature)
+
+    def test_inconsistent_binding(self):
+        C2 = MockTemplate('C2', fields=('a', 'b'))
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        P = MockPredicate('P')
+        A, B, C, Y, Z = meta.TypeMap({
+            (Foo % P, Bar, Bar): (Foo, Foo),
+            (Foo, Bar % P, Foo): (Bar, Foo),
+            (Foo, Foo, Bar): (Foo, Bar),
+            (Bar, Bar % P, Foo): (Bar, Bar)
+        })
+
+        input_signature = dict(input1=C2[A, B], input2=C2[C, C])
+        output_signature = dict(output1=C2[Y, Z])
+
+        with self.assertRaisesRegex(ValueError, 'to match'):
+            meta.match(dict(input1=C2[Foo, Bar % P], input2=C2[Foo, Bar]),
+                       input_signature, output_signature)
+
+    def test_consistent_subtype_binding(self):
+        C2 = MockTemplate('C2', fields=('a', 'b'))
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        P = MockPredicate('P')
+        A, B, C, Y, Z = meta.TypeMap({
+            (Foo % P, Bar, Bar): (Foo, Foo),
+            (Foo, Bar % P, Foo): (Bar, Foo),
+            (Foo, Foo, Bar): (Foo, Bar),
+            (Bar, Bar % P, Foo): (Bar, Bar)
+        })
+
+        input_signature = dict(input1=C2[A, B], input2=C2[C, C])
+        output_signature = dict(output1=C2[Y, Z])
+
+        cons = dict(input1=C2[Foo, Bar % P], input2=C2[Foo, Foo % P])
+
+        self.assertEqual(meta.match(cons, input_signature, output_signature),
+                         dict(output1=C2[Bar, Foo]))
+
+    def test_missing_variables(self):
+        C2 = MockTemplate('C2', fields=('a', 'b'))
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        P = MockPredicate('P')
+        A, B, C, Y, Z = meta.TypeMap({
+            (Foo % P, Bar, Bar): (Foo, Foo),
+            (Foo, Bar % P, Foo): (Bar, Foo),
+            (Foo, Foo, Bar): (Foo, Bar),
+            (Bar, Bar % P, Foo): (Bar, Bar)
+        })
+
+        input_signature = dict(input1=C2[A, B], input2=Foo)
+        output_signature = dict(output1=C2[Y, Z])
+
+        with self.assertRaisesRegex(ValueError, 'Missing'):
+            meta.match(dict(input1=C2[Foo, Foo], input2=Foo),
+                       input_signature, output_signature)
+
+    def test_no_variables(self):
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        P = MockPredicate('P')
+
+        input_signature = dict(input1=Foo, input2=Bar)
+        output_signature = dict(output1=Bar % P, output2=Foo % P)
+
+        given = dict(input1=Foo % P, input2=Bar)
+
+        self.assertEqual(meta.match(given, input_signature, output_signature),
+                         output_signature)
+
+    def test_type_match(self):
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        Baz = MockTemplate('Baz')
+        P = MockPredicate('P')
+
+        T = meta.TypeMatch([Baz, Foo, Bar])
+
+        input_signature = dict(input1=T)
+        output_signature = dict(output1=T)
+
+        foop = dict(input1=Foo % P)
+        barp = dict(input1=Bar % P)
+        foo = dict(input1=Foo)
+        bar = dict(input1=Bar)
+
+        self.assertEqual(meta.match(foop, input_signature, output_signature),
+                         dict(output1=Foo))
+        self.assertEqual(meta.match(barp, input_signature, output_signature),
+                         dict(output1=Bar))
+        self.assertEqual(meta.match(foo, input_signature, output_signature),
+                         dict(output1=Foo))
+        self.assertEqual(meta.match(bar, input_signature, output_signature),
+                         dict(output1=Bar))
+
+    def test_type_match_auto_intersect(self):
+        C1 = MockTemplate('C1', fields=('a',))
+        Foo = MockTemplate('Foo')
+        P = MockPredicate('P')
+        Q = MockPredicate('Q')
+        R = MockPredicate('R')
+        S = MockPredicate('S')
+
+        T = meta.TypeMatch([P, Q, R, S])
+
+        input_signature = dict(input1=C1[Foo] % T)
+        output_signature = dict(output1=Foo % T)
+
+        pqrs = dict(input1=C1[Foo] % (P & Q & R & S))
+        p = dict(input1=C1[Foo] % P)
+        pr = dict(input1=C1[Foo] % (P & R))
+        qs = dict(input1=C1[Foo] % (Q & S))
+
+        self.assertEqual(meta.match(pqrs, input_signature, output_signature),
+                         dict(output1=Foo % (P & Q & R & S)))
+        self.assertEqual(meta.match(p, input_signature, output_signature),
+                         dict(output1=Foo % P))
+        self.assertEqual(meta.match(pr, input_signature, output_signature),
+                         dict(output1=Foo % (P & R)))
+        self.assertEqual(meta.match(qs, input_signature, output_signature),
+                         dict(output1=Foo % (Q & S)))
+
+
 
 if __name__ == '__main__':
     unittest.main()
