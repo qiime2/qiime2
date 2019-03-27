@@ -75,8 +75,8 @@ class TypeMap(ImmutableBase):
             try:
                 intersection = a.item & b.item
             except TypeError:
-                raise TypeError("Cannot place %r and %r in the same "
-                                "type variable." % (a.item, b.item))
+                raise ValueError("Cannot place %r and %r in the same "
+                                 "type variable." % (a.item, b.item))
             if (intersection.is_bottom()
                     or intersection is a.item
                     or intersection is b.item):
@@ -147,13 +147,11 @@ def TypeMatch(listing):
     while intersections:
         listing.extend(intersections)
         intersections = _get_intersections(intersections)
+    print(listing)
     mapping = TypeMap({l: l for l in listing})
-    for var in mapping.iter_outputs(_double_as_input=True):  # used by match
-        return var  # typematch only matches one variable
-
-
-def has_variables(expr):
-    return bool(list(select_variables(expr)))
+    # TypeMatch only produces a single variable
+    # iter_outputs is used by match for solving, so the index must match
+    return next(iter(mapping.iter_outputs(_double_as_input=True)))
 
 
 def select_variables(expr):

@@ -21,8 +21,16 @@ class POSet:
 
         def __init__(self, item):
             self.item = item
-            self.children = {}
-            self.parents = {}
+            self._children = {}
+            self._parents = {}
+
+        @property
+        def children(self):
+            return list(self._children)
+
+        @property
+        def parents(self):
+            return list(self._parents)
 
         def __le__(self, other):
             a, b = comp = self.item, other.item
@@ -37,16 +45,16 @@ class POSet:
             return self <= other and not other <= self
 
         def replace_parent(self, old, new):
-            new.children[self] = None
+            new._children[self] = None
             if old is not None:
-                del self.parents[old]
-            self.parents[new] = None
+                del self._parents[old]
+            self._parents[new] = None
 
         def replace_child(self, old, new):
-            new.parents[self] = None
+            new._parents[self] = None
             if old is not None:
-                del self.children[old]
-            self.children[new] = None
+                del self._children[old]
+            self._children[new] = None
 
         def iter_decendents(self):
             seen = set()
@@ -59,6 +67,8 @@ class POSet:
                         decendents.append(d.children)
 
         def shared_decendents(self, other):
+            #print([x.item for x in self.iter_decendents()])
+            #print([x.item for x in other.iter_decendents()])
             decendents = set(self.iter_decendents())
             for d in other.iter_decendents():
                 if d in decendents:
@@ -68,8 +78,11 @@ class POSet:
         self._maximum_antichain = []
         self._minimum_antichain = []
 
+        print(":::START:::", items)
         for item in items:
             self.add(item)
+            print(item, ' min: ', self.minimum_antichain, '::: max: ',  self.maximum_antichain)
+        print(":::END:::")
 
     @property
     def maximum_antichain(self):
@@ -116,6 +129,9 @@ class POSet:
                 or not smaller_than):
             self._maximum_antichain = new_maximum_antichain + [new]
             if not new.children:
+                # TODO: THIS IS WRONG!!!!!!!!
+                # JUST BECAUSE WE ARE DISJOINT WRT MAX DOESNT MEAN WE
+                # DONT HAVE A RELATION TO THE MIN
                 self._minimum_antichain.append(new)
             return
 
@@ -131,7 +147,7 @@ class POSet:
                     return
                 else:  # new < node
                     new.replace_parent(None, node)
-            else:
+            elif node <= new:
                 new_minimum_antichain.append(node)
 
         if len(new_minimum_antichain) < len(self._minimum_antichain):
@@ -148,12 +164,16 @@ class POSet:
         decend = [smaller_than]
         while decend:
             for parent in decend.pop(0):
-                for child in parent.children:
+                inserted = False
+                for child in list(parent.children):
                     if child <= new:
                         if new <= child:
                             return
                         else:  # child < new and new < node
+                            inserted = True
                             parent.replace_child(child, new)
                             child.replace_parent(parent, new)
-                    else:  # new < child
+                    elif new <= child:  # new < child
                         decend.append(child.children)
+                if not inserted:
+                    new.replace_parent(None, parent)

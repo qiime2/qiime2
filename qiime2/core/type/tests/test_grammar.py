@@ -114,6 +114,9 @@ class MockPredicate(_MockBase, template.PredicateTemplate):
 
         return self.name >= other.name
 
+    def get_kind(self):
+        return "tester-predicate"
+
 
 class TestIncompleteExp(unittest.TestCase):
     def IncompleteExp(self, name, fields):
