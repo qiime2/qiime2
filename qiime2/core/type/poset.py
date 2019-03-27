@@ -79,12 +79,8 @@ class POSet:
         self._maximum_antichain = []
         self._minimum_antichain = []
 
-        print("{{{CREATE:::", items)
         for item in items:
-            print('  {{Insert::', item)
             self.add(item)
-            print('  }}After:: min: ', self.minimum_antichain, '::: max: ',  self.maximum_antichain)
-        print("}}}END:::")
 
     @property
     def maximum_antichain(self):
@@ -141,32 +137,6 @@ class POSet:
 
         if len(new_max) < len(self._maximum_antichain) or not continue_search:
             self._maximum_antichain = new_max + [new]
-            print("    Max extended")
-
-#            if not continue_search:
-#                # check minimum
-#                found = False
-#                for node in self._minimum_antichain:
-#                    greater = node <= new
-#                    smaller = new <= node
-#                    equal = greater and smaller
-#
-#                    assert not equal  # shouldn't happen
-#                    assert not smaller
-#                    if greater:
-#                        # we know that the maximum antichain includes `new`
-#                        # now, so there should not be anything above the
-#                        # minimum which is smaller than `new`, as that would
-#                        # imply a relation to one of the chains dominated by
-#                        # an element max antichain which would preclude `new`
-#                        # from being in the max antichain
-#                        found = True
-#                        new.replace_child(None, node)
-#                if not found:
-#                    print("    Min extended from max")
-#                    self._minimum_antichain.append(new)
-#            print("    Exit Simple")
-#            return
 
         # handle minimum antichain before decending arbitrarily
         new_min = []
@@ -187,7 +157,6 @@ class POSet:
                 new_min.append(node)
 
         if len(new_min) < len(self._minimum_antichain) or not search_above:
-            print("    Min extended: ", len(new_min) < len(self._minimum_antichain))
             self._minimum_antichain = new_min + [new]
             # still need to decend through continue_search...
 
@@ -195,7 +164,6 @@ class POSet:
         decend = [continue_search]
         visited = set()
         while decend:
-            print("    decend:", decend)
             for (parent, children) in decend.pop(0):
                 found = False
                 for node in children:
@@ -211,7 +179,6 @@ class POSet:
                         return
                     elif greater:
                         found = True
-                        print("      insert", node, ' <- ', new, ' <- ', parent)
                         node.replace_parent(parent, new)
                         parent.replace_child(node, new)
                     elif smaller:
@@ -219,23 +186,15 @@ class POSet:
                         decend.append([(node, node.children)])
 
                 if not found:
-                    print("      insert ", new, ' <- ', parent)
                     new.replace_parent(None, parent)
 
         ascend = [search_above]
         while ascend:
-            print("    ascend:", ascend)
             for (child, parents) in ascend.pop(0):
-                print("      child: ", child, " parents: ", parents)
                 found = False
                 if child in visited:
-                    print("      skip: ", child)
                     continue  # child is the same as node in the decend routine
                 for node in parents:
-#                    if node in visited:
-#                        print("      skipn", node)
-#                        continue
-
                     greater = node <= new
                     smaller = new <= node
                     equal = greater and smaller
@@ -250,12 +209,10 @@ class POSet:
                     elif smaller:
                         visited.add(node)  # do add it to visited
                         found = True
-                        print("       insert", child, ' <- ', new, ' <- ', node)
                         child.replace_parent(node, new)
                         node.replace_child(child, new)
 
                 if not found:
-                    print("      insert ", child, ' <- ', new)
                     new.replace_child(None, child)
 
 

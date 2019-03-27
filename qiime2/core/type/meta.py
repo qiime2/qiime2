@@ -86,8 +86,6 @@ class TypeMap(ImmutableBase):
                 if intersection <= shared.item:
                     break
             else:
-                print(a.item, [x.item for x in a.iter_decendents()])
-                print(b.item, [x.item for x in b.iter_decendents()])
                 raise ValueError("Ambiguous resolution for invocations with"
                                  " type %r. Could match %r or %r, add a new"
                                  " branch (or modify these branches) to"
@@ -149,7 +147,6 @@ def TypeMatch(listing):
     while intersections:
         listing.extend(intersections)
         intersections = _get_intersections(intersections)
-    print(listing)
     mapping = TypeMap({l: l for l in listing})
     # TypeMatch only produces a single variable
     # iter_outputs is used by match for solving, so the index must match
