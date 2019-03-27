@@ -9,13 +9,14 @@
 import unittest
 
 import qiime2.core.type.primitive as primitive
+import qiime2.core.type.grammar as grammar
 
 
 class TestIntersectTwoRanges(unittest.TestCase):
 
     def assertIntersectEqual(self, a, b, exp):
-        r1 = primitive.Range.intersect_two_ranges(a, b)
-        r2 = primitive.Range.intersect_two_ranges(b, a)
+        r1 = a & b
+        r2 = b & a
 
         self.assertEqual(r1, r2)
         self.assertEqual(r1, exp)
@@ -37,13 +38,13 @@ class TestIntersectTwoRanges(unittest.TestCase):
         a = primitive.Range(-10, -5)
         b = primitive.Range(5, 10)
 
-        self.assertIntersectEqual(a, b, None)
+        self.assertIntersectEqual(a, b, grammar.UnionExp())
 
     def test_disjoint_exclusive_point(self):
         a = primitive.Range(0, 5, inclusive_end=False)
         b = primitive.Range(5, 9, inclusive_start=False)
 
-        self.assertIntersectEqual(a, b, None)
+        self.assertIntersectEqual(a, b, grammar.UnionExp())
 
 
 if __name__ == '__main__':

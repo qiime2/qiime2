@@ -58,7 +58,7 @@ class _MockBase:
 
     @track_call
     def is_element(self, value):
-        return bool(value)
+        return self.name.startswith(value)
 
     @track_call
     def collapse_intersection(self, other):
@@ -103,13 +103,13 @@ class MockPredicate(_MockBase, template.PredicateTemplate):
         return self.name
 
     def is_symbol_subtype(self, other):
-        if not self.alphabetize:
+        if not self.alphabetize or not other.alphabetize:
             return super().is_symbol_subtype(other)
 
         return self.name <= other.name
 
     def is_symbol_supertype(self, other):
-        if not self.alphabetize:
+        if not self.alphabetize or not other.alphabetize:
             return super().is_symbol_supertype(other)
 
         return self.name >= other.name
@@ -349,23 +349,23 @@ class TestTypeExp(unittest.TestCase):
     def test_in(self):
         expr = MockTemplate('Foo')
 
-        self.assertIn(True, expr)
+        self.assertIn('Foo', expr)
         self.assertTrue(expr.template.test_data['is_element'])
 
         expr = MockTemplate('Bar') % MockPredicate('Baz')
 
-        self.assertIn(True, expr)
+        self.assertIn('Ba', expr)
         self.assertTrue(expr.template.test_data['is_element'])
         self.assertTrue(expr.predicate.template.test_data['is_element'])
 
     def test_not_in(self):
         expr = MockTemplate('Foo')
 
-        self.assertNotIn(False, expr)
+        self.assertNotIn('Bar', expr)
 
         expr = MockTemplate('Bar') % MockPredicate('Baz')
 
-        self.assertNotIn(False, expr)
+        self.assertNotIn('Bar', expr)  # Bar not a substring of Baz
 
     def test_mod(self):
         Bar = MockTemplate('Bar')
@@ -439,6 +439,77 @@ class TestTypeExp(unittest.TestCase):
         self.assertFalse(C2[Foo, Bar | Foo].is_concrete())
         self.assertFalse(AnnoyingToMake.is_concrete())
 
+    def test_to_ast(self):
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        C2 = MockTemplate('C2', fields=('a', 'b'))
+        P = MockPredicate('P')
+        Q = MockPredicate('Q')
+        self.assertEqual(
+            (C2[Foo | Bar % P, Foo % (P & Q)] % (P | Q)).to_ast(),
+            {
+                'type': 'expression',
+                'name': 'C2',
+                'predicate': {
+                    'type': 'union',
+                    'members': [
+                         {
+                             'type': 'predicate',
+                             'name':'P',
+                             'extra_junk': 'P'
+                         }, {
+                             'type': 'predicate',
+                             'name': 'Q',
+                             'extra_junk': 'Q'
+                         }
+                    ]
+                },
+                'fields': [
+                    {
+                        'type': 'union',
+                        'members': [
+                            {
+                                'type': 'expression',
+                                'name': 'Foo',
+                                'predicate': {},
+                                'fields': [],
+                                'extra_junk': 'Foo'
+                            }, {
+                                'type': 'expression',
+                                'name': 'Bar',
+                                'predicate': {
+                                    'type': 'predicate',
+                                    'name': 'P',
+                                    'extra_junk': 'P'
+                                },
+                            'fields': [],
+                            'extra_junk': 'Bar'
+                            }
+                        ]
+                    }, {
+                        'type': 'expression',
+                        'name': 'Foo',
+                        'predicate': {
+                            'type': 'intersection',
+                            'members': [
+                                {
+                                    'type': 'predicate',
+                                    'name': 'P',
+                                    'extra_junk': 'P'
+                                }, {
+                                    'type': 'predicate',
+                                    'name': 'Q',
+                                    'extra_junk': 'Q'
+                                }
+                            ]
+                        },
+                        'fields': [],
+                        'extra_junk': 'Foo'
+                    }
+                ],
+                'extra_junk': 'C2'
+            })
+
 class TestIntersection(unittest.TestCase):
     def test_basic(self):
         P = MockPredicate('P')
@@ -453,6 +524,205 @@ class TestIntersection(unittest.TestCase):
 
         self.assertIs(Q & P, P)
         self.assertIs(P & Q, P)
+
+    def test_identity(self):
+        x = grammar.IntersectionExp()
+
+        self.assertTrue(x.is_top())
+        self.assertEqual(repr(x), 'IntersectionExp()')
+        self.assertEqual(x.kind, 'identity')
+        self.assertEqual(x.name, '')
+
+    def test_in(self):
+        Tree = MockPredicate('Tree')
+        Trick = MockPredicate('Trick')
+        Trek = MockPredicate('Trek')
+        Truck = MockPredicate('Truck')
+
+        self.assertIn('Tr', Tree & Trick & Trek & Truck)
+        self.assertNotIn('Tre', Tree & Trick & Trek & Truck)
+
+        self.assertIn('Tre', Tree & Trek)
+        self.assertNotIn('Tree', Tree & Trek)
+
+        self.assertNotIn('Nope', Tree & Truck)
+
+    def test_distribution(self):
+        C2 = MockTemplate('C2', fields=('a', 'b'))
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        P = MockPredicate('P')
+        Q = MockPredicate('Q')
+        R = MockPredicate('R')
+        S = MockPredicate('S')
+
+        self.assertTrue(
+            ((P | Q) & (R | S)).equals(P & R | P & S | Q & R | Q & S))
+
+        self.assertTrue(
+            ((P | Q) & (R & S)).equals(P & R & S | Q & R & S))
+
+        self.assertEqual(Foo & Bar, grammar.UnionExp())
+
+        self.assertEqual(C2[Foo, Bar] & C2[Foo, Foo], grammar.UnionExp())
+
+        self.assertTrue((C2[Foo % P, Bar] & C2[Foo % Q, Bar]).equals(
+            C2[Foo % (P & Q), Bar]))
+
+
+class TestUnion(unittest.TestCase):
+    def test_basic(self):
+        P = MockPredicate('P')
+        Q = MockPredicate('Q')
+
+        result = P | Q
+        self.assertEqual(repr(result), "P | Q")
+
+    def test_subtype(self):
+        P = MockPredicate('P', alphabetize=True)
+        Q = MockPredicate('Q', alphabetize=True)
+
+        self.assertIs(Q | P, Q)
+        self.assertIs(P | Q, Q)
+
+    def test_identity(self):
+        x = grammar.UnionExp()
+
+        self.assertTrue(x.is_bottom())
+        self.assertEqual(repr(x), 'UnionExp()')
+        self.assertEqual(x.kind, 'identity')
+        self.assertEqual(x.name, '')
+
+    def test_in(self):
+        Bat = MockTemplate('Bat')
+        Cat = MockTemplate('Cat')
+
+        self.assertIn('C', Bat | Cat)
+        self.assertIn('B', Bat | Cat)
+        self.assertNotIn('D', Bat | Cat)
+
+    def test_distribution(self):
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        P = MockPredicate('P')
+        Q = MockPredicate('Q')
+        R = MockPredicate('R')
+        S = MockPredicate('S')
+
+        self.assertTrue(
+            ((P | Q) | (R | S)).equals(P | Q | R | S))
+        self.assertTrue(
+            (P | (Q | R)).equals(P | Q | R))
+
+        self.assertEqual(
+            repr(Foo % P | Bar % Q | Foo % R |  Bar % S),
+            'Foo % (P | R) | Bar % (Q | S)')
+
+    def test_maximum_antichain(self):
+        P = MockPredicate('P', alphabetize=True)
+        Q = MockPredicate('Q', alphabetize=True)
+        R = MockPredicate('R', alphabetize=True)
+        X = MockPredicate('X')
+        Y = MockPredicate('Y')
+
+        self.assertEqual(repr((P | X) | (Q | Y)), 'X | Q | Y')
+        self.assertTrue(repr(X & Y | (P & X | Q) | P & X & Q & Y), 'X & Y | Q')
+        self.assertTrue(repr(X & Y | P & X | (X | Q)), 'X | Q')
+
+
+class TestSubtyping(unittest.TestCase):
+    def assertStrongSubtype(self, X, Y):
+        self.assertLessEqual(X, Y)
+        # Should be the same in either direction
+        self.assertGreaterEqual(Y, X)
+        # X and Y would be equal otherwise
+        self.assertFalse(X >= Y)
+
+    def assertNoRelation(self, X, Y):
+        XsubY = X <= Y
+        self.assertEqual(XsubY, Y >= X)
+
+        YsubX = Y <= X
+        self.assertEqual(YsubX, X >= Y)
+
+        self.assertFalse(XsubY or YsubX)
+
+    def test_equal(self):
+        Foo = MockTemplate('Foo')
+        Foo2 = MockTemplate('Foo')
+
+        self.assertTrue(Foo.equals(Foo2))
+        self.assertTrue(Foo2.equals(Foo))
+
+    def test_symbol_subtype(self):
+        P = MockPredicate('P', alphabetize=True)
+        Q = MockPredicate('Q', alphabetize=True)
+
+        self.assertStrongSubtype(P, Q)
+
+    def test_field(self):
+        C2 = MockTemplate('C2', fields=('a', 'b'))
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        Baz = MockTemplate('Baz')
+
+        self.assertStrongSubtype(C2[Foo, Bar], C2[Foo | Bar, Bar | Baz])
+        self.assertNoRelation(C2[Baz, Bar], C2[Foo | Bar, Bar | Baz])
+
+        self.assertStrongSubtype(C2[Foo, Bar], Bar | C2[Foo, Bar])
+        self.assertNoRelation(Baz | C2[Foo, Bar], Bar | C2[Foo, Bar])
+
+        self.assertStrongSubtype(C2[Foo, Bar | Baz],
+                                 Bar | C2[Foo, Foo | Bar | Baz])
+        self.assertNoRelation(C2[Foo | Baz, Bar | Baz], Bar | C2[Foo, Bar])
+
+    def test_generic_subtype(self):
+        C1 = MockTemplate('C1', fields=('a',))
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+
+        self.assertStrongSubtype(C1[Foo] | C1[Bar], C1[Foo | Bar])
+        self.assertStrongSubtype(C1[C1[Foo] | C1[Bar]], C1[C1[Foo | Bar]])
+        self.assertStrongSubtype(C1[C1[Foo]] | C1[C1[Bar]],
+                                C1[C1[Foo] | C1[Bar]])
+        self.assertStrongSubtype(C1[C1[Foo]] | C1[C1[Bar]], C1[C1[Foo | Bar]])
+
+    def test_predicate_intersection(self):
+        Foo = MockTemplate('Foo')
+        P = MockPredicate('P')
+        Q = MockPredicate('Q')
+
+        self.assertStrongSubtype(Foo % (P & Q), Foo)
+        self.assertStrongSubtype(Foo % (P & Q), Foo % P)
+        self.assertStrongSubtype(Foo % (P & Q), Foo % Q)
+
+    def test_union_of_intersections(self):
+        P = MockPredicate('P')
+        Q = MockPredicate('Q')
+        R = MockPredicate('R')
+        S = MockPredicate('S')
+
+        self.assertStrongSubtype(P & Q | Q & R, Q | P | R)
+        self.assertStrongSubtype(P & Q | Q & R, Q | P & R)
+        self.assertStrongSubtype(P & Q & R, P & Q | Q & R)
+        self.assertStrongSubtype(P & Q & R, P & Q | Q & R | R & P)
+
+    def test_type_union(self):
+        Foo = MockTemplate('Foo')
+        Bar = MockTemplate('Bar')
+        Baz = MockTemplate('Baz')
+
+        self.assertStrongSubtype(Foo | Bar, Foo | Bar | Baz)
+        self.assertNoRelation(Foo | Baz, Baz | Bar)
+
+    def test_predicate_union(self):
+        P = MockPredicate('P')
+        Q = MockPredicate('Q')
+        R = MockPredicate('R')
+
+        self.assertStrongSubtype(P | Q, P | Q | R)
+        self.assertNoRelation(P | R, P | Q )
+
 
 
 #    def test_validate_union_w_nonsense(self):

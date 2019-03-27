@@ -352,11 +352,17 @@ class PipelineSignature:
 
         return solved_outputs
 
-    def _infer_type(self, value):
+    @classmethod
+    def _infer_type(cls, value):
+        import functools
+        import operator
+
         if type(value) is list:
-            return List[UnionExp({self._infer_type(v) for v in value})]
+            inner = UnionExp((cls._infer_type(v) for v in value))
+            return List[inner.normalize()]
         if type(value) is set:
-            return Set[UnionExp({self._infer_type(v) for v in value})]
+            inner = UnionExp((cls._infer_type(v) for v in value))
+            return Set[inner.normalize()]
         if isinstance(value, qiime2.sdk.Artifact):
             return value.type
         else:

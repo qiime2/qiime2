@@ -257,6 +257,10 @@ class Choices(_PrimitivePredicateBase):
     def update_ast(self, ast):
         ast['choices'] = list(self.choices)
 
+    def unpack_union(self):
+        for c in self.choices:
+            yield self.__class__(c)
+
 
 class _PrimitiveTemplateBase(TypeTemplate):
     public_proxy = 'encode', 'decode'
@@ -305,10 +309,10 @@ class _Int(_PrimitiveTemplateBase):
         return (value is not True and value is not False
                 and isinstance(value, numbers.Integral))
 
-    def is_subtype(self, other):
+    def is_symbol_subtype(self, other):
         if other.get_name() == 'Float':
             return True
-        return super().is_subtype(other)
+        return super().is_symbol_subtype(other)
 
     def decode(self, string):
         return int(string)
@@ -332,6 +336,11 @@ class _Str(_PrimitiveTemplateBase):
 
 class _Float(_PrimitiveTemplateBase):
     _valid_predicates = {Range}
+
+    def is_symbol_supertype(self, other):
+        if other.get_name() == 'Int':
+            return True
+        return super().is_symbol_supertype(other)
 
     def is_element(self, value):
         # Works with numpy just fine.

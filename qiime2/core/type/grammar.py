@@ -181,9 +181,9 @@ class _AlgebraicExpBase(_ExpBase):
         if self <= other:
             return other
 
-        members = maximum_antichain(*self.unpack_union(),
-                                    *other.unpack_union())
-        return UnionExp(members)
+        union = UnionExp((*self.unpack_union(), *other.unpack_union()))
+        return union.normalize()
+
 
     def __and__(self, other):
         if (not self.can_intersect() or not other.can_intersect()
@@ -198,18 +198,25 @@ class _AlgebraicExpBase(_ExpBase):
             return self
 
         # Distribute over union
-        t = UnionExp()
         if isinstance(self, UnionExp) or isinstance(other, UnionExp):
+            m = []
             for s, o in itertools.product(self.unpack_union(),
                                           other.unpack_union()):
-                t |= s & o
-            return t
+                m.append(s & o)
+            return UnionExp(m).normalize()
 
-        # Give the expression a chance to collapse, as many intersections
-        # are contradictions
-        collapse = self._collapse_intersection_(other)
-        if collapse is not NotImplemented:
-            return collapse
+        elements = list(itertools.chain(self.unpack_intersection(),
+                                        other.unpack_intersection()))
+
+        if len(elements) > 1:
+            # Give the expression a chance to collapse, as many intersections
+            # are contradictions
+            collapse = elements[0]._collapse_intersection_(elements[1])
+            if collapse is not NotImplemented:
+                for e in elements[2:]:
+                    collapse = collapse._collapse_intersection_(e)
+
+                return collapse
 
         # Back to the regularly scheduled inverse of __or__
         members = minimum_antichain(*self.unpack_intersection(),
@@ -374,16 +381,8 @@ class TypeExp(_AlgebraicExpBase):
 
         return self.duplicate(fields=new_fields, predicate=new_predicate)
 
-    def unpack_union(self):
-        # (A % P) | (A % Q) <=> A % (P | Q)
-        for predicate in self.full_predicate.unpack_union():
-            yield self.duplicate(predicate=predicate)
-
     def is_concrete(self):
         return self._bool_attr_method('is_concrete')
-
-    def is_defined(self):
-        return self._bool_attr_method('is_defined')
 
     def _bool_attr_method(self, method_name):
         def method(s): return getattr(s, method_name)()
@@ -424,13 +423,15 @@ class PredicateExp(_AlgebraicExpBase):
         return repr(self.template)
 
     def _is_subtype_(self, other):
-        if self.template.is_symbol_subtype_expr(self, other):
+        if (other.template is not None
+                and self.template.is_symbol_subtype_expr(self, other)):
             return True
 
         return NotImplemented
 
     def _is_supertype_(self, other):
-        if self.template.is_symbol_supertype_expr(self, other):
+        if (other.template is not None
+                and self.template.is_symbol_supertype_expr(self, other)):
             return True
 
         return NotImplemented
@@ -486,7 +487,7 @@ class _IdentityExpBase(_AlgebraicExpBase):
 
     @property
     def name(self):
-        return "foo"
+        return ""
 
     def __eq__(self, other):
         return (type(self) is type(other)
@@ -516,12 +517,16 @@ class UnionExp(_IdentityExpBase):
         return any(value in s for s in self.members)
 
     def _is_subtype_(self, other):
+        if (isinstance(other, self.__class__)
+                and type(other) is not self.__class__):  # other is subclass
+            return NotImplemented
+
         # if other isn't a union, becomes all(s <= other for s in self.members)
         return all(any(s <= o for o in other.unpack_union())
-                   for s in self.members)
+                   for s in self.unpack_union())
 
     def _is_supertype_(self, other):
-        return all(any(s >= o for s in self.members)
+        return all(any(s >= o for s in self.unpack_union())
                    for o in other.unpack_union())
 
     def is_bottom(self):
@@ -535,6 +540,42 @@ class UnionExp(_IdentityExpBase):
             "type": "union",
             "members": [m.to_ast() for m in self.members]
         }
+
+    def normalize(self):
+        elements = self.members
+
+        groups = {}
+        for e in elements:
+            if type(e) is TypeExp:
+                candidate = e.duplicate(predicate=IntersectionExp())
+                if candidate in groups:
+                    groups[candidate].append(e)
+                else:
+                    groups[candidate] = [e]
+            else:
+                # groups should be empty already, but don't even attempt
+                # collapsing if its a union of type expressions and "other"
+                groups = {}
+                break
+
+        if groups:
+            elements = []
+            for canidate, group in groups.items():
+                if len(group) == 1:
+                    elements.append(group[0])
+                else:
+                    predicate = UnionExp([t.full_predicate for t in group])
+                    predicate = predicate.normalize()
+                    elements.append(candidate.duplicate(predicate=predicate))
+
+        if len(elements) < 20:
+            members = maximum_antichain(*elements)
+        else:
+            members = elements
+
+        if len(members) == 1:
+            return members[0]
+        return UnionExp(members)
 
 
 class IntersectionExp(_IdentityExpBase):
@@ -550,17 +591,17 @@ class IntersectionExp(_IdentityExpBase):
             # `self` allowing it to check if it is a subtype of the union
             # elements. That check will ultimately compare the elements of
             # `self` against a single element of the union.
-            return other >= self
+            return NotImplemented
 
-        return all(any(s <= o for s in self.members)
+        return all(any(s <= o for s in self.unpack_intersection())
                    for o in other.unpack_intersection())
 
     def _is_supertype_(self, other):
         if isinstance(other, UnionExp):
-            return other <= self
+            return NotImplemented
 
         return all(any(s >= o for o in other.unpack_intersection())
-                   for s in self.members)
+                   for s in self.unpack_intersection())
 
     def is_top(self):
         return not self.members

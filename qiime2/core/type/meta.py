@@ -47,13 +47,22 @@ class TypeVarExp(UnionExp):
         return hash(self.index) ^ hash(self.mapping)
 
     def is_concrete(self):
-        return False
+        return self.output and all(m.is_concrete() for m in self.members)
 
     def can_intersect(self):
         return False
 
     def can_union(self):
         return False
+
+    def _is_subtype_(self, other):
+        return all(m <= other for m in self.members)
+
+    def _is_supertype_(self, other):
+        return any(m >= other for m in self.members)
+
+    def unpack_union(self):
+        yield self
 
 
 class TypeMap(ImmutableBase):
@@ -189,14 +198,18 @@ def select_variables(expr):
 
     for idx, field in enumerate(expr.fields):
         for sel in select_variables(field):
-            def select(x, swap=None):
-                if swap is not None:
-                    new_fields = list(x.fields)
-                    new_fields[idx] = sel(x.fields[idx], swap)
-                    return x.duplicate(fields=tuple(new_fields))
-                return x.fields[idx]
-
-            yield select
+            # Without this closure, the idx in select will be the last
+            # value of the enumerate, same for sel
+            # (Same problem as JS with callbacks inside a loop)
+            def closure(idx, sel):
+                def select(x, swap=None):
+                    if swap is not None:
+                        new_fields = list(x.fields)
+                        new_fields[idx] = sel(x.fields[idx], swap)
+                        return x.duplicate(fields=tuple(new_fields))
+                    return sel(x.fields[idx])
+                return select
+            yield closure(idx, sel)
 
 
 def match(provided, inputs, outputs):

@@ -150,3 +150,7 @@ class PredicateTemplate(_BaseTemplate):
     @abstractmethod
     def is_symbol_supertype(self, other):
         raise NotImplementedError
+
+    def unpack_union(self):
+        yield
+        return

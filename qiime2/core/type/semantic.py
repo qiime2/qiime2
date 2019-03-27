@@ -228,7 +228,7 @@ class SemanticTemplate(TypeTemplate):
             return any(cls.is_variant(e, varf)
                        for e in expr.unpack_intersection())
         return (varf in expr.template.variant_of
-                or varf.is_member(expr.template))
+                or varf.is_member(expr))
 
     def validate_predicate(self, predicate):
         if not isinstance(predicate, Properties):
