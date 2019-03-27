@@ -44,6 +44,9 @@ class POSet:
         def __lt__(self, other):
             return self <= other and not other <= self
 
+        def __repr__(self):
+            return "<%r>" % self.item
+
         def replace_parent(self, old, new):
             new._children[self] = None
             if old is not None:
@@ -67,8 +70,6 @@ class POSet:
                         decendents.append(d.children)
 
         def shared_decendents(self, other):
-            #print([x.item for x in self.iter_decendents()])
-            #print([x.item for x in other.iter_decendents()])
             decendents = set(self.iter_decendents())
             for d in other.iter_decendents():
                 if d in decendents:
@@ -78,11 +79,12 @@ class POSet:
         self._maximum_antichain = []
         self._minimum_antichain = []
 
-        print(":::START:::", items)
+        print("{{{CREATE:::", items)
         for item in items:
+            print('  {{Insert::', item)
             self.add(item)
-            print(item, ' min: ', self.minimum_antichain, '::: max: ',  self.maximum_antichain)
-        print(":::END:::")
+            print('  }}After:: min: ', self.minimum_antichain, '::: max: ',  self.maximum_antichain)
+        print("}}}END:::")
 
     @property
     def maximum_antichain(self):
@@ -103,77 +105,157 @@ class POSet:
         while queue:
             new_queue = []
             for node in queue:
+                children_remaining = set(node.children) - seen
+                if children_remaining:
+                    new_queue.append(node)
+                    continue
+
                 if node not in seen:
                     yield node
                     seen.add(node)
                     new_queue.extend(node.parents)
+
             queue = new_queue
 
     def add(self, new):
         new = self.Node(new)
 
-        new_maximum_antichain = []
-        smaller_than = []
+        continue_search = []
+        new_max = []
         for node in self._maximum_antichain:
-            if node <= new:
-                if new <= node:
-                    return
-                else:  # node < new
-                    node.replace_parent(None, new)
-            else:  # node > new or node !~ new
-                new_maximum_antichain.append(node)
-                if new <= node:
-                    smaller_than.append(node)
+            greater = node <= new
+            smaller = new <= node
+            equal = greater and smaller
 
-        if (len(new_maximum_antichain) < len(self._maximum_antichain)
-                or not smaller_than):
-            self._maximum_antichain = new_maximum_antichain + [new]
-            if not new.children:
-                # TODO: THIS IS WRONG!!!!!!!!
-                # JUST BECAUSE WE ARE DISJOINT WRT MAX DOESNT MEAN WE
-                # DONT HAVE A RELATION TO THE MIN
-                self._minimum_antichain.append(new)
-            return
+            if equal:
+                return
+            elif greater:
+                # node not max, but wait until end so as to only add
+                # new to max one time
+                node.replace_parent(None, new)
+            elif smaller:
+                new_max.append(node)  # node is still max
+                continue_search.append((node, node.children))
+            else:  # neither
+                new_max.append(node)  # node is still max
 
-        # The new entry must be below the maximum antichain.
-        # Ruling out the minimum antichain makes maintaining the minimum
-        # antichain a little bit easier, so we'll hold onto "smaller_than"
-        # for later
+        if len(new_max) < len(self._maximum_antichain) or not continue_search:
+            self._maximum_antichain = new_max + [new]
+            print("    Max extended")
 
-        new_minimum_antichain = []
+#            if not continue_search:
+#                # check minimum
+#                found = False
+#                for node in self._minimum_antichain:
+#                    greater = node <= new
+#                    smaller = new <= node
+#                    equal = greater and smaller
+#
+#                    assert not equal  # shouldn't happen
+#                    assert not smaller
+#                    if greater:
+#                        # we know that the maximum antichain includes `new`
+#                        # now, so there should not be anything above the
+#                        # minimum which is smaller than `new`, as that would
+#                        # imply a relation to one of the chains dominated by
+#                        # an element max antichain which would preclude `new`
+#                        # from being in the max antichain
+#                        found = True
+#                        new.replace_child(None, node)
+#                if not found:
+#                    print("    Min extended from max")
+#                    self._minimum_antichain.append(new)
+#            print("    Exit Simple")
+#            return
+
+        # handle minimum antichain before decending arbitrarily
+        new_min = []
+        search_above = []
         for node in self._minimum_antichain:
-            if new <= node:
-                if node <= new:
-                    return
-                else:  # new < node
-                    new.replace_parent(None, node)
-            elif node <= new:
-                new_minimum_antichain.append(node)
+            greater = node <= new
+            smaller = new <= node
+            equal = greater and smaller
 
-        if len(new_minimum_antichain) < len(self._minimum_antichain):
-            # if there was no relation to the minimum antichain, then there
-            # would be no relation to the maximum antichain, which means
-            # this new entry would have been detected above during the
-            # maximum antichain phase, and the minimum would have been updated
-            self._minimum_antichain = new_minimum_antichain + [new]
-            return
+            if equal:
+                return
+            elif smaller:
+                new.replace_parent(None, node)
+            elif greater:
+                new_min.append(node)
+                search_above.append((node, node.parents))
+            else:
+                new_min.append(node)
 
-        # The new entry is not in the minimum or maximum antichains.
-        # No further maintenance is needed on those items, now we just need
-        # to insert it into the graph wherever it is relevant
-        decend = [smaller_than]
+        if len(new_min) < len(self._minimum_antichain) or not search_above:
+            print("    Min extended: ", len(new_min) < len(self._minimum_antichain))
+            self._minimum_antichain = new_min + [new]
+            # still need to decend through continue_search...
+
+
+        decend = [continue_search]
+        visited = set()
         while decend:
-            for parent in decend.pop(0):
-                inserted = False
-                for child in list(parent.children):
-                    if child <= new:
-                        if new <= child:
-                            return
-                        else:  # child < new and new < node
-                            inserted = True
-                            parent.replace_child(child, new)
-                            child.replace_parent(parent, new)
-                    elif new <= child:  # new < child
-                        decend.append(child.children)
-                if not inserted:
+            print("    decend:", decend)
+            for (parent, children) in decend.pop(0):
+                found = False
+                for node in children:
+                    if node in visited:
+                        continue
+
+                    visited.add(node)
+                    greater = node <= new
+                    smaller = new <= node
+                    equal = greater and smaller
+
+                    if equal:
+                        return
+                    elif greater:
+                        found = True
+                        print("      insert", node, ' <- ', new, ' <- ', parent)
+                        node.replace_parent(parent, new)
+                        parent.replace_child(node, new)
+                    elif smaller:
+                        found = True
+                        decend.append([(node, node.children)])
+
+                if not found:
+                    print("      insert ", new, ' <- ', parent)
                     new.replace_parent(None, parent)
+
+        ascend = [search_above]
+        while ascend:
+            print("    ascend:", ascend)
+            for (child, parents) in ascend.pop(0):
+                print("      child: ", child, " parents: ", parents)
+                found = False
+                if child in visited:
+                    print("      skip: ", child)
+                    continue  # child is the same as node in the decend routine
+                for node in parents:
+#                    if node in visited:
+#                        print("      skipn", node)
+#                        continue
+
+                    greater = node <= new
+                    smaller = new <= node
+                    equal = greater and smaller
+
+                    if equal:
+                        return
+                    elif greater:
+                        # Don't add node to visited as we're about to look at
+                        # it again
+                        found = True
+                        ascend.append([(node, node.parents)])
+                    elif smaller:
+                        visited.add(node)  # do add it to visited
+                        found = True
+                        print("       insert", child, ' <- ', new, ' <- ', node)
+                        child.replace_parent(node, new)
+                        node.replace_child(child, new)
+
+                if not found:
+                    print("      insert ", child, ' <- ', new)
+                    new.replace_child(None, child)
+
+

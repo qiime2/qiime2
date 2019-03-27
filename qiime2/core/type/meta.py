@@ -86,6 +86,8 @@ class TypeMap(ImmutableBase):
                 if intersection <= shared.item:
                     break
             else:
+                print(a.item, [x.item for x in a.iter_decendents()])
+                print(b.item, [x.item for x in b.iter_decendents()])
                 raise ValueError("Ambiguous resolution for invocations with"
                                  " type %r. Could match %r or %r, add a new"
                                  " branch (or modify these branches) to"

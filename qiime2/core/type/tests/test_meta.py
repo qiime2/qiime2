@@ -191,7 +191,7 @@ class TestTypeMatch(unittest.TestCase):
         R = MockPredicate('R')
 
         # This strange list is for branch coverage mostly
-        T = meta.TypeMap({x: x for x in [P & Q & R, P & Q, R & Q, P, Q, R]})
+        T = meta.TypeMatch([P & Q, P, Q, R])
 
         self.assertTrue(T.input)
         self.assertTrue(T.output)
