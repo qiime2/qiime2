@@ -140,6 +140,14 @@ class TestTypeMap(unittest.TestCase):
         self.assertFalse(X.output)
         self.assertFalse(Y.input)
 
+        # subtyping
+        self.assertFalse(S <= X)
+        self.assertFalse(R <= X)
+        self.assertLessEqual(P, X)
+        self.assertLessEqual(Q, X)
+        self.assertLessEqual(P & Q, X)
+        self.assertLessEqual(P & S | P & R, X)
+
     def test_pickle(self):
         Foo = MockTemplate('Foo')
         Bar = MockTemplate('Bar')
