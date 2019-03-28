@@ -354,9 +354,6 @@ class PipelineSignature:
 
     @classmethod
     def _infer_type(cls, value):
-        import functools
-        import operator
-
         if type(value) is list:
             inner = UnionExp((cls._infer_type(v) for v in value))
             return List[inner.normalize()]

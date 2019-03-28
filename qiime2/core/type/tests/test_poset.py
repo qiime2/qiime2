@@ -1,3 +1,11 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2016-2019, QIIME 2 development team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+# ----------------------------------------------------------------------------
+
 import unittest
 import itertools
 
@@ -29,7 +37,6 @@ class TestPOSet(unittest.TestCase):
             icbd = sort.index(C & B & D)
             iabcd = sort.index(A & B & C & D)
 
-
             # verify topological sort
             for i in [ia, ic, ie, ide]:
                 self.assertGreater(i, icae, sort)
@@ -45,12 +52,10 @@ class TestPOSet(unittest.TestCase):
 
             self.assertGreater(ide, ie, sort)
 
-
     def test_sorting_simple(self):
         A = MockPredicate('A')
         B = MockPredicate('B')
         C = MockPredicate('C')
-
 
         for permutation in itertools.permutations(
                 [A, B, C, A & B, A & C, A & B & C]):

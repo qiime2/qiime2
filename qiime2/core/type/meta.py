@@ -1,3 +1,11 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2016-2019, QIIME 2 development team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+# ----------------------------------------------------------------------------
+
 import itertools
 from types import MappingProxyType
 
@@ -47,7 +55,7 @@ class TypeVarExp(UnionExp):
         return hash(self.index) ^ hash(self.mapping)
 
     def is_concrete(self):
-        return self.output and all(m.is_concrete() for m in self.members)
+        return False
 
     def can_intersect(self):
         return False

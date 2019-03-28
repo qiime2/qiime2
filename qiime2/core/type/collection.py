@@ -12,7 +12,7 @@ from qiime2.core.type.template import TypeTemplate
 
 
 def is_collection_type(expr):
-    return expr.to_ast()['type'] == 'collection'
+    return hasattr(expr, 'to_ast') and expr.to_ast()['type'] == 'collection'
 
 
 class _CollectionBase(TypeTemplate):
@@ -38,11 +38,11 @@ class _CollectionBase(TypeTemplate):
     def get_kind(self):
         raise NotImplementedError
 
-    def is_variant(self):
+    def is_variant(self, self_expr, varfield):
         return False
 
-    def validate_predicate(self, predicate, expr):
-        raise TypeError("Predicates cannot be applied to %r" % expr)
+    def validate_predicate(self, predicate):
+        raise TypeError("Predicates cannot be applied to %r" % self.get_name())
 
     def can_union(self):
         return False
@@ -70,9 +70,9 @@ class _CollectionBase(TypeTemplate):
 class _1DCollectionBase(_CollectionBase):
     def validate_field(self, name, field):
         if isinstance(field, _1DCollectionBase):
-            raise TypeError
+            raise TypeError("Cannot nest collection types.")
         if field.get_name() in {'MetadataColumn', 'Metadata'}:
-            raise TypeError
+            raise TypeError("Cannot use %r with metadata." % self.get_name())
 
     def get_field_names(self):
         return ['type']
@@ -88,10 +88,6 @@ class _List(_1DCollectionBase):
 
 class _Tuple(_CollectionBase):
     _view = tuple
-
-    def validate_field(self, name, field):
-        if isinstance(field, self.__class__):
-            raise TypeError
 
     def get_kind_expr(self, self_expr):
         return ""

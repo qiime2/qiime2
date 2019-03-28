@@ -15,7 +15,7 @@ import qiime2.core.util as util
 
 
 def is_primitive_type(expr):
-    return expr.kind == 'primitive'
+    return hasattr(expr, 'kind') and expr.kind == 'primitive'
 
 
 _RANGE_DEFAULT_START = float('-inf')

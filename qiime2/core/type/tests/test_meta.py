@@ -1,3 +1,11 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2016-2019, QIIME 2 development team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+# ----------------------------------------------------------------------------
+
 import unittest
 import pickle
 
@@ -73,7 +81,7 @@ class TestSelect(unittest.TestCase):
         })
 
         expr = C2[X1, Foo % X2] % X2
-        pred_sel, field_sel, field_pred_sel =  meta.select_variables(expr)
+        pred_sel, field_sel, field_pred_sel = meta.select_variables(expr)
 
         self.assertIs(pred_sel(expr), X2)
         self.assertIs(pred_sel(C2[Bar, Foo % Q] % P), P)
@@ -233,7 +241,6 @@ class TestMatch(unittest.TestCase):
         self.assertEqual(meta.match(bar, input_signature, output_signature),
                          dict(output1=Bar % P))
 
-
     def test_nested_match(self):
         C2 = MockTemplate('C2', fields=('a', 'b'))
         Foo = MockTemplate('Foo')
@@ -260,7 +267,6 @@ class TestMatch(unittest.TestCase):
                          dict(output1=C2[Bar, Bar]))
         self.assertEqual(meta.match(bar, input_signature, output_signature),
                          dict(output1=C2[Bar, Bar % P]))
-
 
     def test_multiple_variables(self):
         C2 = MockTemplate('C2', fields=('a', 'b'))
@@ -326,7 +332,6 @@ class TestMatch(unittest.TestCase):
                          dict(output1=C2[Bar % P, Bar]))
         self.assertEqual(meta.match(bar, input_signature, output_signature),
                          dict(output1=C2[Bar % P, Bar % P]))
-
 
     def test_no_solution(self):
         C2 = MockTemplate('C2', fields=('a', 'b'))
@@ -469,7 +474,6 @@ class TestMatch(unittest.TestCase):
                          dict(output1=Foo % (P & R)))
         self.assertEqual(meta.match(qs, input_signature, output_signature),
                          dict(output1=Foo % (Q & S)))
-
 
 
 if __name__ == '__main__':

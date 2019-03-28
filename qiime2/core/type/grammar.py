@@ -184,7 +184,6 @@ class _AlgebraicExpBase(_ExpBase):
         union = UnionExp((*self.unpack_union(), *other.unpack_union()))
         return union.normalize()
 
-
     def __and__(self, other):
         if (not self.can_intersect() or not other.can_intersect()
                 or (self.kind != other.kind
@@ -254,7 +253,6 @@ class _AlgebraicExpBase(_ExpBase):
 
     def unpack_intersection(self):
         yield self
-
 
 
 class TypeExp(_AlgebraicExpBase):

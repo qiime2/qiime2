@@ -458,7 +458,7 @@ class TestTypeExp(unittest.TestCase):
                     'members': [
                          {
                              'type': 'predicate',
-                             'name':'P',
+                             'name': 'P',
                              'extra_junk': 'P'
                          }, {
                              'type': 'predicate',
@@ -485,8 +485,8 @@ class TestTypeExp(unittest.TestCase):
                                     'name': 'P',
                                     'extra_junk': 'P'
                                 },
-                            'fields': [],
-                            'extra_junk': 'Bar'
+                                'fields': [],
+                                'extra_junk': 'Bar'
                             }
                         ]
                     }, {
@@ -512,6 +512,7 @@ class TestTypeExp(unittest.TestCase):
                 ],
                 'extra_junk': 'C2'
             })
+
 
 class TestIntersection(unittest.TestCase):
     def test_basic(self):
@@ -618,13 +619,12 @@ class TestUnion(unittest.TestCase):
             (P | (Q | R)).equals(P | Q | R))
 
         self.assertEqual(
-            repr(Foo % P | Bar % Q | Foo % R |  Bar % S),
+            repr(Foo % P | Bar % Q | Foo % R | Bar % S),
             'Foo % (P | R) | Bar % (Q | S)')
 
     def test_maximum_antichain(self):
         P = MockPredicate('P', alphabetize=True)
         Q = MockPredicate('Q', alphabetize=True)
-        R = MockPredicate('R', alphabetize=True)
         X = MockPredicate('X')
         Y = MockPredicate('Y')
 
@@ -687,7 +687,7 @@ class TestSubtyping(unittest.TestCase):
         self.assertStrongSubtype(C1[Foo] | C1[Bar], C1[Foo | Bar])
         self.assertStrongSubtype(C1[C1[Foo] | C1[Bar]], C1[C1[Foo | Bar]])
         self.assertStrongSubtype(C1[C1[Foo]] | C1[C1[Bar]],
-                                C1[C1[Foo] | C1[Bar]])
+                                 C1[C1[Foo] | C1[Bar]])
         self.assertStrongSubtype(C1[C1[Foo]] | C1[C1[Bar]], C1[C1[Foo | Bar]])
 
     def test_predicate_intersection(self):
@@ -703,7 +703,6 @@ class TestSubtyping(unittest.TestCase):
         P = MockPredicate('P')
         Q = MockPredicate('Q')
         R = MockPredicate('R')
-        S = MockPredicate('S')
 
         self.assertStrongSubtype(P & Q | Q & R, Q | P | R)
         self.assertStrongSubtype(P & Q | Q & R, Q | P & R)
@@ -724,361 +723,7 @@ class TestSubtyping(unittest.TestCase):
         R = MockPredicate('R')
 
         self.assertStrongSubtype(P | Q, P | Q | R)
-        self.assertNoRelation(P | R, P | Q )
-
-
-
-#    def test_validate_union_w_nonsense(self):
-#        X = grammar.TypeExp('X')
-#        with self.assertRaisesRegex(TypeError, 'expression'):
-#            X._validate_union_(42)
-#
-#    def test_validate_union_w_composite_type(self):
-#        X = grammar.TypeExp('X')
-#        with self.assertRaisesRegex(TypeError, 'incomplete'):
-#            X._validate_union_(grammar.CompositeType('A', field_names=('X',)))
-#
-#    def test_validate_union_w_valid(self):
-#        X = grammar.TypeExp('X')
-#        Y = grammar.TypeExp('Y')
-#        X._validate_union_(Y)
-#
-#    def test_validate_union_implements_handshake(self):
-#        local = {}
-#        X = grammar.TypeExp('X')
-#
-#        class Example(grammar.TypeExp):
-#            def _validate_union_(self, other):
-#                local['other'] = other
-#
-#        X | Example('Example')
-#        self.assertIs(local['other'], X)
-#
-#    def test_build_union(self):
-#        X = grammar.TypeExp('X')
-#        Y = grammar.TypeExp('Y')
-#        union = X._build_union_(X, Y)
-#        self.assertIsInstance(union, grammar.UnionExp)
-#        self.assertEqual(union.members, (X, Y))
-#
-#    def test_validate_intersection_w_nonsense(self):
-#        X = grammar.TypeExp('X')
-#        with self.assertRaisesRegex(TypeError, 'expression'):
-#            X._validate_intersection_(42)
-#
-#    def test_validate_intersection_w_composite_type(self):
-#        X = grammar.TypeExp('X')
-#        with self.assertRaisesRegex(TypeError, 'incomplete'):
-#            X._validate_intersection_(
-#                grammar.CompositeType('A', field_names=('X',)))
-#
-#    def test_validate_intersection_w_valid(self):
-#        X = grammar.TypeExp('X')
-#        Y = grammar.TypeExp('Y')
-#        X._validate_intersection_(Y)
-#
-#    def test_validate_intersection_implements_handshake(self):
-#        local = {}
-#        X = grammar.TypeExp('X')
-#
-#        class Example(grammar.TypeExp):
-#            def _validate_intersection_(self, other):
-#                local['other'] = other
-#
-#        X & Example('Example')
-#        self.assertIs(local['other'], X)
-#
-#    def test_build_intersection(self):
-#        X = grammar.TypeExp('X')
-#        Y = grammar.TypeExp('Y')
-#        intersection = X._build_intersection_(X, Y)
-#        # Should produce the bottom type:
-#        self.assertEqual(intersection, grammar.UnionExp())
-#
-#    def test_validate_predicate_w_nonsense(self):
-#        X = grammar.TypeExp('X')
-#        with self.assertRaisesRegex(TypeError, 'predicate'):
-#            X._validate_predicate_(42)
-#
-#    def test_validate_predicate_w_valid(self):
-#        predicate = grammar.Predicate(True)
-#        X = grammar.TypeExp('X')
-#        X._validate_predicate_(predicate)
-#        # Test passed.
-#
-#    def test_apply_predicate(self):
-#        predicate = grammar.Predicate(True)
-#        Y = grammar.TypeExp('Y')
-#        X = grammar.TypeExp('X', fields=(Y,))
-#
-#        result = X._apply_predicate_(predicate)
-#        self.assertIsInstance(result, grammar.TypeExp)
-#        self.assertEqual(result.fields, (Y,))
-#
-#    def test_is_subtype_wrong_name(self):
-#        Y = grammar.TypeExp('Y')
-#        X = grammar.TypeExp('X')
-#
-#        self.assertIs(Y._is_subtype_(X), NotImplemented)
-#        self.assertIs(X._is_subtype_(Y), NotImplemented)
-#        self.assertFalse(Y >= X)
-#        self.assertFalse(Y >= X)
-#        self.assertFalse(X <= Y)
-#        self.assertFalse(X <= Y)
-#
-#    def test_is_subtype_diff_fields(self):
-#        F1 = grammar.TypeExp('F1')
-#        F2 = grammar.TypeExp('F2')
-#        X = grammar.TypeExp('X', fields=(F1,))
-#        X_ = grammar.TypeExp('X', fields=(F2,))
-#
-#        self.assertFalse(X_._is_subtype_(X))
-#        self.assertFalse(X._is_subtype_(X_))
-#
-#    def test_is_subtype_diff_predicates(self):
-#        class Pred(grammar.Predicate):
-#            def __init__(self, value):
-#                self.value = value
-#                super().__init__(value)
-#
-#            def _is_subtype_(self, other):
-#                if isinstance(other, self.__class__):
-#                    return self.value <= other.value
-#                return NotImplemented
-#
-#        P1 = Pred(1)
-#        P2 = Pred(2)
-#        X = grammar.TypeExp('X', predicate=P1)
-#        X_ = grammar.TypeExp('X', predicate=P2)
-#
-#        self.assertFalse(X_._is_subtype_(X))
-#        self.assertTrue(X._is_subtype_(X_))
-#
-#    def test_is_subtype_matches(self):
-#        X = grammar.TypeExp('X')
-#        X_ = grammar.TypeExp('X')
-#
-#        self.assertTrue(X._is_subtype_(X))
-#        self.assertTrue(X_._is_subtype_(X))
-#        self.assertTrue(X._is_subtype_(X_))
-#        self.assertTrue(X_._is_subtype_(X_))
-#
-#    def test_is_subtype_matches_w_fields(self):
-#        F1 = grammar.TypeExp('F1')
-#        F2 = grammar.TypeExp('F2')
-#        X = grammar.TypeExp('X', fields=(F1,))
-#        X_ = grammar.TypeExp('X', fields=(F2,))
-#
-#        self.assertFalse(X_._is_subtype_(X))
-#        self.assertFalse(X._is_subtype_(X_))
-#
-#    def test_is_subtype_matches_w_predicate(self):
-#        class Pred(grammar.Predicate):
-#            def __init__(self, value=0):
-#                self.value = value
-#                super().__init__(value)
-#
-#            def _is_subtype_(self, other):
-#                if isinstance(other, self.__class__):
-#                    return self.value <= other.value
-#                return NotImplemented
-#
-#        P1 = Pred(1)
-#        P1_ = Pred(1)
-#        X = grammar.TypeExp('X', predicate=P1)
-#        X_ = grammar.TypeExp('X', predicate=P1_)
-#
-#        self.assertTrue(X._is_subtype_(X))
-#        self.assertTrue(X_._is_subtype_(X))
-#        self.assertTrue(X._is_subtype_(X_))
-#        self.assertTrue(X_._is_subtype_(X_))
-#
-#
-#class TestTypeExpressionMod(unittest.TestCase):
-#    def setUp(self):
-#        self.local = {}
-#
-#    def test_mod_w_existing_predicate(self):
-#        X = grammar.TypeExp('X', predicate=grammar.Predicate('Truthy'))
-#        with self.assertRaisesRegex(TypeError, 'predicate'):
-#            X % grammar.Predicate('Other')
-#
-#    def test_mod_w_none_predicate(self):
-#        X = grammar.TypeExp('X', predicate=None)
-#        predicate = grammar.Predicate("Truthy")
-#        self.assertIs((X % predicate).predicate, predicate)
-#
-#    def test_mod_w_none(self):
-#        X = grammar.TypeExp('X')
-#        self.assertEqual(X % None, X)
-#
-#    def test_validate_predicate_called(self):
-#        class Example(grammar.TypeExp):
-#            def _validate_predicate_(s, predicate):
-#                self.local['predicate'] = predicate
-#
-#        example = Example('Example')
-#        p = grammar.Predicate(...)
-#        example % p
-#        self.assertIs(self.local['predicate'], p)
-#
-#    def test_apply_predicate_called(self):
-#        class Example(grammar.TypeExp):
-#            def _validate_predicate_(s, predicate):
-#                pass  # Let anything through
-#
-#            def _apply_predicate_(s, predicate):
-#                self.local['predicate'] = predicate
-#                return ...
-#
-#        example = Example('Example')
-#        new_type_expr = example % 'Foo'
-#        self.assertEqual(self.local['predicate'], 'Foo')
-#        self.assertIs(new_type_expr, ...)
-#
-#
-#class TestTypeExpressionOr(unittest.TestCase):
-#    def setUp(self):
-#        self.local = {}
-#
-#    def test_identity(self):
-#        X = grammar.TypeExp('X')
-#        X_ = grammar.TypeExp('X')
-#        self.assertIs(X | X_, X)
-#
-#    def test_several(self):
-#        X = grammar.TypeExp('X')
-#        Y = grammar.TypeExp('Y')
-#        Z = grammar.TypeExp('Z')
-#
-#        self.assertIsInstance(X | Y | Z, grammar.UnionExp)
-#        self.assertEqual(X | Y | Z | X | Z, Y | Z | X)
-#
-#    def test_validate_union_called(self):
-#        class Example(grammar.TypeExp):
-#            def _validate_union_(s, other):
-#                if 'other' in self.local:
-#                    self.local['self'] = other
-#                else:
-#                    self.local['other'] = other
-#
-#        foo = Example('foo')
-#        bar = Example('bar')
-#        foo | bar
-#        self.assertEqual(self.local['self'], foo)
-#        self.assertEqual(self.local['other'], bar)
-#
-#    def test_build_union_called(self):
-#        class Example(grammar.TypeExp):
-#            def _validate_union_(s, other):
-#                pass  # Let anything through
-#
-#            def _build_union_(s, *members):
-#                self.local['members'] = members
-#                return ...
-#
-#        foo = Example('foo')
-#        bar = Example('bar')
-#        new_type_expr = foo | bar
-#
-#        self.assertEqual(self.local['members'], (foo, bar))
-#        self.assertIs(new_type_expr, ...)
-#
-#
-#class TestTypeExpressionAnd(unittest.TestCase):
-#    def setUp(self):
-#        self.local = {}
-#
-#    def test_identity(self):
-#        X = grammar.TypeExp('X')
-#        X_ = grammar.TypeExp('X')
-#        self.assertIs(X & X_, X_)
-#
-#    def test_several(self):
-#        X = grammar.TypeExp('X')
-#        Y = grammar.TypeExp('Y')
-#        Z = grammar.TypeExp('Z')
-#
-#        self.assertEqual(X & Y & Z & X & Z, grammar.IntersectionExp())
-#
-#    def test_validate_intersection_called(self):
-#        class Example(grammar.TypeExp):
-#            def _validate_intersection_(s, other):
-#                if 'other' in self.local:
-#                    self.local['self'] = other
-#                else:
-#                    self.local['other'] = other
-#
-#        foo = Example('foo')
-#        bar = Example('bar')
-#        foo & bar
-#        self.assertEqual(self.local['self'], foo)
-#        self.assertEqual(self.local['other'], bar)
-#
-#    def test_build_intersection_called(self):
-#        class Example(grammar.TypeExp):
-#            def _validate_intersection_(s, other):
-#                pass  # Let anything through
-#
-#            def _build_intersection_(s, *members):
-#                self.local['members'] = members
-#                return ...
-#
-#        foo = Example('foo')
-#        bar = Example('bar')
-#        new_type_expr = foo & bar
-#
-#        self.assertEqual(self.local['members'], (foo, bar))
-#        self.assertIs(new_type_expr, ...)
-#
-#
-#class TestTypeExpressionLE(unittest.TestCase):
-#    def setUp(self):
-#        self.local = {}
-#
-#    def test_is_subtype_called(self):
-#        class Example(grammar.TypeExp):
-#            def _is_subtype_(s, other):
-#                self.local['other'] = other
-#                return self.local['return']
-#
-#        example = Example('Example')
-#        other = Example('Other')
-#
-#        self.local['return'] = True
-#        result = example <= other
-#        self.assertEqual(self.local['other'], other)
-#        self.assertTrue(result)
-#
-#        self.local['return'] = False
-#        result = example <= other
-#        self.assertEqual(self.local['other'], other)
-#        self.assertFalse(result)
-#
-#
-#class TestTypeExpressionGE(unittest.TestCase):
-#    def setUp(self):
-#        self.local = {}
-#
-#    def test_is_subtype_called(self):
-#        class Example(grammar.TypeExp):
-#            def _is_subtype_(s, other):
-#                self.local['other'] = other
-#                return self.local['return']
-#
-#        example = Example('Example')
-#        other = Example('Other')
-#
-#        self.local['return'] = True
-#        result = example >= other
-#        self.assertEqual(self.local['other'], example)
-#        self.assertTrue(result)
-#
-#        self.local['return'] = False
-#        result = example >= other
-#        self.assertEqual(self.local['other'], example)
-#        self.assertFalse(result)
-#
+        self.assertNoRelation(P | R, P | Q)
 
 
 if __name__ == '__main__':

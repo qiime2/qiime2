@@ -136,8 +136,8 @@ def _munge_field_members(field_names, field_members):
     return fixed
 
 
-def is_semantic_type(type):
-    return type.kind == 'semantic-type'
+def is_semantic_type(expr):
+    return hasattr(expr, 'kind') and expr.kind == 'semantic-type'
 
 
 class VariantField:
@@ -217,18 +217,21 @@ class SemanticTemplate(TypeTemplate):
         self.validate_field_count(len(fields_expr))
         for expr, varf in zip(fields_expr,
                               [self.field[n] for n in self.field_names]):
-            if not self.is_variant(expr, varf):
-                raise TypeError
+            if (expr.template is not None
+                    and hasattr(expr.template, 'is_variant')):
+                check = expr.template.is_variant
+            else:
+                check = self.is_variant
+            if not check(expr, varf):
+                raise TypeError("%r is not a variant of %r" % (expr, varf))
 
     @classmethod
     def is_variant(cls, expr, varf):
         if isinstance(expr, UnionExp):
-            return all(cls.is_variant(e, varf) for e in expr.unpack_union())
+            return all(cls.is_variant(e, varf) for e in expr.members)
         if isinstance(expr, IntersectionExp):
-            return any(cls.is_variant(e, varf)
-                       for e in expr.unpack_intersection())
-        return (varf in expr.template.variant_of
-                or varf.is_member(expr))
+            return any(cls.is_variant(e, varf) for e in expr.members)
+        return varf.is_member(expr) or varf in expr.template.variant_of
 
     def validate_predicate(self, predicate):
         if not isinstance(predicate, Properties):
@@ -271,14 +274,14 @@ class Properties(PredicateTemplate):
 
         return "%s(%s)" % (self.__class__.__name__, ', '.join(args))
 
-    def is_subtype(self, other):
+    def is_symbol_subtype(self, other):
         if type(self) is not type(other):
             return False
 
         return (set(other.include) <= set(self.include) and
                 set(other.exclude) <= set(self.exclude))
 
-    def is_supertype(self, other):
+    def is_symbol_supertype(self, other):
         if type(self) is not type(other):
             return False
 

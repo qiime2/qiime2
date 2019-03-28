@@ -160,7 +160,6 @@ class POSet:
             self._minimum_antichain = new_min + [new]
             # still need to decend through continue_search...
 
-
         decend = [continue_search]
         visited = set()
         while decend:
@@ -214,5 +213,3 @@ class POSet:
 
                 if not found:
                     new.replace_child(None, child)
-
-
