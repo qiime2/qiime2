@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 import qiime2 
 
-q2methods = qiime2.sdk.util.actions_by_input_type('FeatureTable[Frequency]')
+#q2methods = qiime2.sdk.util.actions_by_input_type('FeatureTable[Frequency]')
 
 #############testing##################
 q2p = qiime2.sdk.PluginManager()
@@ -15,7 +15,8 @@ q2p = qiime2.sdk.PluginManager()
 ##############testing#################
 
 def getNextParam(method, input=True):
-    """Get a tuple of required/nonrequired inputs or outputs for each method
+    """
+    Get a tuple of required/nonrequired inputs or outputs for each method
 
     Parameters
     ----------
@@ -48,7 +49,8 @@ def getNextParam(method, input=True):
     return req, non_req
 
 def getCombinations(no_req):
-    """Get all permutations of list of semantic types
+    """
+    Get all permutations of list of semantic types
 
     Parameters
     ----------
@@ -77,8 +79,20 @@ class TypeMap:
     plugin and to create random testing paths from the methods.
 
     """
-    def __init__(self):
+    def __init__(self, types):
+        """
+        Constructor method for TypeMap
+
+        Parameters
+        ----------
+        types : list of strings of all semantic types to add to the graph
+
+        """
         self.G = nx.DiGraph()
+        self.methods = []
+        for type in types:
+            self.methods += qiime2.sdk.util.actions_by_input_type(type)
+ 
 
     def buildGraph(self):
         """Constructs a networkx graph with different semantic types 
@@ -86,7 +100,7 @@ class TypeMap:
     
         """
 
-        for plugin in q2methods:
+        for plugin in self.methods:
             method_list = plugin[1]
             for method in method_list:
                 req_in, non_req_in = getNextParam(method,1)
