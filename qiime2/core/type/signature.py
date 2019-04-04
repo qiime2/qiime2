@@ -13,6 +13,7 @@ import itertools
 
 import qiime2.sdk
 from .grammar import TypeExp, UnionExp
+from .meta import TypeVarExp
 from .collection import List, Set
 from .primitive import is_primitive_type, infer_primitive_type
 from .semantic import is_semantic_type
@@ -55,6 +56,16 @@ class ParameterSpec(ImmutableBase):
 
     def has_description(self):
         return self.description is not self.NOVALUE
+
+    def duplicate(self, **kwargs):
+        qiime_type = kwargs.pop('qiime_type', self.qiime_type)
+        view_type = kwargs.pop('view_type', self.view_type)
+        default = kwargs.pop('default', self.default)
+        description = kwargs.pop('description', self.description)
+        if kwargs:
+            raise TypeError("Unknown arguments: %r" % kwargs)
+
+        return ParameterSpec(qiime_type, view_type, default, description)
 
     def __repr__(self):
         return ("ParameterSpec(qiime_type=%r, view_type=%r, default=%r, "
@@ -278,7 +289,7 @@ class PipelineSignature:
                     "Visualization, not %r"
                     % (output_name, spec.qiime_type))
 
-            if not isinstance(spec.qiime_type, TypeExp):
+            if not isinstance(spec.qiime_type, (TypeVarExp, TypeExp)):
                 raise TypeError(
                     "Output %r must be a complete type expression, not %r"
                     % (output_name, spec.qiime_type))
@@ -336,13 +347,13 @@ class PipelineSignature:
         if solved_outputs is None:
             inputs = {**{k: s.qiime_type for k, s in self.inputs.items()},
                       **{k: s.qiime_type for k, s in self.parameters.items()}}
-            outputs = {k: s.qiime_type for k, s in self.outputs}
+            outputs = {k: s.qiime_type for k, s in self.outputs.items()}
             input_types = {k: self._infer_type(v) for k, v in kwargs.items()}
 
             solved = meta.match(input_types, inputs, outputs)
             solved_outputs = collections.OrderedDict(
                 (k, s.duplicate(qiime_type=solved[k]))
-                for k, s in self.outputs)
+                for k, s in self.outputs.items())
 
         for output_name, spec in solved_outputs.items():
             if not spec.qiime_type.is_concrete():

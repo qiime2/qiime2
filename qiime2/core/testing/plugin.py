@@ -10,7 +10,7 @@ from importlib import import_module
 
 from qiime2.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
                            Visualization, Metadata, MetadataColumn,
-                           Categorical, Numeric)
+                           Categorical, Numeric, TypeMatch)
 
 from .format import (
     IntSequenceFormat,
@@ -123,17 +123,16 @@ dummy_plugin.methods.register_function(
     citations=[citations['baerheim1994effect']]
 )
 
-# TODO update to use TypeMap so IntSequence1 | IntSequence2 are accepted, and
-# the return type is IntSequence1 or IntSequence2.
+T = TypeMatch([IntSequence1, IntSequence2])
 dummy_plugin.methods.register_function(
     function=split_ints,
     inputs={
-        'ints': IntSequence1
+        'ints': T
     },
     parameters={},
     outputs=[
-        ('left', IntSequence1),
-        ('right', IntSequence1)
+        ('left', T),
+        ('right', T)
     ],
     name='Split sequence of integers in half',
     description='This method splits a sequence of integers in half, returning '

@@ -17,8 +17,7 @@ from qiime2.core.type import MethodSignature, Int
 from qiime2.sdk import Artifact, Method, Results
 
 from qiime2.core.testing.method import (concatenate_ints, merge_mappings,
-                                        split_ints, params_only_method,
-                                        no_input_method)
+                                        params_only_method, no_input_method)
 from qiime2.core.testing.type import (
     IntSequence1, IntSequence2, SingleInt, Mapping)
 from qiime2.core.testing.util import get_dummy_plugin
@@ -29,7 +28,13 @@ class TestMethod(unittest.TestCase):
     def setUp(self):
         self.plugin = get_dummy_plugin()
 
-        self.concatenate_ints_sig = MethodSignature(
+    def test_private_constructor(self):
+        with self.assertRaisesRegex(NotImplementedError,
+                                    'Method constructor.*private'):
+            Method()
+
+    def test_from_function_with_artifacts_and_parameters(self):
+        concatenate_ints_sig = MethodSignature(
             concatenate_ints,
             inputs={
                 'ints1': IntSequence1 | IntSequence2,
@@ -44,29 +49,10 @@ class TestMethod(unittest.TestCase):
                 ('concatenated_ints', IntSequence1)
             ]
         )
-
-        self.split_ints_sig = MethodSignature(
-            split_ints,
-            inputs={
-                'ints': IntSequence1
-            },
-            parameters={},
-            outputs=[
-                ('left', IntSequence1),
-                ('right', IntSequence1)
-            ]
-        )
-
-    def test_private_constructor(self):
-        with self.assertRaisesRegex(NotImplementedError,
-                                    'Method constructor.*private'):
-            Method()
-
-    def test_from_function_with_artifacts_and_parameters(self):
         method = self.plugin.methods['concatenate_ints']
 
         self.assertEqual(method.id, 'concatenate_ints')
-        self.assertEqual(method.signature, self.concatenate_ints_sig)
+        self.assertEqual(method.signature, concatenate_ints_sig)
         self.assertEqual(method.name, 'Concatenate integers')
         self.assertTrue(
             method.description.startswith('This method concatenates integers'))
@@ -75,22 +61,18 @@ class TestMethod(unittest.TestCase):
 
     def test_from_function_with_multiple_outputs(self):
         method = self.plugin.methods['split_ints']
+        sig_input = method.signature.inputs['ints'].qiime_type
+
+        self.assertEqual(list(method.signature.inputs.keys()), ['ints'])
+        self.assertLessEqual(IntSequence1, sig_input)
+        self.assertLessEqual(IntSequence2, sig_input)
+        self.assertEqual({}, method.signature.parameters)
+        self.assertEqual(list(method.signature.outputs.keys()),
+                         ['left', 'right'])
+        self.assertIs(sig_input, method.signature.outputs['left'].qiime_type)
+        self.assertIs(sig_input, method.signature.outputs['right'].qiime_type)
 
         self.assertEqual(method.id, 'split_ints')
-
-        exp_sig = MethodSignature(
-            split_ints,
-            inputs={
-                'ints': IntSequence1
-            },
-            parameters={},
-            outputs=[
-                ('left', IntSequence1),
-                ('right', IntSequence1)
-            ]
-        )
-        self.assertEqual(method.signature, exp_sig)
-
         self.assertEqual(method.name, 'Split sequence of integers in half')
         self.assertTrue(
             method.description.startswith('This method splits a sequence'))
@@ -551,8 +533,8 @@ merged_mapping : Mapping
 exp_split_ints_return = """\
 Returns
 -------
-left : IntSequence1
-right : IntSequence1
+left : IntSequence1\xb9 or IntSequence2\xb2
+right : IntSequence1\xb9 or IntSequence2\xb2
 """
 
 

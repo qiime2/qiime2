@@ -26,7 +26,7 @@ class TypeVarExp(UnionExp):
 
     def __repr__(self):
         numbers = {}
-        for idx, m in enumerate(self.members):
+        for idx, m in enumerate(self.members, 1):
             if m in numbers:
                 numbers[m] += superscript(',' + str(idx))
             else:
@@ -49,7 +49,9 @@ class TypeVarExp(UnionExp):
         return a_branches == b_branches
 
     def __eq__(self, other):
-        return self.index == other.index and self.mapping == other.mapping
+        return (type(self) is type(other)
+                and self.index == other.index
+                and self.mapping == other.mapping)
 
     def __hash__(self):
         return hash(self.index) ^ hash(self.mapping)
