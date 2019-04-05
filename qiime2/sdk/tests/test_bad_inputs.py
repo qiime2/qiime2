@@ -72,12 +72,31 @@ class TestBadInputs(TestPluginBase):
                 TypeError, 'Visualizations may not be used as inputs.'):
             method(ints1, metadata=saved_viz)
 
-    def test_artifact_passed_as_param(self):
-        # TODO: implement
-        # passed as params
-        # passed as metadata
-        # etc?
-        pass
+    def test_artifact_passed_incorrectly(self):
+        # generate params
+        concatenate_ints = self.plugin.methods['concatenate_ints']
+        identity_with_metadata = self.plugin.methods['identity_with_metadata']
+        ints1 = Artifact.import_data(IntSequence1, [0, 42, 43])
+        ints2 = Artifact.import_data(IntSequence1, [99, -22])
+        ints3 = Artifact.import_data(IntSequence2, [12, 111])
+        inappropriate_Artifact = Artifact.import_data(IntSequence1, [-9999999])
+        int1 = 4
+        int2 = 5
+
+        # tests Artifact passed as integer
+        with self.assertRaisesRegex(
+                TypeError, 'int1.*type Int.*IntSequence1'):
+            concatenate_ints(ints1, ints2, ints3, inappropriate_Artifact, int2)
+
+        # tests Artifact passed as metadata
+        with self.assertRaisesRegex(
+                TypeError, '\'metadata\'.*type Metadata.*IntSequence1'):
+            identity_with_metadata(ints1, inappropriate_Artifact)
+
+        # tests wrong type of Artifact passed
+        with self.assertRaisesRegex(
+                TypeError, 'ints3.*IntSequence2.*IntSequence1'):
+            concatenate_ints(ints1, ints2, inappropriate_Artifact, int1, int2)
 
     def test_incorrect_artifact_type(self):
         # method = self.plugin.methods['optional_artifacts_method']
@@ -90,19 +109,11 @@ class TestBadInputs(TestPluginBase):
         #     method(saved_viz, 42)
         pass
 
-    def test_incorrect_artifact_subtype(self):
-        # TODO: implement
-        pass
-
-    def incorrect_primitive_type(self):
-        # TODO: implement
-        pass
-
     def test_metadata_passed_as_artifact(self):
         # TODO: implement
         pass
 
-    def test_primitive_passed_as_input(self):
+    def test_primitive_passed_incorrectly(self):
         # generate params
         concatenate_ints = self.plugin.methods['concatenate_ints']
         identity_with_metadata = self.plugin.methods['identity_with_metadata']
