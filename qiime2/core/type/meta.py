@@ -31,7 +31,7 @@ class TypeVarExp(UnionExp):
                 numbers[m] += superscript(',' + str(idx))
             else:
                 numbers[m] = superscript(idx)
-        return " or ".join([repr(k) + v for k, v in numbers.items()])
+        return " | ".join([repr(k) + v for k, v in numbers.items()])
 
     def uniq_upto_sub(self, a_expr, b_expr):
         """
@@ -230,15 +230,14 @@ def match(provided, inputs, outputs):
                 current_binding = provided_binding[var]
             except KeyError:
                 provided_binding[var] = provided_fragment
-                error_map[var] = expr
+                error_map[var] = provided[key]
             else:
                 if not var.uniq_upto_sub(current_binding, provided_fragment):
                     raise ValueError("Received %r and %r, but expected %r"
                                      " and %r to match (or to select the same"
                                      " output)."
-                                     % (error_map[var], expr, current_binding,
-                                        provided_fragment))
-    del error_map
+                                     % (error_map[var], provided[key],
+                                        current_binding, provided_fragment))
 
     # provided_binding now maps TypeVarExp instances to a TypeExp instance
     # which is the relevent fragment from the provided input types
@@ -263,7 +262,9 @@ def match(provided, inputs, outputs):
         inputs = [x[1] for x in sorted(group, key=lambda x: x[0].index)]
         solved = mapping.solve(*inputs)
         if solved is None:
-            raise ValueError("No solution.")
+            provided = tuple(error_map[x[0]]
+                             for x in sorted(group, key=lambda x: x[0].index))
+            raise ValueError("No solution for inputs: %r" % (provided,))
 
         # type vars share identity by instance of map and index, so we will
         # be able to see the "same" vars again when looking up the outputs

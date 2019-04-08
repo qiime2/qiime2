@@ -85,7 +85,12 @@ class TestPlugin(unittest.TestCase):
                           'typical_pipeline', 'optional_artifact_pipeline',
                           'pointless_pipeline', 'visualizer_only_pipeline',
                           'pipelines_in_pipeline', 'failing_pipeline',
-                          'docstring_order_method'})
+                          'docstring_order_method',
+                          'constrained_input_visualization',
+                          'combinatorically_mapped_method',
+                          'double_bound_variable_method',
+                          'bool_flag_swaps_output_method',
+                          'predicates_preserved_method'})
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
 
@@ -109,7 +114,11 @@ class TestPlugin(unittest.TestCase):
                           'params_only_method', 'no_input_method',
                           'optional_artifacts_method',
                           'long_description_method',
-                          'variadic_input_method', 'docstring_order_method'})
+                          'variadic_input_method', 'docstring_order_method',
+                          'combinatorically_mapped_method',
+                          'double_bound_variable_method',
+                          'bool_flag_swaps_output_method',
+                          'predicates_preserved_method'})
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)
 
@@ -118,7 +127,7 @@ class TestPlugin(unittest.TestCase):
 
         self.assertEqual(visualizers.keys(),
                          {'most_common_viz', 'mapping_viz', 'params_only_viz',
-                          'no_input_viz'})
+                          'no_input_viz', 'constrained_input_visualization'})
         for viz in visualizers.values():
             self.assertIsInstance(viz, qiime2.sdk.Visualizer)
 
@@ -141,7 +150,8 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(
             set(types),
             set(['IntSequence1', 'IntSequence2', 'Mapping', 'FourInts',
-                 'Kennel', 'Dog', 'Cat', 'SingleInt']))
+                 'Kennel', 'Dog', 'Cat', 'SingleInt', 'C1', 'C2', 'C3',
+                 'Foo', 'Bar', 'Baz']))
 
 
 if __name__ == '__main__':

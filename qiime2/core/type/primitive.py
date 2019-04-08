@@ -295,9 +295,6 @@ class _PrimitiveTemplateBase(TypeTemplate):
     def validate_predicate(self, predicate):
         raise NotImplementedError
 
-    def can_union(self):
-        return True  # TODO: FIX
-
     def update_ast(self, ast):
         ast['type'] = 'primitive'
 

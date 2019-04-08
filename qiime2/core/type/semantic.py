@@ -306,7 +306,7 @@ class Properties(PredicateTemplate):
                 new_exclude.append(exc)
                 new_exclude_set.remove(exc)
 
-        return self.__class__(*new_include, exclude=new_exclude)
+        return self.__class__(*new_include, exclude=new_exclude).template
 
     def get_kind(self):
         return 'semantic-type'
@@ -315,13 +315,7 @@ class Properties(PredicateTemplate):
         return self.__class__.__name__
 
     def is_element(self, expr):
-        pass
-
-    def validate_intersection(self, other):
-        pass
-
-    def validate_union(self, other):
-        pass
+        return True  # attached TypeExp checks this
 
     def update_ast(self, ast):
         ast['include'] = list(self.include)

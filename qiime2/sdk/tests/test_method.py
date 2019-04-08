@@ -310,6 +310,33 @@ class TestMethod(unittest.TestCase):
         self.assertEqual(result.left.view(list), [0, 42])
         self.assertEqual(result.right.view(list), [-2, 43, 6])
 
+    def test_call_with_multiple_outputs_matched_types(self):
+        split_ints = self.plugin.methods['split_ints']
+
+        artifact = Artifact.import_data(IntSequence2, [0, 42, -2, 43, 6])
+
+        result = split_ints(artifact)
+
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+
+        for output_artifact in result:
+            self.assertIsInstance(output_artifact, Artifact)
+            self.assertEqual(output_artifact.type, IntSequence2)
+            self.assertIsInstance(output_artifact.uuid, uuid.UUID)
+
+        # Output artifacts have different UUIDs.
+        self.assertNotEqual(result[0].uuid, result[1].uuid)
+
+        # Index lookup.
+        self.assertEqual(result[0].view(list), [0, 42])
+        self.assertEqual(result[1].view(list), [-2, 43, 6])
+
+        # Test properties of the `Results` object.
+        self.assertIsInstance(result, Results)
+        self.assertEqual(result.left.view(list), [0, 42])
+        self.assertEqual(result.right.view(list), [-2, 43, 6])
+
     def test_call_with_no_parameters(self):
         merge_mappings = self.plugin.methods['merge_mappings']
 
@@ -476,6 +503,37 @@ class TestMethod(unittest.TestCase):
         self.assertEqual(result.left.view(list), [0, 42])
         self.assertEqual(result.right.view(list), [-2, 43, 6])
 
+    def test_async_with_multiple_outputs_matched_types(self):
+        split_ints = self.plugin.methods['split_ints']
+
+        artifact = Artifact.import_data(IntSequence2, [0, 42, -2, 43, 6])
+
+        future = split_ints.asynchronous(artifact)
+
+        self.assertIsInstance(future, concurrent.futures.Future)
+        result = future.result()
+
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+
+        for output_artifact in result:
+            self.assertIsInstance(output_artifact, Artifact)
+            self.assertEqual(output_artifact.type, IntSequence2)
+
+            self.assertIsInstance(output_artifact.uuid, uuid.UUID)
+
+        # Output artifacts have different UUIDs.
+        self.assertNotEqual(result[0].uuid, result[1].uuid)
+
+        # Index lookup.
+        self.assertEqual(result[0].view(list), [0, 42])
+        self.assertEqual(result[1].view(list), [-2, 43, 6])
+
+        # Test properties of the `Results` object.
+        self.assertIsInstance(result, Results)
+        self.assertEqual(result.left.view(list), [0, 42])
+        self.assertEqual(result.right.view(list), [-2, 43, 6])
+
     def test_docstring(self):
         merge_mappings = self.plugin.methods['merge_mappings']
         split_ints = self.plugin.methods['split_ints']
@@ -533,8 +591,8 @@ merged_mapping : Mapping
 exp_split_ints_return = """\
 Returns
 -------
-left : IntSequence1\xb9 or IntSequence2\xb2
-right : IntSequence1\xb9 or IntSequence2\xb2
+left : IntSequence1\xb9 | IntSequence2\xb2
+right : IntSequence1\xb9 | IntSequence2\xb2
 """
 
 

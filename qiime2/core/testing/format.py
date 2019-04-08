@@ -135,3 +135,12 @@ class UnimportableFormat(TextFileFormat):
 
 UnimportableDirectoryFormat = model.SingleFileDirectoryFormat(
     'UnimportableDirectoryFormat', 'ints.txt', UnimportableFormat)
+
+
+class EchoFormat(TextFileFormat):
+    def _validate_(self, level):
+        pass  # Anything is a valid echo file
+
+
+EchoDirectoryFormat = model.SingleFileDirectoryFormat(
+    'EchoDirectoryFormat', 'echo.txt', EchoFormat)

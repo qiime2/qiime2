@@ -279,7 +279,7 @@ class TypeExp(_AlgebraicExpBase):
         return (self.kind == other.kind
                 and self.name == other.name
                 and self.fields == other.fields
-                and self.predicate == other.predicate)
+                and self.full_predicate == other.full_predicate)
 
     def __hash__(self):
         return (hash(type(self))
