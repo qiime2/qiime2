@@ -400,7 +400,7 @@ dummy_plugin.visualizers.register_function(
     inputs={},
     parameters={
         'name': Str,
-        'age': Int
+        'age': Int % Range(0, None)
     },
     name='Parameters only viz',
     description='This visualizer only accepts parameters.'
