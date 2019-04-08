@@ -264,7 +264,8 @@ def match(provided, inputs, outputs):
         if solved is None:
             provided = tuple(error_map[x[0]]
                              for x in sorted(group, key=lambda x: x[0].index))
-            raise ValueError("No solution for inputs: %r" % (provided,))
+            raise ValueError("No solution for inputs: %r, check the signature "
+                             "to see valid combinations." % (provided,))
 
         # type vars share identity by instance of map and index, so we will
         # be able to see the "same" vars again when looking up the outputs
