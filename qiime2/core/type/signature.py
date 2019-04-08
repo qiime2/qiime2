@@ -302,17 +302,19 @@ class PipelineSignature:
                         "argument. Visualizations may not be used as inputs."
                         % name)
 
+                # handle Artifacts
                 if isinstance(kwargs[name], qiime2.sdk.Artifact):
                     raise TypeError(
                         "Parameter %r requires an argument of type %r. An "
                         "argument of type %r was passed." % (
                             name, spec.qiime_type, kwargs[name].type))
+                # handle Metadata without displaying long Metadata repr
                 elif isinstance(kwargs[name], qiime2.Metadata):
                     raise TypeError(
                         "Parameter %r received a Metadata file as an argument,"
                         " which is incompatible with parameter type: %r" % (
                             name, spec.qiime_type))
-                else:  # kwarg is a primitive type
+                else:  # handle primitive types
                     raise TypeError(
                         "Parameter %r received %r as an argument, which is "
                         "incompatible with parameter type: %r"

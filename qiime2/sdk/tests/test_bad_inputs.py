@@ -128,19 +128,27 @@ class TestBadInputs(TestPluginBase):
             concatenate_ints(ints1, inappropriate_metadata, ints3, int1, int2)
 
     def test_primitive_param_out_of_range(self):
-        # TODO: use params_only_viz
         range_nested_in_list = self.plugin.methods['variadic_input_method']
+        range_not_nested_in_list = self.plugin.visualizers['params_only_viz']
         ints_list = [Artifact.import_data(IntSequence1, [0, 42, 43]),
                      Artifact.import_data(IntSequence2, [4, 5, 6])]
         int_set = {Artifact.import_data(SingleInt, 7),
                    Artifact.import_data(SingleInt, 8)}
         nums = {9, 10}
         bad_range_val = [11, 12, -9999]
+        invalid_age = -99999
 
-        # passes primitive of correct type but outside of Range
+        # Tests primitives of correct type but outside of Range...
+        # ... in a list
         with self.assertRaisesRegex(
                 TypeError, 'opt_nums.*-9999.*incompatible.*List'):
             range_nested_in_list(ints_list, int_set, nums, bad_range_val)
+
+        # ... not in a list
+        with self.assertRaisesRegex(
+                TypeError,
+                '\'age\'.*-99999.*incompatible.*Int % Range\(0, None\)'):
+            range_not_nested_in_list('John Doe', invalid_age)
 
     def test_primitive_param_not_valid_choice(self):
         pipeline = self.plugin.pipelines['failing_pipeline']
