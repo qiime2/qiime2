@@ -10,8 +10,6 @@ import os
 import collections
 import tempfile
 import qiime2.core.archive as archive
-# import qiime2.plugin
-# from qiime2.core.type import MethodSignature, Int
 
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.plugin.testing import TestPluginBase
@@ -21,12 +19,6 @@ from qiime2.core.testing.type import IntSequence1, IntSequence2, SingleInt
 from qiime2.core.testing.visualizer import most_common_viz
 from qiime2 import Metadata
 from qiime2.metadata.tests.test_io import get_data_path
-
-# from qiime2.sdk import Method, Results
-# from qiime2.core.testing.method import (concatenate_ints, merge_mappings,
-#                                         split_ints, params_only_method,
-#                                         no_input_method)
-# from qiime2.core.testing.type import (Mapping)
 
 
 class TestBadInputs(TestPluginBase):
@@ -115,7 +107,7 @@ class TestBadInputs(TestPluginBase):
         int2 = 5
         arbitrary_int = 43
 
-        # tests primitive passed as IntSequence artifact
+        # tests primitive int passed as IntSequence artifact
         with self.assertRaisesRegex(TypeError,
                                     'ints2.*43.*incompatible.*IntSequence1'):
             concatenate_ints(ints1, arbitrary_int, ints3, int1, int2)
@@ -145,7 +137,7 @@ class TestBadInputs(TestPluginBase):
         nums = {9, 10}
         bad_range_val = [11, 12, -9999]
 
-        # passes primitive of correct type but out of Range
+        # passes primitive of correct type but outside of Range
         with self.assertRaisesRegex(
                 TypeError, 'opt_nums.*-9999.*incompatible.*List'):
             range_nested_in_list(ints_list, int_set, nums, bad_range_val)
