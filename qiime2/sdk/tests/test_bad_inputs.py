@@ -19,6 +19,8 @@ from qiime2.plugin.testing import TestPluginBase
 from qiime2.sdk import Artifact, Visualization
 from qiime2.core.testing.type import IntSequence1, IntSequence2, SingleInt
 from qiime2.core.testing.visualizer import most_common_viz
+from qiime2 import Metadata
+from qiime2.metadata.tests.test_io import get_data_path
 
 # from qiime2.sdk import Method, Results
 # from qiime2.core.testing.method import (concatenate_ints, merge_mappings,
@@ -98,28 +100,17 @@ class TestBadInputs(TestPluginBase):
                 TypeError, 'ints3.*IntSequence2.*IntSequence1'):
             concatenate_ints(ints1, ints2, inappropriate_Artifact, int1, int2)
 
-    def test_incorrect_artifact_type(self):
-        # method = self.plugin.methods['optional_artifacts_method']
-        # ints1 = Artifact.import_data(IntSequence1, [0, 42, 43])
-        # testDoc = Artifact.import_data
-        #
-        #
-        # with self.assertRaisesRegex(
-        #         TypeError, 'Visualizations may not be used as inputs.'):
-        #     method(saved_viz, 42)
-        pass
-
-    def test_metadata_passed_as_artifact(self):
-        # TODO: implement
-        pass
-
     def test_primitive_passed_incorrectly(self):
         # generate params
         concatenate_ints = self.plugin.methods['concatenate_ints']
         identity_with_metadata = self.plugin.methods['identity_with_metadata']
         params_only_method = self.plugin.methods['params_only_method']
+
+        md_fp = get_data_path('valid/simple.tsv')
+        inappropriate_metadata = Metadata.load(md_fp)
+
         ints1 = Artifact.import_data(IntSequence1, [0, 42, 43])
-        ints3 = Artifact.import_data(IntSequence1, [99, -22])
+        ints3 = Artifact.import_data(IntSequence1, [12, 111])
         int1 = 4
         int2 = 5
         arbitrary_int = 43
@@ -138,6 +129,11 @@ class TestBadInputs(TestPluginBase):
         with self.assertRaisesRegex(TypeError,
                                     'age.*arbitraryString.*incompatible.*Int'):
             params_only_method('key string', 'arbitraryString')
+
+        # tests metadata passed as artifact
+        with self.assertRaisesRegex(TypeError,
+                                    '\'ints2\'.*Metadata.*IntSequence1'):
+            concatenate_ints(ints1, inappropriate_metadata, ints3, int1, int2)
 
     def test_primitive_param_out_of_range(self):
         # TODO: use params_only_viz

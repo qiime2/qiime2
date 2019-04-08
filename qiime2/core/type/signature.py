@@ -307,10 +307,15 @@ class PipelineSignature:
                         "Parameter %r requires an argument of type %r. An "
                         "argument of type %r was passed." % (
                             name, spec.qiime_type, kwargs[name].type))
+                elif isinstance(kwargs[name], qiime2.Metadata):
+                    raise TypeError(
+                        "Parameter %r received a Metadata file as an argument,"
+                        " which is incompatible with parameter type: %r" % (
+                            name, spec.qiime_type))
                 else:  # kwarg is a primitive type
                     raise TypeError(
                         "Parameter %r received %r as an argument, which is "
-                        "incompatible with parameter type %r"
+                        "incompatible with parameter type: %r"
                         % (name, kwargs[name], spec.qiime_type))
 
     def solve_output(self, **input_types):
