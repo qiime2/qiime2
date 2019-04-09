@@ -147,7 +147,7 @@ class TestBadInputs(TestPluginBase):
         # ... not in a list
         with self.assertRaisesRegex(
                 TypeError,
-                '\'age\'.*-99999.*incompatible.*Int % Range\(0, None\)'):
+                r'\'age\'.*-99999.*incompatible.*Int % Range\(0, None\)'):
             range_not_nested_in_list('John Doe', invalid_age)
 
     def test_primitive_param_not_valid_choice(self):
