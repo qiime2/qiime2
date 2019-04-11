@@ -289,36 +289,36 @@ class PipelineSignature:
 
     def check_types(self, **kwargs):
         for name, spec in self.signature_order.items():
+            parameter = kwargs[name]
             # A type mismatch is unacceptable unless the value is None
             # and this parameter's default value is None.
-            if ((kwargs[name] not in spec.qiime_type) and
+            if ((parameter not in spec.qiime_type) and
                     not (spec.has_default() and spec.default is None
-                         and kwargs[name] is None)):
+                         and parameter is None)):
 
-                # handle visualization passed as parameter
-                if isinstance(kwargs[name], qiime2.sdk.Visualization):
+                if isinstance(parameter, qiime2.sdk.Visualization):
                     raise TypeError(
-                        "Parameter %r received a Visualization (*.qzv) as an "
+                        "Parameter %r received a Visualization as an "
                         "argument. Visualizations may not be used as inputs."
                         % name)
 
-                # handle Artifacts
-                if isinstance(kwargs[name], qiime2.sdk.Artifact):
+                elif isinstance(parameter, qiime2.sdk.Artifact):
                     raise TypeError(
                         "Parameter %r requires an argument of type %r. An "
                         "argument of type %r was passed." % (
-                            name, spec.qiime_type, kwargs[name].type))
-                # handle Metadata without displaying long Metadata repr
-                elif isinstance(kwargs[name], qiime2.Metadata):
+                            name, spec.qiime_type, parameter.type))
+
+                elif isinstance(parameter, qiime2.Metadata):
                     raise TypeError(
-                        "Parameter %r received a Metadata file as an argument,"
-                        " which is incompatible with parameter type: %r" % (
-                            name, spec.qiime_type))
+                        "Parameter %r received a Metadata object as an "
+                        "argument, which is incompatible with parameter "
+                        "type: %r" % (name, spec.qiime_type))
+
                 else:  # handle primitive types
                     raise TypeError(
                         "Parameter %r received %r as an argument, which is "
                         "incompatible with parameter type: %r"
-                        % (name, kwargs[name], spec.qiime_type))
+                        % (name, parameter, spec.qiime_type))
 
     def solve_output(self, **input_types):
         # TODO implement solving here. The check for concrete output types may

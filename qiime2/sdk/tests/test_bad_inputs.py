@@ -24,10 +24,8 @@ from qiime2.metadata.tests.test_io import get_data_path
 class TestBadInputs(TestPluginBase):
 
     def make_provenance_capture(self):
-        # Copy-pasted from qiime2.sdk.TestResult.make_provenance_capture.
-        # Comment retained for searchability
-        # You can't actually import a visualization, but I won't tell
-        # visualization if you don't...
+        # importing visualizations is not supported, but we do that here to
+        # simplify testing machinery
         return archive.ImportProvenanceCapture()
 
     def setUp(self):
@@ -44,7 +42,6 @@ class TestBadInputs(TestPluginBase):
         self.test_dir.cleanup()
 
     def test_viz_passed_as_input(self):
-        # generate a sample viz and other params
         saved_viz = Visualization._from_data_dir(
             self.data_dir, self.make_provenance_capture())
         method = self.plugin.methods['optional_artifacts_method']
@@ -67,7 +64,6 @@ class TestBadInputs(TestPluginBase):
             method(ints1, metadata=saved_viz)
 
     def test_artifact_passed_incorrectly(self):
-        # generate params
         concatenate_ints = self.plugin.methods['concatenate_ints']
         identity_with_metadata = self.plugin.methods['identity_with_metadata']
         ints1 = Artifact.import_data(IntSequence1, [0, 42, 43])
@@ -93,7 +89,6 @@ class TestBadInputs(TestPluginBase):
             concatenate_ints(ints1, ints2, inappropriate_Artifact, int1, int2)
 
     def test_primitive_passed_incorrectly(self):
-        # generate params
         concatenate_ints = self.plugin.methods['concatenate_ints']
         identity_with_metadata = self.plugin.methods['identity_with_metadata']
         params_only_method = self.plugin.methods['params_only_method']
