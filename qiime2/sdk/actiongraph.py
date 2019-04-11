@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import qiime2 
 
 
-def getNextParam(method, input=True):
+def get_next_param(method, input=True):
     """
     Get a tuple of required/nonrequired inputs or outputs for each method
 
@@ -39,7 +39,7 @@ def getNextParam(method, input=True):
                 non_req.append(v.qiime_type)
     return req, non_req
 
-def getCombinations(no_req):
+def get_combinations(no_req):
     """
     Get all permutations of list of semantic types
 
@@ -65,23 +65,22 @@ def getCombinations(no_req):
 
 
 
-def buildGraph(self):
+def build_graph():
     """Constructs a networkx graph with different semantic types 
     and methods as nodes
     
     """
     G = nx.DiGraph()
-    methods = []
+    method_list = []
 
     #get methods from plugin manager
     pm = qiime2.sdk.PluginManager()
     for pgn, pg in pm.plugins.items():
-        methods += list({a for an, a in pg.actions.items()
-                        for iname, i in a.signature.inputs.items()})
-
+        method_list += list(pg.methods.values())
+    
     for method in method_list:
-        req_in, non_req_in = getNextParam(method,1)
-        req_out, non_req_out = getNextParam(method,0)
+        req_in, non_req_in = get_next_param(method,1)
+        req_out, non_req_out = get_next_param(method,0)
             
         for key in req_in:
             if not G.has_node(key):
@@ -101,7 +100,7 @@ def buildGraph(self):
             #construct combinations
             #print("COMBINATIONS: ")
             #print(getCombinations(non_req_in))
-            combs = getCombinations(non_req_in)
+            combs = get_combinations(non_req_in)
                 
             for non_req in combs:
                 #print("DEBUG")
@@ -125,13 +124,14 @@ def buildGraph(self):
                         G.add_edge(new_method_key, key)
         else:
             if not G.has_node(method):
-                G.add_node(method,value=method,color='red')
+                m = str(method)
+                G.add_node(m,value=method,color='red')
                 for key in req_in:
-                    G.add_edge(key, method)
+                    G.add_edge(key, m)
                 for key in req_out:
-                    G.add_edge(method, key)
+                    G.add_edge(m, key)
                 for key in non_req_out:
-                    G.add_edge(method, key)
+                    G.add_edge(m, key)
                             
     return G
 
