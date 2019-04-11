@@ -257,7 +257,7 @@ class PipelineSignature:
                     "Parameter %r must be a primitive QIIME type, not %r"
                     % (param_name, spec.qiime_type))
 
-            if not isinstance(spec.qiime_type, TypeExp):
+            if not isinstance(spec.qiime_type, (TypeExp, UnionExp)):
                 raise TypeError(
                     "Parameter %r must be a complete primitive type "
                     "expression, not %r" % (param_name, spec.qiime_type))

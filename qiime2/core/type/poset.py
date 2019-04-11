@@ -59,20 +59,20 @@ class POSet:
                 del self._children[old]
             self._children[new] = None
 
-        def iter_decendents(self):
+        def iter_descendants(self):
             seen = set()
-            decendents = [self.children]
-            while decendents:
-                for d in decendents.pop(0):
+            descendants = [self.children]
+            while descendants:
+                for d in descendants.pop(0):
                     if d not in seen:
                         yield d
                         seen.add(d)
-                        decendents.append(d.children)
+                        descendants.append(d.children)
 
-        def shared_decendents(self, other):
-            decendents = set(self.iter_decendents())
-            for d in other.iter_decendents():
-                if d in decendents:
+        def shared_descendants(self, other):
+            descendants = set(self.iter_descendants())
+            for d in other.iter_descendants():
+                if d in descendants:
                     yield d
 
     def __init__(self, *items):
@@ -138,7 +138,7 @@ class POSet:
         if len(new_max) < len(self._maximum_antichain) or not continue_search:
             self._maximum_antichain = new_max + [new]
 
-        # handle minimum antichain before decending arbitrarily
+        # handle minimum antichain before descending arbitrarily
         new_min = []
         search_above = []
         for node in self._minimum_antichain:
@@ -158,12 +158,12 @@ class POSet:
 
         if len(new_min) < len(self._minimum_antichain) or not search_above:
             self._minimum_antichain = new_min + [new]
-            # still need to decend through continue_search...
+            # still need to descend through continue_search...
 
-        decend = [continue_search]
+        descend = [continue_search]
         visited = set()
-        while decend:
-            for (parent, children) in decend.pop(0):
+        while descend:
+            for (parent, children) in descend.pop(0):
                 found = False
                 for node in children:
                     if node in visited:
@@ -182,7 +182,7 @@ class POSet:
                         parent.replace_child(node, new)
                     elif smaller:
                         found = True
-                        decend.append([(node, node.children)])
+                        descend.append([(node, node.children)])
 
                 if not found:
                     new.replace_parent(None, parent)
@@ -192,7 +192,7 @@ class POSet:
             for (child, parents) in ascend.pop(0):
                 found = False
                 if child in visited:
-                    continue  # child is the same as node in the decend routine
+                    continue  # child is same as node in the descend routine
                 for node in parents:
                     greater = node <= new
                     smaller = new <= node

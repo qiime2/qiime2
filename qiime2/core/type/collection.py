@@ -19,14 +19,12 @@ def is_collection_type(expr):
 class _CollectionBase(TypeTemplate):
     public_proxy = 'encode', 'decode'
 
-    def __init__(self, fields=()):
-        self.fields = fields
-
+    def __init__(self):
         # For semantic types
         self.variant_of = frozenset()
 
     def __eq__(self, other):
-        return type(self) is type(other) and self.fields == other.fields
+        return type(self) is type(other)
 
     def get_name(self):
         return self.__class__.__name__[1:]  # drop `_`

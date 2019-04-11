@@ -104,7 +104,7 @@ class TypeMap(ImmutableBase):
                     or intersection is b.item):
                 continue
 
-            for shared in a.shared_decendents(b):
+            for shared in a.shared_descendants(b):
                 if intersection <= shared.item:
                     break
             else:

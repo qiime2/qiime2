@@ -52,7 +52,7 @@ def SemanticType(name, field_names=None, field_members=None, variant_of=None):
         a realized semantic type. These names will define an ad-hoc variant
         types accessible as `name`.field[`field_names` member].
     field_members : mapping, optional
-        A apping of strings in `field_names` to one or more semantic types
+        A mapping of strings in `field_names` to one or more semantic types
         which are known to be members of the field (the variant type).
     variant_of : VariantField, iterable of VariantField, optional
         Define the semantic type to be a member of one or more variant types
