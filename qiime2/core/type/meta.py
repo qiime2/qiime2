@@ -74,6 +74,18 @@ class TypeVarExp(UnionExp):
     def unpack_union(self):
         yield self
 
+    def to_ast(self):
+        return {
+            "type": "variable",
+            "index": self.index,
+            "group": id(self.mapping),
+            "outputs": self.mapping.input_width(),
+            "mapping": [
+                ([k.to_ast() for k in key.fields]
+                 + [v.to_ast() for v in value.fields])
+                for key, value in self.mapping.lifted.items()]
+        }
+
 
 class TypeMap(ImmutableBase):
     def __init__(self, mapping):

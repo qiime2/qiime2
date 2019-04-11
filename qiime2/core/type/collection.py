@@ -12,7 +12,8 @@ from qiime2.core.type.template import TypeTemplate
 
 
 def is_collection_type(expr):
-    return hasattr(expr, 'to_ast') and expr.to_ast()['type'] == 'collection'
+    return (hasattr(expr, 'template')
+            and isinstance(expr.template, _CollectionBase))
 
 
 class _CollectionBase(TypeTemplate):
@@ -55,9 +56,6 @@ class _CollectionBase(TypeTemplate):
 
     def is_element(self, value):
         raise NotImplementedError
-
-    def update_ast(self, ast):
-        ast['type'] = "collection"
 
     # For primitive types
     def encode(self, value):

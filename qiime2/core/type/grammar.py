@@ -395,8 +395,9 @@ class TypeExp(_AlgebraicExpBase):
     def to_ast(self):
         ast = {
             "type": "expression",
+            "builtin": True,
             "name": self.name,
-            "predicate": self.predicate.to_ast() if self.predicate else {},
+            "predicate": self.predicate.to_ast() if self.predicate else None,
             "fields": [field.to_ast() for field in self.fields]
         }
         self.template.update_ast_expr(self, ast)

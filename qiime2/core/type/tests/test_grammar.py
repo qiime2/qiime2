@@ -452,6 +452,7 @@ class TestTypeExp(unittest.TestCase):
             (C2[Foo | Bar % P, Foo % (P & Q)] % (P | Q)).to_ast(),
             {
                 'type': 'expression',
+                'builtin': True,
                 'name': 'C2',
                 'predicate': {
                     'type': 'union',
@@ -473,12 +474,14 @@ class TestTypeExp(unittest.TestCase):
                         'members': [
                             {
                                 'type': 'expression',
+                                'builtin': True,
                                 'name': 'Foo',
-                                'predicate': {},
+                                'predicate': None,
                                 'fields': [],
                                 'extra_junk': 'Foo'
                             }, {
                                 'type': 'expression',
+                                'builtin': True,
                                 'name': 'Bar',
                                 'predicate': {
                                     'type': 'predicate',
@@ -491,6 +494,7 @@ class TestTypeExp(unittest.TestCase):
                         ]
                     }, {
                         'type': 'expression',
+                        'builtin': True,
                         'name': 'Foo',
                         'predicate': {
                             'type': 'intersection',

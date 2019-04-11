@@ -101,12 +101,10 @@ class TestCollectionExpression(unittest.TestCase):
 
         ast = List[Foo].to_ast()
         self.assertEqual(ast['fields'][0], Foo.to_ast())
-        self.assertEqual(ast['type'], 'collection')
 
     def test_to_ast_primitive(self):
         ast = List[Int % Range(5)].to_ast()
         self.assertEqual(ast['fields'][0], (Int % Range(5)).to_ast())
-        self.assertEqual(ast['type'], 'collection')
 
     def test_contains_list_primitive(self):
         self.assertTrue([1, 2, 3] in List[Int])

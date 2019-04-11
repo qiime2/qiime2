@@ -44,7 +44,7 @@ class Range(_PrimitivePredicateBase):
             self.start = _RANGE_DEFAULT_START
             self.end = _RANGE_DEFAULT_END
         else:
-            raise ValueError("")
+            raise ValueError("Too many arguments passed, expected 0, 1, or 2.")
         self.inclusive_start = inclusive_start
         self.inclusive_end = inclusive_end
 
@@ -72,8 +72,15 @@ class Range(_PrimitivePredicateBase):
 
     def __repr__(self):
         args = []
-        args.append(repr(self.start))
-        args.append(repr(self.end))
+        start = self.start
+        if start == float('-inf'):
+            start = None
+        end = self.end
+        if end == float('inf'):
+            end = None
+
+        args.append(repr(start))
+        args.append(repr(end))
         if self.inclusive_start is not _RANGE_DEFAULT_INCLUSIVE_START:
             args.append('inclusive_start=%r' % self.inclusive_start)
         if self.inclusive_end is not _RANGE_DEFAULT_INCLUSIVE_END:
@@ -178,10 +185,16 @@ class Range(_PrimitivePredicateBase):
             yield self.end
 
     def update_ast(self, ast):
-        ast['start'] = self.start
-        ast['end'] = self.end
-        ast['inclusive-start'] = self.inclusive_start
-        ast['inclusive-end'] = self.inclusive_end
+        start = self.start
+        if start == float('-inf'):
+            start = None
+
+        end = self.end
+        if end == float('inf'):
+            end = None
+
+        ast['range'] = [start, end]
+        ast['inclusive'] = [self.inclusive_start, self.inclusive_end]
 
 
 def Start(start, inclusive=_RANGE_DEFAULT_INCLUSIVE_START):
@@ -294,9 +307,6 @@ class _PrimitiveTemplateBase(TypeTemplate):
 
     def validate_predicate(self, predicate):
         raise NotImplementedError
-
-    def update_ast(self, ast):
-        ast['type'] = 'primitive'
 
 
 class _Int(_PrimitiveTemplateBase):
@@ -433,9 +443,6 @@ class _Categorical(_PrimitiveTemplateBase):
     def get_kind(self):
         return 'partial-primitive'
 
-    def is_union_allowed(self):
-        return True
-
     def is_element(self, value):
         return isinstance(value, metadata.CategoricalMetadataColumn)
 
@@ -445,9 +452,6 @@ class _Numeric(_PrimitiveTemplateBase):
 
     def get_kind(self):
         return 'partial-primitive'
-
-    def is_union_allowed(self):
-        return True
 
     def is_element(self, value):
         return isinstance(value, metadata.NumericMetadataColumn)

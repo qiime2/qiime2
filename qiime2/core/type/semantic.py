@@ -237,9 +237,8 @@ class SemanticTemplate(TypeTemplate):
         if not isinstance(predicate, Properties):
             raise TypeError()
 
-    def update_ast_expr(self, self_expr, ast):
-        ast['type'] = 'semantic-type'
-        ast['concrete'] = self_expr.is_concrete()
+    def update_ast(self, ast):
+        ast['builtin'] = False
 
 
 class Properties(PredicateTemplate):
