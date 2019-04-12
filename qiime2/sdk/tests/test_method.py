@@ -396,7 +396,6 @@ class TestMethod(unittest.TestCase):
 
         self.assertEqual(obs.view(list), [0, 42, 43, 42, 99, -22, 43, 43, 111])
 
-        # TODO: break this out into section with other "bad input" tests?
         # Invalid type provided as optional artifact.
         with self.assertRaisesRegex(TypeError,
                                     'type IntSequence1.*type IntSequence2'):

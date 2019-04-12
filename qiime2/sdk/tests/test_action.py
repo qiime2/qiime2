@@ -21,6 +21,11 @@ from qiime2 import Metadata
 from qiime2.metadata.tests.test_io import get_data_path
 
 
+# NOTE: This test suite exists for tests not easily split into
+# test_method, test_visualizer, test_pipeline
+# TestBadInputs tests type mismatches between Action signatures and passed args
+
+
 class TestBadInputs(TestPluginBase):
 
     def make_provenance_capture(self):
