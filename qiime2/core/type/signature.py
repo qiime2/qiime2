@@ -310,7 +310,7 @@ class PipelineSignature:
 
                 elif isinstance(parameter, qiime2.Metadata):
                     raise TypeError(
-                        "Parameter %r received a Metadata object as an "
+                        "Parameter %r received Metadata as an "
                         "argument, which is incompatible with parameter "
                         "type: %r" % (name, spec.qiime_type))
 
