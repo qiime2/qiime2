@@ -20,6 +20,7 @@ def string_to_ast(type_expr):
                          " `ast_to_type` instead." % (type_expr,))
 
     if type(parsed) is not ast.Module:
+        # I don't think this branch *can* be hit
         raise ValueError("%r is not a type expression." % (type_expr,))
 
     try:
@@ -98,7 +99,7 @@ def _convert_literals(expr):
     if node is ast.Str:
         return expr.s
 
-    raise ValueError("Unknown literal: %r, %r" % (node, expr.value))
+    raise ValueError("Unknown literal: %r" % node)
 
 
 def _parse_args(args):
