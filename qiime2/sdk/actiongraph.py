@@ -31,6 +31,11 @@ def get_next_param(method, input=True):
                 req.append(v.qiime_type)
             else:
                 non_req.append(v.qiime_type)
+        for k,v in method.signature.parameters.items():
+            if not v.has_default():
+                req.append(v.qiime_type)
+            else:
+                non_req.append(v.qiime_type)
     else:
         for k,v in method.signature.outputs.items():
             if not v.has_default():
@@ -65,7 +70,7 @@ def get_combinations(no_req):
 
 
 
-def build_graph():
+def build_graph(sigs=None):
     """Constructs a networkx graph with different semantic types 
     and methods as nodes
     
@@ -75,9 +80,15 @@ def build_graph():
 
     #get methods from plugin manager
     pm = qiime2.sdk.PluginManager()
-    for pgn, pg in pm.plugins.items():
-        method_list += list(pg.methods.values())
-    
+    if not sigs:
+        for pgn, pg in pm.plugins.items():
+            method_list += list(pg.actions.values())
+    else:
+        for pgn, pg in pm.plugins.items():
+            for method in pg.actions.keys():
+                if str(method) in sigs:
+                    method_list.append(pg.actions[str(method)])
+
     for method in method_list:
         req_in, non_req_in = get_next_param(method,1)
         req_out, non_req_out = get_next_param(method,0)
