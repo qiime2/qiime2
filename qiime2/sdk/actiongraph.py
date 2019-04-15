@@ -1,8 +1,6 @@
-import random
 from itertools import combinations
 import networkx as nx
-import matplotlib.pyplot as plt
-import qiime2 
+import qiime2
 
 
 def get_next_param(method, input=True):
@@ -12,7 +10,7 @@ def get_next_param(method, input=True):
     Parameters
     ----------
     method : Qiime2.method (check the right signature for this)
-        The method to get the semantic types from 
+        The method to get the semantic types from
     input : {True,False}
         Delineates if getting the method input or output types
 
@@ -26,23 +24,24 @@ def get_next_param(method, input=True):
     non_req = []
 
     if input:
-        for k,v in method.signature.inputs.items():
+        for k, v in method.signature.inputs.items():
             if not v.has_default():
                 req.append(v.qiime_type)
             else:
                 non_req.append(v.qiime_type)
-        for k,v in method.signature.parameters.items():
+        for k, v in method.signature.parameters.items():
             if not v.has_default():
                 req.append(v.qiime_type)
             else:
                 non_req.append(v.qiime_type)
     else:
-        for k,v in method.signature.outputs.items():
+        for k, v in method.signature.outputs.items():
             if not v.has_default():
                 req.append(v.qiime_type)
             else:
                 non_req.append(v.qiime_type)
     return req, non_req
+
 
 def get_combinations(no_req):
     """
@@ -68,17 +67,22 @@ def get_combinations(no_req):
     return no_req_comb
 
 
-
-
 def build_graph(sigs=None):
-    """Constructs a networkx graph with different semantic types 
+    """
+    Constructs a networkx graph with different semantic types
     and methods as nodes
-    
+
+    Parameters
+    ----------
+    sigs : list of strings
+
+    Returns
+    -------
+    nx.DiGraph - networkx graph connected based on all or specified methods
     """
     G = nx.DiGraph()
     method_list = []
 
-    #get methods from plugin manager
     pm = qiime2.sdk.PluginManager()
     if not sigs:
         for pgn, pg in pm.plugins.items():
@@ -90,9 +94,8 @@ def build_graph(sigs=None):
                     method_list.append(pg.actions[str(method)])
 
     for method in method_list:
-        req_in, non_req_in = get_next_param(method,1)
-        req_out, non_req_out = get_next_param(method,0)
-            
+        req_in, non_req_in = get_next_param(method, 1)
+        req_out, non_req_out = get_next_param(method, 0)
         for key in req_in:
             if not G.has_node(key):
                 G.add_node(key, value=key, color='blue')
@@ -105,26 +108,16 @@ def build_graph(sigs=None):
         for key in non_req_out:
             if not G.has_node(key):
                 G.add_node(key, value=key, color='blue')
-
-        #there are combinations
         if non_req_in:
-            #construct combinations
-            #print("COMBINATIONS: ")
-            #print(getCombinations(non_req_in))
             combs = get_combinations(non_req_in)
-                
             for non_req in combs:
-                #print("DEBUG")
-                #print(non_req)
-                new_method_key= str(method)
+                new_method_key = str(method)
                 str_non_req = [str(i) for i in non_req]
                 if str_non_req:
                     non_req_key = ";".join(str_non_req)
                     new_method_key += ";"+non_req_key
-                    
-            #check if there exists a method node with same in-edges
                 if not G.has_node(new_method_key):
-                    G.add_node(new_method_key,value=method,color='red')
+                    G.add_node(new_method_key, value=method, color='red')
                     for key in req_in:
                         G.add_edge(key, new_method_key)
                     for key in non_req:
@@ -136,19 +129,11 @@ def build_graph(sigs=None):
         else:
             if not G.has_node(method):
                 m = str(method)
-                G.add_node(m,value=method,color='red')
+                G.add_node(m, value=method, color='red')
                 for key in req_in:
                     G.add_edge(key, m)
                 for key in req_out:
                     G.add_edge(m, key)
                 for key in non_req_out:
                     G.add_edge(m, key)
-                            
     return G
-
-
-
-
-
-
-
