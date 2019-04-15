@@ -15,7 +15,7 @@ import uuid
 
 import qiime2.plugin
 import qiime2.core.type
-from qiime2.core.type import VisualizerSignature, Str
+from qiime2.core.type import VisualizerSignature, Str, Range
 from qiime2.core.type.visualization import Visualization as VisualizationType
 from qiime2.sdk import Artifact, Visualization, Visualizer, Results
 
@@ -95,7 +95,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             inputs={},
             parameters={
                 'name': qiime2.plugin.Str,
-                'age': qiime2.plugin.Int
+                'age': qiime2.plugin.Int % Range(0, None)
             }
         )
         self.assertEqual(visualizer.signature, exp_sig)
@@ -503,7 +503,7 @@ This visualizer only accepts parameters.
 Parameters
 ----------
 name : Str, optional
-age : Int, optional
+age : Int % Range(0, None), optional
 
 Returns
 -------

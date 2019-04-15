@@ -289,16 +289,36 @@ class PipelineSignature:
 
     def check_types(self, **kwargs):
         for name, spec in self.signature_order.items():
-            if kwargs[name] not in spec.qiime_type:
-                # A type mismatch is unacceptable unless the value is None
-                # and this parameter's default value is None.
-                if not (spec.has_default() and
-                        spec.default is None and
-                        kwargs[name] is None):
+            parameter = kwargs[name]
+            # A type mismatch is unacceptable unless the value is None
+            # and this parameter's default value is None.
+            if ((parameter not in spec.qiime_type) and
+                    not (spec.has_default() and spec.default is None
+                         and parameter is None)):
+
+                if isinstance(parameter, qiime2.sdk.Visualization):
                     raise TypeError(
-                        "Parameter %r received an argument of type %r. An "
-                        "argument of subtype %r is required." % (
-                            name, kwargs[name].type, spec.qiime_type))
+                        "Parameter %r received a Visualization as an "
+                        "argument. Visualizations may not be used as inputs."
+                        % name)
+
+                elif isinstance(parameter, qiime2.sdk.Artifact):
+                    raise TypeError(
+                        "Parameter %r requires an argument of type %r. An "
+                        "argument of type %r was passed." % (
+                            name, spec.qiime_type, parameter.type))
+
+                elif isinstance(parameter, qiime2.Metadata):
+                    raise TypeError(
+                        "Parameter %r received Metadata as an "
+                        "argument, which is incompatible with parameter "
+                        "type: %r" % (name, spec.qiime_type))
+
+                else:  # handle primitive types
+                    raise TypeError(
+                        "Parameter %r received %r as an argument, which is "
+                        "incompatible with parameter type: %r"
+                        % (name, parameter, spec.qiime_type))
 
     def solve_output(self, **input_types):
         # TODO implement solving here. The check for concrete output types may
