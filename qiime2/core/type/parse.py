@@ -174,7 +174,9 @@ def _build_atomic(name):
     return {
         'type': 'expression',
         'builtin': name in {'Str', 'Int', 'Float', 'Bool',
-                            'List', 'Set', 'Tuple', 'Visualization'},
+                            'List', 'Set', 'Tuple', 'Visualization',
+                            'Metadata', 'MetadataColumn', 'Numeric',
+                            'Categorical'},
         'name': name,
         'predicate': None,
         'fields': []

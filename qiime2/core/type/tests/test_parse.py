@@ -11,7 +11,8 @@ import unittest
 from qiime2.core.type.parse import ast_to_type, string_to_ast
 from qiime2.core.testing.type import Foo, Bar, C1, C2
 from qiime2.plugin import (Int, Float, Str, Bool, Range, Choices, TypeMap,
-                           Properties, List, Set, Visualization)
+                           Properties, List, Set, Visualization, Metadata,
+                           MetadataColumn, Categorical, Numeric)
 
 
 class TestParsing(unittest.TestCase):
@@ -68,6 +69,12 @@ class TestParsing(unittest.TestCase):
         self.assert_roundtrip(Set[Str % Choices('A', 'B', 'C')])
         self.assert_roundtrip(List[Int % Range(1, 3, inclusive_end=True)
                                    | Str % Choices('A', 'B', 'C')])
+
+    def test_metadata_primitive(self):
+        self.assert_roundtrip(Metadata)
+        self.assert_roundtrip(MetadataColumn[Numeric])
+        self.assert_roundtrip(MetadataColumn[Categorical])
+        self.assert_roundtrip(MetadataColumn[Numeric | Categorical])
 
     def test_typevars(self):
         T, U, V, W, X = TypeMap({
