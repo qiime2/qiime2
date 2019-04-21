@@ -31,8 +31,10 @@ def get_next_param(method, input=True):
                 non_req.append(v.qiime_type)
         for k, v in method.signature.parameters.items():
             if not v.has_default():
+                print("parameter has default!")
                 req.append(v.qiime_type)
             else:
+                print("parameter doesn't have default!")
                 non_req.append(v.qiime_type)
     else:
         for k, v in method.signature.outputs.items():
@@ -67,7 +69,7 @@ def get_combinations(no_req):
     return no_req_comb
 
 
-def build_graph(sigs=None):
+def build_graph(sigs=[]):
     """
     Constructs a networkx graph with different semantic types
     and methods as nodes
@@ -120,12 +122,12 @@ def build_graph(sigs=None):
                     G.add_node(new_method_key, value=method, color='red')
                     for key in req_in:
                         G.add_edge(key, new_method_key)
-                    for key in non_req:
-                        G.add_edge(key, new_method_key)
+                    #for key in non_req:
+                    #    G.add_edge(key, new_method_key)
                     for key in req_out:
                         G.add_edge(new_method_key, key)
-                    for key in non_req_out:
-                        G.add_edge(new_method_key, key)
+                    #for key in non_req_out:
+                    #    G.add_edge(new_method_key, key)
         else:
             if not G.has_node(method):
                 m = str(method)
@@ -134,6 +136,6 @@ def build_graph(sigs=None):
                     G.add_edge(key, m)
                 for key in req_out:
                     G.add_edge(m, key)
-                for key in non_req_out:
-                    G.add_edge(m, key)
+                #for key in non_req_out:
+                #    G.add_edge(m, key)
     return G
