@@ -3,7 +3,7 @@ from qiime2.core.testing.type import (Mapping, IntSequence1, IntSequence2)
 from qiime2.core.type.primitive import (Int, Str, Metadata)
 from qiime2.core.type.visualization import (Visualization)
 from qiime2.core.testing.util import get_dummy_plugin
-from actiongraph import build_graph
+from qiime2.sdk.actiongraph import build_graph
 
 
 class TestActiongraph(unittest.TestCase):
