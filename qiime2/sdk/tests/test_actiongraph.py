@@ -166,6 +166,7 @@ class TestActiongraph(unittest.TestCase):
         exp += [exp_node_1, exp_node_2]
 
         for item in obs:
+            print(item)
             assert item in exp
 
         assert self.g.in_degree(exp_node_1) == 1
