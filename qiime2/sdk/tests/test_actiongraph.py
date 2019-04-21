@@ -87,7 +87,7 @@ class TestActiongraph(unittest.TestCase):
 
         assert self.g.in_degree(exp_node_4) == 2
         assert self.g.out_degree(exp_node_4) == 1
-
+'''
     def test_visualizer(self):
         vis = ['params_only_viz']
 
@@ -126,7 +126,6 @@ class TestActiongraph(unittest.TestCase):
         exp += [exp_node_1, exp_node_2, exp_node_3, exp_node_4]
 
         for item in obs:
-            print(item)
             assert item in exp
 
         assert self.g.in_degree(exp_node_1) == 0
@@ -143,7 +142,7 @@ class TestActiongraph(unittest.TestCase):
 
         assert self.g.in_degree(Visualization) == 4
         assert self.g.out_degree(Visualization) == 0
-
+'''
     def test_union(self):
         vis = ['most_common_viz']
         self.g = build_graph(vis)
