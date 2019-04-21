@@ -1,3 +1,12 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2016-2019, QIIME 2 development team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+# ----------------------------------------------------------------------------
+
+
 import unittest
 from qiime2.core.testing.type import (Mapping, IntSequence1, IntSequence2)
 from qiime2.core.type.primitive import (Int, Str, Metadata)
