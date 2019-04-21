@@ -1,12 +1,10 @@
 import unittest
-import qiime2.sdk
-from qiime2.core.testing.method import (split_ints, params_only_method,
-                                        no_input_method, long_description_method)
-
-from qiime2.core.testing.type import (Mapping)
-from qiime2.core.type.primitive import (Int, Str)
+from qiime2.core.testing.type import (Mapping, IntSequence1, IntSequence2)
+from qiime2.core.type.primitive import (Int, Str, Metadata)
+from qiime2.core.type.visualization import (Visualization)
 from qiime2.core.testing.util import get_dummy_plugin
-from actiongraph import *
+from actiongraph import build_graph
+
 
 class TestActiongraph(unittest.TestCase):
     def setUp(self):
@@ -18,59 +16,222 @@ class TestActiongraph(unittest.TestCase):
         self.g = build_graph(methods)
         obs = list(self.g.nodes)
         self.assertEqual(obs, [])
-      
+
     def test_simple_graph(self):
         methods = ['no_input_method']
         self.g = build_graph(methods)
         obs = list(self.g.nodes)
-        exp = [Mapping, str(self.plugin.methods['no_input_method'])]
+
+        exp_node = str({
+            "inputs": [],
+            "params": [],
+            "outputs": [Mapping],
+            "non_req": []
+        })
+
+        type_node = Mapping
+        exp = [type_node, exp_node]
+
         for item in obs:
             assert item in exp
 
-        no_input_node = str(self.plugin.methods['no_input_method'])
-        type_node = Mapping
-        assert self.g.has_edge(no_input_node, type_node)
+        assert self.g.has_edge(exp_node, type_node)
 
     def test_cycle_in_graph(self):
-        methods = ['long_description_method','docstring_order_method'] 
+        methods = ['docstring_order_method']
         self.g = build_graph(methods)
         obs = list(self.g.nodes)
-        exp = [Mapping, Int, Str, 'oInt', 'oMapping', 
-            str(self.plugin.methods['long_description_method']),
-            str(self.plugin.methods['docstring_order_method']), 
-            str(self.plugin.methods['docstring_order_method'])+';'+str(Mapping), 
-            str(self.plugin.methods['docstring_order_method'])+';'+str(Mapping)+';'+'Int',
-            str(self.plugin.methods['docstring_order_method'])+';Int']
+        exp = [Mapping, Int, Str]
+
+        exp_node_1 = str({
+            "inputs": [Mapping],
+            "params": [Str],
+            "outputs": [Mapping],
+            "non_req": []
+        })
+
+        exp_node_2 = str({
+            "inputs": [Mapping],
+            "params": [Str],
+            "outputs": [Mapping],
+            "non_req": [Int]
+        })
+
+        exp_node_3 = str({
+            "inputs": [Mapping],
+            "params": [Str],
+            "outputs": [Mapping],
+            "non_req": [Mapping]
+        })
+
+        exp_node_4 = str({
+            "inputs": [Mapping],
+            "params": [Str],
+            "outputs": [Mapping],
+            "non_req": [Mapping, Int]
+        })
+
+        exp += [exp_node_1, exp_node_2, exp_node_3, exp_node_4]
 
         for item in obs:
             assert item in exp
-        
-        ds = str(self.plugin.methods['docstring_order_method'])
-        ds_map = str(self.plugin.methods['docstring_order_method'])+';'+str(Mapping)
-        ds_map_int = str(self.plugin.methods['docstring_order_method'])+';'+\
-        str(Mapping)+';Int'
-        ds_int = str(self.plugin.methods['docstring_order_method'])+';Int'
-        long_node = str(self.plugin.methods['long_description_method'])
-        map_node = Mapping
-        int_node = Int
-        str_node = Str
 
-        assert self.g.has_edge(int_node, long_node)
-        assert self.g.has_edge(str_node, long_node)
-        assert self.g.has_edge(map_node, long_node)
-        assert self.g.has_edge(long_node, map_node)
-        
-        assert self.g.in_degree(ds) == 2
-        assert self.g.out_degree(ds) == 1
-    
-        assert self.g.in_degree(ds_map) == 2
-        assert self.g.out_degree(ds_map) == 1
-        
-        assert self.g.in_degree(ds_int) == 2
-        assert self.g.out_degree(ds_int) == 1
-        
-        assert self.g.in_degree(ds_map_int) == 2
-        assert self.g.out_degree(ds_map_int) == 1
+        assert self.g.in_degree(exp_node_1) == 2
+        assert self.g.out_degree(exp_node_1) == 1
+
+        assert self.g.in_degree(exp_node_2) == 2
+        assert self.g.out_degree(exp_node_2) == 1
+
+        assert self.g.in_degree(exp_node_3) == 2
+        assert self.g.out_degree(exp_node_3) == 1
+
+        assert self.g.in_degree(exp_node_4) == 2
+        assert self.g.out_degree(exp_node_4) == 1
+
+    def test_visualizer(self):
+        vis = ['params_only_viz']
+
+        self.g = build_graph(vis)
+        obs = list(self.g.nodes)
+        exp = [Visualization, Int, Str]
+
+        exp_node_1 = str({
+            "inputs": [],
+            "params": [],
+            "outputs": [Visualization],
+            "non_req": []
+        })
+
+        exp_node_2 = str({
+            "inputs": [],
+            "params": [],
+            "outputs": [Visualization],
+            "non_req": [Int]
+        })
+
+        exp_node_3 = str({
+            "inputs": [],
+            "params": [],
+            "outputs": [Visualization],
+            "non_req": [Str]
+        })
+
+        exp_node_4 = str({
+            "inputs": [],
+            "params": [],
+            "outputs": [Visualization],
+            "non_req": [Str, Int]
+        })
+
+        exp += [exp_node_1, exp_node_2, exp_node_3, exp_node_4]
+
+        for item in obs:
+            assert item in exp
+
+        assert self.g.in_degree(exp_node_1) == 0
+        assert self.g.out_degree(exp_node_1) == 1
+
+        assert self.g.in_degree(exp_node_2) == 0
+        assert self.g.out_degree(exp_node_2) == 1
+
+        assert self.g.in_degree(exp_node_3) == 0
+        assert self.g.out_degree(exp_node_3) == 1
+
+        assert self.g.in_degree(exp_node_4) == 0
+        assert self.g.out_degree(exp_node_4) == 1
+
+        assert self.g.in_degree(Visualization) == 4
+        assert self.g.out_degree(Visualization) == 0
+
+    def test_union(self):
+        vis = ['most_common_viz']
+        self.g = build_graph(vis)
+        obs = list(self.g.nodes)
+        exp = [Visualization, IntSequence1, IntSequence2]
+
+        exp_node_1 = str({
+            "inputs": [IntSequence1],
+            "params": [],
+            "outputs": [Visualization],
+            "non_req": []
+        })
+
+        exp_node_2 = str({
+            "inputs": [IntSequence2],
+            "params": [],
+            "outputs": [Visualization],
+            "non_req": []
+        })
+
+        exp += [exp_node_1, exp_node_2]
+
+        for item in obs:
+            assert item in exp
+
+        assert self.g.in_degree(exp_node_1) == 1
+        assert self.g.out_degree(exp_node_1) == 1
+
+        assert self.g.in_degree(exp_node_2) == 1
+        assert self.g.out_degree(exp_node_2) == 1
+
+        assert self.g.in_degree(Visualization) == 2
+        assert self.g.out_degree(Visualization) == 0
+
+    def test_multiple_outputs(self):
+        actions = ['visualizer_only_pipeline']
+        self.g = build_graph(actions)
+        obs = list(self.g.nodes)
+        exp = [Visualization, Mapping]
+
+        exp_node_1 = str({
+            "inputs": [Mapping],
+            "params": [],
+            "outputs": [Visualization, Visualization],
+            "non_req": []
+        })
+
+        exp += [exp_node_1]
+
+        for item in obs:
+            assert item in exp
+
+        assert self.g.in_degree(exp_node_1) == 1
+        assert self.g.out_degree(exp_node_1) == 1
+
+    def test_metadata(self):
+        actions = ['identity_with_metadata']
+        self.g = build_graph(actions)
+        obs = list(self.g.nodes)
+        exp = [Metadata, IntSequence1, IntSequence2]
+
+        exp_node_1 = str({
+            "inputs": [IntSequence1],
+            "params": [Metadata],
+            "outputs": [IntSequence1],
+            "non_req": []
+        })
+
+        exp_node_2 = str({
+            "inputs": [IntSequence2],
+            "params": [Metadata],
+            "outputs": [IntSequence1],
+            "non_req": []
+        })
+
+        exp += [exp_node_1, exp_node_2]
+
+        for item in obs:
+            assert item in exp
+
+        assert self.g.in_degree(exp_node_1) == 2
+        assert self.g.out_degree(exp_node_1) == 1
+
+        assert self.g.in_degree(exp_node_1) == 2
+        assert self.g.out_degree(exp_node_1) == 1
+
+        assert self.g.in_degree(IntSequence1) == 2
+        assert self.g.out_degree(IntSequence1) == 1
+
 
 if __name__ == '__main__':
     unittest.main()

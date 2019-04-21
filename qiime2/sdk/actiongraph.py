@@ -1,18 +1,19 @@
 from itertools import combinations
 import networkx as nx
+import copy
 import qiime2
 
 
-def get_next_param(method, input=True):
+def get_next_arguments(action, type=0):
     """
     Get a tuple of required/nonrequired inputs or outputs for each method
 
     Parameters
     ----------
-    method : Qiime2.method (check the right signature for this)
-        The method to get the semantic types from
-    input : {True,False}
-        Delineates if getting the method input or output types
+    action : Qiime2.action
+
+    type : {0,1,2}
+        Delineates if getting the action input, param, or output types
 
     Returns
     -------
@@ -23,25 +24,25 @@ def get_next_param(method, input=True):
     req = []
     non_req = []
 
-    if input:
-        for k, v in method.signature.inputs.items():
+    if type == 0:
+        for k, v in action.signature.inputs.items():
             if not v.has_default():
                 req.append(v.qiime_type)
             else:
                 non_req.append(v.qiime_type)
-        for k, v in method.signature.parameters.items():
+    elif type == 1:
+        for k, v in action.signature.parameters.items():
             if not v.has_default():
-                print("parameter has default!")
                 req.append(v.qiime_type)
             else:
-                print("parameter doesn't have default!")
                 non_req.append(v.qiime_type)
     else:
-        for k, v in method.signature.outputs.items():
+        for k, v in action.signature.outputs.items():
             if not v.has_default():
                 req.append(v.qiime_type)
             else:
                 non_req.append(v.qiime_type)
+
     return req, non_req
 
 
@@ -69,10 +70,97 @@ def get_combinations(no_req):
     return no_req_comb
 
 
+def generate_nodes_by_action(action):
+    """
+    Given a method, generates all combinations of inputs and
+    outputs for that particular method and and stores the combinations
+    as dictionaries in a resulting list.
+
+    Parameters
+    ----------
+    method : Qiime2.action
+
+    Returns
+    -------
+    list of dictionaries - each dictionary is a combination inputs and
+        outputs for particular node
+
+    """
+
+    results = []
+
+    input, input_nr = get_next_arguments(action, 0)
+    param, param_nr = get_next_arguments(action, 1)
+    output, _ = get_next_arguments(action, 2)
+
+    non_req = []
+
+    # unravel potential unions
+    input = unravel_union(input)
+    param = unravel_union(param)
+
+    for x in input_nr + param_nr:
+        non_req += unravel_union(x)
+
+    for i in input:
+        for p in param:
+            if non_req:
+                non_req = get_combinations(non_req)
+                for nr in non_req:
+                    d = {}
+                    d['inputs'] = i
+                    d['params'] = p
+                    d['outputs'] = output
+                    d['non_req'] = nr
+                    results.append(d)
+            else:
+                d = {}
+                d['inputs'] = i
+                d['params'] = p
+                d['outputs'] = output
+                d['non_req'] = []
+                results.append(d)
+
+    return results
+
+
+def unravel_union(l):
+    """
+    Unravel Union node to get all permutations of types for each action
+
+    Parameters
+    ----------
+    list : list of Qiime2.types
+
+    Returns
+    -------
+    list of lists - list of permuations of types for each action
+
+    """
+
+    result = [l]
+    for i, x in enumerate(l):
+        if 'members' in x.__dict__ and len(x.__dict__['members']) > 0:
+            members = list(x.__dict__['members'])
+            temp = copy.deepcopy(result)
+
+            # update result with first element of types in member
+            for each_list in result:
+                each_list[i] = members[0]
+
+            # add in other permutations of types in member
+            for n in range(1, len(members)):
+                copy_result = copy.deepcopy(temp)
+                for each_list in copy_result:
+                    each_list[i] = members[n]
+                result += copy_result
+    return result
+
+
 def build_graph(sigs=[]):
     """
     Constructs a networkx graph with different semantic types
-    and methods as nodes
+    and actions as nodes
 
     Parameters
     ----------
@@ -81,61 +169,40 @@ def build_graph(sigs=[]):
     Returns
     -------
     nx.DiGraph - networkx graph connected based on all or specified methods
-    """
-    G = nx.DiGraph()
-    method_list = []
 
+    """
+
+    G = nx.DiGraph()
+    action_list = []
+
+    # get all actions or specifc actions if specified in sigs
     pm = qiime2.sdk.PluginManager()
     if not sigs:
         for pgn, pg in pm.plugins.items():
-            method_list += list(pg.actions.values())
+            action_list += list(pg.actions.values())
     else:
         for pgn, pg in pm.plugins.items():
-            for method in pg.actions.keys():
-                if str(method) in sigs:
-                    method_list.append(pg.actions[str(method)])
+            for action in pg.actions.keys():
+                if str(action) in sigs:
+                    action_list.append(pg.actions[str(action)])
 
-    for method in method_list:
-        req_in, non_req_in = get_next_param(method, 1)
-        req_out, non_req_out = get_next_param(method, 0)
-        for key in req_in:
-            if not G.has_node(key):
-                G.add_node(key, value=key, color='blue')
-        for key in non_req_in:
-            if not G.has_node(key):
-                G.add_node(key, value=key, color='blue')
-        for key in req_out:
-            if not G.has_node(key):
-                G.add_node(key, value=key, color='blue')
-        for key in non_req_out:
-            if not G.has_node(key):
-                G.add_node(key, value=key, color='blue')
-        if non_req_in:
-            combs = get_combinations(non_req_in)
-            for non_req in combs:
-                new_method_key = str(method)
-                str_non_req = [str(i) for i in non_req]
-                if str_non_req:
-                    non_req_key = ";".join(str_non_req)
-                    new_method_key += ";"+non_req_key
-                if not G.has_node(new_method_key):
-                    G.add_node(new_method_key, value=method, color='red')
-                    for key in req_in:
-                        G.add_edge(key, new_method_key)
-                    #for key in non_req:
-                    #    G.add_edge(key, new_method_key)
-                    for key in req_out:
-                        G.add_edge(new_method_key, key)
-                    #for key in non_req_out:
-                    #    G.add_edge(new_method_key, key)
-        else:
-            if not G.has_node(method):
-                m = str(method)
-                G.add_node(m, value=method, color='red')
-                for key in req_in:
-                    G.add_edge(key, m)
-                for key in req_out:
-                    G.add_edge(m, key)
-                #for key in non_req_out:
-                #    G.add_edge(m, key)
+    for action in action_list:
+        node_combs = generate_nodes_by_action(action)
+
+        # each action node is a str(dict)
+        # each Qiime2.type node is the type itself
+        for dict in node_combs:
+            if not G.has_node(str(dict)):
+                G.add_node(str(dict), value=action)
+
+            for k in dict.keys():
+                for type in dict[k]:
+                    if not G.has_node(type):
+                        G.add_node(type, value=type)
+                    if k == 'outputs':
+                        G.add_edge(str(dict), type)
+                    elif k == 'inputs':
+                        G.add_edge(type, str(dict))
+                    elif k == 'params':
+                        G.add_edge(type, str(dict))
     return G
