@@ -1,9 +1,17 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2016-2019, QIIME 2 development team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+# ----------------------------------------------------------------------------
+
 import unittest
 from qiime2.core.testing.type import (Mapping, IntSequence1, IntSequence2)
 from qiime2.core.type.primitive import (Int, Str, Metadata)
 from qiime2.core.type.visualization import (Visualization)
 from qiime2.core.testing.util import get_dummy_plugin
-from actiongraph import build_graph
+from qiime2.sdk.actiongraph import build_graph
 
 
 class TestActiongraph(unittest.TestCase):
