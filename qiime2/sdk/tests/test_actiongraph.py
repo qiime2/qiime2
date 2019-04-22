@@ -96,61 +96,6 @@ class TestActiongraph(unittest.TestCase):
         assert self.g.in_degree(exp_node_4) == 2
         assert self.g.out_degree(exp_node_4) == 1
 
-    def test_visualizer(self):
-        vis = ['params_only_viz']
-
-        self.g = build_graph(vis)
-        obs = list(self.g.nodes)
-        exp = [Visualization, Str]
-
-        exp_node_1 = str({
-            "inputs": [],
-            "params": [],
-            "outputs": [Visualization],
-            "non_req": []
-        })
-
-        exp_node_2 = str({
-            "inputs": [],
-            "params": [],
-            "outputs": [Visualization],
-            "non_req": [Int]
-        })
-
-        exp_node_3 = str({
-            "inputs": [],
-            "params": [],
-            "outputs": [Visualization],
-            "non_req": [Str]
-        })
-
-        exp_node_4 = str({
-            "inputs": [],
-            "params": [],
-            "outputs": [Visualization],
-            "non_req": [Str, Int]
-        })
-
-        exp += [exp_node_1, exp_node_3]
-
-        for item in obs:
-            assert item in exp
-
-        assert self.g.in_degree(exp_node_1) == 0
-        assert self.g.out_degree(exp_node_1) == 1
-
-        assert self.g.in_degree(exp_node_2) == 0
-        assert self.g.out_degree(exp_node_2) == 1
-
-        assert self.g.in_degree(exp_node_3) == 0
-        assert self.g.out_degree(exp_node_3) == 1
-
-        assert self.g.in_degree(exp_node_4) == 0
-        assert self.g.out_degree(exp_node_4) == 1
-
-        assert self.g.in_degree(Visualization) == 4
-        assert self.g.out_degree(Visualization) == 0
-
     def test_union(self):
         vis = ['most_common_viz']
         self.g = build_graph(vis)
