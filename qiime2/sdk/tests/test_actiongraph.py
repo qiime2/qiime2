@@ -131,14 +131,10 @@ class TestActiongraph(unittest.TestCase):
             "non_req": [Str, Int]
         })
 
-        exp += [exp_node_1, exp_node_2, exp_node_3, exp_node_4]
+        exp += [exp_node_1, exp_node_3]
 
-        assert exp_node_1 in obs
-        # assert exp_node_2 in obs
-        assert exp_node_3 in obs
-        assert exp_node_4 in obs
-        # for item in obs:
-        # assert item in exp
+        for item in obs:
+            assert item in exp
 
         assert self.g.in_degree(exp_node_1) == 0
         assert self.g.out_degree(exp_node_1) == 1
