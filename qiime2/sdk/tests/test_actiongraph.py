@@ -96,7 +96,7 @@ class TestActiongraph(unittest.TestCase):
 
         assert self.g.in_degree(exp_node_4) == 2
         assert self.g.out_degree(exp_node_4) == 1
-
+    '''
     def test_visualizer(self):
         vis = ['params_only_viz']
 
@@ -151,6 +151,7 @@ class TestActiongraph(unittest.TestCase):
 
         assert self.g.in_degree(Visualization) == 4
         assert self.g.out_degree(Visualization) == 0
+    '''
 
     def test_union(self):
         vis = ['most_common_viz']
