@@ -101,7 +101,7 @@ class TestActiongraph(unittest.TestCase):
 
         self.g = build_graph(vis)
         obs = list(self.g.nodes)
-        exp = [Visualization, Int, Str]
+        exp = [Visualization, Str]
 
         exp_node_1 = str({
             "inputs": [],
