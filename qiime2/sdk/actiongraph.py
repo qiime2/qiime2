@@ -7,13 +7,13 @@
 # ----------------------------------------------------------------------------
 
 
-from itertools import combinations
+from itertools import product, chain
 import networkx as nx
 import copy
 import qiime2
 
 
-def get_next_arguments(action, type=0):
+def get_next_arguments(action, type="input"):
     """
     Get a tuple of required/nonrequired inputs or outputs for each method
 
@@ -21,62 +21,71 @@ def get_next_arguments(action, type=0):
     ----------
     action : Qiime2.action
 
-    type : {0,1,2}
+    type : {"input", "param", "output"}
         Delineates if getting the action input, param, or output types
 
     Returns
     -------
-    Tuple - list of required and optional semantic types
-
+    List of tuples containing name and required semantic types
+    List of tuples containing name and optional semantic types
     """
 
     req = []
     non_req = []
 
-    if type == 0:
+    if type == "input":
         for k, v in action.signature.inputs.items():
             if not v.has_default():
-                req.append(v.qiime_type)
+                req.append([k, v.qiime_type])
             else:
-                non_req.append(v.qiime_type)
-    elif type == 1:
+                non_req.append([k, [v.qiime_type, None]])
+    elif type == "param":
         for k, v in action.signature.parameters.items():
             if not v.has_default():
-                req.append(v.qiime_type)
+                req.append([k, v.qiime_type])
             else:
-                non_req.append(v.qiime_type)
+                non_req.append([k, [v.qiime_type, None]])
     else:
         for k, v in action.signature.outputs.items():
             if not v.has_default():
-                req.append(v.qiime_type)
+                req.append([k, v.qiime_type])
             else:
-                non_req.append(v.qiime_type)
+                non_req.append([k, [v.qiime_type, None]])
 
     return req, non_req
 
 
-def get_combinations(no_req):
+def unravel(l):
     """
-    Get all permutations of list of semantic types
+    Unravel Union node to get all permutations of types for each action
 
     Parameters
     ----------
-    non_req : list of semantic types
+    list : list of Qiime2.types
 
     Returns
     -------
-    List of lists - each list contains an instance of a permutation
+    list of lists - list of permuations of types for each action
 
     """
 
-    if not no_req:
-        return no_req
-    no_req_comb = []
-    for i in range(len(no_req)+1):
-        combs = combinations(no_req, i)
-        for c in combs:
-            no_req_comb.append(list(c))
-    return no_req_comb
+    result = [l]
+    for i, x in enumerate(l):
+        if len(list(x[1])) > 1:
+            members = list(x[1])
+            temp = copy.deepcopy(result)
+
+            # update result with first element of types in member
+            for each_list in result:
+                each_list[i][1] = members[0]
+
+            # add in other permutations of types in member
+            for n in range(1, len(members)):
+                copy_result = copy.deepcopy(temp)
+                for each_list in copy_result:
+                    each_list[i][1] = members[n]
+                result += copy_result
+    return result
 
 
 def generate_nodes_by_action(action):
@@ -96,74 +105,22 @@ def generate_nodes_by_action(action):
 
     """
 
-    results = []
+    input, input_nr = get_next_arguments(action, "input")
+    param, param_nr = get_next_arguments(action, "param")
+    output, output_nr = get_next_arguments(action, "output")
 
-    input, input_nr = get_next_arguments(action, 0)
-    param, param_nr = get_next_arguments(action, 1)
-    output, _ = get_next_arguments(action, 2)
-
-    non_req = []
+    input += input_nr
+    param += param_nr
+    output += output_nr
 
     # unravel potential unions
-    input = unravel_union(input)
-    param = unravel_union(param)
-
-    for x in input_nr + param_nr:
-        non_req += unravel_union(x)
-
-    for i in input:
-        for p in param:
-            if non_req:
-                non_req = get_combinations(non_req)
-                for nr in non_req:
-                    d = {}
-                    d['inputs'] = i
-                    d['params'] = p
-                    d['outputs'] = output
-                    d['non_req'] = nr
-                    results.append(d)
-            else:
-                d = {}
-                d['inputs'] = i
-                d['params'] = p
-                d['outputs'] = output
-                d['non_req'] = []
-                results.append(d)
-
+    input = unravel(input)
+    param = unravel(param)
+    ins = [dict(x) for x in
+           [list(chain.from_iterable(i)) for i in list(product(input, param))]]
+    outs = dict(output)
+    results = [{'inputs': i, 'outputs': outs} for i in ins]
     return results
-
-
-def unravel_union(l):
-    """
-    Unravel Union node to get all permutations of types for each action
-
-    Parameters
-    ----------
-    list : list of Qiime2.types
-
-    Returns
-    -------
-    list of lists - list of permuations of types for each action
-
-    """
-
-    result = [l]
-    for i, x in enumerate(l):
-        if 'members' in x.__dict__ and len(x.__dict__['members']) > 0:
-            members = list(x.__dict__['members'])
-            temp = copy.deepcopy(result)
-
-            # update result with first element of types in member
-            for each_list in result:
-                each_list[i] = members[0]
-
-            # add in other permutations of types in member
-            for n in range(1, len(members)):
-                copy_result = copy.deepcopy(temp)
-                for each_list in copy_result:
-                    each_list[i] = members[n]
-                result += copy_result
-    return result
 
 
 def build_graph(sigs=[]):
@@ -173,7 +130,7 @@ def build_graph(sigs=[]):
 
     Parameters
     ----------
-    sigs : list of strings
+    sigs : list of Qiime2.action
 
     Returns
     -------
@@ -182,36 +139,39 @@ def build_graph(sigs=[]):
     """
 
     G = nx.DiGraph()
+    G.edges(data=True)
     action_list = []
+    sigs = [x.__name__ for x in sigs]
 
     # get all actions or specifc actions if specified in sigs
     pm = qiime2.sdk.PluginManager()
     if not sigs:
-        for pgn, pg in pm.plugins.items():
+        for _, pg in pm.plugins.items():
             action_list += list(pg.actions.values())
     else:
-        for pgn, pg in pm.plugins.items():
+        for _, pg in pm.plugins.items():
             for action in pg.actions.keys():
-                if str(action) in sigs:
+                if action in sigs:
                     action_list.append(pg.actions[str(action)])
 
     for action in action_list:
-        node_combs = generate_nodes_by_action(action)
+        results = generate_nodes_by_action(action)
+        for dict_ in results:
+            # append action to action node
+            if not G.has_node(id(dict_)):
+                G.add_node(str(dict_), value=action)
 
-        # each action node is a str(dict)
-        # each Qiime2.type node is the type itself
-        for dict in node_combs:
-            if not G.has_node(str(dict)):
-                G.add_node(str(dict), value=action)
-
-            for k in dict.keys():
-                for type in dict[k]:
-                    if not G.has_node(type):
-                        G.add_node(type, value=type)
-                    if k == 'outputs':
-                        G.add_edge(str(dict), type)
-                    elif k == 'inputs':
-                        G.add_edge(type, str(dict))
-                    elif k == 'params':
-                        G.add_edge(type, str(dict))
+            for k, v in dict_.items():
+                if k == 'inputs':
+                    for in_k, in_v in v.items():
+                        if not in_v:
+                            continue
+                        G.add_edge(in_v, str(dict_))
+                        G[in_v][str(dict_)]['name'] = in_k
+                else:
+                    for out_k, out_v in v.items():
+                        if not out_v:
+                            continue
+                        G.add_edge(str(dict_), out_v)
+                        G[str(dict_)][out_v]['name'] = out_k
     return G
