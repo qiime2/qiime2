@@ -14,7 +14,7 @@ from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.method import (no_input_method,
                                         docstring_order_method,
                                         identity_with_metadata)
-from qiime2.core.testing.visualizer import (params_only_viz, most_common_viz)
+from qiime2.core.testing.visualizer import (most_common_viz)
 from qiime2.core.testing.pipeline import (visualizer_only_pipeline)
 from qiime2.sdk.actiongraph import build_graph
 
