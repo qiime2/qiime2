@@ -16,7 +16,7 @@ from qiime2.core.testing.method import (no_input_method,
                                         identity_with_metadata)
 from qiime2.core.testing.visualizer import (params_only_viz, most_common_viz)
 from qiime2.core.testing.pipeline import (visualizer_only_pipeline)
-from actiongraph import build_graph
+from qiime2.sdk.actiongraph import build_graph
 
 
 class TestActiongraph(unittest.TestCase):
