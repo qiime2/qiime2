@@ -4,7 +4,7 @@
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file LICENSE, distributed with this software.
-# ----------------------------------------------------------------------------i
+# ----------------------------------------------------------------------------
 
 import unittest
 from qiime2.core.testing.type import (Mapping, IntSequence1, IntSequence2)
