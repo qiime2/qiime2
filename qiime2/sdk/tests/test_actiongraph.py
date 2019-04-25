@@ -4,7 +4,7 @@
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file LICENSE, distributed with this software.
-# ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------i
 
 import unittest
 from qiime2.core.testing.type import (Mapping, IntSequence1, IntSequence2)
@@ -38,23 +38,44 @@ class TestActiongraph(unittest.TestCase):
 
         type_node = Mapping
         exp = [type_node, exp_node]
-
         for item in obs:
             assert item in exp
 
         assert self.g.has_edge(str(exp_node), type_node)
 
-    def test_cycle_in_graph(self):
+    def test_cycle_in_graph_no_params(self):
         methods = [docstring_order_method]
         self.g = build_graph(methods)
         obs = list(self.g.nodes)
-        exp = [Mapping, Int, Str]
+        exp = [Mapping, Str]
 
+        exp_node = str({
+            'inputs': {
+                'req_input': Mapping,
+                'req_param': Str,
+            },
+            'outputs': {
+                'out': Mapping
+            },
+        })
+
+        exp += [exp_node]
+        for item in obs:
+            assert item in exp
+
+        assert self.g.in_degree(exp_node) == 2
+        assert self.g.out_degree(exp_node) == 1
+
+    def test_cycle_in_graph_with_params(self):
+        methods = [docstring_order_method]
+        self.g = build_graph(methods, True)
+        obs = list(self.g.nodes)
+        exp = [Mapping, Int, Str, 'opt_Mapping', 'opt_Int']
         exp_node_1 = str({
             'inputs': {
                 'req_input': Mapping,
-                'opt_input': Mapping,
                 'req_param': Str,
+                'opt_input': Mapping,
                 'opt_param': Int
             },
             'outputs': {
@@ -65,8 +86,8 @@ class TestActiongraph(unittest.TestCase):
         exp_node_2 = str({
             'inputs': {
                 'req_input': Mapping,
-                'opt_input': Mapping,
                 'req_param': Str,
+                'opt_input': Mapping,
                 'opt_param': None
             },
             'outputs': {
@@ -77,8 +98,8 @@ class TestActiongraph(unittest.TestCase):
         exp_node_3 = str({
             'inputs': {
                 'req_input': Mapping,
-                'opt_input': None,
                 'req_param': Str,
+                'opt_input': None,
                 'opt_param': Int
             },
             'outputs': {
@@ -89,8 +110,8 @@ class TestActiongraph(unittest.TestCase):
         exp_node_4 = str({
             'inputs': {
                 'req_input': Mapping,
-                'opt_input': None,
                 'req_param': Str,
+                'opt_input': None,
                 'opt_param': None
             },
             'outputs': {
@@ -103,10 +124,10 @@ class TestActiongraph(unittest.TestCase):
         for item in obs:
             assert item in exp
 
-        assert self.g.in_degree(exp_node_1) == 3
+        assert self.g.in_degree(exp_node_1) == 4
         assert self.g.out_degree(exp_node_1) == 1
 
-        assert self.g.in_degree(exp_node_2) == 2
+        assert self.g.in_degree(exp_node_2) == 3
         assert self.g.out_degree(exp_node_2) == 1
 
         assert self.g.in_degree(exp_node_3) == 3
