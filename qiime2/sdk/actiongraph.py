@@ -6,7 +6,6 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-
 from itertools import product, chain
 import networkx as nx
 import copy
@@ -38,19 +37,19 @@ def get_next_arguments(action, type="input"):
             if not v.has_default():
                 req.append([k, v.qiime_type])
             else:
-                non_req.append([k, [v.qiime_type, None]])
+                non_req.append(["."+k, [v.qiime_type, None]])
     elif type == "param":
         for k, v in action.signature.parameters.items():
             if not v.has_default():
                 req.append([k, v.qiime_type])
             else:
-                non_req.append([k, [v.qiime_type, None]])
+                non_req.append(["."+k, [v.qiime_type, None]])
     else:
         for k, v in action.signature.outputs.items():
             if not v.has_default():
                 req.append([k, v.qiime_type])
             else:
-                non_req.append([k, [v.qiime_type, None]])
+                non_req.append(["."+k, [v.qiime_type, None]])
 
     return req, non_req
 
@@ -88,7 +87,7 @@ def unravel(l):
     return result
 
 
-def generate_nodes_by_action(action):
+def generate_nodes_by_action(action, opt):
     """
     Given a method, generates all combinations of inputs and
     outputs for that particular method and and stores the combinations
@@ -97,6 +96,8 @@ def generate_nodes_by_action(action):
     Parameters
     ----------
     method : Qiime2.action
+    opt : {True, False}
+        Delineates if optional types should be included
 
     Returns
     -------
@@ -109,13 +110,22 @@ def generate_nodes_by_action(action):
     param, param_nr = get_next_arguments(action, "param")
     output, output_nr = get_next_arguments(action, "output")
 
-    input += input_nr
-    param += param_nr
-    output += output_nr
-
-    # unravel potential unions
     input = unravel(input)
     param = unravel(param)
+
+    opt_in_list = []
+
+    if opt:
+        opt_in_list += input_nr
+        opt_in_list += param_nr
+        opt_in_list = unravel(opt_in_list)
+        ins = [dict(x) for x in
+               [list(chain.from_iterable(i)) for i in
+                list(product(input, param, opt_in_list))]]
+        outs = dict(output + output_nr)
+        results = [{'inputs': i, 'outputs': outs} for i in ins]
+        return results
+
     ins = [dict(x) for x in
            [list(chain.from_iterable(i)) for i in list(product(input, param))]]
     outs = dict(output)
@@ -123,7 +133,7 @@ def generate_nodes_by_action(action):
     return results
 
 
-def build_graph(sigs=[]):
+def build_graph(sigs=[], opt=False):
     """
     Constructs a networkx graph with different semantic types
     and actions as nodes
@@ -131,6 +141,8 @@ def build_graph(sigs=[]):
     Parameters
     ----------
     sigs : list of Qiime2.action
+    opt : {True, False}
+        Delineates if optional types should be included in the graph
 
     Returns
     -------
@@ -155,23 +167,49 @@ def build_graph(sigs=[]):
                     action_list.append(pg.actions[str(action)])
 
     for action in action_list:
-        results = generate_nodes_by_action(action)
+        results = generate_nodes_by_action(action, opt)
         for dict_ in results:
-            # append action to action node
-            if not G.has_node(id(dict_)):
-                G.add_node(str(dict_), value=action)
-
             for k, v in dict_.items():
+                if not v:
+                    continue
+
+                # renaming dictionary to remove '.'
+                action_node = {}
+                for x, y in v.items():
+                    if x[0] == '.':
+                        action_node[x[1:]] = y
+                    else:
+                        action_node[x] = y
+                dict_[k] = action_node
+
                 if k == 'inputs':
                     for in_k, in_v in v.items():
                         if not in_v:
                             continue
-                        G.add_edge(in_v, str(dict_))
-                        G[in_v][str(dict_)]['name'] = in_k
+                        if in_k[0] == '.':
+                            name = "opt_"+str(in_v)
+                            G.add_edge(name, str(dict_))
+                            G[name][str(dict_)]['name'] = in_k[1:]
+                            G.node[name]['type'] = in_v
+                            G.node[name]['optional'] = True
+                        else:
+                            G.add_edge(in_v, str(dict_))
+                            G[in_v][str(dict_)]['name'] = in_k
+                            G.node[in_v]['type'] = in_v
+                            G.node[in_v]['optional'] = False
                 else:
                     for out_k, out_v in v.items():
                         if not out_v:
                             continue
-                        G.add_edge(str(dict_), out_v)
-                        G[str(dict_)][out_v]['name'] = out_k
+                        if out_k[0] == '.':
+                            name = "opt_"+str(out_v)
+                            G.add_edge("opt_"+str(out_v), str(dict_))
+                            G[str(dict_)][name]['name'] = out_k[1:]
+                            G.node[name]['type'] = in_v
+                            G.node[name]['optional'] = True
+                        else:
+                            G.add_edge(str(dict_), out_v)
+                            G[str(dict_)][out_v]['name'] = out_k
+                            G.node[out_v]['type'] = out_v
+                            G.node[out_v]['optional'] = True
     return G
