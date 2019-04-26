@@ -44,8 +44,8 @@ class _BaseTemplate(metaclass=ABCMeta):
     def get_kind(self):
         raise NotImplementedError
 
-    def can_union(self):
-        return True
+    def get_union_membership_expr(self, self_expr):
+        return self.get_kind_expr(self_expr)
 
     def is_element_expr(self, self_expr, value):
         return self.is_element(value)

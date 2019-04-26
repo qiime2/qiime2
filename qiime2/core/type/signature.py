@@ -15,10 +15,10 @@ import qiime2.sdk
 from .grammar import TypeExp, UnionExp
 from .meta import TypeVarExp
 from .collection import List, Set
-from .primitive import is_primitive_type, infer_primitive_type
-from .semantic import is_semantic_type
+from .primitive import infer_primitive_type
 from .visualization import Visualization
 from . import meta
+from .util import is_semantic_type, is_primitive_type
 from ..util import ImmutableBase
 
 

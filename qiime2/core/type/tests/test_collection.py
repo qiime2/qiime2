@@ -76,7 +76,7 @@ class TestCollectionBase(unittest.TestCase):
 
 
 class TestCollectionExpression(unittest.TestCase):
-    def test_no_union(self):
+    def test_bad_union(self):
         with self.assertRaisesRegex(TypeError, 'not union'):
             List[Int] | Set[Int]
 

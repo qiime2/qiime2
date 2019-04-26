@@ -30,8 +30,8 @@ class _Visualization(TypeTemplate):
     def validate_field(self, name, field):
         raise TypeError
 
-    def can_union(self):
-        return False
+    def get_union_membership_expr(self, self_expr):
+        return None
 
     def validate_predicate(self, predicate, expr):
         raise TypeError

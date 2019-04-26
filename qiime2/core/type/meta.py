@@ -62,8 +62,8 @@ class TypeVarExp(UnionExp):
     def can_intersect(self):
         return False
 
-    def can_union(self):
-        return False
+    def get_union_membership_expr(self, self_expr):
+        return None
 
     def _is_subtype_(self, other):
         return all(m <= other for m in self.members)

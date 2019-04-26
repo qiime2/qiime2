@@ -14,10 +14,6 @@ import qiime2.metadata as metadata
 import qiime2.core.util as util
 
 
-def is_primitive_type(expr):
-    return hasattr(expr, 'kind') and expr.kind == 'primitive'
-
-
 _RANGE_DEFAULT_START = float('-inf')
 _RANGE_DEFAULT_END = float('inf')
 _RANGE_DEFAULT_INCLUSIVE_START = True
@@ -440,8 +436,8 @@ class _MetadataColumn(_PrimitiveTemplateBase):
 class _Categorical(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
-    def get_kind(self):
-        return 'partial-primitive'
+    def get_union_membership_expr(self, self_expr):
+        return 'metadata-column'
 
     def is_element(self, value):
         return isinstance(value, metadata.CategoricalMetadataColumn)
@@ -450,8 +446,8 @@ class _Categorical(_PrimitiveTemplateBase):
 class _Numeric(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
-    def get_kind(self):
-        return 'partial-primitive'
+    def get_union_membership_expr(self, self_expr):
+        return 'metadata-column'
 
     def is_element(self, value):
         return isinstance(value, metadata.NumericMetadataColumn)

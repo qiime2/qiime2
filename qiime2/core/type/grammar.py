@@ -171,9 +171,9 @@ class _AlgebraicExpBase(_ExpBase):
         return False
 
     def __or__(self, other):
-        if (not self.can_union() or not other.can_union()
-                or (self.kind != other.kind
-                    and not (self.is_bottom() or other.is_bottom()))):
+        if not ((self.is_bottom() or other.is_bottom())
+                or (self.get_union_membership() == other.get_union_membership()
+                    and self.get_union_membership() is not None)):
             raise TypeError("Cannot union %r and %r" % (self, other))
 
         if self >= other:
@@ -231,9 +231,9 @@ class _AlgebraicExpBase(_ExpBase):
     def is_concrete(self):
         return len(list(self.unpack_union())) == 1
 
-    def can_union(self):
+    def get_union_membership(self):
         if self.template is not None:
-            return self.template.can_union()
+            return self.template.get_union_membership_expr(self)
 
         return True
 
@@ -507,6 +507,10 @@ class _IdentityExpBase(_AlgebraicExpBase):
     def iter_symbols(self):
         for m in self.unpack_union():
             yield from m.iter_symbols()
+
+    def get_union_membership(self):
+        if self.members:
+            return self.members[0].get_union_membership()
 
 
 class UnionExp(_IdentityExpBase):

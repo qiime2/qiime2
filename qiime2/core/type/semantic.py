@@ -12,6 +12,7 @@ import itertools
 
 from qiime2.core.type.grammar import IncompleteExp, UnionExp, IntersectionExp
 from qiime2.core.type.template import TypeTemplate, PredicateTemplate
+from qiime2.core.type.util import is_semantic_type, is_qiime_type
 
 _RESERVED_NAMES = {
     # Predicates:
@@ -124,7 +125,7 @@ def _munge_field_members(field_names, field_members):
         if key not in field_names:
             raise ValueError("Field member key: %r is not in `field_names`"
                              " (%r)." % (key, field_names))
-        if is_semantic_type(value):
+        if is_qiime_type(value) and is_semantic_type(value):
             fixed[key] = (value,)
         else:
             value = tuple(value)
@@ -134,10 +135,6 @@ def _munge_field_members(field_names, field_members):
                                      " semantic type." % (v, key))
             fixed[key] = value
     return fixed
-
-
-def is_semantic_type(expr):
-    return hasattr(expr, 'kind') and expr.kind == 'semantic-type'
 
 
 class VariantField:
@@ -315,6 +312,9 @@ class Properties(PredicateTemplate):
 
     def is_element(self, expr):
         return True  # attached TypeExp checks this
+
+    def get_union_membership_expr(self, self_expr):
+        return 'predicate-' + self.get_name()
 
     def update_ast(self, ast):
         ast['include'] = list(self.include)

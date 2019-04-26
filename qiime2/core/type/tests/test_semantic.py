@@ -20,7 +20,8 @@ class TestIsSemanticType(unittest.TestCase):
         for element in dir(primitive):
             looped = True
             element = getattr(primitive, element)
-            self.assertFalse(semantic.is_semantic_type(element))
+            if isinstance(element, grammar._ExpBase):
+                self.assertFalse(semantic.is_semantic_type(element))
         self.assertTrue(looped)
 
     def test_visualization_not_semantic(self):
