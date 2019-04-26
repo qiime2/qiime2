@@ -87,7 +87,7 @@ def unravel(l):
     return result
 
 
-def generate_nodes_by_action(action, opt):
+def generate_nodes_by_action(action, opt=False):
     """
     Given a method, generates all combinations of inputs and
     outputs for that particular method and and stores the combinations
@@ -133,14 +133,15 @@ def generate_nodes_by_action(action, opt):
     return results
 
 
-def build_graph(sigs=[], opt=False):
+def build_graph(action_list=[], opt=False):
     """
     Constructs a networkx graph with different semantic types
     and actions as nodes
 
     Parameters
     ----------
-    sigs : list of Qiime2.action
+    action_list : list of Qiime2.action
+        If list is empty, will pull from all methods in the Qiime2 plugin
     opt : {True, False}
         Delineates if optional types should be included in the graph
 
@@ -152,19 +153,12 @@ def build_graph(sigs=[], opt=False):
 
     G = nx.DiGraph()
     G.edges(data=True)
-    action_list = []
-    sigs = [x.__name__ for x in sigs]
 
     # get all actions or specifc actions if specified in sigs
     pm = qiime2.sdk.PluginManager()
-    if not sigs:
+    if not action_list:
         for _, pg in pm.plugins.items():
             action_list += list(pg.actions.values())
-    else:
-        for _, pg in pm.plugins.items():
-            for action in pg.actions.keys():
-                if action in sigs:
-                    action_list.append(pg.actions[str(action)])
 
     for action in action_list:
         results = generate_nodes_by_action(action, opt)
