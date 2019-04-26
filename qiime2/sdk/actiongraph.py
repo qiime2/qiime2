@@ -37,19 +37,19 @@ def get_next_arguments(action, type="input"):
             if not v.has_default():
                 req.append([k, v.qiime_type])
             else:
-                non_req.append(["."+k, [v.qiime_type, None]])
+                non_req.append(["."+k, v.qiime_type])
     elif type == "param":
         for k, v in action.signature.parameters.items():
             if not v.has_default():
                 req.append([k, v.qiime_type])
             else:
-                non_req.append(["."+k, [v.qiime_type, None]])
+                non_req.append(["."+k, v.qiime_type])
     else:
         for k, v in action.signature.outputs.items():
             if not v.has_default():
                 req.append([k, v.qiime_type])
             else:
-                non_req.append(["."+k, [v.qiime_type, None]])
+                non_req.append(["."+k, v.qiime_type])
 
     return req, non_req
 
