@@ -102,3 +102,36 @@ def interrogate_collection_type(t):
                 members = [m[0] for m in members]
 
     return CollectionStyle(style=style, members=members, view=view, expr=expr)
+
+
+def parse_parameter(t, value):
+    # This isn't real code, just notes
+    expr = _norm_input(t)
+
+    if type(value) == tuple and len(value) == 1:
+        raise ValueError('whoops')
+
+    value = tuplize(value)
+
+    result = []
+
+    for val in value:
+        try:
+            result.append(int(val))
+            continue
+        except ValueError:
+            pass
+
+        try:
+            result.append(float(val))
+            continue
+        except ValueError:
+            pass
+
+        try:
+            result.append(bool(val))
+            continue
+        except ValueError:
+            pass
+
+    return value
