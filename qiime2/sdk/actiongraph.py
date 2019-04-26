@@ -182,6 +182,9 @@ def build_graph(sigs=[], opt=False):
                         action_node[x] = y
                 dict_[k] = action_node
 
+                if not G.has_node(str(dict_)):
+                    G.add_node(str(dict_), value=action)
+
                 if k == 'inputs':
                     for in_k, in_v in v.items():
                         if not in_v:
