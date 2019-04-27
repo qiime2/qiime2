@@ -155,8 +155,8 @@ def parse_primitive(t, value):
                 temp_result = []
                 for v in value:
                     temp_result.append(_walk_the_plank(
-                    _PEANUTS[member], v))
-                if all(isinstance(x, int) for x in temp_result):
+                        _PEANUTS[member], v))
+                if all(isinstance(x, _PEANUTS[member]) for x in temp_result):
                     result = temp_result
                     break
         elif collection_style.style == 'composite':
