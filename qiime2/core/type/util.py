@@ -14,6 +14,7 @@ from qiime2.core.type.grammar import UnionExp, _ExpBase
 from qiime2.core.type.parse import ast_to_type
 
 
+# TODO: names
 def _booler(v):
     '''
     This is a psuedo-type --- we don't want Python's usual str->bool
@@ -28,7 +29,9 @@ def _booler(v):
 
 
 _VARIADIC = {'List': list, 'Set': set}
+# TODO: names
 _PEANUTS = {Int: int, Float: float, Bool: _booler, Str: str}
+# TODO: names
 _PEANUT_SORT_ORDER = {int: 0, float: 1, _booler: 2, str: 3}
 CollectionStyle = collections.namedtuple(
     'CollectionStyle', ['style', 'members', 'view', 'expr'])
@@ -132,24 +135,33 @@ def _walk_the_plank(allowed, value):
     raise ValueError('Could not walk the plank')
 
 
-# TODO: come back and refactor this once there is a more clear idea in your
-# head
 def parse_primitive(t, value):
     expr = _norm_input(t)
+    result = []
+    collection_style = None
 
-    # Get the easy stuff out of the way - might as well make it right
-    # immediately.
-    if expr in (Int, Float, Bool, Str):
-        return _walk_the_plank(_PEANUTS[expr], value)
-
-    # Collections are where the fun begins
     if is_collection_type(expr):
-        style = interrogate_collection_type(expr)
-        if style.style == 'simple':
-            result = []
+        collection_style = interrogate_collection_type(expr)
+        if collection_style.style == 'simple':
             for v in value:
-                result.append(_walk_the_plank(_PEANUTS[style.members], v))
-            return style.view(result)
+                result.append(_walk_the_plank(
+                    _PEANUTS[collection_style.members], v))
+        elif collection_style.style == 'monomorphic':
+            pass
+        elif collection_style.style == 'composite':
+            pass
+        elif collection_style.style == 'complex':
+            pass
+        else:
+            raise ValueError('yikes, what are you doing here?')
+    elif expr in (Int, Float, Bool, Str):
+        # No sense in walking over all options when we know what it should be
+        result.append(_walk_the_plank(_PEANUTS[expr], value))
+    else:
+        # No guarantees at this point that the expr will be honored
+        result.append(_walk_the_plank(tuple(_PEANUTS.values()), value))
 
-    # Fallback: walk the plank
-    return _walk_the_plank(tuple(_PEANUTS.values()), value)
+    if collection_style is None:
+        return result[0]
+    else:
+        return collection_style.view(result)
