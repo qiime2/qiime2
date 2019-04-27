@@ -121,6 +121,7 @@ def interrogate_collection_type(t):
     return CollectionStyle(style=style, members=members, view=view, expr=expr)
 
 
+# TODO: names
 def _walk_the_plank(allowed, value):
     allowed = tuplize(allowed)
     for coerce_type in sorted(allowed, key=lambda x: _PEANUT_SORT_ORDER[x]):
@@ -131,6 +132,8 @@ def _walk_the_plank(allowed, value):
     raise ValueError('Could not walk the plank')
 
 
+# TODO: come back and refactor this once there is a more clear idea in your
+# head
 def parse_primitive(t, value):
     expr = _norm_input(t)
 
@@ -140,6 +143,13 @@ def parse_primitive(t, value):
         return _walk_the_plank(_PEANUTS[expr], value)
 
     # Collections are where the fun begins
+    if is_collection_type(expr):
+        style = interrogate_collection_type(expr)
+        if style.style == 'simple':
+            result = []
+            for v in value:
+                result.append(_walk_the_plank(_PEANUTS[style.members], v))
+            return style.view(result)
 
     # Fallback: walk the plank
     return _walk_the_plank(tuple(_PEANUTS.values()), value)
