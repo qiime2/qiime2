@@ -187,33 +187,5 @@ class TestActiongraph(unittest.TestCase):
         assert self.g.in_degree(IntSequence1) == 2
         assert self.g.out_degree(IntSequence1) == 1
 
-    def test_visualizer(self):
-        vis = [self.plugin.actions['params_only_viz']]
-
-        self.g = build_graph(vis, True)
-        obs = list(self.g.nodes)
-        exp = [Visualization, "opt_Int", "opt_Str"]
-
-        exp_node = str({
-            'inputs': {
-                'name': Str,
-                'age': Int
-            },
-            'outputs': {
-                'visualization': Visualization
-            },
-        })
-
-        exp += [exp_node]
-        for item in obs:
-            assert item in exp
-
-        assert self.g.in_degree(exp_node) == 2
-        assert self.g.out_degree(exp_node) == 1
-
-        assert self.g.in_degree(Visualization) == 1
-        assert self.g.out_degree(Visualization) == 0
-
-
 if __name__ == '__main__':
     unittest.main()
