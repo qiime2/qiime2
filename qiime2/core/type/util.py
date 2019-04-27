@@ -8,11 +8,15 @@
 
 import collections
 
+from qiime2.core.util import tuplize
+from qiime2.core.type.primitive import Int, Float, Bool, Str
 from qiime2.core.type.grammar import UnionExp, _ExpBase
 from qiime2.core.type.parse import ast_to_type
 
 
 _VARIADIC = {'List': list, 'Set': set}
+_PEANUTS = {Int: int, Float: float, Bool: bool, Str: str}
+_PEANUT_SORT_ORDER = {int: 0, float: 1, bool: 2, str: 3}
 CollectionStyle = collections.namedtuple(
     'CollectionStyle', ['style', 'members', 'view', 'expr'])
 
@@ -104,34 +108,21 @@ def interrogate_collection_type(t):
     return CollectionStyle(style=style, members=members, view=view, expr=expr)
 
 
-def parse_parameter(t, value):
-    # This isn't real code, just notes
+def _walk_the_plank(allowed, value):
+    allowed = tuplize(allowed)
+    for coerce_type in sorted(allowed, key=lambda x: _PEANUT_SORT_ORDER[x]):
+        try:
+            return coerce_type(value)
+        except ValueError:
+            pass
+    raise ValueError('Could not walk the plank')
+
+
+def parse_primitive(t, value):
     expr = _norm_input(t)
 
-    if type(value) == tuple and len(value) == 1:
-        raise ValueError('whoops')
+    # Get the easy stuff out of the way
+    if expr in (Int, Float, Bool, Str):
+        return _walk_the_plank(_PEANUTS[expr], value)
 
-    value = tuplize(value)
-
-    result = []
-
-    for val in value:
-        try:
-            result.append(int(val))
-            continue
-        except ValueError:
-            pass
-
-        try:
-            result.append(float(val))
-            continue
-        except ValueError:
-            pass
-
-        try:
-            result.append(bool(val))
-            continue
-        except ValueError:
-            pass
-
-    return value
+    return _walk_the_plank(tuple(_PEANUTS.values()), value)
