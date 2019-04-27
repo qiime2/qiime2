@@ -125,4 +125,7 @@ def parse_primitive(t, value):
     if expr in (Int, Float, Bool, Str):
         return _walk_the_plank(_PEANUTS[expr], value)
 
+    # Collections are where the fun begins
+
+    # Fallback: walk the plank
     return _walk_the_plank(tuple(_PEANUTS.values()), value)

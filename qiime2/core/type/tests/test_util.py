@@ -13,107 +13,125 @@ from qiime2.core.type import (
 
 
 class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
-    def test_int_value(self):
-        value = '42'
+    def test_int_type_int_value(self):
+        obs = parse_primitive(Int, '42')
+        self.assertEqual(obs, 42)
+        self.assertIsInstance(obs, int)
 
-        obs = parse_primitive(Int, value)
-        self.assertEqual(42, obs)
-        self.assertEqual(int, type(obs))
+    def test_float_type_int_value(self):
+        obs = parse_primitive(Float, '42')
+        self.assertEqual(obs, 42.0)
+        self.assertIsInstance(obs, float)
 
-        obs = parse_primitive(Float, value)
-        self.assertEqual(42.0, obs)
-        self.assertEqual(float, type(obs))
+    def test_bool_type_int_value(self):
+        obs = parse_primitive(Bool, '42')
+        self.assertEqual(obs, True)
+        self.assertIsInstance(obs, bool)
 
-        obs = parse_primitive(Bool, value)
-        self.assertEqual(True, obs)
-        self.assertEqual(bool, type(obs))
+    def test_str_type_int_value(self):
+        obs = parse_primitive(Str, '42')
+        self.assertEqual(obs, '42')
+        self.assertIsInstance(obs, str)
 
-        obs = parse_primitive(Str, value)
-        self.assertEqual('42', obs)
-        self.assertEqual(str, type(obs))
-
-    def test_float_value(self):
-        value = '42.0'
-
+    def test_int_type_float_value(self):
         with self.assertRaisesRegex(ValueError, 'walk the plank'):
-            parse_primitive(Int, value)
+            parse_primitive(Int, '42.0')
 
-        obs = parse_primitive(Float, value)
-        self.assertEqual(42.0, obs)
-        self.assertEqual(float, type(obs))
+    def test_float_type_float_value(self):
+        obs = parse_primitive(Float, '42.0')
+        self.assertEqual(obs, 42.0)
+        self.assertIsInstance(obs, float)
 
-        obs = parse_primitive(Bool, value)
-        self.assertEqual(True, obs)
-        self.assertEqual(bool, type(obs))
+    def test_float_type_float_value(self):
+        obs = parse_primitive(Bool, '42.0')
+        self.assertEqual(obs, True)
+        self.assertIsInstance(obs, bool)
 
-        obs = parse_primitive(Str, value)
-        self.assertEqual('42.0', obs)
-        self.assertEqual(str, type(obs))
+    def test_str_type_float_value(self):
+        obs = parse_primitive(Str, '42.0')
+        self.assertEqual(obs, '42.0')
+        self.assertIsInstance(obs, str)
 
-    def test_bool_value(self):
-        value = 'True'
-
+    def test_int_type_bool_value(self):
         with self.assertRaisesRegex(ValueError, 'walk the plank'):
-            parse_primitive(Int, value)
+            parse_primitive(Int, 'True')
 
+    def test_float_type_bool_value(self):
         with self.assertRaisesRegex(ValueError, 'walk the plank'):
-            parse_primitive(Float, value)
+            parse_primitive(Float, 'True')
 
-        obs = parse_primitive(Bool, value)
-        self.assertEqual(True, obs)
-        self.assertEqual(bool, type(obs))
+    def test_bool_type_bool_value(self):
+        obs = parse_primitive(Bool, 'True')
+        self.assertEqual(obs, True)
+        self.assertIsInstance(obs, bool)
 
-        obs = parse_primitive(Str, value)
-        self.assertEqual('True', obs)
-        self.assertEqual(str, type(obs))
+    def test_str_type_bool_value(self):
+        obs = parse_primitive(Str, 'True')
+        self.assertEqual(obs, 'True')
+        self.assertIsInstance(obs, str)
 
-    def test_str_value(self):
-        value = 'peanut'
-
+    def test_int_type_str_value(self):
         with self.assertRaisesRegex(ValueError, 'walk the plank'):
-            parse_primitive(Int, value)
+            parse_primitive(Int, 'peanut')
 
+    def test_float_type_str_value(self):
         with self.assertRaisesRegex(ValueError, 'walk the plank'):
-            parse_primitive(Float, value)
+            parse_primitive(Float, 'peanut')
 
-        obs = parse_primitive(Bool, value)
-        self.assertEqual(True, obs)
-        self.assertEqual(bool, type(obs))
+    def test_bool_type_str_value(self):
+        obs = parse_primitive(Bool, 'peanut')
+        self.assertEqual(obs, True)
+        self.assertIsInstance(obs, bool)
 
-        obs = parse_primitive(Str, value)
-        self.assertEqual('peanut', obs)
-        self.assertEqual(str, type(obs))
+    def test_str_type_str_value(self):
+        obs = parse_primitive(Str, 'peanut')
+        self.assertEqual(obs, 'peanut')
+        self.assertIsInstance(obs, str)
 
 
 class TestParsePrimitiveNonCollectionsSimpleUnions(unittest.TestCase):
-    def test_int_or_float_value(self):
-        int_value = '42'
-        float_value = '42.0'
-
+    def test_int_union_float_expr_int_value(self):
         # Int | Float == Float
-        obs = parse_primitive(Int | Float, int_value)
-        self.assertEqual(42.0, obs)
-        self.assertEqual(float, type(obs))
+        obs = parse_primitive(Int | Float, '42')
+        self.assertEqual(obs, 42.0)
+        self.assertIsInstance(obs, float)
 
-        obs = parse_primitive(Int | Float, float_value)
-        self.assertEqual(42.0, obs)
-        self.assertEqual(float, type(obs))
+    def test_int_union_float_expr_float_value(self):
+        # Int | Float == Float
+        obs = parse_primitive(Int | Float, '42.0')
+        self.assertEqual(obs, 42.0)
+        self.assertIsInstance(obs, float)
 
-    def test_int_or_bool_value(self):
-        int_value = '42'
-        float_value = '42.0'
-        bool_value = 'True'
+    def test_int_union_float_expr_bool_value(self):
+        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+            # Int | Float == Float
+            parse_primitive(Int | Float, 'True')
 
-        obs = parse_primitive(Int | Bool, int_value)
+    def test_int_union_float_expr_str_value(self):
+        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+            # Int | Float == Float
+            parse_primitive(Int | Float, 'peanut')
+
+    def test_int_union_bool_expr_int_value(self):
+        obs = parse_primitive(Int | Bool, '42')
         self.assertEqual(42, obs)
         self.assertEqual(int, type(obs))
 
-        with self.assertRaisesRegex(ValueError, 'foo'):
-            parse_primitive(Int | Bool, float_value)
+    def test_int_union_bool_expr_float_value(self):
+        obs = parse_primitive(Int | Bool, '42.1')
+        self.assertEqual(obs, 42.1)
+        self.assertIsInstance(obs, float)
 
-        obs = parse_primitive(Int | Bool, bool_value)
-        self.assertEqual(True, obs)
-        self.assertEqual(bool, type(obs))
+    def test_int_union_bool_expr_bool_value(self):
+        obs = parse_primitive(Int | Bool, 'True')
+        self.assertEqual(obs, True)
+        self.assertIsInstance(obs, bool)
+
+    # TODO: hmm
+    def test_int_union_bool_expr_str_value(self):
+        obs = parse_primitive(Int | Bool, 'peanut')
+        self.assertEqual(obs, 'peanut')
+        self.assertIsInstance(obs, str)
 
     def test_int_or_str_value(self):
         pass
