@@ -24,9 +24,8 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, float)
 
     def test_bool_type_int_value(self):
-        obs = parse_primitive(Bool, '42')
-        self.assertEqual(obs, True)
-        self.assertIsInstance(obs, bool)
+        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+            parse_primitive(Bool, '42')
 
     def test_str_type_int_value(self):
         obs = parse_primitive(Str, '42')
@@ -43,9 +42,8 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, float)
 
     def test_float_type_float_value(self):
-        obs = parse_primitive(Bool, '42.0')
-        self.assertEqual(obs, True)
-        self.assertIsInstance(obs, bool)
+        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+            parse_primitive(Bool, '42.0')
 
     def test_str_type_float_value(self):
         obs = parse_primitive(Str, '42.0')
@@ -79,9 +77,8 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
             parse_primitive(Float, 'peanut')
 
     def test_bool_type_str_value(self):
-        obs = parse_primitive(Bool, 'peanut')
-        self.assertEqual(obs, True)
-        self.assertIsInstance(obs, bool)
+        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+            parse_primitive(Bool, 'peanut')
 
     def test_str_type_str_value(self):
         obs = parse_primitive(Str, 'peanut')

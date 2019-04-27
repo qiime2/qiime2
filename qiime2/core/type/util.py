@@ -14,9 +14,22 @@ from qiime2.core.type.grammar import UnionExp, _ExpBase
 from qiime2.core.type.parse import ast_to_type
 
 
+def _booler(v):
+    '''
+    This is a psuedo-type --- we don't want Python's usual str->bool
+    coercion business, just simple string matching (I think)
+    '''
+    if v == 'True':
+        return True
+    elif v == 'False':
+        return False
+    else:
+        raise ValueError('nuh uh uh, you didnt say the magic word')
+
+
 _VARIADIC = {'List': list, 'Set': set}
-_PEANUTS = {Int: int, Float: float, Bool: bool, Str: str}
-_PEANUT_SORT_ORDER = {int: 0, float: 1, bool: 2, str: 3}
+_PEANUTS = {Int: int, Float: float, Bool: _booler, Str: str}
+_PEANUT_SORT_ORDER = {int: 0, float: 1, _booler: 2, str: 3}
 CollectionStyle = collections.namedtuple(
     'CollectionStyle', ['style', 'members', 'view', 'expr'])
 
