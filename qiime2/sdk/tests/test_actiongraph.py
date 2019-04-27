@@ -187,5 +187,6 @@ class TestActiongraph(unittest.TestCase):
         assert self.g.in_degree(IntSequence1) == 2
         assert self.g.out_degree(IntSequence1) == 1
 
+
 if __name__ == '__main__':
     unittest.main()
