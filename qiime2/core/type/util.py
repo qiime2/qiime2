@@ -82,7 +82,7 @@ def is_collection_type(t):
 
     if isinstance(expr, UnionExp):
         for m in expr.members:
-            if expr.name in _VARIADIC:
+            if m.name in _VARIADIC:
                 return True
 
     return False
@@ -140,14 +140,25 @@ def parse_primitive(t, value):
     result = []
     collection_style = None
 
+    # TODO: check if metadata and bail
+
     if is_collection_type(expr):
         collection_style = interrogate_collection_type(expr)
+        # TODO: okay, time for another little refactor here
         if collection_style.style == 'simple':
             for v in value:
                 result.append(_walk_the_plank(
                     _PEANUTS[collection_style.members], v))
         elif collection_style.style == 'monomorphic':
-            pass
+            # TODO: test in our sorted ordering
+            for member in collection_style.members:
+                temp_result = []
+                for v in value:
+                    temp_result.append(_walk_the_plank(
+                    _PEANUTS[member], v))
+                if all(isinstance(x, int) for x in temp_result):
+                    result = temp_result
+                    break
         elif collection_style.style == 'composite':
             pass
         elif collection_style.style == 'complex':
