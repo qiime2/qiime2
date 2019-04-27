@@ -134,7 +134,8 @@ def _walk_the_plank(allowed, value):
 def parse_primitive(t, value):
     expr = _norm_input(t)
 
-    # Get the easy stuff out of the way
+    # Get the easy stuff out of the way - might as well make it right
+    # immediately.
     if expr in (Int, Float, Bool, Str):
         return _walk_the_plank(_PEANUTS[expr], value)
 

@@ -41,7 +41,7 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertEqual(obs, 42.0)
         self.assertIsInstance(obs, float)
 
-    def test_float_type_float_value(self):
+    def test_bool_type_float_value(self):
         with self.assertRaisesRegex(ValueError, 'walk the plank'):
             parse_primitive(Bool, '42.0')
 
@@ -87,6 +87,17 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
 
 
 class TestParsePrimitiveNonCollectionsSimpleUnions(unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+
+        self.exprs = [
+            Int | Bool,
+            Int | Str,
+            Float | Bool,
+            Float | Str,
+            Bool | Str,
+        ]
+
     def test_int_union_float_expr_int_value(self):
         # Int | Float == Float
         obs = parse_primitive(Int | Float, '42')
@@ -109,105 +120,33 @@ class TestParsePrimitiveNonCollectionsSimpleUnions(unittest.TestCase):
             # Int | Float == Float
             parse_primitive(Int | Float, 'peanut')
 
-    def test_int_union_bool_expr_int_value(self):
-        obs = parse_primitive(Int | Bool, '42')
-        self.assertEqual(42, obs)
-        self.assertEqual(int, type(obs))
+    def test_simple_unions_with_int_value(self):
+        for expr in self.exprs:
+            with self.subTest(expr=expr):
+                obs = parse_primitive(expr, '42')
+                self.assertEqual(obs, 42)
+                self.assertIsInstance(obs, int)
 
-    def test_int_union_bool_expr_float_value(self):
-        obs = parse_primitive(Int | Bool, '42.1')
-        self.assertEqual(obs, 42.1)
-        self.assertIsInstance(obs, float)
+    def test_simple_unions_with_float_value(self):
+        for expr in self.exprs:
+            with self.subTest(expr=expr):
+                obs = parse_primitive(expr, '42.1')
+                self.assertEqual(obs, 42.1)
+                self.assertIsInstance(obs, float)
 
-    def test_int_union_bool_expr_bool_value(self):
-        obs = parse_primitive(Int | Bool, 'True')
-        self.assertEqual(obs, True)
-        self.assertIsInstance(obs, bool)
+    def test_simple_unions_with_bool_value(self):
+        for expr in self.exprs:
+            with self.subTest(expr=expr):
+                obs = parse_primitive(expr, 'True')
+                self.assertEqual(obs, True)
+                self.assertIsInstance(obs, bool)
 
-    def test_int_union_bool_expr_str_value(self):
-        obs = parse_primitive(Int | Bool, 'peanut')
-        self.assertEqual(obs, 'peanut')
-        self.assertIsInstance(obs, str)
-
-    def test_int_union_str_expr_int_value(self):
-        obs = parse_primitive(Int | Str, '42')
-        self.assertEqual(obs, 42)
-        self.assertIsInstance(obs, int)
-
-    def test_int_union_str_expr_float_value(self):
-        obs = parse_primitive(Int | Str, '42.1')
-        self.assertEqual(obs, 42.1)
-        self.assertIsInstance(obs, float)
-
-    def test_int_union_str_expr_bool_value(self):
-        obs = parse_primitive(Int | Str, 'True')
-        self.assertEqual(obs, True)
-        self.assertIsInstance(obs, bool)
-
-    def test_int_union_str_expr_str_value(self):
-        obs = parse_primitive(Int | Str, 'peanut')
-        self.assertEqual(obs, 'peanut')
-        self.assertIsInstance(obs, str)
-
-    def test_float_union_bool_expr_int_value(self):
-        obs = parse_primitive(Float | Bool, '42')
-        self.assertEqual(obs, 42)
-        self.assertIsInstance(obs, int)
-
-    def test_float_union_bool_expr_float_value(self):
-        obs = parse_primitive(Float | Bool, '42.1')
-        self.assertEqual(obs, 42.1)
-        self.assertIsInstance(obs, float)
-
-    def test_float_union_bool_expr_bool_value(self):
-        obs = parse_primitive(Float | Bool, 'True')
-        self.assertEqual(obs, True)
-        self.assertIsInstance(obs, bool)
-
-    def test_float_union_bool_expr_str_value(self):
-        obs = parse_primitive(Float | Bool, 'peanut')
-        self.assertEqual(obs, 'peanut')
-        self.assertIsInstance(obs, str)
-
-    def test_float_union_str_expr_int_value(self):
-        obs = parse_primitive(Float | Str, '42')
-        self.assertEqual(obs, 42)
-        self.assertIsInstance(obs, int)
-
-    def test_float_union_str_expr_float_value(self):
-        obs = parse_primitive(Float | Str, '42.1')
-        self.assertEqual(obs, 42.1)
-        self.assertIsInstance(obs, float)
-
-    def test_float_union_str_expr_bool_value(self):
-        obs = parse_primitive(Float | Str, 'True')
-        self.assertEqual(obs, True)
-        self.assertIsInstance(obs, bool)
-
-    def test_float_union_str_expr_str_value(self):
-        obs = parse_primitive(Float | Str, 'peanut')
-        self.assertEqual(obs, 'peanut')
-        self.assertIsInstance(obs, str)
-
-    def test_bool_union_str_expr_int_value(self):
-        obs = parse_primitive(Bool | Str, '42')
-        self.assertEqual(obs, 42)
-        self.assertIsInstance(obs, int)
-
-    def test_bool_union_str_expr_float_value(self):
-        obs = parse_primitive(Bool | Str, '42.1')
-        self.assertEqual(obs, 42.1)
-        self.assertIsInstance(obs, float)
-
-    def test_bool_union_str_expr_bool_value(self):
-        obs = parse_primitive(Bool | Str, 'True')
-        self.assertEqual(obs, True)
-        self.assertIsInstance(obs, bool)
-
-    def test_bool_union_str_expr_str_value(self):
-        obs = parse_primitive(Bool | Str, 'peanut')
-        self.assertEqual(obs, 'peanut')
-        self.assertIsInstance(obs, str)
+    def test_simple_unions_with_str_value(self):
+        for expr in self.exprs:
+            with self.subTest(expr=expr):
+                obs = parse_primitive(expr, 'peanut')
+                self.assertEqual(obs, 'peanut')
+                self.assertIsInstance(obs, str)
 
 
 class TestParsePrimitiveCollections(unittest.TestCase):
