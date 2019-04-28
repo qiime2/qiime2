@@ -14,7 +14,6 @@ from qiime2.core.type.grammar import UnionExp, _ExpBase
 from qiime2.core.type.parse import ast_to_type
 
 
-# TODO: names
 def _booler(v):
     '''
     This is a psuedo-type --- we don't want Python's usual str->bool
@@ -29,10 +28,8 @@ def _booler(v):
 
 
 _VARIADIC = {'List': list, 'Set': set}
-# TODO: names
-_PEANUTS = {Int: int, Float: float, Bool: _booler, Str: str}
-# TODO: names
-_PEANUT_SORT_ORDER = {int: 0, float: 1, _booler: 2, str: 3}
+# Order matters here:
+_SEMANTIC_TO_PYTHON_TYPE = {Int: int, Float: float, Bool: _booler, Str: str}
 CollectionStyle = collections.namedtuple(
     'CollectionStyle', ['style', 'members', 'view', 'expr'])
 
@@ -124,15 +121,19 @@ def interrogate_collection_type(t):
     return CollectionStyle(style=style, members=members, view=view, expr=expr)
 
 
-# TODO: names
-def _walk_the_plank(allowed, value):
-    allowed = tuplize(allowed)
-    for coerce_type in sorted(allowed, key=lambda x: _PEANUT_SORT_ORDER[x]):
+def _ordered_coercion(types):
+    types = tuplize(types)
+    return (k for k in _SEMANTIC_TO_PYTHON_TYPE.keys() if k in types)
+
+
+def _interrogate_types(allowed, value):
+    allowed = _ordered_coercion(allowed)
+    for coerce_type in (_SEMANTIC_TO_PYTHON_TYPE[x] for x in allowed):
         try:
             return coerce_type(value)
         except ValueError:
             pass
-    raise ValueError('Could not walk the plank')
+    raise ValueError('Could not interrogate the value\'s type')
 
 
 def parse_primitive(t, value):
@@ -140,23 +141,24 @@ def parse_primitive(t, value):
     result = []
     collection_style = None
 
-    # TODO: check if metadata and bail
+    if is_metadata_type(expr):
+        raise ValueError('what on earth were you thinking??')
 
     if is_collection_type(expr):
         collection_style = interrogate_collection_type(expr)
         # TODO: okay, time for another little refactor here
         if collection_style.style == 'simple':
             for v in value:
-                result.append(_walk_the_plank(
-                    _PEANUTS[collection_style.members], v))
+                result.append(_interrogate_types(
+                    collection_style.members, v))
         elif collection_style.style == 'monomorphic':
-            # TODO: test in our sorted ordering
-            for member in collection_style.members:
+            for member in _ordered_coercion(tuple(collection_style.members)):
                 temp_result = []
                 for v in value:
-                    temp_result.append(_walk_the_plank(
-                        _PEANUTS[member], v))
-                if all(isinstance(x, _PEANUTS[member]) for x in temp_result):
+                    temp_result.append(_interrogate_types(
+                        member, v))
+                if all(isinstance(x, _SEMANTIC_TO_PYTHON_TYPE[member])
+                       for x in temp_result):
                     result = temp_result
                     break
         elif collection_style.style == 'composite':
@@ -167,10 +169,11 @@ def parse_primitive(t, value):
             raise ValueError('yikes, what are you doing here?')
     elif expr in (Int, Float, Bool, Str):
         # No sense in walking over all options when we know what it should be
-        result.append(_walk_the_plank(_PEANUTS[expr], value))
+        result.append(_interrogate_types(expr, value))
     else:
         # No guarantees at this point that the expr will be honored
-        result.append(_walk_the_plank(tuple(_PEANUTS.values()), value))
+        result.append(_interrogate_types(
+            tuple(_SEMANTIC_TO_PYTHON_TYPE.keys()), value))
 
     if collection_style is None:
         return result[0]

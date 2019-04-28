@@ -24,7 +24,7 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, float)
 
     def test_bool_type_int_value(self):
-        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
             parse_primitive(Bool, '42')
 
     def test_str_type_int_value(self):
@@ -33,7 +33,7 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, str)
 
     def test_int_type_float_value(self):
-        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
             parse_primitive(Int, '42.0')
 
     def test_float_type_float_value(self):
@@ -42,7 +42,7 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, float)
 
     def test_bool_type_float_value(self):
-        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
             parse_primitive(Bool, '42.0')
 
     def test_str_type_float_value(self):
@@ -51,11 +51,11 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, str)
 
     def test_int_type_bool_value(self):
-        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
             parse_primitive(Int, 'True')
 
     def test_float_type_bool_value(self):
-        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
             parse_primitive(Float, 'True')
 
     def test_bool_type_bool_value(self):
@@ -69,15 +69,15 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, str)
 
     def test_int_type_str_value(self):
-        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
             parse_primitive(Int, 'peanut')
 
     def test_float_type_str_value(self):
-        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
             parse_primitive(Float, 'peanut')
 
     def test_bool_type_str_value(self):
-        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
             parse_primitive(Bool, 'peanut')
 
     def test_str_type_str_value(self):
@@ -111,12 +111,12 @@ class TestParsePrimitiveNonCollectionsSimpleUnions(unittest.TestCase):
         self.assertIsInstance(obs, float)
 
     def test_int_union_float_expr_bool_value(self):
-        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
             # Int | Float == Float
             parse_primitive(Int | Float, 'True')
 
     def test_int_union_float_expr_str_value(self):
-        with self.assertRaisesRegex(ValueError, 'walk the plank'):
+        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
             # Int | Float == Float
             parse_primitive(Int | Float, 'peanut')
 
