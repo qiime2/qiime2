@@ -150,7 +150,6 @@ class TypeMap(ImmutableBase):
 
 
 def _get_intersections(listing):
-    print(listing)
     intersections = []
     for a, b in itertools.combinations(listing, 2):
         i = a & b
