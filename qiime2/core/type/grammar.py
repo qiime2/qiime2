@@ -10,7 +10,36 @@ import itertools
 from abc import ABCMeta, abstractmethod
 
 from qiime2.core.util import tuplize, ImmutableBase
-from .poset import maximum_antichain, minimum_antichain
+
+
+def maximal_antichain(*types):
+    maximal_elements = {}  # easy to delete, retains order
+    for t in types:
+        placed = False
+        for e in list(maximal_elements):
+            if e <= t:
+                # Delete first! Duplicate keys would disappear otherwise
+                del maximal_elements[e]
+                maximal_elements[t] = None
+                placed = True
+        if not placed:
+            maximal_elements[t] = None
+    return tuple(maximal_elements)
+
+
+def minimal_antichain(*types):
+    minimal_elements = {}  # easy to delete, retains order
+    for t in types:
+        placed = False
+        for e in list(minimal_elements):
+            if t <= e:
+                # Delete first! Duplicate keys would disappear otherwise
+                del minimal_elements[e]
+                minimal_elements[t] = None
+                placed = True
+        if not placed:
+            minimal_elements[t] = None
+    return tuple(minimal_elements)
 
 
 class _ExpBase(ImmutableBase, metaclass=ABCMeta):
@@ -218,7 +247,7 @@ class _AlgebraicExpBase(_ExpBase):
                 return collapse
 
         # Back to the regularly scheduled inverse of __or__
-        members = minimum_antichain(*self.unpack_intersection(),
+        members = minimal_antichain(*self.unpack_intersection(),
                                     *other.unpack_intersection())
         return IntersectionExp(members)
 
@@ -572,7 +601,7 @@ class UnionExp(_IdentityExpBase):
                     elements.append(candidate.duplicate(predicate=predicate))
 
         if len(elements) < 20:
-            members = maximum_antichain(*elements)
+            members = maximal_antichain(*elements)
         else:
             members = elements
 

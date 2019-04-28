@@ -51,9 +51,9 @@ class TestSelect(unittest.TestCase):
         Q = MockPredicate('Q')
 
         X, Y = meta.TypeMap({
+            P & Q: Foo,
             P: Bar,
-            Q: Foo,
-            P & Q: Foo
+            Q: Foo
         })
 
         sel, = meta.select_variables(Foo % X)
@@ -75,9 +75,9 @@ class TestSelect(unittest.TestCase):
         })
 
         X2, Y2 = meta.TypeMap({
+            P & Q: Foo,
             P: Bar,
-            Q: Foo,
-            P & Q: Foo
+            Q: Foo
         })
 
         expr = C2[X1, Foo % X2] % X2
@@ -117,8 +117,7 @@ class TestTypeMap(unittest.TestCase):
         Other = MockPredicate('Other')
 
         X, Y = meta.TypeMap({
-            P: P, Q: Q,
-            Other: Other, P & Other: Other, Q & Other: Other
+            P & Other: Other, P: P, Q & Other: Other, Q: Q, Other: Other
         })
         mapping = X.mapping
 
@@ -134,9 +133,9 @@ class TestTypeMap(unittest.TestCase):
         S = MockPredicate('S')
 
         X, Y = meta.TypeMap({
+            P & Q: R & S,
             P: R,
             Q: S,
-            P & Q: R & S
         })
 
         self.assertEqual(X.members, (P & Q, P, Q))
@@ -178,10 +177,10 @@ class TestTypeMap(unittest.TestCase):
         S = MockPredicate('S')
 
         T, U, Y = meta.TypeMap({
-            (P, P): R,
-            (Q, Q): S,
+            (P & Q, P & Q): R & S,
             (P & Q, Q): R & S,
-            (P & Q, P & Q): R & S
+            (P, P): R,
+            (Q, Q): S
         })
 
         self.assertLessEqual(P, T)

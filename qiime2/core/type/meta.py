@@ -12,7 +12,6 @@ from types import MappingProxyType
 from ..util import superscript, tuplize, ImmutableBase
 from .grammar import UnionExp, TypeExp
 from .collection import Tuple
-from .poset import POSet
 
 
 class TypeVarExp(UnionExp):
@@ -89,34 +88,31 @@ class TypeVarExp(UnionExp):
 
 class TypeMap(ImmutableBase):
     def __init__(self, mapping):
-        unsorted = {Tuple[tuplize(k)]: Tuple[tuplize(v)]
-                    for k, v in mapping.items()}
+        mapping = {Tuple[tuplize(k)]: Tuple[tuplize(v)]
+                   for k, v in mapping.items()}
+        branches = list(mapping)
+        for i, a in enumerate(branches):
+            for j in range(i, len(branches)):
+                b = branches[j]
+                try:
+                    intersection = a & b
+                except TypeError:
+                    raise ValueError("Cannot place %r and %r in the same "
+                                     "type variable." % (a, b))
+                if (intersection.is_bottom()
+                        or intersection is a or intersection is b):
+                    continue
 
-        poset = POSet(*unsorted)
-        for a, b in itertools.combinations(poset.iter_nodes(), 2):
-            try:
-                intersection = a.item & b.item
-            except TypeError:
-                raise ValueError("Cannot place %r and %r in the same "
-                                 "type variable." % (a.item, b.item))
-            if (intersection.is_bottom()
-                    or intersection is a.item
-                    or intersection is b.item):
-                continue
-
-            for shared in a.shared_descendants(b):
-                if intersection <= shared.item:
-                    break
-            else:
-                raise ValueError("Ambiguous resolution for invocations with"
-                                 " type %r. Could match %r or %r, add a new"
-                                 " branch (or modify these branches) to"
-                                 " correct this." % (intersection.fields,
-                                                     a.item.fields,
-                                                     b.item.fields))
-
-        self.__lifted = {k: unsorted[k] for k in poset}
-
+                for k in range(i):
+                    if intersection <= branches[k]:
+                        break
+                else:
+                    raise ValueError(
+                        "Ambiguous resolution for invocations with type %r."
+                        " Could match %r or %r, add a new branch ABOVE these"
+                        " two (or modify these branches) to correct this."
+                        % (intersection.fields, a.fields, b.fields))
+        self.__lifted = mapping
         super()._freeze_()
 
     @property
@@ -154,6 +150,7 @@ class TypeMap(ImmutableBase):
 
 
 def _get_intersections(listing):
+    print(listing)
     intersections = []
     for a, b in itertools.combinations(listing, 2):
         i = a & b
@@ -166,10 +163,11 @@ def _get_intersections(listing):
 def TypeMatch(listing):
     listing = list(listing)
     intersections = _get_intersections(listing)
+    to_add = []
     while intersections:
-        listing.extend(intersections)
+        to_add.extend(intersections)
         intersections = _get_intersections(intersections)
-    mapping = TypeMap({l: l for l in listing})
+    mapping = TypeMap({l: l for l in list(reversed(to_add)) + listing})
     # TypeMatch only produces a single variable
     # iter_outputs is used by match for solving, so the index must match
     return next(iter(mapping.iter_outputs(_double_as_input=True)))
