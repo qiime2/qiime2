@@ -509,65 +509,122 @@ class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
         self.assertIsInstance(obs, set)
 
     def test_list_float_or_bool_with_float_value(self):
-        pass
+        obs = parse_primitive(List[Float | Bool], ('1.1', '2.2', '3.3'))
+        self.assertEqual(obs, [1.1, 2.2, 3.3])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], float)
 
     def test_list_float_or_bool_with_bool_value(self):
-        pass
+        obs = parse_primitive(List[Float | Bool], ('True', 'False', 'True'))
+        self.assertEqual(obs, [True, False, True])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], bool)
 
     def test_list_float_or_bool_with_mixed_value_variant_a(self):
-        pass
+        obs = parse_primitive(List[Float | Bool], ('True', '2.2', '3.3'))
+        self.assertEqual(obs, [True, 2.2, 3.3])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], bool)
+        self.assertIsInstance(obs[1], float)
 
     def test_list_float_or_bool_with_mixed_value_variant_b(self):
-        pass
+        obs = parse_primitive(List[Float | Bool], ('1.1', '2.2', 'False'))
+        self.assertEqual(obs, [1.1, 2.2, False])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], float)
+        self.assertIsInstance(obs[-1], bool)
 
     def test_list_float_or_bool_with_bad_mix_value(self):
-        pass
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Float | Bool], ('1.1', '2.2', 'peanut'))
 
     def test_set_float_or_bool_with_float_value(self):
-        pass
+        obs = parse_primitive(Set[Float | Bool], ('1.1', '2.2', '3.3'))
+        self.assertEqual(obs, {1.1, 2.2, 3.3})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), float)
 
     def test_set_float_or_bool_with_bool_value(self):
-        pass
-
-    #######################################
+        obs = parse_primitive(Set[Float | Bool], ('True', 'False', 'True'))
+        self.assertEqual(obs, {True, False})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), bool)
 
     def test_list_float_or_str_with_float_value(self):
-        pass
+        obs = parse_primitive(List[Float | Str], ('1.1', '2.2', '3.3'))
+        self.assertEqual(obs, [1.1, 2.2, 3.3])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], float)
 
     def test_list_float_or_str_with_str_value(self):
-        pass
+        obs = parse_primitive(List[Float | Str], ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, ['peanut', 'the', 'dog'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], str)
 
     def test_list_float_or_str_with_mixed_value_variant_a(self):
-        pass
+        obs = parse_primitive(List[Float | Str], ('peanut', '2.2', '3.3'))
+        self.assertEqual(obs, ['peanut', 2.2, 3.3])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], str)
+        self.assertIsInstance(obs[1], float)
 
     def test_list_float_or_str_with_mixed_value_variant_b(self):
-        pass
+        obs = parse_primitive(List[Float | Str], ('1.1', '2.2', 'dog'))
+        self.assertEqual(obs, [1.1, 2.2, 'dog'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], float)
+        self.assertIsInstance(obs[-1], str)
 
     def test_set_float_or_str_with_float_value(self):
-        pass
+        obs = parse_primitive(Set[Float | Str], ('1.1', '2.2', '3.3'))
+        self.assertEqual(obs, {1.1, 2.2, 3.3})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), float)
 
     def test_set_float_or_str_with_str_value(self):
-        pass
-
-    #######################################
+        obs = parse_primitive(Set[Float | Str], ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, {'peanut', 'the', 'dog'})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), str)
 
     def test_list_bool_or_str_with_bool_value(self):
-        pass
+        obs = parse_primitive(List[Bool | Str], ('True', 'False', 'True'))
+        self.assertEqual(obs, [True, False, True])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], bool)
 
     def test_list_bool_or_str_with_str_value(self):
-        pass
+        obs = parse_primitive(List[Bool | Str], ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, ['peanut', 'the', 'dog'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], str)
 
     def test_list_bool_or_str_with_mixed_value_variant_a(self):
-        pass
+        obs = parse_primitive(List[Bool | Str], ('True', 'the', 'dog'))
+        self.assertEqual(obs, [True, 'the', 'dog'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], bool)
+        self.assertIsInstance(obs[-1], str)
 
     def test_list_bool_or_str_with_mixed_value_variant_b(self):
-        pass
+        obs = parse_primitive(List[Bool | Str], ('peanut', 'the', 'True'))
+        self.assertEqual(obs, ['peanut', 'the', True])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], str)
+        self.assertIsInstance(obs[-1], bool)
 
     def test_set_bool_or_str_with_bool_value(self):
-        pass
+        obs = parse_primitive(Set[Bool | Str], ('True', 'False', 'True'))
+        self.assertEqual(obs, {True, False})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), bool)
 
     def test_set_bool_or_str_with_str_value(self):
-        pass
+        obs = parse_primitive(Set[Bool | Str], ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, {'peanut', 'the', 'dog'})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), str)
 
 
 class TestParsePrimitiveCollectionsComplex(unittest.TestCase):

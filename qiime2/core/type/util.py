@@ -195,6 +195,7 @@ def parse_primitive(t, value):
                 # TODO: probably should _interrogate_types again...
                 result = map(allowed_[-1], result)
             else:
+                # TODO: is it even possible to hit this branch?
                 raise ValueError('not all matching')
 
     if collection_style:
