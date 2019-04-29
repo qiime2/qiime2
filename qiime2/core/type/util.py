@@ -19,6 +19,7 @@ def _booler(v):
     This is a psuedo-type --- we don't want Python's usual str->bool
     coercion business, just simple string matching (I think)
     '''
+    # TODO: make case insensitive
     if v == 'True':
         return True
     elif v == 'False':
@@ -136,6 +137,7 @@ def _interrogate_types(allowed, value):
     raise ValueError('Could not coerce value based on expression provided.')
 
 
+# Value might be a boolean
 def parse_primitive(t, value):
     expr = _norm_input(t)
     result = []
@@ -168,17 +170,14 @@ def parse_primitive(t, value):
         allowed = _ordered_coercion(tuple(_SEMANTIC_TO_PYTHON_TYPE.keys()))
         value = tuplize(value)
 
-    temp_result = []
     for v in value:
-        temp_result.append(_interrogate_types(allowed, v))
+        result.append(_interrogate_types(allowed, v))
 
-    if collection_style is not None:
-        result = temp_result
-    elif temp_result:
-        result = temp_result
-    else:
+    if not result:
         raise ValueError('bar')
 
+    # Post-coerce validation --- some collection exprs require
+    # homogeneous values
     if homogeneous:
         all_matching = False
         for member in allowed:
@@ -186,7 +185,17 @@ def parse_primitive(t, value):
                    for x in result):
                 all_matching = True
         if not all_matching:
-            raise ValueError('not all matching')
+            allowed_ = tuple(map(lambda x: _SEMANTIC_TO_PYTHON_TYPE[x],
+                                 allowed))
+            # Should simple collections be included here, too?
+            if collection_style \
+                    and collection_style.style == 'monomorphic' \
+                    and all(isinstance(x, allowed_) for x in result):
+                # last allowed is the least common denominator for all vals
+                # TODO: probably should _interrogate_types again...
+                result = map(allowed_[-1], result)
+            else:
+                raise ValueError('not all matching')
 
     if collection_style:
         return collection_style.view(result)
