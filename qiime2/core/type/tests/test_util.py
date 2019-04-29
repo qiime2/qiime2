@@ -221,7 +221,10 @@ class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
         self.assertIsInstance(obs[0], int)
 
     def test_list_int_or_bool_with_bool_value(self):
-        pass
+        obs = parse_primitive(List[Int] | List[Bool], ('True', 'False', 'True'))
+        self.assertEqual(obs, [True, False, True])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], bool)
 
     def test_set_int_or_bool_with_int_value(self):
         pass

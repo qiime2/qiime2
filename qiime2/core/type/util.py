@@ -29,7 +29,8 @@ def _booler(v):
 
 _VARIADIC = {'List': list, 'Set': set}
 # Order matters here:
-_SEMANTIC_TO_PYTHON_TYPE = {Int: int, Float: float, Bool: _booler, Str: str}
+_SEMANTIC_TO_PYTHON_TYPE_FUNC = {Int: int, Float: float, Bool: _booler, Str: str}
+_SEMANTIC_TO_PYTHON_TYPE =      {Int: int, Float: float, Bool: bool,    Str: str}
 CollectionStyle = collections.namedtuple(
     'CollectionStyle', ['style', 'members', 'view', 'expr'])
 
@@ -123,12 +124,12 @@ def interrogate_collection_type(t):
 
 def _ordered_coercion(types):
     types = tuplize(types)
-    return (k for k in _SEMANTIC_TO_PYTHON_TYPE.keys() if k in types)
+    return tuple(k for k in _SEMANTIC_TO_PYTHON_TYPE.keys() if k in types)
 
 
 def _interrogate_types(allowed, value):
     allowed = _ordered_coercion(allowed)
-    for coerce_type in (_SEMANTIC_TO_PYTHON_TYPE[x] for x in allowed):
+    for coerce_type in (_SEMANTIC_TO_PYTHON_TYPE_FUNC[x] for x in allowed):
         try:
             return coerce_type(value)
         except ValueError:
@@ -146,27 +147,36 @@ def parse_primitive(t, value):
 
     if is_collection_type(expr):
         collection_style = interrogate_collection_type(expr)
-        # TODO: okay, time for another little refactor here
+
+        allowed = tuple()
+
         if collection_style.style == 'simple':
-            for v in value:
-                result.append(_interrogate_types(
-                    collection_style.members, v))
+            allowed = _ordered_coercion(collection_style.members)
         elif collection_style.style == 'monomorphic':
-            for member in _ordered_coercion(tuple(collection_style.members)):
-                temp_result = []
-                for v in value:
-                    temp_result.append(_interrogate_types(
-                        member, v))
-                if all(isinstance(x, _SEMANTIC_TO_PYTHON_TYPE[member])
-                       for x in temp_result):
-                    result = temp_result
-                    break
+            allowed = _ordered_coercion(tuple(collection_style.members))
         elif collection_style.style == 'composite':
             pass
         elif collection_style.style == 'complex':
             pass
         else:
             raise ValueError('yikes, what are you doing here?')
+
+        for member in allowed:
+            temp_result = []
+            for v in value:
+                try:
+                    temp_result.append(_interrogate_types(member, v))
+                except ValueError:
+                    continue
+
+            # good lord this is unreadable
+            if len(temp_result) > 0 and \
+                    all(isinstance(x, _SEMANTIC_TO_PYTHON_TYPE[member])
+                        for x in temp_result) and \
+                    isinstance(temp_result[0],
+                               _SEMANTIC_TO_PYTHON_TYPE[member]):
+                result = temp_result
+                break
     elif expr in (Int, Float, Bool, Str):
         # No sense in walking over all options when we know what it should be
         result.append(_interrogate_types(expr, value))
