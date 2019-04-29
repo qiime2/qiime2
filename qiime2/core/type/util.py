@@ -9,6 +9,7 @@
 import collections
 
 from qiime2.core.util import tuplize
+from qiime2.core.type.collection import List, Set
 from qiime2.core.type.primitive import Int, Float, Bool, Str
 from qiime2.core.type.grammar import UnionExp, _ExpBase
 from qiime2.core.type.parse import ast_to_type
@@ -163,7 +164,14 @@ def parse_primitive(t, value):
             allowed = _ordered_coercion(tuple(collection_style.members))
             homogeneous = False
         elif collection_style.style == 'complex':
-            pass
+            for subexpr in collection_style.members:
+                # TODO: switch on collection type
+                # TODO: might need to do a length check
+                expr = List[UnionExp(subexpr)]
+                try:
+                    return parse_primitive(expr, value)
+                except ValueError:
+                    pass
         else:
             raise ValueError('yikes, what are you doing here?')
     else:

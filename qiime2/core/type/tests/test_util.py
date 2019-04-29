@@ -628,8 +628,20 @@ class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
 
 
 class TestParsePrimitiveCollectionsComplex(unittest.TestCase):
-    def test_complex_int_float_bool(self):
-        pass
+    def test_list_int_float_bool(self):
+        obs = parse_primitive(List[Int | Bool] | List[Float],
+                              ('1', '2', 'True', 'False'))
+        self.assertEqual(obs, [1, 2, True, False])
+
+        obs = parse_primitive(List[Int | Bool] | List[Float],
+                              ('1.1', '2.2', '3.3', '4.4'))
+        self.assertEqual(obs, [1.1, 2.2, 3.3, 4.4])
+
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Int | Bool] | List[Float],
+                            ('1', '2.2', 'True', 'False'))
+
+    #######################################
 
     def test_complex_int_float_str(self):
         pass
