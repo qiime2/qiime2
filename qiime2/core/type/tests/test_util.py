@@ -24,9 +24,8 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, float)
 
     def test_bool_type_int_value(self):
-        obs = parse_primitive(Bool, '42')
-        self.assertEqual(obs, '42')
-        self.assertIsInstance(obs, str)
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Bool, '42')
 
     def test_str_type_int_value(self):
         obs = parse_primitive(Str, '42')
@@ -34,9 +33,8 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, str)
 
     def test_int_type_float_value(self):
-        obs = parse_primitive(Int, '42.0')
-        self.assertEqual(obs, '42.0')
-        self.assertIsInstance(obs, str)
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Int, '42.0')
 
     def test_float_type_float_value(self):
         obs = parse_primitive(Float, '42.0')
@@ -44,9 +42,8 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, float)
 
     def test_bool_type_float_value(self):
-        obs = parse_primitive(Bool, '42.0')
-        self.assertEqual(obs, '42.0')
-        self.assertIsInstance(obs, str)
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Bool, '42.0')
 
     def test_str_type_float_value(self):
         obs = parse_primitive(Str, '42.0')
@@ -54,14 +51,12 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, str)
 
     def test_int_type_bool_value(self):
-        obs = parse_primitive(Int, 'True')
-        self.assertEqual(obs, 'True')
-        self.assertIsInstance(obs, str)
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Int, 'True')
 
     def test_float_type_bool_value(self):
-        obs = parse_primitive(Float, 'True')
-        self.assertEqual(obs, 'True')
-        self.assertIsInstance(obs, str)
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Float, 'True')
 
     def test_bool_type_bool_value(self):
         obs = parse_primitive(Bool, 'True')
@@ -74,19 +69,16 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, str)
 
     def test_int_type_str_value(self):
-        obs = parse_primitive(Int, 'peanut')
-        self.assertEqual(obs, 'peanut')
-        self.assertIsInstance(obs, str)
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Int, 'peanut')
 
     def test_float_type_str_value(self):
-        obs = parse_primitive(Float, 'peanut')
-        self.assertEqual(obs, 'peanut')
-        self.assertIsInstance(obs, str)
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Float, 'peanut')
 
     def test_bool_type_str_value(self):
-        obs = parse_primitive(Bool, 'peanut')
-        self.assertEqual(obs, 'peanut')
-        self.assertIsInstance(obs, str)
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Bool, 'peanut')
 
     def test_str_type_str_value(self):
         obs = parse_primitive(Str, 'peanut')
@@ -120,15 +112,13 @@ class TestParsePrimitiveNonCollectionsSimpleUnions(unittest.TestCase):
 
     def test_int_union_float_expr_bool_value(self):
         # Int | Float == Float
-        obs = parse_primitive(Int | Float, 'True')
-        self.assertEqual(obs, 'True')
-        self.assertIsInstance(obs, str)
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Int | Float, 'True')
 
     def test_int_union_float_expr_str_value(self):
         # Int | Float == Float
-        obs = parse_primitive(Int | Float, 'peanut')
-        self.assertEqual(obs, 'peanut')
-        self.assertIsInstance(obs, str)
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Int | Float, 'peanut')
 
     def test_simple_unions_with_int_value(self):
         for expr in self.exprs:
@@ -374,6 +364,10 @@ class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
         self.assertIsInstance(obs, set)
         self.assertIsInstance(obs.pop(), str)
 
+    def test_list_bool_or_str_with_mixed_value(self):
+        with self.assertRaisesRegex(ValueError, 'not all matching'):
+            parse_primitive(List[Bool] | List[Str], ('peanut', 'the', 'True'))
+
 
 class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
     def test_list_int_or_bool_with_int_value(self):
@@ -388,7 +382,6 @@ class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
         self.assertIsInstance(obs, list)
         self.assertIsInstance(obs[0], bool)
 
-    # TODO: this test fails, need to refactor parsing
     def test_list_int_or_bool_with_mixed_value(self):
         obs = parse_primitive(List[Int | Bool], ('1', 'False', 2, 'True'))
         self.assertEqual(obs, [1, False, 2, True])
@@ -408,6 +401,8 @@ class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
     def test_composite_bool_or_str(self):
         pass
 
+
+class TestParsePrimitiveCollectionsComplex(unittest.TestCase):
     def test_complex_int_float_bool(self):
         pass
 

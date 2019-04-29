@@ -128,14 +128,12 @@ def _ordered_coercion(types):
 
 
 def _interrogate_types(allowed, value):
-    allowed = _ordered_coercion(allowed)
-    # TODO: clean up, seems like this is no longer necessary here
     for coerce_type in (_SEMANTIC_TO_PYTHON_TYPE_FUNC[x] for x in allowed):
         try:
             return coerce_type(value)
         except ValueError:
             pass
-    raise ValueError('foo')
+    raise ValueError('Could not coerce value based on expression provided.')
 
 
 def parse_primitive(t, value):
@@ -143,6 +141,7 @@ def parse_primitive(t, value):
     result = []
     collection_style = None
     allowed = tuple()
+    homogeneous = True
 
     if is_metadata_type(expr):
         raise ValueError('what on earth were you thinking??')
@@ -160,6 +159,7 @@ def parse_primitive(t, value):
             allowed = _ordered_coercion(tuple(collection_style.members))
         elif collection_style.style == 'composite':
             allowed = _ordered_coercion(tuple(collection_style.members))
+            homogeneous = False
         elif collection_style.style == 'complex':
             pass
         else:
@@ -168,31 +168,28 @@ def parse_primitive(t, value):
         allowed = _ordered_coercion(tuple(_SEMANTIC_TO_PYTHON_TYPE.keys()))
         value = tuplize(value)
 
-    for member in allowed:
-        temp_result = []
-        for v in value:
-            try:
-                temp_result.append(_interrogate_types(member, v))
-            except ValueError:
-                continue
+    temp_result = []
+    for v in value:
+        temp_result.append(_interrogate_types(allowed, v))
 
-        if collection_style is not None:
-            # TODO: good lord this is unreadable
-            if temp_result and \
-                    all(isinstance(x, _SEMANTIC_TO_PYTHON_TYPE[member])
-                        for x in temp_result) and \
-                    isinstance(temp_result[0],
-                               _SEMANTIC_TO_PYTHON_TYPE[member]):
-                result = temp_result
-                break
-        elif temp_result:
-            result = temp_result
-            break
-        else:
-            result = value
-
-    if collection_style is None:
-        return result[0]
+    if collection_style is not None:
+        result = temp_result
+    elif temp_result:
+        result = temp_result
     else:
+        raise ValueError('bar')
+
+    if homogeneous:
+        all_matching = False
+        for member in allowed:
+            if all(isinstance(x, _SEMANTIC_TO_PYTHON_TYPE[member])
+                   for x in result):
+                all_matching = True
+        if not all_matching:
+            raise ValueError('not all matching')
+
+    if collection_style:
         return collection_style.view(result)
+    else:
+        return result[0]
     return result
