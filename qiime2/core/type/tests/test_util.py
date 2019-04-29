@@ -208,7 +208,7 @@ class TestParsePrimitiveCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, set)
         self.assertIsInstance(obs.pop(), str)
 
-    # The next two tests _aren't_ monomorphic, because unions of Int and Float
+    # The next tests _aren't_ monomorphic, because unions of Int and Float
     # always yield a Float (List[Int] | List[Float] == List[Float]).
     def test_list_int_or_float_with_int_value(self):
         obs = parse_primitive(List[Int] | List[Float], ('1', '2', '3'))
@@ -216,11 +216,35 @@ class TestParsePrimitiveCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, list)
         self.assertIsInstance(obs[0], float)
 
+    def test_set_int_or_float_with_int_value(self):
+        obs = parse_primitive(Set[Int] | Set[Float], ('1', '2', '3'))
+        self.assertEqual(obs, {1.0, 2.0, 3.0})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), float)
+
     def test_list_int_or_float_with_float_value(self):
         obs = parse_primitive(List[Int] | List[Float], ('1.1', '2.2', '3.3'))
         self.assertEqual(obs, [1.1, 2.2, 3.3])
         self.assertIsInstance(obs, list)
         self.assertIsInstance(obs[0], float)
+
+    def test_set_int_or_float_with_float_value(self):
+        obs = parse_primitive(Set[Int] | Set[Float], ('1.1', '2.2', '3.3'))
+        self.assertEqual(obs, {1.1, 2.2, 3.3})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), float)
+
+    def test_list_int_or_float_int_value(self):
+        obs = parse_primitive(List[Int | Float], ('1', '2', '3'))
+        self.assertEqual(obs, [1.0, 2.0, 3.0])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], float)
+
+    def test_set_int_or_float_int_value(self):
+        obs = parse_primitive(Set[Int | Float], ('1', '2', '3'))
+        self.assertEqual(obs, {1.0, 2.0, 3.0})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), float)
 
 
 class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
@@ -351,12 +375,26 @@ class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
         self.assertIsInstance(obs.pop(), str)
 
 
-class TestParsePrimitiveCollectionsXYZ(unittest.TestCase):
-    def test_composite_int_or_float(self):
-        pass
+class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
+    def test_list_int_or_bool_with_int_value(self):
+        obs = parse_primitive(List[Int | Bool], ('1', '2', '3'))
+        self.assertEqual(obs, [1, 2, 3])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], int)
 
-    def test_composite_int_or_bool(self):
-        pass
+    def test_list_int_or_bool_with_bool_value(self):
+        obs = parse_primitive(List[Int | Bool], ('True', 'False', 'True'))
+        self.assertEqual(obs, [True, False, True])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], bool)
+
+    # TODO: this test fails, need to refactor parsing
+    def test_list_int_or_bool_with_mixed_value(self):
+        obs = parse_primitive(List[Int | Bool], ('1', 'False', 2, 'True'))
+        self.assertEqual(obs, [1, False, 2, True])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], int)
+        self.assertIsInstance(obs[1], bool)
 
     def test_composite_int_or_str(self):
         pass

@@ -159,7 +159,7 @@ def parse_primitive(t, value):
         elif collection_style.style == 'monomorphic':
             allowed = _ordered_coercion(tuple(collection_style.members))
         elif collection_style.style == 'composite':
-            pass
+            allowed = _ordered_coercion(tuple(collection_style.members))
         elif collection_style.style == 'complex':
             pass
         else:
