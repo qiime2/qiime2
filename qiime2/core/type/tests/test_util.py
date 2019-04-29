@@ -436,6 +436,12 @@ class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
         self.assertIsInstance(obs[0], int)
         self.assertIsInstance(obs[1], bool)
 
+    def test_list_int_or_bool_with_mixed_value_variant_a(self):
+        pass
+
+    def test_list_int_or_bool_with_mixed_value_variant_b(self):
+        pass
+
     def test_list_int_or_bool_with_bad_mix_value(self):
         with self.assertRaisesRegex(ValueError, 'Could not coerce'):
             parse_primitive(List[Int | Bool], ('1', 'True', 'dog'))
@@ -453,7 +459,7 @@ class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
         self.assertIsInstance(obs.pop(), bool)
 
     def test_set_int_or_bool_with_mixed_value(self):
-        obs = parse_primitive(Set[Int | Bool], ('1', 'False', 2, 'True'))
+        obs = parse_primitive(Set[Int | Bool], ('1', 'False', '2', 'True'))
         self.assertEqual(obs, {1, False, 2, True})
         self.assertIsInstance(obs, set)
         self.assertIsInstance(obs.pop(), bool)
@@ -486,23 +492,81 @@ class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
         self.assertIsInstance(obs[2], int)
 
     def test_set_int_or_str_with_int_value(self):
-        pass
+        obs = parse_primitive(Set[Int | Str], ('1', '2', '3'))
+        self.assertEqual(obs, {1, 2, 3})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), int)
 
     def test_set_int_or_str_with_str_value(self):
-        pass
+        obs = parse_primitive(Set[Int | Str], ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, {'peanut', 'the', 'dog'})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), str)
 
     def test_set_int_or_str_with_mixed_value(self):
+        obs = parse_primitive(Set[Int | Str], ('1', 'the', '2', 'dog'))
+        self.assertEqual(obs, {1, 'the', 2, 'dog'})
+        self.assertIsInstance(obs, set)
+
+    def test_list_float_or_bool_with_float_value(self):
         pass
 
-    ################################################
-
-    def test_composite_float_or_bool(self):
+    def test_list_float_or_bool_with_bool_value(self):
         pass
 
-    def test_composite_float_or_str(self):
+    def test_list_float_or_bool_with_mixed_value_variant_a(self):
         pass
 
-    def test_composite_bool_or_str(self):
+    def test_list_float_or_bool_with_mixed_value_variant_b(self):
+        pass
+
+    def test_list_float_or_bool_with_bad_mix_value(self):
+        pass
+
+    def test_set_float_or_bool_with_float_value(self):
+        pass
+
+    def test_set_float_or_bool_with_bool_value(self):
+        pass
+
+    #######################################
+
+    def test_list_float_or_str_with_float_value(self):
+        pass
+
+    def test_list_float_or_str_with_str_value(self):
+        pass
+
+    def test_list_float_or_str_with_mixed_value_variant_a(self):
+        pass
+
+    def test_list_float_or_str_with_mixed_value_variant_b(self):
+        pass
+
+    def test_set_float_or_str_with_float_value(self):
+        pass
+
+    def test_set_float_or_str_with_str_value(self):
+        pass
+
+    #######################################
+
+    def test_list_bool_or_str_with_bool_value(self):
+        pass
+
+    def test_list_bool_or_str_with_str_value(self):
+        pass
+
+    def test_list_bool_or_str_with_mixed_value_variant_a(self):
+        pass
+
+    def test_list_bool_or_str_with_mixed_value_variant_b(self):
+        pass
+
+    def test_set_bool_or_str_with_bool_value(self):
+        pass
+
+    def test_set_bool_or_str_with_str_value(self):
         pass
 
 
@@ -515,6 +579,10 @@ class TestParsePrimitiveCollectionsComplex(unittest.TestCase):
 
     def test_complex_float_bool_str(self):
         pass
+
+
+class TestParsePrimitiveCollectionsNonStringInputs(unittest.TestCase):
+    pass
 
 
 if __name__ == '__main__':
