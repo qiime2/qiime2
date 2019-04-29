@@ -129,26 +129,30 @@ def _ordered_coercion(types):
 
 def _interrogate_types(allowed, value):
     allowed = _ordered_coercion(allowed)
+    # TODO: clean up, seems like this is no longer necessary here
     for coerce_type in (_SEMANTIC_TO_PYTHON_TYPE_FUNC[x] for x in allowed):
         try:
             return coerce_type(value)
         except ValueError:
             pass
-    raise ValueError('Could not interrogate the value\'s type')
+    raise ValueError('foo')
 
 
 def parse_primitive(t, value):
     expr = _norm_input(t)
     result = []
     collection_style = None
+    allowed = tuple()
 
     if is_metadata_type(expr):
         raise ValueError('what on earth were you thinking??')
 
-    if is_collection_type(expr):
+    if expr in (Int, Float, Bool, Str):
+        # No sense in walking over all options when we know what it should be
+        allowed = tuplize(expr)
+        value = tuplize(value)
+    elif is_collection_type(expr):
         collection_style = interrogate_collection_type(expr)
-
-        allowed = tuple()
 
         if collection_style.style == 'simple':
             allowed = _ordered_coercion(collection_style.members)
@@ -160,32 +164,35 @@ def parse_primitive(t, value):
             pass
         else:
             raise ValueError('yikes, what are you doing here?')
+    else:
+        allowed = _ordered_coercion(tuple(_SEMANTIC_TO_PYTHON_TYPE.keys()))
+        value = tuplize(value)
 
-        for member in allowed:
-            temp_result = []
-            for v in value:
-                try:
-                    temp_result.append(_interrogate_types(member, v))
-                except ValueError:
-                    continue
+    for member in allowed:
+        temp_result = []
+        for v in value:
+            try:
+                temp_result.append(_interrogate_types(member, v))
+            except ValueError:
+                continue
 
-            # good lord this is unreadable
-            if len(temp_result) > 0 and \
+        if collection_style is not None:
+            # TODO: good lord this is unreadable
+            if temp_result and \
                     all(isinstance(x, _SEMANTIC_TO_PYTHON_TYPE[member])
                         for x in temp_result) and \
                     isinstance(temp_result[0],
                                _SEMANTIC_TO_PYTHON_TYPE[member]):
                 result = temp_result
                 break
-    elif expr in (Int, Float, Bool, Str):
-        # No sense in walking over all options when we know what it should be
-        result.append(_interrogate_types(expr, value))
-    else:
-        # No guarantees at this point that the expr will be honored
-        result.append(_interrogate_types(
-            tuple(_SEMANTIC_TO_PYTHON_TYPE.keys()), value))
+        elif temp_result:
+            result = temp_result
+            break
+        else:
+            result = value
 
     if collection_style is None:
         return result[0]
     else:
         return collection_style.view(result)
+    return result

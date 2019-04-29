@@ -24,8 +24,9 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, float)
 
     def test_bool_type_int_value(self):
-        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
-            parse_primitive(Bool, '42')
+        obs = parse_primitive(Bool, '42')
+        self.assertEqual(obs, '42')
+        self.assertIsInstance(obs, str)
 
     def test_str_type_int_value(self):
         obs = parse_primitive(Str, '42')
@@ -33,8 +34,9 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, str)
 
     def test_int_type_float_value(self):
-        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
-            parse_primitive(Int, '42.0')
+        obs = parse_primitive(Int, '42.0')
+        self.assertEqual(obs, '42.0')
+        self.assertIsInstance(obs, str)
 
     def test_float_type_float_value(self):
         obs = parse_primitive(Float, '42.0')
@@ -42,8 +44,9 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, float)
 
     def test_bool_type_float_value(self):
-        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
-            parse_primitive(Bool, '42.0')
+        obs = parse_primitive(Bool, '42.0')
+        self.assertEqual(obs, '42.0')
+        self.assertIsInstance(obs, str)
 
     def test_str_type_float_value(self):
         obs = parse_primitive(Str, '42.0')
@@ -51,12 +54,14 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, str)
 
     def test_int_type_bool_value(self):
-        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
-            parse_primitive(Int, 'True')
+        obs = parse_primitive(Int, 'True')
+        self.assertEqual(obs, 'True')
+        self.assertIsInstance(obs, str)
 
     def test_float_type_bool_value(self):
-        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
-            parse_primitive(Float, 'True')
+        obs = parse_primitive(Float, 'True')
+        self.assertEqual(obs, 'True')
+        self.assertIsInstance(obs, str)
 
     def test_bool_type_bool_value(self):
         obs = parse_primitive(Bool, 'True')
@@ -69,16 +74,19 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, str)
 
     def test_int_type_str_value(self):
-        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
-            parse_primitive(Int, 'peanut')
+        obs = parse_primitive(Int, 'peanut')
+        self.assertEqual(obs, 'peanut')
+        self.assertIsInstance(obs, str)
 
     def test_float_type_str_value(self):
-        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
-            parse_primitive(Float, 'peanut')
+        obs = parse_primitive(Float, 'peanut')
+        self.assertEqual(obs, 'peanut')
+        self.assertIsInstance(obs, str)
 
     def test_bool_type_str_value(self):
-        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
-            parse_primitive(Bool, 'peanut')
+        obs = parse_primitive(Bool, 'peanut')
+        self.assertEqual(obs, 'peanut')
+        self.assertIsInstance(obs, str)
 
     def test_str_type_str_value(self):
         obs = parse_primitive(Str, 'peanut')
@@ -111,14 +119,16 @@ class TestParsePrimitiveNonCollectionsSimpleUnions(unittest.TestCase):
         self.assertIsInstance(obs, float)
 
     def test_int_union_float_expr_bool_value(self):
-        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
-            # Int | Float == Float
-            parse_primitive(Int | Float, 'True')
+        # Int | Float == Float
+        obs = parse_primitive(Int | Float, 'True')
+        self.assertEqual(obs, 'True')
+        self.assertIsInstance(obs, str)
 
     def test_int_union_float_expr_str_value(self):
-        with self.assertRaisesRegex(ValueError, 'Could not interrogate'):
-            # Int | Float == Float
-            parse_primitive(Int | Float, 'peanut')
+        # Int | Float == Float
+        obs = parse_primitive(Int | Float, 'peanut')
+        self.assertEqual(obs, 'peanut')
+        self.assertIsInstance(obs, str)
 
     def test_simple_unions_with_int_value(self):
         for expr in self.exprs:
@@ -221,64 +231,124 @@ class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
         self.assertIsInstance(obs[0], int)
 
     def test_list_int_or_bool_with_bool_value(self):
-        obs = parse_primitive(List[Int] | List[Bool], ('True', 'False', 'True'))
+        obs = parse_primitive(List[Int] | List[Bool],
+                              ('True', 'False', 'True'))
         self.assertEqual(obs, [True, False, True])
         self.assertIsInstance(obs, list)
         self.assertIsInstance(obs[0], bool)
 
     def test_set_int_or_bool_with_int_value(self):
-        pass
+        obs = parse_primitive(Set[Int] | Set[Bool], ('1', '2', '3'))
+        self.assertEqual(obs, {1, 2, 3})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), int)
 
     def test_set_int_or_bool_with_bool_value(self):
-        pass
+        obs = parse_primitive(Set[Int] | Set[Bool], ('True', 'False'))
+        self.assertEqual(obs, {True, False})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), bool)
 
     def test_list_int_or_str_with_int_value(self):
-        pass
+        obs = parse_primitive(List[Int] | List[Str], ('1', '2', '3'))
+        self.assertEqual(obs, [1, 2, 3])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], int)
 
     def test_list_int_or_str_with_str_value(self):
-        pass
+        obs = parse_primitive(List[Int] | List[Str], ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, ['peanut', 'the', 'dog'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], str)
 
     def test_set_int_or_str_with_int_value(self):
-        pass
+        obs = parse_primitive(Set[Int] | Set[Str], ('1', '2', '3'))
+        self.assertEqual(obs, {1, 2, 3})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), int)
 
     def test_set_int_or_str_with_str_value(self):
-        pass
+        obs = parse_primitive(Set[Int] | Set[Str], ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, {'peanut', 'the', 'dog'})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), str)
 
     def test_list_float_or_bool_with_float_value(self):
-        pass
+        obs = parse_primitive(List[Float] | List[Bool], ('1.1', '2.2', '3.3'))
+        self.assertEqual(obs, [1.1, 2.2, 3.3])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], float)
 
     def test_list_float_or_bool_with_bool_value(self):
-        pass
+        obs = parse_primitive(List[Float] | List[Bool],
+                              ('True', 'False', 'True'))
+        self.assertEqual(obs, [True, False, True])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], bool)
 
     def test_set_float_or_bool_with_float_value(self):
-        pass
+        obs = parse_primitive(Set[Float] | Set[Bool], ('1.1', '2.2', '3.3'))
+        self.assertEqual(obs, {1.1, 2.2, 3.3})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), float)
 
     def test_set_float_or_bool_with_bool_value(self):
-        pass
+        obs = parse_primitive(Set[Float] | Set[Bool],
+                              ('True', 'False', 'True'))
+        self.assertEqual(obs, {True, False})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), bool)
 
     def test_list_float_or_str_with_float_value(self):
-        pass
+        obs = parse_primitive(List[Float] | List[Str], ('1.1', '2.2', '3.3'))
+        self.assertEqual(obs, [1.1, 2.2, 3.3])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], float)
 
     def test_list_float_or_str_with_str_value(self):
-        pass
+        obs = parse_primitive(List[Float] | List[Str],
+                              ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, ['peanut', 'the', 'dog'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], str)
 
     def test_set_float_or_str_with_float_value(self):
-        pass
+        obs = parse_primitive(Set[Float] | Set[Str], ('1.1', '2.2', '3.3'))
+        self.assertEqual(obs, {1.1, 2.2, 3.3})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), float)
 
     def test_set_float_or_str_with_str_value(self):
-        pass
+        obs = parse_primitive(Set[Float] | Set[Str], ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, {'peanut', 'the', 'dog'})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), str)
 
     def test_list_bool_or_str_with_bool_value(self):
-        pass
+        obs = parse_primitive(List[Bool] | List[Str],
+                              ('True', 'False', 'True'))
+        self.assertEqual(obs, [True, False, True])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], bool)
 
     def test_list_bool_or_str_with_str_value(self):
-        pass
+        obs = parse_primitive(List[Bool] | List[Str], ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, ['peanut', 'the', 'dog'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], str)
 
     def test_set_bool_or_str_with_bool_value(self):
-        pass
+        obs = parse_primitive(Set[Bool] | Set[Str],
+                              ('True', 'False', 'True'))
+        self.assertEqual(obs, {True, False})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), bool)
 
     def test_set_bool_or_str_with_str_value(self):
-        pass
+        obs = parse_primitive(Set[Bool] | Set[Str], ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, {'peanut', 'the', 'dog'})
+        self.assertIsInstance(obs, set)
+        self.assertIsInstance(obs.pop(), str)
 
 
 class TestParsePrimitiveCollectionsXYZ(unittest.TestCase):
