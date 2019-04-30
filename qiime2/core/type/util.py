@@ -30,9 +30,10 @@ def _booler(v):
 
 
 _VARIADIC = {'List': list, 'Set': set}
+_VARIADIC2 = {list: List, set: Set}
 # Order matters here:
 _SEMANTIC_TO_PYTHON_TYPE_FUNC = {Int: int, Float: float, Bool: _booler, Str: str}
-_SEMANTIC_TO_PYTHON_TYPE =      {Int: int, Float: float, Bool: bool,    Str: str}
+_SEMANTIC_TO_PYTHON_TYPE = {Int: int, Float: float, Bool: bool,    Str: str}
 CollectionStyle = collections.namedtuple(
     'CollectionStyle', ['style', 'members', 'view', 'expr'])
 
@@ -164,14 +165,16 @@ def parse_primitive(t, value):
             allowed = _ordered_coercion(tuple(collection_style.members))
             homogeneous = False
         elif collection_style.style == 'complex':
-            for subexpr in collection_style.members:
-                # TODO: switch on collection type
-                # TODO: might need to do a length check
-                expr = List[UnionExp(subexpr)]
+            # Sort by smallest group of members first, go with the simplest
+            # explanation of values first
+            for subexpr in sorted(collection_style.members, key=len):
+                expr = _VARIADIC2[collection_style.view][UnionExp(subexpr)]
                 try:
                     return parse_primitive(expr, value)
                 except ValueError:
                     pass
+            # TODO: is it possible to hit this branch?
+            raise ValueError('Could not coerce value based on expression provided.')
         else:
             raise ValueError('yikes, what are you doing here?')
     else:

@@ -628,26 +628,55 @@ class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
 
 
 class TestParsePrimitiveCollectionsComplex(unittest.TestCase):
-    def test_list_int_float_bool(self):
+    def test_list_int_bool_or_list_float_with_bool_int_value(self):
         obs = parse_primitive(List[Int | Bool] | List[Float],
                               ('1', '2', 'True', 'False'))
         self.assertEqual(obs, [1, 2, True, False])
 
+    def test_list_int_bool_or_list_float_with_float_value(self):
         obs = parse_primitive(List[Int | Bool] | List[Float],
                               ('1.1', '2.2', '3.3', '4.4'))
         self.assertEqual(obs, [1.1, 2.2, 3.3, 4.4])
 
+    def test_list_int_bool_or_list_float_with_bad_value(self):
         with self.assertRaisesRegex(ValueError, 'Could not coerce'):
             parse_primitive(List[Int | Bool] | List[Float],
                             ('1', '2.2', 'True', 'False'))
 
-    #######################################
+    def test_list_int_str_or_list_float_with_str_int_value(self):
+        obs = parse_primitive(List[Int | Str] | List[Float],
+                              ('1', '2', 'peanut', 'the'))
+        self.assertEqual(obs, [1, 2, 'peanut', 'the'])
 
-    def test_complex_int_float_str(self):
-        pass
+    def test_list_int_str_or_list_float_with_float_value(self):
+        obs = parse_primitive(List[Int | Str] | List[Float],
+                              ('1.1', '2.2', '3.3', '4.4'))
+        self.assertEqual(obs, [1.1, 2.2, 3.3, 4.4])
 
-    def test_complex_float_bool_str(self):
-        pass
+    def test_list_int_str_or_list_float_with_mixed_value(self):
+        obs = parse_primitive(List[Int | Str] | List[Float],
+                              ('1.1', '2', 'True', 'peanut'))
+        self.assertEqual(obs, ['1.1', 2, 'True', 'peanut'])
+
+    def test_list_float_bool_or_list_str_with_float_bool_value(self):
+        obs = parse_primitive(List[Float | Bool] | List[Int],
+                              ('1', '2', 'True', 'False'))
+        self.assertEqual(obs, [1, 2, True, False])
+
+    def test_list_float_bool_or_list_str_with_int_value(self):
+        obs = parse_primitive(List[Float | Bool] | List[Int],
+                              ('1', '2', '3', '4'))
+        self.assertEqual(obs, [1, 2, 3, 4])
+
+    def test_list_float_bool_or_list_str_with_bad_value(self):
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Float | Bool] | List[Int],
+                            ('1', '2.2', 'True', 'peanut'))
+
+    def test_set_int_bool_or_list_float_with_bool_int_value(self):
+        obs = parse_primitive(Set[Int | Bool] | Set[Float],
+                              ('1', '2', 'True', 'False'))
+        self.assertEqual(obs, {1, 2, True, False})
 
 
 class TestParsePrimitiveCollectionsNonStringInputs(unittest.TestCase):
