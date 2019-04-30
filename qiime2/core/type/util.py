@@ -165,6 +165,7 @@ def parse_primitive(t, value):
         # No sense in walking over all options when we know what it should be
         allowed = tuplize(expr)
         value = tuplize(value)
+    # TODO: falls through to Nones of everything if not a collection, refactor
     elif is_collection_type(expr):
         collection_style = interrogate_collection_type(expr)
 

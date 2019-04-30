@@ -109,10 +109,6 @@ class TestParsePrimitiveNonCollectionNonStringInputs(unittest.TestCase):
 
     def test_int_type_bool_value(self):
         with self.assertRaisesRegex(ValueError, 'Could not coerce'):
-            parse_primitive(Int, 'True')
-
-    def test_int_type_bool_value(self):
-        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
             parse_primitive(Int, True)
 
 
@@ -294,7 +290,12 @@ class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
             parse_primitive(List[Int] | List[Bool], ('True', '2', '3'))
 
     def test_list_int_or_bool_with_mixed_value_variant_b(self):
-        pass
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Int] | List[Bool], ('1', '2', 'True'))
+
+    def test_list_int_or_bool_with_mixed_value_variant_c(self):
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Int] | List[Bool], ('False', '2', 'True'))
 
     def test_set_int_or_bool_with_int_value(self):
         obs = parse_primitive(Set[Int] | Set[Bool], ('1', '2', '3'))
@@ -360,10 +361,14 @@ class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
         self.assertIsInstance(obs[0], bool)
 
     def test_list_float_or_bool_with_mixed_value_variant_a(self):
-        pass
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Float] | List[Bool],
+                            ('1.1', 'False', 'True'))
 
     def test_list_float_or_bool_with_mixed_value_variant_b(self):
-        pass
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Float] | List[Bool],
+                            ('True', 'False', '3.3'))
 
     def test_set_float_or_bool_with_float_value(self):
         obs = parse_primitive(Set[Float] | Set[Bool], ('1.1', '2.2', '3.3'))
@@ -392,10 +397,18 @@ class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
         self.assertIsInstance(obs[0], str)
 
     def test_list_float_or_str_with_mixed_value_variant_a(self):
-        pass
+        obs = parse_primitive(List[Float] | List[Str],
+                              ('1.1', 'the', 'dog'))
+        self.assertEqual(obs, ['1.1', 'the', 'dog'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], str)
 
     def test_list_float_or_str_with_mixed_value_variant_b(self):
-        pass
+        obs = parse_primitive(List[Float] | List[Str],
+                              ('peanut', 'the', '3.3'))
+        self.assertEqual(obs, ['peanut', 'the', '3.3'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[-1], str)
 
     def test_set_float_or_str_with_float_value(self):
         obs = parse_primitive(Set[Float] | Set[Str], ('1.1', '2.2', '3.3'))
@@ -423,10 +436,17 @@ class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
         self.assertIsInstance(obs[0], str)
 
     def test_list_bool_or_str_with_mixed_value_variant_a(self):
-        pass
+        obs = parse_primitive(List[Bool] | List[Str], ('True', 'the', 'dog'))
+        self.assertEqual(obs, ['True', 'the', 'dog'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], str)
 
     def test_list_bool_or_str_with_mixed_value_variant_b(self):
-        pass
+        obs = parse_primitive(List[Bool] | List[Str],
+                              ('peanut', 'the', 'True'))
+        self.assertEqual(obs, ['peanut', 'the', 'True'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[-1], str)
 
     def test_set_bool_or_str_with_bool_value(self):
         obs = parse_primitive(Set[Bool] | Set[Str],
@@ -441,10 +461,13 @@ class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
         self.assertIsInstance(obs, set)
         self.assertIsInstance(obs.pop(), str)
 
-    # TODO: test this branch
-    # def test_list_bool_or_str_with_mixed_value(self):
-    #     with self.assertRaisesRegex(ValueError, 'not all matching'):
-    #         parse_primitive(List[Bool] | List[Str], ('peanut', 'the', 'True'))
+    def test_list_bool_or_str_with_mixed_value(self):
+        obs = parse_primitive(List[Bool] | List[Str],
+                              ('peanut', 'the', 'True'))
+        self.assertEqual(obs, ['peanut', 'the', 'True'])
+        self.assertIsInstance(obs, list)
+        self.assertIsInstance(obs[0], str)
+        self.assertIsInstance(obs[-1], str)
 
 
 class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
@@ -469,17 +492,19 @@ class TestParsePrimitiveCollectionsComposite(unittest.TestCase):
             parse_primitive(List[Int | Bool], ('peanut', 'the', 'dog'))
 
     def test_list_int_or_bool_with_mixed_value(self):
-        obs = parse_primitive(List[Int | Bool], ('1', 'False', 2, 'True'))
+        obs = parse_primitive(List[Int | Bool], ('1', 'False', '2', 'True'))
         self.assertEqual(obs, [1, False, 2, True])
         self.assertIsInstance(obs, list)
         self.assertIsInstance(obs[0], int)
         self.assertIsInstance(obs[1], bool)
 
     def test_list_int_or_bool_with_mixed_value_variant_a(self):
-        pass
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Int | Bool], ('peanut', 'False', '2', 'True'))
 
     def test_list_int_or_bool_with_mixed_value_variant_b(self):
-        pass
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Int | Bool], ('1', 'False', '2', 'peanut'))
 
     def test_list_int_or_bool_with_bad_mix_value(self):
         with self.assertRaisesRegex(ValueError, 'Could not coerce'):
