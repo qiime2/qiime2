@@ -9,10 +9,20 @@
 import unittest
 
 from qiime2.core.type import (
-    parse_primitive, Int, Float, Bool, Str, List, Set)
+    parse_primitive, Int, Float, Bool, Str, List, Set, Metadata,
+    MetadataColumn)
 
 
 class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
+    def test_metadata_expr(self):
+        with self.assertRaisesRegex(ValueError, 'Metadata may not be parsed'):
+            parse_primitive(Metadata, '42')
+
+    def test_metadata_column_expr(self):
+        with self.assertRaisesRegex(ValueError,
+                                    'MetadataColumn.* may not be parsed'):
+            parse_primitive(MetadataColumn, '42')
+
     def test_int_type_int_value(self):
         obs = parse_primitive(Int, '42')
         self.assertEqual(obs, 42)
@@ -716,6 +726,26 @@ class TestParsePrimitiveCollectionsComplex(unittest.TestCase):
         obs = parse_primitive(List[Int | Str] | List[Float],
                               ('1.1', '2.2', '3.3', '4.4'))
         self.assertEqual(obs, [1.1, 2.2, 3.3, 4.4])
+
+    def test_list_int_str_or_list_float_str_with_float_value(self):
+        obs = parse_primitive(List[Int | Str] | List[Float | Str],
+                              ('1.1', '2.2', '3.3', '4.4'))
+        self.assertEqual(obs, [1.1, 2.2, 3.3, 4.4])
+
+    def test_list_int_str_or_list_float_str_bool_with_float_value(self):
+        obs = parse_primitive(List[Int | Str] | List[Float | Str | Bool],
+                              ('1.1', '2.2', '3.3', '4.4'))
+        self.assertEqual(obs, [1.1, 2.2, 3.3, 4.4])
+
+    def test_list_int_str_or_list_float_str_bool_with_float_str_value(self):
+        obs = parse_primitive(List[Int | Str] | List[Float | Str | Bool],
+                              ('1.1', '2.2', 'the', 'peanut'))
+        self.assertEqual(obs, [1.1, 2.2, 'the', 'peanut'])
+
+    def test_list_int_str_or_list_float_str_bool_with_float_bool_value(self):
+        obs = parse_primitive(List[Int | Str] | List[Float | Str | Bool],
+                              ('1.1', '2.2', 'True', 'False'))
+        self.assertEqual(obs, [1.1, 2.2, True, False])
 
     def test_list_int_str_or_list_float_with_mixed_value(self):
         obs = parse_primitive(List[Int | Str] | List[Float],

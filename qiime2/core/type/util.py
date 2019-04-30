@@ -15,31 +15,21 @@ from qiime2.core.type.grammar import UnionExp, _ExpBase
 from qiime2.core.type.parse import ast_to_type
 
 
-# TODO: naming
-# TODO: testing
-def _booler(v):
-    '''
-    This is a psuedo-type --- we don't want Python's usual str->bool
-    coercion business, just simple string matching (I think)
-    '''
-    if isinstance(v, bool):
-        return v
-    # TODO: make case insensitive
-    elif v == 'True':
+def val_to_bool(value):
+    if type(value) == bool:
+        return value
+    elif str(value).lower() == 'true':
         return True
-    elif v == 'False':
+    elif str(value).lower() == 'false':
         return False
     else:
-        # TODO: msg
-        raise ValueError('nuh uh uh, you didnt say the magic word')
+        raise ValueError('Could not cast to bool')
 
 
-# TODO: naming
-# TODO: testing
-def _inter(v):
-    if isinstance(v, bool):
-        raise ValueError('uh no')
-    elif isinstance(v, int):
+def val_to_int(v):
+    if type(v) == bool:
+        raise ValueError('Could not cast to int')
+    elif type(v) == int:
         return v
     else:
         return int(v)
@@ -54,9 +44,9 @@ _VARIADIC = {
 CoercionRecord = collections.namedtuple('CoercionRecord', ['func', 'pytype'])
 # Beware visitor, order matters in this here mapper
 _COERCION_MAPPER = {
-    Int: CoercionRecord(pytype=int, func=_inter),
+    Int: CoercionRecord(pytype=int, func=val_to_int),
     Float: CoercionRecord(pytype=float, func=float),
-    Bool: CoercionRecord(pytype=bool, func=_booler),
+    Bool: CoercionRecord(pytype=bool, func=val_to_bool),
     Str: CoercionRecord(pytype=str, func=str),
 }
 _COERCE_ERROR = ValueError(
@@ -178,30 +168,21 @@ def parse_primitive(t, value):
     homogeneous = True
 
     if is_metadata_type(expr):
-        # TODO: message
-        # TODO: test
-        raise ValueError('what on earth were you thinking??')
+        raise ValueError('%r may not be parsed with this util.' % (expr,))
 
-    # TODO: is there a base case that makes more sense here?
-    if collection_style.style == 'simple':
+    if collection_style.style in ('simple', 'monomorphic', 'composite'):
         allowed = collection_style.members
-    elif collection_style.style == 'monomorphic':
-        allowed = collection_style.members
-    elif collection_style.style == 'composite':
-        allowed = collection_style.members
+
+    if collection_style.style == 'composite':
         homogeneous = False
     elif collection_style.style == 'complex':
-        # TODO: revisit this...
-        # Sort by smallest group of members first, go with the "simplest"
-        # explanation of values first
+        # Sort here so that we can start with any simple lists in the memberset
         for subexpr in sorted(collection_style.members, key=len):
             expr = collection_style.base[UnionExp(subexpr)]
             try:
                 return parse_primitive(expr, value)
             except ValueError:
-                # TODO: is it possible to hit this branch?
                 pass
-        # TODO: is it possible to hit this branch?
         raise _COERCE_ERROR
     elif collection_style.style is None:
         value = tuplize(value)
@@ -211,14 +192,13 @@ def parse_primitive(t, value):
             allowed = expr
         else:
             allowed = _COERCION_MAPPER.keys()
+    else:
+        pass
 
     assert allowed is not None
 
     for v in value:
         result.append(_interrogate_types(allowed, v))
-
-    if not result:
-        raise ValueError('bar')
 
     # Some exprs require homogeneous values, make it so
     if homogeneous:
@@ -228,19 +208,14 @@ def parse_primitive(t, value):
                    for x in result):
                 all_matching = True
                 break
-        if not all_matching:
-            if collection_style and collection_style.style == 'monomorphic':
-                for subexpr in allowed:
-                    expr = collection_style.base[subexpr]
-                    try:
-                        return parse_primitive(expr, value)
-                    except ValueError:
-                        # TODO: is it possible to hit this branch?
-                        pass
-                raise _COERCE_ERROR
-            else:
-                # TODO: is it possible to hit this branch?
-                raise ValueError('not all matching')
+        if not all_matching and collection_style.style == 'monomorphic':
+            for subexpr in allowed:
+                expr = collection_style.base[subexpr]
+                try:
+                    return parse_primitive(expr, value)
+                except ValueError:
+                    pass
+            raise _COERCE_ERROR
 
     if collection_style.view is None:
         return result[0]
