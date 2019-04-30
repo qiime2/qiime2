@@ -86,6 +86,36 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, str)
 
 
+class TestParsePrimitiveNonCollectionNonStringInputs(unittest.TestCase):
+    def test_int_type_int_value(self):
+        obs = parse_primitive(Int, 1)
+        self.assertEqual(obs, 1)
+        self.assertIsInstance(obs, int)
+
+    def test_float_type_float_value(self):
+        obs = parse_primitive(Float, 3.3)
+        self.assertEqual(obs, 3.3)
+        self.assertIsInstance(obs, float)
+
+    def test_bool_type_bool_value(self):
+        obs = parse_primitive(Bool, True)
+        self.assertEqual(obs, True)
+        self.assertIsInstance(obs, bool)
+
+    def test_str_type_str_value(self):
+        obs = parse_primitive(Str, 'peanut')
+        self.assertEqual(obs, 'peanut')
+        self.assertIsInstance(obs, str)
+
+    def test_int_type_bool_value(self):
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Int, 'True')
+
+    def test_int_type_bool_value(self):
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(Int, True)
+
+
 class TestParsePrimitiveNonCollectionsSimpleUnions(unittest.TestCase):
     def setUp(self):
         super().setUp()
@@ -155,6 +185,14 @@ class TestParsePrimitiveCollectionsSimple(unittest.TestCase):
         self.assertEqual(obs, [1, 2, 3])
         self.assertIsInstance(obs, list)
         self.assertIsInstance(obs[0], int)
+
+    def test_list_of_int_bad_value_variant_a(self):
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Int], ('True', '2', '3'))
+
+    def test_list_of_int_bad_value_variant_b(self):
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Int], ('1', '2', 'False'))
 
     def test_set_of_int(self):
         obs = parse_primitive(Set[Int], ('1', '2', '3'))
@@ -252,7 +290,8 @@ class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
         self.assertIsInstance(obs[0], bool)
 
     def test_list_int_or_bool_with_mixed_value_variant_a(self):
-        pass
+        with self.assertRaisesRegex(ValueError, 'Could not coerce'):
+            parse_primitive(List[Int] | List[Bool], ('True', '2', '3'))
 
     def test_list_int_or_bool_with_mixed_value_variant_b(self):
         pass
@@ -677,10 +716,6 @@ class TestParsePrimitiveCollectionsComplex(unittest.TestCase):
         obs = parse_primitive(Set[Int | Bool] | Set[Float],
                               ('1', '2', 'True', 'False'))
         self.assertEqual(obs, {1, 2, True, False})
-
-
-class TestParsePrimitiveCollectionsNonStringInputs(unittest.TestCase):
-    pass
 
 
 if __name__ == '__main__':

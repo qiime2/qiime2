@@ -20,8 +20,10 @@ def _booler(v):
     This is a psuedo-type --- we don't want Python's usual str->bool
     coercion business, just simple string matching (I think)
     '''
+    if isinstance(v, bool):
+        return v
     # TODO: make case insensitive
-    if v == 'True':
+    elif v == 'True':
         return True
     elif v == 'False':
         return False
@@ -29,10 +31,19 @@ def _booler(v):
         raise ValueError('nuh uh uh, you didnt say the magic word')
 
 
+def _inter(v):
+    if isinstance(v, bool):
+        raise ValueError('uh no')
+    elif isinstance(v, int):
+        return v
+    else:
+        return int(v)
+
+
 _VARIADIC = {'List': list, 'Set': set}
 _VARIADIC2 = {list: List, set: Set}
 # Order matters here:
-_SEMANTIC_TO_PYTHON_TYPE_FUNC = {Int: int, Float: float, Bool: _booler, Str: str}
+_SEMANTIC_TO_PYTHON_TYPE_FUNC = {Int: _inter, Float: float, Bool: _booler, Str: str}
 _SEMANTIC_TO_PYTHON_TYPE = {Int: int, Float: float, Bool: bool,    Str: str}
 CollectionStyle = collections.namedtuple(
     'CollectionStyle', ['style', 'members', 'view', 'expr'])
@@ -192,19 +203,20 @@ def parse_primitive(t, value):
     if homogeneous:
         all_matching = False
         for member in allowed:
-            if all(isinstance(x, _SEMANTIC_TO_PYTHON_TYPE[member])
+            if all(type(x) == _SEMANTIC_TO_PYTHON_TYPE[member]
                    for x in result):
                 all_matching = True
+                break
         if not all_matching:
-            allowed_ = tuple(map(lambda x: _SEMANTIC_TO_PYTHON_TYPE[x],
-                                 allowed))
             # Should simple collections be included here, too?
-            if collection_style \
-                    and collection_style.style == 'monomorphic' \
-                    and all(isinstance(x, allowed_) for x in result):
-                # last allowed is the least common denominator for all vals
-                # TODO: probably should _interrogate_types again...
-                result = map(allowed_[-1], result)
+            if collection_style and collection_style.style == 'monomorphic':
+                for subexpr in allowed:
+                    expr = _VARIADIC2[collection_style.view][subexpr]
+                    try:
+                        return parse_primitive(expr, value)
+                    except ValueError:
+                        pass
+                raise ValueError('Could not coerce value based on expression provided.')
             else:
                 # TODO: is it even possible to hit this branch?
                 raise ValueError('not all matching')
