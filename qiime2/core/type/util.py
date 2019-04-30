@@ -15,6 +15,8 @@ from qiime2.core.type.grammar import UnionExp, _ExpBase
 from qiime2.core.type.parse import ast_to_type
 
 
+# TODO: naming
+# TODO: testing
 def _booler(v):
     '''
     This is a psuedo-type --- we don't want Python's usual str->bool
@@ -28,9 +30,12 @@ def _booler(v):
     elif v == 'False':
         return False
     else:
+        # TODO: msg
         raise ValueError('nuh uh uh, you didnt say the magic word')
 
 
+# TODO: naming
+# TODO: testing
 def _inter(v):
     if isinstance(v, bool):
         raise ValueError('uh no')
@@ -40,15 +45,25 @@ def _inter(v):
         return int(v)
 
 
-_VARIADIC = {'List': list, 'Set': set}
-_VARIADIC2 = {list: List, set: Set}
-# Order matters here:
-_SEMANTIC_TO_PYTHON_TYPE_FUNC = {Int: _inter, Float: float, Bool: _booler, Str: str}
-_SEMANTIC_TO_PYTHON_TYPE = {Int: int, Float: float, Bool: bool,    Str: str}
+VariadicRecord = collections.namedtuple('VariadicRecord', ['pytype', 'q2type'])
+_VARIADIC = {
+    'List': VariadicRecord(pytype=list, q2type=List),
+    'Set': VariadicRecord(pytype=set, q2type=Set),
+}
+
+CoercionRecord = collections.namedtuple('CoercionRecord', ['func', 'pytype'])
+# Beware visitor, order matters in this here mapper
+_COERCION_MAPPER = {
+    Int: CoercionRecord(pytype=int, func=_inter),
+    Float: CoercionRecord(pytype=float, func=float),
+    Bool: CoercionRecord(pytype=bool, func=_booler),
+    Str: CoercionRecord(pytype=str, func=str),
+}
 _COERCE_ERROR = ValueError(
     'Could not coerce value based on expression provided.')
+
 CollectionStyle = collections.namedtuple(
-    'CollectionStyle', ['style', 'members', 'view', 'expr'])
+    'CollectionStyle', ['style', 'members', 'view', 'expr', 'base'])
 
 
 def _norm_input(t):
@@ -107,9 +122,10 @@ def interrogate_collection_type(t):
     style = None    # simple, monomorphic, composite, complex
     members = None  # T     , [T1, T2]   , [T1, T2],  [[T1], [T2, T3]]
     view = None  # set, list
+    base = None
 
     if expr.name in _VARIADIC:
-        view = _VARIADIC[expr.name]
+        view, base = _VARIADIC[expr.name]
         field, = expr.fields
         if isinstance(field, UnionExp):
             style = 'composite'
@@ -131,20 +147,22 @@ def interrogate_collection_type(t):
                         style = 'monomorphic'
 
             # use last iteration
-            view = _VARIADIC[member.name]
+            view, base = _VARIADIC[member.name]
             if style == 'monomorphic':
                 members = [m[0] for m in members]
 
-    return CollectionStyle(style=style, members=members, view=view, expr=expr)
+    return CollectionStyle(style=style, members=members, view=view,
+                           expr=expr, base=base)
 
 
 def _ordered_coercion(types):
-    types = tuplize(types)
-    return tuple(k for k in _SEMANTIC_TO_PYTHON_TYPE.keys() if k in types)
+    types = tuple(types)
+    return tuple(k for k in _COERCION_MAPPER.keys() if k in types)
 
 
 def _interrogate_types(allowed, value):
-    for coerce_type in (_SEMANTIC_TO_PYTHON_TYPE_FUNC[x] for x in allowed):
+    ordered_allowed = _ordered_coercion(allowed)
+    for coerce_type in (_COERCION_MAPPER[x].func for x in ordered_allowed):
         try:
             return coerce_type(value)
         except ValueError:
@@ -152,29 +170,32 @@ def _interrogate_types(allowed, value):
     raise _COERCE_ERROR
 
 
-# Value might be a boolean
 def parse_primitive(t, value):
     expr = _norm_input(t)
     collection_style = interrogate_collection_type(expr)
     result = []
-    allowed = tuple()
+    allowed = None
     homogeneous = True
 
     if is_metadata_type(expr):
+        # TODO: message
+        # TODO: test
         raise ValueError('what on earth were you thinking??')
 
+    # TODO: is there a base case that makes more sense here?
     if collection_style.style == 'simple':
-        allowed = _ordered_coercion(collection_style.members)
+        allowed = collection_style.members
     elif collection_style.style == 'monomorphic':
-        allowed = _ordered_coercion(tuple(collection_style.members))
+        allowed = collection_style.members
     elif collection_style.style == 'composite':
-        allowed = _ordered_coercion(tuple(collection_style.members))
+        allowed = collection_style.members
         homogeneous = False
     elif collection_style.style == 'complex':
-        # Sort by smallest group of members first, go with the simplest
+        # TODO: revisit this...
+        # Sort by smallest group of members first, go with the "simplest"
         # explanation of values first
         for subexpr in sorted(collection_style.members, key=len):
-            expr = _VARIADIC2[collection_style.view][UnionExp(subexpr)]
+            expr = collection_style.base[UnionExp(subexpr)]
             try:
                 return parse_primitive(expr, value)
             except ValueError:
@@ -187,11 +208,11 @@ def parse_primitive(t, value):
         if expr in (Int, Float, Bool, Str):
             # No sense in walking over all options when we know
             # what it should be
-            allowed = tuplize(expr)
+            allowed = expr
         else:
-            allowed = _ordered_coercion(tuple(_SEMANTIC_TO_PYTHON_TYPE.keys()))
+            allowed = _COERCION_MAPPER.keys()
 
-    assert allowed
+    assert allowed is not None
 
     for v in value:
         result.append(_interrogate_types(allowed, v))
@@ -203,15 +224,14 @@ def parse_primitive(t, value):
     if homogeneous:
         all_matching = False
         for member in allowed:
-            if all(type(x) == _SEMANTIC_TO_PYTHON_TYPE[member]
+            if all(type(x) == _COERCION_MAPPER[member].pytype
                    for x in result):
                 all_matching = True
                 break
         if not all_matching:
-            # Should simple collections be included here, too?
             if collection_style and collection_style.style == 'monomorphic':
                 for subexpr in allowed:
-                    expr = _VARIADIC2[collection_style.view][subexpr]
+                    expr = collection_style.base[subexpr]
                     try:
                         return parse_primitive(expr, value)
                     except ValueError:
