@@ -45,6 +45,8 @@ _VARIADIC2 = {list: List, set: Set}
 # Order matters here:
 _SEMANTIC_TO_PYTHON_TYPE_FUNC = {Int: _inter, Float: float, Bool: _booler, Str: str}
 _SEMANTIC_TO_PYTHON_TYPE = {Int: int, Float: float, Bool: bool,    Str: str}
+_COERCE_ERROR = ValueError(
+    'Could not coerce value based on expression provided.')
 CollectionStyle = collections.namedtuple(
     'CollectionStyle', ['style', 'members', 'view', 'expr'])
 
@@ -147,51 +149,49 @@ def _interrogate_types(allowed, value):
             return coerce_type(value)
         except ValueError:
             pass
-    raise ValueError('Could not coerce value based on expression provided.')
+    raise _COERCE_ERROR
 
 
 # Value might be a boolean
 def parse_primitive(t, value):
     expr = _norm_input(t)
+    collection_style = interrogate_collection_type(expr)
     result = []
-    collection_style = None
     allowed = tuple()
     homogeneous = True
 
     if is_metadata_type(expr):
         raise ValueError('what on earth were you thinking??')
 
-    if expr in (Int, Float, Bool, Str):
-        # No sense in walking over all options when we know what it should be
-        allowed = tuplize(expr)
+    if collection_style.style == 'simple':
+        allowed = _ordered_coercion(collection_style.members)
+    elif collection_style.style == 'monomorphic':
+        allowed = _ordered_coercion(tuple(collection_style.members))
+    elif collection_style.style == 'composite':
+        allowed = _ordered_coercion(tuple(collection_style.members))
+        homogeneous = False
+    elif collection_style.style == 'complex':
+        # Sort by smallest group of members first, go with the simplest
+        # explanation of values first
+        for subexpr in sorted(collection_style.members, key=len):
+            expr = _VARIADIC2[collection_style.view][UnionExp(subexpr)]
+            try:
+                return parse_primitive(expr, value)
+            except ValueError:
+                # TODO: is it possible to hit this branch?
+                pass
+        # TODO: is it possible to hit this branch?
+        raise _COERCE_ERROR
+    elif collection_style.style is None:
         value = tuplize(value)
-    # TODO: falls through to Nones of everything if not a collection, refactor
-    elif is_collection_type(expr):
-        collection_style = interrogate_collection_type(expr)
-
-        if collection_style.style == 'simple':
-            allowed = _ordered_coercion(collection_style.members)
-        elif collection_style.style == 'monomorphic':
-            allowed = _ordered_coercion(tuple(collection_style.members))
-        elif collection_style.style == 'composite':
-            allowed = _ordered_coercion(tuple(collection_style.members))
-            homogeneous = False
-        elif collection_style.style == 'complex':
-            # Sort by smallest group of members first, go with the simplest
-            # explanation of values first
-            for subexpr in sorted(collection_style.members, key=len):
-                expr = _VARIADIC2[collection_style.view][UnionExp(subexpr)]
-                try:
-                    return parse_primitive(expr, value)
-                except ValueError:
-                    pass
-            # TODO: is it possible to hit this branch?
-            raise ValueError('Could not coerce value based on expression provided.')
+        if expr in (Int, Float, Bool, Str):
+            # No sense in walking over all options when we know
+            # what it should be
+            allowed = tuplize(expr)
         else:
-            raise ValueError('yikes, what are you doing here?')
-    else:
-        allowed = _ordered_coercion(tuple(_SEMANTIC_TO_PYTHON_TYPE.keys()))
-        value = tuplize(value)
+            allowed = _ordered_coercion(tuple(_SEMANTIC_TO_PYTHON_TYPE.keys()))
+
+    assert allowed
 
     for v in value:
         result.append(_interrogate_types(allowed, v))
@@ -199,8 +199,7 @@ def parse_primitive(t, value):
     if not result:
         raise ValueError('bar')
 
-    # Post-coerce validation --- some collection exprs require
-    # homogeneous values
+    # Some exprs require homogeneous values, make it so
     if homogeneous:
         all_matching = False
         for member in allowed:
@@ -216,14 +215,14 @@ def parse_primitive(t, value):
                     try:
                         return parse_primitive(expr, value)
                     except ValueError:
+                        # TODO: is it possible to hit this branch?
                         pass
-                raise ValueError('Could not coerce value based on expression provided.')
+                raise _COERCE_ERROR
             else:
-                # TODO: is it even possible to hit this branch?
+                # TODO: is it possible to hit this branch?
                 raise ValueError('not all matching')
 
-    if collection_style:
-        return collection_style.view(result)
-    else:
+    if collection_style.view is None:
         return result[0]
-    return result
+    else:
+        return collection_style.view(result)
