@@ -172,7 +172,6 @@ def _interrogate_types(allowed, value):
 
 def parse_primitive(t, value):
     expr = _norm_input(t)
-    collection_style = interrogate_collection_type(expr)
     result = []
     allowed = None
     homogeneous = True
@@ -181,6 +180,8 @@ def parse_primitive(t, value):
         raise ValueError('%r may not be parsed with this util.' % (expr,))
 
     expr = _strip_predicates(expr)
+    collection_style = interrogate_collection_type(expr)
+
     if collection_style.style in ('simple', 'monomorphic', 'composite'):
         allowed = collection_style.members
 
