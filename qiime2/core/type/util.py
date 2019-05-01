@@ -11,12 +11,22 @@ import collections
 from qiime2.core.util import tuplize
 from qiime2.core.type.collection import List, Set
 from qiime2.core.type.primitive import Int, Float, Bool, Str
-from qiime2.core.type.grammar import UnionExp, _ExpBase
+from qiime2.core.type.grammar import UnionExp, _ExpBase, IntersectionExp
 from qiime2.core.type.parse import ast_to_type
 
 
+def _strip_predicates(expr):
+    if isinstance(expr, UnionExp):
+        return UnionExp(_strip_predicates(m) for m in expr.members)
+
+    if hasattr(expr, 'fields'):
+        new_fields = tuple(_strip_predicates(f) for f in expr.fields)
+
+    return expr.duplicate(fields=new_fields, predicate=IntersectionExp())
+
+
 def val_to_bool(value):
-    if type(value) == bool:
+    if type(value) is bool:
         return value
     elif str(value).lower() == 'true':
         return True
@@ -27,12 +37,12 @@ def val_to_bool(value):
 
 
 def val_to_int(v):
-    if type(v) == bool:
-        raise ValueError('Could not cast to int')
-    elif type(v) == int:
+    if type(v) is int:
         return v
-    else:
+    elif type(v) is str:
         return int(v)
+    else:
+        raise ValueError('Could not cast to int')
 
 
 VariadicRecord = collections.namedtuple('VariadicRecord', ['pytype', 'q2type'])
@@ -170,6 +180,7 @@ def parse_primitive(t, value):
     if is_metadata_type(expr):
         raise ValueError('%r may not be parsed with this util.' % (expr,))
 
+    expr = _strip_predicates(expr)
     if collection_style.style in ('simple', 'monomorphic', 'composite'):
         allowed = collection_style.members
 
