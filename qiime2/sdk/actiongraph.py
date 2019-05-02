@@ -177,7 +177,7 @@ def build_graph(action_list=[], opt=False):
                 dict_[k] = action_node
 
                 if not G.has_node(str(dict_)):
-                    G.add_node(str(dict_), value=action)
+                    G.add_node(str(dict_), value=action, node='action')
 
                 if k == 'inputs':
                     for in_k, in_v in v.items():
@@ -189,11 +189,13 @@ def build_graph(action_list=[], opt=False):
                             G[name][str(dict_)]['name'] = in_k[1:]
                             G.node[name]['type'] = in_v
                             G.node[name]['optional'] = True
+                            G.node[name]['node'] = 'type'
                         else:
                             G.add_edge(in_v, str(dict_))
                             G[in_v][str(dict_)]['name'] = in_k
                             G.node[in_v]['type'] = in_v
                             G.node[in_v]['optional'] = False
+                            G.node[in_v]['node'] = 'type'
                 else:
                     for out_k, out_v in v.items():
                         if not out_v:
@@ -204,9 +206,11 @@ def build_graph(action_list=[], opt=False):
                             G[str(dict_)][name]['name'] = out_k[1:]
                             G.node[name]['type'] = in_v
                             G.node[name]['optional'] = True
+                            G.node[name]['node'] = 'type'
                         else:
                             G.add_edge(str(dict_), out_v)
                             G[str(dict_)][out_v]['name'] = out_k
                             G.node[out_v]['type'] = out_v
-                            G.node[out_v]['optional'] = True
+                            G.node[out_v]['optional'] = False
+                            G.node[out_v]['node'] = 'type'
     return G
