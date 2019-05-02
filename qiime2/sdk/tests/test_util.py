@@ -45,9 +45,6 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(obs[0][0], exp[0][0])
         self.assertCountEqual(obs[0][1], exp[0][1])
 
-        with self.assertRaises(qiime2.sdk.util.UnknownTypeError):
-            qiime2.sdk.util.actions_by_input_type('ShouldBeEmpty')
-
 
 if __name__ == '__main__':
     unittest.main()

@@ -10,8 +10,9 @@ import types
 import collections
 import itertools
 
-from . import grammar
-from qiime2.core.util import overrides
+from qiime2.core.type.grammar import IncompleteExp, UnionExp, IntersectionExp
+from qiime2.core.type.template import TypeTemplate, PredicateTemplate
+from qiime2.core.type.util import is_semantic_type, is_qiime_type
 
 _RESERVED_NAMES = {
     # Predicates:
@@ -23,6 +24,7 @@ _RESERVED_NAMES = {
     'numericmetacol', 'metadatacategory', 'float', 'double', 'number', 'set',
     'list', 'bag', 'multiset', 'map', 'dict', 'nominal', 'ordinal',
     'categorical', 'numeric', 'interval', 'ratio', 'continuous', 'discrete',
+    'tuple', 'row', 'record',
     # Type System:
     'semantictype', 'propertymap', 'propertiesmap', 'typemap', 'typevariable',
     'predicate'
@@ -67,14 +69,10 @@ def SemanticType(name, field_names=None, field_members=None, variant_of=None):
     """
     _validate_name(name)
     variant_of = _munge_variant_of(variant_of)
+    field_names = _munge_field_names(field_names)
+    field_members = _munge_field_members(field_names, field_members)
 
-    if field_names is not None or field_members is not None:
-        field_names = _munge_field_names(field_names)
-        field_members = _munge_field_members(field_names, field_members)
-
-        return _IncompleteSemanticType(name, field_names, field_members,
-                                       variant_of)
-    return _SemanticType(name, variant_of)
+    return SemanticTemplate(name, field_names, field_members, variant_of)
 
 
 def _munge_variant_of(variant_of):
@@ -93,21 +91,27 @@ def _munge_variant_of(variant_of):
 
 
 def _munge_field_names(field_names):
+    if field_names is None:
+        return ()
+
     if type(field_names) is str:
-        field_names = (field_names,)
-    else:
-        field_names = tuple(field_names)
-        for field_name in field_names:
-            if type(field_name) is not str:
-                raise ValueError("Field name %r from %r is not a string."
-                                 % (field_name, field_names))
-        if len(set(field_names)) != len(field_names):
-            raise ValueError("Duplicate field names in %r." % field_names)
+        return (field_names,)
+
+    field_names = tuple(field_names)
+    for field_name in field_names:
+        if type(field_name) is not str:
+            raise ValueError("Field name %r from %r is not a string."
+                             % (field_name, field_names))
+    if len(set(field_names)) != len(field_names):
+        raise ValueError("Duplicate field names in %r." % field_names)
 
     return field_names
 
 
 def _munge_field_members(field_names, field_members):
+    if field_names is None:
+        return {}
+
     fixed = {k: () for k in field_names}
 
     if field_members is None:
@@ -121,7 +125,7 @@ def _munge_field_members(field_names, field_members):
         if key not in field_names:
             raise ValueError("Field member key: %r is not in `field_names`"
                              " (%r)." % (key, field_names))
-        if is_semantic_type(value):
+        if is_qiime_type(value) and is_semantic_type(value):
             fixed[key] = (value,)
         else:
             value = tuple(value)
@@ -133,10 +137,6 @@ def _munge_field_members(field_names, field_members):
     return fixed
 
 
-def is_semantic_type(type_):
-    return isinstance(type_, (_SemanticMixin, _IncompleteSemanticType))
-
-
 class VariantField:
     def __init__(self, type_name, field_name, field_members):
         self.type_name = type_name
@@ -145,9 +145,9 @@ class VariantField:
 
     def is_member(self, semantic_type):
         for field_member in self.field_members:
-            if isinstance(field_member, _IncompleteSemanticType):
+            if isinstance(field_member, IncompleteExp):
                 # Pseudo-subtyping like Foo[X] <= Foo[Any].
-                # (_IncompleteSemanticType will never have __le__ because you
+                # (IncompleteExp will never have __le__ because you
                 #  are probably doing something wrong with it (this totally
                 #                                              doesn't count!))
                 if semantic_type.name == field_member.name:
@@ -165,164 +165,157 @@ class VariantField:
         return "%s.field[%r]" % (self.type_name, self.field_name)
 
 
-class _IncompleteSemanticType(grammar.CompositeType):
+class SemanticTemplate(TypeTemplate):
+    public_proxy = 'field',
+
     def __init__(self, name, field_names, field_members, variant_of):
+        self.name = name
         self.field_names = field_names
-        self.field = types.MappingProxyType({
-            f: VariantField(name, f, field_members[f])
-            for f in self.field_names})
+        self.__field = {f: VariantField(name, f, field_members[f])
+                        for f in self.field_names}
         self.variant_of = variant_of
 
-        super().__init__(name, field_names)
+    @property
+    def field(self):
+        return types.MappingProxyType(self.__field)
 
-    @overrides(grammar.CompositeType)
-    def _validate_field_(self, name, value):
-        super()._validate_field_(name, value)
+    def __eq__(self, other):
+        return (type(self) is type(other)
+                and self.name == other.name
+                and self.fields == other.fields
+                and self.variant_of == other.variant_of)
 
-        varfield = self.field[name]
-        if not value.is_variant(varfield):
-            raise TypeError("%r is not a variant of %r." % (value, varfield))
+    def __hash__(self):
+        return (hash(type(self)) ^ hash(self.name)
+                ^ hash(self.fields) ^ hash(self.variant_of))
 
-    @overrides(grammar.CompositeType)
-    def _apply_fields_(self, fields):
-        return _SemanticType(self.name, self.variant_of, fields=fields)
+    def get_kind(self):
+        return 'semantic-type'
 
+    def get_name(self):
+        return self.name
 
-class _SemanticMixin:
-    def is_variant(self, varfield):
-        return varfield in self.variant_of or varfield.is_member(self)
+    def get_field_names(self):
+        return self.field_names
 
-
-class _SemanticType(grammar.TypeExpression, _SemanticMixin):
-    def __init__(self, name, variant_of, **kwargs):
-        self.variant_of = variant_of
-
-        super().__init__(name, **kwargs)
-
-    def _apply_fields_(self, fields):
-        return self.__class__(self.name, self.variant_of, fields=fields,
-                              predicate=self.predicate)
-
-    def _validate_intersection_(self, other, handshake=False):
-        raise TypeError("Cannot intersect %r and %r. (Only semantic type"
-                        " variables can be intersected.)" % (self, other))
-
-    def _build_union_(self, members):
-        return _SemanticUnionType(members)
-
-    def _validate_predicate_(self, predicate):
-        if not isinstance(predicate, Properties):
-            raise TypeError()
-
-    def _apply_predicate_(self, predicate):
-        return self.__class__(self.name, self.variant_of,
-                              fields=self.fields, predicate=predicate)
-
-    def _is_element_(self, value):
+    def is_element_expr(self, self_expr, value):
         import qiime2.sdk
         if not isinstance(value, qiime2.sdk.Artifact):
             return False
-        return value.type <= self
+        return value.type <= self_expr
 
-    def to_ast(self):
-        ast = super().to_ast()
-        ast['type'] = 'semantic-type'
-        ast['concrete'] = self.is_concrete()
-        return ast
+    def is_element(self, value):
+        raise NotImplementedError
+
+    def validate_field(self, name, field):
+        raise NotImplementedError
+
+    def validate_fields_expr(self, self_expr, fields_expr):
+        self.validate_field_count(len(fields_expr))
+        for expr, varf in zip(fields_expr,
+                              [self.field[n] for n in self.field_names]):
+            if (expr.template is not None
+                    and hasattr(expr.template, 'is_variant')):
+                check = expr.template.is_variant
+            else:
+                check = self.is_variant
+            if not check(expr, varf):
+                raise TypeError("%r is not a variant of %r" % (expr, varf))
+
+    @classmethod
+    def is_variant(cls, expr, varf):
+        if isinstance(expr, UnionExp):
+            return all(cls.is_variant(e, varf) for e in expr.members)
+        if isinstance(expr, IntersectionExp):
+            return any(cls.is_variant(e, varf) for e in expr.members)
+        return varf.is_member(expr) or varf in expr.template.variant_of
+
+    def validate_predicate(self, predicate):
+        if not isinstance(predicate, Properties):
+            raise TypeError()
+
+    def update_ast(self, ast):
+        ast['builtin'] = False
 
 
-class _SemanticUnionType(grammar.UnionTypeExpression, _SemanticMixin):
-    @overrides(_SemanticMixin)
-    def is_variant(self, varfield):
-        return all(m.is_variant(varfield) for m in self)
+class Properties(PredicateTemplate):
+    def __init__(self, *include, exclude=()):
+        if len(include) == 1 and isinstance(include[0],
+                                            (list, tuple, set, frozenset)):
+            include = tuple(include[0])
 
-
-class Properties(grammar.Predicate):
-    def __init__(self, include=(), exclude=()):
-        if type(include) is str:
-            include = (include,)
         if type(exclude) is str:
             exclude = (exclude,)
 
-        self.include = list(include)
-        self.exclude = list(exclude)
+        self.include = tuple(include)
+        self.exclude = tuple(exclude)
         for prop in itertools.chain(self.include, self.exclude):
             if type(prop) is not str:
                 raise TypeError("%r in %r is not a string." % (prop, self))
 
-        super().__init__(include, exclude)
-
     def __hash__(self):
-        return hash(tuple(self.include)) ^ hash(tuple(self.exclude))
+        return hash(frozenset(self.include)) ^ hash(frozenset(self.exclude))
 
     def __eq__(self, other):
         return (type(self) is type(other) and
-                self.include == other.include and
-                self.exclude == other.exclude)
+                set(self.include) == set(other.include) and
+                set(self.exclude) == set(other.exclude))
 
     def __repr__(self):
         args = []
         if self.include:
-            args.append("%r" % self.include)
+            args.append(', '.join(repr(s) for s in self.include))
         if self.exclude:
-            args.append("exclude=%r" % self.exclude)
+            args.append("exclude=%r" % list(self.exclude))
 
         return "%s(%s)" % (self.__class__.__name__, ', '.join(args))
 
-    def _is_subtype_(self, other):
-        if other is None:
-            return True
-        if type(other) != type(self):
-            # For PropertyMap or other complex comparisons
-            return NotImplemented
+    def is_symbol_subtype(self, other):
+        if type(self) is not type(other):
+            return False
+
         return (set(other.include) <= set(self.include) and
                 set(other.exclude) <= set(self.exclude))
 
-    def to_ast(self):
-        ast = super().to_ast()
-        ast['include'] = self.include
-        ast['exclude'] = self.exclude
-        return ast
+    def is_symbol_supertype(self, other):
+        if type(self) is not type(other):
+            return False
 
+        return (set(other.include) >= set(self.include) and
+                set(other.exclude) >= set(self.exclude))
 
-# TODO: Implement these classes:
-class _SemanticIntersectionType(grammar.IntersectionTypeExpression,
-                                _SemanticMixin):
-    def __init__(self):
-        # IMPORTANT! Remove this __init__ method.
-        raise NotImplementedError("TODO")
+    def collapse_intersection(self, other):
+        if type(self) is not type(other):
+            return None
 
-    @overrides(_SemanticMixin)
-    def is_variant(self, varfield):
-        return all(m.is_variant(varfield) for m in self)
+        new_include_set = set(self.include) | set(other.include)
+        new_exclude_set = set(self.exclude) | set(other.exclude)
 
+        new_include = []
+        new_exclude = []
+        for inc in itertools.chain(self.include, other.include):
+            if inc in new_include_set:
+                new_include.append(inc)
+                new_include_set.remove(inc)
+        for exc in itertools.chain(self.exclude, other.exclude):
+            if exc in new_exclude_set:
+                new_exclude.append(exc)
+                new_exclude_set.remove(exc)
 
-class SemanticMap(grammar.MappingTypeExpression, _SemanticMixin):
-    def __init__(self):
-        # IMPORTANT! Remove this __init__ method.
-        raise NotImplementedError("TODO")
+        return self.__class__(*new_include, exclude=new_exclude).template
 
-    @overrides(_SemanticMixin)
-    def is_variant(self, varfield):
-        # A TypeMap may be on either side of the signature, we only know
-        # which side once it is placed in a signature. Otherwise, either
-        # construction is completely valid as long as all members agree.
-        return (all(m.is_variant(varfield) for m in self.mapping) or
-                all(m.is_variant(varfield) for m in self.mapping.values()))
+    def get_kind(self):
+        return 'semantic-type'
 
-    def _validate_member_(self, member):
-        if not member.is_concrete():
-            raise ValueError("")
+    def get_name(self):
+        return self.__class__.__name__
 
-    def _build_intersection_(self, members):
-        return _SemanticIntersectionType(members)
+    def is_element(self, expr):
+        return True  # attached TypeExp checks this
 
+    def get_union_membership_expr(self, self_expr):
+        return 'predicate-' + self.get_name()
 
-class PropertyMap(Properties):
-    def __init__(self, name, mapping):
-        raise NotImplementedError("TODO")
-        self.name = name
-        self.mapping = mapping
-
-    def __repr__(self):
-        return self.name
+    def update_ast(self, ast):
+        ast['include'] = list(self.include)
+        ast['exclude'] = list(self.exclude)

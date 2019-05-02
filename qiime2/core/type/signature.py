@@ -12,10 +12,13 @@ import copy
 import itertools
 
 import qiime2.sdk
-from .grammar import TypeExpression
-from .primitive import is_primitive_type
-from .semantic import is_semantic_type
+from .grammar import TypeExp, UnionExp
+from .meta import TypeVarExp
+from .collection import List, Set
+from .primitive import infer_primitive_type
 from .visualization import Visualization
+from . import meta
+from .util import is_semantic_type, is_primitive_type
 from ..util import ImmutableBase
 
 
@@ -53,6 +56,16 @@ class ParameterSpec(ImmutableBase):
 
     def has_description(self):
         return self.description is not self.NOVALUE
+
+    def duplicate(self, **kwargs):
+        qiime_type = kwargs.pop('qiime_type', self.qiime_type)
+        view_type = kwargs.pop('view_type', self.view_type)
+        default = kwargs.pop('default', self.default)
+        description = kwargs.pop('description', self.description)
+        if kwargs:
+            raise TypeError("Unknown arguments: %r" % kwargs)
+
+        return ParameterSpec(qiime_type, view_type, default, description)
 
     def __repr__(self):
         return ("ParameterSpec(qiime_type=%r, view_type=%r, default=%r, "
@@ -219,7 +232,7 @@ class PipelineSignature:
                     "Input %r must be a semantic QIIME type, not %r"
                     % (input_name, spec.qiime_type))
 
-            if not isinstance(spec.qiime_type, TypeExpression):
+            if not isinstance(spec.qiime_type, (TypeExp, UnionExp)):
                 raise TypeError(
                     "Input %r must be a complete semantic type expression, "
                     "not %r" % (input_name, spec.qiime_type))
@@ -230,6 +243,13 @@ class PipelineSignature:
                     "value of `None` is supported for inputs."
                     % (input_name, spec.default))
 
+            for var_selector in meta.select_variables(spec.qiime_type):
+                var = var_selector(spec.qiime_type)
+                if not var.input:
+                    raise TypeError("An output variable has been associated"
+                                    " with an input type: %r"
+                                    % spec.qiime_type)
+
     def _assert_valid_parameters(self, parameters):
         for param_name, spec in parameters.items():
             if not is_primitive_type(spec.qiime_type):
@@ -237,7 +257,7 @@ class PipelineSignature:
                     "Parameter %r must be a primitive QIIME type, not %r"
                     % (param_name, spec.qiime_type))
 
-            if not isinstance(spec.qiime_type, TypeExpression):
+            if not isinstance(spec.qiime_type, (TypeExp, UnionExp)):
                 raise TypeError(
                     "Parameter %r must be a complete primitive type "
                     "expression, not %r" % (param_name, spec.qiime_type))
@@ -248,6 +268,13 @@ class PipelineSignature:
                 raise TypeError("Default value for parameter %r is not of "
                                 "semantic QIIME type %r or `None`."
                                 % (param_name, spec.qiime_type))
+
+            for var_selector in meta.select_variables(spec.qiime_type):
+                var = var_selector(spec.qiime_type)
+                if not var.input:
+                    raise TypeError("An output variable has been associated"
+                                    " with an input type: %r"
+                                    % spec.qiime_type)
 
     def _assert_valid_outputs(self, outputs):
         if len(outputs) == 0:
@@ -262,10 +289,16 @@ class PipelineSignature:
                     "Visualization, not %r"
                     % (output_name, spec.qiime_type))
 
-            if not isinstance(spec.qiime_type, TypeExpression):
+            if not isinstance(spec.qiime_type, (TypeVarExp, TypeExp)):
                 raise TypeError(
                     "Output %r must be a complete type expression, not %r"
                     % (output_name, spec.qiime_type))
+
+            for var_selector in meta.select_variables(spec.qiime_type):
+                var = var_selector(spec.qiime_type)
+                if not var.output:
+                    raise TypeError("An input variable has been associated"
+                                    " with an input type: %r")
 
     def _assert_valid_views(self, inputs, parameters, outputs):
         for name, spec in itertools.chain(inputs.items(),
@@ -320,12 +353,28 @@ class PipelineSignature:
                         "incompatible with parameter type: %r"
                         % (name, parameter, spec.qiime_type))
 
-    def solve_output(self, **input_types):
-        # TODO implement solving here. The check for concrete output types may
-        # be unnecessary here if the signature's constructor can detect
-        # unsolvable signatures and ensure that solving will always produce
-        # concrete output types.
-        solved_outputs = self.outputs
+    def solve_output(self, **kwargs):
+        solved_outputs = None
+        for _, spec in itertools.chain(self.inputs.items(),
+                                       self.parameters.items(),
+                                       self.outputs.items()):
+            if list(meta.select_variables(spec.qiime_type)):
+                break  # a variable exists, do the hard work
+        else:
+            # no variables
+            solved_outputs = self.outputs
+
+        if solved_outputs is None:
+            inputs = {**{k: s.qiime_type for k, s in self.inputs.items()},
+                      **{k: s.qiime_type for k, s in self.parameters.items()}}
+            outputs = {k: s.qiime_type for k, s in self.outputs.items()}
+            input_types = {
+                k: self._infer_type(k, v) for k, v in kwargs.items()}
+
+            solved = meta.match(input_types, inputs, outputs)
+            solved_outputs = collections.OrderedDict(
+                (k, s.duplicate(qiime_type=solved[k]))
+                for k, s in self.outputs.items())
 
         for output_name, spec in solved_outputs.items():
             if not spec.qiime_type.is_concrete():
@@ -334,6 +383,25 @@ class PipelineSignature:
                     (output_name, spec.qiime_type))
 
         return solved_outputs
+
+    def _infer_type(self, key, value):
+        if value is None:
+            if key in self.inputs:
+                return self.inputs[key].qiime_type
+            elif key in self.parameters:
+                return self.parameters[key].qiime_type
+            # Shouldn't happen:
+            raise ValueError("Parameter passed not consistent with signature.")
+        if type(value) is list:
+            inner = UnionExp((self._infer_type(v) for v in value))
+            return List[inner.normalize()]
+        if type(value) is set:
+            inner = UnionExp((self._infer_type(v) for v in value))
+            return Set[inner.normalize()]
+        if isinstance(value, qiime2.sdk.Artifact):
+            return value.type
+        else:
+            return infer_primitive_type(value)
 
     def __repr__(self):
         lines = []

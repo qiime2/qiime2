@@ -10,7 +10,7 @@ from importlib import import_module
 
 from qiime2.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
                            Visualization, Metadata, MetadataColumn,
-                           Categorical, Numeric)
+                           Categorical, Numeric, TypeMatch)
 
 from .format import (
     IntSequenceFormat,
@@ -23,11 +23,13 @@ from .format import (
     FourIntsDirectoryFormat,
     RedundantSingleIntDirectoryFormat,
     UnimportableFormat,
-    UnimportableDirectoryFormat
+    UnimportableDirectoryFormat,
+    EchoFormat,
+    EchoDirectoryFormat
 )
 
 from .type import (IntSequence1, IntSequence2, Mapping, FourInts, SingleInt,
-                   Kennel, Dog, Cat)
+                   Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz)
 from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_column,
                      identity_with_categorical_metadata_column,
@@ -61,12 +63,13 @@ import_module('qiime2.core.testing.transformer')
 
 # Register semantic types
 dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, Mapping,
-                                     FourInts, Kennel, Dog, Cat, SingleInt)
+                                     FourInts, Kennel, Dog, Cat, SingleInt,
+                                     C1, C2, C3, Foo, Bar, Baz)
 
 # Register formats
 dummy_plugin.register_formats(
     IntSequenceFormatV2, MappingFormat, IntSequenceV2DirectoryFormat,
-    MappingDirectoryFormat)
+    MappingDirectoryFormat, EchoDirectoryFormat, EchoFormat)
 
 dummy_plugin.register_formats(
     FourIntsDirectoryFormat, UnimportableDirectoryFormat, UnimportableFormat,
@@ -102,6 +105,17 @@ dummy_plugin.register_semantic_type_to_format(
     artifact_format=MappingDirectoryFormat
 )
 
+dummy_plugin.register_semantic_type_to_format(
+    C3[C1[Foo | Bar | Baz] | Foo | Bar | Baz,
+       C1[Foo | Bar | Baz] | Foo | Bar | Baz,
+       C1[Foo | Bar | Baz] | Foo | Bar | Baz]
+    | C2[Foo | Bar | Baz, Foo | Bar | Baz]
+    | C1[Foo | Bar | Baz | C2[Foo | Bar | Baz, Foo | Bar | Baz]]
+    | Foo
+    | Bar
+    | Baz,
+    artifact_format=EchoDirectoryFormat)
+
 # TODO add an optional parameter to this method when they are supported
 dummy_plugin.methods.register_function(
     function=concatenate_ints,
@@ -123,17 +137,16 @@ dummy_plugin.methods.register_function(
     citations=[citations['baerheim1994effect']]
 )
 
-# TODO update to use TypeMap so IntSequence1 | IntSequence2 are accepted, and
-# the return type is IntSequence1 or IntSequence2.
+T = TypeMatch([IntSequence1, IntSequence2])
 dummy_plugin.methods.register_function(
     function=split_ints,
     inputs={
-        'ints': IntSequence1
+        'ints': T
     },
     parameters={},
     outputs=[
-        ('left', IntSequence1),
-        ('right', IntSequence1)
+        ('left', T),
+        ('right', T)
     ],
     name='Split sequence of integers in half',
     description='This method splits a sequence of integers in half, returning '
@@ -596,3 +609,5 @@ dummy_plugin.pipelines.register_function(
     description=('This is useful to make sure all of the intermediate stuff is'
                  ' cleaned up the way it should be.')
 )
+
+import_module('qiime2.core.testing.mapped')

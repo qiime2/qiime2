@@ -13,14 +13,17 @@ import qiime2.sdk
 from qiime2.plugin.plugin import SemanticTypeRecord, FormatRecord
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
-                                      FourInts, Kennel, Dog, Cat, SingleInt)
+                                      FourInts, Kennel, Dog, Cat, SingleInt,
+                                      C1, C2, C3, Foo, Bar, Baz)
 from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
                                         MappingDirectoryFormat,
                                         IntSequenceV2DirectoryFormat,
                                         IntSequenceFormatV2,
                                         FourIntsDirectoryFormat,
                                         IntSequenceFormat,
-                                        RedundantSingleIntDirectoryFormat)
+                                        RedundantSingleIntDirectoryFormat,
+                                        EchoFormat,
+                                        EchoDirectoryFormat)
 from qiime2.core.testing.util import get_dummy_plugin
 
 
@@ -55,7 +58,19 @@ class TestPluginManager(unittest.TestCase):
             'Cat': SemanticTypeRecord(semantic_type=Cat,
                                       plugin=self.plugin),
             'SingleInt': SemanticTypeRecord(semantic_type=SingleInt,
-                                            plugin=self.plugin)
+                                            plugin=self.plugin),
+            'C1': SemanticTypeRecord(semantic_type=C1,
+                                     plugin=self.plugin),
+            'C2': SemanticTypeRecord(semantic_type=C2,
+                                     plugin=self.plugin),
+            'C3': SemanticTypeRecord(semantic_type=C3,
+                                     plugin=self.plugin),
+            'Foo': SemanticTypeRecord(semantic_type=Foo,
+                                      plugin=self.plugin),
+            'Bar': SemanticTypeRecord(semantic_type=Bar,
+                                      plugin=self.plugin),
+            'Baz': SemanticTypeRecord(semantic_type=Baz,
+                                      plugin=self.plugin)
         }
 
         self.assertEqual(types, exp)
@@ -65,7 +80,10 @@ class TestPluginManager(unittest.TestCase):
 
         exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],
                Kennel[Cat], SingleInt}
-        self.assertEqual(types, exp)
+        self.assertLessEqual(exp, types)
+        self.assertNotIn(Cat, types)
+        self.assertNotIn(Dog, types)
+        self.assertNotIn(Kennel, types)
 
     # TODO: add tests for type/directory/transformer registrations
 
@@ -92,6 +110,12 @@ class TestPluginManager(unittest.TestCase):
                              plugin=self.plugin),
             'RedundantSingleIntDirectoryFormat':
                 FormatRecord(format=RedundantSingleIntDirectoryFormat,
+                             plugin=self.plugin),
+            'EchoFormat':
+                FormatRecord(format=EchoFormat,
+                             plugin=self.plugin),
+            'EchoDirectoryFormat':
+                FormatRecord(format=EchoDirectoryFormat,
                              plugin=self.plugin)
         }
         self.assertEqual(obs, exp)

@@ -7,60 +7,28 @@
 # ----------------------------------------------------------------------------
 
 import numbers
-import re
+import itertools
 
-from qiime2.core.type.grammar import (
-    TypeExpression, CompositeType, Predicate, UnionTypeExpression)
+from qiime2.core.type.template import TypeTemplate, PredicateTemplate
 import qiime2.metadata as metadata
+import qiime2.core.util as util
 
 
-def is_primitive_type(type_):
-    return isinstance(type_, _PrimitiveBase)
-
-
-class _PrimitiveBase(TypeExpression):
-    def _validate_union_(self, other, handshake=False):
-        # It is possible we may want this someday: `Int | Str`, but order of
-        # encode/decode dispatch wouldn't be straight-forward.
-        # Order of the declaration could indicate "MRO", but then equality
-        # must consider Int | Str != Str | Int, which feels weird.
-        raise TypeError("Cannot union primitive types.")
-
-    def _validate_intersection_(self, other, handshake=False):
-        # This literally makes no sense for primitives. Even less sense than
-        # C's Union type (which is actually an intersection type...)
-        raise TypeError("Cannot intersect primitive types.")
-
-
-class _Primitive(_PrimitiveBase):
-    def _validate_predicate_(self, predicate):
-        super()._validate_predicate_(predicate)
-        # _valid_predicates will be on the class obj of the primitives to
-        # make defining them easy
-        if not isinstance(predicate, tuple(self._valid_predicates)):
-            raise TypeError("Cannot supply %r as a predicate to %r type,"
-                            " permitted predicates: %r"
-                            % (predicate, self,
-                               {p.__name__ for p in self._valid_predicates}))
-
-        for bound in predicate.iter_boundaries():
-            if not self._is_element_(bound):
-                raise TypeError("%r has the wrong types for %r."
-                                % (predicate, self))
-
-    def to_ast(self):
-        ast = super().to_ast()
-        ast['type'] = 'primitive'
-        return ast
-
-
-_RANGE_DEFAULT_START = None
-_RANGE_DEFAULT_END = None
+_RANGE_DEFAULT_START = float('-inf')
+_RANGE_DEFAULT_END = float('inf')
 _RANGE_DEFAULT_INCLUSIVE_START = True
 _RANGE_DEFAULT_INCLUSIVE_END = False
 
 
-class Range(Predicate):
+class _PrimitivePredicateBase(PredicateTemplate):
+    def get_kind(self):
+        return 'primitive'
+
+    def get_name(self):
+        return self.__class__.__name__
+
+
+class Range(_PrimitivePredicateBase):
     def __init__(self, *args, inclusive_start=_RANGE_DEFAULT_INCLUSIVE_START,
                  inclusive_end=_RANGE_DEFAULT_INCLUSIVE_END):
         if len(args) == 2:
@@ -72,12 +40,17 @@ class Range(Predicate):
             self.start = _RANGE_DEFAULT_START
             self.end = _RANGE_DEFAULT_END
         else:
-            raise ValueError("")
+            raise ValueError("Too many arguments passed, expected 0, 1, or 2.")
         self.inclusive_start = inclusive_start
         self.inclusive_end = inclusive_end
 
-        truthy = self.start is not None or self.end is not None
-        super().__init__(truthy)
+        if self.start is None:
+            self.start = _RANGE_DEFAULT_START
+        if self.end is None:
+            self.end = _RANGE_DEFAULT_END
+
+        if self.end < self.start:
+            raise ValueError("End of range precedes start.")
 
     def __hash__(self):
         return (hash(type(self)) ^
@@ -95,92 +68,254 @@ class Range(Predicate):
 
     def __repr__(self):
         args = []
-        args.append(repr(self.start))
-        args.append(repr(self.end))
+        start = self.start
+        if start == float('-inf'):
+            start = None
+        end = self.end
+        if end == float('inf'):
+            end = None
+
+        args.append(repr(start))
+        args.append(repr(end))
         if self.inclusive_start is not _RANGE_DEFAULT_INCLUSIVE_START:
             args.append('inclusive_start=%r' % self.inclusive_start)
         if self.inclusive_end is not _RANGE_DEFAULT_INCLUSIVE_END:
             args.append('inclusive_end=%r' % self.inclusive_end)
 
-        return "%s(%s)" % (self.__class__.__name__, ', '.join(args))
+        return "Range(%s)" % (', '.join(args),)
 
-    def _is_element_(self, value):
-        if self.start is not None:
-            if self.inclusive_start:
-                if value < self.start:
-                    return False
-            elif value <= self.start:
+    def is_element(self, value):
+        if self.inclusive_start:
+            if value < self.start:
                 return False
+        elif value <= self.start:
+            return False
 
-        if self.end is not None:
-            if self.inclusive_end:
-                if value > self.end:
-                    return False
-            elif value >= self.end:
+        if self.inclusive_end:
+            if value > self.end:
                 return False
+        elif value >= self.end:
+            return False
 
         return True
 
+    def is_symbol_subtype(self, other):
+        if type(self) is not type(other):
+            return False
+
+        if other.start > self.start:
+            return False
+        elif (other.start == self.start
+                and (not other.inclusive_start)
+                and self.inclusive_start):
+            return False
+
+        if other.end < self.end:
+            return False
+        elif (other.end == self.end
+                and (not other.inclusive_end)
+                and self.inclusive_end):
+            return False
+
+        return True
+
+    def is_symbol_supertype(self, other):
+        if type(self) is not type(other):
+            return False
+
+        if other.start < self.start:
+            return False
+        elif (other.start == self.start
+                and (not self.inclusive_start)
+                and other.inclusive_start):
+            return False
+
+        if other.end > self.end:
+            return False
+        elif (other.end == self.end
+                and (not self.inclusive_end)
+                and other.inclusive_end):
+            return False
+
+        return True
+
+    def collapse_intersection(self, other):
+        if type(self) is not type(other):
+            return None
+
+        if self.start < other.start:
+            new_start = other.start
+            new_inclusive_start = other.inclusive_start
+        elif other.start < self.start:
+            new_start = self.start
+            new_inclusive_start = self.inclusive_start
+        else:
+            new_start = self.start
+            new_inclusive_start = (
+                self.inclusive_start and other.inclusive_start)
+
+        if self.end > other.end:
+            new_end = other.end
+            new_inclusive_end = other.inclusive_end
+        elif other.end > self.end:
+            new_end = self.end
+            new_inclusive_end = self.inclusive_end
+        else:
+            new_end = self.end
+            new_inclusive_end = self.inclusive_end and other.inclusive_end
+
+        if new_end < new_start:
+            return None
+        if (new_start == new_end
+                and not (new_inclusive_start and new_inclusive_end)):
+            return None
+
+        return self.__class__(new_start, new_end,
+                              inclusive_start=new_inclusive_start,
+                              inclusive_end=new_inclusive_end).template
+
     def iter_boundaries(self):
-        if self.start is not None:
+        if self.start != float('-inf'):
             yield self.start
-        if self.end is not None:
+        if self.end != float('inf'):
             yield self.end
 
-    def to_ast(self):
-        ast = super().to_ast()
-        ast['start'] = self.start
-        ast['end'] = self.end
-        ast['inclusive-start'] = self.inclusive_start
-        ast['inclusive-end'] = self.inclusive_end
-        return ast
+    def update_ast(self, ast):
+        start = self.start
+        if start == float('-inf'):
+            start = None
+
+        end = self.end
+        if end == float('inf'):
+            end = None
+
+        ast['range'] = [start, end]
+        ast['inclusive'] = [self.inclusive_start, self.inclusive_end]
 
 
-class Choices(Predicate):
-    def __init__(self, choices):
+def Start(start, inclusive=_RANGE_DEFAULT_INCLUSIVE_START):
+    return Range(start, _RANGE_DEFAULT_END, inclusive_start=inclusive)
 
+
+def End(end, inclusive=_RANGE_DEFAULT_INCLUSIVE_END):
+    return Range(_RANGE_DEFAULT_START, end, inclusive_end=inclusive)
+
+
+class Choices(_PrimitivePredicateBase):
+    def __init__(self, *choices):
         if not choices:
             raise ValueError("'Choices' cannot be instantiated with an empty"
                              " set.")
 
-        self.choices = set(choices)
+        # Backwards compatibility with old Choices({1, 2, 3}) syntax
+        if len(choices) == 1:
+            if not isinstance(choices[0], (bool, str)):
+                choices = choices[0]
 
-        super().__init__(choices)
+        self.choices = choices = tuple(choices)
+        if len(choices) != len(set(choices)):
+            raise ValueError("Duplicates found in choices: %r"
+                             % util.find_duplicates(choices))
 
     def __hash__(self):
         return hash(type(self)) ^ hash(frozenset(self.choices))
 
     def __eq__(self, other):
-        return type(self) == type(other) and self.choices == other.choices
+        return (type(self) == type(other)
+                and set(self.choices) == set(other.choices))
 
     def __repr__(self):
-        return "%s({%s})" % (self.__class__.__name__,
-                             repr(sorted(self.choices))[1:-1])
+        return "%s(%s)" % (self.__class__.__name__,
+                           repr(list(self.choices))[1:-1])
 
-    def _is_element_(self, value):
+    def is_element(self, value):
         return value in self.choices
+
+    def is_symbol_subtype(self, other):
+        if type(self) is not type(other):
+            return False
+
+        return set(self.choices) <= set(other.choices)
+
+    def is_symbol_supertype(self, other):
+        if type(self) is not type(other):
+            return False
+
+        return set(self.choices) >= set(other.choices)
+
+    def collapse_intersection(self, other):
+        if type(self) is not type(other):
+            return None
+
+        new_choices_set = set(self.choices) & set(other.choices)
+        if not new_choices_set:
+            return None
+
+        # order by appearance:
+        new_choices = []
+        for c in itertools.chain(self.choices, other.choices):
+            if c in new_choices_set:
+                new_choices.append(c)
+                new_choices_set.remove(c)
+
+        return self.__class__(new_choices).template
 
     def iter_boundaries(self):
         yield from self.choices
 
-    def to_ast(self):
-        ast = super().to_ast()
+    def update_ast(self, ast):
         ast['choices'] = list(self.choices)
-        return ast
+
+    def unpack_union(self):
+        for c in self.choices:
+            yield self.__class__(c)
 
 
-class _Int(_Primitive):
+class _PrimitiveTemplateBase(TypeTemplate):
+    public_proxy = 'encode', 'decode'
+
+    def __eq__(self, other):
+        return type(self) is type(other)
+
+    def __hash__(self):
+        return hash(type(self))
+
+    def get_name(self):
+        return self.__class__.__name__[1:]  # drop `_`
+
+    def get_kind(self):
+        return 'primitive'
+
+    def get_field_names(self):
+        return []
+
+    def validate_field(self, name, field):
+        raise NotImplementedError
+
+    def validate_predicate_expr(self, self_expr, predicate_expr):
+        predicate = predicate_expr.template
+        if type(predicate) not in self._valid_predicates:
+            raise TypeError(str(predicate_expr))
+
+        for bound in predicate.iter_boundaries():
+            if not self.is_element_expr(self_expr, bound):
+                raise TypeError(bound)
+
+    def validate_predicate(self, predicate):
+        raise NotImplementedError
+
+
+class _Int(_PrimitiveTemplateBase):
     _valid_predicates = {Range}
 
-    def _is_element_(self, value):
-        # Works with numpy just fine.
-        return isinstance(value, numbers.Integral)
+    def is_element(self, value):
+        return (value is not True and value is not False
+                and isinstance(value, numbers.Integral))
 
-    def _is_subtype_(self, other):
-        if (isinstance(other, type(Float)) and
-                self.predicate <= other.predicate):
+    def is_symbol_subtype(self, other):
+        if other.get_name() == 'Float':
             return True
-        return super()._is_subtype_(other)
+        return super().is_symbol_subtype(other)
 
     def decode(self, string):
         return int(string)
@@ -189,21 +324,31 @@ class _Int(_Primitive):
         return str(value)
 
 
-class _Str(_Primitive):
+class _Str(_PrimitiveTemplateBase):
     _valid_predicates = {Choices}
-    decode = encode = lambda self, arg: arg
 
-    def _is_element_(self, value):
-        # No reason for excluding bytes other than extreme prejudice.
+    def is_element(self, value):
         return isinstance(value, str)
 
+    def decode(self, string):
+        return str(string)
 
-class _Float(_Primitive):
+    def encode(self, value):
+        return str(value)
+
+
+class _Float(_PrimitiveTemplateBase):
     _valid_predicates = {Range}
 
-    def _is_element_(self, value):
+    def is_symbol_supertype(self, other):
+        if other.get_name() == 'Int':
+            return True
+        return super().is_symbol_supertype(other)
+
+    def is_element(self, value):
         # Works with numpy just fine.
-        return isinstance(value, numbers.Real)
+        return (value is not True and value is not False
+                and isinstance(value, numbers.Real))
 
     def decode(self, string):
         return float(string)
@@ -212,11 +357,17 @@ class _Float(_Primitive):
         return str(value)
 
 
-class _Bool(_Primitive):
-    _valid_predicates = set()
+class _Bool(_PrimitiveTemplateBase):
+    _valid_predicates = {Choices}
 
-    def _is_element_(self, value):
-        return isinstance(value, bool)
+    def is_element(self, value):
+        return value is True or value is False
+
+    def validate_predicate(self, predicate):
+        if type(predicate) is Choices:
+            if set(predicate.iter_boundaries()) == {True, False}:
+                raise TypeError("Choices should be ommitted when "
+                                "Choices(True, False).")
 
     def decode(self, string):
         if string not in ('false', 'true'):
@@ -231,21 +382,15 @@ class _Bool(_Primitive):
             return 'false'
 
 
-class _Color(_Str):
-    def _is_element_(self, value):
-        # Regex from: http://stackoverflow.com/a/1636354/579416
-        return bool(re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', value))
-
-
-class _Metadata(_Primitive):
+class _Metadata(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
-    def _is_element_(self, value):
+    def is_element(self, value):
         return isinstance(value, metadata.Metadata)
 
     def decode(self, metadata):
         # This interface should have already retrieved this object.
-        if not self._is_element_(metadata):
+        if not self.is_element(metadata):
             raise TypeError("`Metadata` must be provided by the interface"
                             " directly.")
         return metadata
@@ -253,67 +398,79 @@ class _Metadata(_Primitive):
     def encode(self, value):
         # TODO: Should this be the provenance representation? Does that affect
         # decode?
+
         return value
 
 
-class _MetadataColumn(CompositeType):
-    def _validate_field_(self, name, value):
-        if not isinstance(value, (_MetadataColumnType,
-                                  _MetadataColumnTypeUnion)):
-            raise TypeError("Unsupported type in field: %r" % value)
-
-    def _apply_fields_(self, fields):
-        return _MetadataColumnExpression(self.name, fields=fields)
-
-
-class _MetadataColumnExpression(_Primitive):
+class _MetadataColumn(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
-    def _is_element_(self, value):
-        return value in self.fields[0]
+    def is_element_expr(self, self_expr, value):
+        return value in self_expr.fields[0]
 
-    def decode(self, metadata_column):
+    def is_element(self, value):
+        raise NotImplementedError
+
+    def get_field_names(self):
+        return ["type"]
+
+    def validate_field(self, name, field):
+        if field.get_name() not in ("Numeric", "Categorical"):
+            raise TypeError("Unsupported type in field: %r"
+                            % (field.get_name(),))
+
+    def decode(self, metadata):
         # This interface should have already retrieved this object.
-        if metadata_column not in self:
-            raise TypeError("`MetadataColumn` must be provided by the "
-                            "interface directly.")
-        return metadata_column
+        if not self.is_element(metadata):
+            raise TypeError("`Metadata` must be provided by the interface"
+                            " directly.")
+        return metadata
 
     def encode(self, value):
         # TODO: Should this be the provenance representation? Does that affect
         # decode?
+
         return value
 
 
-class _MetadataColumnType(_Primitive):
+class _Categorical(_PrimitiveTemplateBase):
     _valid_predicates = set()
 
-    def __init__(self, name, view, fields=(), predicate=None):
-        self._view = view
-        super().__init__(name, fields, predicate)
+    def get_union_membership_expr(self, self_expr):
+        return 'metadata-column'
 
-    def _is_element_(self, value):
-        return isinstance(value, self._view)
-
-    def _validate_union_(self, other, handshake=False):
-        if not isinstance(other, self.__class__):
-            raise TypeError("Unsupported union: %r" % other)
-
-    def _build_union_(self, members):
-        return _MetadataColumnTypeUnion(members)
+    def is_element(self, value):
+        return isinstance(value, metadata.CategoricalMetadataColumn)
 
 
-class _MetadataColumnTypeUnion(UnionTypeExpression):
-    pass
+class _Numeric(_PrimitiveTemplateBase):
+    _valid_predicates = set()
+
+    def get_union_membership_expr(self, self_expr):
+        return 'metadata-column'
+
+    def is_element(self, value):
+        return isinstance(value, metadata.NumericMetadataColumn)
 
 
-Bool = _Bool('Bool')
-Int = _Int('Int')
-Float = _Float('Float')
-Str = _Str('Str')
-Color = _Color('Color')
-Metadata = _Metadata('Metadata')
-MetadataColumn = _MetadataColumn('MetadataColumn', field_names=['type'])
-Numeric = _MetadataColumnType('Numeric', metadata.NumericMetadataColumn)
-Categorical = _MetadataColumnType('Categorical',
-                                  metadata.CategoricalMetadataColumn)
+Int = _Int()
+Float = _Float()
+Bool = _Bool()
+Str = _Str()
+Metadata = _Metadata()
+MetadataColumn = _MetadataColumn()
+Categorical = _Categorical()
+Numeric = _Numeric()
+
+
+def infer_primitive_type(value):
+    for t in (Int, Float):
+        if value in t:
+            return t % Range(value, value, inclusive_end=True)
+    for t in (Bool, Str):
+        if value in t:
+            return t % Choices(value)
+    for t in (Metadata, MetadataColumn[Categorical], MetadataColumn[Numeric]):
+        if value in t:
+            return t
+    raise ValueError("Unknown primitive type: %r" % (value,))

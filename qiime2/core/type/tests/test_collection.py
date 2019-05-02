@@ -76,8 +76,8 @@ class TestCollectionBase(unittest.TestCase):
 
 
 class TestCollectionExpression(unittest.TestCase):
-    def test_no_union(self):
-        with self.assertRaisesRegex(TypeError, 'Union.*supported'):
+    def test_bad_union(self):
+        with self.assertRaisesRegex(TypeError, 'not union'):
             List[Int] | Set[Int]
 
     def test_union_inside_collection(self):
@@ -87,7 +87,7 @@ class TestCollectionExpression(unittest.TestCase):
         self.assertTrue(List[Foo] <= List[Foo | Bar])
 
     def test_no_predicate(self):
-        with self.assertRaisesRegex(TypeError, 'no predicate'):
+        with self.assertRaisesRegex(TypeError, 'cannot be applied'):
             List[Int] % Range(5)
 
     def is_concrete(self):
@@ -101,12 +101,10 @@ class TestCollectionExpression(unittest.TestCase):
 
         ast = List[Foo].to_ast()
         self.assertEqual(ast['fields'][0], Foo.to_ast())
-        self.assertEqual(ast['type'], 'collection')
 
     def test_to_ast_primitive(self):
         ast = List[Int % Range(5)].to_ast()
         self.assertEqual(ast['fields'][0], (Int % Range(5)).to_ast())
-        self.assertEqual(ast['type'], 'collection')
 
     def test_contains_list_primitive(self):
         self.assertTrue([1, 2, 3] in List[Int])

@@ -6,27 +6,34 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .collection import List, Set, is_collection_type
-from .semantic import SemanticType, is_semantic_type, Properties
-from .primitive import (Str, Int, Float, Color, Metadata, Bool, MetadataColumn,
-                        Categorical, Numeric, Range, Choices,
-                        is_primitive_type)
+from .collection import List, Set
+from .semantic import SemanticType, Properties
+from .primitive import (Str, Int, Float, Metadata, Bool, MetadataColumn,
+                        Categorical, Numeric, Range, Start, End, Choices)
 from .visualization import Visualization
 from .signature import PipelineSignature, MethodSignature, VisualizerSignature
+from .meta import TypeMap, TypeMatch
+from .util import (is_primitive_type, is_semantic_type, is_metadata_type,
+                   is_collection_type, is_visualization_type,
+                   interrogate_collection_type, parse_primitive)
 
 __all__ = [
     # Type Helpers
-    'is_semantic_type', 'is_primitive_type', 'is_collection_type',
+    'is_semantic_type', 'is_visualization_type', 'is_primitive_type',
+    'is_metadata_type', 'is_collection_type', 'interrogate_collection_type',
+    'parse_primitive',
     # Collection Types
     'Set', 'List',
     # Semantic Types
     'SemanticType',
     'Properties',
     # Primitive Types
-    'Str', 'Int', 'Float', 'Bool', 'Color', 'Metadata', 'MetadataColumn',
-    'Categorical', 'Numeric', 'Range', 'Choices',
+    'Str', 'Int', 'Float', 'Bool', 'Metadata', 'MetadataColumn',
+    'Categorical', 'Numeric', 'Range', 'Start', 'End', 'Choices',
     # Visualization Type
     'Visualization',
     # Signatures
-    'PipelineSignature', 'MethodSignature', 'VisualizerSignature'
+    'PipelineSignature', 'MethodSignature', 'VisualizerSignature',
+    # Variables
+    'TypeMap', 'TypeMatch'
 ]

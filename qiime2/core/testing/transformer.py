@@ -17,7 +17,8 @@ from .format import (
     SingleIntFormat,
     MappingFormat,
     UnimportableFormat,
-    RedundantSingleIntDirectoryFormat
+    RedundantSingleIntDirectoryFormat,
+    EchoFormat
 )
 from .plugin import dummy_plugin, citations
 
@@ -167,3 +168,11 @@ def _1(data: list) -> FourIntsDirectoryFormat:
 @dummy_plugin.register_transformer
 def _4(ff: UnimportableFormat) -> int:
     return 1
+
+
+@dummy_plugin.register_transformer
+def _a1(data: str) -> EchoFormat:
+    ff = EchoFormat()
+    with ff.open() as fh:
+        fh.write(data)
+    return ff
