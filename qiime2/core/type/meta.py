@@ -70,6 +70,9 @@ class TypeVarExp(UnionExp):
     def _is_supertype_(self, other):
         return any(m >= other for m in self.members)
 
+    def __iter__(self):
+        yield from self.members
+
     def unpack_union(self):
         yield self
 
