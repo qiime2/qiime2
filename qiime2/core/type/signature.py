@@ -348,7 +348,8 @@ class PipelineSignature:
             inputs = {**{k: s.qiime_type for k, s in self.inputs.items()},
                       **{k: s.qiime_type for k, s in self.parameters.items()}}
             outputs = {k: s.qiime_type for k, s in self.outputs.items()}
-            input_types = {k: self._infer_type(v) for k, v in kwargs.items()}
+            input_types = {
+                k: self._infer_type(k, v) for k, v in kwargs.items()}
 
             solved = meta.match(input_types, inputs, outputs)
             solved_outputs = collections.OrderedDict(
@@ -363,13 +364,19 @@ class PipelineSignature:
 
         return solved_outputs
 
-    @classmethod
-    def _infer_type(cls, value):
+    def _infer_type(self, key, value):
+        if value is None:
+            if key in self.inputs:
+                return self.inputs[key].qiime_type
+            elif key in self.parameters:
+                return self.parameters[key].qiime_type
+            # Shouldn't happen:
+            raise ValueError("Parameter passed not consistent with signature.")
         if type(value) is list:
-            inner = UnionExp((cls._infer_type(v) for v in value))
+            inner = UnionExp((self._infer_type(v) for v in value))
             return List[inner.normalize()]
         if type(value) is set:
-            inner = UnionExp((cls._infer_type(v) for v in value))
+            inner = UnionExp((self._infer_type(v) for v in value))
             return Set[inner.normalize()]
         if isinstance(value, qiime2.sdk.Artifact):
             return value.type
