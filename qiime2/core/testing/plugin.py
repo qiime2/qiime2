@@ -45,7 +45,8 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
                        pipelines_in_pipeline, pointless_pipeline,
                        failing_pipeline)
-from .examples import concatenate_ints_simple, most_common_viz_typical
+from .examples import (concatenate_ints_simple, concatenate_ints_complex,
+                       most_common_viz_typical)
 from ..cite import Citations
 
 citations = Citations.load('citations.bib', package='qiime2.core.testing')
@@ -136,7 +137,7 @@ dummy_plugin.methods.register_function(
     description='This method concatenates integers into a single sequence in '
                 'the order they are provided.',
     citations=[citations['baerheim1994effect']],
-    examples=[concatenate_ints_simple],
+    examples=[concatenate_ints_simple, concatenate_ints_complex],
 )
 
 T = TypeMatch([IntSequence1, IntSequence2])

@@ -25,8 +25,9 @@ class Scope:
             self.records = dict(records)
 
     def _add_record(self, name, factory, type):
-        if name in self.records:
-            raise ValueError
+        # TODO: do i need this?
+        # if name in self.records:
+        #     raise ValueError
 
         self.records[name] = ScopeRecord(name=name, type=type, factory=factory)
 
@@ -85,3 +86,50 @@ class NoOpUsage(Usage):
 
     def action(self, action, inputs, outputs):
         return None
+
+
+# TODO: think about this one
+# class TypeCheckUsage(Usage):
+#     pass
+
+
+# TODO: this doesn't really work yet, needs to backtrace input refs, and
+# also update the scope as it goes with the stuff that it creates
+class ExecutionUsage(Usage):
+    def __init__(self):
+        super().__init__()
+        # TODO: not sure about this
+        self.inputs = dict()
+        self.outputs = dict()
+
+    def comment(self, comment):
+        return None
+
+    def action(self, action, inputs, outputs):
+        sig_inputs, sig_params = dict(), dict()
+
+        # TODO: deal with MD
+        for param, _ in action.signature.parameters.items():
+            p = inputs.pop(param, None)
+            if p is not None:
+                sig_params[param] = p
+
+        for input, _ in action.signature.inputs.items():
+            try:
+                record = self.scope[input]
+            except KeyError:
+                raise ValueError('Missing data registration for input %s' %
+                                 (input, ))
+
+            if record.type == 'artifact':
+                data = record.factory()
+            else:
+                # TODO: add in the other branches here
+                data = None
+
+            sig_inputs[input] = data
+            self.inputs[data] = input
+
+        outputs = action(**sig_inputs, **sig_params)
+        for output, _ in action.signature.outputs.items():
+            self.outputs[getattr(outputs, output)] = output
