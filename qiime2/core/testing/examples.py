@@ -24,7 +24,7 @@ def ints3_factory():
 
 
 def concatenate_ints_simple(use):
-    concatenate_ints = use.get_action('dummy_plugin', 'concatenate_ints')
+    concatenate_ints = use.get_action('dummy-plugin', 'concatenate_ints')
     use.scope.add_artifact('ints1', ints1_factory)
     use.scope.add_artifact('ints2', ints2_factory)
     use.scope.add_artifact('ints3', ints3_factory)
