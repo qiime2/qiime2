@@ -224,17 +224,22 @@ class PluginMethods(PluginActions):
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
-                          output_descriptions=None, citations=None):
+                          output_descriptions=None, citations=None,
+                          examples=None):
         if citations is None:
             citations = ()
         else:
             citations = tuple(citations)
 
+        if examples is None:
+            examples = []
+
         method = qiime2.sdk.Method._init(function, inputs, parameters, outputs,
                                          self._package, name, description,
                                          input_descriptions,
                                          parameter_descriptions,
-                                         output_descriptions, citations)
+                                         output_descriptions, citations,
+                                         examples)
         self[method.id] = method
 
 
@@ -243,18 +248,22 @@ class PluginVisualizers(PluginActions):
 
     def register_function(self, function, inputs, parameters, name,
                           description, input_descriptions=None,
-                          parameter_descriptions=None, citations=None):
+                          parameter_descriptions=None, citations=None,
+                          examples=None):
         if citations is None:
             citations = ()
         else:
             citations = tuple(citations)
+
+        if examples is None:
+            examples = []
 
         visualizer = qiime2.sdk.Visualizer._init(function, inputs, parameters,
                                                  self._package, name,
                                                  description,
                                                  input_descriptions,
                                                  parameter_descriptions,
-                                                 citations)
+                                                 citations, examples)
         self[visualizer.id] = visualizer
 
 
@@ -264,15 +273,20 @@ class PluginPipelines(PluginActions):
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
-                          output_descriptions=None, citations=None):
+                          output_descriptions=None, citations=None,
+                          examples=None):
         if citations is None:
             citations = ()
         else:
             citations = tuple(citations)
 
+        if examples is None:
+            examples = []
+
         pipeline = qiime2.sdk.Pipeline._init(function, inputs, parameters,
                                              outputs, self._package, name,
                                              description, input_descriptions,
                                              parameter_descriptions,
-                                             output_descriptions, citations)
+                                             output_descriptions, citations,
+                                             examples)
         self[pipeline.id] = pipeline

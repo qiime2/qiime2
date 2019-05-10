@@ -45,6 +45,7 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
                        pipelines_in_pipeline, pointless_pipeline,
                        failing_pipeline)
+from .examples import concatenate_ints_simple, most_common_viz_typical
 from ..cite import Citations
 
 citations = Citations.load('citations.bib', package='qiime2.core.testing')
@@ -134,7 +135,8 @@ dummy_plugin.methods.register_function(
     name='Concatenate integers',
     description='This method concatenates integers into a single sequence in '
                 'the order they are provided.',
-    citations=[citations['baerheim1994effect']]
+    citations=[citations['baerheim1994effect']],
+    examples=[concatenate_ints_simple],
 )
 
 T = TypeMatch([IntSequence1, IntSequence2])
@@ -440,7 +442,8 @@ dummy_plugin.visualizers.register_function(
                 'input sequence of integers ordered from most- to '
                 'least-frequently occurring, along with their respective '
                 'frequencies.',
-    citations=[citations['barbeito1967microbiological']]
+    citations=[citations['barbeito1967microbiological']],
+    examples=[most_common_viz_typical],
 )
 
 # TODO add optional parameters to this method when they are supported
