@@ -69,11 +69,19 @@ class Usage(metaclass=abc.ABCMeta):
         return plugin.actions[action]
 
     @abc.abstractmethod
-    def comment(self, comment):
+    def comment(self, text):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def action(self, action, inputs, outputs):
+    def action(self, action, inputs, outputs=None):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def import_file(self, type, input_name, output_name=None, format=None):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def export_file(self, input_name, output_name, format=None):
         raise NotImplementedError
 
 
@@ -81,10 +89,16 @@ class NoOpUsage(Usage):
     def get_action(self, plugin, action):
         return None
 
-    def comment(self, comment):
+    def comment(self, text):
         return None
 
-    def action(self, action, inputs, outputs):
+    def action(self, action, inputs, outputs=None):
+        return None
+
+    def import_file(self, type, input_name, output_name=None, format=None):
+        return None
+
+    def export_file(self, input_name, output_name, format=None):
         return None
 
 
@@ -96,40 +110,14 @@ class NoOpUsage(Usage):
 # TODO: this doesn't really work yet, needs to backtrace input refs, and
 # also update the scope as it goes with the stuff that it creates
 class ExecutionUsage(Usage):
-    def __init__(self):
-        super().__init__()
-        # TODO: not sure about this
-        self.inputs = dict()
-        self.outputs = dict()
-
-    def comment(self, comment):
+    def comment(self, text):
         return None
 
-    def action(self, action, inputs, outputs):
-        sig_inputs, sig_params = dict(), dict()
+    def import_file(self, type, input_name, output_name=None, format=None):
+        return None
 
-        # TODO: deal with MD
-        for param, _ in action.signature.parameters.items():
-            p = inputs.pop(param, None)
-            if p is not None:
-                sig_params[param] = p
+    def export_file(self, input_name, output_name, format=None):
+        return None
 
-        for input, _ in action.signature.inputs.items():
-            try:
-                record = self.scope[input]
-            except KeyError:
-                raise ValueError('Missing data registration for input %s' %
-                                 (input, ))
-
-            if record.type == 'artifact':
-                data = record.factory()
-            else:
-                # TODO: add in the other branches here
-                data = None
-
-            sig_inputs[input] = data
-            self.inputs[data] = input
-
-        outputs = action(**sig_inputs, **sig_params)
-        for output, _ in action.signature.outputs.items():
-            self.outputs[getattr(outputs, output)] = output
+    def action(self, action, inputs, outputs=None):
+        return None
