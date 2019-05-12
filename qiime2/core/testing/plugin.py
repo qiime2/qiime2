@@ -46,6 +46,8 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        pipelines_in_pipeline, pointless_pipeline,
                        failing_pipeline)
 from .examples import (concatenate_ints_simple, concatenate_ints_complex,
+                       identity_with_metadata_case_a,
+                       identity_with_metadata_column_case_a,
                        most_common_viz_typical)
 from ..cite import Citations
 
@@ -193,7 +195,8 @@ dummy_plugin.methods.register_function(
         ('out', IntSequence1)
     ],
     name='Identity',
-    description='This method does nothing, but takes metadata'
+    description='This method does nothing, but takes metadata',
+    examples=[identity_with_metadata_case_a],
 )
 
 dummy_plugin.methods.register_function(
@@ -268,7 +271,8 @@ dummy_plugin.methods.register_function(
         ('out', IntSequence1)
     ],
     name='Identity',
-    description='This method does nothing, but takes a generic metadata column'
+    description='This method does nothing, but takes a metadata column',
+    examples=[identity_with_metadata_column_case_a],
 )
 
 

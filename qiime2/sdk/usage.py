@@ -127,10 +127,12 @@ class ExecutionUsage(Usage):
         sig = action.signature
         opts = {}
 
-        for name in sig.signature_order.keys():
+        for name, signature in sig.signature_order.items():
             if name in inputs:
-                if name in self.scope:
-                    value = self.scope[name].factory()
+                if signature.qiime_type.name == 'MetadataColumn':
+                    ref, col = inputs[name]
+                    value = self.scope[ref].factory()
+                    value = value.get_column(col)
                 elif inputs[name] in self.scope:
                     value = self.scope[inputs[name]].factory()
                 else:
@@ -141,5 +143,8 @@ class ExecutionUsage(Usage):
 
         for output in sig.outputs.keys():
             scope_name = outputs[output] if output in outputs else output
-            artifact = getattr(results, output)
-            self.scope.add_artifact(scope_name, lambda: artifact)
+            result = getattr(results, output)
+            if isinstance(result, qiime2.Artifact):
+                self.scope.add_artifact(scope_name, lambda: result)
+            else:
+                self.scope.add_visualization(scope_name, lambda: result)

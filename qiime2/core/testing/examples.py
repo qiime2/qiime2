@@ -6,7 +6,9 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from qiime2 import Artifact
+from qiime2 import Artifact, Metadata
+
+import pandas as pd
 
 from .type import IntSequence1, IntSequence2
 
@@ -83,13 +85,39 @@ def concatenate_ints_complex(use):
     use.comment('fin')
 
 
+def metadata_factory_a():
+    df = pd.DataFrame([[1, 2, 3], [4, 5, 6]], columns=['foo', 'bar', 'baz'],
+                      index=pd.Index(['s1', 's2'], name='id'))
+    return Metadata(df)
+
+
+def identity_with_metadata_case_a(use):
+    identity_with_metadata = use.get_action('dummy-plugin',
+                                            'identity_with_metadata')
+    use.scope.add_artifact('ints', ints1_factory)
+    use.scope.add_metadata('md', metadata_factory_a)
+    use.action(
+        identity_with_metadata,
+        {'ints': 'ints', 'metadata': 'md'},
+        {'out': 'ints_out'},
+    )
+
+
+def identity_with_metadata_column_case_a(use):
+    identity_with_metadata_col = use.get_action(
+        'dummy-plugin', 'identity_with_metadata_column')
+    use.scope.add_artifact('ints', ints1_factory)
+    use.scope.add_metadata('md', metadata_factory_a)
+    use.action(
+        identity_with_metadata_col,
+        {'ints': 'ints', 'metadata': ('md', 'foo')},
+        {'out': 'ints_out'},
+    )
+
+
 def most_common_viz_typical(use):
     most_common_viz = use.get_action('dummy-plugin', 'most_common_viz')
     use.scope.add_artifact('int', ints1_factory)
 
     use.comment('doing things')
-    use.action(
-        most_common_viz,
-        dict(),
-        dict(),
-    )
+    use.action(most_common_viz, {'ints': 'int'}, {'visualization': 'foo'})
