@@ -43,11 +43,17 @@ class Scope:
     def add_metadata(self, name, factory):
         self._add_record(name, factory, 'metadata')
 
+    def __str__(self):
+        return str(self.records)
+
     def __iter__(self):
         yield from self.records.values()
 
     def __getitem__(self, key):
         return self.records[key]
+
+    def __contains__(self, key):
+        return key in self.records
 
 
 class Usage(metaclass=abc.ABCMeta):
@@ -107,8 +113,6 @@ class NoOpUsage(Usage):
 #     pass
 
 
-# TODO: this doesn't really work yet, needs to backtrace input refs, and
-# also update the scope as it goes with the stuff that it creates
 class ExecutionUsage(Usage):
     def comment(self, text):
         return None
@@ -120,4 +124,22 @@ class ExecutionUsage(Usage):
         return None
 
     def action(self, action, inputs, outputs=None):
-        return None
+        sig = action.signature
+        opts = {}
+
+        for name in sig.signature_order.keys():
+            if name in inputs:
+                if name in self.scope:
+                    value = self.scope[name].factory()
+                elif inputs[name] in self.scope:
+                    value = self.scope[inputs[name]].factory()
+                else:
+                    value = inputs[name]
+                opts[name] = value
+
+        results = action(**opts)
+
+        for output in sig.outputs.keys():
+            scope_name = outputs[output] if output in outputs else output
+            artifact = getattr(results, output)
+            self.scope.add_artifact(scope_name, lambda: artifact)

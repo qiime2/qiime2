@@ -34,6 +34,7 @@ def concatenate_ints_simple(use):
         concatenate_ints,
         {
             'ints1': 'byod',
+            'ints2': 'ints2',
             'ints3': 'this_one_is_important',
             'int1': 4,
             'int2': 2,
@@ -56,6 +57,7 @@ def concatenate_ints_complex(use):
         concatenate_ints,
         {
             'ints1': 'byod',
+            'ints2': 'ints2',
             'ints3': 'this_one_is_important',
             'int1': 4,
             'int2': 2,
