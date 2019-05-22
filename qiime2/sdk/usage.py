@@ -43,6 +43,12 @@ class Scope:
     def add_metadata(self, name, factory):
         self._add_record(name, factory, 'metadata')
 
+    def keys(self):
+        return self.records.keys()
+
+    def __len__(self):
+        return len(self.records)
+
     def __str__(self):
         return str(self.records)
 
@@ -106,11 +112,6 @@ class NoOpUsage(Usage):
 
     def export_file(self, input_name, output_name, format=None):
         return None
-
-
-# TODO: think about this one
-# class TypeCheckUsage(Usage):
-#     pass
 
 
 class ExecutionUsage(Usage):

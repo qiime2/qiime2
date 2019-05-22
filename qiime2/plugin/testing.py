@@ -244,7 +244,7 @@ class TestPluginBase(unittest.TestCase):
 
         return input, obs
 
-    def execute_examples(self, callback=None):
+    def execute_examples(self, callbacks=None):
         if self.plugin is not None:
             for _, action in self.plugin.actions.items():
                 for example in action.examples:
@@ -253,5 +253,6 @@ class TestPluginBase(unittest.TestCase):
                         scope = qiime2.sdk.usage.Scope()
                         with use.bind(scope):
                             example(use)
-                            if callback is not None:
-                                callback(example, use, scope)
+                            if callbacks is not None and \
+                                    example.__name__ in callbacks:
+                                callbacks[example.__name__](use, scope)
