@@ -535,6 +535,7 @@ class TestMethod(unittest.TestCase):
         self.assertEqual(result.right.view(list), [-2, 43, 6])
 
     def test_docstring(self):
+        # TODO: test Artifact API usage here
         merge_mappings = self.plugin.methods['merge_mappings']
         split_ints = self.plugin.methods['split_ints']
         identity_with_optional_metadata = (

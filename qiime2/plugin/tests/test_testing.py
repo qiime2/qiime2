@@ -27,6 +27,8 @@ class TestTesting(TestPluginBase):
     def tearDown(self):
         self.test_dir.cleanup()
 
+    # Ensure that example execution testing works, and that supplemental
+    # callbacks can be used.
     def test_examples(self):
         def concatenate_ints_simple(use, scope):
             self.assertEqual(4, len(scope))
