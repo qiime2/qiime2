@@ -27,38 +27,8 @@ class TestTesting(TestPluginBase):
     def tearDown(self):
         self.test_dir.cleanup()
 
-    # Ensure that example execution testing works, and that supplemental
-    # callbacks can be used.
     def test_examples(self):
-        def concatenate_ints_simple(use, scope):
-            self.assertEqual(4, len(scope))
-
-        def concatenate_ints_complex(use, scope):
-            with self.subTest(test='scope length'):
-                self.assertEqual(5, len(scope))
-
-            with self.subTest(test='output type'):
-                final_record = scope[list(scope.keys())[-1]]
-                artifact = final_record.factory()
-                self.assertEqual('IntSequence1', str(artifact.type))
-
-        def identity_with_metadata_case_a(use, scope):
-            self.assertEqual(3, len(scope))
-
-        def most_common_viz_typical(use, scope):
-            self.assertEqual(2, len(scope))
-
-            final_record = scope[list(scope.keys())[-1]]
-            self.assertEqual('visualization', final_record.type)
-
-        callbacks = {
-            'concatenate_ints_simple': concatenate_ints_simple,
-            'concatenate_ints_complex': concatenate_ints_complex,
-            'identity_with_metadata_case_a': identity_with_metadata_case_a,
-            'most_common_viz_typical': most_common_viz_typical,
-        }
-
-        self.execute_examples(callbacks=callbacks)
+        self.execute_examples()
 
 
 if __name__ == '__main__':

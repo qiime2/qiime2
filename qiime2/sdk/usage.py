@@ -9,8 +9,13 @@
 import abc
 import collections
 import contextlib
+import os
+import re
+import tempfile
+import zipfile
 
 import qiime2
+from qiime2.core.type.util import is_metadata_column_type
 
 
 ScopeRecord = collections.namedtuple('ScopeRecord',
@@ -56,6 +61,7 @@ class Scope:
         yield from self.records.values()
 
     def __getitem__(self, key):
+        # TODO: Better error here?
         return self.records[key]
 
     def __contains__(self, key):
@@ -96,6 +102,10 @@ class Usage(metaclass=abc.ABCMeta):
     def export_file(self, input_name, output_name, format=None):
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def assert_has_line_matching(self, label, result, path, search):
+        raise NotImplementedError
+
 
 class NoOpUsage(Usage):
     def get_action(self, plugin, action):
@@ -113,6 +123,9 @@ class NoOpUsage(Usage):
     def export_file(self, input_name, output_name, format=None):
         return None
 
+    def assert_has_line_matching(self, label, result, path, search):
+        return None
+
 
 class ExecutionUsage(Usage):
     def comment(self, text):
@@ -124,13 +137,32 @@ class ExecutionUsage(Usage):
     def export_file(self, input_name, output_name, format=None):
         return None
 
+    def assert_has_line_matching(self, label, result, path, expression):
+        data = self.scope[result].factory()
+        with tempfile.TemporaryDirectory(prefix='q2-exc-usage-') as temp_dir:
+            fp = data.save(os.path.join(temp_dir, result))
+            with zipfile.ZipFile(fp, 'r') as zip_temp:
+                for fn in zip_temp.namelist():
+                    if re.match(path, fn):
+                        path = fn
+                        break  # Will only match on first hit
+
+                with zip_temp.open(path) as file_temp:
+                    target = file_temp.read().decode('utf-8')
+                    match = re.search(expression, target,
+                                      flags=re.MULTILINE)
+                    if match is None:
+                        raise ValueError('omz')
+
+        return None
+
     def action(self, action, inputs, outputs=None):
         sig = action.signature
         opts = {}
 
         for name, signature in sig.signature_order.items():
             if name in inputs:
-                if signature.qiime_type.name == 'MetadataColumn':
+                if is_metadata_column_type(signature.qiime_type):
                     ref, col = inputs[name]
                     value = self.scope[ref].factory()
                     value = value.get_column(col)

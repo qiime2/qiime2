@@ -82,6 +82,14 @@ def concatenate_ints_complex(use):
             'concatenated_ints': 'well_well_well_what_do_we_have_here',
         },
     )
+
+    use.assert_has_line_matching(
+        label='foobarbaz',
+        result='well_well_well_what_do_we_have_here',
+        path='.*/data/ints.txt',
+        expression='2\n0\n1\n2',
+    )
+
     use.comment('fin')
 
 
@@ -121,3 +129,9 @@ def most_common_viz_typical(use):
 
     use.comment('doing things')
     use.action(most_common_viz, {'ints': 'int'}, {'visualization': 'foo'})
+    use.assert_has_line_matching(
+        label='foobarbaz',
+        result='foo',
+        path='.*/data/index.tsv',
+        expression='.*',
+    )
