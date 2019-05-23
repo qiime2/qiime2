@@ -72,15 +72,15 @@ class Action(metaclass=abc.ABCMeta):
 
     # Private constructor
     @classmethod
-    def _init(cls, callable, signature, package, name, description, citations,
-              examples):
+    def _init(cls, callable, signature, plugin_id, name, description,
+              citations, examples):
         """
 
         Parameters
         ----------
         callable : callable
         signature : qiime2.core.type.Signature
-        package : str
+        plugin_id : str
         name : str
             Human-readable name for this action.
         description : str
@@ -88,18 +88,18 @@ class Action(metaclass=abc.ABCMeta):
 
         """
         self = cls.__new__(cls)
-        self.__init(callable, signature, package, name, description, citations,
-                    examples)
+        self.__init(callable, signature, plugin_id, name, description,
+                    citations, examples)
         return self
 
     # This "extra private" constructor is necessary because `Action` objects
     # can be initialized from a static (classmethod) context or on an
     # existing instance (see `_init` and `__setstate__`, respectively).
-    def __init(self, callable, signature, package, name, description,
+    def __init(self, callable, signature, plugin_id, name, description,
                citations, examples):
         self._callable = callable
         self.signature = signature
-        self.package = package
+        self.plugin_id = plugin_id
         self.name = name
         self.description = description
         self.citations = citations
@@ -133,8 +133,11 @@ class Action(metaclass=abc.ABCMeta):
                 self._callable.__name__)
         return markdown_source_template % {'source': source}
 
-    def get_import_path(self):
-        return self.package + '.' + self.id
+    def get_import_path(self, include_self=True):
+        path = f'qiime2.plugins.{self.plugin_id}.{self.type}s'
+        if include_self:
+            path += f'.{self.id}'
+        return path
 
     def __repr__(self):
         return "<%s %s>" % (self.type, self.get_import_path())
@@ -143,7 +146,7 @@ class Action(metaclass=abc.ABCMeta):
         return {
             'callable': self._callable,
             'signature': self.signature,
-            'package': self.package,
+            'plugin_id': self.plugin_id,
             'name': self.name,
             'description': self.description,
             'citations': self.citations,
@@ -191,7 +194,7 @@ class Action(metaclass=abc.ABCMeta):
             # manager will clean up. (It also cleans up when things go right)
             with ctx as scope:
                 provenance = self._ProvCaptureCls(
-                    self.type, self.package, self.id)
+                    self.type, self.plugin_id, self.id)
                 scope.add_reference(provenance)
 
                 # Collate user arguments
@@ -298,7 +301,7 @@ class Action(metaclass=abc.ABCMeta):
         wrapper.__name__ = wrapper.__qualname__ = name
 
     def _set_wrapper_properties(self, wrapper):
-        wrapper.__module__ = self.package
+        wrapper.__module__ = self.get_import_path(include_self=False)
         wrapper.__doc__ = self._build_numpydoc()
         wrapper.__annotations__ = self._build_annotations()
         # This is necessary so that `inspect` doesn't display the wrapped
@@ -402,14 +405,14 @@ class Method(Action):
         return tuple(output_artifacts)
 
     @classmethod
-    def _init(cls, callable, inputs, parameters, outputs, package, name,
+    def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
               description, input_descriptions, parameter_descriptions,
               output_descriptions, citations, examples):
         signature = qtype.MethodSignature(callable, inputs, parameters,
                                           outputs, input_descriptions,
                                           parameter_descriptions,
                                           output_descriptions)
-        return super()._init(callable, signature, package, name, description,
+        return super()._init(callable, signature, plugin_id, name, description,
                              citations, examples)
 
 
@@ -441,12 +444,12 @@ class Visualizer(Action):
             return (viz,)
 
     @classmethod
-    def _init(cls, callable, inputs, parameters, package, name, description,
+    def _init(cls, callable, inputs, parameters, plugin_id, name, description,
               input_descriptions, parameter_descriptions, citations, examples):
         signature = qtype.VisualizerSignature(callable, inputs, parameters,
                                               input_descriptions,
                                               parameter_descriptions)
-        return super()._init(callable, signature, package, name, description,
+        return super()._init(callable, signature, plugin_id, name, description,
                              citations, examples)
 
 
@@ -495,14 +498,14 @@ class Pipeline(Action):
         return tuple(results)
 
     @classmethod
-    def _init(cls, callable, inputs, parameters, outputs, package, name,
+    def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
               description, input_descriptions, parameter_descriptions,
               output_descriptions, citations, examples):
         signature = qtype.PipelineSignature(callable, inputs, parameters,
                                             outputs, input_descriptions,
                                             parameter_descriptions,
                                             output_descriptions)
-        return super()._init(callable, signature, package, name, description,
+        return super()._init(callable, signature, plugin_id, name, description,
                              citations, examples)
 
 
