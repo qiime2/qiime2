@@ -38,29 +38,49 @@ class PluginManager:
 
     # This class is a singleton as it is slow to create, represents the
     # state of a qiime2 installation, and is needed *everywhere*
-    def __new__(cls):
+    def __new__(cls, install_plugins=True):
         if cls.__instance is None:
             self = super().__new__(cls)
-            self._init()
+            self._init(install_plugins=install_plugins)
             cls.__instance = self
         return cls.__instance
 
-    def _init(self):
+    def _init(self, install_plugins):
         self.plugins = {}
+        self._plugin_by_id = {}
         self.semantic_types = {}
         self.transformers = collections.defaultdict(dict)
         self.formats = {}
         self.views = {}
         self.type_formats = []
 
-        # These are all dependent loops, each requires the loop above it to
-        # be completed.
-        for entry_point in self.iter_entry_points():
-            plugin = entry_point.load()
-            self.plugins[plugin.name] = plugin
+        if install_plugins:
+            # These are all dependent loops, each requires the loop above it to
+            # be completed.
+            for entry_point in self.iter_entry_points():
+                project_name = entry_point.dist.project_name
+                package = entry_point.module_name.split('.')[0]
+                plugin = entry_point.load()
 
-        for plugin in self.plugins.values():
-            self._integrate_plugin(plugin)
+                self.install_plugin(plugin, package, project_name)
+
+    def install_plugin(self, plugin, package=None, project_name=None):
+        self.plugins[plugin.name] = plugin
+        self._plugin_by_id[plugin.id] = plugin
+        if plugin.package is None:
+            plugin.package = package
+        if plugin.project_name is None:
+            plugin.project_name = project_name
+        self._integrate_plugin(plugin)
+        plugin.freeze()
+
+    def get_plugin(self, id=None, name=None):
+        if id is None and name is None:
+            raise ValueError("No plugin requested.")
+        elif id is not None:
+            return self._plugin_by_id[id]
+        else:
+            return self.plugins[name]
 
     def _integrate_plugin(self, plugin):
         for type_name, type_record in plugin.types.items():
