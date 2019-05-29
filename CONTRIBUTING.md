@@ -2,7 +2,7 @@
 
 
 
-QIIME 2 is an open-source project next-generation microbiome bioinformatics platform that is extensible, free, and community developed. Please visit our [official website](https://forum.qiime2.org) if you want to learn more about our project.
+QIIME 2 is an open-source project next-generation microbiome bioinformatics platform that is extensible, free, and community developed. Please visit our [official website](https://qiime2.org) if you want to learn more about our project.
 
 
 
