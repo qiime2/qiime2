@@ -26,7 +26,11 @@ def ints3_factory():
 
 
 def concatenate_ints_simple(use):
-    concatenate_ints = use.get_action('dummy-plugin', 'concatenate_ints')
+    '''
+    # TODO: anything good we can do with this little bit?
+    docstring action
+    '''
+    concatenate_ints = use.get_action('dummy_plugin', 'concatenate_ints')
     use.scope.add_artifact('byod', ints1_factory)
     use.scope.add_artifact('ints2', ints2_factory)
     use.scope.add_artifact('this_one_is_important', ints3_factory)
@@ -49,7 +53,7 @@ def concatenate_ints_simple(use):
 
 
 def concatenate_ints_complex(use):
-    concatenate_ints = use.get_action('dummy-plugin', 'concatenate_ints')
+    concatenate_ints = use.get_action('dummy_plugin', 'concatenate_ints')
     use.scope.add_artifact('byod', ints1_factory)
     use.scope.add_artifact('ints2', ints2_factory)
     use.scope.add_artifact('this_one_is_important', ints3_factory)
@@ -100,7 +104,7 @@ def metadata_factory_a():
 
 
 def identity_with_metadata_case_a(use):
-    identity_with_metadata = use.get_action('dummy-plugin',
+    identity_with_metadata = use.get_action('dummy_plugin',
                                             'identity_with_metadata')
     use.scope.add_artifact('ints', ints1_factory)
     use.scope.add_metadata('md', metadata_factory_a)
@@ -113,7 +117,7 @@ def identity_with_metadata_case_a(use):
 
 def identity_with_metadata_column_case_a(use):
     identity_with_metadata_col = use.get_action(
-        'dummy-plugin', 'identity_with_metadata_column')
+        'dummy_plugin', 'identity_with_metadata_column')
     use.scope.add_artifact('ints', ints1_factory)
     use.scope.add_metadata('md', metadata_factory_a)
     use.action(
@@ -124,7 +128,7 @@ def identity_with_metadata_column_case_a(use):
 
 
 def most_common_viz_typical(use):
-    most_common_viz = use.get_action('dummy-plugin', 'most_common_viz')
+    most_common_viz = use.get_action('dummy_plugin', 'most_common_viz')
     use.scope.add_artifact('int', ints1_factory)
 
     use.comment('doing things')

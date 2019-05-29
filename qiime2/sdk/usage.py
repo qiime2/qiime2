@@ -23,6 +23,10 @@ ScopeRecord = collections.namedtuple('ScopeRecord',
 
 
 class Scope:
+    """
+    TODO: docstring
+    """
+
     def __init__(self, records=None):
         if records is None:
             self.records = dict()
@@ -30,9 +34,11 @@ class Scope:
             self.records = dict(records)
 
     def _add_record(self, name, factory, type):
-        # TODO: do i need this?
-        # if name in self.records:
-        #     raise ValueError
+        if name in self.records:
+            record = self.records[name]
+            if type != record.type or factory != record.factory:
+                raise KeyError('A(n) %s record with the name "%s" is already '
+                               'registered.' % (type, name))
 
         self.records[name] = ScopeRecord(name=name, type=type, factory=factory)
 
@@ -69,6 +75,10 @@ class Scope:
 
 
 class Usage(metaclass=abc.ABCMeta):
+    """
+    TODO: docstring
+    """
+
     def __init__(self):
         self.scope = None
         self.plugin_manager = None
@@ -79,11 +89,15 @@ class Usage(metaclass=abc.ABCMeta):
         yield self
         self.scope = None
 
-    def get_action(self, plugin, action):
+    def get_action(self, plugin_id, action):
         if self.plugin_manager is None:
             self.plugin_manager = qiime2.sdk.PluginManager()
 
-        plugin = self.plugin_manager.plugins[plugin]
+        try:
+            plugin = self.plugin_manager.get_plugin(plugin_id)
+        except KeyError:
+            raise KeyError('No plugin currently registered with id: "%s".' %
+                           (plugin_id, ))
         return plugin.actions[action]
 
     @abc.abstractmethod
@@ -103,12 +117,16 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def assert_has_line_matching(self, label, result, path, search):
+    def assert_has_line_matching(self, label, result, path, expression):
         raise NotImplementedError
 
 
 class NoOpUsage(Usage):
-    def get_action(self, plugin, action):
+    """
+    TODO: docstring
+    """
+
+    def get_action(self, plugin_id, action):
         return None
 
     def comment(self, text):
@@ -123,11 +141,15 @@ class NoOpUsage(Usage):
     def export_file(self, input_name, output_name, format=None):
         return None
 
-    def assert_has_line_matching(self, label, result, path, search):
+    def assert_has_line_matching(self, label, result, path, expression):
         return None
 
 
 class ExecutionUsage(Usage):
+    """
+    TODO: docstring
+    """
+
     def comment(self, text):
         return None
 
