@@ -63,14 +63,14 @@ class ModelType:
                      input_record=self._record, output_name=other._view_name,
                      output_record=other._record)
 
-        def transformation(view, level='min'):
+        def transformation(view, validate_level='min'):
             view = self.coerce_view(view)
-            self.validate(view, level)
+            self.validate(view, validate_level)
 
             new_view = transformer(view)
 
             new_view = other.coerce_view(new_view)
-            other.validate(new_view, level)
+            other.validate(new_view, validate_level)
 
             if transformer is not identity_transformer:
                 other.set_user_owned(new_view, False)

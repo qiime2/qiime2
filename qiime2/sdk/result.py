@@ -238,11 +238,11 @@ class Artifact(Result):
 
         provenance_capture = archive.ImportProvenanceCapture(format_, md5sums)
         return cls._from_view(type_, view, view_type, provenance_capture,
-                              level='max')
+                              validate_level='max')
 
     @classmethod
     def _from_view(cls, type, view, view_type, provenance_capture,
-                   level='min'):
+                   validate_level='min'):
         if isinstance(type, str):
             type = qiime2.sdk.parse_type(type)
 
@@ -264,7 +264,7 @@ class Artifact(Result):
         recorder = provenance_capture.transformation_recorder('return')
         transformation = from_type.make_transformation(to_type,
                                                        recorder=recorder)
-        result = transformation(view, level)
+        result = transformation(view, validate_level)
 
         artifact = cls.__new__(cls)
         artifact._archiver = archive.Archiver.from_data(
