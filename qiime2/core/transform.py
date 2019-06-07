@@ -70,7 +70,7 @@ class ModelType:
             new_view = transformer(view)
 
             new_view = other.coerce_view(new_view)
-            other.validate(new_view, validate_level)
+            other.validate(new_view)
 
             if transformer is not identity_transformer:
                 other.set_user_owned(new_view, False)
