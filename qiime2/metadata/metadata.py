@@ -668,22 +668,29 @@ class Metadata(_MetadataBase):
                 "this Metadata object (otherwise there is nothing to merge).")
 
         dfs = []
-        columns = []
+        columns = {}
         artifacts = []
+
         for md in itertools.chain([self], others):
-            df = md._dataframe
-            dfs.append(df)
-            columns.extend(df.columns.tolist())
+            dfs.append(md._dataframe)
             artifacts.extend(md.artifacts)
 
-        columns = pd.Index(columns)
-        if columns.has_duplicates:
-            raise ValueError(
-                "Cannot merge metadata with overlapping columns. The "
-                "following columns overlap: %s" %
-                ', '.join([repr(e) for e in
-                           columns[columns.duplicated()].unique()]))
+        df_changes = [{} for i in range(len(dfs))]
 
+        for i, df in enumerate(dfs):
+            for column in df.columns.tolist():
+                if column not in columns:
+                    columns[column] = i
+                else:
+                    if columns[column] is not None:
+                        df_changes[columns[column]][column] = str(column) + \
+                            f' [{columns[column]+1}]'
+                        columns[column] = None
+                    df_changes[i][column] = str(column) + f' [{i+1}]'
+
+        if df_changes:
+            for i in range(len(df_changes)):
+                dfs[i] = dfs[i].rename(columns=df_changes[i])
         merged_df = dfs[0].join(dfs[1:], how='inner')
 
         # Not using DataFrame.empty because empty columns are allowed in

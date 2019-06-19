@@ -1171,16 +1171,12 @@ class TestMerge(unittest.TestCase):
             {'c': [5, 6], 'b': [7, 8]},
             index=pd.Index(['id1', 'id2'], name='id')))
 
-        with self.assertRaisesRegex(ValueError, "columns overlap: 'b'"):
-            md1.merge(md2)
-
-    def test_duplicate_columns_self_merge(self):
-        md = Metadata(pd.DataFrame(
-            {'a': [1, 2], 'b': [3, 4]},
+        exp = Metadata(pd.DataFrame(
+            {'a': [1, 2], 'b [1]': [3, 4], 'c': [5, 6], 'b [2]': [7, 8]},
             index=pd.Index(['id1', 'id2'], name='id')))
 
-        with self.assertRaisesRegex(ValueError, "columns overlap: 'a', 'b'"):
-            md.merge(md)
+        obs = md1.merge(md2)
+        self.assertEqual(obs, exp)
 
 
 class TestFilterIDs(unittest.TestCase):
