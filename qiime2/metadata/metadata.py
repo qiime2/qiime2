@@ -688,8 +688,8 @@ class Metadata(_MetadataBase):
                         columns[column] = None
                     df_changes[i][column] = str(column) + f' [{i+1}]'
 
-        if df_changes:
-            for i in range(len(df_changes)):
+        for i in range(len(df_changes)):
+            if df_changes[i]:
                 dfs[i] = dfs[i].rename(columns=df_changes[i])
         merged_df = dfs[0].join(dfs[1:], how='inner')
 
