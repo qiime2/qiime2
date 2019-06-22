@@ -8,12 +8,14 @@
 
 import abc
 import collections
-import itertools
+import uuid
+
 import sqlite3
 import types
 import warnings
 
 import pandas as pd
+from pandas.util import hash_pandas_object
 import numpy as np
 
 import qiime2
@@ -87,6 +89,20 @@ class _MetadataBase:
         """
         return tuple(self._artifacts)
 
+    @property
+    def non_artifact_metadata(self):
+        """Non artifacts that are the source of the metadata.
+
+        This property is read-only.
+
+        Returns
+        -------
+        tuple of qiime2.Metadata
+            Source non artifacts of the metadata.
+
+        """
+        return tuple(self._non_artifact_metadata)
+
     def __init__(self, index):
         if index.empty:
             raise ValueError(
@@ -100,6 +116,7 @@ class _MetadataBase:
         self._ids = tuple(index)
 
         self._artifacts = []
+        self._non_artifact_metadata = []
 
     def __eq__(self, other):
         return (
@@ -125,6 +142,13 @@ class _MetadataBase:
                     (self.__class__.__name__, artifact))
             deduped.add(artifact)
         self._artifacts.extend(artifacts)
+
+    def _add_non_artifact_metadata(self, non_artifact_metadata):
+        for metadata in non_artifact_metadata:
+            if not isinstance(metadata, qiime2.Metadata):
+                raise TypeError(
+                    "Expected Metadata object, received %r" % metadata)
+        self._non_artifact_metadata.extend(non_artifact_metadata)
 
     # Static helpers below for code reuse in Metadata and MetadataColumn
 
@@ -362,6 +386,37 @@ class Metadata(_MetadataBase):
         super().__init__(dataframe.index)
 
         self._dataframe, self._columns = self._normalize_dataframe(dataframe)
+
+    @property
+    def hash(self):
+        if not isinstance(self._hash, uuid.UUID):
+            return f'{self._hash:x}'
+        else:
+            return self._hash
+
+    @property
+    def _hash(self):
+        hash = None
+        if self.artifacts:
+            hash = self.artifacts[0].uuid
+            for artifact in self.artifacts[1:]:
+                hash = int(hash) ^ int(artifact.uuid)
+        if self.non_artifact_metadata:
+            if hash is None:
+                hash = self._hash_dataframe(self)
+            for md in self.non_artifact_metadata:
+                hash = int(hash) ^ self._hash_dataframe(md)
+        if hash is None:
+            hash = self._hash_dataframe(self)
+        return hash
+
+    def _hash_dataframe(self, non_artifact_metadata):
+        df = non_artifact_metadata.to_dataframe()
+        hash_series = hash_pandas_object(df)
+        hash = hash_series[0]
+        for series in hash_series[1:]:
+            hash = int(hash) ^ series
+        return hash
 
     def _normalize_dataframe(self, dataframe):
         self._validate_index(dataframe.columns, axis='column')
@@ -668,30 +723,47 @@ class Metadata(_MetadataBase):
                 "this Metadata object (otherwise there is nothing to merge).")
 
         dfs = []
-        columns = {}
         artifacts = []
+        non_artifact_metadata = []
+        columns = {}
+        df_changes = {}
 
-        for md in itertools.chain([self], others):
-            dfs.append(md._dataframe)
-            artifacts.extend(md.artifacts)
-
-        df_changes = [{} for i in range(len(dfs))]
-
-        for i, df in enumerate(dfs):
+        mds = [self]
+        mds.extend(others)
+        for i, md in enumerate(mds):
+            df = md._dataframe
+            dfs.append(df)
+            if md.artifacts:
+                artifacts.extend(md.artifacts)
+            if md.non_artifact_metadata:
+                non_artifact_metadata.extend(md.non_artifact_metadata)
+            elif not md.artifacts:
+                non_artifact_metadata.append(md)
             for column in df.columns.tolist():
                 if column not in columns:
                     columns[column] = i
                 else:
                     if columns[column] is not None:
+                        if columns[column] not in df_changes:
+                            df_changes[columns[column]] = {}
                         df_changes[columns[column]][column] = str(column) + \
-                            f' [{columns[column]+1}]'
+                            f' [{mds[columns[column]].hash}]'
                         columns[column] = None
-                    df_changes[i][column] = str(column) + f' [{i+1}]'
+                    if i not in df_changes:
+                        df_changes[i] = {}
+                    df_changes[i][column] = str(column) + f' [{mds[i].hash}]'
 
-        for i in range(len(df_changes)):
-            if df_changes[i]:
-                dfs[i] = dfs[i].rename(columns=df_changes[i])
-        merged_df = dfs[0].join(dfs[1:], how='inner')
+        for change in df_changes:
+            dfs[change] = dfs[change].rename(columns=df_changes[change])
+        try:
+            merged_df = dfs[0].join(dfs[1:], how='inner')
+        except Exception as e:
+            if 'overlapping values' in str(e):
+                raise ValueError(
+                    'Your input contained duplicate metadata files. Merging '
+                    'multiples of the same file is not allowed.') from e
+            else:
+                raise e
 
         # Not using DataFrame.empty because empty columns are allowed in
         # Metadata.
@@ -703,6 +775,7 @@ class Metadata(_MetadataBase):
         merged_df.index.name = 'id'
         merged_md = self.__class__(merged_df)
         merged_md._add_artifacts(artifacts)
+        merged_md._add_non_artifact_metadata(non_artifact_metadata)
         return merged_md
 
     def filter_ids(self, ids_to_keep):

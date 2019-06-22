@@ -1172,11 +1172,52 @@ class TestMerge(unittest.TestCase):
             index=pd.Index(['id1', 'id2'], name='id')))
 
         exp = Metadata(pd.DataFrame(
-            {'a': [1, 2], 'b [1]': [3, 4], 'c': [5, 6], 'b [2]': [7, 8]},
+            {'a': [1, 2], 'b [e1d34b79c1327197]': [3, 4],
+             'c': [5, 6], 'b [b0e26348076b41e4]': [7, 8]},
             index=pd.Index(['id1', 'id2'], name='id')))
 
         obs = md1.merge(md2)
         self.assertEqual(obs, exp)
+
+    def test_metadata_hash_consistency(self):
+        from pandas.util import hash_pandas_object
+
+        md = Metadata(pd.DataFrame(
+            {'a': [1, 2], 'b': [3, 4]},
+            index=pd.Index(['id1', 'id2'], name='id')))
+        df = md.to_dataframe()
+        hash_series = hash_pandas_object(df)
+
+        hash = hash_series[0]
+        for series in hash_series[1:]:
+            hash = int(hash) ^ series
+
+        self.assertEqual(md._hash, hash)
+
+    def test_hashes_on_merge(self):
+        artifact1 = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
+        artifact2 = Artifact.import_data('Mapping', {'d': '4'})
+
+        md_from_artifact1 = artifact1.view(Metadata)
+        md_from_artifact2 = artifact2.view(Metadata)
+
+        self.assertEqual(artifact1.uuid, md_from_artifact1.hash)
+        self.assertEqual(artifact2.uuid, md_from_artifact2.hash)
+
+        obs_md1 = md_from_artifact1.merge(md_from_artifact2)
+        self.assertEqual(obs_md1._hash, int(md_from_artifact1._hash) ^
+                         int(md_from_artifact2._hash))
+
+        md_no_artifact = Metadata(pd.DataFrame(
+            {'c': ['3', '42']}, index=pd.Index(['0', '1'], name='id')))
+
+        obs_md2 = obs_md1.merge(md_no_artifact)
+        self.assertEqual(
+            obs_md2.hash, f'{md_no_artifact._hash ^ obs_md1._hash:x}')
+
+        obs_md3 = md_no_artifact.merge(obs_md1)
+        self.assertEqual(
+            obs_md3.hash, f'{md_no_artifact._hash ^ obs_md1._hash:x}')
 
 
 class TestFilterIDs(unittest.TestCase):
