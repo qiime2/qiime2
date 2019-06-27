@@ -73,6 +73,9 @@ class Scope:
     def __contains__(self, key):
         return key in self.records
 
+    def assert_has_line_matching(self, label, result, path, expression):
+        pass
+
 
 class Usage(metaclass=abc.ABCMeta):
     """
@@ -86,6 +89,7 @@ class Usage(metaclass=abc.ABCMeta):
     @contextlib.contextmanager
     def bind(self, scope):
         self.scope = scope
+        self.scope.assert_has_line_matching = self._assert_has_line_matching_
         yield self
         self.scope = None
 
@@ -117,7 +121,7 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def assert_has_line_matching(self, label, result, path, expression):
+    def _assert_has_line_matching_(self, label, result, path, expression):
         raise NotImplementedError
 
 
@@ -141,7 +145,7 @@ class NoOpUsage(Usage):
     def export_file(self, input_name, output_name, format=None):
         return None
 
-    def assert_has_line_matching(self, label, result, path, expression):
+    def _assert_has_line_matching_(self, label, result, path, expression):
         return None
 
 
@@ -159,7 +163,7 @@ class ExecutionUsage(Usage):
     def export_file(self, input_name, output_name, format=None):
         return None
 
-    def assert_has_line_matching(self, label, result, path, expression):
+    def _assert_has_line_matching_(self, label, result, path, expression):
         data = self.scope[result].factory()
         with tempfile.TemporaryDirectory(prefix='q2-exc-usage-') as temp_dir:
             fp = data.save(os.path.join(temp_dir, result))
