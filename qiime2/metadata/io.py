@@ -184,7 +184,7 @@ class MetadataReader:
                     "\n\n%s" % (column_name, FORMATTED_ID_HEADERS))
             if len(column_name) > 200:
                 raise MetadataFileError(
-                    f"Metadata column name {column_name} exceeds maximum "
+                    f"Metadata column name {column_name!r} exceeds maximum "
                     "column name length of 200")
         return header
 
