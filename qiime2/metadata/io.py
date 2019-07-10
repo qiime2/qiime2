@@ -48,6 +48,7 @@ class MetadataReader:
 
         self._filepath = filepath
 
+        # Used by `read()` to store an iterator yielding rows with
         # leading/trailing whitespace stripped from their cells (this is a
         # preprocessing step that should happen with *every* row). The iterator
         # protocol is the only guaranteed API on this object.
