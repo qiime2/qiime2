@@ -48,7 +48,6 @@ class MetadataReader:
 
         self._filepath = filepath
 
-        # Used by `read()` to store an iterator yielding rows with
         # leading/trailing whitespace stripped from their cells (this is a
         # preprocessing step that should happen with *every* row). The iterator
         # protocol is the only guaranteed API on this object.
@@ -183,7 +182,10 @@ class MetadataReader:
                     "Metadata column name %r conflicts with a name reserved "
                     "for the ID column header. Reserved ID column headers:"
                     "\n\n%s" % (column_name, FORMATTED_ID_HEADERS))
-
+            if len(column_name) > 200:
+                raise MetadataFileError(
+                    f"Metadata column name {column_name} exceeds maximum "
+                    "column name length of 200")
         return header
 
     def _read_directives(self, header):
