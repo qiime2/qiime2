@@ -422,17 +422,18 @@ class Metadata(_MetadataBase):
     def _id(self):
         id = None
         with tempfile.NamedTemporaryFile(prefix='md5-') as sum_file:
-            for source in self._sources:
-                if isinstance(source, qiime2.Artifact):
-                    new_id = source.uuid
-                else:
-                    source.save(sum_file.name)
-                    new_id = int(md5sum(sum_file.name), 16)
-                if id is None:
-                    id = new_id
-                else:
-                    id = int(id) ^ int(new_id)
-            if id is None:
+            if self._sources:
+                for source in self._sources:
+                    if isinstance(source, qiime2.Artifact):
+                        new_id = source.uuid
+                    else:
+                        source.save(sum_file.name)
+                        new_id = int(md5sum(sum_file.name), 16)
+                    if id is None:
+                        id = new_id
+                    else:
+                        id = int(id) ^ int(new_id)
+            else:
                 self.save(sum_file.name)
                 id = int(md5sum(sum_file.name), 16)
 
