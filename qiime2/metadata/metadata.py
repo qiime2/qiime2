@@ -429,10 +429,12 @@ class Metadata(_MetadataBase):
                     else:
                         source.save(sum_file.name)
                         new_id = int(md5sum(sum_file.name), 16)
+
                     if id is None:
                         id = new_id
                     else:
                         id = int(id) ^ int(new_id)
+
             else:
                 self.save(sum_file.name)
                 id = int(md5sum(sum_file.name), 16)
