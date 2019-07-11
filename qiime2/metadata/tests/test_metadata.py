@@ -968,6 +968,8 @@ class TestMerge(unittest.TestCase):
             {'a': [1, 2, 3], 'b': [4, 5, 6],
              'c': [7, 8, 9], 'd': [10, 11, 12]},
             index=pd.Index(['id1', 'id2', 'id3'], name='id')))
+        exp._add_non_artifacts((md1, md2))
+
         self.assertEqual(obs, exp)
 
     def test_merging_three(self):
@@ -988,6 +990,8 @@ class TestMerge(unittest.TestCase):
              'c': [7, 8, 9], 'd': [10, 11, 12],
              'e': [13, 14, 15], 'f': [16, 17, 18]},
             index=pd.Index(['id1', 'id2', 'id3'], name='id')))
+        exp._add_non_artifacts((md1, md2, md3))
+
         self.assertEqual(obs, exp)
 
     def test_merging_unaligned_indices(self):
@@ -1008,6 +1012,8 @@ class TestMerge(unittest.TestCase):
              'c': [7, 8, 9], 'd': [10, 11, 12],
              'e': [13, 14, 15], 'f': [16, 17, 18]},
             index=pd.Index(['id1', 'id2', 'id3'], name='id')))
+        exp._add_non_artifacts((md1, md2, md3))
+
         self.assertEqual(obs, exp)
 
     def test_inner_join(self):
@@ -1027,6 +1033,8 @@ class TestMerge(unittest.TestCase):
         exp = Metadata(pd.DataFrame(
             {'a': [2], 'b': [5], 'c': [7], 'd': [10], 'e': [15], 'f': [18]},
             index=pd.Index(['id2'], name='id')))
+        exp._add_non_artifacts((md1, md2, md3))
+
         self.assertEqual(obs, exp)
 
         # Multiple shared IDs.
@@ -1035,6 +1043,8 @@ class TestMerge(unittest.TestCase):
         exp = Metadata(pd.DataFrame(
             {'a': [2, 3], 'b': [5, 6], 'e': [15, 14], 'f': [18, 17]},
             index=pd.Index(['id2', 'id3'], name='id')))
+        exp._add_non_artifacts((md1, md3))
+
         self.assertEqual(obs, exp)
 
     def test_index_and_column_merge_order(self):
@@ -1055,6 +1065,8 @@ class TestMerge(unittest.TestCase):
             [[1, 7, 8], [3, 6, 10], [4, 5, 9]],
             index=pd.Index(['id1', 'id3', 'id4'], name='id'),
             columns=['a', 'b', 'c']))
+        exp._add_non_artifacts((md1, md2, md3))
+
         self.assertEqual(obs, exp)
 
         # Merging in different order produces different ID/column order.
@@ -1064,6 +1076,8 @@ class TestMerge(unittest.TestCase):
             [[5, 4, 9], [6, 3, 10], [7, 1, 8]],
             index=pd.Index(['id4', 'id3', 'id1'], name='id'),
             columns=['b', 'a', 'c']))
+        exp._add_non_artifacts((md2, md1, md3))
+
         self.assertEqual(obs, exp)
 
     def test_id_column_only(self):
@@ -1078,6 +1092,8 @@ class TestMerge(unittest.TestCase):
 
         exp = Metadata(
             pd.DataFrame({}, index=pd.Index(['id1', 'id2'], name='id')))
+        exp._add_non_artifacts((md1, md2, md3))
+
         self.assertEqual(obs, exp)
 
     def test_merged_id_column_name(self):
@@ -1093,6 +1109,8 @@ class TestMerge(unittest.TestCase):
         exp = Metadata(pd.DataFrame(
             {'a': [1, 2], 'b': [3, 4]},
             index=pd.Index(['id1', 'id2'], name='id')))
+        exp._add_non_artifacts((md1, md2))
+
         self.assertEqual(obs, exp)
 
     def test_merging_preserves_column_types(self):
@@ -1113,6 +1131,7 @@ class TestMerge(unittest.TestCase):
             {'a': [1, 3], 'b': [np.nan, np.nan], 'c': ['1', '3'],
              'd': np.array([np.nan, np.nan], dtype=object)},
             index=pd.Index(['id1', 'id3'], name='id')))
+        exp._add_non_artifacts((md1, md2))
 
         self.assertEqual(obs, exp)
         self.assertEqual(obs.columns['a'].type, 'numeric')
@@ -1148,6 +1167,7 @@ class TestMerge(unittest.TestCase):
             index=pd.Index(['0'], name='id'))
         exp_md = Metadata(exp_df)
         exp_md._add_artifacts((artifact1, artifact2))
+        exp_md._add_non_artifacts((md_no_artifact,))
 
         self.assertEqual(obs_md, exp_md)
         self.assertEqual(obs_md.artifacts, (artifact1, artifact2))
@@ -1175,25 +1195,26 @@ class TestMerge(unittest.TestCase):
             {'a': [1, 2], 'b [31b345c7b509cf1a0bb0d8f56c8e08b2]': [3, 4],
              'c': [5, 6], 'b [af19e323d6b6f4feb8baaf5c5c6f1221]': [7, 8]},
             index=pd.Index(['id1', 'id2'], name='id')))
+        exp._add_non_artifacts((md1, md2))
 
         obs = md1.merge(md2)
         self.assertEqual(obs, exp)
 
-    def test_hashes_on_merge_artifacts(self):
+    def test_ids_on_merge_artifacts(self):
         artifact1 = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
         artifact2 = Artifact.import_data('Mapping', {'c': '3'})
 
         md_from_artifact1 = artifact1.view(Metadata)
         md_from_artifact2 = artifact2.view(Metadata)
 
-        self.assertEqual(artifact1.uuid, md_from_artifact1.hash)
-        self.assertEqual(artifact2.uuid, md_from_artifact2.hash)
+        self.assertEqual(artifact1.uuid, md_from_artifact1.id)
+        self.assertEqual(artifact2.uuid, md_from_artifact2.id)
 
         obs_md1 = md_from_artifact1.merge(md_from_artifact2)
-        self.assertEqual(obs_md1._hash, int(md_from_artifact1._hash) ^
-                         int(md_from_artifact2._hash))
+        self.assertEqual(obs_md1._id, int(md_from_artifact1._id) ^
+                         int(md_from_artifact2._id))
 
-    def test_hashes_on_merge_no_artifacts(self):
+    def test_ids_on_merge_no_artifacts(self):
         md_no_artifact1 = Metadata(pd.DataFrame(
             {'d': ['4', '5']}, index=pd.Index(['0', '1'], name='id')))
 
@@ -1202,10 +1223,10 @@ class TestMerge(unittest.TestCase):
 
         obs_md_no_artifact = md_no_artifact1.merge(md_no_artifact2)
         self.assertEqual(
-            obs_md_no_artifact.hash,
-            f'{md_no_artifact1._hash ^ md_no_artifact2._hash:x}')
+            obs_md_no_artifact.id,
+            f'{md_no_artifact1._id ^ md_no_artifact2._id:x}')
 
-    def test_hashes_on_merge_mixed(self):
+    def test_ids_on_merge_mixed(self):
         artifact = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
         md_from_artifact = artifact.view(Metadata)
 
@@ -1214,16 +1235,16 @@ class TestMerge(unittest.TestCase):
 
         obs_md1 = md_from_artifact.merge(md_no_artifact)
         self.assertEqual(
-            obs_md1.hash,
-            f'{md_no_artifact._hash ^ int(md_from_artifact._hash):x}')
+            obs_md1.id,
+            f'{md_no_artifact._id ^ int(md_from_artifact._id):x}')
 
         obs_md2 = md_no_artifact.merge(md_from_artifact)
         self.assertEqual(
-            obs_md2.hash,
-            f'{md_no_artifact._hash ^ int(md_from_artifact._hash):x}')
+            obs_md2.id,
+            f'{md_no_artifact._id ^ int(md_from_artifact._id):x}')
 
 
-class TestFilter(unittest.TestCase):
+class TestFilterIDs(unittest.TestCase):
     def setUp(self):
         get_dummy_plugin()
 

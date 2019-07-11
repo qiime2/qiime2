@@ -87,10 +87,14 @@ class _MetadataBase:
             Source artifacts of the metadata.
 
         """
-        return tuple(self._artifacts)
+        artifacts = []
+        for source in self._sources:
+            if isinstance(source, qiime2.Artifact):
+                artifacts.append(source)
+        return tuple(artifacts)
 
     @property
-    def non_artifact_metadata(self):
+    def non_artifacts(self):
         """Non artifacts that are the source of the metadata.
 
         This property is read-only.
@@ -101,7 +105,25 @@ class _MetadataBase:
             Source non artifacts of the metadata.
 
         """
-        return tuple(self._non_artifact_metadata)
+        non_artifacts = []
+        for source in self._sources:
+            if isinstance(source, qiime2.Metadata):
+                non_artifacts.append(source)
+        return tuple(non_artifacts)
+
+    @property
+    def sources(self):
+        """All sources of the metadata.
+
+        This property is read-only.
+
+        Returns
+        -------
+        tuple of qiime2.Metadata and qiime2
+            Source metadata of this metadata.
+
+        """
+        return tuple(self._sources)
 
     def __init__(self, index):
         if index.empty:
@@ -115,25 +137,26 @@ class _MetadataBase:
         self._validate_index(index, axis='id')
         self._ids = tuple(index)
 
-        self._artifacts = []
-        self._non_artifact_metadata = []
+        self._sources = []
 
     def __eq__(self, other):
         return (
             isinstance(other, self.__class__) and
             self._id_header == other._id_header and
-            self._artifacts == other._artifacts
+            self._sources == other._sources
         )
 
     def __ne__(self, other):
         return not (self == other)
 
     def _add_artifacts(self, artifacts):
-        deduped = set(self._artifacts)
+        deduped = set(self.artifacts)
         for artifact in artifacts:
-            if not isinstance(artifact, qiime2.Artifact):
+            if not isinstance(artifact, qiime2.Artifact) or \
+                    isinstance(artifact, qiime2.Metadata):
                 raise TypeError(
-                    "Expected Artifact object, received %r" % artifact)
+                    "Expected Artifact object or Metadata object, received %r"
+                    % artifact)
             if artifact in deduped:
                 raise ValueError(
                     "Duplicate source artifacts are not supported on %s "
@@ -141,14 +164,14 @@ class _MetadataBase:
                     "another source artifact: %r" %
                     (self.__class__.__name__, artifact))
             deduped.add(artifact)
-        self._artifacts.extend(artifacts)
+        self._sources.extend(artifacts)
 
-    def _add_non_artifact_metadata(self, non_artifact_metadata):
-        for metadata in non_artifact_metadata:
+    def _add_non_artifacts(self, non_artifacts):
+        for metadata in non_artifacts:
             if not isinstance(metadata, qiime2.Metadata):
                 raise TypeError(
                     "Expected Metadata object, received %r" % metadata)
-        self._non_artifact_metadata.extend(non_artifact_metadata)
+        self._sources.extend(non_artifacts)
 
     # Static helpers below for code reuse in Metadata and MetadataColumn
 
@@ -389,40 +412,31 @@ class Metadata(_MetadataBase):
         self.contains_renamed_columns = False
 
     @property
-    def hash(self):
-        if not isinstance(self._hash, uuid.UUID):
-            return f'{self._hash:x}'
+    def id(self):
+        if not isinstance(self._id, uuid.UUID):
+            return f'{self._id:x}'
         else:
-            return self._hash
+            return self._id
 
     @property
-    def _hash(self):
-        hash = None
-        if self.artifacts:
-            hash = self.artifacts[0].uuid
-            for artifact in self.artifacts[1:]:
-                hash = int(hash) ^ int(artifact.uuid)
-
+    def _id(self):
+        id = None
         with tempfile.NamedTemporaryFile(prefix='md5-') as sum_file:
-            if self.non_artifact_metadata:
-                start_index = 0
-                if hash is None:
-                    start_index = 1
-                    self.non_artifact_metadata[0].save(sum_file.name)
-                    hash = int(md5sum(sum_file.name), 16)
-                # If we get here then hash is currently a uuid and must be cast
-                # to int before XOR
+            for source in self._sources:
+                if isinstance(source, qiime2.Artifact):
+                    new_id = source.uuid
                 else:
-                    hash = int(hash)
-                for md in self.non_artifact_metadata[start_index:]:
-                    md.save(sum_file.name)
-                    hash = hash ^ int(md5sum(sum_file.name), 16)
-
-            if hash is None:
+                    source.save(sum_file.name)
+                    new_id = int(md5sum(sum_file.name), 16)
+                if id is None:
+                    id = new_id
+                else:
+                    id = int(id) ^ int(new_id)
+            if id is None:
                 self.save(sum_file.name)
-                hash = int(md5sum(sum_file.name), 16)
+                id = int(md5sum(sum_file.name), 16)
 
-        return hash
+        return id
 
     def _normalize_dataframe(self, dataframe):
         self._validate_index(dataframe.columns, axis='column')
@@ -730,30 +744,31 @@ class Metadata(_MetadataBase):
 
         dfs = []
         artifacts = []
-        non_artifact_metadata = []
+        non_artifacts = []
         columns = {}
         df_changes = {}
 
         mds = [self]
         mds.extend(others)
-        counter = collections.Counter(md._hash for md in mds)
-        for hash in counter:
-            if counter[hash] > 1:
+        dupes = set()
+        for md in mds:
+            if md._id in dupes:
                 raise ValueError(
                     'Your input contained duplicate metadata files. Merging '
-                    'multiples of the same file is not allowed.')
+                    'the same file multiple times is not allowed.')
+            dupes.add(md._id)
 
         for i, md in enumerate(mds):
             df = md._dataframe
             dfs.append(df)
             if md.artifacts:
                 artifacts.extend(md.artifacts)
-            if md.non_artifact_metadata:
-                non_artifact_metadata.extend(md.non_artifact_metadata)
+            if md.non_artifacts:
+                non_artifacts.extend(md.non_artifacts)
             # If the file has no history it is its own history and we need to
-            # hash it
+            # id it
             elif not md.artifacts:
-                non_artifact_metadata.append(md)
+                non_artifacts.append(md)
             for column in df.columns.tolist():
                 if column not in columns:
                     columns[column] = i
@@ -762,11 +777,11 @@ class Metadata(_MetadataBase):
                         if columns[column] not in df_changes:
                             df_changes[columns[column]] = {}
                         df_changes[columns[column]][column] = str(column) + \
-                            f' [{mds[columns[column]].hash}]'
+                            f' [{mds[columns[column]].id}]'
                         columns[column] = None
                     if i not in df_changes:
                         df_changes[i] = {}
-                    df_changes[i][column] = str(column) + f' [{mds[i].hash}]'
+                    df_changes[i][column] = str(column) + f' [{mds[i].id}]'
 
         for change in df_changes:
             dfs[change] = dfs[change].rename(columns=df_changes[change])
@@ -782,7 +797,7 @@ class Metadata(_MetadataBase):
         merged_df.index.name = 'id'
         merged_md = self.__class__(merged_df)
         merged_md._add_artifacts(artifacts)
-        merged_md._add_non_artifact_metadata(non_artifact_metadata)
+        merged_md._add_non_artifacts(non_artifacts)
         if df_changes:
             merged_md.contains_renamed_columns = True
         return merged_md
