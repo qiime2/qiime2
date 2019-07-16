@@ -152,10 +152,9 @@ class _MetadataBase:
     def _add_artifacts(self, artifacts):
         deduped = set(self.artifacts)
         for artifact in artifacts:
-            if not isinstance(artifact, qiime2.Artifact) or \
-                    isinstance(artifact, qiime2.Metadata):
+            if not isinstance(artifact, qiime2.Artifact):
                 raise TypeError(
-                    "Expected Artifact object or Metadata object, received %r"
+                    "Expected Artifact object, received %r"
                     % artifact)
             if artifact in deduped:
                 raise ValueError(
