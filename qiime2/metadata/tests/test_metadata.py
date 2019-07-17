@@ -1229,9 +1229,11 @@ class TestMerge(unittest.TestCase):
     def test_ids_on_merge_mixed(self):
         artifact = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
         md_from_artifact = artifact.view(Metadata)
+        self.assertEqual(md_from_artifact.source_type, 'Artifact')
 
         md_no_artifact = Metadata(pd.DataFrame(
             {'c': ['3', '4']}, index=pd.Index(['0', '1'], name='id')))
+        self.assertEqual(md_no_artifact.source_type, 'DataFrame')
 
         obs_md1 = md_from_artifact.merge(md_no_artifact)
         self.assertEqual(
@@ -1239,6 +1241,7 @@ class TestMerge(unittest.TestCase):
             f'{md_no_artifact._id ^ int(md_from_artifact._id):x}')
 
         obs_md2 = md_no_artifact.merge(md_from_artifact)
+        self.assertEqual(obs_md2.source_type, 'Merge')
         self.assertEqual(
             obs_md2.id,
             f'{md_no_artifact._id ^ int(md_from_artifact._id):x}')

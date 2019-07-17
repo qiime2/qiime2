@@ -93,23 +93,79 @@ class _MetadataBase:
                 artifacts.append(source)
         return tuple(artifacts)
 
+    # This is to be gotten rid of
     @property
     def non_artifacts(self):
-        """Non artifacts that are the source of the metadata.
+        """Artifacts that are the source of the metadata.
+
+        This property is read-only.
+
+        Returns
+        -------
+        tuple of qiime2.Artifact
+            Source artifacts of the metadata.
+
+        """
+        artifacts = []
+        for source in self._sources:
+            if isinstance(source, qiime2.Metadata):
+                artifacts.append(source)
+        return tuple(artifacts)
+
+    @property
+    def dataframes(self):
+        """DataFrames that are the source of the metadata.
 
         This property is read-only.
 
         Returns
         -------
         tuple of qiime2.Metadata
-            Source non artifacts of the metadata.
+            Source metadata from DataFrames of the metadata.
 
         """
-        non_artifacts = []
+        dataframes = []
         for source in self._sources:
-            if isinstance(source, qiime2.Metadata):
-                non_artifacts.append(source)
-        return tuple(non_artifacts)
+            if source._source_type == 'DataFrame':
+                dataframes.append(source)
+        return tuple(dataframes)
+
+    @property
+    def tsvs(self):
+        """tsvs that are the source of the metadata.
+
+        This property is read-only.
+
+        Returns
+        -------
+        tuple of qiime2.Metadata
+            Source metadata from tsvs of the metadata.
+
+        """
+        tsvs = []
+        for source in self._sources:
+            if source._source_type == 'tsv':
+                tsvs.append(source)
+        return tuple(tsvs)
+
+    @property
+    def merges(self):
+        """Metadatas resulting from previous merges that are the source of the
+        metadata.
+
+        This property is read-only.
+
+        Returns
+        -------
+        tuple of qiime2.Metadata
+            Source metadata from previous merges of the metadata.
+
+        """
+        merges = []
+        for source in self._sources:
+            if source._source_type == 'Merge':
+                merges.append(source)
+        return tuple(merges)
 
     @property
     def sources(self):
@@ -125,6 +181,30 @@ class _MetadataBase:
         """
         return tuple(self._sources)
 
+    @property
+    def source_type(self):
+        """The type of data this Metadata object was created from
+
+        This property is read-only
+
+        This property is only relevant if this Metadat object is not the result
+        of a merge
+
+        Returns
+        -------
+        string indicating the type of data this metadata came from e.g.
+        Artifact, DataFrame, .tsv, Merge
+        """
+        if self._source_type == 'tsv':
+            pass
+        elif len(self._sources) == 0:
+            self._source_type = 'DataFrame'
+        elif len(self.artifacts) == 1 and len(self._sources) == 1:
+            self._source_type = 'Artifact'
+        elif len(self._sources) > 1:
+            self._source_type = 'Merge'
+        return self._source_type
+
     def __init__(self, index):
         if index.empty:
             raise ValueError(
@@ -138,6 +218,10 @@ class _MetadataBase:
         self._ids = tuple(index)
 
         self._sources = []
+        # If the metadata came from a .tsv `_source_type` is changed to 'tsv'
+        # in 'Metadata.load' after the metadata is object is created this is a
+        # rough as hell way of doing things, but it works for now.
+        self._source_type = None
 
     def __eq__(self, other):
         return (
@@ -357,8 +441,9 @@ class Metadata(_MetadataBase):
 
         """
         from .io import MetadataReader
-        return MetadataReader(filepath).read(into=cls,
-                                             column_types=column_types)
+        md = MetadataReader(filepath).read(into=cls, column_types=column_types)
+        md._source_type = 'tsv'
+        return md
 
     @property
     def columns(self):
@@ -763,13 +848,11 @@ class Metadata(_MetadataBase):
         for i, md in enumerate(mds):
             df = md._dataframe
             dfs.append(df)
-            if md.artifacts:
-                artifacts.extend(md.artifacts)
-            if md.non_artifacts:
-                non_artifacts.extend(md.non_artifacts)
+            artifacts.extend(md.artifacts)
+            non_artifacts.extend(md.non_artifacts)
             # If the file has no history it is its own history and we need to
             # id it
-            elif not md.artifacts:
+            if not md.artifacts and not md.non_artifacts:
                 non_artifacts.append(md)
             for column in df.columns.tolist():
                 if column not in columns:
