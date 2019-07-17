@@ -93,7 +93,6 @@ class _MetadataBase:
                 artifacts.append(source)
         return tuple(artifacts)
 
-    # This is to be gotten rid of
     @property
     def non_artifacts(self):
         """Artifacts that are the source of the metadata.
@@ -187,25 +186,15 @@ class _MetadataBase:
 
         This property is read-only
 
-        This property is only relevant if this Metadat object is not the result
-        of a merge
-
         Returns
         -------
         string indicating the type of data this metadata came from e.g.
         Artifact, DataFrame, .tsv, Merge
+
         """
-        if self._source_type == 'tsv':
-            pass
-        elif len(self._sources) == 0:
-            self._source_type = 'DataFrame'
-        elif len(self.artifacts) == 1 and len(self._sources) == 1:
-            self._source_type = 'Artifact'
-        elif len(self._sources) > 1:
-            self._source_type = 'Merge'
         return self._source_type
 
-    def __init__(self, index):
+    def __init__(self, index, source_type=None):
         if index.empty:
             raise ValueError(
                 "%s must contain at least one ID." % self.__class__.__name__)
@@ -218,10 +207,7 @@ class _MetadataBase:
         self._ids = tuple(index)
 
         self._sources = []
-        # If the metadata came from a .tsv `_source_type` is changed to 'tsv'
-        # in 'Metadata.load' after the metadata is object is created this is a
-        # rough as hell way of doing things, but it works for now.
-        self._source_type = None
+        self._source_type = source_type
 
     def __eq__(self, other):
         return (
@@ -441,9 +427,8 @@ class Metadata(_MetadataBase):
 
         """
         from .io import MetadataReader
-        md = MetadataReader(filepath).read(into=cls, column_types=column_types)
-        md._source_type = 'tsv'
-        return md
+        return MetadataReader(filepath).read(into=cls,
+                                             column_types=column_types)
 
     @property
     def columns(self):
@@ -484,13 +469,13 @@ class Metadata(_MetadataBase):
         """
         return len(self._columns)
 
-    def __init__(self, dataframe):
+    def __init__(self, dataframe, source_type='DataFrame'):
         if not isinstance(dataframe, pd.DataFrame):
             raise TypeError(
                 "%s constructor requires a pandas.DataFrame object, not "
                 "%r" % (self.__class__.__name__, type(dataframe)))
 
-        super().__init__(dataframe.index)
+        super().__init__(dataframe.index, source_type)
 
         self._dataframe, self._columns = self._normalize_dataframe(dataframe)
         self.contains_renamed_columns = False
@@ -880,7 +865,7 @@ class Metadata(_MetadataBase):
                 "objects.")
 
         merged_df.index.name = 'id'
-        merged_md = self.__class__(merged_df)
+        merged_md = self.__class__(merged_df, source_type='Merge')
         merged_md._add_artifacts(artifacts)
         merged_md._add_non_artifacts(non_artifacts)
         if df_changes:

@@ -290,6 +290,7 @@ class Artifact(Result):
 
         if view_type is qiime2.Metadata:
             result._add_artifacts([self])
+            result._source_type = 'Artifact'
 
         to_type.set_user_owned(result, True)
         return result
