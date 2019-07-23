@@ -20,7 +20,8 @@ requirements:
     - python {{ python }}
     - pyyaml
     - decorator
-    - pandas
+    # TODO: unset this pin once pandas 0.25.x is sorted out
+    - pandas 0.24.2
     - tzlocal
     - python-dateutil
     - pyparsing ==2.3.0
