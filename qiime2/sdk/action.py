@@ -94,13 +94,14 @@ class Action(metaclass=abc.ABCMeta):
     # can be initialized from a static (classmethod) context or on an
     # existing instance (see `_init` and `__setstate__`, respectively).
     def __init(self, callable, signature, package, name, description,
-               citations):
+               citations, deprecated):
         self._callable = callable
         self.signature = signature
         self.package = package
         self.name = name
         self.description = description
         self.citations = citations
+        self.deprecated = deprecated
 
         self.id = callable.__name__
         self._dynamic_call = self._get_callable_wrapper()
@@ -400,13 +401,13 @@ class Method(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, package, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions, citations):
+              output_descriptions, citations, deprecated):
         signature = qtype.MethodSignature(callable, inputs, parameters,
                                           outputs, input_descriptions,
                                           parameter_descriptions,
                                           output_descriptions)
         return super()._init(callable, signature, package, name, description,
-                             citations)
+                             citations, deprecated)
 
 
 class Visualizer(Action):
@@ -438,12 +439,13 @@ class Visualizer(Action):
 
     @classmethod
     def _init(cls, callable, inputs, parameters, package, name, description,
-              input_descriptions, parameter_descriptions, citations):
+              input_descriptions, parameter_descriptions, citations,
+              deprecated):
         signature = qtype.VisualizerSignature(callable, inputs, parameters,
                                               input_descriptions,
                                               parameter_descriptions)
         return super()._init(callable, signature, package, name, description,
-                             citations)
+                             citations, deprecated)
 
 
 class Pipeline(Action):
@@ -493,13 +495,13 @@ class Pipeline(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, package, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions, citations):
+              output_descriptions, citations, deprecated):
         signature = qtype.PipelineSignature(callable, inputs, parameters,
                                             outputs, input_descriptions,
                                             parameter_descriptions,
                                             output_descriptions)
         return super()._init(callable, signature, package, name, description,
-                             citations)
+                             citations, deprecated)
 
 
 markdown_source_template = """

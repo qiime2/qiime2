@@ -224,7 +224,8 @@ class PluginMethods(PluginActions):
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
-                          output_descriptions=None, citations=None):
+                          output_descriptions=None, citations=None,
+                          deprecated=None):
         if citations is None:
             citations = ()
         else:
@@ -234,7 +235,8 @@ class PluginMethods(PluginActions):
                                          self._package, name, description,
                                          input_descriptions,
                                          parameter_descriptions,
-                                         output_descriptions, citations)
+                                         output_descriptions, citations,
+                                         deprecated)
         self[method.id] = method
 
 
@@ -243,7 +245,8 @@ class PluginVisualizers(PluginActions):
 
     def register_function(self, function, inputs, parameters, name,
                           description, input_descriptions=None,
-                          parameter_descriptions=None, citations=None):
+                          parameter_descriptions=None, citations=None,
+                          deprecated=None):
         if citations is None:
             citations = ()
         else:
@@ -254,7 +257,7 @@ class PluginVisualizers(PluginActions):
                                                  description,
                                                  input_descriptions,
                                                  parameter_descriptions,
-                                                 citations)
+                                                 citations, deprecated)
         self[visualizer.id] = visualizer
 
 
@@ -264,7 +267,8 @@ class PluginPipelines(PluginActions):
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
-                          output_descriptions=None, citations=None):
+                          output_descriptions=None, citations=None,
+                          deprecated=None):
         if citations is None:
             citations = ()
         else:
@@ -274,5 +278,6 @@ class PluginPipelines(PluginActions):
                                              outputs, self._package, name,
                                              description, input_descriptions,
                                              parameter_descriptions,
-                                             output_descriptions, citations)
+                                             output_descriptions, citations,
+                                             deprecated)
         self[pipeline.id] = pipeline
