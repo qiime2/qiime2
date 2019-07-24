@@ -12,7 +12,6 @@ import inspect
 import tempfile
 import textwrap
 import itertools
-import warnings
 
 import decorator
 
@@ -232,13 +231,10 @@ class Action(metaclass=abc.ABCMeta):
                         callable_args[name] = artifact
 
                 if self.deprecated:
-                    warnings.filterwarnings(
-                        'always', category=DeprecationWarning)
-                    # This msg variable exists because the warning shows the
-                    # line it originated on in the warning text, and we want
-                    # that to look clean
-                    msg = self._build_deprecation_message()
-                    warnings.warn(msg, DeprecationWarning)
+                    with qiime2.core.util.warning() as warn:
+                        warn(self._build_deprecation_message(),
+                             DeprecationWarning)
+
                 # Execute
                 outputs = self._callable_executor_(scope, callable_args,
                                                    output_types, provenance)

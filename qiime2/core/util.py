@@ -182,6 +182,7 @@ def warning():
     default_warn_format = warnings.formatwarning
     try:
         warnings.formatwarning = _warnformat
+        warnings.filterwarnings('always')
         yield warnings.warn
     finally:
         warnings.formatwarning = default_warn_format
