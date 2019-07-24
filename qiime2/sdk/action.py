@@ -12,6 +12,7 @@ import inspect
 import tempfile
 import textwrap
 import itertools
+import warnings
 
 import decorator
 
@@ -230,6 +231,14 @@ class Action(metaclass=abc.ABCMeta):
                     else:
                         callable_args[name] = artifact
 
+                if self.deprecated:
+                    warnings.filterwarnings(
+                        'always', category=DeprecationWarning)
+                    # This msg variable exists because the warning shows the
+                    # line it originated on in the warning text, and we want
+                    # that to look clean
+                    msg = self._build_deprecation_message()
+                    warnings.warn(msg, DeprecationWarning)
                 # Execute
                 outputs = self._callable_executor_(scope, callable_args,
                                                    output_types, provenance)
@@ -323,6 +332,11 @@ class Action(metaclass=abc.ABCMeta):
     def _build_numpydoc(self):
         numpydoc = []
         numpydoc.append(textwrap.fill(self.name, width=75))
+        if self.deprecated:
+            base_msg = textwrap.indent(
+                textwrap.fill(self._build_deprecation_message(), width=72),
+                '   ')
+            numpydoc.append('.. deprecated::\n' + base_msg)
         numpydoc.append(textwrap.fill(self.description, width=75))
 
         sig = self.signature
@@ -352,6 +366,10 @@ class Action(metaclass=abc.ABCMeta):
                         str(value.description), width=71), '    '))
 
         return '\n'.join(section).strip()
+
+    def _build_deprecation_message(self):
+        return (f'This {self.type.title()} is deprecated and will be removed '
+                'in a future version of this plugin.')
 
 
 class Method(Action):

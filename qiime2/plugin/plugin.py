@@ -225,7 +225,7 @@ class PluginMethods(PluginActions):
                           description, input_descriptions=None,
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None,
-                          deprecated=None):
+                          deprecated=False):
         if citations is None:
             citations = ()
         else:
@@ -246,7 +246,7 @@ class PluginVisualizers(PluginActions):
     def register_function(self, function, inputs, parameters, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None, citations=None,
-                          deprecated=None):
+                          deprecated=False):
         if citations is None:
             citations = ()
         else:
@@ -268,7 +268,7 @@ class PluginPipelines(PluginActions):
                           description, input_descriptions=None,
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None,
-                          deprecated=None):
+                          deprecated=False):
         if citations is None:
             citations = ()
         else:
