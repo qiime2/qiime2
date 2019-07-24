@@ -9,6 +9,7 @@
 import os
 import collections
 import tempfile
+import warnings
 import qiime2.core.archive as archive
 
 from qiime2.core.testing.util import get_dummy_plugin
@@ -159,3 +160,26 @@ class TestBadInputs(TestPluginBase):
         with self.assertRaisesRegex(
                 TypeError, 'break_from.*\'invalid choice\''):
             pipeline(int_sequence, break_from)
+
+
+class TestDeprecation(TestPluginBase):
+    def setUp(self):
+        self.plugin = get_dummy_plugin()
+        self.method = self.plugin.methods['params_only_method']
+
+        # TODO standardize temporary directories created by QIIME 2
+        # create a temporary data_dir for sample Visualizations
+        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+
+    def tearDown(self):
+        self.test_dir.cleanup()
+
+    def test_successful_registration(self):
+        self.assertTrue(self.method.deprecated)
+
+    def test_deprecation_warning(self):
+        with self.assertWarnsRegex(DeprecationWarning, 'Method is deprecated'):
+            self.method('name', 2)
+
+    def test_docstring(self):
+        self.assertIn('Method is deprecated', self.method.__call__.__doc__)

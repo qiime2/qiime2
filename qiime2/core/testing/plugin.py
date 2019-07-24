@@ -345,7 +345,8 @@ dummy_plugin.methods.register_function(
         ('out', Mapping)
     ],
     name='Parameters only method',
-    description='This method only accepts parameters.'
+    description='This method only accepts parameters.',
+    deprecated=True
 )
 
 
