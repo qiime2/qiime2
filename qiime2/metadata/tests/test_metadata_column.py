@@ -15,8 +15,8 @@ import pandas.util.testing as pdt
 import numpy as np
 
 from qiime2 import Artifact
-from qiime2.metadata import (MetadataColumn, CategoricalMetadataColumn,
-                             NumericMetadataColumn)
+from qiime2.metadata import (Metadata, MetadataColumn,
+                             CategoricalMetadataColumn, NumericMetadataColumn)
 from qiime2.core.testing.util import get_dummy_plugin, ReallyEqualMixin
 
 
@@ -258,49 +258,45 @@ class TestMetadataColumnConstructionAndProperties(unittest.TestCase):
 
 class TestSourceArtifacts(unittest.TestCase):
     def setUp(self):
+        self.md = Metadata(pd.DataFrame(
+            {'col': [1, 2, 3]}, index=pd.Index(['a', 'b', 'c'], name='id')))
         self.mdc = DummyMetadataColumn(pd.Series(
-            [1, 2, 3], name='col', index=pd.Index(['a', 'b', 'c'], name='id')))
+            [1, 2, 3], name='col', index=pd.Index(['a', 'b', 'c'], name='id')),
+            md=self.md)
 
-    def test_no_source_artifacts(self):
+    def test_no_source_artifact(self):
         self.assertEqual(self.mdc.artifacts, ())
 
-    def test_add_zero_artifacts(self):
-        self.mdc._add_artifacts([])
+    def test_source_artifact(self):
+        self.md._source_artifact = Artifact.import_data('Mapping', {'a': '1'})
+        self.assertEqual(self.md.artifacts, self.mdc.artifacts)
 
-        self.assertEqual(self.mdc.artifacts, ())
+    def test_source_artifact_from_merge(self):
+        artifact1 = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
+        artifact2 = Artifact.import_data('Mapping', {'c': '3', 'd': '4'})
+        artifact3 = Artifact.import_data('Mapping', {'e': '5', 'f': '6'})
 
-    def test_add_artifacts(self):
-        # First two artifacts have the same data but different UUIDs.
-        artifact1 = Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
-        self.mdc._add_artifacts([artifact1])
+        md1 = artifact1.view(Metadata)
+        md2 = artifact2.view(Metadata)
+        md3 = artifact3.view(Metadata)
+        merged_md = md1.merge(md2, md3)
 
-        artifact2 = Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
-        artifact3 = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
-        self.mdc._add_artifacts([artifact2, artifact3])
+        mdc = merged_md.get_column('e')
+        self.assertEqual(mdc.artifacts, (artifact3,))
 
-        self.assertEqual(self.mdc.artifacts, (artifact1, artifact2, artifact3))
-
-    def test_add_non_artifact(self):
-        artifact = Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
-
-        with self.assertRaisesRegex(TypeError, "Artifact object.*42"):
-            self.mdc._add_artifacts([artifact, 42])
-
-        # Test that the object hasn't been mutated.
-        self.assertEqual(self.mdc.artifacts, ())
-
-    def test_add_duplicate_artifact(self):
-        artifact1 = Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
-        artifact2 = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
-        self.mdc._add_artifacts([artifact1, artifact2])
-
-        with self.assertRaisesRegex(
-                ValueError, "Duplicate source artifacts.*DummyMetadataColumn.*"
-                            "artifact: Mapping"):
-            self.mdc._add_artifacts([artifact1])
-
-        # Test that the object hasn't been mutated.
-        self.assertEqual(self.mdc.artifacts, (artifact1, artifact2))
+#    Same as with test_metadata.py this isn't really a h=thing anymore
+#    def test_add_duplicate_artifact(self):
+#        artifact1 = Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
+#        artifact2 = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
+#        self.mdc._add_artifacts([artifact1, artifact2])
+#
+#        with self.assertRaisesRegex(
+#                ValueError, "Duplicate source artifacts.*DummyMetadataColumn.*
+#                            "artifact: Mapping"):
+#            self.mdc._add_artifacts([artifact1])
+#
+#        # Test that the object hasn't been mutated.
+#        self.assertEqual(self.mdc.artifacts, (artifact1, artifact2))
 
 
 class TestRepr(unittest.TestCase):
@@ -349,22 +345,22 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
 
         self.assertReallyNotEqual(mdc1, mdc2)
 
-    def test_artifacts_mismatch(self):
+    def test_metadata_mismatch(self):
         artifact1 = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
         artifact2 = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
         series = pd.Series([42, 43], name='col1',
                            index=pd.Index(['id1', 'id2'], name='id'))
 
-        # No artifacts
+        # No metadata
         mdc1 = DummyMetadataColumn(series)
 
-        # Has an artifact
-        mdc2 = DummyMetadataColumn(series)
-        mdc2._add_artifacts([artifact1])
+        # Has metadata
+        mdc2_md = artifact1.view(Metadata)
+        mdc2 = DummyMetadataColumn(series, mdc2_md)
 
-        # Has a different artifact
-        mdc3 = DummyMetadataColumn(series)
-        mdc3._add_artifacts([artifact2])
+        # Has a different metadata
+        mdc3_md = artifact2.view(Metadata)
+        mdc3 = DummyMetadataColumn(series, mdc3_md)
 
         self.assertReallyNotEqual(mdc1, mdc2)
         self.assertReallyNotEqual(mdc2, mdc3)
@@ -403,14 +399,15 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
 
     def test_equality_with_artifact(self):
         artifact = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
+        md = artifact.view(Metadata)
 
         mdc1 = DummyMetadataColumn(pd.Series(
-            [42, 43], name='col1', index=pd.Index(['id1', 'id2'], name='id')))
-        mdc1._add_artifacts([artifact])
+            [42, 43], name='col1', index=pd.Index(['id1', 'id2'], name='id')),
+            md)
 
         mdc2 = DummyMetadataColumn(pd.Series(
-            [42, 43], name='col1', index=pd.Index(['id1', 'id2'], name='id')))
-        mdc2._add_artifacts([artifact])
+            [42, 43], name='col1', index=pd.Index(['id1', 'id2'], name='id')),
+            md)
 
         self.assertReallyEqual(mdc1, mdc2)
 
@@ -619,19 +616,18 @@ class TestDropMissingValues(unittest.TestCase):
 
     def test_artifacts_are_propagated(self):
         artifact = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
+        md = artifact.view(Metadata)
 
         series = pd.Series(
             [0.0, np.nan, 3.3, np.nan, np.nan, 4.4], name='col1',
             index=pd.Index(['a', 'b', 'c', 'd', 'e', 'f'], name='sampleid'))
-        mdc = DummyMetadataColumn(series)
-        mdc._add_artifacts([artifact])
+        mdc = DummyMetadataColumn(series, md)
 
         obs = mdc.drop_missing_values()
 
         exp = DummyMetadataColumn(pd.Series(
             [0.0, 3.3, 4.4], name='col1',
-            index=pd.Index(['a', 'c', 'f'], name='sampleid')))
-        exp._add_artifacts([artifact])
+            index=pd.Index(['a', 'c', 'f'], name='sampleid')), md)
 
         self.assertEqual(obs, exp)
         self.assertEqual(obs.artifacts, (artifact,))

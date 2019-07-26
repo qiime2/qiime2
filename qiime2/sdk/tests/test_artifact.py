@@ -535,7 +535,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
                               index=pd.Index(['0'], name='id', dtype=object),
                               dtype=object)
         exp_md = Metadata(exp_df)
-        exp_md._add_artifacts([A])
+        exp_md._add_source_artifact(A)
 
         self.assertEqual(obs_md, exp_md)
 

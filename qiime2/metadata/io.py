@@ -120,7 +120,7 @@ class MetadataReader:
             raise MetadataFileError(msg, include_suffix=False)
 
         try:
-            return into(df, source_type='tsv')
+            return into(df)
         except Exception as e:
             raise MetadataFileError(
                 "There was an issue with loading the metadata file:\n\n%s" % e)

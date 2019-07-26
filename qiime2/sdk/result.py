@@ -289,8 +289,7 @@ class Artifact(Result):
         result = transformation(self._archiver.data_dir)
 
         if view_type is qiime2.Metadata:
-            result._add_artifacts([self])
-            result._source_type = 'Artifact'
+            result._add_source_artifact(self)
 
         to_type.set_user_owned(result, True)
         return result

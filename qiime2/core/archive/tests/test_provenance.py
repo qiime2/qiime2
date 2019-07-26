@@ -100,6 +100,7 @@ class TestProvenanceIntegration(unittest.TestCase):
                                              md_artifact2.uuid)
 
         # Check action files for uuid-metadata values
+        # FAIL: This test currently fails right here
         with (p_dir / 'action' / 'action.yaml').open() as fh:
             self.assertIn(yaml_value, fh.read())
         with (p_dir / 'artifacts' / str(b.uuid) / 'action' /
