@@ -233,7 +233,7 @@ class Action(metaclass=abc.ABCMeta):
                 if self.deprecated:
                     with qiime2.core.util.warning() as warn:
                         warn(self._build_deprecation_message(),
-                             DeprecationWarning)
+                             FutureWarning)
 
                 # Execute
                 outputs = self._callable_executor_(scope, callable_args,

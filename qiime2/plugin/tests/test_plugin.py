@@ -91,7 +91,9 @@ class TestPlugin(unittest.TestCase):
                           'double_bound_variable_method',
                           'bool_flag_swaps_output_method',
                           'predicates_preserved_method',
-                          'deprecated_method'})
+                          'deprecated_method',
+                          'unioned_primitives',
+                          })
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
 
@@ -120,7 +122,9 @@ class TestPlugin(unittest.TestCase):
                           'double_bound_variable_method',
                           'bool_flag_swaps_output_method',
                           'predicates_preserved_method',
-                          'deprecated_method'})
+                          'deprecated_method',
+                          'unioned_primitives',
+                          })
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)
 

@@ -177,7 +177,7 @@ class TestDeprecation(unittest.TestCase):
             self.method()
             self.assertEqual(1, len(w))
             warning = w[0]
-            self.assertEqual(warning.category, DeprecationWarning)
+            self.assertEqual(warning.category, FutureWarning)
             self.assertTrue('Method is deprecated' in str(warning.message))
 
     def test_docstring(self):
