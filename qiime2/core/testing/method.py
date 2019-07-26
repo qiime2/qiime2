@@ -40,6 +40,11 @@ def params_only_method(name: str, age: int) -> dict:
     return {name: age}
 
 
+# Unioned primitives
+def unioned_primitives(foo: int, bar: str = 'auto_bar') -> dict:
+    return {'foo': foo, 'bar': bar}
+
+
 # No input artifacts or parameters.
 def no_input_method() -> dict:
     return {'foo': 42}
