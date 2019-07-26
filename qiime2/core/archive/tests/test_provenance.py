@@ -238,6 +238,17 @@ class TestProvenanceIntegration(unittest.TestCase):
         self.assertIn('ints: %s' % ints.uuid, actual_method_yaml)
         self.assertIn('action: split_ints', actual_method_yaml)
 
+    def test_unioned_primitives(self):
+        r = dummy_plugin.actions.unioned_primitives(3, 2)
+
+        prov_dir = r.out._archiver.provenance_dir
+
+        with (prov_dir / 'action' / 'action.yaml').open() as fh:
+            prov_yml = fh.read()
+
+        self.assertIn('foo: 3', prov_yml)
+        self.assertIn('bar: 2', prov_yml)
+
 
 if __name__ == '__main__':
     unittest.main()
