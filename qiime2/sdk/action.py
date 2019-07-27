@@ -72,7 +72,8 @@ class Action(metaclass=abc.ABCMeta):
 
     # Private constructor
     @classmethod
-    def _init(cls, callable, signature, package, name, description, citations):
+    def _init(cls, callable, signature, package, name, description, citations,
+              deprecated):
         """
 
         Parameters
@@ -87,20 +88,22 @@ class Action(metaclass=abc.ABCMeta):
 
         """
         self = cls.__new__(cls)
-        self.__init(callable, signature, package, name, description, citations)
+        self.__init(callable, signature, package, name, description, citations,
+                    deprecated)
         return self
 
     # This "extra private" constructor is necessary because `Action` objects
     # can be initialized from a static (classmethod) context or on an
     # existing instance (see `_init` and `__setstate__`, respectively).
     def __init(self, callable, signature, package, name, description,
-               citations):
+               citations, deprecated):
         self._callable = callable
         self.signature = signature
         self.package = package
         self.name = name
         self.description = description
         self.citations = citations
+        self.deprecated = deprecated
 
         self.id = callable.__name__
         self._dynamic_call = self._get_callable_wrapper()
@@ -143,7 +146,8 @@ class Action(metaclass=abc.ABCMeta):
             'package': self.package,
             'name': self.name,
             'description': self.description,
-            'citations': self.citations
+            'citations': self.citations,
+            'deprecated': self.deprecated
         }
 
     def __setstate__(self, state):
@@ -225,6 +229,11 @@ class Action(metaclass=abc.ABCMeta):
                                 spec.view_type, recorder)
                     else:
                         callable_args[name] = artifact
+
+                if self.deprecated:
+                    with qiime2.core.util.warning() as warn:
+                        warn(self._build_deprecation_message(),
+                             FutureWarning)
 
                 # Execute
                 outputs = self._callable_executor_(scope, callable_args,
@@ -319,6 +328,11 @@ class Action(metaclass=abc.ABCMeta):
     def _build_numpydoc(self):
         numpydoc = []
         numpydoc.append(textwrap.fill(self.name, width=75))
+        if self.deprecated:
+            base_msg = textwrap.indent(
+                textwrap.fill(self._build_deprecation_message(), width=72),
+                '   ')
+            numpydoc.append('.. deprecated::\n' + base_msg)
         numpydoc.append(textwrap.fill(self.description, width=75))
 
         sig = self.signature
@@ -348,6 +362,10 @@ class Action(metaclass=abc.ABCMeta):
                         str(value.description), width=71), '    '))
 
         return '\n'.join(section).strip()
+
+    def _build_deprecation_message(self):
+        return (f'This {self.type.title()} is deprecated and will be removed '
+                'in a future version of this plugin.')
 
 
 class Method(Action):
@@ -400,13 +418,13 @@ class Method(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, package, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions, citations):
+              output_descriptions, citations, deprecated):
         signature = qtype.MethodSignature(callable, inputs, parameters,
                                           outputs, input_descriptions,
                                           parameter_descriptions,
                                           output_descriptions)
         return super()._init(callable, signature, package, name, description,
-                             citations)
+                             citations, deprecated)
 
 
 class Visualizer(Action):
@@ -438,12 +456,13 @@ class Visualizer(Action):
 
     @classmethod
     def _init(cls, callable, inputs, parameters, package, name, description,
-              input_descriptions, parameter_descriptions, citations):
+              input_descriptions, parameter_descriptions, citations,
+              deprecated):
         signature = qtype.VisualizerSignature(callable, inputs, parameters,
                                               input_descriptions,
                                               parameter_descriptions)
         return super()._init(callable, signature, package, name, description,
-                             citations)
+                             citations, deprecated)
 
 
 class Pipeline(Action):
@@ -493,13 +512,13 @@ class Pipeline(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, package, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions, citations):
+              output_descriptions, citations, deprecated):
         signature = qtype.PipelineSignature(callable, inputs, parameters,
                                             outputs, input_descriptions,
                                             parameter_descriptions,
                                             output_descriptions)
         return super()._init(callable, signature, package, name, description,
-                             citations)
+                             citations, deprecated)
 
 
 markdown_source_template = """

@@ -36,7 +36,7 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_numeric_metadata_column,
                      identity_with_optional_metadata,
                      identity_with_optional_metadata_column,
-                     params_only_method, no_input_method,
+                     params_only_method, no_input_method, deprecated_method,
                      optional_artifacts_method, long_description_method,
                      docstring_order_method, variadic_input_method,
                      unioned_primitives)
@@ -346,7 +346,7 @@ dummy_plugin.methods.register_function(
         ('out', Mapping)
     ],
     name='Parameters only method',
-    description='This method only accepts parameters.'
+    description='This method only accepts parameters.',
 )
 
 dummy_plugin.methods.register_function(
@@ -372,6 +372,18 @@ dummy_plugin.methods.register_function(
     ],
     name='No input method',
     description='This method does not accept any type of input.'
+)
+
+dummy_plugin.methods.register_function(
+    function=deprecated_method,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='A deprecated method',
+    description='This deprecated method does not accept any type of input.',
+    deprecated=True,
 )
 
 

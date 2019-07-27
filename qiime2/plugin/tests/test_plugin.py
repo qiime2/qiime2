@@ -91,6 +91,7 @@ class TestPlugin(unittest.TestCase):
                           'double_bound_variable_method',
                           'bool_flag_swaps_output_method',
                           'predicates_preserved_method',
+                          'deprecated_method',
                           'unioned_primitives',
                           })
         for action in actions.values():
@@ -121,6 +122,7 @@ class TestPlugin(unittest.TestCase):
                           'double_bound_variable_method',
                           'bool_flag_swaps_output_method',
                           'predicates_preserved_method',
+                          'deprecated_method',
                           'unioned_primitives',
                           })
         for method in methods.values():

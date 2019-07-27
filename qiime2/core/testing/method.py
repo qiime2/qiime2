@@ -50,6 +50,10 @@ def no_input_method() -> dict:
     return {'foo': 42}
 
 
+def deprecated_method() -> dict:
+    return {'foo': 43}
+
+
 def long_description_method(mapping1: dict, name: str, age: int) -> dict:
     return {name: age}
 
