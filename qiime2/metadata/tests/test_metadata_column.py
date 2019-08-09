@@ -261,8 +261,8 @@ class TestSourceArtifacts(unittest.TestCase):
         self.md = Metadata(pd.DataFrame(
             {'col': [1, 2, 3]}, index=pd.Index(['a', 'b', 'c'], name='id')))
         self.mdc = DummyMetadataColumn(pd.Series(
-            [1, 2, 3], name='col', index=pd.Index(['a', 'b', 'c'], name='id')),
-            md=self.md)
+            [1, 2, 3], name='col', index=pd.Index(['a', 'b', 'c'], name='id')))
+        self.mdc._init(self.md)
 
     def test_no_source_artifact(self):
         self.assertEqual(self.mdc.artifacts, ())
@@ -342,11 +342,13 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
 
         # Has metadata
         mdc2_md = artifact1.view(Metadata)
-        mdc2 = DummyMetadataColumn(series, mdc2_md)
+        mdc2 = DummyMetadataColumn(series)
+        mdc2._init(mdc2_md)
 
         # Has a different metadata
         mdc3_md = artifact2.view(Metadata)
-        mdc3 = DummyMetadataColumn(series, mdc3_md)
+        mdc3 = DummyMetadataColumn(series)
+        mdc3._init(mdc3_md)
 
         self.assertReallyNotEqual(mdc1, mdc2)
         self.assertReallyNotEqual(mdc2, mdc3)
@@ -388,12 +390,12 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
         md = artifact.view(Metadata)
 
         mdc1 = DummyMetadataColumn(pd.Series(
-            [42, 43], name='col1', index=pd.Index(['id1', 'id2'], name='id')),
-            md)
+            [42, 43], name='col1', index=pd.Index(['id1', 'id2'], name='id')))
+        mdc1._init(md)
 
         mdc2 = DummyMetadataColumn(pd.Series(
-            [42, 43], name='col1', index=pd.Index(['id1', 'id2'], name='id')),
-            md)
+            [42, 43], name='col1', index=pd.Index(['id1', 'id2'], name='id')))
+        mdc2._init(md)
 
         self.assertReallyEqual(mdc1, mdc2)
 
@@ -607,13 +609,15 @@ class TestDropMissingValues(unittest.TestCase):
         series = pd.Series(
             [0.0, np.nan, 3.3, np.nan, np.nan, 4.4], name='col1',
             index=pd.Index(['a', 'b', 'c', 'd', 'e', 'f'], name='sampleid'))
-        mdc = DummyMetadataColumn(series, md)
+        mdc = DummyMetadataColumn(series)
+        mdc._init(md)
 
         obs = mdc.drop_missing_values()
 
         exp = DummyMetadataColumn(pd.Series(
             [0.0, 3.3, 4.4], name='col1',
-            index=pd.Index(['a', 'c', 'f'], name='sampleid')), md)
+            index=pd.Index(['a', 'c', 'f'], name='sampleid')))
+        exp._init(md)
 
         self.assertEqual(obs, exp)
         self.assertEqual(obs.artifacts, (artifact,))

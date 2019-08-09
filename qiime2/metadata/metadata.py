@@ -422,9 +422,11 @@ class Metadata(_MetadataBase):
     def _metadata_column_factory(self, series):
         dtype = series.dtype
         if NumericMetadataColumn._is_supported_dtype(dtype):
-            column = NumericMetadataColumn(series, self)
+            column = NumericMetadataColumn(series)
+            column._init(self)
         elif CategoricalMetadataColumn._is_supported_dtype(dtype):
-            column = CategoricalMetadataColumn(series, self)
+            column = CategoricalMetadataColumn(series)
+            column._init(self)
         else:
             raise TypeError(
                 "Metadata column %r has an unsupported pandas dtype of %s. "
@@ -986,7 +988,7 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
                     old_md = new_md
                     new_md = new_md._column_sources[name]
 
-    def __init__(self, series, md=None):
+    def __init__(self, series):
         if not isinstance(series, pd.Series):
             raise TypeError(
                 "%s constructor requires a pandas.Series object, not %r" %
@@ -1002,6 +1004,9 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
                 (self.__class__.__name__, series.name, series.dtype))
 
         self._series = self._normalize_(series)
+        self._source_metadata = None
+
+    def _init(self, md):
         self._source_metadata = md
 
     def __repr__(self):
@@ -1232,7 +1237,8 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         """
         filtered_series = self._filter_ids_helper(self._series, self.get_ids(),
                                                   ids_to_keep)
-        filtered_mdc = self.__class__(filtered_series, self._source_metadata)
+        filtered_mdc = self.__class__(filtered_series)
+        filtered_mdc._init(self._source_metadata)
         return filtered_mdc
 
 
