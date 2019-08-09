@@ -984,9 +984,8 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
                 new_md = new_md._column_sources[name]
             else:
                 name = old_md._column_names[name]
-                if name in new_md._column_sources:
-                    old_md = new_md
-                    new_md = new_md._column_sources[name]
+                old_md = new_md
+                new_md = new_md._column_sources[name]
 
     def __init__(self, series):
         if not isinstance(series, pd.Series):
