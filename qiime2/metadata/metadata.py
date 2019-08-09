@@ -242,7 +242,7 @@ class Metadata(_MetadataBase):
         dataframe stored within the ``Metadata`` object will have any missing
         values normalized to ``np.nan``. Columns with ``dtype=int`` will be
         cast to ``dtype=float``. To obtain a dataframe from the ``Metadata``
-        object containing these normalized data types and values, use
+            object containing these normalized data types and values, use
         ``Metadata.to_dataframe()``.
 
     """
@@ -357,16 +357,16 @@ class Metadata(_MetadataBase):
             Source artifact of the metadata.
 
         """
-        return self.source_artifact
+        return self._source_artifact
 
     # Try to ensure the source artifact is actually an artifact
     def _add_source_artifact(self, artifact):
         if not isinstance(artifact, qiime2.Artifact):
-            raise TypeError('Source Artifact must a an Artifact object not '
+            raise TypeError('Source Artifact must an Artifact object not '
                             f'{artifact}.')
         self._source_artifact = artifact
 
-    def __init__(self, dataframe, column_names=None, column_sources=None):
+    def __init__(self, dataframe):
         if not isinstance(dataframe, pd.DataFrame):
             raise TypeError(
                 "%s constructor requires a pandas.DataFrame object, not "
@@ -377,20 +377,19 @@ class Metadata(_MetadataBase):
         self._dataframe, self._columns = self._normalize_dataframe(dataframe)
         self.contains_renamed_columns = False
 
-        # These should either both be None or both have a value
-        if column_names is None and column_sources is None:
-            self._column_names = {}
-            self._column_sources = {}
-            for column in self._columns:
-                self._column_names[column] = column
-                self._column_sources[column] = None
-        else:
-            self._column_names = column_names
-            self._column_sources = column_sources
+        self._column_names = {}
+        self._column_sources = {}
+        for column in self._columns:
+            self._column_names[column] = column
+            self._column_sources[column] = None
 
         # This is set post facto at the point of the creation of this metadata
         # from an artifact
         self._source_artifact = None
+
+    def _init(self, column_names, column_sources):
+        self._column_names = column_names
+        self._column_sources = column_sources
 
     @property
     def id(self):
@@ -783,7 +782,8 @@ class Metadata(_MetadataBase):
         column_names = {k: v for d in column_names for k, v in d.items()}
         column_sources = {k: v for d in column_sources for k, v in d.items()}
         merged_df.index.name = 'id'
-        merged_md = self.__class__(merged_df, column_names, column_sources)
+        merged_md = self.__class__(merged_df)
+        merged_md._init(column_names, column_sources)
         if df_changes:
             merged_md.contains_renamed_columns = True
         return merged_md
@@ -815,8 +815,8 @@ class Metadata(_MetadataBase):
         """
         filtered_df = self._filter_ids_helper(self._dataframe, self.get_ids(),
                                               ids_to_keep)
-        filtered_md = self.__class__(filtered_df, self._column_names,
-                                     self._column_sources)
+        filtered_md = self.__class__(filtered_df)
+        filtered_md._init(self._column_names, self._column_sources)
         return filtered_md
 
     def filter_columns(self, *, column_type=None, drop_all_unique=False,
@@ -888,8 +888,8 @@ class Metadata(_MetadataBase):
 
         filtered_df = self._dataframe.drop(columns_to_drop, axis=1,
                                            inplace=False)
-        filtered_md = self.__class__(filtered_df, self._column_names,
-                                     self._column_sources)
+        filtered_md = self.__class__(filtered_df)
+        filtered_md._init(self._column_names, self._column_sources)
         return filtered_md
 
 
@@ -982,10 +982,6 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
             elif old_name in new_md._column_sources:
                 old_md = new_md
                 new_md = new_md._column_sources[old_name]
-            else:
-                # If we get here something really bad happened, should this
-                # else exist?
-                pass
 
     def __init__(self, series, md=None):
         if not isinstance(series, pd.Series):
@@ -1036,6 +1032,7 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
             super().__eq__(other) and
             self.name == other.name and
             self._series.equals(other._series) and
+            # TODO: Consider how to handle this equality
             # My initial inclination was to make this test for equalty of
             # _source_metadata, but this seriously messes with some of the
             # rountrip tests in test_io, so it looks like this for now

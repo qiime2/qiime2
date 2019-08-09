@@ -284,20 +284,6 @@ class TestSourceArtifacts(unittest.TestCase):
         mdc = merged_md.get_column('e')
         self.assertEqual(mdc.artifacts, (artifact3,))
 
-#    Same as with test_metadata.py this isn't really a h=thing anymore
-#    def test_add_duplicate_artifact(self):
-#        artifact1 = Artifact.import_data('Mapping', {'a': '1', 'b': '3'})
-#        artifact2 = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
-#        self.mdc._add_artifacts([artifact1, artifact2])
-#
-#        with self.assertRaisesRegex(
-#                ValueError, "Duplicate source artifacts.*DummyMetadataColumn.*
-#                            "artifact: Mapping"):
-#            self.mdc._add_artifacts([artifact1])
-#
-#        # Test that the object hasn't been mutated.
-#        self.assertEqual(self.mdc.artifacts, (artifact1, artifact2))
-
 
 class TestRepr(unittest.TestCase):
     def test_single_id(self):
@@ -747,24 +733,6 @@ class TestFilterIDs(unittest.TestCase):
         filtered = mdc.filter_ids({'b'})
 
         self.assertEqual(filtered.artifacts, ())
-
-    def test_with_artifacts(self):
-        artifact1 = Artifact.import_data('Mapping', {'a': '1', 'b': '2'})
-        artifact2 = Artifact.import_data('Mapping', {'d': '4'})
-
-        mdc = DummyMetadataColumn(pd.Series(
-            [1, 2, 3], name='col1',
-            index=pd.Index(['a', 'b', 'c'], name='id')))
-        mdc._add_artifacts([artifact1, artifact2])
-
-        obs = mdc.filter_ids({'a', 'c'})
-
-        exp = DummyMetadataColumn(pd.Series(
-            [1, 3], name='col1', index=pd.Index(['a', 'c'], name='id')))
-        exp._add_artifacts([artifact1, artifact2])
-
-        self.assertEqual(obs, exp)
-        self.assertEqual(obs.artifacts, (artifact1, artifact2))
 
     def test_empty_ids_to_keep(self):
         mdc = DummyMetadataColumn(pd.Series(
