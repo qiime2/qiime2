@@ -96,8 +96,7 @@ class TestProvenanceIntegration(unittest.TestCase):
 
         p_dir = c._archiver.provenance_dir
 
-        yaml_value = "%s,%s:metadata.tsv" % (md_artifact1.uuid,
-                                             md_artifact2.uuid)
+        yaml_value = "%s:metadata.tsv" % (md_artifact2.uuid)
 
         # Check action files for uuid-metadata values
         # FAIL: This test currently fails right here

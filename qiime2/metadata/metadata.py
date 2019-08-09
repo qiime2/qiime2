@@ -969,19 +969,22 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         if self._source_metadata._source_artifact is not None:
             return (self._source_metadata._source_artifact,)
 
+        name = self._series.name
         old_md = self._source_metadata
-        new_md = self._source_metadata._column_sources[self._series.name]
-        for new_name, old_name in old_md._column_names.items():
+        new_md = self._source_metadata._column_sources[name]
+        while True:
             if new_md is None:
                 if old_md._source_artifact is not None:
                     return (old_md._source_artifact,)
                 return ()
-            if new_name in new_md._column_sources:
+            if name in new_md._column_sources:
                 old_md = new_md
-                new_md = new_md._column_sources[new_name]
-            elif old_name in new_md._column_sources:
-                old_md = new_md
-                new_md = new_md._column_sources[old_name]
+                new_md = new_md._column_sources[name]
+            else:
+                name = old_md._column_names[name]
+                if name in new_md._column_sources:
+                    old_md = new_md
+                    new_md = new_md._column_sources[name]
 
     def __init__(self, series, md=None):
         if not isinstance(series, pd.Series):
