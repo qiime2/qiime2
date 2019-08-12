@@ -118,6 +118,10 @@ class BoundFile:
             return path
         return bound_path_maker
 
+    @property
+    def path(self):
+        return str(self._directory_format.path)
+
 
 class BoundFileCollection(BoundFile):
     def __init__(self, name, pathspec, format, directory_format, path_maker):
