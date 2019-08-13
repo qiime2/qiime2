@@ -11,7 +11,6 @@ import unittest
 import tempfile
 
 import qiime2.plugin.model as model
-from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.plugin import SingleIntFormat
 
 
@@ -63,7 +62,6 @@ class TestTextFileFormat(unittest.TestCase):
 
 class TestFileFormat(unittest.TestCase):
     def setUp(self):
-        self.dummy_plugin = get_dummy_plugin()
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
 
         path = os.path.join(self.test_dir.name, 'int')
@@ -83,6 +81,7 @@ class TestFileFormat(unittest.TestCase):
         with self.assertRaisesRegex(
                 Exception, "No transformation.*SingleIntFormat.*float"):
             self.format.view(float)
+
 
 if __name__ == '__main__':
     unittest.main()
