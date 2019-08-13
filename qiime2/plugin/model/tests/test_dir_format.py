@@ -10,18 +10,19 @@ import os
 import unittest
 import tempfile
 
-from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.plugin import IntSequenceDirectoryFormat
 
 
 class TestBoundFile(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp')
-        self.dummy_plugin = get_dummy_plugin()
+        self.path = os.path.join(self.test_dir.name, 'file')
+        with open(self.path, 'w') as fh:
+            fh.write('1\n10')
+        self.format = IntSequenceDirectoryFormat(self.path, mode='r')
+
+    def tearDown(self):
+        self.test_dir.cleanup()
 
     def test_filepath_expected(self):
-        path = os.path.join(self.test_dir.name, 'file')
-        with open(path, 'w') as fh:
-            fh.write('1\n10')
-        format = IntSequenceDirectoryFormat(path, mode='r')
-        self.assertEqual(path, format.file.path)
+        self.assertEqual(self.path, self.format.file.path)
