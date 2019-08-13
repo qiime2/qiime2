@@ -11,6 +11,7 @@ import unittest
 import tempfile
 
 import qiime2.plugin.model as model
+from qiime2.core.testing.util import get_dummy_plugin
 
 
 class TestTextFileFormat(unittest.TestCase):
@@ -57,6 +58,25 @@ class TestTextFileFormat(unittest.TestCase):
 
         with open(str(ff), mode='rb') as fh:
             self.assertEqual(b'S', fh.read(1))
+
+
+class TestFileFormat(unittest.TestCase):
+    def setUp(self):
+        self.dummy_plugin = get_dummy_plugin()
+        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+
+    def tearDown(self):
+        self.test_dir.cleanup()
+
+    def test_view(self):
+        path = os.path.join(self.test_dir.name, 'int')
+        with open(path, 'w') as fh:
+            fh.write('1')
+
+        format = self.dummy_plugin.formats['SingleIntFormat']
+        test = format.format(path, mode='r')
+        number = test.view(int)
+        self.assertEqual(1, number)
 
 
 if __name__ == '__main__':
