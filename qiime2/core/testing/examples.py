@@ -30,15 +30,16 @@ def concatenate_ints_simple(use):
     # TODO: anything good we can do with this little bit?
     docstring action
     '''
-    use.scope.add_artifact('byod', ints1_factory)
-    use.scope.add_artifact('ints2', ints2_factory)
-    use.scope.add_artifact('this_one_is_important', ints3_factory)
+    byod = use.scope.add_artifact('byod', ints1_factory)
+    ints2 = use.scope.add_artifact('ints2', ints2_factory)
+    this_one_is_important = use.scope.add_artifact(
+        'this_one_is_important', ints3_factory)
 
     use.comment('big data == concatenating ints')
     use.action(
         use.RefAction('dummy_plugin', 'concatenate_ints'),
-        use.RefInputs(ints1='byod', ints2='ints2',
-                      ints3='this_one_is_important', int1=4, int2=2),
+        use.RefInputs(ints1=byod, ints2=ints2, ints3=this_one_is_important,
+                      int1=4, int2=2),
         use.RefOutputs(concatenated_ints='youre_just_a_copy_of_an_imitation'),
     )
     use.comment('as you can clearly see, p == np')
