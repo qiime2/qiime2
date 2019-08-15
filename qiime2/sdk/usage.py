@@ -46,7 +46,6 @@ class Scope:
 
     def add_artifact(self, name, factory):
         self._add_record(name, factory, 'artifact')
-        return name
 
     def add_visualization(self, name, factory):
         self._add_record(name, factory, 'visualization')
