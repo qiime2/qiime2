@@ -250,6 +250,4 @@ class TestPluginBase(unittest.TestCase):
                 for example in action.examples:
                     with self.subTest(example=example.__name__):
                         use = usage.ExecutionUsage()
-                        scope = qiime2.sdk.usage.Scope()
-                        with use.bind(scope):
-                            example(use)
+                        example(use)

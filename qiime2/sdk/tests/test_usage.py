@@ -36,11 +36,9 @@ class TestTesting(TestPluginBase):
     def test_no_op_usage(self):
         action = self.plugin.actions['concatenate_ints']
         use = usage.NoOpUsage()
-        scope = usage.Scope()
 
-        with use.bind(scope):
-            for example in action.examples:
-                example(use)
+        for example in action.examples:
+            example(use)
 
         # NoOpUsage assembles records that represent all of the example's
         # provided data (nothing is actually computed)
@@ -51,7 +49,7 @@ class TestTesting(TestPluginBase):
               data_type='IntSequence2'),
         ]
 
-        for exp, obs in itertools.zip_longest(expected, scope):
+        for exp, obs in itertools.zip_longest(expected, use.scope):
             self.assertEqual(exp.name, obs.name)
             self.assertEqual(exp.record_type, obs.type)
             self.assertEqual(exp.data_type, str(obs.factory().type))

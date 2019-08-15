@@ -82,16 +82,13 @@ class Usage(metaclass=abc.ABCMeta):
     TODO: docstring
     """
 
-    def __init__(self):
-        self.scope = None
+    def __init__(self, scope=None):
         self.plugin_manager = None
 
-    @contextlib.contextmanager
-    def bind(self, scope):
-        self.scope = scope
+        if scope is None:
+            self.scope = Scope()
+
         self.scope.assert_has_line_matching = self._assert_has_line_matching_
-        yield self
-        self.scope = None
 
     def get_action(self, plugin_id, action):
         if self.plugin_manager is None:
