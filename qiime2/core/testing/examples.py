@@ -30,61 +30,40 @@ def concatenate_ints_simple(use):
     # TODO: anything good we can do with this little bit?
     docstring action
     '''
-    concatenate_ints = use.get_action('dummy_plugin', 'concatenate_ints')
     use.scope.add_artifact('byod', ints1_factory)
     use.scope.add_artifact('ints2', ints2_factory)
     use.scope.add_artifact('this_one_is_important', ints3_factory)
 
     use.comment('big data == concatenating ints')
     use.action(
-        concatenate_ints,
-        {
-            'ints1': 'byod',
-            'ints2': 'ints2',
-            'ints3': 'this_one_is_important',
-            'int1': 4,
-            'int2': 2,
-        },
-        {
-            'concatenated_ints': 'youre_just_a_copy_of_an_imitation',
-        },
+        use.RefAction('dummy_plugin', 'concatenate_ints'),
+        use.RefInputs(ints1='byod', ints2='ints2',
+                      ints3='this_one_is_important', int1=4, int2=2),
+        use.RefOutputs(concatenated_ints='youre_just_a_copy_of_an_imitation'),
     )
     use.comment('as you can clearly see, p == np')
 
 
 def concatenate_ints_complex(use):
-    concatenate_ints = use.get_action('dummy_plugin', 'concatenate_ints')
     use.scope.add_artifact('byod', ints1_factory)
     use.scope.add_artifact('ints2', ints2_factory)
     use.scope.add_artifact('this_one_is_important', ints3_factory)
 
     use.comment('big data == concatenating ints')
     use.action(
-        concatenate_ints,
-        {
-            'ints1': 'byod',
-            'ints2': 'ints2',
-            'ints3': 'this_one_is_important',
-            'int1': 4,
-            'int2': 2,
-        },
-        {
-            'concatenated_ints': 'youre_just_a_copy_of_an_imitation',
-        },
+        use.RefAction('dummy_plugin', 'concatenate_ints'),
+        use.RefInputs(ints1='byod', ints2='ints2',
+                      ints3='this_one_is_important', int1=4, int2=2),
+        use.RefOutputs(concatenated_ints='youre_just_a_copy_of_an_imitation'),
     )
     use.comment('as you can clearly see, p == np')
     use.action(
-        concatenate_ints,
-        {
-            'ints1': 'youre_just_a_copy_of_an_imitation',
-            'ints2': 'youre_just_a_copy_of_an_imitation',
-            'ints3': 'this_one_is_important',
-            'int1': 6,
-            'int2': 7,
-        },
-        {
-            'concatenated_ints': 'well_well_well_what_do_we_have_here',
-        },
+        use.RefAction('dummy_plugin', 'concatenate_ints'),
+        use.RefInputs(ints1='youre_just_a_copy_of_an_imitation',
+                      ints2='youre_just_a_copy_of_an_imitation',
+                      ints3='this_one_is_important', int1=6, int2=7),
+        use.RefOutputs(
+            concatenated_ints='well_well_well_what_do_we_have_here'),
     )
 
     use.scope.assert_has_line_matching(
@@ -104,35 +83,34 @@ def metadata_factory_a():
 
 
 def identity_with_metadata_case_a(use):
-    identity_with_metadata = use.get_action('dummy_plugin',
-                                            'identity_with_metadata')
     use.scope.add_artifact('ints', ints1_factory)
     use.scope.add_metadata('md', metadata_factory_a)
     use.action(
-        identity_with_metadata,
-        {'ints': 'ints', 'metadata': 'md'},
-        {'out': 'ints_out'},
+        use.RefAction('dummy_plugin', 'identity_with_metadata'),
+        use.RefInputs(ints='ints', metadata='md'),
+        use.RefOutputs(out='ints_out'),
     )
 
 
 def identity_with_metadata_column_case_a(use):
-    identity_with_metadata_col = use.get_action(
-        'dummy_plugin', 'identity_with_metadata_column')
     use.scope.add_artifact('ints', ints1_factory)
     use.scope.add_metadata('md', metadata_factory_a)
     use.action(
-        identity_with_metadata_col,
-        {'ints': 'ints', 'metadata': ('md', 'foo')},
-        {'out': 'ints_out'},
+        use.RefAction('dummy_plugin', 'identity_with_metadata_column'),
+        use.RefInputs(ints='ints', metadata=('md', 'foo')),
+        use.RefOutputs(out='ints_out'),
     )
 
 
 def most_common_viz_typical(use):
-    most_common_viz = use.get_action('dummy_plugin', 'most_common_viz')
     use.scope.add_artifact('int', ints1_factory)
 
     use.comment('doing things')
-    use.action(most_common_viz, {'ints': 'int'}, {'visualization': 'foo'})
+    use.action(
+        use.RefAction('dummy_plugin', 'most_common_viz'),
+        use.RefInputs(ints='int'),
+        use.RefOutputs(visualization='foo'),
+    )
     use.scope.assert_has_line_matching(
         label='foobarbaz',
         result='foo',

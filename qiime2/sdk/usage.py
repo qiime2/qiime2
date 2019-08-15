@@ -18,8 +18,10 @@ import qiime2
 from qiime2.core.type.util import is_metadata_column_type
 
 
-ScopeRecord = collections.namedtuple('ScopeRecord',
-                                     ['name', 'type', 'factory'])
+ScopeRecord = collections.namedtuple('ScopeRecord', 'name type factory')
+RefAction = collections.namedtuple('RefAction', 'plugin_id action_name')
+class RefInputs(dict): pass
+class RefOutputs(dict): pass
 
 
 class Scope:
@@ -90,23 +92,28 @@ class Usage(metaclass=abc.ABCMeta):
 
         self.scope.assert_has_line_matching = self._assert_has_line_matching_
 
-    def get_action(self, plugin_id, action):
+        self.RefAction = RefAction
+        self.RefInputs = RefInputs
+        self.RefOutputs = RefOutputs
+
+    def get_action(self, action: RefAction):
         if self.plugin_manager is None:
             self.plugin_manager = qiime2.sdk.PluginManager()
 
         try:
-            plugin = self.plugin_manager.get_plugin(plugin_id)
+            plugin = self.plugin_manager.get_plugin(action.plugin_id)
         except KeyError:
             raise KeyError('No plugin currently registered with id: "%s".' %
-                           (plugin_id, ))
-        return plugin.actions[action]
+                           (action.plugin_id, ))
+        return plugin.actions[action.action_name]
 
     @abc.abstractmethod
     def comment(self, text):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def action(self, action, inputs, outputs=None):
+    def action(self, action: RefAction, inputs: RefInputs,
+               outputs: RefOutputs=None):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -127,13 +134,14 @@ class NoOpUsage(Usage):
     TODO: docstring
     """
 
-    def get_action(self, plugin_id, action):
+    def get_action(self, action: RefAction):
         return None
 
     def comment(self, text):
         return None
 
-    def action(self, action, inputs, outputs=None):
+    def action(self, action: RefAction, inputs: RefInputs,
+               outputs: RefOutputs=None):
         return None
 
     def import_file(self, type, input_name, output_name=None, format=None):
@@ -179,8 +187,10 @@ class ExecutionUsage(Usage):
 
         return None
 
-    def action(self, action, inputs, outputs=None):
-        sig = action.signature
+    def action(self, action: RefAction, inputs: RefInputs,
+               outputs: RefOutputs=None):
+        action_f = self.get_action(action)
+        sig = action_f.signature
         opts = {}
 
         for name, signature in sig.signature_order.items():
@@ -195,7 +205,7 @@ class ExecutionUsage(Usage):
                     value = inputs[name]
                 opts[name] = value
 
-        results = action(**opts)
+        results = action_f(**opts)
 
         for output in sig.outputs.keys():
             scope_name = outputs[output] if output in outputs else output
