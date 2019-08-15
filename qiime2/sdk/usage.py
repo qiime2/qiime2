@@ -18,7 +18,7 @@ import qiime2
 from qiime2.core.type.util import is_metadata_column_type
 
 
-ScopeRecord = collections.namedtuple('ScopeRecord', 'name type factory')
+ScopeRecord = collections.namedtuple('ScopeRecord', 'name factory')
 RefAction = collections.namedtuple('RefAction', 'plugin_id action_name')
 class RefInputs(dict): pass
 class RefOutputs(dict): pass
@@ -29,35 +29,18 @@ class Scope:
     TODO: docstring
     """
 
+    # TODO: when would i ever seed scope with records?
     def __init__(self, records=None):
         if records is None:
             self.records = dict()
         else:
             self.records = dict(records)
 
-    def _add_record(self, name, factory, type):
-        if name in self.records:
-            record = self.records[name]
-            if type != record.type or factory != record.factory:
-                raise KeyError('A(n) %s record with the name "%s" is already '
-                               'registered.' % (type, name))
-
-        self.records[name] = ScopeRecord(name=name, type=type, factory=factory)
-
-    def add_artifact(self, name, factory):
-        self._add_record(name, factory, 'artifact')
-
-    def add_visualization(self, name, factory):
-        self._add_record(name, factory, 'visualization')
-
-    def add_file(self, name, factory):
-        self._add_record(name, factory, 'file')
-
-    def add_metadata(self, name, factory):
-        self._add_record(name, factory, 'metadata')
-
     def keys(self):
         return self.records.keys()
+
+    def values(self):
+        return self.records.values()
 
     def __len__(self):
         return len(self.records)
@@ -69,14 +52,15 @@ class Scope:
         yield from self.records.values()
 
     def __getitem__(self, key):
-        # TODO: Better error here?
+        if key not in self.records:
+            self.records[key] = ScopeRecord(name=key, factory=None)
         return self.records[key]
+
+    def __setitem__(self, key, value):
+        self.records[key] = ScopeRecord(name=key, factory=value)
 
     def __contains__(self, key):
         return key in self.records
-
-    def assert_has_line_matching(self, label, result, path, expression):
-        pass
 
 
 class Usage(metaclass=abc.ABCMeta):
@@ -199,8 +183,8 @@ class ExecutionUsage(Usage):
                     ref, col = inputs[name]
                     value = self.scope[ref].factory()
                     value = value.get_column(col)
-                elif inputs[name] in self.scope:
-                    value = self.scope[inputs[name]].factory()
+                elif inputs[name] in self.scope.values():
+                    value = inputs[name].factory()
                 else:
                     value = inputs[name]
                 opts[name] = value
@@ -208,9 +192,6 @@ class ExecutionUsage(Usage):
         results = action_f(**opts)
 
         for output in sig.outputs.keys():
-            scope_name = outputs[output] if output in outputs else output
+            scope_record = outputs[output] if output in outputs else output
             result = getattr(results, output)
-            if isinstance(result, qiime2.Artifact):
-                self.scope.add_artifact(scope_name, lambda: result)
-            else:
-                self.scope.add_visualization(scope_name, lambda: result)
+            self.scope[scope_record.name] = lambda: result
