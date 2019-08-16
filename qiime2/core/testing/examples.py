@@ -30,45 +30,42 @@ def concatenate_ints_simple(use):
     # TODO: anything good we can do with this little bit?
     docstring action
     '''
-    use.scope['byod'] = ints1_factory
-    use.scope['ints2'] = ints2_factory
-    use.scope['this_one_is_important'] = ints3_factory
+    use.scope['ints_a'] = ints1_factory
+    use.scope['ints_b'] = ints2_factory
+    use.scope['ints_c'] = ints3_factory
 
-    use.comment('big data == concatenating ints')
+    use.comment('This example demonstrates basic usage.')
     use.action(
         use.RefAction('dummy_plugin', 'concatenate_ints'),
-        use.RefInputs(ints1=use.scope['byod'], ints2=use.scope['ints2'],
-                      ints3=use.scope['this_one_is_important'],
-                      int1=4, int2=2),
+        use.RefInputs(ints1=use.scope['ints_a'], ints2=use.scope['ints_b'],
+                      ints3=use.scope['ints_c'], int1=4, int2=2),
         use.RefOutputs(
-            concatenated_ints=use.scope['youre_just_a_copy_of_an_imitation']),
+            concatenated_ints=use.scope['ints_d']),
     )
-    use.comment('as you can clearly see, p == np')
 
 
 def concatenate_ints_complex(use):
-    use.scope['byod'] = ints1_factory
-    use.scope['ints2'] = ints2_factory
-    use.scope['this_one_is_important'] = ints3_factory
+    use.scope['ints_a'] = ints1_factory
+    use.scope['ints_b'] = ints2_factory
+    use.scope['ints_c'] = ints3_factory
 
-    use.comment('big data == concatenating ints')
+    use.comment('This example demonstrates chained usage.')
     use.action(
         use.RefAction('dummy_plugin', 'concatenate_ints'),
-        use.RefInputs(ints1=use.scope['byod'], ints2=use.scope['ints2'],
-                      ints3=use.scope['this_one_is_important'],
-                      int1=4, int2=2),
+        use.RefInputs(ints1=use.scope['ints_a'], ints2=use.scope['ints_b'],
+                      ints3=use.scope['ints_c'], int1=4, int2=2),
         use.RefOutputs(
-            concatenated_ints=use.scope['youre_just_a_copy_of_an_imitation']),
+            concatenated_ints=use.scope['ints_d']),
     )
-    use.comment('as you can clearly see, p == np')
+    use.comment('Now that we have initial results...')
     use.action(
         use.RefAction('dummy_plugin', 'concatenate_ints'),
-        use.RefInputs(ints1=use.scope['youre_just_a_copy_of_an_imitation'],
-                      ints2=use.scope['youre_just_a_copy_of_an_imitation'],
-                      ints3=use.scope['this_one_is_important'],
+        use.RefInputs(ints1=use.scope['ints_d'],
+                      ints2=use.scope['ints_d'],
+                      ints3=use.scope['ints_c'],
                       int1=6, int2=7),
         use.RefOutputs(
-            concatenated_ints=use.scope['well_well_well_what_do_we_have_here']),
+            concatenated_ints=use.scope['ints_e']),
     )
 
     # TODO: fix this
@@ -93,7 +90,7 @@ def identity_with_metadata_case_a(use):
     use.action(
         use.RefAction('dummy_plugin', 'identity_with_metadata'),
         use.RefInputs(ints=use.scope['ints'], metadata=use.scope['md']),
-        use.RefOutputs(out=use.scope['ints_out']),
+        use.RefOutputs(out=use.scope['out']),
     )
 
 
@@ -116,7 +113,7 @@ def most_common_viz_typical(use):
     use.action(
         use.RefAction('dummy_plugin', 'most_common_viz'),
         use.RefInputs(ints=use.scope['int']),
-        use.RefOutputs(visualization=use.scope['foo']),
+        use.RefOutputs(visualization=use.scope['out']),
     )
 
     # TODO: fix this

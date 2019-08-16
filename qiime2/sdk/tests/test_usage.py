@@ -33,29 +33,47 @@ class TestTesting(TestPluginBase):
     def tearDown(self):
         self.test_dir.cleanup()
 
-    def test_no_op_usage(self):
-        action = self.plugin.actions['concatenate_ints']
-        use = usage.NoOpUsage()
-
-        for example in action.examples:
-            example(use)
-
-        # NoOpUsage assembles records that represent all of the example's
-        # provided data (nothing is actually computed)
-        expected = [
-            X(name='byod', data_type='IntSequence1'),
-            X(name='ints2', data_type='IntSequence1'),
-            X(name='this_one_is_important', data_type='IntSequence2'),
-            X(name='youre_just_a_copy_of_an_imitation', data_type=None),
-            X(name='well_well_well_what_do_we_have_here', data_type=None),
-        ]
-
-        for exp, obs in itertools.zip_longest(expected, use.scope):
+    def assert_scope_records_match(self, expected, usage):
+        for exp, obs in itertools.zip_longest(expected, usage.scope):
             self.assertEqual(exp.name, obs.name)
             if obs.is_bound:
                 self.assertEqual(exp.data_type, str(obs.factory().type))
             else:
                 self.assertTrue(obs.factory is None)
+
+    def test_no_op_usage_simple(self):
+        action = self.plugin.actions['concatenate_ints']
+        use = usage.NoOpUsage()
+        # TODO: looking up actions should be better, probably just a dict
+        action.examples[0](use)
+
+        # NoOpUsage assembles records that represent all of the example's
+        # provided data (nothing is actually computed)
+        expected = [
+            X(name='ints_a', data_type='IntSequence1'),
+            X(name='ints_b', data_type='IntSequence1'),
+            X(name='ints_c', data_type='IntSequence2'),
+            X(name='ints_d', data_type=None),
+        ]
+
+        self.assert_scope_records_match(expected, use)
+
+    def test_no_op_usage_complex(self):
+        action = self.plugin.actions['concatenate_ints']
+        use = usage.NoOpUsage()
+        action.examples[1](use)
+
+        # NoOpUsage assembles records that represent all of the example's
+        # provided data (nothing is actually computed)
+        expected = [
+            X(name='ints_a', data_type='IntSequence1'),
+            X(name='ints_b', data_type='IntSequence1'),
+            X(name='ints_c', data_type='IntSequence2'),
+            X(name='ints_d', data_type=None),
+            X(name='ints_e', data_type=None),
+        ]
+
+        self.assert_scope_records_match(expected, use)
 
 
 if __name__ == '__main__':
