@@ -68,14 +68,11 @@ def concatenate_ints_complex(use):
             concatenated_ints=use.scope['ints_e']),
     )
 
-    # TODO: fix this
-    # use.scope['well_well_well_what_do_we_have_here'].assert_has_line_matching(
-    #     label='foobarbaz',
-    #     path='.*/data/ints.txt',
-    #     expression='2\n0\n1\n2',
-    # )
-
-    use.comment('fin')
+    use.scope['ints_e'].assert_has_line_matching(
+        label='a nice label about this assertion',
+        path='.*/data/ints.txt',
+        expression='2\n0\n1\n2',
+    )
 
 
 def metadata_factory_a():
@@ -116,9 +113,8 @@ def most_common_viz_typical(use):
         use.RefOutputs(visualization=use.scope['out']),
     )
 
-    # TODO: fix this
-    # use.scope['foo'].assert_has_line_matching(
-    #     label='foobarbaz',
-    #     path='.*/data/index.tsv',
-    #     expression='.*',
-    # )
+    use.scope['out'].assert_has_line_matching(
+        label='a nice label about this assertion',
+        path='.*/data/index.tsv',
+        expression='.*',
+    )

@@ -24,14 +24,22 @@ class RefOutputs(dict): pass
 
 
 class ScopeRecord:
-    def __init__(self, name, factory=None, is_bound=False):
+    def __init__(self, name, factory=None, is_bound=False,
+            assert_has_line_matching=None):
         self.name = name
         self.factory = factory
         self.is_bound = is_bound
+        self._assert_has_line_matching_ = assert_has_line_matching
 
     def __repr__(self):
         return 'ScopeRecord(%s, %s, %s)' % (self.name, self.factory,
                                             self.is_bound)
+
+    def assert_has_line_matching(self ,label, path, expression):
+        # TODO: did somebody say "curry"?
+        return self._assert_has_line_matching_(label, self.name, path,
+                                              expression)
+
 
 class Scope:
     """
@@ -60,13 +68,19 @@ class Scope:
     def __iter__(self):
         yield from self.records.values()
 
+    # TODO: this might not work quite like we would hope, since staring at it
+    # makes something pop into existence
     def __getitem__(self, key):
         if key not in self.records:
-            self.records[key] = ScopeRecord(name=key)
+            self.records[key] = ScopeRecord(
+                name=key,
+                assert_has_line_matching=self._assert_has_line_matching_)
         return self.records[key]
 
     def __setitem__(self, key, value):
-        self.records[key] = ScopeRecord(name=key, factory=value, is_bound=True)
+        self.records[key] = ScopeRecord(
+            name=key, factory=value, is_bound=True,
+            assert_has_line_matching=self._assert_has_line_matching_)
 
     def __contains__(self, key):
         return key in self.records
@@ -83,7 +97,7 @@ class Usage(metaclass=abc.ABCMeta):
         if scope is None:
             self.scope = Scope()
 
-        self.scope.assert_has_line_matching = self._assert_has_line_matching_
+        self.scope._assert_has_line_matching_ = self._assert_has_line_matching_
 
         self.RefAction = RefAction
         self.RefInputs = RefInputs
