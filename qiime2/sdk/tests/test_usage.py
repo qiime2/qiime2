@@ -46,14 +46,16 @@ class TestTesting(TestPluginBase):
             X(name='byod', data_type='IntSequence1'),
             X(name='ints2', data_type='IntSequence1'),
             X(name='this_one_is_important', data_type='IntSequence2'),
-            X(name='youre_just_a_copy_of_an_imitation', data_type='None'),
-            X(name='well_well_well_what_do_we_have_here', data_type='None'),
+            X(name='youre_just_a_copy_of_an_imitation', data_type=None),
+            X(name='well_well_well_what_do_we_have_here', data_type=None),
         ]
 
         for exp, obs in itertools.zip_longest(expected, use.scope):
             self.assertEqual(exp.name, obs.name)
-            # TODO: fix this
-            self.assertEqual(exp.data_type, str(type(obs.factory().type)))
+            if obs.is_bound:
+                self.assertEqual(exp.data_type, str(obs.factory().type))
+            else:
+                self.assertTrue(obs.factory is None)
 
 
 if __name__ == '__main__':

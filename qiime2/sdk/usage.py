@@ -18,11 +18,20 @@ import qiime2
 from qiime2.core.type.util import is_metadata_column_type
 
 
-ScopeRecord = collections.namedtuple('ScopeRecord', 'name factory')
 RefAction = collections.namedtuple('RefAction', 'plugin_id action_name')
 class RefInputs(dict): pass
 class RefOutputs(dict): pass
 
+
+class ScopeRecord:
+    def __init__(self, name, factory=None, is_bound=False):
+        self.name = name
+        self.factory = factory
+        self.is_bound = is_bound
+
+    def __repr__(self):
+        return 'ScopeRecord(%s, %s, %s)' % (self.name, self.factory,
+                                            self.is_bound)
 
 class Scope:
     """
@@ -53,11 +62,11 @@ class Scope:
 
     def __getitem__(self, key):
         if key not in self.records:
-            self.records[key] = ScopeRecord(name=key, factory=None)
+            self.records[key] = ScopeRecord(name=key)
         return self.records[key]
 
     def __setitem__(self, key, value):
-        self.records[key] = ScopeRecord(name=key, factory=value)
+        self.records[key] = ScopeRecord(name=key, factory=value, is_bound=True)
 
     def __contains__(self, key):
         return key in self.records
@@ -183,7 +192,8 @@ class ExecutionUsage(Usage):
                     ref, col = inputs[name]
                     value = self.scope[ref].factory()
                     value = value.get_column(col)
-                elif inputs[name] in self.scope.values():
+                elif inputs[name] in self.scope.values() \
+                        and inputs[name].is_bound:
                     value = inputs[name].factory()
                 else:
                     value = inputs[name]
