@@ -8,6 +8,7 @@
 
 import re
 import pathlib
+from pathlib import Path
 
 from qiime2.core import transform
 from .base import FormatBase, ValidationError, _check_validation_level
@@ -120,7 +121,7 @@ class BoundFile:
 
     @property
     def path(self):
-        return str(self._directory_format.path)
+        return Path(self._directory_format.path)
 
 
 class BoundFileCollection(BoundFile):

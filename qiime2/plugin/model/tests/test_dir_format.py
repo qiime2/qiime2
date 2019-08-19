@@ -9,6 +9,7 @@
 import os
 import unittest
 import tempfile
+from pathlib import Path
 
 from qiime2.core.testing.plugin import IntSequenceDirectoryFormat
 
@@ -16,7 +17,7 @@ from qiime2.core.testing.plugin import IntSequenceDirectoryFormat
 class TestBoundFile(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp')
-        self.path = os.path.join(self.test_dir.name, 'file')
+        self.path = Path(os.path.join(self.test_dir.name, 'file'))
         with open(self.path, 'w') as fh:
             fh.write('1\n10')
         self.format = IntSequenceDirectoryFormat(self.path, mode='r')
