@@ -96,21 +96,6 @@ class TestInvalidMetadataColumnConstruction(unittest.TestCase):
                 [1, 2, 3], name='',
                 index=pd.Index(['a', 'b', 'c'], name='id')))
 
-    def test_leading_trailing_whitespace_id(self):
-        with self.assertRaisesRegex(ValueError, "metadata ID.*leading or "
-                                                "trailing whitespace.*' b '"):
-            DummyMetadataColumn(pd.Series(
-                [1, 2, 3], name='col',
-                index=pd.Index(['a', ' b ', 'c'], name='id')))
-
-    def test_leading_trailing_whitespace_column_name(self):
-        with self.assertRaisesRegex(
-                ValueError, "metadata column name.*leading or trailing "
-                            "whitespace.*' col2 '"):
-            DummyMetadataColumn(pd.Series(
-                [1, 2, 3], name=' col2 ',
-                index=pd.Index(['a', 'b', 'c'], name='id')))
-
     def test_pound_sign_id(self):
         with self.assertRaisesRegex(
                 ValueError, "metadata ID.*begins with a pound sign.*'#b'"):
@@ -254,6 +239,36 @@ class TestMetadataColumnConstructionAndProperties(unittest.TestCase):
         mdc = DummyMetadataColumn(series)
 
         self.assertEqual(mdc.ids, ('a', 'b', 'A'))
+
+    def test_leading_trailing_whitespace_value(self):
+        col1 = CategoricalMetadataColumn(pd.Series(
+            ['foo', ' bar ', 'baz'], name='col1',
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+        col2 = CategoricalMetadataColumn(pd.Series(
+            ['foo', 'bar', 'baz'], name='col1',
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(col1, col2)
+
+    def test_leading_trailing_whitespace_id(self):
+        col1 = DummyMetadataColumn(pd.Series(
+                [1, 2, 3], name='col',
+                index=pd.Index(['a', ' b ', 'c'], name='id')))
+        col2 = DummyMetadataColumn(pd.Series(
+                [1, 2, 3], name='col',
+                index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(col1, col2)
+
+    def test_leading_trailing_whitespace_column_name(self):
+        col1 = DummyMetadataColumn(pd.Series(
+                [1, 2, 3], name=' col2 ',
+                index=pd.Index(['a', 'b', 'c'], name='id')))
+        col2 = DummyMetadataColumn(pd.Series(
+                [1, 2, 3], name='col2',
+                index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(col1, col2)
 
 
 class TestSourceArtifacts(unittest.TestCase):
@@ -824,14 +839,6 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
                             "column 'col1'"):
             CategoricalMetadataColumn(pd.Series(
                 ['foo', '', 'bar'], name='col1',
-                index=pd.Index(['a', 'b', 'c'], name='id')))
-
-    def test_leading_trailing_whitespace_value(self):
-        with self.assertRaisesRegex(
-                ValueError, "CategoricalMetadataColumn.*leading or trailing "
-                            "whitespace characters.*Column 'col1'.*' bar '"):
-            CategoricalMetadataColumn(pd.Series(
-                ['foo', ' bar ', 'baz'], name='col1',
                 index=pd.Index(['a', 'b', 'c'], name='id')))
 
     def test_type_property(self):

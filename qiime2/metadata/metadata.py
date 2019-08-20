@@ -156,11 +156,6 @@ class _MetadataBase:
                     "Detected empty metadata %s. %ss must consist of at least "
                     "one character." % (label, label))
 
-            if value != value.strip():
-                raise ValueError(
-                    "Detected metadata %s with leading or trailing "
-                    "whitespace characters: %r" % (label, value))
-
             if axis == 'id' and value.startswith('#'):
                 raise ValueError(
                     "Detected metadata %s that begins with a pound sign "
@@ -361,11 +356,15 @@ class Metadata(_MetadataBase):
 
         super().__init__(dataframe.index)
 
+        self._validate_index(dataframe.columns, axis='column')
+        dataframe.index = dataframe.index.str.strip()
+        # Do not attempt to strip empty columns
+        if not dataframe.columns.empty:
+            dataframe.columns = dataframe.columns.str.strip()
+
         self._dataframe, self._columns = self._normalize_dataframe(dataframe)
 
     def _normalize_dataframe(self, dataframe):
-        self._validate_index(dataframe.columns, axis='column')
-
         norm_df = dataframe.copy()
         columns = collections.OrderedDict()
         for column_name, series in dataframe.items():
@@ -877,7 +876,11 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
                 "%s %r does not support a pandas.Series object with dtype %s" %
                 (self.__class__.__name__, series.name, series.dtype))
 
+        series.index = series.index.str.strip()
+        series.name = series.name.strip()
         self._series = self._normalize_(series)
+        if isinstance(self, CategoricalMetadataColumn):
+            self._series = self._series.str.strip()
 
     def __repr__(self):
         """String summary of the metadata column."""
@@ -1132,11 +1135,6 @@ class CategoricalMetadataColumn(MetadataColumn):
                         "(e.g. `numpy.nan`) or supply a non-empty string as "
                         "the value in column %r." %
                         (cls.__name__, series.name))
-                elif value != value.strip():
-                    raise ValueError(
-                        "%s does not support values with leading or trailing "
-                        "whitespace characters. Column %r has the following "
-                        "value: %r" % (cls.__name__, series.name, value))
                 else:
                     return value
             elif pd.isnull(value):  # permits np.nan, Python float nan, None
