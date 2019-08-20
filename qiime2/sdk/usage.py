@@ -85,11 +85,18 @@ class Scope:
     def __contains__(self, key):
         return key in self.records
 
+    def _bind(self, name, obj):
+        setattr(self, name, obj)
+
 
 class Usage(metaclass=abc.ABCMeta):
     """
     TODO: docstring
     """
+
+    RefAction = RefAction
+    RefInputs = RefInputs
+    RefOutputs = RefOutputs
 
     def __init__(self, scope=None):
         self.plugin_manager = None
@@ -97,11 +104,8 @@ class Usage(metaclass=abc.ABCMeta):
         if scope is None:
             self.scope = Scope()
 
-        self.scope._assert_has_line_matching_ = self._assert_has_line_matching_
-
-        self.RefAction = RefAction
-        self.RefInputs = RefInputs
-        self.RefOutputs = RefOutputs
+        self.scope._bind('_assert_has_line_matching_',
+                         self._assert_has_line_matching_)
 
     def get_action(self, action: RefAction):
         if self.plugin_manager is None:
