@@ -994,6 +994,16 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         """
         return self._series.to_frame()
 
+    def to_metadata(self):
+        """Create a metadata object from the metadata column
+
+        Returns
+        -------
+        Metadata
+            Metadata constructed from the metadata column.
+        """
+        return Metadata(self.to_dataframe())
+
     def get_value(self, id):
         """Retrieve metadata column value associated with an ID.
 

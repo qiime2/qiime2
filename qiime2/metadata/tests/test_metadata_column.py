@@ -16,7 +16,7 @@ import numpy as np
 
 from qiime2 import Artifact
 from qiime2.metadata import (MetadataColumn, CategoricalMetadataColumn,
-                             NumericMetadataColumn)
+                             NumericMetadataColumn, Metadata)
 from qiime2.core.testing.util import get_dummy_plugin, ReallyEqualMixin
 
 
@@ -254,6 +254,26 @@ class TestMetadataColumnConstructionAndProperties(unittest.TestCase):
         mdc = DummyMetadataColumn(series)
 
         self.assertEqual(mdc.ids, ('a', 'b', 'A'))
+
+    def test_to_metadata(self):
+        index = pd.Index(['id1'], name='id')
+        series = pd.Series([42], name='col1', index=index)
+        mdc = DummyMetadataColumn(series)
+        df = pd.DataFrame(series)
+        md = Metadata(df)
+        md2 = mdc.to_metadata()
+
+        self.assertEqual(md, md2)
+
+    def test_to_metadata_artifacts(self):
+        index = pd.Index(['id1'], name='id')
+        series = pd.Series([42], name='col1', index=index)
+        mdc = DummyMetadataColumn(series)
+        df = pd.DataFrame(series)
+        md = Metadata(df)
+        md2 = mdc.to_metadata()
+
+        self.assertEqual(md.artifacts, md2.artifacts)
 
 
 class TestSourceArtifacts(unittest.TestCase):
