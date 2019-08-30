@@ -357,14 +357,14 @@ class Metadata(_MetadataBase):
         super().__init__(dataframe.index)
 
         self._validate_index(dataframe.columns, axis='column')
-        dataframe.index = dataframe.index.str.strip()
-        # Do not attempt to strip empty columns
-        if not dataframe.columns.empty:
-            dataframe.columns = dataframe.columns.str.strip()
+        dataframe.index = dataframe.index.copy().str.strip()
 
         self._dataframe, self._columns = self._normalize_dataframe(dataframe)
 
     def _normalize_dataframe(self, dataframe):
+        # Do not attempt to strip empty columns
+        if not dataframe.columns.empty:
+            dataframe.columns = dataframe.columns.str.strip()
         norm_df = dataframe.copy()
         columns = collections.OrderedDict()
         for column_name, series in dataframe.items():
@@ -876,11 +876,9 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
                 "%s %r does not support a pandas.Series object with dtype %s" %
                 (self.__class__.__name__, series.name, series.dtype))
 
-        series.index = series.index.str.strip()
-        series.name = series.name.strip()
+        series.index = series.index.copy().str.strip()
+        series.name = series.copy().name.strip()
         self._series = self._normalize_(series)
-        if isinstance(self, CategoricalMetadataColumn):
-            self._series = self._series.str.strip()
 
     def __repr__(self):
         """String summary of the metadata column."""
@@ -1145,7 +1143,9 @@ class CategoricalMetadataColumn(MetadataColumn):
                     "%r of type %r in column %r." %
                     (cls.__name__, value, type(value), series.name))
 
-        return series.apply(normalize, convert_dtype=False)
+        series = series.apply(normalize, convert_dtype=False)
+        series = series.str.strip()
+        return series
 
 
 class NumericMetadataColumn(MetadataColumn):
