@@ -21,7 +21,7 @@ requirements:
     - pyyaml
     - decorator
     # TODO: unset this pin once pandas 0.25.x is sorted out
-    - pandas 0.24.2
+    - pandas 0.25.1
     - tzlocal
     - python-dateutil
     - pyparsing ==2.3.0
