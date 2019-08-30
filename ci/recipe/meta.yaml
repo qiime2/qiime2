@@ -20,6 +20,7 @@ requirements:
     - python {{ python }}
     - pyyaml
     - decorator
+    - pandas
     - tzlocal
     - python-dateutil
     - pyparsing ==2.3.0
