@@ -241,4 +241,7 @@ class TestPluginBase(unittest.TestCase):
         else:
             self.assertIsInstance(obs, target)
 
+        if hasattr(obs, 'validate'):
+            obs.validate()
+
         return input, obs
