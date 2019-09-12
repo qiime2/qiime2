@@ -182,10 +182,6 @@ class TestPluginBase(unittest.TestCase):
             "Expected semantic type %r to be registered to format %r, not %r."
             % (semantic_type, exp_format, obs_format))
 
-    """
-    Convert this method to a more typical implementation of the transform
-    API using .from_view_type and make_transformation
-    """
     def transform_format(self, source_format, target, filename=None,
                          filenames=None):
         """Helper utility for loading data and transforming it.
