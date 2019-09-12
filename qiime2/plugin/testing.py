@@ -14,6 +14,7 @@ import pathlib
 
 import qiime2
 
+from qiime2.core import transform
 from qiime2.plugin.model.base import FormatBase
 
 
@@ -181,6 +182,10 @@ class TestPluginBase(unittest.TestCase):
             "Expected semantic type %r to be registered to format %r, not %r."
             % (semantic_type, exp_format, obs_format))
 
+    """
+    Convert this method to a more typical implementation of the transform
+    API using .from_view_type and make_transformation
+    """
     def transform_format(self, source_format, target, filename=None,
                          filenames=None):
         """Helper utility for loading data and transforming it.
@@ -233,15 +238,15 @@ class TestPluginBase(unittest.TestCase):
                 shutil.copy(filepath, source_path)
         input = source_format(source_path, mode='r')
 
-        transformer = self.get_transformer(source_format, target)
-        obs = transformer(input)
+        from_type = transform.ModelType.from_view_type(source_format)
+        to_type = transform.ModelType.from_view_type(target)
+
+        transformation = from_type.make_transformation(to_type)
+        obs = transformation(input)
 
         if issubclass(target, FormatBase):
             self.assertIsInstance(obs, (type(pathlib.Path()), str, target))
         else:
             self.assertIsInstance(obs, target)
-
-        if hasattr(obs, 'validate'):
-            obs.validate()
 
         return input, obs
