@@ -19,6 +19,8 @@ class FormatBase:
             if mode != 'r':
                 raise ValueError("A path must be omitted when writing.")
 
+        # Mode has to be set here so objects don't fail validation for not
+        # having a `.mode` attribute
         self._mode = mode
 
         if mode == 'w':
