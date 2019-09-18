@@ -19,6 +19,8 @@ class FormatBase:
             if mode != 'r':
                 raise ValueError("A path must be omitted when writing.")
 
+        self._mode = mode
+
         if mode == 'w':
             self.path = qpath.OutPath(
                 # TODO: parents shouldn't know about their children
@@ -26,8 +28,10 @@ class FormatBase:
                 prefix='q2-%s-' % self.__class__.__name__)
         else:
             self.path = qpath.InPath(path)
-
-        self._mode = mode
+            # Check for _validate_ because some classes have a dummy
+            # implementation of validate to raise NotImplemented errors
+            if hasattr(self, '_validate_'):
+                self.validate()
 
     def __str__(self):
         return str(self.path)

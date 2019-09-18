@@ -501,17 +501,17 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         self.assertTrue(True)  # Checkpoint assertion
         A.validate(level='max')
         self.assertTrue(True)  # Checkpoint assertion
-        A = Artifact.import_data('IntSequence1', [1, 2, 3, 4, 5, 6, 7, 10])
         with self.assertRaisesRegex(ValidationError, '3 more'):
-            A.validate(level='max')
+            Artifact.import_data('IntSequence1', [1, 2, 3, 4, 5, 6, 7, 10])
 
     def test_artifact_validate_max_on_import(self):
         fp = get_data_path('intsequence-fail-max-validation.txt')
-        fmt = IntSequenceFormat(fp, mode='r')
-        fmt.validate(level='min')
+        # This has become impossible to test because max validate is run on
+        # creation
+        # fmt.validate(level='min')
         self.assertTrue(True)  # Checkpoint assertion
         with self.assertRaisesRegex(ValidationError, '3 more'):
-            Artifact.import_data('IntSequence1', fp)
+            IntSequenceFormat(fp, mode='r')
 
     def test_artifact_validate_min(self):
         A = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
