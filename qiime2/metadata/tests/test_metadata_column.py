@@ -240,36 +240,6 @@ class TestMetadataColumnConstructionAndProperties(unittest.TestCase):
 
         self.assertEqual(mdc.ids, ('a', 'b', 'A'))
 
-    def test_leading_trailing_whitespace_value(self):
-        col1 = CategoricalMetadataColumn(pd.Series(
-            ['foo', ' bar ', 'baz'], name='col1',
-            index=pd.Index(['a', 'b', 'c'], name='id')))
-        col2 = CategoricalMetadataColumn(pd.Series(
-            ['foo', 'bar', 'baz'], name='col1',
-            index=pd.Index(['a', 'b', 'c'], name='id')))
-
-        self.assertEqual(col1, col2)
-
-    def test_leading_trailing_whitespace_id(self):
-        col1 = DummyMetadataColumn(pd.Series(
-                [1, 2, 3], name='col',
-                index=pd.Index(['a', ' b ', 'c'], name='id')))
-        col2 = DummyMetadataColumn(pd.Series(
-                [1, 2, 3], name='col',
-                index=pd.Index(['a', 'b', 'c'], name='id')))
-
-        self.assertEqual(col1, col2)
-
-    def test_leading_trailing_whitespace_column_name(self):
-        col1 = DummyMetadataColumn(pd.Series(
-                [1, 2, 3], name=' col2 ',
-                index=pd.Index(['a', 'b', 'c'], name='id')))
-        col2 = DummyMetadataColumn(pd.Series(
-                [1, 2, 3], name='col2',
-                index=pd.Index(['a', 'b', 'c'], name='id')))
-
-        self.assertEqual(col1, col2)
-
 
 class TestSourceArtifacts(unittest.TestCase):
     def setUp(self):
@@ -905,6 +875,36 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
 
         pdt.assert_series_equal(obs, exp)
         self.assertEqual(obs.dtype, object)
+
+    def test_leading_trailing_whitespace_value(self):
+        col1 = CategoricalMetadataColumn(pd.Series(
+            ['foo', ' bar ', 'baz'], name='col1',
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+        col2 = CategoricalMetadataColumn(pd.Series(
+            ['foo', 'bar', 'baz'], name='col1',
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(col1, col2)
+
+    def test_leading_trailing_whitespace_id(self):
+        col1 = CategoricalMetadataColumn(pd.Series(
+                ['foo', ' bar ', 'baz'], name='col',
+                index=pd.Index(['a', ' b ', 'c'], name='id')))
+        col2 = CategoricalMetadataColumn(pd.Series(
+                ['foo', ' bar ', 'baz'], name='col',
+                index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(col1, col2)
+
+    def test_leading_trailing_whitespace_column_name(self):
+        col1 = CategoricalMetadataColumn(pd.Series(
+                ['foo', ' bar ', 'baz'], name=' col ',
+                index=pd.Index(['a', 'b', 'c'], name='id')))
+        col2 = CategoricalMetadataColumn(pd.Series(
+                ['foo', ' bar ', 'baz'], name='col',
+                index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(col1, col2)
 
 
 class TestNumericMetadataColumn(unittest.TestCase):

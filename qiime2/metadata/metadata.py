@@ -356,18 +356,20 @@ class Metadata(_MetadataBase):
 
         super().__init__(dataframe.index)
 
-        self._validate_index(dataframe.columns, axis='column')
-        dataframe.index = dataframe.index.copy().str.strip()
-
         self._dataframe, self._columns = self._normalize_dataframe(dataframe)
+        self._validate_index(self._dataframe.columns, axis='column')
 
     def _normalize_dataframe(self, dataframe):
-        # Do not attempt to strip empty columns
-        if not dataframe.columns.empty:
-            dataframe.columns = dataframe.columns.str.strip()
         norm_df = dataframe.copy()
+
+        # Do not attempt to strip empty metadata
+        if not norm_df.columns.empty:
+            norm_df.columns = norm_df.columns.str.strip()
+
+        norm_df.index = norm_df.index.str.strip()
+
         columns = collections.OrderedDict()
-        for column_name, series in dataframe.items():
+        for column_name, series in norm_df.items():
             metadata_column = self._metadata_column_factory(series)
             norm_df[column_name] = metadata_column.to_series()
             properties = ColumnProperties(type=metadata_column.type)
@@ -869,16 +871,14 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
         super().__init__(series.index)
 
-        self._validate_index([series.name], axis='column')
-
         if not self._is_supported_dtype(series.dtype):
             raise TypeError(
                 "%s %r does not support a pandas.Series object with dtype %s" %
                 (self.__class__.__name__, series.name, series.dtype))
 
-        series.index = series.index.copy().str.strip()
-        series.name = series.copy().name.strip()
         self._series = self._normalize_(series)
+
+        self._validate_index([self._series.name], axis='column')
 
     def __repr__(self):
         """String summary of the metadata column."""
@@ -1126,6 +1126,7 @@ class CategoricalMetadataColumn(MetadataColumn):
     def _normalize_(cls, series):
         def normalize(value):
             if isinstance(value, str):
+                value = value.strip()
                 if value == '':
                     raise ValueError(
                         "%s does not support empty strings as values. Use an "
@@ -1143,9 +1144,10 @@ class CategoricalMetadataColumn(MetadataColumn):
                     "%r of type %r in column %r." %
                     (cls.__name__, value, type(value), series.name))
 
-        series = series.apply(normalize, convert_dtype=False)
-        series = series.str.strip()
-        return series
+        norm_series = series.apply(normalize, convert_dtype=False)
+        norm_series.index = norm_series.index.str.strip()
+        norm_series.name = norm_series.name.strip()
+        return norm_series
 
 
 class NumericMetadataColumn(MetadataColumn):
