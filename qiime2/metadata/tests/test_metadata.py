@@ -76,22 +76,6 @@ class TestInvalidMetadataConstruction(unittest.TestCase):
                 {'col': [1, 2, 3],
                  '': [4, 5, 6]}, index=pd.Index(['a', 'b', 'c'], name='id')))
 
-    def test_leading_trailing_whitespace_id(self):
-        with self.assertRaisesRegex(ValueError, "metadata ID.*leading or "
-                                                "trailing whitespace.*' b '"):
-            Metadata(pd.DataFrame(
-                {'col': [1, 2, 3]},
-                index=pd.Index(['a', ' b ', 'c'], name='id')))
-
-    def test_leading_trailing_whitespace_column_name(self):
-        with self.assertRaisesRegex(
-                ValueError, "metadata column name.*leading or trailing "
-                            "whitespace.*' col2 '"):
-            Metadata(pd.DataFrame(
-                {'col1': [1, 2, 3],
-                 ' col2 ': [4, 5, 6]},
-                index=pd.Index(['a', 'b', 'c'], name='id')))
-
     def test_pound_sign_id(self):
         with self.assertRaisesRegex(
                 ValueError, "metadata ID.*begins with a pound sign.*'#b'"):
@@ -155,15 +139,6 @@ class TestInvalidMetadataConstruction(unittest.TestCase):
             Metadata(pd.DataFrame(
                 {'col1': [1, 2, 3],
                  'col2': ['foo', '', 'bar']},
-                index=pd.Index(['a', 'b', 'c'], name='id')))
-
-    def test_categorical_column_leading_trailing_whitespace_value(self):
-        with self.assertRaisesRegex(
-                ValueError, "CategoricalMetadataColumn.*leading or trailing "
-                            "whitespace characters.*Column 'col2'.*' bar '"):
-            Metadata(pd.DataFrame(
-                {'col1': [1, 2, 3],
-                 'col2': ['foo', ' bar ', 'baz']},
                 index=pd.Index(['a', 'b', 'c'], name='id')))
 
     def test_numeric_column_infinity(self):
@@ -401,6 +376,38 @@ class TestMetadataConstructionAndProperties(unittest.TestCase):
         metadata = Metadata(df)
 
         self.assertEqual(set(metadata.columns), {'column', 'Column'})
+
+    def test_categorical_column_leading_trailing_whitespace_value(self):
+        md1 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3],
+             'col2': ['foo', ' bar ', 'baz']},
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+        md2 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3],
+             'col2': ['foo', 'bar', 'baz']},
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(md1, md2)
+
+    def test_leading_trailing_whitespace_id(self):
+        md1 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3], 'col2': [4, 5, 6]},
+            index=pd.Index(['a', ' b ', 'c'], name='id')))
+        md2 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3], 'col2': [4, 5, 6]},
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(md1, md2)
+
+    def test_leading_trailing_whitespace_column_name(self):
+        md1 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3], ' col2 ': [4, 5, 6]},
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+        md2 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3], 'col2': [4, 5, 6]},
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(md1, md2)
 
 
 class TestSourceArtifacts(unittest.TestCase):
