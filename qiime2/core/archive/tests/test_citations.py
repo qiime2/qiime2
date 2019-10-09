@@ -23,8 +23,8 @@ class TestCitationsTracked(unittest.TestCase):
 
         expected = [
             ('framework|qiime2:%s|0' % qiime2.__version__,
-             'QIIME 2: Reproducible, interactive, scalable, and extensible '
-             'microbiome data science'),
+             'Reproducible, interactive, scalable and extensible microbiome '
+             'data science using QIIME 2'),
             ('plugin|dummy-plugin:0.0.0-dev|0',
              'Does knuckle cracking lead to arthritis of the fingers?'),
             ('plugin|dummy-plugin:0.0.0-dev|1',
@@ -56,8 +56,8 @@ class TestCitationsTracked(unittest.TestCase):
 
         expected = [
             ('framework|qiime2:%s|0' % qiime2.__version__,
-             'QIIME 2: Reproducible, interactive, scalable, and extensible '
-             'microbiome data science'),
+             'Reproducible, interactive, scalable and extensible microbiome '
+             'data science using QIIME 2'),
             ('action|dummy-plugin:0.0.0-dev|method:split_ints|0',
              'Sword swallowing and its side effects'),
             ('action|dummy-plugin:0.0.0-dev|method:split_ints|1',

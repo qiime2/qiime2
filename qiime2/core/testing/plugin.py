@@ -36,9 +36,10 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_numeric_metadata_column,
                      identity_with_optional_metadata,
                      identity_with_optional_metadata_column,
-                     params_only_method, no_input_method,
+                     params_only_method, no_input_method, deprecated_method,
                      optional_artifacts_method, long_description_method,
-                     docstring_order_method, variadic_input_method)
+                     docstring_order_method, variadic_input_method,
+                     unioned_primitives)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -352,9 +353,22 @@ dummy_plugin.methods.register_function(
         ('out', Mapping)
     ],
     name='Parameters only method',
-    description='This method only accepts parameters.'
+    description='This method only accepts parameters.',
 )
 
+dummy_plugin.methods.register_function(
+    function=unioned_primitives,
+    inputs={},
+    parameters={
+        'foo': Int % Range(1, None) | Str % Choices(['auto_foo']),
+        'bar': Int % Range(1, None) | Str % Choices(['auto_bar']),
+    },
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='Unioned primitive parameter',
+    description='This method has a unioned primitive parameter'
+)
 
 dummy_plugin.methods.register_function(
     function=no_input_method,
@@ -365,6 +379,18 @@ dummy_plugin.methods.register_function(
     ],
     name='No input method',
     description='This method does not accept any type of input.'
+)
+
+dummy_plugin.methods.register_function(
+    function=deprecated_method,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='A deprecated method',
+    description='This deprecated method does not accept any type of input.',
+    deprecated=True,
 )
 
 

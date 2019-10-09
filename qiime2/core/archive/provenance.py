@@ -391,7 +391,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
             # TODO: handle collection primitives (not currently used)
         }
 
-        handler = type_map.get(type_expr.to_ast()['name'], lambda x: x)
+        handler = type_map.get(type_expr.to_ast().get('name'), lambda x: x)
         self.parameters[name] = handler(parameter)
 
     def add_input(self, name, input):

@@ -12,6 +12,7 @@ import tempfile
 import unittest
 import uuid
 import pathlib
+import pkg_resources
 
 import pandas as pd
 
@@ -23,8 +24,14 @@ from qiime2.sdk.result import ResultMetadata
 from qiime2.plugin.model import ValidationError
 import qiime2.core.archive as archive
 
+from qiime2.core.testing.format import IntSequenceFormat
 from qiime2.core.testing.type import IntSequence1, FourInts, Mapping, SingleInt
 from qiime2.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
+
+
+def get_data_path(filename):
+    return pkg_resources.resource_filename('qiime2.sdk.tests',
+                                           'data/%s' % filename)
 
 
 class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
@@ -496,7 +503,15 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         self.assertTrue(True)  # Checkpoint assertion
         A = Artifact.import_data('IntSequence1', [1, 2, 3, 4, 5, 6, 7, 10])
         with self.assertRaisesRegex(ValidationError, '3 more'):
-            A.validate('max')
+            A.validate(level='max')
+
+    def test_artifact_validate_max_on_import(self):
+        fp = get_data_path('intsequence-fail-max-validation.txt')
+        fmt = IntSequenceFormat(fp, mode='r')
+        fmt.validate(level='min')
+        self.assertTrue(True)  # Checkpoint assertion
+        with self.assertRaisesRegex(ValidationError, '3 more'):
+            Artifact.import_data('IntSequence1', fp)
 
     def test_artifact_validate_min(self):
         A = Artifact.import_data('IntSequence1', [1, 2, 3, 4])

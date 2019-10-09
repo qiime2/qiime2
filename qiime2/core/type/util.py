@@ -108,13 +108,18 @@ def is_visualization_type(t):
     return hasattr(expr, 'kind') and expr.kind == 'visualization'
 
 
+def is_union(t):
+    expr = _norm_input(t)
+    return isinstance(expr, UnionExp)
+
+
 def is_collection_type(t):
     expr = _norm_input(t)
 
     if expr.name in _VARIADIC:
         return True
 
-    if isinstance(expr, UnionExp):
+    if is_union(expr):
         for m in expr.members:
             if m.name in _VARIADIC:
                 return True
