@@ -8,7 +8,6 @@
 
 import abc
 import collections
-import contextlib
 import os
 import re
 import tempfile
@@ -19,13 +18,19 @@ from qiime2.core.type.util import is_metadata_column_type
 
 
 RefAction = collections.namedtuple('RefAction', 'plugin_id action_name')
-class RefInputs(dict): pass
-class RefOutputs(dict): pass
+
+
+class RefInputs(dict):
+    pass
+
+
+class RefOutputs(dict):
+    pass
 
 
 class ScopeRecord:
     def __init__(self, name, factory=None, is_bound=False,
-            assert_has_line_matching=None):
+                 assert_has_line_matching=None):
         self.name = name
         self.factory = factory
         self.is_bound = is_bound
@@ -35,10 +40,10 @@ class ScopeRecord:
         return 'ScopeRecord(%s, %s, %s)' % (self.name, self.factory,
                                             self.is_bound)
 
-    def assert_has_line_matching(self ,label, path, expression):
+    def assert_has_line_matching(self, label, path, expression):
         # TODO: did somebody say "curry"?
         return self._assert_has_line_matching_(label, self.name, path,
-                                              expression)
+                                               expression)
 
 
 class Scope:
@@ -124,7 +129,7 @@ class Usage(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def action(self, action: RefAction, inputs: RefInputs,
-               outputs: RefOutputs=None):
+               outputs: RefOutputs = None):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -152,7 +157,7 @@ class NoOpUsage(Usage):
         return None
 
     def action(self, action: RefAction, inputs: RefInputs,
-               outputs: RefOutputs=None):
+               outputs: RefOutputs = None):
         return None
 
     def import_file(self, type, input_name, output_name=None, format=None):
@@ -199,7 +204,7 @@ class ExecutionUsage(Usage):
         return None
 
     def action(self, action: RefAction, inputs: RefInputs,
-               outputs: RefOutputs=None):
+               outputs: RefOutputs = None):
         action_f = self.get_action(action)
         sig = action_f.signature
         opts = {}
