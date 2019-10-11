@@ -70,6 +70,7 @@ class Plugin:
         self.types = {}
         self.transformers = {}
         self.type_formats = []
+        self.importable_types = set()
 
     @property
     def actions(self):
@@ -201,9 +202,13 @@ class Plugin:
                 raise ValueError("%r has a predicate, differentiating format"
                                  " on predicate is not supported.")
 
-        self.type_formats.append(TypeFormatRecord(
+        record = TypeFormatRecord(
             type_expression=semantic_type,
-            format=artifact_format, plugin=self))
+            format=artifact_format, plugin=self)
+
+        self.type_formats.append(record)
+        for type in record.type_expression:
+            self.importable_types.add(type)
 
 
 class PluginActions(dict):

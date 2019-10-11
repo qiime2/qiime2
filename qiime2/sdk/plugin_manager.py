@@ -52,6 +52,7 @@ class PluginManager:
         self.formats = {}
         self.views = {}
         self.type_formats = []
+        self.importable_types = set()
 
         # These are all dependent loops, each requires the loop above it to
         # be completed.
@@ -100,6 +101,7 @@ class PluginManager:
 
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
+        self.importable_types.update(plugin.importable_types)
 
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
@@ -124,20 +126,6 @@ class PluginManager:
                     importable_formats[name] = record
                     break
         return importable_formats
-
-    @property
-    def importable_types(self):
-        """Return set of concrete semantic types that are importable.
-
-        A concrete semantic type is importable if it has an associated
-        directory format.
-
-        """
-        importable_types = set()
-        for type_format in self.type_formats:
-            for type in type_format.type_expression:
-                importable_types.add(type)
-        return importable_types
 
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):
