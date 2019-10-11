@@ -207,8 +207,8 @@ class Plugin:
             format=artifact_format, plugin=self)
 
         self.type_formats.append(record)
-        for type in record.type_expression:
-            self.importable_types.add(type)
+        for type_ in record.type_expression:
+            self.importable_types.add(type_)
 
 
 class PluginActions(dict):
