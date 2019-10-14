@@ -9,7 +9,6 @@
 import collections
 import os
 import pkg_resources
-import qiime2.core.transform as transform
 import qiime2.core.type
 
 
@@ -114,15 +113,9 @@ class PluginManager:
 
         """
         importable_formats = {}
-        for name, record in self.formats.items():
-            from_type = transform.ModelType.from_view_type(
-                record.format)
-            for type_format in self.type_formats:
-                to_type = transform.ModelType.from_view_type(
-                    type_format.format)
-                if from_type.has_transformation(to_type):
-                    importable_formats[name] = record
-                    break
+        for plugin in self.plugins.values():
+            importable_formats.update(plugin.importable_formats)
+
         return importable_formats
 
     @property
