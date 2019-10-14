@@ -119,6 +119,22 @@ class PluginManager:
         return importable_formats
 
     @property
+    def exportable_formats(self):
+        exportable_formats = {}
+        for plugin in self.plugins.values():
+            exportable_formats.update(plugin.exportable_formats)
+
+        return exportable_formats
+
+    @property
+    def transformable_formats(self):
+        transformable_formats = {}
+        for plugin in self.plugins.values():
+            transformable_formats.update(plugin.transformable_formats)
+
+        return transformable_formats
+
+    @property
     def importable_types(self):
         """Return set of concrete semantic types that are importable.
 
