@@ -108,6 +108,22 @@ class PluginManager:
     # databases rollback/commit
 
     @property
+    def get_semantic_types(self, *, plugin=None):
+        from qiime2.plugin import SemanticTypeRecord
+
+        types = set()
+
+        plugins = [plugin] if plugin else self.plugins
+
+        for plugin in plugins:
+            for name, record in plugin.type_fragments.items():
+                for _type in record.type_expression:
+                    types.add(SemanticTypeRecord(
+                        semantic_type=_type, plugin=plugin))
+
+        return types
+
+    @property
     def importable_formats(self):
         """Return formats that are importable.
 
