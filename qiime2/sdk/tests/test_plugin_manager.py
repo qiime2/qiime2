@@ -76,7 +76,7 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(types, exp)
 
     def test_importable_types(self):
-        types = self.pm.importable_types
+        types = self.pm.get_semantic_types()
 
         exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],
                Kennel[Cat], SingleInt}

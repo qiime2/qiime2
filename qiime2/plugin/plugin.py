@@ -72,7 +72,7 @@ class Plugin:
         self.type_fragments = {}
         self.transformers = {}
         self.type_formats = []
-        self.importable_types = set()
+        self.types = set()
 
     @property
     def actions(self):
@@ -211,7 +211,8 @@ class Plugin:
 
         self.type_formats.append(record)
         for type_ in record.type_expression:
-            self.importable_types.add(type_)
+            self.types.add(SemanticTypeRecord(
+                semantic_type=type_, plugin=self))
 
 
 class PluginActions(dict):

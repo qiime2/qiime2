@@ -52,7 +52,7 @@ class PluginManager:
         self.formats = {}
         self.views = {}
         self.type_formats = []
-        self.importable_types = set()
+        self.types = {}
 
         # These are all dependent loops, each requires the loop above it to
         # be completed.
@@ -101,25 +101,20 @@ class PluginManager:
 
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
-        self.importable_types.update(plugin.importable_types)
+        self.types[plugin.name] = plugin.types
 
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
 
-    @property
     def get_semantic_types(self, *, plugin=None):
-        from qiime2.plugin import SemanticTypeRecord
-
         types = set()
 
         plugins = [plugin] if plugin else self.plugins
 
-        for plugin in plugins:
-            for name, record in plugin.type_fragments.items():
-                for _type in record.type_expression:
-                    types.add(SemanticTypeRecord(
-                        semantic_type=_type, plugin=plugin))
+        for plugin in plugins.values():
+            for type_record in plugin.types:
+                types.add(type_record.semantic_type)
 
         return types
 
