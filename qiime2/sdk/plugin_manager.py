@@ -104,35 +104,49 @@ class PluginManager:
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
 
-    @property
-    def importable_formats(self):
-        """Return formats that are importable.
+    def get_formats(self, *, include_all=False, plugin=None):
+        # Initialize formats dictionary
+        formats = {}
 
-        A format is importable in a QIIME 2 deployment if it can be transformed
-        into at least one of the canonical semantic type formats.
+        # Ternary operator to get all the plugins if plugin is None
+        plugins = [plugin] if plugin else self.plugins
 
-        """
-        importable_formats = {}
-        for plugin in self.plugins.values():
-            importable_formats.update(plugin.importable_formats)
+        # Get all formats if include_all is True
+        if include_all is True:
+            for plugin in plugins.values():
+                formats.update(plugin.formats)
+            return formats
 
-        return importable_formats
+        # Loop through the plugins that we want to get the formats for those
+        # plugins
+        for plugin in plugins:
 
-    @property
-    def exportable_formats(self):
-        exportable_formats = {}
-        for plugin in self.plugins.values():
-            exportable_formats.update(plugin.exportable_formats)
+            # Get the exportable formats
+            exportable_formats = {}
+            for type_format in plugin.type_formats:
+                from_type = qiime2.core.transform.ModelType.from_view_type(
+                    type_format.format)
+                for name, record in plugin.formats.items():
+                    to_type = qiime2.core.transform.ModelType.from_view_type(
+                        record.format)
+                    if from_type.has_transformation(to_type):
+                        exportable_formats[name] = record
 
-        return exportable_formats
+            # Get the importable formats
+            importable_formats = {}
+            for name, record in plugin.formats.items():
+                from_type = qiime2.core.transform.ModelType.from_view_type(
+                    record.format)
+                for type_format in plugin.type_formats:
+                    to_type = qiime2.core.transform.ModelType.from_view_type(
+                        type_format.format)
+                    if from_type.has_transformation(to_type):
+                        importable_formats[name] = record
+                        break
 
-    @property
-    def transformable_formats(self):
-        transformable_formats = {}
-        for plugin in self.plugins.values():
-            transformable_formats.update(plugin.transformable_formats)
-
-        return transformable_formats
+        # Return using dictionary comprehension to insert importable and
+        # exportable formats into a single dictionary
+        return {**exportable_formats, **importable_formats}
 
     @property
     def importable_types(self):
