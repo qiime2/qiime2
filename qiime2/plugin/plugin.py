@@ -22,7 +22,7 @@ TransformerRecord = collections.namedtuple(
 SemanticTypeRecord = collections.namedtuple(
     'SemanticTypeRecord', ['semantic_type', 'plugin'])
 SemanticTypeFragmentRecord = collections.namedtuple(
-    'SemanticTypeRecord', ['semantic_type', 'plugin'])
+    'SemanticTypeRecord', ['fragment', 'plugin'])
 FormatRecord = collections.namedtuple('FormatRecord', ['format', 'plugin'])
 ViewRecord = collections.namedtuple(
     'ViewRecord', ['name', 'view', 'plugin', 'citations'])
@@ -184,7 +184,7 @@ class Plugin:
                 raise ValueError("%r is not a semantic type symbol."
                                  % type_fragment)
 
-            if type_fragment.name in self.types:
+            if type_fragment.name in self.type_fragments:
                 raise ValueError("Duplicate semantic type symbol %r."
                                  % type_fragment)
 

@@ -64,7 +64,7 @@ class PluginManager:
             self._integrate_plugin(plugin)
 
     def _integrate_plugin(self, plugin):
-        for type_name, type_record in plugin.types.items():
+        for type_name, type_record in plugin.type_fragments.items():
             if type_name in self.semantic_types:
                 conflicting_type_record = self.semantic_types[type_name]
                 raise ValueError("Duplicate semantic type (%r) defined in"

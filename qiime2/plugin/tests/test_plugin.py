@@ -151,7 +151,7 @@ class TestPlugin(unittest.TestCase):
     # TODO test registration of directory formats.
 
     def test_types(self):
-        types = self.plugin.types.keys()
+        types = self.plugin.type_fragments.keys()
 
         self.assertEqual(
             set(types),
