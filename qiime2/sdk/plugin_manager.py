@@ -47,7 +47,7 @@ class PluginManager:
 
     def _init(self):
         self.plugins = {}
-        self.semantic_type_fragments = {}
+        self.type_fragments = {}
         self.transformers = collections.defaultdict(dict)
         self.formats = {}
         self.views = {}
@@ -65,15 +65,15 @@ class PluginManager:
 
     def _integrate_plugin(self, plugin):
         for type_name, type_record in plugin.type_fragments.items():
-            if type_name in self.semantic_type_fragments:
+            if type_name in self.type_fragments:
                 conflicting_type_record = \
-                    self.semantic_type_fragments[type_name]
+                    self.type_fragments[type_name]
                 raise ValueError("Duplicate semantic type (%r) defined in"
                                  " plugins: %r and %r"
                                  % (type_name, type_record.plugin.name,
                                     conflicting_type_record.plugin.name))
 
-            self.semantic_type_fragments[type_name] = type_record
+            self.type_fragments[type_name] = type_record
 
         for (input, output), transformer_record in plugin.transformers.items():
             if output in self.transformers[input]:
