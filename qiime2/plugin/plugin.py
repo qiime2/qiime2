@@ -173,7 +173,7 @@ class Plugin:
             # Apply the decorator as we were applied with a single function
             return decorator(_fn)
 
-    def register_type_fragments(self, *type_fragments):
+    def register_semantic_type_fragments(self, *type_fragments):
         for type_fragment in type_fragments:
             if not is_semantic_type(type_fragment):
                 raise TypeError("%r is not a semantic type." % type_fragment)
