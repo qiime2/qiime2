@@ -13,8 +13,7 @@ import qiime2.plugin
 import qiime2.sdk
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
-                                      FourInts, Kennel, Dog, Cat, SingleInt,
-                                      C1, C2, C3, Foo, Bar, Baz)
+                                      FourInts, Kennel, Dog, Cat, SingleInt)
 from qiime2.core.testing.util import get_dummy_plugin
 
 
