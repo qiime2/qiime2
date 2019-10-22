@@ -64,8 +64,8 @@ import_module('qiime2.core.testing.transformer')
 
 # Register semantic types
 dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, Mapping,
-                                     FourInts, Kennel, Dog, Cat, SingleInt, C1,
-                                     C2, C3, Foo, Bar, Baz)
+                                     FourInts, Kennel, Dog, Cat, SingleInt,
+                                     C1, C2, C3, Foo, Bar, Baz)
 
 # Register formats
 dummy_plugin.register_formats(
