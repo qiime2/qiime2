@@ -48,9 +48,14 @@ class PluginManager:
         self.plugins = {}
         self.semantic_types = {}
         self.transformers = collections.defaultdict(dict)
+        self._reverse_transformers = collections.defaultdict(dict)
         self.formats = {}
         self.views = {}
         self.type_formats = []
+        self._ff_to_sfdf = {}
+        self._importable = set()
+        self._exportable = set()
+        self._canonical_formats = set()
 
         # These are all dependent loops, each requires the loop above it to
         # be completed.
@@ -60,6 +65,21 @@ class PluginManager:
 
         for plugin in self.plugins.values():
             self._integrate_plugin(plugin)
+
+        for canonical_format in self._canonical_formats:
+            self._importable.update(
+                                self._reverse_transformers[canonical_format])
+            self._exportable.update(self.transformers[canonical_format])
+
+        for importable_format in self._importable:
+            if(isinstance(importable_format,
+                          qiime2.plugin.model.file_format._FileFormat)):
+                self._importable.add(self._ff_to_sfdf[importable_format])
+
+        for exportable_format in self._exportable:
+            if(isinstance(exportable_format,
+                          qiime2.plugin.model.file_format._FileFormat)):
+                self._exportable.add(self._ff_to_sfdf[exportable_format])
 
     def _integrate_plugin(self, plugin):
         for type_name, type_record in plugin.types.items():
@@ -77,6 +97,7 @@ class PluginManager:
                 raise ValueError("Transformer from %r to %r already exists."
                                  % transformer_record)
             self.transformers[input][output] = transformer_record
+            self._reverse_transformers[output][input] = transformer_record
 
         for name, record in plugin.views.items():
             if name in self.views:
@@ -88,8 +109,13 @@ class PluginManager:
             self.views[name] = record
 
         for name, record in plugin.formats.items():
-            # TODO: remove this when `sniff` is removed
             fmt = record.format
+
+            if issubclass(
+                    fmt, qiime2.plugin.model.SingleFileDirectoryFormatBase):
+                self._ff_to_sfdf[fmt.file.format] = fmt
+
+            # TODO: remove this when `sniff` is removed
             if hasattr(fmt, 'sniff') and hasattr(fmt, '_validate_'):
                 raise RuntimeError(
                     'Format %r registered in plugin %r defines sniff and'
@@ -100,53 +126,31 @@ class PluginManager:
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
 
+        for type_format in plugin.type_formats:
+            self._canonical_formats.add(type_format.format)
+            if isinstance(type_format.format,
+                          qiime2.plugin.model.SingleFileDirectoryFormatBase):
+                self._canonical_formats.add(type_format.format.file.format)
+
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
 
     def get_formats(self, *, include_all=False, plugin=None):
-        # Initialize formats dictionary
-        formats = {}
 
-        # Ternary operator to get all the plugins if plugin is None
-        plugins = [plugin] if plugin else self.plugins
+        # plugins = [plugin] if plugin else self.p lugins
 
-        # Get all formats if include_all is True
         if include_all is True:
-            for plugin in plugins.values():
-                formats.update(plugin.formats)
-            return formats
+            return self.formats
 
-        # Loop through the plugins that we want to get the formats for those
-        # plugins
-        for plugin in plugins:
+        # TODO What should the functionality be if plugin is not None
+            # provide the formats that are plugin specific
 
-            # Get the exportable formats
-            exportable_formats = {}
-            for type_format in plugin.type_formats:
-                from_type = qiime2.core.transform.ModelType.from_view_type(
-                    type_format.format)
-                for name, record in plugin.formats.items():
-                    to_type = qiime2.core.transform.ModelType.from_view_type(
-                        record.format)
-                    if from_type.has_transformation(to_type):
-                        exportable_formats[name] = record
+        # return just the canonical formats
+        # return self._canonical_formats
 
-            # Get the importable formats
-            importable_formats = {}
-            for name, record in plugin.formats.items():
-                from_type = qiime2.core.transform.ModelType.from_view_type(
-                    record.format)
-                for type_format in plugin.type_formats:
-                    to_type = qiime2.core.transform.ModelType.from_view_type(
-                        type_format.format)
-                    if from_type.has_transformation(to_type):
-                        importable_formats[name] = record
-                        break
-
-        # Return using dictionary comprehension to insert importable and
-        # exportable formats into a single dictionary
-        return {**exportable_formats, **importable_formats}
+        # return the union of both sets --> transformable
+        return self._importable.union(self._exportable)
 
     @property
     def importable_types(self):

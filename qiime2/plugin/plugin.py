@@ -15,7 +15,6 @@ from qiime2.plugin.model import DirectoryFormat
 from qiime2.plugin.model.base import FormatBase
 from qiime2.core.type import is_semantic_type
 from qiime2.core.util import get_view_name
-import qiime2.core
 
 
 TransformerRecord = collections.namedtuple(
@@ -83,37 +82,6 @@ class Plugin:
         actions.update(self.visualizers)
         actions.update(self.pipelines)
         return types.MappingProxyType(actions)
-
-    @property
-    def importable_formats(self):
-        importable_formats = {}
-        for name, record in self.formats.items():
-            from_type = qiime2.core.transform.ModelType.from_view_type(
-                record.format)
-            for type_format in self.type_formats:
-                to_type = qiime2.core.transform.ModelType.from_view_type(
-                    type_format.format)
-                if from_type.has_transformation(to_type):
-                    importable_formats[name] = record
-                    break
-        return importable_formats
-
-    @property
-    def exportable_formats(self):
-        exportable_formats = {}
-        for type_format in self.type_formats:
-            from_type = qiime2.core.transform.ModelType.from_view_type(
-                type_format.format)
-            for name, record in self.formats.items():
-                to_type = qiime2.core.transform.ModelType.from_view_type(
-                    record.format)
-                if from_type.has_transformation(to_type):
-                    exportable_formats[name] = record
-        return exportable_formats
-
-    @property
-    def transformable_formats(self):
-        return {**self.exportable_formats, **self.importable_formats}
 
     def register_formats(self, *formats, citations=None):
         for format in formats:
