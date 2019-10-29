@@ -136,21 +136,29 @@ class PluginManager:
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
 
-    def get_formats(self, *, include_all=False, plugin=None):
+    def get_formats(self, *, include_all=False, importable=False,
+                    exportable=False, canonical_format=True):
 
-        # plugins = [plugin] if plugin else self.p lugins
+        if include_all is True and canonical_format is True or importable \
+                is True or exportable is True:
+            raise ValueError("If all formats are requested, other formats "
+                             "cannot be included as a result.")
 
-        if include_all is True:
+        elif include_all is True:
             return self.formats
 
-        # TODO What should the functionality be if plugin is not None
-            # provide the formats that are plugin specific
+        result_formats = set()
 
-        # return just the canonical formats
-        # return self._canonical_formats
+        if importable is True:
+            result_formats.add(importable)
 
-        # return the union of both sets --> transformable
-        return self._importable.union(self._exportable)
+        if exportable is True:
+            result_formats.add(exportable)
+
+        if canonical_format is True:
+            result_formats.add(canonical_format)
+
+        return result_formats
 
     @property
     def importable_types(self):
