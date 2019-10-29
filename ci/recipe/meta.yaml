@@ -23,7 +23,7 @@ requirements:
     - pandas
     - tzlocal
     - python-dateutil
-    - pyparsing ==2.3.0
+    - pyparsing
     - bibtexparser
     - networkx
 
