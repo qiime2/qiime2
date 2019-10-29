@@ -150,13 +150,13 @@ class PluginManager:
         result_formats = set()
 
         if importable is True:
-            result_formats.add(importable)
+            result_formats.add(self._importable)
 
         if exportable is True:
-            result_formats.add(exportable)
+            result_formats.add(self._exportable)
 
         if canonical_format is True:
-            result_formats.add(canonical_format)
+            result_formats.add(self._canonical_formats)
 
         return result_formats
 
