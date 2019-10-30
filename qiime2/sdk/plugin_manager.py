@@ -47,11 +47,12 @@ class PluginManager:
 
     def _init(self):
         self.plugins = {}
-        self.semantic_types = {}
+        self.type_fragments = {}
         self.transformers = collections.defaultdict(dict)
         self.formats = {}
         self.views = {}
         self.type_formats = []
+        self.types = {}
 
         # These are all dependent loops, each requires the loop above it to
         # be completed.
@@ -63,15 +64,16 @@ class PluginManager:
             self._integrate_plugin(plugin)
 
     def _integrate_plugin(self, plugin):
-        for type_name, type_record in plugin.types.items():
-            if type_name in self.semantic_types:
-                conflicting_type_record = self.semantic_types[type_name]
+        for type_name, type_record in plugin.type_fragments.items():
+            if type_name in self.type_fragments:
+                conflicting_type_record = \
+                    self.type_fragments[type_name]
                 raise ValueError("Duplicate semantic type (%r) defined in"
                                  " plugins: %r and %r"
                                  % (type_name, type_record.plugin.name,
                                     conflicting_type_record.plugin.name))
 
-            self.semantic_types[type_name] = type_record
+            self.type_fragments[type_name] = type_record
 
         for (input, output), transformer_record in plugin.transformers.items():
             if output in self.transformers[input]:
@@ -100,10 +102,22 @@ class PluginManager:
 
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
+        self.types[plugin.name] = plugin.types
 
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
+
+    def get_semantic_types(self, *, plugin=None):
+        types = set()
+
+        plugins = [plugin] if plugin else self.plugins
+
+        for plugin in plugins.values():
+            for type_record in plugin.types:
+                types.add(type_record.semantic_type)
+
+        return types
 
     @property
     def importable_formats(self):
@@ -124,20 +138,6 @@ class PluginManager:
                     importable_formats[name] = record
                     break
         return importable_formats
-
-    @property
-    def importable_types(self):
-        """Return set of concrete semantic types that are importable.
-
-        A concrete semantic type is importable if it has an associated
-        directory format.
-
-        """
-        importable_types = set()
-        for type_format in self.type_formats:
-            for type in type_format.type_expression:
-                importable_types.add(type)
-        return importable_types
 
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):
