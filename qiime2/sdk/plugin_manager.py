@@ -137,10 +137,11 @@ class PluginManager:
     # databases rollback/commit
 
     def get_formats(self, *, include_all=False, importable=False,
-                    exportable=False, canonical_format=True):
+                    exportable=False, canonical_format=False):
 
-        if include_all is True and canonical_format is True or importable \
-                is True or exportable is True:
+        if include_all is True and canonical_format is True or include_all \
+                is True and importable is True or include_all is True and \
+                exportable is True:
             raise ValueError("If all formats are requested, other formats "
                              "cannot be included as a result.")
 
@@ -150,13 +151,13 @@ class PluginManager:
         result_formats = set()
 
         if importable is True:
-            result_formats.add(self._importable)
+            result_formats = result_formats.union(self._importable)
 
         if exportable is True:
-            result_formats.add(self._exportable)
+            result_formats = result_formats.union(self._exportable)
 
         if canonical_format is True:
-            result_formats.add(self._canonical_formats)
+            result_formats = result_formats.union(self._canonical_formats)
 
         return result_formats
 
