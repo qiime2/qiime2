@@ -42,8 +42,8 @@ class TestPluginManager(unittest.TestCase):
         exp = {'dummy-plugin': self.plugin}
         self.assertEqual(plugins, exp)
 
-    def test_semantic_types(self):
-        types = self.pm.semantic_types
+    def test_type_fragments(self):
+        types = self.pm.type_fragments
 
         exp = {
             'IntSequence1': SemanticTypeRecord(semantic_type=IntSequence1,
@@ -79,7 +79,7 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(types, exp)
 
     def test_importable_types(self):
-        types = self.pm.importable_types
+        types = self.pm.get_semantic_types()
 
         exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],
                Kennel[Cat], SingleInt}

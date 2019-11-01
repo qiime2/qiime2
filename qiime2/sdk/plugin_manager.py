@@ -46,7 +46,7 @@ class PluginManager:
 
     def _init(self):
         self.plugins = {}
-        self.semantic_types = {}
+        self.type_fragments = {}
         self.transformers = collections.defaultdict(dict)
         self._reverse_transformers = collections.defaultdict(dict)
         self.formats = {}
@@ -56,6 +56,7 @@ class PluginManager:
         self._importable = set()
         self._exportable = set()
         self._canonical_formats = set()
+        self.types = {}
 
         # These are all dependent loops, each requires the loop above it to
         # be completed.
@@ -82,15 +83,16 @@ class PluginManager:
                 self._exportable.add(self._ff_to_sfdf[exportable_format])
 
     def _integrate_plugin(self, plugin):
-        for type_name, type_record in plugin.types.items():
-            if type_name in self.semantic_types:
-                conflicting_type_record = self.semantic_types[type_name]
+        for type_name, type_record in plugin.type_fragments.items():
+            if type_name in self.type_fragments:
+                conflicting_type_record = \
+                    self.type_fragments[type_name]
                 raise ValueError("Duplicate semantic type (%r) defined in"
                                  " plugins: %r and %r"
                                  % (type_name, type_record.plugin.name,
                                     conflicting_type_record.plugin.name))
 
-            self.semantic_types[type_name] = type_record
+            self.type_fragments[type_name] = type_record
 
         for (input, output), transformer_record in plugin.transformers.items():
             if output in self.transformers[input]:
@@ -125,6 +127,7 @@ class PluginManager:
 
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
+        self.types[plugin.name] = plugin.types
 
         for type_format in plugin.type_formats:
             self._canonical_formats.add(type_format.format)
@@ -132,13 +135,23 @@ class PluginManager:
                           qiime2.plugin.model.SingleFileDirectoryFormatBase):
                 self._canonical_formats.add(type_format.format.file.format)
 
+    def get_semantic_types(self, *, plugin=None):
+        types = set()
+
+        plugins = [plugin] if plugin else self.plugins
+
+        for plugin in plugins.values():
+            for type_record in plugin.types:
+                types.add(type_record.semantic_type)
+
+        return types
+
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
 
     def get_formats(self, *, include_all=False, importable=False,
                     exportable=False, canonical_format=False):
-
         if include_all is True and canonical_format is True or include_all \
                 is True and importable is True or include_all is True and \
                 exportable is True:
@@ -160,20 +173,6 @@ class PluginManager:
             result_formats = result_formats.union(self._canonical_formats)
 
         return result_formats
-
-    @property
-    def importable_types(self):
-        """Return set of concrete semantic types that are importable.
-
-        A concrete semantic type is importable if it has an associated
-        directory format.
-
-        """
-        importable_types = set()
-        for type_format in self.type_formats:
-            for type in type_format.type_expression:
-                importable_types.add(type)
-        return importable_types
 
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):
