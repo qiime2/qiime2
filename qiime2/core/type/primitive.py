@@ -419,12 +419,12 @@ class _MetadataColumn(_PrimitiveTemplateBase):
             raise TypeError("Unsupported type in field: %r"
                             % (field.get_name(),))
 
-    def decode(self, metadata):
+    def decode(self, value):
         # This interface should have already retrieved this object.
-        if not self.is_element(metadata):
+        if not isinstance(value, metadata.MetadataColumn):
             raise TypeError("`Metadata` must be provided by the interface"
                             " directly.")
-        return metadata
+        return value
 
     def encode(self, value):
         # TODO: Should this be the provenance representation? Does that affect

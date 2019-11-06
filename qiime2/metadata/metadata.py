@@ -156,11 +156,6 @@ class _MetadataBase:
                     "Detected empty metadata %s. %ss must consist of at least "
                     "one character." % (label, label))
 
-            if value != value.strip():
-                raise ValueError(
-                    "Detected metadata %s with leading or trailing "
-                    "whitespace characters: %r" % (label, value))
-
             if axis == 'id' and value.startswith('#'):
                 raise ValueError(
                     "Detected metadata %s that begins with a pound sign "
@@ -362,13 +357,19 @@ class Metadata(_MetadataBase):
         super().__init__(dataframe.index)
 
         self._dataframe, self._columns = self._normalize_dataframe(dataframe)
+        self._validate_index(self._dataframe.columns, axis='column')
 
     def _normalize_dataframe(self, dataframe):
-        self._validate_index(dataframe.columns, axis='column')
-
         norm_df = dataframe.copy()
+
+        # Do not attempt to strip empty metadata
+        if not norm_df.columns.empty:
+            norm_df.columns = norm_df.columns.str.strip()
+
+        norm_df.index = norm_df.index.str.strip()
+
         columns = collections.OrderedDict()
-        for column_name, series in dataframe.items():
+        for column_name, series in norm_df.items():
             metadata_column = self._metadata_column_factory(series)
             norm_df[column_name] = metadata_column.to_series()
             properties = ColumnProperties(type=metadata_column.type)
@@ -870,14 +871,14 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
         super().__init__(series.index)
 
-        self._validate_index([series.name], axis='column')
-
         if not self._is_supported_dtype(series.dtype):
             raise TypeError(
                 "%s %r does not support a pandas.Series object with dtype %s" %
                 (self.__class__.__name__, series.name, series.dtype))
 
         self._series = self._normalize_(series)
+
+        self._validate_index([self._series.name], axis='column')
 
     def __repr__(self):
         """String summary of the metadata column."""
@@ -1125,6 +1126,7 @@ class CategoricalMetadataColumn(MetadataColumn):
     def _normalize_(cls, series):
         def normalize(value):
             if isinstance(value, str):
+                value = value.strip()
                 if value == '':
                     raise ValueError(
                         "%s does not support empty strings as values. Use an "
@@ -1132,11 +1134,6 @@ class CategoricalMetadataColumn(MetadataColumn):
                         "(e.g. `numpy.nan`) or supply a non-empty string as "
                         "the value in column %r." %
                         (cls.__name__, series.name))
-                elif value != value.strip():
-                    raise ValueError(
-                        "%s does not support values with leading or trailing "
-                        "whitespace characters. Column %r has the following "
-                        "value: %r" % (cls.__name__, series.name, value))
                 else:
                     return value
             elif pd.isnull(value):  # permits np.nan, Python float nan, None
@@ -1147,7 +1144,10 @@ class CategoricalMetadataColumn(MetadataColumn):
                     "%r of type %r in column %r." %
                     (cls.__name__, value, type(value), series.name))
 
-        return series.apply(normalize, convert_dtype=False)
+        norm_series = series.apply(normalize, convert_dtype=False)
+        norm_series.index = norm_series.index.str.strip()
+        norm_series.name = norm_series.name.strip()
+        return norm_series
 
 
 class NumericMetadataColumn(MetadataColumn):
