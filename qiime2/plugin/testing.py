@@ -113,18 +113,21 @@ class TestPluginBase(unittest.TestCase):
         Returns
         -------
         transformer : A Transformer Function
-            The registered tranformer from ``from_type`` to ``to_type``.
+            The registered transformer from ``from_type`` to ``to_type``.
 
         """
 
         try:
-            transformer_record = self.plugin.transformers[from_type, to_type]
-        except KeyError:
+            from_type = transform.ModelType.from_view_type(from_type)
+            to_type = transform.ModelType.from_view_type(to_type)
+
+            transformation = from_type.make_transformation(to_type)
+        except:
             self.fail(
                 "Could not find registered transformer from %r to %r." %
                 (from_type, to_type))
 
-        return transformer_record.transformer
+        return transformation
 
     def assertRegisteredSemanticType(self, semantic_type):
         """Test assertion for ensuring a plugin's semantic type is registered.
@@ -234,11 +237,10 @@ class TestPluginBase(unittest.TestCase):
                 shutil.copy(filepath, source_path)
         input = source_format(source_path, mode='r')
 
-        from_type = transform.ModelType.from_view_type(source_format)
-        to_type = transform.ModelType.from_view_type(target)
-
-        transformation = from_type.make_transformation(to_type)
-        obs = transformation(input)
+        transformer = self.get_transformer(source_format, target)
+        input.validate(level='max')
+        obs = transformer(input)
+        transform.ModelType.from_view_type(target).validate(obs, level='max')
 
         if issubclass(target, FormatBase):
             self.assertIsInstance(obs, (type(pathlib.Path()), str, target))
