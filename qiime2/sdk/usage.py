@@ -41,7 +41,7 @@ class ScopeRecord:
                                             self.is_bound)
 
     def assert_has_line_matching(self, label, path, expression):
-        # TODO: did somebody say "curry"?
+        # TODO
         return self._assert_has_line_matching_(label, self.name, path,
                                                expression)
 
@@ -51,11 +51,11 @@ class Scope:
     TODO: docstring
     """
 
-    # TODO: when would i ever seed scope with records?
     def __init__(self, records=None):
         if records is None:
             self.records = dict()
         else:
+            # TODO: when would i ever seed scope with records?
             self.records = dict(records)
 
     def keys(self):
