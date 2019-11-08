@@ -135,12 +135,10 @@ class PluginManager:
                           qiime2.plugin.model.SingleFileDirectoryFormatBase):
                 self._canonical_formats.add(type_format.format.file.format)
 
-    def get_semantic_types(self, *, plugin=None):
+    def get_semantic_types(self):
         types = set()
 
-        plugins = [plugin] if plugin else self.plugins
-
-        for plugin in plugins.values():
+        for plugin in self.plugins.values():
             for type_record in plugin.types:
                 types.add(type_record.semantic_type)
 
