@@ -56,7 +56,6 @@ class PluginManager:
         self._importable = set()
         self._exportable = set()
         self._canonical_formats = set()
-        self.types = {}
 
         # These are all dependent loops, each requires the loop above it to
         # be completed.
@@ -127,7 +126,6 @@ class PluginManager:
 
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
-        self.types[plugin.name] = plugin.types
 
         for type_format in plugin.type_formats:
             self._canonical_formats.add(type_format.format)
