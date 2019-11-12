@@ -39,7 +39,7 @@ class TestTesting(TestPluginBase):
             if obs.is_bound:
                 self.assertEqual(exp.data_type, str(obs.factory().type))
             else:
-                self.assertTrue(obs.factory is None)
+                self.assertEqual(exp.data_type, obs.factory)
 
     def test_no_op_usage_simple(self):
         action = self.plugin.actions['concatenate_ints']

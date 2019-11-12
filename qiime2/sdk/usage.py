@@ -93,6 +93,9 @@ class Scope:
     def _bind(self, name, obj):
         setattr(self, name, obj)
 
+    def items(self):
+        return self.records.items()
+
 
 class Usage(metaclass=abc.ABCMeta):
     """
@@ -103,12 +106,16 @@ class Usage(metaclass=abc.ABCMeta):
     RefInputs = RefInputs
     RefOutputs = RefOutputs
 
+    # TODO: is there a good use case now for providing your own scope here?
+    # if not, remove this from construction.
     def __init__(self, scope=None):
         self.plugin_manager = None
 
         if scope is None:
             self.scope = Scope()
 
+        # TODO: if scope is removed from construction, stop with the binding
+        # and just DI it.
         self.scope._bind('_assert_has_line_matching_',
                          self._assert_has_line_matching_)
 
@@ -140,6 +147,7 @@ class Usage(metaclass=abc.ABCMeta):
     def export_file(self, input_name, output_name, format=None):
         raise NotImplementedError
 
+    # TODO: make this assertion method optional
     @abc.abstractmethod
     def _assert_has_line_matching_(self, label, result, path, expression):
         raise NotImplementedError

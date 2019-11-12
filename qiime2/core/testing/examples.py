@@ -39,8 +39,7 @@ def concatenate_ints_simple(use):
         use.RefAction('dummy_plugin', 'concatenate_ints'),
         use.RefInputs(ints1=use.scope['ints_a'], ints2=use.scope['ints_b'],
                       ints3=use.scope['ints_c'], int1=4, int2=2),
-        use.RefOutputs(
-            concatenated_ints=use.scope['ints_d']),
+        use.RefOutputs(concatenated_ints=use.scope['ints_d']),
     )
 
 
@@ -64,8 +63,7 @@ def concatenate_ints_complex(use):
                       ints2=use.scope['ints_d'],
                       ints3=use.scope['ints_c'],
                       int1=6, int2=7),
-        use.RefOutputs(
-            concatenated_ints=use.scope['ints_e']),
+        use.RefOutputs(concatenated_ints=use.scope['ints_e']),
     )
 
     use.scope['ints_e'].assert_has_line_matching(
