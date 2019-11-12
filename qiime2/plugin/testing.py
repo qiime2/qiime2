@@ -122,7 +122,7 @@ class TestPluginBase(unittest.TestCase):
             to_type = transform.ModelType.from_view_type(to_type)
 
             transformation = from_type.make_transformation(to_type)
-        except:
+        except Exception:
             self.fail(
                 "Could not find registered transformer from %r to %r." %
                 (from_type, to_type))
