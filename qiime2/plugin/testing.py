@@ -238,9 +238,7 @@ class TestPluginBase(unittest.TestCase):
         input = source_format(source_path, mode='r')
 
         transformer = self.get_transformer(source_format, target)
-        input.validate(level='max')
         obs = transformer(input)
-        transform.ModelType.from_view_type(target).validate(obs, level='max')
 
         if issubclass(target, FormatBase):
             self.assertIsInstance(obs, (type(pathlib.Path()), str, target))
