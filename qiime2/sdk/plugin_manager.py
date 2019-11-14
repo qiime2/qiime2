@@ -58,7 +58,6 @@ class PluginManager:
         self._importable = set()
         self._exportable = set()
         self._canonical_formats = set()
-        self.types = {}
 
         # These are all dependent loops, each requires the loop above it to
         # be completed.
@@ -151,6 +150,21 @@ class PluginManager:
     class FormatFilters(Flag):
         EXPORTABLE = auto()
         IMPORTABLE = auto()
+
+        for type_format in plugin.type_formats:
+            self._canonical_formats.add(type_format.format)
+            if isinstance(type_format.format,
+                          qiime2.plugin.model.SingleFileDirectoryFormatBase):
+                self._canonical_formats.add(type_format.format.file.format)
+
+    def get_semantic_types(self):
+        types = set()
+
+        for plugin in self.plugins.values():
+            for type_record in plugin.types:
+                types.add(type_record.semantic_type)
+
+        return types
 
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a

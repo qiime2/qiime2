@@ -91,6 +91,7 @@ class TestPluginManager(unittest.TestCase):
     # TODO: add tests for type/directory/transformer registrations
     def test_get_formats_include_all_formats(self):
         obs = self.pm.formats
+
         exp = self.pm.get_formats()
 
         self.assertEqual(obs, exp)
