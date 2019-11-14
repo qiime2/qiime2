@@ -11,6 +11,8 @@ import os
 import pkg_resources
 import qiime2.core.type
 
+from enum import Flag, auto
+
 
 class PluginManager:
     entry_point_group = 'qiime2.plugins'
@@ -146,33 +148,74 @@ class PluginManager:
 
         return types
 
+    class FormatFilters(Flag):
+        EXPORTABLE = auto()
+        IMPORTABLE = auto()
+
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
 
-    def get_formats(self, *, include_all=False, importable=False,
-                    exportable=False, canonical_format=False):
-        if include_all is True and canonical_format is True or include_all \
-                is True and importable is True or include_all is True and \
-                exportable is True:
-            raise ValueError("If all formats are requested, other formats "
-                             "cannot be included as a result.")
-
-        elif include_all is True:
-            return self.formats
+    def get_formats(self, *, filter=None, semantic_type=None):
 
         result_formats = set()
 
-        if importable is True:
-            result_formats = result_formats.union(self._importable)
+        if semantic_type is None:
+            if filter is None:
+                return self.formats
 
-        if exportable is True:
-            result_formats = result_formats.union(self._exportable)
+            if self.FormatFilters.IMPORTABLE in filter:
+                result_formats = result_formats.union(self._importable)
 
-        if canonical_format is True:
-            result_formats = result_formats.union(self._canonical_formats)
+            if self.FormatFilters.EXPORTABLE in filter:
+                result_formats = result_formats.union(self._exportable)
+
+        else:
+
+            if semantic_type not in self.get_semantic_types():
+                raise ValueError("The semantic type provided: %s is not "
+                                 "valid.", (semantic_type))
+
+            if filter is None:
+                filter = self.FormatFilters.IMPORTABLE | \
+                            self.FormatFilters.EXPORTABLE
+
+                for type_format in self.type_formats:
+                    if semantic_type in type_format.type_expression:
+                        result_formats = result_formats.union(
+                            type_format.format)
+
+                    if self.FormatFilters.IMPORTABLE in filter:
+
+                        result_formats = result_formats.union(
+                                self.get_format_to(type_format.format))
+
+                    if self.FormatFilters.EXPORTABLE in filter:
+
+                        result_formats = result_formats.union(
+                            self.get_format_from(type_format.format))
 
         return result_formats
+
+    def get_format_from(self, canonical_format):
+
+        formats = set()
+
+        for format in self._reverse_transformers[canonical_format]:
+            formats.add(format)
+        formats.add(canonical_format)
+
+        return formats
+
+    def get_format_to(self, canonical_format):
+
+        formats = set()
+
+        for format in self.transformers[canonical_format]:
+            formats.add(format)
+        formats.add(canonical_format)
+
+        return formats
 
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):

@@ -98,5 +98,11 @@ class QIIMEArtifactAPIImporter:
                 for key, value in actions.items():
                     setattr(module, key, value)
 
+    def inspect_formats(filter=None, semantic_type=None):
+        import qiime2.sdk
+        pm = qiime2.sdk.PluginManager()
+
+        return pm.get_formats(filter=None, semantic_type=None)
+
 
 sys.meta_path += [QIIMEArtifactAPIImporter()]

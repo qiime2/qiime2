@@ -91,36 +91,32 @@ class TestPluginManager(unittest.TestCase):
     # TODO: add tests for type/directory/transformer registrations
     def test_get_formats_include_all_formats(self):
         obs = self.pm.formats
-        exp = self.pm.get_formats(include_all=True, importable=False,
-                                  exportable=False, canonical_format=False)
+        exp = self.pm.get_formats()
 
         self.assertEqual(obs, exp)
 
     def test_get_formats_importable_formats(self):
         obs = self.pm._importable
-        exp = self.pm.get_formats(include_all=False, importable=True,
-                                  exportable=False, canonical_format=False)
+        exp = self.pm.get_formats(filter=self.pm.FormatFilters.IMPORTABLE)
 
         self.assertEqual(obs, exp)
 
     def test_get_formats_exportable_formats(self):
         obs = self.pm._exportable
-        exp = self.pm.get_formats(include_all=False, importable=False,
-                                  exportable=True, canonical_format=False)
+        exp = self.pm.get_formats(filter=self.pm.FormatFilters.EXPORTABLE)
 
         self.assertEqual(obs, exp)
 
-    def test_get_formats_canonical_formats(self):
-        obs = self.pm._canonical_formats
-        exp = self.pm.get_formats(include_all=False, importable=False,
-                                  exportable=False, canonical_format=True)
+    def test_get_formats_exportable_importable_formats(self):
+        obs = self.pm._exportable
+        exp = self.pm.get_formats(filter=self.pm.FormatFilters.EXPORTABLE |
+                                  self.pm.FormatFilters.IMPORTABLE)
 
         self.assertEqual(obs, exp)
 
     def test_get_formats_invalid(self):
-        with self.assertRaisesRegex(ValueError, "cannot be included"):
-            self.pm.get_formats(include_all=True, importable=False,
-                                exportable=True, canonical_format=True)
+        with self.assertRaisesRegex(ValueError, "is not valid"):
+            self.pm.get_formats(semantic_type='Random[Frequency]')
 
     # TODO: Need to determine the correct format to use for this test
     """
