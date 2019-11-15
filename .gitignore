@@ -64,4 +64,8 @@ target/
 # vi
 .*.swp
 
+#Mac OS file
 .DS_Store
+
+#Editor file
+.vscode
