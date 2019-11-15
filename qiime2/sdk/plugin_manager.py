@@ -192,3 +192,22 @@ class PluginManager:
                 % semantic_type)
 
         return dir_fmt
+
+    def get_transformers(self, *, from_=None, to=None):
+        transformers = set()
+
+        if from_ is None and to is None:
+            for from_format in self.transformers.values():
+                for to_format in from_format:
+                    transformers.add(from_format[to_format])
+        elif to in None:
+            for format_ in self.transformers[from_]:
+                transformers.add(self.transformers[from_][format_])
+        elif from_ is None:
+            for format_ in self._reverse_transformers[to]:
+                transformers.add(self._reverse_transformers[to][format_])
+        else:
+            if to in self.transformers[from_]:
+                transformers.add(self.transformers[from_][to])
+
+        return transformers
