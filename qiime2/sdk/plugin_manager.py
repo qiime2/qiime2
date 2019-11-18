@@ -11,7 +11,7 @@ import os
 import pkg_resources
 import qiime2.core.type
 
-from enum import Flag, auto
+import enum
 
 
 class PluginManager:
@@ -144,9 +144,9 @@ class PluginManager:
 
         return types
 
-    class FormatFilters(Flag):
-        EXPORTABLE = auto()
-        IMPORTABLE = auto()
+    class FormatFilters(enum.Flag):
+        EXPORTABLE = enum.auto()
+        IMPORTABLE = enum.auto()
 
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a

@@ -102,7 +102,7 @@ class QIIMEArtifactAPIImporter:
         import qiime2.sdk
         pm = qiime2.sdk.PluginManager()
 
-        return pm.get_formats(filter=None, semantic_type=None)
+        return pm.get_formats(filter, semantic_type)
 
 
 sys.meta_path += [QIIMEArtifactAPIImporter()]
