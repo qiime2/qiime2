@@ -17,6 +17,10 @@ import qiime2
 from qiime2.core.type.util import is_metadata_column_type
 
 
+class Factory:
+    pass
+
+
 RefAction = collections.namedtuple('RefAction', 'plugin_id action_name')
 
 
@@ -73,13 +77,7 @@ class Scope:
     def __iter__(self):
         yield from self.records.values()
 
-    # TODO: this might not work quite like we would hope, since staring at it
-    # makes something pop into existence
     def __getitem__(self, key):
-        if key not in self.records:
-            self.records[key] = ScopeRecord(
-                name=key,
-                assert_has_line_matching=self._assert_has_line_matching_)
         return self.records[key]
 
     def __setitem__(self, key, value):
@@ -102,6 +100,8 @@ class Usage(metaclass=abc.ABCMeta):
     TODO: docstring
     """
 
+    Factory = Factory
+    Result = None
     RefAction = RefAction
     RefInputs = RefInputs
     RefOutputs = RefOutputs

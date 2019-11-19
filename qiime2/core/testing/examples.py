@@ -29,17 +29,38 @@ def concatenate_ints_simple(use):
     '''
     # TODO: anything good we can do with this little bit?
     docstring action
-    '''
-    use.scope['ints_a'] = ints1_factory
-    use.scope['ints_b'] = ints2_factory
-    use.scope['ints_c'] = ints3_factory
+    # '''
+
+    ints_a = use.Factory('ints_a', ints1_factory)
+    ints_b = use.Factory('ints_b', ints2_factory)
+    ints_c = use.Factory('ints_c', ints3_factory)
+    ints_d = use.Result
 
     use.comment('This example demonstrates basic usage.')
     use.action(
         use.RefAction('dummy_plugin', 'concatenate_ints'),
-        use.RefInputs(ints1=use.scope['ints_a'], ints2=use.scope['ints_b'],
-                      ints3=use.scope['ints_c'], int1=4, int2=2),
-        use.RefOutputs(concatenated_ints=use.scope['ints_d']),
+        use.RefInputs(ints1=ints_a, ints2=ints_b,
+                      ints3=ints_c, int1=4, int2=2),
+        use.RefOutputs(concatenated_ints=ints_d),
+    )
+
+
+def concatenate_ints_no_scoped_outputs(use):
+    '''
+    # TODO: anything good we can do with this little bit?
+    docstring action
+    # '''
+
+    ints_a = use.Factory('ints_a', ints1_factory)
+    ints_b = use.Factory('ints_b', ints2_factory)
+    ints_c = use.Factory('ints_c', ints3_factory)
+
+    use.comment('This example demonstrates basic usage.')
+    use.action(
+        use.RefAction('dummy_plugin', 'concatenate_ints'),
+        use.RefInputs(ints1=ints_a, ints2=ints_b,
+                      ints3=ints_c, int1=4, int2=2),
+        use.RefOutputs(),
     )
 
 
@@ -53,8 +74,7 @@ def concatenate_ints_complex(use):
         use.RefAction('dummy_plugin', 'concatenate_ints'),
         use.RefInputs(ints1=use.scope['ints_a'], ints2=use.scope['ints_b'],
                       ints3=use.scope['ints_c'], int1=4, int2=2),
-        use.RefOutputs(
-            concatenated_ints=use.scope['ints_d']),
+        use.RefOutputs(concatenated_ints=use.scope['ints_d']),
     )
     use.comment('Now that we have initial results...')
     use.action(
