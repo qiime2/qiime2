@@ -9,7 +9,7 @@
 import sys
 import importlib.machinery
 
-__all__ = ['available_plugins']
+__all__ = ['available_plugins', 'inspect_formats']
 __path__ = []
 
 
@@ -17,6 +17,13 @@ def available_plugins():
     import qiime2.sdk
     pm = qiime2.sdk.PluginManager()
     return set('qiime2.plugins.' + s.replace('-', '_') for s in pm.plugins)
+
+
+def inspect_formats(filter=None, semantic_type=None):
+    import qiime2.sdk
+    pm = qiime2.sdk.PluginManager()
+
+    return pm.get_formats(filter, semantic_type)
 
 
 class QIIMEArtifactAPIImporter:
@@ -97,12 +104,6 @@ class QIIMEArtifactAPIImporter:
                 actions = getattr(plugin, action_type)
                 for key, value in actions.items():
                     setattr(module, key, value)
-
-    def inspect_formats(filter=None, semantic_type=None):
-        import qiime2.sdk
-        pm = qiime2.sdk.PluginManager()
-
-        return pm.get_formats(filter, semantic_type)
 
 
 sys.meta_path += [QIIMEArtifactAPIImporter()]

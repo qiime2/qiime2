@@ -12,6 +12,7 @@ import qiime2.plugin
 import qiime2.sdk
 
 from qiime2.plugin.plugin import SemanticTypeRecord  # , FormatRecord
+from qiime2.sdk.plugin_manager import GetFormatFilters
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
                                       FourInts, Kennel, Dog, Cat, SingleInt,
@@ -97,20 +98,20 @@ class TestPluginManager(unittest.TestCase):
 
     def test_get_formats_importable_formats(self):
         obs = self.pm._importable
-        exp = self.pm.get_formats(filter=self.pm.FormatFilters.IMPORTABLE)
+        exp = self.pm.get_formats(filter=GetFormatFilters.IMPORTABLE)
 
         self.assertEqual(obs, exp)
 
     def test_get_formats_exportable_formats(self):
         obs = self.pm._exportable
-        exp = self.pm.get_formats(filter=self.pm.FormatFilters.EXPORTABLE)
+        exp = self.pm.get_formats(filter=GetFormatFilters.EXPORTABLE)
 
         self.assertEqual(obs, exp)
 
     def test_get_formats_exportable_importable_formats(self):
         obs = self.pm._exportable
-        exp = self.pm.get_formats(filter=self.pm.FormatFilters.EXPORTABLE |
-                                  self.pm.FormatFilters.IMPORTABLE)
+        exp = self.pm.get_formats(filter=GetFormatFilters.EXPORTABLE |
+                                  GetFormatFilters.IMPORTABLE)
 
         self.assertEqual(obs, exp)
 
