@@ -188,7 +188,7 @@ class PluginManager:
                         # if the format in formats is the format in canonical,
                         # then set the format as the key and the record as the
                         # value (record is a formatrecord type)
-                            # the return is a formatrecord dict
+                        # the return is a formatrecord dict
                         if self.formats[single_format].format is \
                                 type_format.format:
                             formats[type_format.format] = record
@@ -234,6 +234,7 @@ class PluginManager:
             # parent class
             if issubclass(record.format, SFDF):
                 format_name = get_view_name(record.format.file.format)
+                # TODO: Need to build format record for FileFormat (Possible)
                 temp_list[format_name] = record.format.file.format
 
                 # temp_list[format_.format] = format_.format.file.format
@@ -288,6 +289,7 @@ class PluginManager:
             # parent class
             if issubclass(record.format, SFDF):
                 format_name = get_view_name(record.format.file.format)
+                # TODO: Need to build format record for FileFormat (Possible)
                 temp_list[format_name] = record.format.file.format
 
                 # temp_list[format_.format] = format_.format.file.format
@@ -302,7 +304,8 @@ class PluginManager:
                 importable_formats[format_item] = \
                     self.transformers[format_item]
 
-                for format_dict_item in self._reverse_transformers[format_item]:
+                for format_dict_item in \
+                        self._reverse_transformers[format_item]:
 
                     if issubclass(format_dict_item, SFDF):
                         # exportable_formats.append(format_dict_item.file.format)
