@@ -10,8 +10,8 @@ import collections
 import os
 import pkg_resources
 import qiime2.core.type
-from qiime2.core.util import get_view_name
-
+from qiime2.core.format import FormatBase
+from qiime2.plugin.model import SingleFileDirectoryFormatBase
 
 import enum
 
@@ -62,9 +62,6 @@ class PluginManager:
         self.views = {}
         self.type_formats = []
         self._ff_to_sfdf = {}
-        self._importable = set()
-        self._exportable = set()
-        self._canonical_formats = set()
 
         # These are all dependent loops, each requires the loop above it to
         # be completed.
@@ -74,13 +71,6 @@ class PluginManager:
 
         for plugin in self.plugins.values():
             self._integrate_plugin(plugin)
-
-        # TODO: Delete this loop once the helper methods for get formats are
-        # approved
-        for canonical_format in self._canonical_formats:
-            self._importable.update(
-                                self._reverse_transformers[canonical_format])
-            self._exportable.update(self.transformers[canonical_format])
 
     def _integrate_plugin(self, plugin):
         for type_name, type_record in plugin.type_fragments.items():
@@ -128,12 +118,6 @@ class PluginManager:
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
 
-        for type_format in plugin.type_formats:
-            self._canonical_formats.add(type_format.format)
-            if isinstance(type_format.format,
-                          qiime2.plugin.model.SingleFileDirectoryFormatBase):
-                self._canonical_formats.add(type_format.format.file.format)
-
     def get_semantic_types(self):
         types = set()
 
@@ -163,7 +147,6 @@ class PluginManager:
         the user and the semantic type. The return is a set of filtered
         formats.
         """
-
         if semantic_type is not None and semantic_type \
                 not in self.get_semantic_types():
             raise ValueError("The semantic type provided: %s is not "
@@ -174,173 +157,95 @@ class PluginManager:
                              "valid.", (filter))
 
         if semantic_type is None:
-            formats = self.formats
+            formats = set(f.format for f in self.type_formats)
 
         else:
-            formats = {}
-            # loop through the canonical formats
+            formats = set()
+
             for type_format in self.type_formats:
-                # if the semantic_type param is in the type exp in for a
-                # canonical format, then loop through the format, record in
-                # formats
                 if semantic_type <= type_format.type_expression:
-                    for single_format, record in self.formats:
-                        # if the format in formats is the format in canonical,
-                        # then set the format as the key and the record as the
-                        # value (record is a formatrecord type)
-                        # the return is a formatrecord dict
-                        if self.formats[single_format].format is \
-                                type_format.format:
-                            formats[type_format.format] = record
+                    formats.add(type_format.format)
+                    break
 
-        # These variables contain format -> transrecord dict
-        importable_formats = self._get_importable_formats(self.formats)
-        exportable_formats = self._get_exportable_formats(self.formats)
+        transformable_formats = set(formats)
 
-        # The filtering, using set comprehension, is comparing formatrecs to
-        # transrecords if the filter is none
-        if filter is None:
-            formats = {**formats, **importable_formats, **exportable_formats}
-        elif filter is GetFormatFilters.IMPORTABLE:
-            formats = importable_formats
-        elif filter is GetFormatFilters.EXPORTABLE:
-            formats = exportable_formats
-        elif filter is GetFormatFilters.IMPORTABLE | \
-                GetFormatFilters.EXPORTABLE:
-            formats = {**importable_formats, **exportable_formats}
+        if filter is None or GetFormatFilters.IMPORTABLE in filter:
+            transformable_formats.update(
+                self._get_formats_helper(formats, self._reverse_transformers))
 
-        # The return is either a formatrecord dict or transrecord dict
-        return formats
+        if filter is None or GetFormatFilters.EXPORTABLE in filter:
+            transformable_formats.update(
+                self._get_formats_helper(formats, self.transformers))
 
-    # This method takes in an iterable of formats to perform looping in helper
-    def _get_exportable_formats(self, formats):
+        result_formats = {}
+        for format_ in transformable_formats:
+            format_ = format_.__name__
+            result_formats[format_] = self.formats[format_]
+
+        return result_formats
+
+    def _get_formats_helper(self, formats, transformer_dict):
         """
-        _get_exportable_formats(self, formats)
+        _get_formats_helper(self, formats, transformer_dict)
 
-        formats : DirectoryFormat
-            We are finding all formats that can be directly transformed to from
-            this format
+        formats : set(DirectoryFormat)
+            We are finding all formats that can be directly transformed to and
+            from formats in this set
+
+        tranformer_dict : Class: Dict{ Class: TransformerRecord }
+            The dictionary of transformers allows the method to get formats
+            that are transformable from the given format
 
         This method creates a set utilizing the transformers dictionary and
-        the canonical format passed to it as a key. This allows
-        for access to formats the canonical format transforms into.
+        the formats set to get related formats for a specific format.
         """
-        exportable_formats = {}
-        temp_list = {}
-        SFDF = qiime2.plugin.model.SingleFileDirectoryFormatBase
+        query_set = set(formats)
 
-        for format_, record in formats.items():
-            # Need to get the class of the format record to check against the
-            # parent class
-            if issubclass(record.format, SFDF):
-                format_name = get_view_name(record.format.file.format)
-                # TODO: Need to build format record for FileFormat (Possible)
-                temp_list[format_name] = record.format.file.format
-
-                # temp_list[format_.format] = format_.format.file.format
-
-            temp_list[format_] = formats[format_]
-            # temp_list.append(formats[format_name])
-
-        for format_item in temp_list:
-
-            if format_item in self.transformers:
-                # exportable_formats.extend(self.transformers[format_item])
-                exportable_formats[format_item] = \
-                    self.transformers[format_item]
-
-                for format_dict_item in self.transformers[format_item]:
-
-                    if issubclass(format_dict_item, SFDF):
-                        # exportable_formats.append(format_dict_item.file.format)
-                        format_name = get_view_name(
-                            format_dict_item.file.format)
-                        temp_list[format_name] = formats[format_name]
-
-                    if format_dict_item in self._ff_to_sfdf:
-                        exportable_formats[format_dict_item] = \
-                            self._ff_to_sfdf[format_dict_item]
-
-        exportable_formats.update(temp_list)
-
-        return exportable_formats
-
-    # This method takes in an iterable of formats to perform looping in helper
-    def _get_importable_formats(self, formats):
-        """
-        _get_importable_formats(self, formats)
-
-        formats : DirectoryFormat
-            We are finding all formats that can be directly transformed into
-            this format
-
-        This method creates a set utilizing the reverse transformers
-        dictionary and the canonical format passed to it as a key. This allows
-        for access to formats that transform into the canonical format.
-        """
-        importable_formats = {}
-        SFDF = qiime2.plugin.model.SingleFileDirectoryFormatBase
-
-        temp_list = {}
-        SFDF = qiime2.plugin.model.SingleFileDirectoryFormatBase
-
-        for format_, record in formats.items():
-            # Need to get the class of the format record to check against the
-            # parent class
-            if issubclass(record.format, SFDF):
-                format_name = get_view_name(record.format.file.format)
-                # TODO: Need to build format record for FileFormat (Possible)
-                temp_list[format_name] = record.format.file.format
-
-                # temp_list[format_.format] = format_.format.file.format
-
-            temp_list[format_] = formats[format_]
-            # temp_list.append(formats[format_name])
-
-        for format_item in temp_list:
-
-            if format_item in self._reverse_transformers:
-                # exportable_formats.extend(self.transformers[format_item])
-                importable_formats[format_item] = \
-                    self.transformers[format_item]
-
-                for format_dict_item in \
-                        self._reverse_transformers[format_item]:
-
-                    if issubclass(format_dict_item, SFDF):
-                        # exportable_formats.append(format_dict_item.file.format)
-                        format_name = get_view_name(
-                            format_dict_item.file.format)
-                        temp_list[format_name] = formats[format_name]
-
-                    if format_dict_item in self._ff_to_sfdf:
-                        importable_formats[format_dict_item] = \
-                            self._ff_to_sfdf[format_dict_item]
-
-        importable_formats.update(temp_list)
-
-        '''
         for format_ in formats:
+            if issubclass(format_, SingleFileDirectoryFormatBase):
+                if format_.file.format.__name__ in self.formats:
+                    query_set.add(format_.file.format)
 
-            if issubclass(format_, SFDF):
-                importable_formats.append(format_.file.format)
+        result_formats = set(query_set)
 
-            importable_formats.extend(format_)
+        for format_ in query_set:
+            for transformed_format in transformer_dict[format_]:
+                if issubclass(transformed_format, FormatBase):
+                    result_formats.add(transformed_format)
 
-        for format_item in importable_formats:
+                    if issubclass(transformed_format,
+                                  SingleFileDirectoryFormatBase):
+                        try:
+                            for FF_trans in \
+                                    transformer_dict[
+                                        transformed_format.file.format]:
+                                # Make sure this thing is registered
+                                if FF_trans.__name__ in self.formats:
+                                    result_formats.add(FF_trans)
 
-            if format_item in self.transformers:
-                importable_formats.extend(self.transformers[format_item])
+                                    if issubclass(
+                                            FF_trans,
+                                            SingleFileDirectoryFormatBase):
+                                        if FF_trans.file.format.__name__ in \
+                                                self.formats:
+                                            result_formats.add(
+                                                FF_trans.file.format)
 
-                for format_dict_item in self.transformers[format_item]:
+                                    if FF_trans in self._ff_to_sfdf:
+                                        result_formats.add(
+                                            self._ff_to_sfdf[FF_trans])
 
-                    if issubclass(format_dict_item, SFDF):
-                        importable_formats.append(format_dict_item)
+                            result_formats.add(transformed_format.file.format)
+                        # A key error here means our format.file.format is
+                        # unregistered
+                        except KeyError:
+                            pass
 
-                    if format_dict_item in self._ff_to_sfdf:
-                        importable_formats.append(format_dict_item)
-        '''
-        return importable_formats
+                    if transformed_format in self._ff_to_sfdf:
+                        result_formats.add(
+                            self._ff_to_sfdf[transformed_format])
+
+        return result_formats
 
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):
