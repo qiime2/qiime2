@@ -58,22 +58,22 @@ class TestTesting(TestPluginBase):
 
         self.assert_scope_records_match(expected, use)
 
-    def test_no_op_usage_complex(self):
-        action = self.plugin.actions['concatenate_ints']
-        use = usage.NoOpUsage()
-        action.examples[1](use)
+    # def test_no_op_usage_complex(self):
+    #     action = self.plugin.actions['concatenate_ints']
+    #     use = usage.NoOpUsage()
+    #     action.examples[1](use)
 
-        # NoOpUsage assembles records that represent all of the example's
-        # provided data (nothing is actually computed)
-        expected = [
-            X(name='ints_a', data_type='IntSequence1'),
-            X(name='ints_b', data_type='IntSequence1'),
-            X(name='ints_c', data_type='IntSequence2'),
-            X(name='ints_d', data_type=None),
-            X(name='ints_e', data_type=None),
-        ]
+    #     # NoOpUsage assembles records that represent all of the example's
+    #     # provided data (nothing is actually computed)
+    #     expected = [
+    #         X(name='ints_a', data_type='IntSequence1'),
+    #         X(name='ints_b', data_type='IntSequence1'),
+    #         X(name='ints_c', data_type='IntSequence2'),
+    #         X(name='ints_d', data_type=None),
+    #         X(name='ints_e', data_type=None),
+    #     ]
 
-        self.assert_scope_records_match(expected, use)
+    #     self.assert_scope_records_match(expected, use)
 
 
 if __name__ == '__main__':

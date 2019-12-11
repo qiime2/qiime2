@@ -46,10 +46,11 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
                        pipelines_in_pipeline, pointless_pipeline,
                        failing_pipeline)
-from .examples import (concatenate_ints_simple, concatenate_ints_complex,
-                       identity_with_metadata_case_a,
-                       identity_with_metadata_column_case_a,
-                       most_common_viz_typical)
+from .examples import concatenate_ints_simple
+# from .examples import (concatenate_ints_simple, concatenate_ints_complex,
+#                        identity_with_metadata_case_a,
+#                        identity_with_metadata_column_case_a,
+#                        most_common_viz_typical)
 from ..cite import Citations
 
 citations = Citations.load('citations.bib', package='qiime2.core.testing')
@@ -140,7 +141,8 @@ dummy_plugin.methods.register_function(
     description='This method concatenates integers into a single sequence in '
                 'the order they are provided.',
     citations=[citations['baerheim1994effect']],
-    examples=[concatenate_ints_simple, concatenate_ints_complex],
+    # examples=[concatenate_ints_simple, concatenate_ints_complex],
+    examples=[concatenate_ints_simple],
 )
 
 T = TypeMatch([IntSequence1, IntSequence2])
@@ -197,7 +199,7 @@ dummy_plugin.methods.register_function(
     ],
     name='Identity',
     description='This method does nothing, but takes metadata',
-    examples=[identity_with_metadata_case_a],
+    # examples=[identity_with_metadata_case_a],
 )
 
 dummy_plugin.methods.register_function(
@@ -273,7 +275,7 @@ dummy_plugin.methods.register_function(
     ],
     name='Identity',
     description='This method does nothing, but takes a metadata column',
-    examples=[identity_with_metadata_column_case_a],
+    # examples=[identity_with_metadata_column_case_a],
 )
 
 
@@ -474,7 +476,7 @@ dummy_plugin.visualizers.register_function(
                 'least-frequently occurring, along with their respective '
                 'frequencies.',
     citations=[citations['barbeito1967microbiological']],
-    examples=[most_common_viz_typical],
+    # examples=[most_common_viz_typical],
 )
 
 # TODO add optional parameters to this method when they are supported

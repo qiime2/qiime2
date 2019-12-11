@@ -18,17 +18,23 @@ from qiime2.core.type.util import is_metadata_column_type
 
 
 class Factory:
-    pass
+    def __init__(self, name, factory):
+        # TODO: validation
+        self.name = name
+        self.factory = factory
 
 
 RefAction = collections.namedtuple('RefAction', 'plugin_id action_name')
 
 
-class RefInputs(dict):
-    pass
+class RefInputs:
+    def __init__(self, **kwargs):
+        # TODO: validation
+        self.values = kwargs
 
 
 class RefOutputs(dict):
+    # TODO: validations
     pass
 
 
@@ -50,6 +56,7 @@ class ScopeRecord:
                                                expression)
 
 
+# TODO: this should just be a subclass of dict (or related)
 class Scope:
     """
     TODO: docstring
@@ -218,16 +225,17 @@ class ExecutionUsage(Usage):
         opts = {}
 
         for name, signature in sig.signature_order.items():
-            if name in inputs:
+            if name in inputs.values:
                 if is_metadata_column_type(signature.qiime_type):
                     ref, col = inputs[name]
                     value = self.scope[ref].factory()
                     value = value.get_column(col)
-                elif inputs[name] in self.scope.values() \
-                        and inputs[name].is_bound:
-                    value = inputs[name].factory()
+                elif inputs.values[name] in self.scope.values() \
+                        and inputs.values[name].is_bound:
+                    value = inputs.values[name].factory()
                 else:
-                    value = inputs[name]
+                    print(inputs.values)
+                    value = inputs.values[name]
                 opts[name] = value
 
         results = action_f(**opts)
