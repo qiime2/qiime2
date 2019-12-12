@@ -78,9 +78,17 @@ class PluginManager:
         if id is None and name is None:
             raise ValueError("No plugin requested.")
         elif id is not None:
-            return self._plugin_by_id[id]
+            try:
+                return self._plugin_by_id[id]
+            except KeyError:
+                raise KeyError('No plugin currently registered '
+                               'with id: "%s".' % (id,))
         else:
-            return self.plugins[name]
+            try:
+                return self.plugins[name]
+            except KeyError:
+                raise KeyError('No plugin currently registered '
+                               'with name: "%s".' % (name,))
 
     def _integrate_plugin(self, plugin):
         for type_name, type_record in plugin.types.items():
