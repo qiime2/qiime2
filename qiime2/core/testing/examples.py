@@ -39,9 +39,9 @@ def concatenate_ints_simple(use):
     use.comment('This example demonstrates basic usage.')
     print(use.get_scope())
     use.action(
-        UseAction('dummy_plugin', 'concatenate_ints'),
-        UseInputs(ints1=ints_a, ints2=ints_b, ints3=ints_c, int1=4, int2=2),
-        UseOutputNames(concatenated_ints='ints_d'),
+        UsageAction(plugin='dummy_plugin', action='concatenate_ints'),
+        UsageInputs(ints1=ints_a, ints2=ints_b, ints3=ints_c, int1=4, int2=2),
+        UsageOutputNames(concatenated_ints='ints_d'),
     )
 
     # ints_d = use.get_result('ints_d')
