@@ -14,6 +14,7 @@ import pathlib
 
 import qiime2
 
+from qiime2.sdk import usage
 from qiime2.plugin.model.base import FormatBase
 
 
@@ -242,3 +243,11 @@ class TestPluginBase(unittest.TestCase):
             self.assertIsInstance(obs, target)
 
         return input, obs
+
+    def execute_examples(self):
+        if self.plugin is not None:
+            for _, action in self.plugin.actions.items():
+                for name, example_f in action.examples.items():
+                    with self.subTest(example=name):
+                        use = usage.ExecutionUsage()
+                        example_f(use)

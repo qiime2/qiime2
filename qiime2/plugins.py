@@ -9,7 +9,9 @@
 import sys
 import importlib.machinery
 
-__all__ = ['available_plugins']
+from qiime2.sdk import usage
+
+__all__ = ['available_plugins', 'ArtifactAPIUsage']
 __path__ = []
 
 
@@ -17,6 +19,60 @@ def available_plugins():
     import qiime2.sdk
     pm = qiime2.sdk.PluginManager()
     return set('qiime2.plugins.' + s.replace('-', '_') for s in pm.plugins)
+
+
+class ArtifactAPIUsage(usage.Usage):
+    def __init__(self):
+        super().__init__()
+        self._imports = set()
+        self._recorder = []
+        self._init_data_refs = dict()
+
+    def _comment_(self, text: str):
+        self._recorder.append('# %s' % (text, ))
+
+    def _action_(self, action: usage.UsageAction,
+                 input_opts: dict, output_opts: dict):
+        action_f, action_sig = action.get_action()
+        self._update_imports(action_f)
+
+        new_output_opts = {k: k for k in output_opts.keys()}
+
+        t = self._template_action(action_f, input_opts, new_output_opts)
+        self._recorder.append(t)
+
+        return new_output_opts
+
+    def _template_action(self, action_f, input_opts, output_opts):
+        output_opts = list(output_opts.keys())
+        if len(output_opts) == 1:
+            output_opts.append('')
+        output_vars = ', '.join(output_opts)
+
+        t = '%s = %s(\n' % (output_vars.strip(), action_f.id)
+        for k, v in input_opts.items():
+            t += '    %s=%s,\n' % (k, v)
+        t += ')\n'
+
+        return t
+
+    def _update_imports(self, action_f):
+        full_import = action_f.get_import_path()
+        import_path, action_api_name = full_import.rsplit('.', 1)
+        self._imports.add((import_path, action_api_name))
+
+    def _factory_override(self, ref, factory):
+        self._init_data_refs[ref] = factory
+        # Don't need to compute anything, so just pass along the ref
+        return lambda: ref
+
+    def render(self):
+        sorted_imps = sorted(self._imports, key=lambda x: x[0])
+        imps = ['from %s import %s\n' % i for i in sorted_imps]
+        return '\n'.join(imps + self._recorder)
+
+    def get_example_data(self):
+        return {r: f() for r, f in self._init_data_refs.items()}
 
 
 class QIIMEArtifactAPIImporter:

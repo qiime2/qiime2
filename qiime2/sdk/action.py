@@ -73,7 +73,7 @@ class Action(metaclass=abc.ABCMeta):
     # Private constructor
     @classmethod
     def _init(cls, callable, signature, plugin_id, name, description,
-              citations, deprecated):
+              citations, deprecated, examples):
         """
 
         Parameters
@@ -89,14 +89,14 @@ class Action(metaclass=abc.ABCMeta):
         """
         self = cls.__new__(cls)
         self.__init(callable, signature, plugin_id, name, description,
-                    citations, deprecated)
+                    citations, deprecated, examples)
         return self
 
     # This "extra private" constructor is necessary because `Action` objects
     # can be initialized from a static (classmethod) context or on an
     # existing instance (see `_init` and `__setstate__`, respectively).
     def __init(self, callable, signature, plugin_id, name, description,
-               citations, deprecated):
+               citations, deprecated, examples):
         self._callable = callable
         self.signature = signature
         self.plugin_id = plugin_id
@@ -104,6 +104,7 @@ class Action(metaclass=abc.ABCMeta):
         self.description = description
         self.citations = citations
         self.deprecated = deprecated
+        self.examples = examples
 
         self.id = callable.__name__
         self._dynamic_call = self._get_callable_wrapper()
@@ -150,7 +151,8 @@ class Action(metaclass=abc.ABCMeta):
             'name': self.name,
             'description': self.description,
             'citations': self.citations,
-            'deprecated': self.deprecated
+            'deprecated': self.deprecated,
+            'examples': self.examples,
         }
 
     def __setstate__(self, state):
@@ -342,6 +344,8 @@ class Action(metaclass=abc.ABCMeta):
         parameters = self._build_section("Parameters", sig.signature_order)
         returns = self._build_section("Returns", sig.outputs)
 
+        # TODO: include Usage-rendered examples here
+
         for section in (parameters, returns):
             if section:
                 numpydoc.append(section)
@@ -421,13 +425,13 @@ class Method(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions, citations, deprecated):
+              output_descriptions, citations, deprecated, examples):
         signature = qtype.MethodSignature(callable, inputs, parameters,
                                           outputs, input_descriptions,
                                           parameter_descriptions,
                                           output_descriptions)
         return super()._init(callable, signature, plugin_id, name, description,
-                             citations, deprecated)
+                             citations, deprecated, examples)
 
 
 class Visualizer(Action):
@@ -460,12 +464,12 @@ class Visualizer(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, plugin_id, name, description,
               input_descriptions, parameter_descriptions, citations,
-              deprecated):
+              deprecated, examples):
         signature = qtype.VisualizerSignature(callable, inputs, parameters,
                                               input_descriptions,
                                               parameter_descriptions)
         return super()._init(callable, signature, plugin_id, name, description,
-                             citations, deprecated)
+                             citations, deprecated, examples)
 
 
 class Pipeline(Action):
@@ -515,13 +519,13 @@ class Pipeline(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions, citations, deprecated):
+              output_descriptions, citations, deprecated, examples):
         signature = qtype.PipelineSignature(callable, inputs, parameters,
                                             outputs, input_descriptions,
                                             parameter_descriptions,
                                             output_descriptions)
         return super()._init(callable, signature, plugin_id, name, description,
-                             citations, deprecated)
+                             citations, deprecated, examples)
 
 
 markdown_source_template = """

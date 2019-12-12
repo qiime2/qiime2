@@ -6,13 +6,15 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import unittest
-import sys
-import types
 import importlib
+import sys
+import tempfile
+import types
+import unittest
 
 import qiime2.sdk
 from qiime2.core.testing.util import get_dummy_plugin
+from qiime2.plugins import ArtifactAPIUsage
 
 
 class TestImports(unittest.TestCase):
@@ -115,6 +117,97 @@ class TestImports(unittest.TestCase):
         import qiime2.plugins.dummy_plugin
         with self.assertRaises(ImportError):
             importlib.reload(qiime2.plugins.dummy_plugin)
+
+
+class TestArtifactAPIUsage(unittest.TestCase):
+    def setUp(self):
+        # TODO standardize temporary directories created by QIIME 2
+        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        self.plugin = get_dummy_plugin()
+
+    def tearDown(self):
+        self.test_dir.cleanup()
+
+    def test_basic(self):
+        action = self.plugin.actions['concatenate_ints']
+        use = ArtifactAPIUsage()
+        action.examples['concatenate_ints_simple'](use)
+        exp = """\
+from qiime2.plugins.dummy_plugin.methods import concatenate_ints
+
+# This example demonstrates basic usage.
+ints_d, = concatenate_ints(
+    ints1=ints_a,
+    ints2=ints_b,
+    ints3=ints_c,
+    int1=4,
+    int2=2,
+)
+"""
+        self.assertEqual(exp, use.render())
+
+    def test_chained(self):
+        action = self.plugin.actions['concatenate_ints']
+        use = ArtifactAPIUsage()
+        action.examples['concatenate_ints_complex'](use)
+        exp = """\
+from qiime2.plugins.dummy_plugin.methods import concatenate_ints
+
+# This example demonstrates chained usage (pt 1).
+ints_d, = concatenate_ints(
+    ints1=ints_a,
+    ints2=ints_b,
+    ints3=ints_c,
+    int1=4,
+    int2=2,
+)
+
+# This example demonstrates chained usage (pt 2).
+concatenated_ints, = concatenate_ints(
+    ints1=ints_d,
+    ints2=ints_b,
+    ints3=ints_c,
+    int1=41,
+    int2=0,
+)
+"""
+        self.assertEqual(exp, use.render())
+
+    def test_dereferencing(self):
+        action = self.plugin.actions['typical_pipeline']
+        use = ArtifactAPIUsage()
+        action.examples['typical_pipeline_simple'](use)
+        exp = """\
+from qiime2.plugins.dummy_plugin.pipelines import typical_pipeline
+
+out_map, left, right, left_viz, right_viz = typical_pipeline(
+    int_sequence=ints,
+    mapping=mapper,
+    do_extra_thing=True,
+)
+"""
+        self.assertEqual(exp, use.render())
+
+    def test_chained_dereferencing(self):
+        action = self.plugin.actions['typical_pipeline']
+        use = ArtifactAPIUsage()
+        action.examples['typical_pipeline_complex'](use)
+        exp = """\
+from qiime2.plugins.dummy_plugin.pipelines import typical_pipeline
+
+out_map1, left1, right1, left_viz1, right_viz1 = typical_pipeline(
+    int_sequence=ints1,
+    mapping=mapper1,
+    do_extra_thing=True,
+)
+
+out_map2, left2, right2, left_viz2, right_viz2 = typical_pipeline(
+    int_sequence=left1,
+    mapping=out_map1,
+    do_extra_thing=False,
+)
+"""
+        self.assertEqual(exp, use.render())
 
 
 if __name__ == '__main__':

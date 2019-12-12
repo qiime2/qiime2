@@ -224,18 +224,21 @@ class PluginMethods(PluginActions):
                           description, input_descriptions=None,
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None,
-                          deprecated=False):
+                          deprecated=False, examples=None):
         if citations is None:
             citations = ()
         else:
             citations = tuple(citations)
+
+        if examples is None:
+            examples = {}
 
         method = qiime2.sdk.Method._init(function, inputs, parameters, outputs,
                                          self._plugin_id, name, description,
                                          input_descriptions,
                                          parameter_descriptions,
                                          output_descriptions, citations,
-                                         deprecated)
+                                         deprecated, examples)
         self[method.id] = method
 
 
@@ -243,18 +246,22 @@ class PluginVisualizers(PluginActions):
     def register_function(self, function, inputs, parameters, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None, citations=None,
-                          deprecated=False):
+                          deprecated=False, examples=None):
         if citations is None:
             citations = ()
         else:
             citations = tuple(citations)
+
+        if examples is None:
+            examples = {}
 
         visualizer = qiime2.sdk.Visualizer._init(function, inputs, parameters,
                                                  self._plugin_id, name,
                                                  description,
                                                  input_descriptions,
                                                  parameter_descriptions,
-                                                 citations, deprecated)
+                                                 citations, deprecated,
+                                                 examples)
         self[visualizer.id] = visualizer
 
 
@@ -263,16 +270,19 @@ class PluginPipelines(PluginActions):
                           description, input_descriptions=None,
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None,
-                          deprecated=False):
+                          deprecated=False, examples=None):
         if citations is None:
             citations = ()
         else:
             citations = tuple(citations)
+
+        if examples is None:
+            examples = {}
 
         pipeline = qiime2.sdk.Pipeline._init(function, inputs, parameters,
                                              outputs, self._plugin_id, name,
                                              description, input_descriptions,
                                              parameter_descriptions,
                                              output_descriptions, citations,
-                                             deprecated)
+                                             deprecated, examples)
         self[pipeline.id] = pipeline
