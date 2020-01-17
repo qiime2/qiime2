@@ -64,14 +64,15 @@ dummy_plugin = Plugin(
 import_module('qiime2.core.testing.transformer')
 
 # Register semantic types
-dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, IntSequence3, Mapping,
-                                     FourInts, Kennel, Dog, Cat, SingleInt,
-                                     C1, C2, C3, Foo, Bar, Baz)
+dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, IntSequence3,
+                                     Mapping, FourInts, Kennel, Dog, Cat,
+                                     SingleInt, C1, C2, C3, Foo, Bar, Baz)
 
 # Register formats
 dummy_plugin.register_formats(
-    IntSequenceFormatV2, MappingFormat, IntSequenceV2DirectoryFormat, IntSequenceMultiFileDirectoryFormat,
-    MappingDirectoryFormat, EchoDirectoryFormat, EchoFormat)
+    IntSequenceFormatV2, MappingFormat, IntSequenceV2DirectoryFormat,
+    IntSequenceMultiFileDirectoryFormat, MappingDirectoryFormat,
+    EchoDirectoryFormat, EchoFormat)
 
 dummy_plugin.register_formats(
     FourIntsDirectoryFormat, UnimportableDirectoryFormat, UnimportableFormat,

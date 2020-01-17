@@ -256,7 +256,7 @@ class TestPluginManager(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "type.*is not valid"):
             self.pm.get_formats(semantic_type='Random[Frequency]')
 
-    def test_get_foramts_invalid_filter(self):
+    def test_get_formats_invalid_filter(self):
         with self.assertRaisesRegex(ValueError, "filter.*is not valid"):
             self.pm.get_formats(filter="EXPORTABLE")
 
