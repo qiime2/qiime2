@@ -11,23 +11,24 @@ import unittest
 import qiime2.plugin
 import qiime2.sdk
 
-from qiime2.plugin.plugin import SemanticTypeRecord  # , FormatRecord
+from qiime2.plugin.plugin import SemanticTypeRecord, FormatRecord
 from qiime2.sdk.plugin_manager import GetFormatFilters
 
-from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
-                                      FourInts, Kennel, Dog, Cat, SingleInt,
-                                      C1, C2, C3, Foo, Bar, Baz)
-"""
+from qiime2.core.testing.type import (IntSequence1, IntSequence2, IntSequence3,
+                                      Mapping, FourInts, Kennel, Dog, Cat,
+                                      SingleInt, C1, C2, C3, Foo, Bar, Baz)
+
 from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
                                         MappingDirectoryFormat,
                                         IntSequenceV2DirectoryFormat,
                                         IntSequenceFormatV2,
+                                        IntSequenceMultiFileDirectoryFormat,
                                         FourIntsDirectoryFormat,
                                         IntSequenceFormat,
                                         RedundantSingleIntDirectoryFormat,
                                         EchoFormat,
                                         EchoDirectoryFormat)
-"""
+
 from qiime2.core.testing.util import get_dummy_plugin
 
 
@@ -50,6 +51,8 @@ class TestPluginManager(unittest.TestCase):
             'IntSequence1': SemanticTypeRecord(semantic_type=IntSequence1,
                                                plugin=self.plugin),
             'IntSequence2': SemanticTypeRecord(semantic_type=IntSequence2,
+                                               plugin=self.plugin),
+            'IntSequence3': SemanticTypeRecord(semantic_type=IntSequence3,
                                                plugin=self.plugin),
             'Mapping': SemanticTypeRecord(semantic_type=Mapping,
                                           plugin=self.plugin),
@@ -90,79 +93,172 @@ class TestPluginManager(unittest.TestCase):
         self.assertNotIn(Kennel, types)
 
     # TODO: add tests for type/directory/transformer registrations
-    def test_get_formats_include_all_formats(self):
-        obs = self.pm.formats
-        exp = self.pm.get_formats()
-
-        self.assertEqual(obs, exp)
-
-    def test_get_formats_importable_formats(self):
-        obs = self.pm._importable
-        exp = self.pm.get_formats(filter=GetFormatFilters.IMPORTABLE)
-
-        self.assertEqual(obs, exp)
-
-    def test_get_formats_exportable_formats(self):
-        obs = self.pm._exportable
-        exp = self.pm.get_formats(filter=GetFormatFilters.EXPORTABLE)
-
-        self.assertEqual(obs, exp)
-
-    def test_get_formats_exportable_importable_formats(self):
-        obs = self.pm._exportable
-        exp = self.pm.get_formats(filter=GetFormatFilters.EXPORTABLE |
-                                  GetFormatFilters.IMPORTABLE)
-
-        self.assertEqual(obs, exp)
-
-    def test_get_formats_invalid(self):
-        with self.assertRaisesRegex(ValueError, "is not valid"):
-            self.pm.get_formats(semantic_type='Random[Frequency]')
-
-    # TODO: Need to determine the correct format to use for this test
-    """
-    def test_importable_formats(self):
-        obs = self.pm._importable
+    def test_get_formats_no_type_or_filter(self):
         exp = {
+            'IntSequenceFormat':
+                FormatRecord(format=IntSequenceFormat,
+                             plugin=self.plugin),
             'IntSequenceDirectoryFormat':
                 FormatRecord(format=IntSequenceDirectoryFormat,
-                             plugin=self.plugin),
-            'MappingDirectoryFormat':
-                FormatRecord(format=MappingDirectoryFormat,
-                             plugin=self.plugin),
-            'IntSequenceV2DirectoryFormat':
-                FormatRecord(format=IntSequenceV2DirectoryFormat,
                              plugin=self.plugin),
             'IntSequenceFormatV2':
                 FormatRecord(format=IntSequenceFormatV2,
                              plugin=self.plugin),
-            'FourIntsDirectoryFormat':
-                FormatRecord(format=FourIntsDirectoryFormat,
+            'IntSequenceV2DirectoryFormat':
+                FormatRecord(format=IntSequenceV2DirectoryFormat,
                              plugin=self.plugin),
-            'IntSequenceFormat':
-                FormatRecord(format=IntSequenceFormat,
+            'IntSequenceMultiFileDirectoryFormat':
+                FormatRecord(format=IntSequenceMultiFileDirectoryFormat,
                              plugin=self.plugin),
             'RedundantSingleIntDirectoryFormat':
                 FormatRecord(format=RedundantSingleIntDirectoryFormat,
+                             plugin=self.plugin),
+            'FourIntsDirectoryFormat':
+                FormatRecord(format=FourIntsDirectoryFormat,
                              plugin=self.plugin),
             'EchoFormat':
                 FormatRecord(format=EchoFormat,
                              plugin=self.plugin),
             'EchoDirectoryFormat':
                 FormatRecord(format=EchoDirectoryFormat,
-                             plugin=self.plugin)
+                             plugin=self.plugin),
+            'MappingDirectoryFormat':
+                FormatRecord(format=MappingDirectoryFormat,
+                             plugin=self.plugin),
         }
+
+        obs = self.pm.get_formats()
+
         self.assertEqual(obs, exp)
 
-    def test_importable_formats_excludes_unimportables(self):
-        obs = self.pm._importable
-        self.assertNotIn('UnimportableFormat', obs)
-        self.assertNotIn('UnimportableDirectoryFormat', obs)
+    def test_get_formats_SFDF(self):
+        exp = {
+            'IntSequenceFormat':
+                FormatRecord(format=IntSequenceFormat,
+                             plugin=self.plugin),
+            'IntSequenceFormatV2':
+                FormatRecord(format=IntSequenceFormatV2,
+                             plugin=self.plugin),
+            'IntSequenceDirectoryFormat':
+                FormatRecord(format=IntSequenceDirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceV2DirectoryFormat':
+                FormatRecord(format=IntSequenceV2DirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceMultiFileDirectoryFormat':
+                FormatRecord(format=IntSequenceMultiFileDirectoryFormat,
+                             plugin=self.plugin)
+        }
 
-        obs = self.pm.formats
-        self.assertIn('UnimportableFormat', obs)
-        self.assertIn('UnimportableDirectoryFormat', obs)
-    """
+        obs = self.pm.get_formats(semantic_type=IntSequence1)
+
+        self.assertEqual(exp, obs)
+
+    def test_get_formats_SFDF_EXPORTABLE(self):
+        exp = {
+            'IntSequenceFormat':
+                FormatRecord(format=IntSequenceFormat,
+                             plugin=self.plugin),
+            'IntSequenceFormatV2':
+                FormatRecord(format=IntSequenceFormatV2,
+                             plugin=self.plugin),
+            'IntSequenceDirectoryFormat':
+                FormatRecord(format=IntSequenceDirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceV2DirectoryFormat':
+                FormatRecord(format=IntSequenceV2DirectoryFormat,
+                             plugin=self.plugin)
+        }
+
+        obs = self.pm.get_formats(filter=GetFormatFilters.EXPORTABLE,
+                                  semantic_type=IntSequence1)
+
+        self.assertEqual(exp, obs)
+
+    def test_get_formats_SFDF_IMPORTABLE(self):
+        exp = {
+            'IntSequenceFormat':
+                FormatRecord(format=IntSequenceFormat,
+                             plugin=self.plugin),
+            'IntSequenceDirectoryFormat':
+                FormatRecord(format=IntSequenceDirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceMultiFileDirectoryFormat':
+                FormatRecord(format=IntSequenceMultiFileDirectoryFormat,
+                             plugin=self.plugin)
+        }
+
+        obs = self.pm.get_formats(filter=GetFormatFilters.IMPORTABLE,
+                                  semantic_type=IntSequence1)
+
+        self.assertEqual(exp, obs)
+
+    def test_get_formats_DF(self):
+        exp = {
+            'IntSequenceFormat':
+                FormatRecord(format=IntSequenceFormat,
+                             plugin=self.plugin),
+            'IntSequenceFormatV2':
+                FormatRecord(format=IntSequenceFormatV2,
+                             plugin=self.plugin),
+            'IntSequenceDirectoryFormat':
+                FormatRecord(format=IntSequenceDirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceV2DirectoryFormat':
+                FormatRecord(format=IntSequenceV2DirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceMultiFileDirectoryFormat':
+                FormatRecord(format=IntSequenceMultiFileDirectoryFormat,
+                             plugin=self.plugin)
+        }
+
+        obs = self.pm.get_formats(semantic_type=IntSequence3)
+
+        self.assertEqual(exp, obs)
+
+    def test_get_formats_DF_EXPORTABLE(self):
+        exp = {
+            'IntSequenceFormat':
+                FormatRecord(format=IntSequenceFormat,
+                             plugin=self.plugin),
+            'IntSequenceDirectoryFormat':
+                FormatRecord(format=IntSequenceDirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceMultiFileDirectoryFormat':
+                FormatRecord(format=IntSequenceMultiFileDirectoryFormat,
+                             plugin=self.plugin)
+        }
+
+        obs = self.pm.get_formats(filter=GetFormatFilters.EXPORTABLE,
+                                  semantic_type=IntSequence3)
+
+        self.assertEqual(exp, obs)
+
+    def test_get_formats_DF_IMPORTABLE(self):
+        exp = {
+            'IntSequenceFormatV2':
+                FormatRecord(format=IntSequenceFormatV2,
+                             plugin=self.plugin),
+            'IntSequenceV2DirectoryFormat':
+                FormatRecord(format=IntSequenceV2DirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceMultiFileDirectoryFormat':
+                FormatRecord(format=IntSequenceMultiFileDirectoryFormat,
+                             plugin=self.plugin)
+        }
+
+        obs = self.pm.get_formats(filter=GetFormatFilters.IMPORTABLE,
+                                  semantic_type=IntSequence3)
+
+        self.assertEqual(exp, obs)
+
+    def test_get_formats_invalid_type(self):
+        with self.assertRaisesRegex(ValueError, "type.*is not valid"):
+            self.pm.get_formats(semantic_type='Random[Frequency]')
+
+    def test_get_foramts_invalid_filter(self):
+        with self.assertRaisesRegex(ValueError, "filter.*is not valid"):
+            self.pm.get_formats(filter="EXPORTABLE")
 
 
 if __name__ == '__main__':

@@ -38,7 +38,7 @@ class IntSequenceFormat(TextFileFormat):
         self._validate_n_ints(record_map[level])
 
 
-class IntSequenceFormatV2(IntSequenceFormat):
+class IntSequenceFormatV2(TextFileFormat):
     """
     Same as IntSequenceFormat, but has a header "VERSION 2"
 
@@ -85,6 +85,10 @@ IntSequenceDirectoryFormat = model.SingleFileDirectoryFormat(
 
 IntSequenceV2DirectoryFormat = model.SingleFileDirectoryFormat(
     'IntSequenceV2DirectoryFormat', 'integers.txt', IntSequenceFormatV2)
+
+
+class IntSequenceMultiFileDirectoryFormat(model.DirectoryFormat):
+    pass
 
 
 # This could have been a `SingleFileDirectoryFormat`, but isn't for testing

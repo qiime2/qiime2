@@ -14,6 +14,9 @@ from .format import (
     MappingDirectoryFormat,
     IntSequenceFormat,
     IntSequenceFormatV2,
+    IntSequenceDirectoryFormat,
+    IntSequenceV2DirectoryFormat,
+    IntSequenceMultiFileDirectoryFormat,
     SingleIntFormat,
     MappingFormat,
     UnimportableFormat,
@@ -92,6 +95,18 @@ def _1000(ff: IntSequenceFormat) -> IntSequenceFormatV2:
             new_fh.write(line)
 
     return new_ff
+
+
+@dummy_plugin.register_transformer
+def _1100(df: IntSequenceMultiFileDirectoryFormat) -> \
+        IntSequenceDirectoryFormat:
+    return IntSequenceDirectoryFormat()
+
+
+@dummy_plugin.register_transformer
+def _1001(df: IntSequenceV2DirectoryFormat) -> \
+        IntSequenceMultiFileDirectoryFormat:
+    return IntSequenceMultiFileDirectoryFormat()
 
 
 @dummy_plugin.register_transformer

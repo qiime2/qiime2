@@ -105,7 +105,10 @@ class PluginManager:
 
             if issubclass(
                     fmt, qiime2.plugin.model.SingleFileDirectoryFormatBase):
-                self._ff_to_sfdf[fmt.file.format] = fmt
+                if fmt.file.format in self._ff_to_sfdf.keys():
+                    self._ff_to_sfdf[fmt.file.format].add(fmt)
+                else:
+                    self._ff_to_sfdf[fmt.file.format] = {fmt}
 
             # TODO: remove this when `sniff` is removed
             if hasattr(fmt, 'sniff') and hasattr(fmt, '_validate_'):
@@ -215,34 +218,10 @@ class PluginManager:
 
                     if issubclass(transformed_format,
                                   SingleFileDirectoryFormatBase):
-                        try:
-                            for FF_trans in \
-                                    transformer_dict[
-                                        transformed_format.file.format]:
-                                # Make sure this thing is registered
-                                if FF_trans.__name__ in self.formats:
-                                    result_formats.add(FF_trans)
-
-                                    if issubclass(
-                                            FF_trans,
-                                            SingleFileDirectoryFormatBase):
-                                        if FF_trans.file.format.__name__ in \
-                                                self.formats:
-                                            result_formats.add(
-                                                FF_trans.file.format)
-
-                                    if FF_trans in self._ff_to_sfdf:
-                                        result_formats.add(
-                                            self._ff_to_sfdf[FF_trans])
-
-                            result_formats.add(transformed_format.file.format)
-                        # A key error here means our format.file.format is
-                        # unregistered
-                        except KeyError:
-                            pass
+                        result_formats.add(transformed_format.file.format)
 
                     if transformed_format in self._ff_to_sfdf:
-                        result_formats.add(
+                        result_formats.update(
                             self._ff_to_sfdf[transformed_format])
 
         return result_formats

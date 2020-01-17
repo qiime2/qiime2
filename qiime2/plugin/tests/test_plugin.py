@@ -157,9 +157,9 @@ class TestPlugin(unittest.TestCase):
 
         self.assertEqual(
             set(types),
-            set(['IntSequence1', 'IntSequence2', 'Mapping', 'FourInts',
-                 'Kennel', 'Dog', 'Cat', 'SingleInt', 'C1', 'C2', 'C3',
-                 'Foo', 'Bar', 'Baz']))
+            set(['IntSequence1', 'IntSequence2', 'IntSequence3', 'Mapping',
+                 'FourInts', 'Kennel', 'Dog', 'Cat', 'SingleInt', 'C1', 'C2',
+                 'C3', 'Foo', 'Bar', 'Baz']))
 
     def test_types(self):
         types = self.plugin.types

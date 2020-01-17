@@ -15,6 +15,7 @@ from qiime2.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
 from .format import (
     IntSequenceFormat,
     IntSequenceFormatV2,
+    IntSequenceMultiFileDirectoryFormat,
     MappingFormat,
     SingleIntFormat,
     IntSequenceDirectoryFormat,
@@ -28,8 +29,8 @@ from .format import (
     EchoDirectoryFormat
 )
 
-from .type import (IntSequence1, IntSequence2, Mapping, FourInts, SingleInt,
-                   Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz)
+from .type import (IntSequence1, IntSequence2, IntSequence3, Mapping, FourInts,
+                   SingleInt, Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz)
 from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_column,
                      identity_with_categorical_metadata_column,
@@ -63,13 +64,13 @@ dummy_plugin = Plugin(
 import_module('qiime2.core.testing.transformer')
 
 # Register semantic types
-dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, Mapping,
+dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, IntSequence3, Mapping,
                                      FourInts, Kennel, Dog, Cat, SingleInt,
                                      C1, C2, C3, Foo, Bar, Baz)
 
 # Register formats
 dummy_plugin.register_formats(
-    IntSequenceFormatV2, MappingFormat, IntSequenceV2DirectoryFormat,
+    IntSequenceFormatV2, MappingFormat, IntSequenceV2DirectoryFormat, IntSequenceMultiFileDirectoryFormat,
     MappingDirectoryFormat, EchoDirectoryFormat, EchoFormat)
 
 dummy_plugin.register_formats(
@@ -88,6 +89,10 @@ dummy_plugin.register_semantic_type_to_format(
 dummy_plugin.register_semantic_type_to_format(
     IntSequence2,
     artifact_format=IntSequenceV2DirectoryFormat
+)
+dummy_plugin.register_semantic_type_to_format(
+    IntSequence3,
+    artifact_format=IntSequenceMultiFileDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     Mapping,
