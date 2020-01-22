@@ -126,7 +126,7 @@ class PluginManager:
 
         for plugin in self.plugins.values():
             for type_record in plugin.types:
-                types.add(type_record.semantic_type)
+                types.add(type_record)
 
         return types
 

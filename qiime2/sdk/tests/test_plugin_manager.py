@@ -82,11 +82,24 @@ class TestPluginManager(unittest.TestCase):
 
         self.assertEqual(types, exp)
 
-    def test_importable_types(self):
+    def test_get_semantic_types(self):
         types = self.pm.get_semantic_types()
 
-        exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],
-               Kennel[Cat], SingleInt}
+        exp = set([SemanticTypeRecord(semantic_type=IntSequence1,
+                                      plugin=self.plugin),
+                   SemanticTypeRecord(semantic_type=IntSequence2,
+                                      plugin=self.plugin),
+                   SemanticTypeRecord(semantic_type=Mapping,
+                                      plugin=self.plugin),
+                   SemanticTypeRecord(semantic_type=FourInts,
+                                      plugin=self.plugin),
+                   SemanticTypeRecord(semantic_type=Kennel[Dog],
+                                      plugin=self.plugin),
+                   SemanticTypeRecord(semantic_type=Kennel[Cat],
+                                      plugin=self.plugin),
+                   SemanticTypeRecord(semantic_type=SingleInt,
+                                      plugin=self.plugin)])
+
         self.assertLessEqual(exp, types)
         self.assertNotIn(Cat, types)
         self.assertNotIn(Dog, types)
