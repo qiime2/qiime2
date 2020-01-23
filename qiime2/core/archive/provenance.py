@@ -14,7 +14,7 @@ import copy
 import importlib
 import shutil
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 import distutils
 import yaml
@@ -27,7 +27,7 @@ from qiime2.core.cite import Citations
 
 
 def _ts_to_date(ts):
-    time_zone = None
+    time_zone = timezone.utc
     try:
         time_zone = tzlocal.get_localzone()
     except ValueError:

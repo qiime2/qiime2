@@ -257,7 +257,7 @@ class TestProvenanceIntegration(unittest.TestCase):
         q2_paper_date = 1563984000
 
         obs = str(provenance._ts_to_date(q2_paper_date))
-        exp = "2019-07-24 09:00:00"
+        exp = "2019-07-24 16:00:00+00:00"
 
         self.assertEqual(obs, exp)
         assert mocked_link.called
