@@ -12,6 +12,7 @@ import pkg_resources
 import qiime2.core.type
 from qiime2.core.format import FormatBase
 from qiime2.plugin.model import SingleFileDirectoryFormatBase
+from qiime2.sdk.util import parse_type
 
 import enum
 
@@ -142,7 +143,7 @@ class PluginManager:
             filter is an enum integer that will be used to determine user
             input to output specified formats
 
-        semantic_type : TypeExpression
+        semantic_type : TypeExpression | String
             The semantic type is used to filter the formats associated with
             that specific semantic type
 
@@ -150,11 +151,6 @@ class PluginManager:
         the user and the semantic type. The return is a set of filtered
         formats.
         """
-        if semantic_type is not None and semantic_type \
-                not in self.get_semantic_types():
-            raise ValueError("The semantic type provided: %s is not "
-                             "valid.", (semantic_type))
-
         if filter is not None and filter not in GetFormatFilters:
             raise ValueError("The format filter provided: %s is not "
                              "valid.", (filter))
@@ -165,10 +161,17 @@ class PluginManager:
         else:
             formats = set()
 
+            if isinstance(semantic_type, str):
+                semantic_type = parse_type(semantic_type, "semantic")
+
             for type_format in self.type_formats:
                 if semantic_type <= type_format.type_expression:
                     formats.add(type_format.format)
                     break
+
+            if not formats:
+                raise ValueError("No formats associated with the type "
+                                 f"{semantic_type}.")
 
         transformable_formats = set(formats)
 
