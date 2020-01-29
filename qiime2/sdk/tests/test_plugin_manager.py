@@ -266,8 +266,7 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(exp, obs)
 
     def test_get_formats_invalid_type(self):
-        with self.assertRaisesRegex(ValueError,
-                                    "No formats associated"):
+        with self.assertRaisesRegex(ValueError, "No formats associated"):
             self.pm.get_formats(semantic_type='Random[Frequency]')
 
     def test_get_formats_invalid_filter(self):
