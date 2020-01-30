@@ -741,9 +741,13 @@ class Metadata(_MetadataBase):
             column_sources.append(sources)
 
             for new_name, old_name in names.items():
+                # Track new column names
                 if old_name not in columns:
                     columns[old_name] = md_number
+                # If the name was alredy being tracked, we have a duplicate
                 else:
+                    # Go and retroactively modify the previous column with this
+                    # name as becessary
                     if old_name in column_names[columns[old_name]]:
                         old_md_index = columns[old_name]
                         modified_name = str(old_name) + \
@@ -760,6 +764,7 @@ class Metadata(_MetadataBase):
                         column_sources[old_md_index][modified_name] = \
                             mds[old_md_index]
 
+                    # Modify the current column's name as necessary
                     if old_name == new_name:
                         if md_number not in df_changes:
                             df_changes[md_number] = {}
