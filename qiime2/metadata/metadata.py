@@ -379,6 +379,7 @@ class Metadata(_MetadataBase):
 
         self._column_names = {}
         self._column_sources = {}
+
         for column in self._columns:
             self._column_names[column] = column
             self._column_sources[column] = None
@@ -402,6 +403,7 @@ class Metadata(_MetadataBase):
     def _id(self):
         if self._source_artifact is not None:
             return self._source_artifact.uuid
+
         with tempfile.NamedTemporaryFile(prefix='md5-') as fh:
             self.save(fh.name)
             return int(md5sum(fh.name), 16)
@@ -728,19 +730,19 @@ class Metadata(_MetadataBase):
                     'the same file multiple times is not allowed.')
             dupes.add(md._id)
 
-        for i, md in enumerate(mds):
+        for md_number, md in enumerate(mds):
             df = md._dataframe
             dfs.append(df)
+
             names = copy.deepcopy(md._column_names)
             column_names.append(names)
+
             sources = copy.deepcopy(md._column_sources)
             column_sources.append(sources)
-            items = names.items()
 
-            for new_name, old_name in items:
+            for new_name, old_name in names.items():
                 if old_name not in columns:
-                    columns[old_name] = i
-
+                    columns[old_name] = md_number
                 else:
                     if old_name in column_names[columns[old_name]]:
                         old_md_index = columns[old_name]
@@ -759,15 +761,18 @@ class Metadata(_MetadataBase):
                             mds[old_md_index]
 
                     if old_name == new_name:
-                        if i not in df_changes:
-                            df_changes[i] = {}
-                        df_changes[i][old_name] = str(old_name) + \
-                            f' [{mds[i].id}]'
-                        new_name = str(old_name) + f' [{mds[i].id}]'
+                        if md_number not in df_changes:
+                            df_changes[md_number] = {}
+
+                        df_changes[md_number][old_name] = str(old_name) + \
+                            f' [{mds[md_number].id}]'
+
+                        new_name = str(old_name) + f' [{mds[md_number].id}]'
                         names[new_name] = names.pop(old_name)
 
                 if old_name in sources:
                     sources.pop(old_name)
+
                 sources[new_name] = md
 
         for change in df_changes:
@@ -783,11 +788,14 @@ class Metadata(_MetadataBase):
 
         column_names = {k: v for d in column_names for k, v in d.items()}
         column_sources = {k: v for d in column_sources for k, v in d.items()}
+
         merged_df.index.name = 'id'
         merged_md = self.__class__(merged_df)
         merged_md._init(column_names, column_sources)
+
         if df_changes:
             merged_md.contains_renamed_columns = True
+
         return merged_md
 
     def filter_ids(self, ids_to_keep):
@@ -968,17 +976,20 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         """
         if self._source_metadata is None:
             return ()
+
         if self._source_metadata._source_artifact is not None:
             return (self._source_metadata._source_artifact,)
 
         name = self._series.name
         old_md = self._source_metadata
         new_md = self._source_metadata._column_sources[name]
+
         while True:
             if new_md is None:
                 if old_md._source_artifact is not None:
                     return (old_md._source_artifact,)
                 return ()
+
             if name in new_md._column_sources:
                 old_md = new_md
                 new_md = new_md._column_sources[name]
