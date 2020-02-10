@@ -49,7 +49,8 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
 from ..cite import Citations
 
 from .examples import (concatenate_ints_simple, concatenate_ints_complex,
-                       typical_pipeline_simple, typical_pipeline_complex)
+                       typical_pipeline_simple, typical_pipeline_complex,
+                       comments_only)
 
 
 citations = Citations.load('citations.bib', package='qiime2.core.testing')
@@ -141,7 +142,8 @@ dummy_plugin.methods.register_function(
                 'the order they are provided.',
     citations=[citations['baerheim1994effect']],
     examples={'concatenate_ints_simple': concatenate_ints_simple,
-              'concatenate_ints_complex': concatenate_ints_complex},
+              'concatenate_ints_complex': concatenate_ints_complex,
+              'comments_only': comments_only},
 )
 
 T = TypeMatch([IntSequence1, IntSequence2])

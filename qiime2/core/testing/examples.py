@@ -36,7 +36,7 @@ def concatenate_ints_simple(use):
 
     use.comment('This example demonstrates basic usage.')
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_name='concatenate_ints'),
+        UsageAction(plugin_id='dummy_plugin', action_id='concatenate_ints'),
         UsageInputs(ints1=ints_a, ints2=ints_b, ints3=ints_c, int1=4, int2=2),
         UsageOutputNames(concatenated_ints='ints_d'),
     )
@@ -49,7 +49,7 @@ def concatenate_ints_complex(use):
 
     use.comment('This example demonstrates chained usage (pt 1).')
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_name='concatenate_ints'),
+        UsageAction(plugin_id='dummy_plugin', action_id='concatenate_ints'),
         UsageInputs(ints1=ints_a, ints2=ints_b, ints3=ints_c, int1=4, int2=2),
         UsageOutputNames(concatenated_ints='ints_d'),
     )
@@ -57,7 +57,7 @@ def concatenate_ints_complex(use):
     ints_d = use.get_result('ints_d')
     use.comment('This example demonstrates chained usage (pt 2).')
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_name='concatenate_ints'),
+        UsageAction(plugin_id='dummy_plugin', action_id='concatenate_ints'),
         UsageInputs(ints1=ints_d, ints2=ints_b, ints3=ints_c, int1=41, int2=0),
         UsageOutputNames(concatenated_ints='concatenated_ints'),
     )
@@ -68,7 +68,7 @@ def typical_pipeline_simple(use):
     mapper = use.init_data('mapper', mapping1_factory)
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_name='typical_pipeline'),
+        UsageAction(plugin_id='dummy_plugin', action_id='typical_pipeline'),
         UsageInputs(int_sequence=ints, mapping=mapper, do_extra_thing=True),
         UsageOutputNames(out_map='out_map', left='left', right='right',
                          left_viz='left_viz', right_viz='right_viz')
@@ -80,7 +80,7 @@ def typical_pipeline_complex(use):
     mapper1 = use.init_data('mapper1', mapping1_factory)
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_name='typical_pipeline'),
+        UsageAction(plugin_id='dummy_plugin', action_id='typical_pipeline'),
         UsageInputs(int_sequence=ints1, mapping=mapper1, do_extra_thing=True),
         UsageOutputNames(out_map='out_map1', left='left1', right='right1',
                          left_viz='left_viz1', right_viz='right_viz1')
@@ -90,9 +90,8 @@ def typical_pipeline_complex(use):
     mapper2 = use.get_result('out_map1')
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_name='typical_pipeline'),
+        UsageAction(plugin_id='dummy_plugin', action_id='typical_pipeline'),
         UsageInputs(int_sequence=ints2, mapping=mapper2, do_extra_thing=False),
-        # TODO with and without overwriting
         UsageOutputNames(out_map='out_map2', left='left2', right='right2',
                          left_viz='left_viz2', right_viz='right_viz2')
     )
@@ -106,5 +105,5 @@ def typical_pipeline_complex(use):
 
 
 def comments_only(use):
-    # TODO
-    pass
+    use.comment('comment 1')
+    use.comment('comment 2')

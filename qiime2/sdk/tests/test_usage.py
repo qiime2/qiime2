@@ -18,17 +18,11 @@ from qiime2 import plugin
 
 class TestCaseUsage(unittest.TestCase):
     def setUp(self):
-        # TODO standardize temporary directories created by QIIME 2
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         self.plugin = get_dummy_plugin()
 
     def tearDown(self):
         self.test_dir.cleanup()
-
-
-# TODO
-class TestExecutionUsage(TestCaseUsage):
-    pass
 
 
 class TestUsage(TestCaseUsage):
@@ -47,7 +41,7 @@ class TestUsage(TestCaseUsage):
         self.assertTrue('basic usage' in obs1['text'])
 
         self.assertEqual('dummy_plugin', obs2['action'].plugin_id)
-        self.assertEqual('concatenate_ints', obs2['action'].action_name)
+        self.assertEqual('concatenate_ints', obs2['action'].action_id)
         self.assertEqual({'int1': 4, 'int2': 2, 'ints1': 'ints_a',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
                          obs2['input_opts'])
@@ -70,7 +64,7 @@ class TestUsage(TestCaseUsage):
         self.assertTrue('chained usage (pt 1)' in obs1['text'])
 
         self.assertEqual('dummy_plugin', obs2['action'].plugin_id)
-        self.assertEqual('concatenate_ints', obs2['action'].action_name)
+        self.assertEqual('concatenate_ints', obs2['action'].action_id)
         self.assertEqual({'int1': 4, 'int2': 2, 'ints1': 'ints_a',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
                          obs2['input_opts'])
@@ -79,50 +73,69 @@ class TestUsage(TestCaseUsage):
         self.assertTrue('chained usage (pt 2)' in obs3['text'])
 
         self.assertEqual('dummy_plugin', obs4['action'].plugin_id)
-        self.assertEqual('concatenate_ints', obs4['action'].action_name)
+        self.assertEqual('concatenate_ints', obs4['action'].action_id)
         self.assertEqual({'int1': 41, 'int2': 0, 'ints1': 'concatenated_ints',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
                          obs4['input_opts'])
         self.assertEqual({'concatenated_ints': 'concatenated_ints'},
                          obs4['output_opts'])
 
+    def test_comments_only(self):
+        action = self.plugin.actions['concatenate_ints']
+        use = usage.DiagnosticUsage()
+        action.examples['comments_only'](use)
+
+        self.assertEqual(2, len(use._recorder))
+
+        obs1, obs2 = use._recorder
+
+        self.assertEqual('comment', obs1['type'])
+        self.assertEqual('comment', obs2['type'])
+
+        self.assertEqual('comment 1', obs1['text'])
+        self.assertEqual('comment 2', obs2['text'])
+
 
 class TestUsageAction(TestCaseUsage):
     def test_successful_init(self):
-        obs = usage.UsageAction('foo', 'bar')
+        obs = usage.UsageAction(plugin_id='foo', action_id='bar')
         self.assertEqual('foo', obs.plugin_id)
-        self.assertEqual('bar', obs.action_name)
+        self.assertEqual('bar', obs.action_id)
 
     def test_invalid_plugin_id(self):
         with self.assertRaisesRegex(ValueError,
                                     'specify a value for plugin_id'):
-            usage.UsageAction('', 'bar')
+            usage.UsageAction(plugin_id='', action_id='bar')
 
-    def test_invalid_action_name(self):
+    def test_invalid_action_id(self):
         with self.assertRaisesRegex(ValueError,
-                                    'specify a value for action_name'):
-            usage.UsageAction('foo', '')
+                                    'specify a value for action_id'):
+            usage.UsageAction(plugin_id='foo', action_id='')
 
     def test_successful_get_action(self):
-        ua = usage.UsageAction('dummy_plugin', 'concatenate_ints')
+        ua = usage.UsageAction(
+            plugin_id='dummy_plugin', action_id='concatenate_ints')
         obs_action_f, obs_sig = ua.get_action()
 
         self.assertTrue(isinstance(obs_action_f, action.Method))
         self.assertTrue(isinstance(obs_sig, signature.MethodSignature))
 
     def test_unknown_action_get_action(self):
-        ua = usage.UsageAction('dummy_plugin', 'concatenate_spleens')
+        ua = usage.UsageAction(
+            plugin_id='dummy_plugin', action_id='concatenate_spleens')
         with self.assertRaisesRegex(KeyError,
                                     'No action.*concatenate_spleens'):
             ua.get_action()
 
     def test_validate_invalid_inputs(self):
-        ua = usage.UsageAction('dummy_plugin', 'concatenate_ints')
+        ua = usage.UsageAction(
+            plugin_id='dummy_plugin', action_id='concatenate_ints')
         with self.assertRaisesRegex(TypeError, 'instance of UsageInputs'):
             ua.validate({}, usage.UsageOutputNames())
 
     def test_validate_invalid_outputs(self):
-        ua = usage.UsageAction('dummy_plugin', 'concatenate_ints')
+        ua = usage.UsageAction(
+            plugin_id='dummy_plugin', action_id='concatenate_ints')
         with self.assertRaisesRegex(TypeError, 'instance of UsageOutputNames'):
             ua.validate(usage.UsageInputs(), {})
 
@@ -231,8 +244,7 @@ class TestUsageBaseClass(TestCaseUsage):
 
     def test_get_result_invalid(self):
         use = self.Usage()
-        with self.assertRaisesRegex(KeyError,
-                                    "Record for 'peanut' not found in scope."):
+        with self.assertRaisesRegex(KeyError, 'No record with id: "peanut"'):
             use.get_result('peanut')
 
     def test_action_invalid_action_provided(self):

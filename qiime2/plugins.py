@@ -31,6 +31,9 @@ class ArtifactAPIUsage(usage.Usage):
     def _comment_(self, text: str):
         self._recorder.append('# %s' % (text, ))
 
+    def _assert_has_line_matching_(self, scope_id, label, path, expression):
+        pass
+
     def _action_(self, action: usage.UsageAction,
                  input_opts: dict, output_opts: dict):
         action_f, action_sig = action.get_action()

@@ -245,9 +245,11 @@ class TestPluginBase(unittest.TestCase):
         return input, obs
 
     def execute_examples(self):
-        if self.plugin is not None:
-            for _, action in self.plugin.actions.items():
-                for name, example_f in action.examples.items():
-                    with self.subTest(example=name):
-                        use = usage.ExecutionUsage()
-                        example_f(use)
+        if self.plugin is None:
+            raise ValueError('Attempted to run `execute_examples` without '
+                             'configuring test harness.')
+        for _, action in self.plugin.actions.items():
+            for name, example_f in action.examples.items():
+                with self.subTest(example=name):
+                    use = usage.ExecutionUsage()
+                    example_f(use)

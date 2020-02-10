@@ -11,7 +11,6 @@ import os
 import re
 import types
 import tempfile
-import uuid
 import zipfile
 
 from qiime2 import sdk
@@ -20,30 +19,30 @@ from qiime2 import sdk
 
 
 class UsageAction:
-    def __init__(self, plugin_id: str, action_name: str):
+    def __init__(self, *, plugin_id: str, action_id: str):
         if plugin_id == '':
             raise ValueError('Must specify a value for plugin_id.')
 
-        if action_name == '':
-            raise ValueError('Must specify a value for action_name.')
+        if action_id == '':
+            raise ValueError('Must specify a value for action_id.')
 
         self.plugin_id = plugin_id
-        self.action_name = action_name
+        self.action_id = action_id
         self._plugin_manager = sdk.PluginManager()
 
     def __repr__(self):
-        return 'UsageAction(plugin_id=%r, action_name=%r)' %\
-            (self.plugin_id, self.action_name)
+        return 'UsageAction(plugin_id=%r, action_id=%r)' %\
+            (self.plugin_id, self.action_id)
 
     def get_action(self):
         plugin = self._plugin_manager.get_plugin(id=self.plugin_id)
         # TODO: should this validation be pushed up into
         # plugin.py or action.py?
         try:
-            action_f = plugin.actions[self.action_name]
+            action_f = plugin.actions[self.action_id]
         except KeyError:
             raise KeyError('No action currently registered with '
-                           'name: "%s".' % (self.action_name,))
+                           'id: "%s".' % (self.action_id,))
         return (action_f, action_f.signature)
 
     def validate(self, inputs, outputs):
@@ -84,7 +83,7 @@ class UsageInputs:
             raise ValueError('Extra input(s) or parameter(s): %r' %
                              (extra, ))
 
-    def prepare(self, signature, scope):
+    def build_opts(self, signature, scope):
         opts = {}
 
         for name, signature in signature.signature_order.items():
@@ -141,7 +140,7 @@ class UsageOutputNames:
             raise ValueError('SDK implementation has specified extra '
                              'output(s): %r' % (extra, ))
 
-    def prepare(self, action_signature, scope):
+    def build_opts(self, action_signature, scope):
         opts = {}
 
         for output in action_signature.outputs.keys():
@@ -212,12 +211,11 @@ class Scope:
     def records(self):
         return types.MappingProxyType(self._records)
 
-    def push_record(self, factory=None, value=None,
+    def push_record(self, ref, factory=None, value=None,
                     assert_has_line_matching=None):
-        id_ = uuid.uuid4()
-        record = ScopeRecord(id=id_, factory=factory, value=value,
+        record = ScopeRecord(id=ref, factory=factory, value=value,
                              assert_has_line_matching=assert_has_line_matching)
-        self._records[id_] = record
+        self._records[ref] = record
         return record
 
     def get_record(self, id):
@@ -230,21 +228,14 @@ class Scope:
 class Usage(metaclass=abc.ABCMeta):
     def __init__(self):
         self._scope = Scope()
-        self._reverse_lookup = {}
 
     def init_data(self, ref, factory):
         override = self._factory_override(ref, factory)
-        record = self._push_record(factory=override)
-        self._reverse_lookup[ref] = record.id
+        record = self._push_record(ref=ref, factory=override)
         return record
 
     def get_result(self, ref):
-        try:
-            record_id = self._reverse_lookup[ref]
-        except KeyError:
-            raise KeyError('Record for %r not found in scope. '
-                           'Has it been registered?' % (ref, ))
-        return self._get_record(record_id)
+        return self._get_record(ref)
 
     def comment(self, text: str):
         return self._comment_(text)
@@ -261,21 +252,21 @@ class Usage(metaclass=abc.ABCMeta):
 
         _, action_signature = action.get_action()
 
-        input_opts = inputs.prepare(action_signature, self._scope)
-        output_opts = outputs.prepare(action_signature, self._scope)
+        input_opts = inputs.build_opts(action_signature, self._scope)
+        output_opts = outputs.build_opts(action_signature, self._scope)
 
         derived_outputs = self._action_(action, input_opts, output_opts)
         self._add_outputs_to_scope(outputs, derived_outputs)
 
     def _action_(self, action: UsageAction,
                  input_opts: dict, output_opts: list):
-        return output_opts
+        raise NotImplementedError
 
     def _comment_(self, text: str):
-        return None
+        raise NotImplementedError
 
     def _assert_has_line_matching_(self, scope_id, label, path, expression):
-        return None
+        raise NotImplementedError
 
     def _factory_override(self, ref, factory):
         return factory
@@ -283,12 +274,11 @@ class Usage(metaclass=abc.ABCMeta):
     def _add_outputs_to_scope(self, outputs, derived_outputs):
         outputs.validate_derived(derived_outputs)
         for ref, result in derived_outputs.items():
-            record = self._push_record(value=result)
-            self._reverse_lookup[ref] = record.id
+            self._push_record(ref, value=result)
 
-    def _push_record(self, factory=None, value=None):
+    def _push_record(self, ref, factory=None, value=None):
         return self._scope.push_record(
-            factory=factory, value=value,
+            ref=ref, factory=factory, value=value,
             assert_has_line_matching=self._assert_has_line_matching_)
 
     def _get_record(self, id):
@@ -318,11 +308,23 @@ class DiagnosticUsage(Usage):
             'text': text,
         })
 
+    def _assert_has_line_matching_(self, scope_id, label, path, expression):
+        self._recorder.append({
+            'type': 'assert_has_line_matching',
+            'scope_id': scope_id,
+            'label': label,
+            'path': path,
+            'expression': expression,
+        })
+
     def _factory_override(self, ref, factory):
         return lambda: ref
 
 
 class ExecutionUsage(Usage):
+    def _comment_(self, text):
+        pass
+
     def _action_(self, action: UsageAction,
                  input_opts: dict, output_opts: dict):
         action_f, _ = action.get_action()
