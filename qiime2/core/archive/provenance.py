@@ -11,7 +11,6 @@ import collections
 import pkg_resources
 import uuid
 import copy
-import importlib
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -354,9 +353,11 @@ class ImportProvenanceCapture(ProvenanceCapture):
 
 
 class ActionProvenanceCapture(ProvenanceCapture):
-    def __init__(self, action_type, import_path, action_id):
+    def __init__(self, action_type, plugin_id, action_id):
+        from qiime2.sdk import PluginManager
+
         super().__init__()
-        self._plugin = importlib.import_module(import_path).__plugin__
+        self._plugin = PluginManager().get_plugin(id=plugin_id)
         self.action = self._plugin.actions[action_id]
         self.action_type = action_type
         self.inputs = OrderedKeyValue()
