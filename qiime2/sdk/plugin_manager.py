@@ -43,6 +43,11 @@ class PluginManager:
             self = super().__new__(cls)
             self._init(add_plugins=add_plugins)
             cls.__instance = self
+        else:
+            if add_plugins is False:
+                raise ValueError(
+                    'PluginManager singleton already exists, cannot change '
+                    'default value for `add_plugins`.')
         return cls.__instance
 
     def _init(self, add_plugins):
@@ -71,10 +76,21 @@ class PluginManager:
             plugin.package = package
         if plugin.project_name is None:
             plugin.project_name = project_name
+
+        # validate _after_ applying arguments
+        if plugin.package is None:
+            raise ValueError(
+                'No value specified for package - must provide a value for '
+                '`package` or set `plugin.package`.')
+        if plugin.project_name is None:
+            raise ValueError(
+                'No value specified for project_name - must proved a value '
+                'for `project_name` or set `plugin.project_name`.')
+
         self._integrate_plugin(plugin)
         plugin.freeze()
 
-    def get_plugin(self, id=None, name=None):
+    def get_plugin(self, *, id=None, name=None):
         if id is None and name is None:
             raise ValueError("No plugin requested.")
         elif id is not None:
