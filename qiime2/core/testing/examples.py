@@ -6,7 +6,9 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from qiime2 import Artifact
+import pandas as pd
+
+from qiime2 import Artifact, Metadata
 
 from qiime2.plugin import UsageAction, UsageInputs, UsageOutputNames
 
@@ -27,6 +29,18 @@ def ints3_factory():
 
 def mapping1_factory():
     return Artifact.import_data(Mapping, {'a': 42})
+
+
+def md1_factory():
+    return Metadata(pd.DataFrame({'a': ['1', '2', '3']},
+                                 index=pd.Index(['0', '1', '2'],
+                                                name='id')))
+
+
+def md2_factory():
+    return Metadata(pd.DataFrame({'b': ['4', '5', '6']},
+                                 index=pd.Index(['0', '1', '2'],
+                                                name='id')))
 
 
 def concatenate_ints_simple(use):
@@ -107,3 +121,30 @@ def typical_pipeline_complex(use):
 def comments_only(use):
     use.comment('comment 1')
     use.comment('comment 2')
+
+
+def identity_with_metadata_simple(use):
+    ints = use.init_data('ints', ints1_factory)
+    md = use.init_data('md', md1_factory)
+
+    use.action(
+        UsageAction(plugin_id='dummy_plugin',
+                    action_id='identity_with_metadata'),
+        UsageInputs(ints=ints, metadata=md),
+        UsageOutputNames(out='out'),
+    )
+
+
+def identity_with_metadata_merging(use):
+    ints = use.init_data('ints', ints1_factory)
+    md1 = use.init_data('md1', md1_factory)
+    md2 = use.init_data('md2', md2_factory)
+
+    md3 = use.merge_metadata('md3', md1, md2)
+
+    use.action(
+        UsageAction(plugin_id='dummy_plugin',
+                    action_id='identity_with_metadata'),
+        UsageInputs(ints=ints, metadata=md3),
+        UsageOutputNames(out='out'),
+    )

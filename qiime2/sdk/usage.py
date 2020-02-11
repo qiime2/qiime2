@@ -231,8 +231,15 @@ class Usage(metaclass=abc.ABCMeta):
 
     def init_data(self, ref, factory):
         override = self._factory_override(ref, factory)
-        record = self._push_record(ref=ref, factory=override)
-        return record
+        return self._push_record(ref=ref, factory=override)
+
+    def merge_metadata(self, ref, *records):
+        if len(records) < 2:
+            # TODO: seems like we should error for this case - thoughts?
+            raise ValueError('')
+
+        factory = self._merge_metadata_(ref, records)
+        return self.init_data(ref, factory)
 
     def get_result(self, ref):
         return self._get_record(ref)
@@ -266,6 +273,9 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def _assert_has_line_matching_(self, scope_id, label, path, expression):
+        raise NotImplementedError
+
+    def _merge_metadata_(self, ref, records):
         raise NotImplementedError
 
     def _factory_override(self, ref, factory):
@@ -349,3 +359,10 @@ class ExecutionUsage(Usage):
                         raise ValueError(
                             'Expression %r not found in %s.' %
                             (expression, path))
+
+    def _merge_metadata_(self, ref, records):
+        def closure_fn():
+            # Note: resolved records should be guaranteed at this point
+            mds = [r.result for r in records]
+            return mds[0].merge(*mds[1:])
+        return closure_fn

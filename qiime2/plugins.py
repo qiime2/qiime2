@@ -46,6 +46,13 @@ class ArtifactAPIUsage(usage.Usage):
 
         return new_output_opts
 
+    def _merge_metadata_(self, ref, records):
+        first_md = records[0].id
+        remaining_records = ', '.join([r.id for r in records[1:]])
+        t = '%s = %s.merge(%s)\n' % (ref, first_md, remaining_records)
+        self._recorder.append(t)
+        return lambda: ref
+
     def _template_action(self, action_f, input_opts, output_opts):
         output_opts = list(output_opts.keys())
         if len(output_opts) == 1:

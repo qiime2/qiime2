@@ -209,6 +209,22 @@ out_map2, left2, right2, left_viz2, right_viz2 = typical_pipeline(
 """
         self.assertEqual(exp, use.render())
 
+    def test_metadata_merging(self):
+        action = self.plugin.actions['identity_with_metadata']
+        use = ArtifactAPIUsage()
+        action.examples['identity_with_metadata_merging'](use)
+        exp = """\
+from qiime2.plugins.dummy_plugin.methods import identity_with_metadata
+
+md3 = md1.merge(md2)
+
+out, = identity_with_metadata(
+    ints=ints,
+    metadata=md3,
+)
+"""
+        self.assertEqual(exp, use.render())
+
 
 if __name__ == '__main__':
     unittest.main()
