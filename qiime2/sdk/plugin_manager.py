@@ -64,7 +64,7 @@ class PluginManager:
         self.plugins = {}
         self.type_fragments = {}
         self._plugin_by_id = {}
-        self.semantic_types = {}=
+        self.semantic_types = {}
         self.transformers = collections.defaultdict(dict)
         self._reverse_transformers = collections.defaultdict(dict)
         self.formats = {}
