@@ -11,10 +11,9 @@ import collections
 import pkg_resources
 import uuid
 import copy
-import importlib
 import shutil
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 import distutils
 import yaml
@@ -24,6 +23,15 @@ import dateutil.relativedelta as relativedelta
 import qiime2
 import qiime2.core.util as util
 from qiime2.core.cite import Citations
+
+
+def _ts_to_date(ts):
+    time_zone = timezone.utc
+    try:
+        time_zone = tzlocal.get_localzone()
+    except ValueError:
+        pass
+    return datetime.fromtimestamp(ts, tz=time_zone)
 
 
 # Used to give PyYAML something to recognize for custom tags
@@ -245,15 +253,12 @@ class ProvenanceCapture:
 
         return recorder
 
-    def _ts_to_date(self, ts):
-        return datetime.fromtimestamp(ts, tzlocal.get_localzone())
-
     def make_execution_section(self):
         execution = collections.OrderedDict()
         execution['uuid'] = str(self.uuid)
         execution['runtime'] = runtime = collections.OrderedDict()
-        runtime['start'] = start = self._ts_to_date(self.start)
-        runtime['end'] = end = self._ts_to_date(self.end)
+        runtime['start'] = start = _ts_to_date(self.start)
+        runtime['end'] = end = _ts_to_date(self.end)
         runtime['duration'] = \
             util.duration_time(relativedelta.relativedelta(end, start))
 
@@ -348,9 +353,11 @@ class ImportProvenanceCapture(ProvenanceCapture):
 
 
 class ActionProvenanceCapture(ProvenanceCapture):
-    def __init__(self, action_type, import_path, action_id):
+    def __init__(self, action_type, plugin_id, action_id):
+        from qiime2.sdk import PluginManager
+
         super().__init__()
-        self._plugin = importlib.import_module(import_path).__plugin__
+        self._plugin = PluginManager().get_plugin(id=plugin_id)
         self.action = self._plugin.actions[action_id]
         self.action_type = action_type
         self.inputs = OrderedKeyValue()

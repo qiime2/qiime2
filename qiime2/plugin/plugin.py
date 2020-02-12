@@ -31,13 +31,17 @@ TypeFormatRecord = collections.namedtuple(
 
 
 class Plugin:
-    def __init__(self, name, version, website, package, citation_text=None,
-                 user_support_text=None, short_description=None,
-                 description=None, citations=None):
+    def __init__(self, name, version, website, package=None, project_name=None,
+                 citation_text=None, user_support_text=None,
+                 short_description=None, description=None, citations=None):
+        self.id = name.replace('-', '_')
         self.name = name
         self.version = version
         self.website = website
+
+        # Filled in by the PluginManager if not provided.
         self.package = package
+        self.project_name = project_name
 
         if user_support_text is None:
             self.user_support_text = ('Please post to the QIIME 2 forum for '
@@ -72,6 +76,9 @@ class Plugin:
         self.type_fragments = {}
         self.transformers = {}
         self.type_formats = []
+
+    def freeze(self):
+        pass
 
     @property
     def actions(self):
@@ -221,20 +228,12 @@ class Plugin:
 
 
 class PluginActions(dict):
-    _subpackage = None
-
     def __init__(self, plugin):
-        self._plugin = plugin
-        self._package = 'qiime2.plugins.%s.%s' % (
-            self._plugin.name.replace('-', '_'), self._subpackage)
+        self._plugin_id = plugin.id
         super().__init__()
 
 
 class PluginMethods(PluginActions):
-    _subpackage = 'methods'
-
-    # TODO is `register` a better name now that functions are the only accepted
-    # source (i.e. markdown support is gone)?
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
@@ -246,7 +245,7 @@ class PluginMethods(PluginActions):
             citations = tuple(citations)
 
         method = qiime2.sdk.Method._init(function, inputs, parameters, outputs,
-                                         self._package, name, description,
+                                         self._plugin_id, name, description,
                                          input_descriptions,
                                          parameter_descriptions,
                                          output_descriptions, citations,
@@ -255,8 +254,6 @@ class PluginMethods(PluginActions):
 
 
 class PluginVisualizers(PluginActions):
-    _subpackage = 'visualizers'
-
     def register_function(self, function, inputs, parameters, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None, citations=None,
@@ -267,7 +264,7 @@ class PluginVisualizers(PluginActions):
             citations = tuple(citations)
 
         visualizer = qiime2.sdk.Visualizer._init(function, inputs, parameters,
-                                                 self._package, name,
+                                                 self._plugin_id, name,
                                                  description,
                                                  input_descriptions,
                                                  parameter_descriptions,
@@ -276,8 +273,6 @@ class PluginVisualizers(PluginActions):
 
 
 class PluginPipelines(PluginActions):
-    _subpackage = 'pipelines'
-
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
@@ -289,7 +284,7 @@ class PluginPipelines(PluginActions):
             citations = tuple(citations)
 
         pipeline = qiime2.sdk.Pipeline._init(function, inputs, parameters,
-                                             outputs, self._package, name,
+                                             outputs, self._plugin_id, name,
                                              description, input_descriptions,
                                              parameter_descriptions,
                                              output_descriptions, citations,

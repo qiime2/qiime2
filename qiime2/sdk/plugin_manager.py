@@ -48,16 +48,23 @@ class PluginManager:
 
     # This class is a singleton as it is slow to create, represents the
     # state of a qiime2 installation, and is needed *everywhere*
-    def __new__(cls):
+    def __new__(cls, add_plugins=True):
         if cls.__instance is None:
             self = super().__new__(cls)
-            self._init()
+            self._init(add_plugins=add_plugins)
             cls.__instance = self
+        else:
+            if add_plugins is False:
+                raise ValueError(
+                    'PluginManager singleton already exists, cannot change '
+                    'default value for `add_plugins`.')
         return cls.__instance
 
-    def _init(self):
+    def _init(self, add_plugins):
         self.plugins = {}
         self.type_fragments = {}
+        self._plugin_by_id = {}
+        self.semantic_types = {}=
         self.transformers = collections.defaultdict(dict)
         self._reverse_transformers = collections.defaultdict(dict)
         self.formats = {}
@@ -65,14 +72,52 @@ class PluginManager:
         self.type_formats = []
         self._ff_to_sfdf = {}
 
-        # These are all dependent loops, each requires the loop above it to
-        # be completed.
-        for entry_point in self.iter_entry_points():
-            plugin = entry_point.load()
-            self.plugins[plugin.name] = plugin
+        if add_plugins:
+            # These are all dependent loops, each requires the loop above it to
+            # be completed.
+            for entry_point in self.iter_entry_points():
+                project_name = entry_point.dist.project_name
+                package = entry_point.module_name.split('.')[0]
+                plugin = entry_point.load()
 
-        for plugin in self.plugins.values():
-            self._integrate_plugin(plugin)
+                self.add_plugin(plugin, package, project_name)
+
+    def add_plugin(self, plugin, package=None, project_name=None):
+        self.plugins[plugin.name] = plugin
+        self._plugin_by_id[plugin.id] = plugin
+        if plugin.package is None:
+            plugin.package = package
+        if plugin.project_name is None:
+            plugin.project_name = project_name
+
+        # validate _after_ applying arguments
+        if plugin.package is None:
+            raise ValueError(
+                'No value specified for package - must provide a value for '
+                '`package` or set `plugin.package`.')
+        if plugin.project_name is None:
+            raise ValueError(
+                'No value specified for project_name - must proved a value '
+                'for `project_name` or set `plugin.project_name`.')
+
+        self._integrate_plugin(plugin)
+        plugin.freeze()
+
+    def get_plugin(self, *, id=None, name=None):
+        if id is None and name is None:
+            raise ValueError("No plugin requested.")
+        elif id is not None:
+            try:
+                return self._plugin_by_id[id]
+            except KeyError:
+                raise KeyError('No plugin currently registered '
+                               'with id: "%s".' % (id,))
+        else:
+            try:
+                return self.plugins[name]
+            except KeyError:
+                raise KeyError('No plugin currently registered '
+                               'with name: "%s".' % (name,))
 
     def _integrate_plugin(self, plugin):
         for type_name, type_record in plugin.type_fragments.items():

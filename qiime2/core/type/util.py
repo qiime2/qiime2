@@ -93,6 +93,11 @@ def is_metadata_type(t):
     return is_primitive_type(t) and expr.name.startswith('Metadata')
 
 
+def is_metadata_column_type(t):
+    expr = _norm_input(t)
+    return is_primitive_type(t) and expr.name.endswith('MetadataColumn')
+
+
 def is_semantic_type(t):
     expr = _norm_input(t)
     return hasattr(expr, 'kind') and expr.kind == 'semantic-type'
