@@ -87,6 +87,10 @@ IntSequenceV2DirectoryFormat = model.SingleFileDirectoryFormat(
     'IntSequenceV2DirectoryFormat', 'integers.txt', IntSequenceFormatV2)
 
 
+class IntSequenceMultiFileDirectoryFormat(model.DirectoryFormat):
+    pass
+
+
 # This could have been a `SingleFileDirectoryFormat`, but isn't for testing
 # purposes
 class MappingDirectoryFormat(model.DirectoryFormat):

@@ -21,6 +21,8 @@ TransformerRecord = collections.namedtuple(
     'TransformerRecord', ['transformer', 'plugin', 'citations'])
 SemanticTypeRecord = collections.namedtuple(
     'SemanticTypeRecord', ['semantic_type', 'plugin'])
+SemanticTypeFragmentRecord = collections.namedtuple(
+    'SemanticTypeFragmentRecord', ['fragment', 'plugin'])
 FormatRecord = collections.namedtuple('FormatRecord', ['format', 'plugin'])
 ViewRecord = collections.namedtuple(
     'ViewRecord', ['name', 'view', 'plugin', 'citations'])
@@ -71,7 +73,7 @@ class Plugin:
 
         self.formats = {}
         self.views = {}
-        self.types = {}
+        self.type_fragments = {}
         self.transformers = {}
         self.type_formats = []
 
@@ -89,6 +91,17 @@ class Plugin:
         actions.update(self.visualizers)
         actions.update(self.pipelines)
         return types.MappingProxyType(actions)
+
+    @property
+    def types(self):
+        types = {}
+
+        for record in self.type_formats:
+            for type_ in record.type_expression:
+                types[str(type_)] = \
+                    SemanticTypeRecord(semantic_type=type_, plugin=self)
+
+        return types
 
     def register_formats(self, *formats, citations=None):
         for format in formats:
@@ -177,23 +190,24 @@ class Plugin:
             # Apply the decorator as we were applied with a single function
             return decorator(_fn)
 
-    def register_semantic_types(self, *semantic_types):
-        for semantic_type in semantic_types:
-            if not is_semantic_type(semantic_type):
-                raise TypeError("%r is not a semantic type." % semantic_type)
+    def register_semantic_types(self, *type_fragments):
+        for type_fragment in type_fragments:
+            if not is_semantic_type(type_fragment):
+                raise TypeError("%r is not a semantic type." % type_fragment)
 
-            if not (isinstance(semantic_type, grammar.IncompleteExp) or
-                    (semantic_type.is_concrete() and
-                    not semantic_type.fields)):
+            if not (isinstance(type_fragment, grammar.IncompleteExp) or
+                    (type_fragment.is_concrete() and
+                    not type_fragment.fields)):
                 raise ValueError("%r is not a semantic type symbol."
-                                 % semantic_type)
+                                 % type_fragment)
 
-            if semantic_type.name in self.types:
+            if type_fragment.name in self.type_fragments:
                 raise ValueError("Duplicate semantic type symbol %r."
-                                 % semantic_type)
+                                 % type_fragment)
 
-            self.types[semantic_type.name] = SemanticTypeRecord(
-                semantic_type=semantic_type, plugin=self)
+            self.type_fragments[type_fragment.name] = \
+                SemanticTypeFragmentRecord(
+                    fragment=type_fragment, plugin=self)
 
     def register_semantic_type_to_format(self, semantic_type, artifact_format):
         if not issubclass(artifact_format, DirectoryFormat):
@@ -209,8 +223,8 @@ class Plugin:
                                  " on predicate is not supported.")
 
         self.type_formats.append(TypeFormatRecord(
-            type_expression=semantic_type,
-            format=artifact_format, plugin=self))
+            type_expression=semantic_type, format=artifact_format,
+            plugin=self))
 
 
 class PluginActions(dict):

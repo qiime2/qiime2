@@ -9,8 +9,18 @@
 import collections
 import os
 import pkg_resources
-import qiime2.core.transform as transform
+import enum
+
 import qiime2.core.type
+from qiime2.core.format import FormatBase
+from qiime2.plugin.model import SingleFileDirectoryFormatBase
+from qiime2.sdk.util import parse_type
+from qiime2.core.type import is_semantic_type
+
+
+class GetFormatFilters(enum.Flag):
+    EXPORTABLE = enum.auto()
+    IMPORTABLE = enum.auto()
 
 
 class PluginManager:
@@ -52,12 +62,15 @@ class PluginManager:
 
     def _init(self, add_plugins):
         self.plugins = {}
+        self.type_fragments = {}
         self._plugin_by_id = {}
         self.semantic_types = {}
         self.transformers = collections.defaultdict(dict)
+        self._reverse_transformers = collections.defaultdict(dict)
         self.formats = {}
         self.views = {}
         self.type_formats = []
+        self._ff_to_sfdf = {}
 
         if add_plugins:
             # These are all dependent loops, each requires the loop above it to
@@ -107,21 +120,23 @@ class PluginManager:
                                'with name: "%s".' % (name,))
 
     def _integrate_plugin(self, plugin):
-        for type_name, type_record in plugin.types.items():
-            if type_name in self.semantic_types:
-                conflicting_type_record = self.semantic_types[type_name]
+        for type_name, type_record in plugin.type_fragments.items():
+            if type_name in self.type_fragments:
+                conflicting_type_record = \
+                    self.type_fragments[type_name]
                 raise ValueError("Duplicate semantic type (%r) defined in"
                                  " plugins: %r and %r"
                                  % (type_name, type_record.plugin.name,
                                     conflicting_type_record.plugin.name))
 
-            self.semantic_types[type_name] = type_record
+            self.type_fragments[type_name] = type_record
 
         for (input, output), transformer_record in plugin.transformers.items():
             if output in self.transformers[input]:
                 raise ValueError("Transformer from %r to %r already exists."
                                  % transformer_record)
             self.transformers[input][output] = transformer_record
+            self._reverse_transformers[output][input] = transformer_record
 
         for name, record in plugin.views.items():
             if name in self.views:
@@ -133,8 +148,16 @@ class PluginManager:
             self.views[name] = record
 
         for name, record in plugin.formats.items():
-            # TODO: remove this when `sniff` is removed
             fmt = record.format
+
+            if issubclass(
+                    fmt, qiime2.plugin.model.SingleFileDirectoryFormatBase):
+                if fmt.file.format in self._ff_to_sfdf.keys():
+                    self._ff_to_sfdf[fmt.file.format].add(fmt)
+                else:
+                    self._ff_to_sfdf[fmt.file.format] = {fmt}
+
+            # TODO: remove this when `sniff` is removed
             if hasattr(fmt, 'sniff') and hasattr(fmt, '_validate_'):
                 raise RuntimeError(
                     'Format %r registered in plugin %r defines sniff and'
@@ -145,43 +168,132 @@ class PluginManager:
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
 
+    def get_semantic_types(self):
+        types = {}
+
+        for plugin in self.plugins.values():
+            for type_record in plugin.types.values():
+                types[str(type_record.semantic_type)] = type_record
+
+        return types
+
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
 
+    def get_formats(self, *, filter=None, semantic_type=None):
+        """
+        get_formats(self, *, filter=None, semantic_type=None)
+
+        filter : enum
+            filter is an enum integer that will be used to determine user
+            input to output specified formats
+
+        semantic_type : TypeExpression | String
+            The semantic type is used to filter the formats associated with
+            that specific semantic type
+
+        This method will filter out the formats using the filter provided by
+        the user and the semantic type. The return is a dictionary of filtered
+        formats keyed on their string names.
+        """
+        if filter is not None and filter not in GetFormatFilters:
+            raise ValueError("The format filter provided: %s is not "
+                             "valid.", (filter))
+
+        if semantic_type is None:
+            formats = set(f.format for f in self.type_formats)
+
+        else:
+            formats = set()
+
+            if isinstance(semantic_type, str):
+                semantic_type = parse_type(semantic_type, "semantic")
+
+            if is_semantic_type(semantic_type):
+                for type_format in self.type_formats:
+                    if semantic_type <= type_format.type_expression:
+                        formats.add(type_format.format)
+                        break
+
+                if not formats:
+                    raise ValueError("No formats associated with the type "
+                                     f"{semantic_type}.")
+            else:
+                raise ValueError(f"{semantic_type} is not a valid semantic "
+                                 "type.")
+
+        transformable_formats = set(formats)
+
+        if filter is None or GetFormatFilters.IMPORTABLE in filter:
+            transformable_formats.update(
+                self._get_formats_helper(formats, self._reverse_transformers))
+
+        if filter is None or GetFormatFilters.EXPORTABLE in filter:
+            transformable_formats.update(
+                self._get_formats_helper(formats, self.transformers))
+
+        result_formats = {}
+        for format_ in transformable_formats:
+            format_ = format_.__name__
+            result_formats[format_] = self.formats[format_]
+
+        return result_formats
+
+    def _get_formats_helper(self, formats, transformer_dict):
+        """
+        _get_formats_helper(self, formats, transformer_dict)
+
+        formats : Set[DirectoryFormat]
+            We are finding all formats that are one transformer away from
+            formats in this set
+
+        tranformer_dict : Dict[ str, Dict[str, TransformerReord]]
+            The dictionary of transformers allows the method to get formats
+            that are transformable from the given format
+
+        This method creates a set utilizing the transformers dictionary and
+        the formats set to get related formats for a specific format.
+        """
+        query_set = set(formats)
+
+        for format_ in formats:
+            if issubclass(format_, SingleFileDirectoryFormatBase):
+                if format_.file.format.__name__ in self.formats:
+                    query_set.add(format_.file.format)
+
+        result_formats = set(query_set)
+
+        for format_ in query_set:
+            for transformed_format in transformer_dict[format_]:
+                if issubclass(transformed_format, FormatBase):
+                    result_formats.add(transformed_format)
+
+                    if issubclass(transformed_format,
+                                  SingleFileDirectoryFormatBase):
+                        result_formats.add(transformed_format.file.format)
+
+                    if transformed_format in self._ff_to_sfdf:
+                        result_formats.update(
+                            self._ff_to_sfdf[transformed_format])
+
+        return result_formats
+
     @property
     def importable_formats(self):
         """Return formats that are importable.
-
         A format is importable in a QIIME 2 deployment if it can be transformed
         into at least one of the canonical semantic type formats.
-
         """
-        importable_formats = {}
-        for name, record in self.formats.items():
-            from_type = transform.ModelType.from_view_type(
-                record.format)
-            for type_format in self.type_formats:
-                to_type = transform.ModelType.from_view_type(
-                    type_format.format)
-                if from_type.has_transformation(to_type):
-                    importable_formats[name] = record
-                    break
-        return importable_formats
+        return self.get_formats(filter=GetFormatFilters.IMPORTABLE)
 
     @property
     def importable_types(self):
         """Return set of concrete semantic types that are importable.
-
         A concrete semantic type is importable if it has an associated
         directory format.
-
         """
-        importable_types = set()
-        for type_format in self.type_formats:
-            for type in type_format.type_expression:
-                importable_types.add(type)
-        return importable_types
+        return self.get_semantic_types()
 
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):

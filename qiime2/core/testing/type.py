@@ -11,6 +11,7 @@ import qiime2.plugin as plugin
 
 IntSequence1 = plugin.SemanticType('IntSequence1')
 IntSequence2 = plugin.SemanticType('IntSequence2')
+IntSequence3 = plugin.SemanticType('IntSequence3')
 Mapping = plugin.SemanticType('Mapping')
 FourInts = plugin.SemanticType('FourInts')
 SingleInt = plugin.SemanticType('SingleInt')
