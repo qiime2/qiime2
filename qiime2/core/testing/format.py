@@ -38,7 +38,7 @@ class IntSequenceFormat(TextFileFormat):
         self._validate_n_ints(record_map[level])
 
 
-class IntSequenceFormatV2(TextFileFormat):
+class IntSequenceFormatV2(IntSequenceFormat):
     """
     Same as IntSequenceFormat, but has a header "VERSION 2"
 

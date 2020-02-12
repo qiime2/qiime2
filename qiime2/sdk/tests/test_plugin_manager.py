@@ -10,7 +10,6 @@ import unittest
 
 import qiime2.plugin
 import qiime2.sdk
-
 from qiime2.plugin.plugin import SemanticTypeRecord, FormatRecord
 from qiime2.sdk.plugin_manager import GetFormatFilters
 
@@ -54,30 +53,30 @@ class TestPluginManager(unittest.TestCase):
                                                plugin=self.plugin),
             'IntSequence3': SemanticTypeRecord(semantic_type=IntSequence3,
                                                plugin=self.plugin),
-            'Mapping': SemanticTypeRecord(semantic_type=Mapping,
-                                          plugin=self.plugin),
-            'FourInts': SemanticTypeRecord(semantic_type=FourInts,
-                                           plugin=self.plugin),
-            'Kennel': SemanticTypeRecord(semantic_type=Kennel,
-                                         plugin=self.plugin),
-            'Dog': SemanticTypeRecord(semantic_type=Dog,
-                                      plugin=self.plugin),
-            'Cat': SemanticTypeRecord(semantic_type=Cat,
-                                      plugin=self.plugin),
-            'SingleInt': SemanticTypeRecord(semantic_type=SingleInt,
-                                            plugin=self.plugin),
-            'C1': SemanticTypeRecord(semantic_type=C1,
-                                     plugin=self.plugin),
-            'C2': SemanticTypeRecord(semantic_type=C2,
-                                     plugin=self.plugin),
-            'C3': SemanticTypeRecord(semantic_type=C3,
-                                     plugin=self.plugin),
-            'Foo': SemanticTypeRecord(semantic_type=Foo,
-                                      plugin=self.plugin),
-            'Bar': SemanticTypeRecord(semantic_type=Bar,
-                                      plugin=self.plugin),
-            'Baz': SemanticTypeRecord(semantic_type=Baz,
-                                      plugin=self.plugin)
+            'Mapping':      SemanticTypeRecord(semantic_type=Mapping,
+                                               plugin=self.plugin),
+            'FourInts':     SemanticTypeRecord(semantic_type=FourInts,
+                                               plugin=self.plugin),
+            'Kennel':       SemanticTypeRecord(semantic_type=Kennel,
+                                               plugin=self.plugin),
+            'Dog':          SemanticTypeRecord(semantic_type=Dog,
+                                               plugin=self.plugin),
+            'Cat':          SemanticTypeRecord(semantic_type=Cat,
+                                               plugin=self.plugin),
+            'SingleInt':    SemanticTypeRecord(semantic_type=SingleInt,
+                                               plugin=self.plugin),
+            'C1':           SemanticTypeRecord(semantic_type=C1,
+                                               plugin=self.plugin),
+            'C2':           SemanticTypeRecord(semantic_type=C2,
+                                               plugin=self.plugin),
+            'C3':           SemanticTypeRecord(semantic_type=C3,
+                                               plugin=self.plugin),
+            'Foo':          SemanticTypeRecord(semantic_type=Foo,
+                                               plugin=self.plugin),
+            'Bar':          SemanticTypeRecord(semantic_type=Bar,
+                                               plugin=self.plugin),
+            'Baz':          SemanticTypeRecord(semantic_type=Baz,
+                                               plugin=self.plugin)
         }
 
         self.assertEqual(types, exp)
@@ -85,22 +84,24 @@ class TestPluginManager(unittest.TestCase):
     def test_get_semantic_types(self):
         types = self.pm.get_semantic_types()
 
-        exp = set([SemanticTypeRecord(semantic_type=IntSequence1,
-                                      plugin=self.plugin),
-                   SemanticTypeRecord(semantic_type=IntSequence2,
-                                      plugin=self.plugin),
-                   SemanticTypeRecord(semantic_type=Mapping,
-                                      plugin=self.plugin),
-                   SemanticTypeRecord(semantic_type=FourInts,
-                                      plugin=self.plugin),
-                   SemanticTypeRecord(semantic_type=Kennel[Dog],
-                                      plugin=self.plugin),
-                   SemanticTypeRecord(semantic_type=Kennel[Cat],
-                                      plugin=self.plugin),
-                   SemanticTypeRecord(semantic_type=SingleInt,
-                                      plugin=self.plugin)])
+        exp = {
+            'IntSequence1': SemanticTypeRecord(semantic_type=IntSequence1,
+                                               plugin=self.plugin),
+            'IntSequence2': SemanticTypeRecord(semantic_type=IntSequence2,
+                                               plugin=self.plugin),
+            'Mapping':      SemanticTypeRecord(semantic_type=Mapping,
+                                               plugin=self.plugin),
+            'FourInts':     SemanticTypeRecord(semantic_type=FourInts,
+                                               plugin=self.plugin),
+            'Kennel[Dog]':  SemanticTypeRecord(semantic_type=Kennel[Dog],
+                                               plugin=self.plugin),
+            'Kennel[Cat]':  SemanticTypeRecord(semantic_type=Kennel[Cat],
+                                               plugin=self.plugin),
+            'SingleInt':    SemanticTypeRecord(semantic_type=SingleInt,
+                                               plugin=self.plugin)
+        }
 
-        self.assertLessEqual(exp, types)
+        self.assertLessEqual(exp.keys(), types.keys())
         self.assertNotIn(Cat, types)
         self.assertNotIn(Dog, types)
         self.assertNotIn(Kennel, types)

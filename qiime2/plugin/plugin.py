@@ -22,7 +22,7 @@ TransformerRecord = collections.namedtuple(
 SemanticTypeRecord = collections.namedtuple(
     'SemanticTypeRecord', ['semantic_type', 'plugin'])
 SemanticTypeFragmentRecord = collections.namedtuple(
-    'SemanticTypeRecord', ['fragment', 'plugin'])
+    'SemanticTypeFragmentRecord', ['fragment', 'plugin'])
 FormatRecord = collections.namedtuple('FormatRecord', ['format', 'plugin'])
 ViewRecord = collections.namedtuple(
     'ViewRecord', ['name', 'view', 'plugin', 'citations'])
@@ -72,7 +72,6 @@ class Plugin:
         self.type_fragments = {}
         self.transformers = {}
         self.type_formats = []
-        self.types = set()
 
     @property
     def actions(self):
@@ -85,6 +84,17 @@ class Plugin:
         actions.update(self.visualizers)
         actions.update(self.pipelines)
         return types.MappingProxyType(actions)
+
+    @property
+    def types(self):
+        types = {}
+
+        for record in self.type_formats:
+            for type_ in record.type_expression:
+                types[str(type_)] = \
+                    SemanticTypeRecord(semantic_type=type_, plugin=self)
+
+        return types
 
     def register_formats(self, *formats, citations=None):
         for format in formats:
@@ -205,14 +215,9 @@ class Plugin:
                 raise ValueError("%r has a predicate, differentiating format"
                                  " on predicate is not supported.")
 
-        record = TypeFormatRecord(
-            type_expression=semantic_type,
-            format=artifact_format, plugin=self)
-
-        self.type_formats.append(record)
-        for type_ in record.type_expression:
-            self.types.add(SemanticTypeRecord(
-                semantic_type=type_, plugin=self))
+        self.type_formats.append(TypeFormatRecord(
+            type_expression=semantic_type, format=artifact_format,
+            plugin=self))
 
 
 class PluginActions(dict):

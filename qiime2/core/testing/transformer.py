@@ -97,6 +97,7 @@ def _1000(ff: IntSequenceFormat) -> IntSequenceFormatV2:
     return new_ff
 
 
+# This only exists to test `get_formats` and is functionally useless otherwise
 @dummy_plugin.register_transformer
 def _1100(df: IntSequenceMultiFileDirectoryFormat) -> \
         IntSequenceDirectoryFormat:

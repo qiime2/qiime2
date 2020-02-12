@@ -9,12 +9,13 @@
 import collections
 import os
 import pkg_resources
+import enum
+
 import qiime2.core.type
 from qiime2.core.format import FormatBase
 from qiime2.plugin.model import SingleFileDirectoryFormatBase
 from qiime2.sdk.util import parse_type
-
-import enum
+from qiime2.core.type import is_semantic_type
 
 
 class GetFormatFilters(enum.Flag):
@@ -123,11 +124,11 @@ class PluginManager:
         self.type_formats.extend(plugin.type_formats)
 
     def get_semantic_types(self):
-        types = set()
+        types = {}
 
         for plugin in self.plugins.values():
-            for type_record in plugin.types:
-                types.add(type_record)
+            for type_record in plugin.types.values():
+                types[str(type_record.semantic_type)] = type_record
 
         return types
 
@@ -148,8 +149,8 @@ class PluginManager:
             that specific semantic type
 
         This method will filter out the formats using the filter provided by
-        the user and the semantic type. The return is a set of filtered
-        formats.
+        the user and the semantic type. The return is a dictionary of filtered
+        formats keyed on their string names.
         """
         if filter is not None and filter not in GetFormatFilters:
             raise ValueError("The format filter provided: %s is not "
@@ -164,14 +165,18 @@ class PluginManager:
             if isinstance(semantic_type, str):
                 semantic_type = parse_type(semantic_type, "semantic")
 
-            for type_format in self.type_formats:
-                if semantic_type <= type_format.type_expression:
-                    formats.add(type_format.format)
-                    break
+            if is_semantic_type(semantic_type):
+                for type_format in self.type_formats:
+                    if semantic_type <= type_format.type_expression:
+                        formats.add(type_format.format)
+                        break
 
-            if not formats:
-                raise ValueError("No formats associated with the type "
-                                 f"{semantic_type}.")
+                if not formats:
+                    raise ValueError("No formats associated with the type "
+                                     f"{semantic_type}.")
+            else:
+                raise ValueError(f"{semantic_type} is not a valid semantic "
+                                 "type.")
 
         transformable_formats = set(formats)
 
@@ -194,11 +199,11 @@ class PluginManager:
         """
         _get_formats_helper(self, formats, transformer_dict)
 
-        formats : set(DirectoryFormat)
-            We are finding all formats that can be directly transformed to and
-            from formats in this set
+        formats : Set[DirectoryFormat]
+            We are finding all formats that are one transformer away from
+            formats in this set
 
-        tranformer_dict : Class: Dict{ Class: TransformerRecord }
+        tranformer_dict : Dict[ str, Dict[str, TransformerReord]]
             The dictionary of transformers allows the method to get formats
             that are transformable from the given format
 
@@ -228,6 +233,22 @@ class PluginManager:
                             self._ff_to_sfdf[transformed_format])
 
         return result_formats
+
+    @property
+    def importable_formats(self):
+        """Return formats that are importable.
+        A format is importable in a QIIME 2 deployment if it can be transformed
+        into at least one of the canonical semantic type formats.
+        """
+        return self.get_formats(filter=GetFormatFilters.IMPORTABLE)
+
+    @property
+    def importable_types(self):
+        """Return set of concrete semantic types that are importable.
+        A concrete semantic type is importable if it has an associated
+        directory format.
+        """
+        return self.get_semantic_types()
 
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):
