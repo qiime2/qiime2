@@ -183,6 +183,7 @@ class ScopeRecord:
     @property
     def result(self):
         if self.is_pending:
+            # TODO
             raise Exception
         return self._result
 
@@ -230,15 +231,15 @@ class Usage(metaclass=abc.ABCMeta):
         self._scope = Scope()
 
     def init_data(self, ref, factory):
-        override = self._factory_override(ref, factory)
-        return self._push_record(ref=ref, factory=override)
+        value = self._init_data_(ref, factory)
+        return self._push_record(ref=ref, value=value)
 
     def merge_metadata(self, ref, *records):
         if len(records) < 2:
             raise ValueError('Must provide two or more Metadata inputs.')
 
-        factory = self._merge_metadata_(ref, records)
-        return self.init_data(ref, factory)
+        value = self._merge_metadata_(ref, records)
+        return self._push_record(ref=ref, value=value)
 
     def get_result(self, ref):
         return self._get_record(ref)
@@ -252,9 +253,6 @@ class Usage(metaclass=abc.ABCMeta):
         if not isinstance(action, UsageAction):
             raise TypeError('Must provide an instance of UsageAction.')
         action.validate(inputs, outputs)
-
-        for record in self._get_records().values():
-            record.resolve()
 
         _, action_signature = action.get_action()
 
@@ -277,8 +275,8 @@ class Usage(metaclass=abc.ABCMeta):
     def _merge_metadata_(self, ref, records):
         raise NotImplementedError
 
-    def _factory_override(self, ref, factory):
-        return factory
+    def _init_data_(self, ref, factory):
+        raise NotImplementedError
 
     def _add_outputs_to_scope(self, outputs, derived_outputs):
         outputs.validate_derived(derived_outputs)
@@ -326,11 +324,17 @@ class DiagnosticUsage(Usage):
             'expression': expression,
         })
 
-    def _factory_override(self, ref, factory):
-        return lambda: ref
+    def _init_data_(self, ref, factory):
+        return ref
+
+    def _merge_metadata_(self, ref, records):
+        return ref
 
 
 class ExecutionUsage(Usage):
+    def _init_data_(self, ref, factory):
+        return factory()
+
     def _comment_(self, text):
         pass
 
@@ -360,8 +364,5 @@ class ExecutionUsage(Usage):
                             (expression, path))
 
     def _merge_metadata_(self, ref, records):
-        def closure_fn():
-            # Note: resolved records should be guaranteed at this point
-            mds = [r.result for r in records]
-            return mds[0].merge(*mds[1:])
-        return closure_fn
+        mds = [r.result for r in records]
+        return mds[0].merge(*mds[1:])

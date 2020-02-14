@@ -51,7 +51,7 @@ class ArtifactAPIUsage(usage.Usage):
         remaining_records = ', '.join([r.id for r in records[1:]])
         t = '%s = %s.merge(%s)\n' % (ref, first_md, remaining_records)
         self._recorder.append(t)
-        return lambda: ref
+        return ref
 
     def _template_action(self, action_f, input_opts, output_opts):
         output_opts = list(output_opts.keys())
@@ -71,10 +71,10 @@ class ArtifactAPIUsage(usage.Usage):
         import_path, action_api_name = full_import.rsplit('.', 1)
         self._imports.add((import_path, action_api_name))
 
-    def _factory_override(self, ref, factory):
+    def _init_data_(self, ref, factory):
         self._init_data_refs[ref] = factory
         # Don't need to compute anything, so just pass along the ref
-        return lambda: ref
+        return ref
 
     def render(self):
         sorted_imps = sorted(self._imports, key=lambda x: x[0])
