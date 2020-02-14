@@ -235,8 +235,7 @@ class Usage(metaclass=abc.ABCMeta):
 
     def merge_metadata(self, ref, *records):
         if len(records) < 2:
-            # TODO: seems like we should error for this case - thoughts?
-            raise ValueError('')
+            raise ValueError('Must provide two or more Metadata inputs.')
 
         factory = self._merge_metadata_(ref, records)
         return self.init_data(ref, factory)
@@ -356,7 +355,7 @@ class ExecutionUsage(Usage):
                     match = re.search(expression, target,
                                       flags=re.MULTILINE)
                     if match is None:
-                        raise ValueError(
+                        raise AssertionError(
                             'Expression %r not found in %s.' %
                             (expression, path))
 

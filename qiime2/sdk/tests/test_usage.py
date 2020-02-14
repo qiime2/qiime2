@@ -251,3 +251,8 @@ class TestUsageBaseClass(TestCaseUsage):
         use = self.Usage()
         with self.assertRaisesRegex(TypeError, 'provide.*UsageAction'):
             use.action({}, {}, {})
+
+    def test_merge_metadata_one_input(self):
+        use = self.Usage()
+        with self.assertRaisesRegex(ValueError, 'two or more'):
+            use.merge_metadata('foo')
