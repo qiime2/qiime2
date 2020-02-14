@@ -202,6 +202,9 @@ class Usage(metaclass=abc.ABCMeta):
         value = self._init_data_(ref, factory)
         return self._push_record(ref, value)
 
+    def _init_data_(self, ref, factory):
+        raise NotImplementedError
+
     def merge_metadata(self, ref, *records):
         if len(records) < 2:
             raise ValueError('Must provide two or more Metadata inputs.')
@@ -209,11 +212,21 @@ class Usage(metaclass=abc.ABCMeta):
         value = self._merge_metadata_(ref, records)
         return self._push_record(ref, value)
 
-    def get_result(self, ref):
-        return self._get_record(ref)
+    def _merge_metadata_(self, ref, records):
+        raise NotImplementedError
+
+    def get_metadata_column(self, ref, record, column_name):
+        value = self._get_metadata_column_(ref, record, column_name)
+        return self._push_record(ref, value)
+
+    def _get_metadata_column_(self, ref, record, column_name):
+        raise NotImplementedError
 
     def comment(self, text: str):
         return self._comment_(text)
+
+    def _comment_(self, text: str):
+        raise NotImplementedError
 
     def action(self, action: UsageAction, inputs: UsageInputs,
                outputs: UsageOutputNames):
@@ -234,17 +247,11 @@ class Usage(metaclass=abc.ABCMeta):
                  input_opts: dict, output_opts: list):
         raise NotImplementedError
 
-    def _comment_(self, text: str):
-        raise NotImplementedError
-
     def _assert_has_line_matching_(self, scope_id, label, path, expression):
         raise NotImplementedError
 
-    def _merge_metadata_(self, ref, records):
-        raise NotImplementedError
-
-    def _init_data_(self, ref, factory):
-        raise NotImplementedError
+    def get_result(self, ref):
+        return self._get_record(ref)
 
     def _add_outputs_to_scope(self, outputs, derived_outputs):
         outputs.validate_derived(derived_outputs)
@@ -298,6 +305,9 @@ class DiagnosticUsage(Usage):
     def _merge_metadata_(self, ref, records):
         return ref
 
+    def _get_metadata_column_(self, ref, record, column_name):
+        return ref
+
 
 class ExecutionUsage(Usage):
     def _init_data_(self, ref, factory):
@@ -329,3 +339,6 @@ class ExecutionUsage(Usage):
     def _merge_metadata_(self, ref, records):
         mds = [r.result for r in records]
         return mds[0].merge(*mds[1:])
+
+    def _get_metadata_column_(self, ref, record, column_name):
+        return record.result.get_column(column_name)

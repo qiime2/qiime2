@@ -51,7 +51,10 @@ from ..cite import Citations
 from .examples import (concatenate_ints_simple, concatenate_ints_complex,
                        typical_pipeline_simple, typical_pipeline_complex,
                        comments_only, identity_with_metadata_simple,
-                       identity_with_metadata_merging)
+                       identity_with_metadata_merging,
+                       identity_with_metadata_column_get_mdc,
+                       identity_with_metadata_column_from_factory,
+                       )
 
 
 citations = Citations.load('citations.bib', package='qiime2.core.testing')
@@ -278,7 +281,14 @@ dummy_plugin.methods.register_function(
         ('out', IntSequence1)
     ],
     name='Identity',
-    description='This method does nothing, but takes a generic metadata column'
+    description='This method does nothing, '
+                'but takes a generic metadata column',
+    examples={
+        'identity_with_metadata_column_get_mdc':
+            identity_with_metadata_column_get_mdc,
+        'identity_with_metadata_column_from_factory':
+            identity_with_metadata_column_from_factory
+    },
 )
 
 

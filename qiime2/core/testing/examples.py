@@ -8,7 +8,7 @@
 
 import pandas as pd
 
-from qiime2 import Artifact, Metadata
+from qiime2 import Artifact, Metadata, CategoricalMetadataColumn
 
 from qiime2.plugin import UsageAction, UsageInputs, UsageOutputNames
 
@@ -41,6 +41,13 @@ def md2_factory():
     return Metadata(pd.DataFrame({'b': ['4', '5', '6']},
                                  index=pd.Index(['0', '1', '2'],
                                                 name='id')))
+
+
+def mdc1_factory():
+    return CategoricalMetadataColumn(pd.Series(['1', '2', '3'],
+                                     name='a',
+                                     index=pd.Index(['0', '1', '2'],
+                                                    name='id')))
 
 
 def concatenate_ints_simple(use):
@@ -146,5 +153,31 @@ def identity_with_metadata_merging(use):
         UsageAction(plugin_id='dummy_plugin',
                     action_id='identity_with_metadata'),
         UsageInputs(ints=ints, metadata=md3),
+        UsageOutputNames(out='out'),
+    )
+
+
+def identity_with_metadata_column_get_mdc(use):
+    ints = use.init_data('ints', ints1_factory)
+    md = use.init_data('md', md1_factory)
+
+    mdc = use.get_metadata_column('mdc', md, 'a')
+
+    use.action(
+        UsageAction(plugin_id='dummy_plugin',
+                    action_id='identity_with_metadata_column'),
+        UsageInputs(ints=ints, metadata=mdc),
+        UsageOutputNames(out='out'),
+    )
+
+
+def identity_with_metadata_column_from_factory(use):
+    ints = use.init_data('ints', ints1_factory)
+    mdc = use.init_data('mdc', mdc1_factory)
+
+    use.action(
+        UsageAction(plugin_id='dummy_plugin',
+                    action_id='identity_with_metadata_column'),
+        UsageInputs(ints=ints, metadata=mdc),
         UsageOutputNames(out='out'),
     )

@@ -225,6 +225,36 @@ out, = identity_with_metadata(
 """
         self.assertEqual(exp, use.render())
 
+    def test_metadata_column_from_helper(self):
+        action = self.plugin.actions['identity_with_metadata_column']
+        use = ArtifactAPIUsage()
+        action.examples['identity_with_metadata_column_get_mdc'](use)
+        exp = """\
+from qiime2.plugins.dummy_plugin.methods import identity_with_metadata_column
+
+mdc = md.get_column('a')
+
+out, = identity_with_metadata_column(
+    ints=ints,
+    metadata=mdc,
+)
+"""
+        self.assertEqual(exp, use.render())
+
+    def test_metadata_column_from_factory(self):
+        action = self.plugin.actions['identity_with_metadata_column']
+        use = ArtifactAPIUsage()
+        action.examples['identity_with_metadata_column_from_factory'](use)
+        exp = """\
+from qiime2.plugins.dummy_plugin.methods import identity_with_metadata_column
+
+out, = identity_with_metadata_column(
+    ints=ints,
+    metadata=mdc,
+)
+"""
+        self.assertEqual(exp, use.render())
+
 
 if __name__ == '__main__':
     unittest.main()

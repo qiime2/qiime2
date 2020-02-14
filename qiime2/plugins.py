@@ -76,6 +76,11 @@ class ArtifactAPIUsage(usage.Usage):
         # Don't need to compute anything, so just pass along the ref
         return ref
 
+    def _get_metadata_column_(self, ref, record, column_name):
+        t = '%s = %s.get_column(%r)\n' % (ref, record.id, column_name)
+        self._recorder.append(t)
+        return ref
+
     def render(self):
         sorted_imps = sorted(self._imports, key=lambda x: x[0])
         imps = ['from %s import %s\n' % i for i in sorted_imps]
