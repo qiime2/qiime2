@@ -7,11 +7,8 @@
 # ----------------------------------------------------------------------------
 
 import abc
-import os
 import re
 import types
-import tempfile
-import zipfile
 
 from qiime2 import sdk
 
@@ -317,22 +314,17 @@ class ExecutionUsage(Usage):
 
     def _assert_has_line_matching_(self, scope_id, label, path, expression):
         data = self._get_record(scope_id).result
-        with tempfile.TemporaryDirectory(prefix='q2-exc-usage-') as temp_dir:
-            fp = data.save(os.path.join(temp_dir, str(scope_id)))
-            with zipfile.ZipFile(fp, 'r') as zip_temp:
-                for fn in zip_temp.namelist():
-                    if re.match(path, fn):
-                        path = fn
-                        break  # Will only match on first hit
 
-                with zip_temp.open(path) as file_temp:
-                    target = file_temp.read().decode('utf-8')
-                    match = re.search(expression, target,
-                                      flags=re.MULTILINE)
-                    if match is None:
-                        raise AssertionError(
-                            'Expression %r not found in %s.' %
-                            (expression, path))
+        hits = sorted(data._archiver.data_dir.glob(path))
+        if len(hits) != 1:
+            raise ValueError('Value provided for path (%s) did not produce '
+                             'exactly one hit: %s' % (path, hits))
+
+        target = hits[0].read_text()
+        match = re.search(expression, target, flags=re.MULTILINE)
+        if match is None:
+            raise AssertionError('Expression %r not found in %s.' %
+                                 (expression, path))
 
     def _merge_metadata_(self, ref, records):
         mds = [r.result for r in records]

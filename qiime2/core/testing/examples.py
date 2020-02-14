@@ -113,7 +113,7 @@ def typical_pipeline_complex(use):
     right2 = use.get_result('right2')
     right2.assert_has_line_matching(
         label='a nice label about this assertion',
-        path='.*/data/ints.txt',
+        path='ints.txt',
         expression='1',
     )
 
