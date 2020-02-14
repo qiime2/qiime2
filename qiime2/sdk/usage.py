@@ -86,7 +86,7 @@ class UsageInputs:
         for name, signature in signature.signature_order.items():
             if name in self.values:
                 if isinstance(self.values[name], ScopeRecord) \
-                        and self.values[name].id in scope.records:
+                        and self.values[name].ref in scope.records:
                     value = self.values[name].result
                 else:
                     value = self.values[name]
@@ -147,26 +147,26 @@ class UsageOutputNames:
 
 
 class ScopeRecord:
-    def __init__(self, id: str, value: object = None,
+    def __init__(self, ref: str, value: object = None,
                  assert_has_line_matching: callable = None):
         if assert_has_line_matching is not None and \
                 not callable(assert_has_line_matching):
             # TODO
             raise Exception
 
-        self.id = id
+        self.ref = ref
         self._result = value
         self._assert_has_line_matching_ = assert_has_line_matching
 
     def __repr__(self):
-        return 'ScopeRecord<id=%s, result=%r>' % (self.id, self.result)
+        return 'ScopeRecord<ref=%s, result=%r>' % (self.ref, self.result)
 
     @property
     def result(self):
         return self._result
 
     def assert_has_line_matching(self, label, path, expression):
-        return self._assert_has_line_matching_(self.id, label, path,
+        return self._assert_has_line_matching_(self.ref, label, path,
                                                expression)
 
 
@@ -182,16 +182,16 @@ class Scope:
         return types.MappingProxyType(self._records)
 
     def push_record(self, ref, value, assert_has_line_matching=None):
-        record = ScopeRecord(id=ref, value=value,
+        record = ScopeRecord(ref=ref, value=value,
                              assert_has_line_matching=assert_has_line_matching)
         self._records[ref] = record
         return record
 
-    def get_record(self, id):
+    def get_record(self, ref):
         try:
-            return self.records[id]
+            return self.records[ref]
         except KeyError:
-            raise KeyError('No record with id: "%s" in scope.' % (id,))
+            raise KeyError('No record with ref id: "%s" in scope.' % (ref, ))
 
 
 class Usage(metaclass=abc.ABCMeta):
@@ -247,7 +247,7 @@ class Usage(metaclass=abc.ABCMeta):
                  input_opts: dict, output_opts: list):
         raise NotImplementedError
 
-    def _assert_has_line_matching_(self, scope_id, label, path, expression):
+    def _assert_has_line_matching_(self, ref, label, path, expression):
         raise NotImplementedError
 
     def get_result(self, ref):
@@ -263,8 +263,8 @@ class Usage(metaclass=abc.ABCMeta):
             ref=ref, value=value,
             assert_has_line_matching=self._assert_has_line_matching_)
 
-    def _get_record(self, id):
-        return self._scope.get_record(id)
+    def _get_record(self, ref):
+        return self._scope.get_record(ref)
 
     def _get_records(self):
         return self._scope.records
@@ -290,10 +290,10 @@ class DiagnosticUsage(Usage):
             'text': text,
         })
 
-    def _assert_has_line_matching_(self, scope_id, label, path, expression):
+    def _assert_has_line_matching_(self, ref, label, path, expression):
         self._recorder.append({
             'type': 'assert_has_line_matching',
-            'scope_id': scope_id,
+            'ref': ref,
             'label': label,
             'path': path,
             'expression': expression,
@@ -322,8 +322,8 @@ class ExecutionUsage(Usage):
         results = action_f(**input_opts)
         return {k: getattr(results, v) for k, v in output_opts.items()}
 
-    def _assert_has_line_matching_(self, scope_id, label, path, expression):
-        data = self._get_record(scope_id).result
+    def _assert_has_line_matching_(self, ref, label, path, expression):
+        data = self._get_record(ref).result
 
         hits = sorted(data._archiver.data_dir.glob(path))
         if len(hits) != 1:

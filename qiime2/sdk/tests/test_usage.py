@@ -244,7 +244,8 @@ class TestUsageBaseClass(TestCaseUsage):
 
     def test_get_result_invalid(self):
         use = self.Usage()
-        with self.assertRaisesRegex(KeyError, 'No record with id: "peanut"'):
+        with self.assertRaisesRegex(KeyError,
+                                    'No record with ref id: "peanut"'):
             use.get_result('peanut')
 
     def test_action_invalid_action_provided(self):

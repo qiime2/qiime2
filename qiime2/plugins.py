@@ -31,7 +31,7 @@ class ArtifactAPIUsage(usage.Usage):
     def _comment_(self, text: str):
         self._recorder.append('# %s' % (text, ))
 
-    def _assert_has_line_matching_(self, scope_id, label, path, expression):
+    def _assert_has_line_matching_(self, ref, label, path, expression):
         pass
 
     def _action_(self, action: usage.UsageAction,
@@ -47,8 +47,8 @@ class ArtifactAPIUsage(usage.Usage):
         return new_output_opts
 
     def _merge_metadata_(self, ref, records):
-        first_md = records[0].id
-        remaining_records = ', '.join([r.id for r in records[1:]])
+        first_md = records[0].ref
+        remaining_records = ', '.join([r.ref for r in records[1:]])
         t = '%s = %s.merge(%s)\n' % (ref, first_md, remaining_records)
         self._recorder.append(t)
         return ref
@@ -77,7 +77,7 @@ class ArtifactAPIUsage(usage.Usage):
         return ref
 
     def _get_metadata_column_(self, ref, record, column_name):
-        t = '%s = %s.get_column(%r)\n' % (ref, record.id, column_name)
+        t = '%s = %s.get_column(%r)\n' % (ref, record.ref, column_name)
         self._recorder.append(t)
         return ref
 
