@@ -139,15 +139,13 @@ class TestPluginBase(unittest.TestCase):
         """
 
         try:
-            semantic_type_record = self.plugin.type_fragments[semantic_type.name]
+            record = self.plugin.type_fragments[semantic_type.name]
         except KeyError:
             self.fail(
                 "Semantic type %r is not registered on the plugin." %
                 semantic_type)
 
-        obs_semantic_type = semantic_type_record.fragment
-
-        self.assertEqual(obs_semantic_type, semantic_type)
+        self.assertEqual(record.fragment, semantic_type)
 
     def assertSemanticTypeRegisteredToFormat(self, semantic_type, exp_format):
         """Test assertion for ensuring a semantic type is registered to a
