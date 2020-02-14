@@ -31,54 +31,60 @@ class TestUsage(TestCaseUsage):
         use = usage.DiagnosticUsage()
         action.examples['concatenate_ints_simple'](use)
 
-        self.assertEqual(2, len(use._recorder))
+        self.assertEqual(5, len(use._recorder))
 
-        obs1, obs2 = use._recorder
+        obs1, obs2, obs3, obs4, obs5 = use._recorder
 
-        self.assertEqual('comment', obs1['type'])
-        self.assertEqual('action', obs2['type'])
+        self.assertEqual('init_data', obs1['type'])
+        self.assertEqual('init_data', obs2['type'])
+        self.assertEqual('init_data', obs3['type'])
+        self.assertEqual('comment', obs4['type'])
+        self.assertEqual('action', obs5['type'])
 
-        self.assertTrue('basic usage' in obs1['text'])
+        self.assertTrue('basic usage' in obs4['text'])
 
-        self.assertEqual('dummy_plugin', obs2['action'].plugin_id)
-        self.assertEqual('concatenate_ints', obs2['action'].action_id)
+        self.assertEqual('dummy_plugin', obs5['action'].plugin_id)
+        self.assertEqual('concatenate_ints', obs5['action'].action_id)
         self.assertEqual({'int1': 4, 'int2': 2, 'ints1': 'ints_a',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
-                         obs2['input_opts'])
-        self.assertEqual({'ints_d': 'concatenated_ints'}, obs2['output_opts'])
+                         obs5['input_opts'])
+        self.assertEqual({'ints_d': 'concatenated_ints'}, obs5['output_opts'])
 
     def test_chained(self):
         action = self.plugin.actions['concatenate_ints']
         use = usage.DiagnosticUsage()
         action.examples['concatenate_ints_complex'](use)
 
-        self.assertEqual(4, len(use._recorder))
+        self.assertEqual(7, len(use._recorder))
 
-        obs1, obs2, obs3, obs4 = use._recorder
+        obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use._recorder
 
-        self.assertEqual('comment', obs1['type'])
-        self.assertEqual('action', obs2['type'])
-        self.assertEqual('comment', obs3['type'])
-        self.assertEqual('action', obs4['type'])
+        self.assertEqual('init_data', obs1['type'])
+        self.assertEqual('init_data', obs2['type'])
+        self.assertEqual('init_data', obs3['type'])
+        self.assertEqual('comment', obs4['type'])
+        self.assertEqual('action', obs5['type'])
+        self.assertEqual('comment', obs6['type'])
+        self.assertEqual('action', obs7['type'])
 
-        self.assertTrue('chained usage (pt 1)' in obs1['text'])
+        self.assertTrue('chained usage (pt 1)' in obs4['text'])
 
-        self.assertEqual('dummy_plugin', obs2['action'].plugin_id)
-        self.assertEqual('concatenate_ints', obs2['action'].action_id)
+        self.assertEqual('dummy_plugin', obs5['action'].plugin_id)
+        self.assertEqual('concatenate_ints', obs5['action'].action_id)
         self.assertEqual({'int1': 4, 'int2': 2, 'ints1': 'ints_a',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
-                         obs2['input_opts'])
-        self.assertEqual({'ints_d': 'concatenated_ints'}, obs2['output_opts'])
+                         obs5['input_opts'])
+        self.assertEqual({'ints_d': 'concatenated_ints'}, obs5['output_opts'])
 
-        self.assertTrue('chained usage (pt 2)' in obs3['text'])
+        self.assertTrue('chained usage (pt 2)' in obs6['text'])
 
-        self.assertEqual('dummy_plugin', obs4['action'].plugin_id)
-        self.assertEqual('concatenate_ints', obs4['action'].action_id)
+        self.assertEqual('dummy_plugin', obs7['action'].plugin_id)
+        self.assertEqual('concatenate_ints', obs7['action'].action_id)
         self.assertEqual({'int1': 41, 'int2': 0, 'ints1': 'concatenated_ints',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
-                         obs4['input_opts'])
+                         obs7['input_opts'])
         self.assertEqual({'concatenated_ints': 'concatenated_ints'},
-                         obs4['output_opts'])
+                         obs7['output_opts'])
 
     def test_comments_only(self):
         action = self.plugin.actions['concatenate_ints']
@@ -94,6 +100,48 @@ class TestUsage(TestCaseUsage):
 
         self.assertEqual('comment 1', obs1['text'])
         self.assertEqual('comment 2', obs2['text'])
+
+    def test_metadata_merging(self):
+        action = self.plugin.actions['identity_with_metadata']
+        use = usage.DiagnosticUsage()
+        action.examples['identity_with_metadata_merging'](use)
+
+        self.assertEqual(5, len(use._recorder))
+
+        obs1, obs2, obs3, obs4, obs5 = use._recorder
+
+        self.assertEqual('init_data', obs1['type'])
+        self.assertEqual('init_data', obs2['type'])
+        self.assertEqual('init_data', obs3['type'])
+        self.assertEqual('merge_metadata', obs4['type'])
+        self.assertEqual('action', obs5['type'])
+
+    def test_get_metadata_column(self):
+        action = self.plugin.actions['identity_with_metadata_column']
+        use = usage.DiagnosticUsage()
+        action.examples['identity_with_metadata_column_get_mdc'](use)
+
+        self.assertEqual(4, len(use._recorder))
+
+        obs1, obs2, obs3, obs4 = use._recorder
+
+        self.assertEqual('init_data', obs1['type'])
+        self.assertEqual('init_data', obs2['type'])
+        self.assertEqual('get_metadata_column', obs3['type'])
+        self.assertEqual('action', obs4['type'])
+
+    def test_use_metadata_column(self):
+        action = self.plugin.actions['identity_with_metadata_column']
+        use = usage.DiagnosticUsage()
+        action.examples['identity_with_metadata_column_from_factory'](use)
+
+        self.assertEqual(3, len(use._recorder))
+
+        obs1, obs2, obs3 = use._recorder
+
+        self.assertEqual('init_data', obs1['type'])
+        self.assertEqual('init_data', obs2['type'])
+        self.assertEqual('action', obs3['type'])
 
 
 class TestUsageAction(TestCaseUsage):
@@ -257,3 +305,9 @@ class TestUsageBaseClass(TestCaseUsage):
         use = self.Usage()
         with self.assertRaisesRegex(ValueError, 'two or more'):
             use.merge_metadata('foo')
+
+
+class TestScopeRecord(TestCaseUsage):
+    def test_invalid_assert_has_line_matching(self):
+        with self.assertRaisesRegex(TypeError, 'should be a `callable`'):
+            usage.ScopeRecord('foo', assert_has_line_matching='spleen')

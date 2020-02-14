@@ -28,11 +28,25 @@ class ArtifactAPIUsage(usage.Usage):
         self._recorder = []
         self._init_data_refs = dict()
 
+    def _init_data_(self, ref, factory):
+        self._init_data_refs[ref] = factory
+        # Don't need to compute anything, so just pass along the ref
+        return ref
+
+    def _merge_metadata_(self, ref, records):
+        first_md = records[0].ref
+        remaining_records = ', '.join([r.ref for r in records[1:]])
+        t = '%s = %s.merge(%s)\n' % (ref, first_md, remaining_records)
+        self._recorder.append(t)
+        return ref
+
+    def _get_metadata_column_(self, ref, record, column_name):
+        t = '%s = %s.get_column(%r)\n' % (ref, record.ref, column_name)
+        self._recorder.append(t)
+        return ref
+
     def _comment_(self, text: str):
         self._recorder.append('# %s' % (text, ))
-
-    def _assert_has_line_matching_(self, ref, label, path, expression):
-        pass
 
     def _action_(self, action: usage.UsageAction,
                  input_opts: dict, output_opts: dict):
@@ -46,12 +60,16 @@ class ArtifactAPIUsage(usage.Usage):
 
         return new_output_opts
 
-    def _merge_metadata_(self, ref, records):
-        first_md = records[0].ref
-        remaining_records = ', '.join([r.ref for r in records[1:]])
-        t = '%s = %s.merge(%s)\n' % (ref, first_md, remaining_records)
-        self._recorder.append(t)
-        return ref
+    def _assert_has_line_matching_(self, ref, label, path, expression):
+        pass
+
+    def render(self):
+        sorted_imps = sorted(self._imports, key=lambda x: x[0])
+        imps = ['from %s import %s\n' % i for i in sorted_imps]
+        return '\n'.join(imps + self._recorder)
+
+    def get_example_data(self):
+        return {r: f() for r, f in self._init_data_refs.items()}
 
     def _template_action(self, action_f, input_opts, output_opts):
         output_opts = list(output_opts.keys())
@@ -70,24 +88,6 @@ class ArtifactAPIUsage(usage.Usage):
         full_import = action_f.get_import_path()
         import_path, action_api_name = full_import.rsplit('.', 1)
         self._imports.add((import_path, action_api_name))
-
-    def _init_data_(self, ref, factory):
-        self._init_data_refs[ref] = factory
-        # Don't need to compute anything, so just pass along the ref
-        return ref
-
-    def _get_metadata_column_(self, ref, record, column_name):
-        t = '%s = %s.get_column(%r)\n' % (ref, record.ref, column_name)
-        self._recorder.append(t)
-        return ref
-
-    def render(self):
-        sorted_imps = sorted(self._imports, key=lambda x: x[0])
-        imps = ['from %s import %s\n' % i for i in sorted_imps]
-        return '\n'.join(imps + self._recorder)
-
-    def get_example_data(self):
-        return {r: f() for r, f in self._init_data_refs.items()}
 
 
 class QIIMEArtifactAPIImporter:

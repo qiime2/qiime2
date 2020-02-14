@@ -151,8 +151,8 @@ class ScopeRecord:
                  assert_has_line_matching: callable = None):
         if assert_has_line_matching is not None and \
                 not callable(assert_has_line_matching):
-            # TODO
-            raise Exception
+            raise TypeError('Value for `assert_has_line_matching` should be a '
+                            '`callable`.')
 
         self.ref = ref
         self._result = value
@@ -275,6 +275,36 @@ class DiagnosticUsage(Usage):
         super().__init__()
         self._recorder = []
 
+    def _init_data_(self, ref, factory):
+        self._recorder.append({
+            'type': 'init_data',
+            'ref': ref,
+        })
+        return ref
+
+    def _merge_metadata_(self, ref, records):
+        self._recorder.append({
+            'type': 'merge_metadata',
+            'ref': ref,
+            'records_refs': [r.ref for r in records],
+        })
+        return ref
+
+    def _get_metadata_column_(self, ref, record, column_name):
+        self._recorder.append({
+            'type': 'get_metadata_column',
+            'ref': ref,
+            'record_ref': record.ref,
+            'column_name': column_name,
+        })
+        return ref
+
+    def _comment_(self, text):
+        self._recorder.append({
+            'type': 'comment',
+            'text': text,
+        })
+
     def _action_(self, action, input_opts, output_opts):
         self._recorder.append({
             'type': 'action',
@@ -283,12 +313,6 @@ class DiagnosticUsage(Usage):
             'output_opts': output_opts,
         })
         return output_opts
-
-    def _comment_(self, text):
-        self._recorder.append({
-            'type': 'comment',
-            'text': text,
-        })
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
         self._recorder.append({
@@ -299,19 +323,17 @@ class DiagnosticUsage(Usage):
             'expression': expression,
         })
 
-    def _init_data_(self, ref, factory):
-        return ref
-
-    def _merge_metadata_(self, ref, records):
-        return ref
-
-    def _get_metadata_column_(self, ref, record, column_name):
-        return ref
-
 
 class ExecutionUsage(Usage):
     def _init_data_(self, ref, factory):
         return factory()
+
+    def _merge_metadata_(self, ref, records):
+        mds = [r.result for r in records]
+        return mds[0].merge(*mds[1:])
+
+    def _get_metadata_column_(self, ref, record, column_name):
+        return record.result.get_column(column_name)
 
     def _comment_(self, text):
         pass
@@ -335,10 +357,3 @@ class ExecutionUsage(Usage):
         if match is None:
             raise AssertionError('Expression %r not found in %s.' %
                                  (expression, path))
-
-    def _merge_metadata_(self, ref, records):
-        mds = [r.result for r in records]
-        return mds[0].merge(*mds[1:])
-
-    def _get_metadata_column_(self, ref, record, column_name):
-        return record.result.get_column(column_name)
