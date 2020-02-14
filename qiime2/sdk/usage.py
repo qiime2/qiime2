@@ -150,51 +150,23 @@ class UsageOutputNames:
 
 
 class ScopeRecord:
-    STATE_PENDING = 'pending'
-    STATE_FINISHED = 'finished'
-
-    def __init__(self, id: str, factory: callable = None,
-                 value: object = None,
+    def __init__(self, id: str, value: object = None,
                  assert_has_line_matching: callable = None):
-        if factory is not None and not callable(factory):
-            # TODO
-            raise Exception
-
         if assert_has_line_matching is not None and \
                 not callable(assert_has_line_matching):
             # TODO
             raise Exception
 
         self.id = id
-        if value is None:
-            self.state = self.STATE_PENDING
-        else:
-            self.state = self.STATE_FINISHED
-        self._factory = factory
         self._result = value
         self._assert_has_line_matching_ = assert_has_line_matching
 
     def __repr__(self):
-        if self.state == self.STATE_PENDING:
-            return 'ScopeRecord<id=%s, state=%s>' % (self.id, self.state)
-        else:
-            return 'ScopeRecord<id=%s, result=%r>' % (self.id, self.result)
+        return 'ScopeRecord<id=%s, result=%r>' % (self.id, self.result)
 
     @property
     def result(self):
-        if self.is_pending:
-            # TODO
-            raise Exception
         return self._result
-
-    @property
-    def is_pending(self):
-        return self.state == self.STATE_PENDING
-
-    def resolve(self):
-        if self.is_pending:
-            self._result = self._factory()
-            self.state = self.STATE_FINISHED
 
     def assert_has_line_matching(self, label, path, expression):
         return self._assert_has_line_matching_(self.id, label, path,
@@ -212,9 +184,8 @@ class Scope:
     def records(self):
         return types.MappingProxyType(self._records)
 
-    def push_record(self, ref, factory=None, value=None,
-                    assert_has_line_matching=None):
-        record = ScopeRecord(id=ref, factory=factory, value=value,
+    def push_record(self, ref, value, assert_has_line_matching=None):
+        record = ScopeRecord(id=ref, value=value,
                              assert_has_line_matching=assert_has_line_matching)
         self._records[ref] = record
         return record
@@ -232,14 +203,14 @@ class Usage(metaclass=abc.ABCMeta):
 
     def init_data(self, ref, factory):
         value = self._init_data_(ref, factory)
-        return self._push_record(ref=ref, value=value)
+        return self._push_record(ref, value)
 
     def merge_metadata(self, ref, *records):
         if len(records) < 2:
             raise ValueError('Must provide two or more Metadata inputs.')
 
         value = self._merge_metadata_(ref, records)
-        return self._push_record(ref=ref, value=value)
+        return self._push_record(ref, value)
 
     def get_result(self, ref):
         return self._get_record(ref)
@@ -281,11 +252,11 @@ class Usage(metaclass=abc.ABCMeta):
     def _add_outputs_to_scope(self, outputs, derived_outputs):
         outputs.validate_derived(derived_outputs)
         for ref, result in derived_outputs.items():
-            self._push_record(ref, value=result)
+            self._push_record(ref, result)
 
-    def _push_record(self, ref, factory=None, value=None):
+    def _push_record(self, ref, value):
         return self._scope.push_record(
-            ref=ref, factory=factory, value=value,
+            ref=ref, value=value,
             assert_has_line_matching=self._assert_has_line_matching_)
 
     def _get_record(self, id):
