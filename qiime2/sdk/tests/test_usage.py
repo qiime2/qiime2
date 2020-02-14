@@ -31,9 +31,9 @@ class TestUsage(TestCaseUsage):
         use = usage.DiagnosticUsage()
         action.examples['concatenate_ints_simple'](use)
 
-        self.assertEqual(5, len(use._recorder))
+        self.assertEqual(5, len(use.recorder))
 
-        obs1, obs2, obs3, obs4, obs5 = use._recorder
+        obs1, obs2, obs3, obs4, obs5 = use.recorder
 
         self.assertEqual('init_data', obs1['type'])
         self.assertEqual('init_data', obs2['type'])
@@ -55,9 +55,9 @@ class TestUsage(TestCaseUsage):
         use = usage.DiagnosticUsage()
         action.examples['concatenate_ints_complex'](use)
 
-        self.assertEqual(7, len(use._recorder))
+        self.assertEqual(7, len(use.recorder))
 
-        obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use._recorder
+        obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use.recorder
 
         self.assertEqual('init_data', obs1['type'])
         self.assertEqual('init_data', obs2['type'])
@@ -91,9 +91,9 @@ class TestUsage(TestCaseUsage):
         use = usage.DiagnosticUsage()
         action.examples['comments_only'](use)
 
-        self.assertEqual(2, len(use._recorder))
+        self.assertEqual(2, len(use.recorder))
 
-        obs1, obs2 = use._recorder
+        obs1, obs2 = use.recorder
 
         self.assertEqual('comment', obs1['type'])
         self.assertEqual('comment', obs2['type'])
@@ -106,9 +106,9 @@ class TestUsage(TestCaseUsage):
         use = usage.DiagnosticUsage()
         action.examples['identity_with_metadata_merging'](use)
 
-        self.assertEqual(5, len(use._recorder))
+        self.assertEqual(5, len(use.recorder))
 
-        obs1, obs2, obs3, obs4, obs5 = use._recorder
+        obs1, obs2, obs3, obs4, obs5 = use.recorder
 
         self.assertEqual('init_data', obs1['type'])
         self.assertEqual('init_data', obs2['type'])
@@ -121,9 +121,9 @@ class TestUsage(TestCaseUsage):
         use = usage.DiagnosticUsage()
         action.examples['identity_with_metadata_column_get_mdc'](use)
 
-        self.assertEqual(4, len(use._recorder))
+        self.assertEqual(4, len(use.recorder))
 
-        obs1, obs2, obs3, obs4 = use._recorder
+        obs1, obs2, obs3, obs4 = use.recorder
 
         self.assertEqual('init_data', obs1['type'])
         self.assertEqual('init_data', obs2['type'])
@@ -135,9 +135,9 @@ class TestUsage(TestCaseUsage):
         use = usage.DiagnosticUsage()
         action.examples['identity_with_metadata_column_from_factory'](use)
 
-        self.assertEqual(3, len(use._recorder))
+        self.assertEqual(3, len(use.recorder))
 
-        obs1, obs2, obs3 = use._recorder
+        obs1, obs2, obs3 = use.recorder
 
         self.assertEqual('init_data', obs1['type'])
         self.assertEqual('init_data', obs2['type'])

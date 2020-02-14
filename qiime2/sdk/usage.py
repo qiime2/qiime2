@@ -273,17 +273,17 @@ class Usage(metaclass=abc.ABCMeta):
 class DiagnosticUsage(Usage):
     def __init__(self):
         super().__init__()
-        self._recorder = []
+        self.recorder = []
 
     def _init_data_(self, ref, factory):
-        self._recorder.append({
+        self.recorder.append({
             'type': 'init_data',
             'ref': ref,
         })
         return ref
 
     def _merge_metadata_(self, ref, records):
-        self._recorder.append({
+        self.recorder.append({
             'type': 'merge_metadata',
             'ref': ref,
             'records_refs': [r.ref for r in records],
@@ -291,7 +291,7 @@ class DiagnosticUsage(Usage):
         return ref
 
     def _get_metadata_column_(self, ref, record, column_name):
-        self._recorder.append({
+        self.recorder.append({
             'type': 'get_metadata_column',
             'ref': ref,
             'record_ref': record.ref,
@@ -300,13 +300,13 @@ class DiagnosticUsage(Usage):
         return ref
 
     def _comment_(self, text):
-        self._recorder.append({
+        self.recorder.append({
             'type': 'comment',
             'text': text,
         })
 
     def _action_(self, action, input_opts, output_opts):
-        self._recorder.append({
+        self.recorder.append({
             'type': 'action',
             'action': action,
             'input_opts': input_opts,
@@ -315,7 +315,7 @@ class DiagnosticUsage(Usage):
         return output_opts
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
-        self._recorder.append({
+        self.recorder.append({
             'type': 'assert_has_line_matching',
             'ref': ref,
             'label': label,
