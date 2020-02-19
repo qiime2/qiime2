@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2020, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -8,6 +8,7 @@
 
 import unittest
 import re
+import unittest.mock as mock
 
 import pandas as pd
 import pandas.util.testing as pdt
@@ -15,6 +16,7 @@ import pandas.util.testing as pdt
 import qiime2
 from qiime2.plugins import dummy_plugin
 from qiime2.core.testing.type import IntSequence1, Mapping
+import qiime2.core.archive.provenance as provenance
 
 
 class TestProvenanceIntegration(unittest.TestCase):
@@ -248,6 +250,17 @@ class TestProvenanceIntegration(unittest.TestCase):
 
         self.assertIn('foo: 3', prov_yml)
         self.assertIn('bar: 2', prov_yml)
+
+    @mock.patch('qiime2.core.archive.provenance.tzlocal.get_localzone',
+                side_effect=ValueError())
+    def test_ts_to_date(self, mocked_tzlocal):
+        q2_paper_date = 1563984000
+
+        obs = str(provenance._ts_to_date(q2_paper_date))
+        exp = "2019-07-24 16:00:00+00:00"
+
+        self.assertEqual(obs, exp)
+        self.assertTrue(mocked_tzlocal.called)
 
 
 if __name__ == '__main__':

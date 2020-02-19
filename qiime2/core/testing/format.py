@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2020, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -85,6 +85,10 @@ IntSequenceDirectoryFormat = model.SingleFileDirectoryFormat(
 
 IntSequenceV2DirectoryFormat = model.SingleFileDirectoryFormat(
     'IntSequenceV2DirectoryFormat', 'integers.txt', IntSequenceFormatV2)
+
+
+class IntSequenceMultiFileDirectoryFormat(model.DirectoryFormat):
+    pass
 
 
 # This could have been a `SingleFileDirectoryFormat`, but isn't for testing

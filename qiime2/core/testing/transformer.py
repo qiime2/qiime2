@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2020, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -14,6 +14,9 @@ from .format import (
     MappingDirectoryFormat,
     IntSequenceFormat,
     IntSequenceFormatV2,
+    IntSequenceDirectoryFormat,
+    IntSequenceV2DirectoryFormat,
+    IntSequenceMultiFileDirectoryFormat,
     SingleIntFormat,
     MappingFormat,
     UnimportableFormat,
@@ -92,6 +95,19 @@ def _1000(ff: IntSequenceFormat) -> IntSequenceFormatV2:
             new_fh.write(line)
 
     return new_ff
+
+
+# This only exists to test `get_formats` and is functionally useless otherwise
+@dummy_plugin.register_transformer
+def _1100(df: IntSequenceMultiFileDirectoryFormat) -> \
+        IntSequenceDirectoryFormat:
+    return IntSequenceDirectoryFormat()
+
+
+@dummy_plugin.register_transformer
+def _1001(df: IntSequenceV2DirectoryFormat) -> \
+        IntSequenceMultiFileDirectoryFormat:
+    return IntSequenceMultiFileDirectoryFormat()
 
 
 @dummy_plugin.register_transformer

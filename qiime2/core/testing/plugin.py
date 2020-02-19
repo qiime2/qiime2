@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2020, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -15,6 +15,7 @@ from qiime2.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
 from .format import (
     IntSequenceFormat,
     IntSequenceFormatV2,
+    IntSequenceMultiFileDirectoryFormat,
     MappingFormat,
     SingleIntFormat,
     IntSequenceDirectoryFormat,
@@ -28,8 +29,8 @@ from .format import (
     EchoDirectoryFormat
 )
 
-from .type import (IntSequence1, IntSequence2, Mapping, FourInts, SingleInt,
-                   Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz)
+from .type import (IntSequence1, IntSequence2, IntSequence3, Mapping, FourInts,
+                   SingleInt, Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz)
 from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_column,
                      identity_with_categorical_metadata_column,
@@ -48,6 +49,15 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        failing_pipeline)
 from ..cite import Citations
 
+from .examples import (concatenate_ints_simple, concatenate_ints_complex,
+                       typical_pipeline_simple, typical_pipeline_complex,
+                       comments_only, identity_with_metadata_simple,
+                       identity_with_metadata_merging,
+                       identity_with_metadata_column_get_mdc,
+                       identity_with_metadata_column_from_factory,
+                       )
+
+
 citations = Citations.load('citations.bib', package='qiime2.core.testing')
 dummy_plugin = Plugin(
     name='dummy-plugin',
@@ -63,14 +73,15 @@ dummy_plugin = Plugin(
 import_module('qiime2.core.testing.transformer')
 
 # Register semantic types
-dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, Mapping,
-                                     FourInts, Kennel, Dog, Cat, SingleInt,
-                                     C1, C2, C3, Foo, Bar, Baz)
+dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, IntSequence3,
+                                     Mapping, FourInts, Kennel, Dog, Cat,
+                                     SingleInt, C1, C2, C3, Foo, Bar, Baz)
 
 # Register formats
 dummy_plugin.register_formats(
     IntSequenceFormatV2, MappingFormat, IntSequenceV2DirectoryFormat,
-    MappingDirectoryFormat, EchoDirectoryFormat, EchoFormat)
+    IntSequenceMultiFileDirectoryFormat, MappingDirectoryFormat,
+    EchoDirectoryFormat, EchoFormat)
 
 dummy_plugin.register_formats(
     FourIntsDirectoryFormat, UnimportableDirectoryFormat, UnimportableFormat,
@@ -88,6 +99,10 @@ dummy_plugin.register_semantic_type_to_format(
 dummy_plugin.register_semantic_type_to_format(
     IntSequence2,
     artifact_format=IntSequenceV2DirectoryFormat
+)
+dummy_plugin.register_semantic_type_to_format(
+    IntSequence3,
+    artifact_format=IntSequenceMultiFileDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     Mapping,
@@ -135,7 +150,10 @@ dummy_plugin.methods.register_function(
     name='Concatenate integers',
     description='This method concatenates integers into a single sequence in '
                 'the order they are provided.',
-    citations=[citations['baerheim1994effect']]
+    citations=[citations['baerheim1994effect']],
+    examples={'concatenate_ints_simple': concatenate_ints_simple,
+              'concatenate_ints_complex': concatenate_ints_complex,
+              'comments_only': comments_only},
 )
 
 T = TypeMatch([IntSequence1, IntSequence2])
@@ -191,7 +209,10 @@ dummy_plugin.methods.register_function(
         ('out', IntSequence1)
     ],
     name='Identity',
-    description='This method does nothing, but takes metadata'
+    description='This method does nothing, but takes metadata',
+    examples={
+        'identity_with_metadata_simple': identity_with_metadata_simple,
+        'identity_with_metadata_merging': identity_with_metadata_merging},
 )
 
 dummy_plugin.methods.register_function(
@@ -266,7 +287,14 @@ dummy_plugin.methods.register_function(
         ('out', IntSequence1)
     ],
     name='Identity',
-    description='This method does nothing, but takes a generic metadata column'
+    description='This method does nothing, '
+                'but takes a generic metadata column',
+    examples={
+        'identity_with_metadata_column_get_mdc':
+            identity_with_metadata_column_get_mdc,
+        'identity_with_metadata_column_from_factory':
+            identity_with_metadata_column_from_factory
+    },
 )
 
 
@@ -544,7 +572,9 @@ dummy_plugin.pipelines.register_function(
     },
     name='A typical pipeline with the potential to raise an error',
     description='Waste some time shuffling data around for no reason',
-    citations=citations  # ALL of them.
+    citations=citations,  # ALL of them.
+    examples={'typical_pipeline_simple': typical_pipeline_simple,
+              'typical_pipeline_complex': typical_pipeline_complex},
 )
 
 dummy_plugin.pipelines.register_function(

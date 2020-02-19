@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2020, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -14,6 +14,7 @@ from qiime2.core.type import (SemanticType, Int, Str, Float, Metadata,
                               MetadataColumn, Categorical, Numeric, Properties,
                               Range, Start, End, Choices, Bool, Set, List,
                               Visualization, TypeMap, TypeMatch)
+from qiime2.sdk.usage import UsageAction, UsageInputs, UsageOutputNames
 
 
 __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
@@ -21,4 +22,4 @@ __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
            'Metadata', 'MetadataColumn', 'Categorical', 'Numeric',
            'Properties', 'Range', 'Start', 'End', 'Choices', 'Visualization',
            'TypeMap', 'TypeMatch', 'ValidationError', 'Citations',
-           'CitationRecord']
+           'CitationRecord', 'UsageAction', 'UsageInputs', 'UsageOutputNames']

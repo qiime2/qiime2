@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2020, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -15,6 +15,7 @@ import pathlib
 import qiime2
 
 from qiime2.core import transform
+from qiime2.sdk import usage
 from qiime2.plugin.model.base import FormatBase
 
 
@@ -143,15 +144,13 @@ class TestPluginBase(unittest.TestCase):
         """
 
         try:
-            semantic_type_record = self.plugin.types[semantic_type.name]
+            record = self.plugin.type_fragments[semantic_type.name]
         except KeyError:
             self.fail(
                 "Semantic type %r is not registered on the plugin." %
                 semantic_type)
 
-        obs_semantic_type = semantic_type_record.semantic_type
-
-        self.assertEqual(obs_semantic_type, semantic_type)
+        self.assertEqual(record.fragment, semantic_type)
 
     def assertSemanticTypeRegisteredToFormat(self, semantic_type, exp_format):
         """Test assertion for ensuring a semantic type is registered to a
@@ -246,3 +245,13 @@ class TestPluginBase(unittest.TestCase):
             self.assertIsInstance(obs, target)
 
         return input, obs
+
+    def execute_examples(self):
+        if self.plugin is None:
+            raise ValueError('Attempted to run `execute_examples` without '
+                             'configuring test harness.')
+        for _, action in self.plugin.actions.items():
+            for name, example_f in action.examples.items():
+                with self.subTest(example=name):
+                    use = usage.ExecutionUsage()
+                    example_f(use)

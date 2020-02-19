@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2020, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -91,6 +91,11 @@ def is_primitive_type(t):
 def is_metadata_type(t):
     expr = _norm_input(t)
     return is_primitive_type(t) and expr.name.startswith('Metadata')
+
+
+def is_metadata_column_type(t):
+    expr = _norm_input(t)
+    return is_primitive_type(t) and expr.name.endswith('MetadataColumn')
 
 
 def is_semantic_type(t):
