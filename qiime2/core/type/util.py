@@ -17,7 +17,7 @@ from qiime2.core.type.parse import ast_to_type
 
 def _strip_predicates(expr):
     if isinstance(expr, UnionExp):
-        return UnionExp(_strip_predicates(m) for m in expr.members)
+        return UnionExp(_strip_predicates(m) for m in expr.members).normalize()
 
     if hasattr(expr, 'fields'):
         new_fields = tuple(_strip_predicates(f) for f in expr.fields)
