@@ -104,7 +104,7 @@ class TestPluginBase(unittest.TestCase):
         """Convenience method for getting a registered transformer.
 
         This helper deliberately side-steps the framework's validation machinery,
-        that way it is possible for plugin developers to test failing conditions.
+        so that it is possible for plugin developers to test failing conditions.
 
         Parameters
         ----------
@@ -191,7 +191,7 @@ class TestPluginBase(unittest.TestCase):
         ``data/``, as ``source_format``, then transform to the ``target`` view.
 
         This helper deliberately side-steps the framework's validation machinery,
-        that way it is possible for plugin developers to test failing conditions.
+        so that it is possible for plugin developers to test failing conditions.
 
         Parameters
         ----------
