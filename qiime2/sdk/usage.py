@@ -88,6 +88,14 @@ class UsageInputs:
                 if isinstance(self.values[name], ScopeRecord) \
                         and self.values[name].ref in scope.records:
                     value = self.values[name].result
+                elif (isinstance(self.values[name], list)
+                      and self.values[name]
+                      and isinstance(self.values[name][0], ScopeRecord)):
+                    value = [item.result for item in self.values[name]]
+                elif (isinstance(self.values[name], set)
+                      and self.values[name]
+                      and isinstance(self.values[name][0], ScopeRecord)):
+                    value = {item.result for item in self.values[name]}
                 else:
                     value = self.values[name]
                 opts[name] = value
