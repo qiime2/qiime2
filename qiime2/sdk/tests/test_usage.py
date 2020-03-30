@@ -48,7 +48,7 @@ class TestUsage(TestCaseUsage):
         self.assertEqual({'int1': 4, 'int2': 2, 'ints1': 'ints_a',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
                          obs5['input_opts'])
-        self.assertEqual({'ints_d': 'concatenated_ints'}, obs5['output_opts'])
+        self.assertEqual({'concatenated_ints': 'ints_d'}, obs5['output_opts'])
 
     def test_chained(self):
         action = self.plugin.actions['concatenate_ints']
@@ -74,13 +74,13 @@ class TestUsage(TestCaseUsage):
         self.assertEqual({'int1': 4, 'int2': 2, 'ints1': 'ints_a',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
                          obs5['input_opts'])
-        self.assertEqual({'ints_d': 'concatenated_ints'}, obs5['output_opts'])
+        self.assertEqual({'concatenated_ints': 'ints_d'}, obs5['output_opts'])
 
         self.assertTrue('chained usage (pt 2)' in obs6['text'])
 
         self.assertEqual('dummy_plugin', obs7['action'].plugin_id)
         self.assertEqual('concatenate_ints', obs7['action'].action_id)
-        self.assertEqual({'int1': 41, 'int2': 0, 'ints1': 'concatenated_ints',
+        self.assertEqual({'int1': 41, 'int2': 0, 'ints1': 'ints_d',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
                          obs7['input_opts'])
         self.assertEqual({'concatenated_ints': 'concatenated_ints'},
@@ -270,16 +270,16 @@ class TestUsageOutputNames(TestCaseUsage):
     def test_validate_derived_missing_output(self):
         uo = usage.UsageOutputNames(x='goodbye', y='hello')
 
-        with self.assertRaisesRegex(ValueError, 'SDK.*missing output.*hello'):
-            uo.validate_derived({'goodbye': 'val'})
+        with self.assertRaisesRegex(ValueError, 'SDK.*missing output.*y'):
+            uo.validate_computed({'x': 'val'})
 
     def test_validate_derived_extra_output(self):
         uo = usage.UsageOutputNames(x='goodbye', y='hello')
 
         with self.assertRaisesRegex(ValueError, 'SDK.*extra output.*peanut'):
-            uo.validate_derived({'goodbye': 'val',
-                                 'hello': 'val',
-                                 'peanut': 'val'})
+            uo.validate_computed({'x': 'val',
+                                  'y': 'val',
+                                  'peanut': 'val'})
 
 
 class TestUsageBaseClass(TestCaseUsage):
