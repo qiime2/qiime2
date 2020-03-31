@@ -143,6 +143,21 @@ class TestUsage(TestCaseUsage):
         self.assertEqual('init_data', obs2['type'])
         self.assertEqual('action', obs3['type'])
 
+    def test_optional_inputs(self):
+        action = self.plugin.actions['optional_artifacts_method']
+        use = usage.DiagnosticUsage()
+
+        action.examples['optional_inputs'](use)
+
+        self.assertEqual(5, len(use.recorder))
+
+        obs1, obs2, obs3, obs4, obs5 = use.recorder
+        self.assertEqual('init_data', obs1['type'])
+        self.assertEqual('action', obs2['type'])
+        self.assertEqual('action', obs3['type'])
+        self.assertEqual('action', obs4['type'])
+        self.assertEqual('action', obs5['type'])
+
 
 class TestUsageAction(TestCaseUsage):
     def test_successful_init(self):
@@ -192,13 +207,15 @@ class TestUsageInputs(TestCaseUsage):
     def setUp(self):
         super().setUp()
 
-        def foo(x: dict, z: str, optional: str = None) -> dict:
+        def foo(x: dict, z: str,
+                optional_input: dict = None,
+                optional_param: str = None) -> dict:
             return x
 
         self.signature = signature.MethodSignature(
             foo,
-            inputs={'x': Mapping},
-            parameters={'z': plugin.Str, 'optional': plugin.Str},
+            inputs={'x': Mapping, 'optional_input': Mapping},
+            parameters={'z': plugin.Str, 'optional_param': plugin.Str},
             outputs=[('y', Mapping)],
         )
 
@@ -207,27 +224,35 @@ class TestUsageInputs(TestCaseUsage):
         self.assertEqual(['foo'], list(obs.values.keys()))
         self.assertEqual(['bar'], list(obs.values.values()))
 
-    def test_validate_missing_input(self):
-        ui = usage.UsageInputs(y='hello')
+    def test_validate_missing_required_input(self):
+        ui = usage.UsageInputs(y='hello',
+                               optional_input='a', optional_param='b')
 
         with self.assertRaisesRegex(ValueError, 'Missing input.*x'):
             ui.validate(self.signature)
 
-    def test_validate_missing_parameter(self):
-        ui = usage.UsageInputs(x='hello')
+    def test_validate_missing_required_parameter(self):
+        ui = usage.UsageInputs(x='hello',
+                               optional_input='a', optional_param='b')
 
         with self.assertRaisesRegex(ValueError, 'Missing parameter.*z'):
             ui.validate(self.signature)
 
     def test_validate_extra_values(self):
-        ui = usage.UsageInputs(x='hello', z='goodbye', foo=True)
+        ui = usage.UsageInputs(x='hello', z='goodbye', foo=True,
+                               optional_input='a', optional_param='b')
 
         with self.assertRaisesRegex(ValueError,
                                     'Extra input.*parameter.*foo'):
             ui.validate(self.signature)
 
-    def test_validated_missing_optional_value(self):
-        ui = usage.UsageInputs(x='hello', z='goodbye')
+    def test_validate_missing_optional_input(self):
+        ui = usage.UsageInputs(x='hello', z='goodbye', optional_param='a')
+        ui.validate(self.signature)
+        self.assertTrue(True)
+
+    def test_validate_missing_optional_parameter(self):
+        ui = usage.UsageInputs(x='hello', z='goodbye', optional_input='a')
         ui.validate(self.signature)
         self.assertTrue(True)
 
