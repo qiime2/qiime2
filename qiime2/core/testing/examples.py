@@ -12,7 +12,7 @@ from qiime2 import Artifact, Metadata, CategoricalMetadataColumn
 
 from qiime2.plugin import UsageAction, UsageInputs, UsageOutputNames
 
-from .type import IntSequence1, IntSequence2, Mapping
+from .type import IntSequence1, IntSequence2, Mapping, SingleInt
 
 
 def ints1_factory():
@@ -48,6 +48,26 @@ def mdc1_factory():
                                      name='a',
                                      index=pd.Index(['0', '1', '2'],
                                                     name='id')))
+
+
+def intSequence_list_factory():
+    int1 = ints1_factory()
+    int2 = ints2_factory()
+    return [int1, int2]
+
+
+def singleInt1_factory():
+    return Artifact.import_data(SingleInt, 10)
+
+
+def singleInt2_factory():
+    return Artifact.import_data(SingleInt, 11)
+
+
+def singleInt1_set_factory():
+    singleInt1 = singleInt1_factory()
+    singleInt2 = singleInt2_factory()
+    return {singleInt1, singleInt2}
 
 
 def concatenate_ints_simple(use):
@@ -180,4 +200,16 @@ def identity_with_metadata_column_from_factory(use):
                     action_id='identity_with_metadata_column'),
         UsageInputs(ints=ints, metadata=mdc),
         UsageOutputNames(out='out'),
+    )
+
+
+def feature_table_merge_example(use):
+    ints = use.init_data('int', intSequence_list_factory)
+    int_set = use.init_data('int_set', singleInt1_set_factory)
+
+    use.action(
+        UsageAction(plugin_id='dummy_plugin',
+                    action_id='variadic_input_method'),
+        UsageInputs(ints=ints, int_set=int_set, nums={7, 8, 9}),
+        UsageOutputNames(output='out'),
     )

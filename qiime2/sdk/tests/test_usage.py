@@ -143,6 +143,23 @@ class TestUsage(TestCaseUsage):
         self.assertEqual('init_data', obs2['type'])
         self.assertEqual('action', obs3['type'])
 
+    def test_use_merge_feature_table(self):
+        action = self.plugin.actions['variadic_input_method']
+        use = usage.DiagnosticUsage()
+        action.examples['feature_table_merge_example'](use)
+
+        self.assertEqual(len(use.recorder), 3)
+
+        obs1, obs2, obs3 = use.recorder
+
+        self.assertEqual('init_data', obs1['type'])
+        self.assertEqual('init_data', obs2['type'])
+        self.assertEqual('action', obs3['type'])
+        self.assertEqual(set, type(obs3['input_opts']['nums']))
+
+        self.assertIn('int', obs3['input_opts']['ints'])
+        self.assertIn('int_set', obs3['input_opts']['int_set'])
+
 
 class TestUsageAction(TestCaseUsage):
     def test_successful_init(self):
@@ -230,6 +247,13 @@ class TestUsageInputs(TestCaseUsage):
         ui = usage.UsageInputs(x='hello', z='goodbye')
         ui.validate(self.signature)
         self.assertTrue(True)
+
+    def test_type_of_input(self):
+        test_inputs = usage.UsageInputs(x=[1, 2, 3], z={7, 8, 9})
+        test_inputs.validate(self.signature)
+
+        self.assertEqual(list, type(test_inputs.values['x']))
+        self.assertEqual(set, type(test_inputs.values['z']))
 
 
 class TestUsageOutputNames(TestCaseUsage):
