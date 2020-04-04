@@ -19,6 +19,7 @@ import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
+from inspect import signature
 
 
 def _subprocess_apply(action, args, kwargs):
@@ -189,20 +190,8 @@ class Action(metaclass=abc.ABCMeta):
             # `decorator.decorator`. When the signature is rewritten,
             # args[0] is the function whose signature was used to rewrite
             # this function's signature.
-            # TODO: remove
-            print("********* function used to rewrite sig", args[0])
-            import inspect
-            from inspect import signature
-            TODO_valid_sig = signature(args[0])
-            print("********* this function's sig", TODO_valid_sig)
-            func = args[0]
-            # if hasattr(func, '__wrapped__'):
-            while hasattr(func, '__wrapped__'):
-                func = func.__wrapped__
-                print("************wrapped_func", func)
-                print("********* wrapped func sig",
-                      signature(func))
 
+            func = args[0]
             args = args[1:]
             ctx = context_factory()
             # Set up a scope under which we can track destructable references
@@ -214,23 +203,9 @@ class Action(metaclass=abc.ABCMeta):
                 scope.add_reference(provenance)
 
                 # Collate user arguments
-                # NOTES: makes a dict of self.name: associated arg
-                print("************args", args)
-                print("************kwargs", kwargs)
                 bound_sig = signature(func).bind(*args, **kwargs)
-                print("************wrapped_kwargs", bound_sig.arguments)
                 bound_sig.apply_defaults()
-                print("************wrapped_kwargs", bound_sig.arguments)
-                user_input = {name: value for value, name in
-                              zip(args, self.signature.signature_order)}
-                user_input.update(kwargs)
-
-                # TODO: remove this
-                # print("*************self: ", self, "\n")
-                # print("*************self.signature: ",
-                #       self.signature.signature_order, "\n")
-                # print("*************user input: ", user_input, "\n")
-                print("\n")
+                user_input = bound_sig.arguments
 
                 # Type management
                 self.signature.check_types(**user_input)
