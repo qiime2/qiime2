@@ -252,8 +252,8 @@ class TestUsageInputs(TestCaseUsage):
         test_inputs = usage.UsageInputs(x=[1, 2, 3], z={7, 8, 9})
         test_inputs.validate(self.signature)
 
-        self.assertEqual(list, type(test_inputs.values['x']))
-        self.assertEqual(set, type(test_inputs.values['z']))
+        self.assertIsInstance(test_inputs.values['x'], list)
+        self.assertIsInstance(test_inputs.values['z'], set)
 
 
 class TestUsageOutputNames(TestCaseUsage):

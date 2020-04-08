@@ -77,8 +77,10 @@ class UsageInputs:
 
         extra = provided - exp_inputs - exp_params
         if len(extra) > 0:
-            raise ValueError('Extra input(s) or parameter(s): %r' %
-                             (extra, ))
+            for provided_value in extra:
+                if provided_value not in signature.parameters:
+                    raise ValueError('Extra input(s) or parameter(s): %r' %
+                                     (extra, ))
 
     def build_opts(self, signature, scope):
         opts = {}
