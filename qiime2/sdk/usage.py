@@ -136,9 +136,9 @@ class UsageOutputNames:
         if len(extra) > 0:
             raise ValueError('Extra output(s): %r' % (extra, ))
 
-    def validate_derived(self, derived_outputs):
-        provided = set(derived_outputs.keys())
-        exp_outputs = set(self.values.values())
+    def validate_computed(self, computed_outputs):
+        provided = set(computed_outputs.keys())
+        exp_outputs = set(self.values.keys())
 
         missing = exp_outputs - provided
         if len(missing) > 0:
@@ -154,7 +154,7 @@ class UsageOutputNames:
         opts = {}
 
         for output in action_signature.outputs.keys():
-            opts[self.get(output)] = output
+            opts[output] = self.get(output)
 
         return opts
 
@@ -253,11 +253,11 @@ class Usage(metaclass=abc.ABCMeta):
         input_opts = inputs.build_opts(action_signature, self._scope)
         output_opts = outputs.build_opts(action_signature, self._scope)
 
-        derived_outputs = self._action_(action, input_opts, output_opts)
-        self._add_outputs_to_scope(outputs, derived_outputs)
+        computed_outputs = self._action_(action, input_opts, output_opts)
+        self._add_outputs_to_scope(outputs, computed_outputs)
 
     def _action_(self, action: UsageAction,
-                 input_opts: dict, output_opts: list):
+                 input_opts: dict, output_opts: dict):
         raise NotImplementedError
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
@@ -266,9 +266,10 @@ class Usage(metaclass=abc.ABCMeta):
     def get_result(self, ref):
         return self._get_record(ref)
 
-    def _add_outputs_to_scope(self, outputs, derived_outputs):
-        outputs.validate_derived(derived_outputs)
-        for ref, result in derived_outputs.items():
+    def _add_outputs_to_scope(self, outputs, computed_outputs):
+        outputs.validate_computed(computed_outputs)
+        for output, result in computed_outputs.items():
+            ref = outputs.get(output)
             self._push_record(ref, result)
 
     def _push_record(self, ref, value):
@@ -355,7 +356,7 @@ class ExecutionUsage(Usage):
                  input_opts: dict, output_opts: dict):
         action_f, _ = action.get_action()
         results = action_f(**input_opts)
-        return {k: getattr(results, v) for k, v in output_opts.items()}
+        return {k: getattr(results, k) for k in output_opts.keys()}
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
         data = self._get_record(ref).result

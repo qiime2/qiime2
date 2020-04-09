@@ -53,12 +53,10 @@ class ArtifactAPIUsage(usage.Usage):
         action_f, action_sig = action.get_action()
         self._update_imports(action_f)
 
-        new_output_opts = {k: k for k in output_opts.keys()}
-
-        t = self._template_action(action_f, input_opts, new_output_opts)
+        t = self._template_action(action_f, input_opts, output_opts)
         self._recorder.append(t)
 
-        return new_output_opts
+        return output_opts
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
         pass
@@ -72,7 +70,7 @@ class ArtifactAPIUsage(usage.Usage):
         return {r: f() for r, f in self._init_data_refs.items()}
 
     def _template_action(self, action_f, input_opts, output_opts):
-        output_opts = list(output_opts.keys())
+        output_opts = list(output_opts.values())
         if len(output_opts) == 1:
             output_opts.append('')
         output_vars = ', '.join(output_opts)
