@@ -103,8 +103,9 @@ class TestPluginBase(unittest.TestCase):
     def get_transformer(self, from_type, to_type):
         """Convenience method for getting a registered transformer.
 
-        This helper deliberately side-steps the framework's validation machinery,
-        so that it is possible for plugin developers to test failing conditions.
+        This helper deliberately side-steps the framework's validation
+        machinery, so that it is possible for plugin developers to test
+        failing conditions.
 
         Parameters
         ----------
@@ -190,8 +191,9 @@ class TestPluginBase(unittest.TestCase):
         Combines several other utilities in this class, will load files from
         ``data/``, as ``source_format``, then transform to the ``target`` view.
 
-        This helper deliberately side-steps the framework's validation machinery,
-        so that it is possible for plugin developers to test failing conditions.
+        This helper deliberately side-steps the framework's validation
+        machinery, so that it is possible for plugin developers to test
+        failing conditions.
 
         Parameters
         ----------
