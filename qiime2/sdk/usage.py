@@ -99,8 +99,7 @@ class UsageInputs:
         for name, signature in signature.signature_order.items():
             if name in self.values:
                 v = self.values[name]
-                if isinstance(v, ScopeRecord) \
-                        and v.ref in scope.records:
+                if isinstance(v, ScopeRecord) and v.ref in scope.records:
                     value = v.result
                 else:
                     value = v
