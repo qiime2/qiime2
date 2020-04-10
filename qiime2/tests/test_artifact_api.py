@@ -255,7 +255,6 @@ out, = identity_with_metadata_column(
 """
         self.assertEqual(exp, use.render())
 
-<<<<<<< HEAD
     def test_use_merge_feature_table(self):
         action = self.plugin.actions['variadic_input_method']
         use = ArtifactAPIUsage()
@@ -272,8 +271,6 @@ out, = variadic_input_method(
 """
         self.assertEqual(exp, use.render())
 
-||||||| f89eaad
-=======
     def test_optional_inputs(self):
         action = self.plugin.actions['optional_artifacts_method']
         use = ArtifactAPIUsage()
@@ -308,7 +305,6 @@ output, = optional_artifacts_method(
 
         self.assertEqual(exp, use.render())
 
->>>>>>> master
 
 if __name__ == '__main__':
     unittest.main()
