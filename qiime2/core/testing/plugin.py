@@ -55,8 +55,7 @@ from .examples import (concatenate_ints_simple, concatenate_ints_complex,
                        identity_with_metadata_merging,
                        identity_with_metadata_column_get_mdc,
                        identity_with_metadata_column_from_factory,
-                       feature_table_merge_example,
-                       optional_inputs,
+                       variadic_input_simple, optional_inputs,
                        )
 
 
@@ -463,7 +462,7 @@ dummy_plugin.methods.register_function(
     output_descriptions={
         'output': 'All of the above mashed together'
     },
-    examples={'feature_table_merge_example': feature_table_merge_example},
+    examples={'variadic_input_simple': variadic_input_simple},
 )
 
 dummy_plugin.visualizers.register_function(

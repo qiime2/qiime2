@@ -146,7 +146,7 @@ class TestUsage(TestCaseUsage):
     def test_use_merge_feature_table(self):
         action = self.plugin.actions['variadic_input_method']
         use = usage.DiagnosticUsage()
-        action.examples['feature_table_merge_example'](use)
+        action.examples['variadic_input_simple'](use)
 
         self.assertEqual(len(use.recorder), 3)
 

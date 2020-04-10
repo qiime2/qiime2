@@ -203,7 +203,7 @@ def identity_with_metadata_column_from_factory(use):
     )
 
 
-def feature_table_merge_example(use):
+def variadic_input_simple(use):
     ints = use.init_data('int', int_sequence_list_factory)
     int_set = use.init_data('int_set', single_int_set_factory)
 

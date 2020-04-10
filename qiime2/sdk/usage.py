@@ -98,22 +98,15 @@ class UsageInputs:
 
         for name, signature in signature.signature_order.items():
             if name in self.values:
-                if isinstance(self.values[name], ScopeRecord) \
-                        and self.values[name].ref in scope.records:
-                    value = self.values[name].result
-                elif (isinstance(self.values[name], list)
-                      and self.values[name]
-                      and all(isinstance(n, ScopeRecord)
-                      for n in self.values[name])):
-                    value = [item.result for item in self.values[name]]
-                elif (isinstance(self.values[name], set)
-                      and self.values[name]
-                      and all(isinstance(n, ScopeRecord)
-                      for n in self.values[name])):
-                    value = {item.result for item in self.values[name]}
                 v = self.values[name]
                 if isinstance(v, ScopeRecord) and v.ref in scope.records:
-                    value = v.result
+                    value = self.values[name].result
+                elif (isinstance(v, list)
+                      and all(isinstance(n, ScopeRecord) for n in v)):
+                    value = [item.result for item in v]
+                elif (isinstance(v, set)
+                      and all(isinstance(n, ScopeRecord) for n in v)):
+                    value = {item.result for item in v}
                 else:
                     value = v
                 opts[name] = value

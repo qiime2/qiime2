@@ -258,7 +258,7 @@ out, = identity_with_metadata_column(
     def test_use_merge_feature_table(self):
         action = self.plugin.actions['variadic_input_method']
         use = ArtifactAPIUsage()
-        action.examples['feature_table_merge_example'](use)
+        action.examples['variadic_input_simple'](use)
 
         exp = """\
 from qiime2.plugins.dummy_plugin.methods import variadic_input_method
