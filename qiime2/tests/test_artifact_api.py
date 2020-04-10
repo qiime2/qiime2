@@ -255,6 +255,40 @@ out, = identity_with_metadata_column(
 """
         self.assertEqual(exp, use.render())
 
+    def test_optional_inputs(self):
+        action = self.plugin.actions['optional_artifacts_method']
+        use = ArtifactAPIUsage()
+        action.examples['optional_inputs'](use)
+        exp = """\
+from qiime2.plugins.dummy_plugin.methods import optional_artifacts_method
+
+output, = optional_artifacts_method(
+    ints=ints,
+    num1=1,
+)
+
+output, = optional_artifacts_method(
+    ints=ints,
+    num1=1,
+    num2=2,
+)
+
+ints_b, = optional_artifacts_method(
+    ints=ints,
+    num1=1,
+    num2=None,
+)
+
+output, = optional_artifacts_method(
+    ints=ints,
+    num1=3,
+    optional1=ints_b,
+    num2=4,
+)
+"""
+
+        self.assertEqual(exp, use.render())
+
 
 if __name__ == '__main__':
     unittest.main()

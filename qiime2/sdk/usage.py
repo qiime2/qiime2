@@ -64,8 +64,20 @@ class UsageInputs:
     def validate(self, signature):
         provided = set(self.values.keys())
         inputs, params = signature.inputs, signature.parameters
-        exp_inputs = {k for k, v in inputs.items() if not v.has_default()}
-        exp_params = {k for k, v in params.items() if not v.has_default()}
+
+        exp_inputs, optional_inputs = set(), set()
+        for name, sig in inputs.items():
+            if sig.has_default():
+                optional_inputs.add(name)
+            else:
+                exp_inputs.add(name)
+
+        exp_params, optional_params = set(), set()
+        for name, sig in params.items():
+            if sig.has_default():
+                optional_params.add(name)
+            else:
+                exp_params.add(name)
 
         missing = exp_inputs - provided
         if len(missing) > 0:
@@ -75,7 +87,8 @@ class UsageInputs:
         if len(missing) > 0:
             raise ValueError('Missing parameter(s): %r' % (missing, ))
 
-        extra = provided - exp_inputs - exp_params
+        all_vals = exp_inputs | optional_inputs | exp_params | optional_params
+        extra = provided - all_vals
         if len(extra) > 0:
             raise ValueError('Extra input(s) or parameter(s): %r' %
                              (extra, ))
@@ -85,11 +98,11 @@ class UsageInputs:
 
         for name, signature in signature.signature_order.items():
             if name in self.values:
-                if isinstance(self.values[name], ScopeRecord) \
-                        and self.values[name].ref in scope.records:
-                    value = self.values[name].result
+                v = self.values[name]
+                if isinstance(v, ScopeRecord) and v.ref in scope.records:
+                    value = v.result
                 else:
-                    value = self.values[name]
+                    value = v
                 opts[name] = value
 
         return opts
