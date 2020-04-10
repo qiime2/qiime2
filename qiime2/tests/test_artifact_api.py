@@ -255,6 +255,22 @@ out, = identity_with_metadata_column(
 """
         self.assertEqual(exp, use.render())
 
+    def test_use_merge_feature_table(self):
+        action = self.plugin.actions['variadic_input_method']
+        use = ArtifactAPIUsage()
+        action.examples['variadic_input_simple'](use)
+
+        exp = """\
+from qiime2.plugins.dummy_plugin.methods import variadic_input_method
+
+out, = variadic_input_method(
+    ints=int,
+    int_set=int_set,
+    nums={8, 9, 7},
+)
+"""
+        self.assertEqual(exp, use.render())
+
     def test_optional_inputs(self):
         action = self.plugin.actions['optional_artifacts_method']
         use = ArtifactAPIUsage()
