@@ -98,7 +98,6 @@ class UsageInputs:
 
         for name, signature in signature.signature_order.items():
             if name in self.values:
-<<<<<<< HEAD
                 if isinstance(self.values[name], ScopeRecord) \
                         and self.values[name].ref in scope.records:
                     value = self.values[name].result
@@ -112,15 +111,9 @@ class UsageInputs:
                       and all(isinstance(n, ScopeRecord)
                       for n in self.values[name])):
                     value = {item.result for item in self.values[name]}
-||||||| f89eaad
-                if isinstance(self.values[name], ScopeRecord) \
-                        and self.values[name].ref in scope.records:
-                    value = self.values[name].result
-=======
                 v = self.values[name]
                 if isinstance(v, ScopeRecord) and v.ref in scope.records:
                     value = v.result
->>>>>>> master
                 else:
                     value = v
                 opts[name] = value
