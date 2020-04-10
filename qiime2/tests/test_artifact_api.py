@@ -255,6 +255,7 @@ out, = identity_with_metadata_column(
 """
         self.assertEqual(exp, use.render())
 
+<<<<<<< HEAD
     def test_use_merge_feature_table(self):
         action = self.plugin.actions['variadic_input_method']
         use = ArtifactAPIUsage()
@@ -271,6 +272,43 @@ out, = variadic_input_method(
 """
         self.assertEqual(exp, use.render())
 
+||||||| f89eaad
+=======
+    def test_optional_inputs(self):
+        action = self.plugin.actions['optional_artifacts_method']
+        use = ArtifactAPIUsage()
+        action.examples['optional_inputs'](use)
+        exp = """\
+from qiime2.plugins.dummy_plugin.methods import optional_artifacts_method
+
+output, = optional_artifacts_method(
+    ints=ints,
+    num1=1,
+)
+
+output, = optional_artifacts_method(
+    ints=ints,
+    num1=1,
+    num2=2,
+)
+
+ints_b, = optional_artifacts_method(
+    ints=ints,
+    num1=1,
+    num2=None,
+)
+
+output, = optional_artifacts_method(
+    ints=ints,
+    num1=3,
+    optional1=ints_b,
+    num2=4,
+)
+"""
+
+        self.assertEqual(exp, use.render())
+
+>>>>>>> master
 
 if __name__ == '__main__':
     unittest.main()

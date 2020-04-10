@@ -48,7 +48,7 @@ class TestUsage(TestCaseUsage):
         self.assertEqual({'int1': 4, 'int2': 2, 'ints1': 'ints_a',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
                          obs5['input_opts'])
-        self.assertEqual({'ints_d': 'concatenated_ints'}, obs5['output_opts'])
+        self.assertEqual({'concatenated_ints': 'ints_d'}, obs5['output_opts'])
 
     def test_chained(self):
         action = self.plugin.actions['concatenate_ints']
@@ -74,13 +74,13 @@ class TestUsage(TestCaseUsage):
         self.assertEqual({'int1': 4, 'int2': 2, 'ints1': 'ints_a',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
                          obs5['input_opts'])
-        self.assertEqual({'ints_d': 'concatenated_ints'}, obs5['output_opts'])
+        self.assertEqual({'concatenated_ints': 'ints_d'}, obs5['output_opts'])
 
         self.assertTrue('chained usage (pt 2)' in obs6['text'])
 
         self.assertEqual('dummy_plugin', obs7['action'].plugin_id)
         self.assertEqual('concatenate_ints', obs7['action'].action_id)
-        self.assertEqual({'int1': 41, 'int2': 0, 'ints1': 'concatenated_ints',
+        self.assertEqual({'int1': 41, 'int2': 0, 'ints1': 'ints_d',
                           'ints2': 'ints_b', 'ints3': 'ints_c'},
                          obs7['input_opts'])
         self.assertEqual({'concatenated_ints': 'concatenated_ints'},
@@ -160,6 +160,21 @@ class TestUsage(TestCaseUsage):
         self.assertIn('int', obs3['input_opts']['ints'])
         self.assertIn('int_set', obs3['input_opts']['int_set'])
 
+    def test_optional_inputs(self):
+        action = self.plugin.actions['optional_artifacts_method']
+        use = usage.DiagnosticUsage()
+
+        action.examples['optional_inputs'](use)
+
+        self.assertEqual(5, len(use.recorder))
+
+        obs1, obs2, obs3, obs4, obs5 = use.recorder
+        self.assertEqual('init_data', obs1['type'])
+        self.assertEqual('action', obs2['type'])
+        self.assertEqual('action', obs3['type'])
+        self.assertEqual('action', obs4['type'])
+        self.assertEqual('action', obs5['type'])
+
 
 class TestUsageAction(TestCaseUsage):
     def test_successful_init(self):
@@ -209,13 +224,15 @@ class TestUsageInputs(TestCaseUsage):
     def setUp(self):
         super().setUp()
 
-        def foo(x: dict, z: str, optional: str = None) -> dict:
+        def foo(x: dict, z: str,
+                optional_input: dict = None,
+                optional_param: str = None) -> dict:
             return x
 
         self.signature = signature.MethodSignature(
             foo,
-            inputs={'x': Mapping},
-            parameters={'z': plugin.Str, 'optional': plugin.Str},
+            inputs={'x': Mapping, 'optional_input': Mapping},
+            parameters={'z': plugin.Str, 'optional_param': plugin.Str},
             outputs=[('y', Mapping)],
         )
 
@@ -224,27 +241,35 @@ class TestUsageInputs(TestCaseUsage):
         self.assertEqual(['foo'], list(obs.values.keys()))
         self.assertEqual(['bar'], list(obs.values.values()))
 
-    def test_validate_missing_input(self):
-        ui = usage.UsageInputs(y='hello')
+    def test_validate_missing_required_input(self):
+        ui = usage.UsageInputs(y='hello',
+                               optional_input='a', optional_param='b')
 
         with self.assertRaisesRegex(ValueError, 'Missing input.*x'):
             ui.validate(self.signature)
 
-    def test_validate_missing_parameter(self):
-        ui = usage.UsageInputs(x='hello')
+    def test_validate_missing_required_parameter(self):
+        ui = usage.UsageInputs(x='hello',
+                               optional_input='a', optional_param='b')
 
         with self.assertRaisesRegex(ValueError, 'Missing parameter.*z'):
             ui.validate(self.signature)
 
     def test_validate_extra_values(self):
-        ui = usage.UsageInputs(x='hello', z='goodbye', foo=True)
+        ui = usage.UsageInputs(x='hello', z='goodbye', foo=True,
+                               optional_input='a', optional_param='b')
 
         with self.assertRaisesRegex(ValueError,
                                     'Extra input.*parameter.*foo'):
             ui.validate(self.signature)
 
-    def test_validated_missing_optional_value(self):
-        ui = usage.UsageInputs(x='hello', z='goodbye')
+    def test_validate_missing_optional_input(self):
+        ui = usage.UsageInputs(x='hello', z='goodbye', optional_param='a')
+        ui.validate(self.signature)
+        self.assertTrue(True)
+
+    def test_validate_missing_optional_parameter(self):
+        ui = usage.UsageInputs(x='hello', z='goodbye', optional_input='a')
         ui.validate(self.signature)
         self.assertTrue(True)
 
@@ -294,16 +319,16 @@ class TestUsageOutputNames(TestCaseUsage):
     def test_validate_derived_missing_output(self):
         uo = usage.UsageOutputNames(x='goodbye', y='hello')
 
-        with self.assertRaisesRegex(ValueError, 'SDK.*missing output.*hello'):
-            uo.validate_derived({'goodbye': 'val'})
+        with self.assertRaisesRegex(ValueError, 'SDK.*missing output.*y'):
+            uo.validate_computed({'x': 'val'})
 
     def test_validate_derived_extra_output(self):
         uo = usage.UsageOutputNames(x='goodbye', y='hello')
 
         with self.assertRaisesRegex(ValueError, 'SDK.*extra output.*peanut'):
-            uo.validate_derived({'goodbye': 'val',
-                                 'hello': 'val',
-                                 'peanut': 'val'})
+            uo.validate_computed({'x': 'val',
+                                  'y': 'val',
+                                  'peanut': 'val'})
 
 
 class TestUsageBaseClass(TestCaseUsage):

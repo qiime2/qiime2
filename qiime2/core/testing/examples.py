@@ -213,3 +213,37 @@ def feature_table_merge_example(use):
         UsageInputs(ints=ints, int_set=int_set, nums={7, 8, 9}),
         UsageOutputNames(output='out'),
     )
+
+
+def optional_inputs(use):
+    ints_a = use.init_data('ints', ints1_factory)
+
+    use.action(
+        UsageAction(plugin_id='dummy_plugin',
+                    action_id='optional_artifacts_method'),
+        UsageInputs(ints=ints_a, num1=1),
+        UsageOutputNames(output='output'),
+    )
+
+    use.action(
+        UsageAction(plugin_id='dummy_plugin',
+                    action_id='optional_artifacts_method'),
+        UsageInputs(ints=ints_a, num1=1, num2=2),
+        UsageOutputNames(output='output'),
+    )
+
+    use.action(
+        UsageAction(plugin_id='dummy_plugin',
+                    action_id='optional_artifacts_method'),
+        UsageInputs(ints=ints_a, num1=1, num2=None),
+        UsageOutputNames(output='ints_b'),
+    )
+
+    ints_b = use.get_result('ints_b')
+
+    use.action(
+        UsageAction(plugin_id='dummy_plugin',
+                    action_id='optional_artifacts_method'),
+        UsageInputs(ints=ints_a, optional1=ints_b, num1=3, num2=4),
+        UsageOutputNames(output='output'),
+    )

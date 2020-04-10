@@ -56,6 +56,7 @@ from .examples import (concatenate_ints_simple, concatenate_ints_complex,
                        identity_with_metadata_column_get_mdc,
                        identity_with_metadata_column_from_factory,
                        feature_table_merge_example,
+                       optional_inputs,
                        )
 
 
@@ -432,7 +433,8 @@ dummy_plugin.methods.register_function(
     ],
     name='Optional artifacts method',
     description='This method declares optional artifacts and concatenates '
-                'whatever integers are supplied as input.'
+                'whatever integers are supplied as input.',
+    examples={'optional_inputs': optional_inputs},
 )
 
 dummy_plugin.methods.register_function(
