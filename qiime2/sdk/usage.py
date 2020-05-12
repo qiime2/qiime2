@@ -179,7 +179,8 @@ class ScopeRecord:
         self._assert_has_line_matching_ = assert_has_line_matching
 
     def __repr__(self):
-        return 'ScopeRecord<ref=%s, result=%r, source=%s>' % (self.ref, self.result,
+        return 'ScopeRecord<ref=%s, result=%r, source=%s>' % (self.ref,
+                                                              self.result,
                                                               self.source)
 
     @property
