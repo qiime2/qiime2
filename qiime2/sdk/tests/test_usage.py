@@ -359,4 +359,5 @@ class TestUsageBaseClass(TestCaseUsage):
 class TestScopeRecord(TestCaseUsage):
     def test_invalid_assert_has_line_matching(self):
         with self.assertRaisesRegex(TypeError, 'should be a `callable`'):
-            usage.ScopeRecord('foo', assert_has_line_matching='spleen')
+            usage.ScopeRecord('foo', 'value', 'source',
+                              assert_has_line_matching='spleen')
