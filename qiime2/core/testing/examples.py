@@ -43,6 +43,7 @@ def md2_factory():
                                                 name='id')))
 
 
+# TODO: drop this factory
 def mdc1_factory():
     return CategoricalMetadataColumn(pd.Series(['1', '2', '3'],
                                      name='a',
@@ -152,7 +153,7 @@ def comments_only(use):
 
 def identity_with_metadata_simple(use):
     ints = use.init_data('ints', ints1_factory)
-    md = use.init_data('md', md1_factory)
+    md = use.init_metadata('md', md1_factory)
 
     use.action(
         UsageAction(plugin_id='dummy_plugin',
@@ -193,6 +194,7 @@ def identity_with_metadata_column_get_mdc(use):
 
 def identity_with_metadata_column_from_factory(use):
     ints = use.init_data('ints', ints1_factory)
+    # TODO: refactor to use `init_metadata` && `get_metadata_column`
     mdc = use.init_data('mdc', mdc1_factory)
 
     use.action(

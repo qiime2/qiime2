@@ -231,6 +231,13 @@ class Usage(metaclass=abc.ABCMeta):
     def _init_data_(self, ref, factory):
         raise NotImplementedError
 
+    def init_metadata(self, ref, factory):
+        value = self._init_metadata_(ref, factory)
+        return self._push_record(ref, value, 'init_metadata')
+
+    def _init_metadata_(self, ref, factory):
+        raise NotImplementedError
+
     def merge_metadata(self, ref, *records):
         if len(records) < 2:
             raise ValueError('Must provide two or more Metadata inputs.')
@@ -277,6 +284,7 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def get_result(self, ref):
+        # TODO: get_result should error if the source is anything other than `action`
         return self._get_record(ref)
 
     def _add_outputs_to_scope(self, outputs, computed_outputs):
@@ -297,6 +305,9 @@ class Usage(metaclass=abc.ABCMeta):
         return self._scope.records
 
 
+# TODO: refactor tests that use this to compare the `type`
+# to the record.source
+# TODO: rename type to source
 class DiagnosticUsage(Usage):
     def __init__(self):
         super().__init__()
@@ -353,6 +364,24 @@ class DiagnosticUsage(Usage):
 
 class ExecutionUsage(Usage):
     def _init_data_(self, ref, factory):
+        # TODO: write unit tests
+        result = factory()
+        result_type = type(result)
+
+        if result_type not in (list, set, sdk.Artifact):
+            raise ValueError('Factory (%r) returned a %s, expected an '
+                             'Artifact.' % (factory, result_type))
+
+        if result_type in (list, set):
+            if not all(isinstance(result, sdk.Artifact)):
+                raise ValueError('Factory (%r) returned a %s where not all '
+                                 'elements were Artifacts.' %
+                                 (factory, result_type))
+
+        return result
+
+    # TODO: implement this, include a Metadata typecheck
+    def _init_metadata_(self, ref, factory):
         return factory()
 
     def _merge_metadata_(self, ref, records):
@@ -360,6 +389,7 @@ class ExecutionUsage(Usage):
         return mds[0].merge(*mds[1:])
 
     def _get_metadata_column_(self, ref, record, column_name):
+        # TODO: check that ref == column.name
         return record.result.get_column(column_name)
 
     def _comment_(self, text):
