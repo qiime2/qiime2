@@ -59,13 +59,13 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use.recorder
 
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('init_data', obs3['type'])
-        self.assertEqual('comment', obs4['type'])
-        self.assertEqual('action', obs5['type'])
-        self.assertEqual('comment', obs6['type'])
-        self.assertEqual('action', obs7['type'])
+        self.assertEqual('init_data', obs1['source'])
+        self.assertEqual('init_data', obs2['source'])
+        self.assertEqual('init_data', obs3['source'])
+        self.assertEqual('comment', obs4['source'])
+        self.assertEqual('action', obs5['source'])
+        self.assertEqual('comment', obs6['source'])
+        self.assertEqual('action', obs7['source'])
 
         self.assertTrue('chained usage (pt 1)' in obs4['text'])
 
@@ -95,8 +95,8 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2 = use.recorder
 
-        self.assertEqual('comment', obs1['type'])
-        self.assertEqual('comment', obs2['type'])
+        self.assertEqual('comment', obs1['source'])
+        self.assertEqual('comment', obs2['source'])
 
         self.assertEqual('comment 1', obs1['text'])
         self.assertEqual('comment 2', obs2['text'])
@@ -110,11 +110,11 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3, obs4, obs5 = use.recorder
 
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('init_data', obs3['type'])
-        self.assertEqual('merge_metadata', obs4['type'])
-        self.assertEqual('action', obs5['type'])
+        self.assertEqual('init_data', obs1['source'])
+        self.assertEqual('init_data', obs2['source'])
+        self.assertEqual('init_data', obs3['source'])
+        self.assertEqual('merge_metadata', obs4['source'])
+        self.assertEqual('action', obs5['source'])
 
     def test_get_metadata_column(self):
         action = self.plugin.actions['identity_with_metadata_column']
@@ -124,11 +124,6 @@ class TestUsage(TestCaseUsage):
         self.assertEqual(4, len(use.recorder))
 
         obs1, obs2, obs3, obs4 = use.recorder
-
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('get_metadata_column', obs3['type'])
-        self.assertEqual('action', obs4['type'])
 
     def test_use_metadata_column(self):
         action = self.plugin.actions['identity_with_metadata_column']
@@ -142,6 +137,10 @@ class TestUsage(TestCaseUsage):
         self.assertEqual('init_data', obs1['type'])
         self.assertEqual('init_data', obs2['type'])
         self.assertEqual('action', obs3['type'])
+        self.assertEqual('init_data', obs1['source'])
+        self.assertEqual('init_data', obs2['source'])
+        self.assertEqual('get_metadata_column', obs3['source'])
+        self.assertEqual('action', obs4['source'])
 
     def test_use_merge_feature_table(self):
         action = self.plugin.actions['variadic_input_method']
@@ -152,9 +151,9 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3 = use.recorder
 
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('action', obs3['type'])
+        self.assertEqual('init_data', obs1['source'])
+        self.assertEqual('init_data', obs2['source'])
+        self.assertEqual('action', obs3['source'])
         self.assertEqual(set, type(obs3['input_opts']['nums']))
 
         self.assertIn('int', obs3['input_opts']['ints'])
@@ -169,11 +168,11 @@ class TestUsage(TestCaseUsage):
         self.assertEqual(5, len(use.recorder))
 
         obs1, obs2, obs3, obs4, obs5 = use.recorder
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('action', obs2['type'])
-        self.assertEqual('action', obs3['type'])
-        self.assertEqual('action', obs4['type'])
-        self.assertEqual('action', obs5['type'])
+        self.assertEqual('init_data', obs1['source'])
+        self.assertEqual('action', obs2['source'])
+        self.assertEqual('action', obs3['source'])
+        self.assertEqual('action', obs4['source'])
+        self.assertEqual('action', obs5['source'])
 
 
 class TestUsageAction(TestCaseUsage):

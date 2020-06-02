@@ -310,7 +310,6 @@ class Usage(metaclass=abc.ABCMeta):
 
 # TODO: refactor tests that use this to compare the `type`
 # to the record.source
-# TODO: rename type to source
 class DiagnosticUsage(Usage):
     def __init__(self):
         super().__init__()
@@ -318,7 +317,11 @@ class DiagnosticUsage(Usage):
 
     def _init_data_(self, ref, factory):
         self.recorder.append({
-            'type': 'init_data',
+            'source': 'init_data',
+            'ref': ref,
+        })
+        return ref
+
     def _init_metadata_(self, ref, factory):
         self.recorder.append({
             'source': 'init_data',
@@ -328,7 +331,7 @@ class DiagnosticUsage(Usage):
 
     def _merge_metadata_(self, ref, records):
         self.recorder.append({
-            'type': 'merge_metadata',
+            'source': 'merge_metadata',
             'ref': ref,
             'records_refs': [r.ref for r in records],
         })
@@ -336,7 +339,7 @@ class DiagnosticUsage(Usage):
 
     def _get_metadata_column_(self, ref, record, column_name):
         self.recorder.append({
-            'type': 'get_metadata_column',
+            'source': 'get_metadata_column',
             'ref': ref,
             'record_ref': record.ref,
             'column_name': column_name,
@@ -345,13 +348,13 @@ class DiagnosticUsage(Usage):
 
     def _comment_(self, text):
         self.recorder.append({
-            'type': 'comment',
+            'source': 'comment',
             'text': text,
         })
 
     def _action_(self, action, input_opts, output_opts):
         self.recorder.append({
-            'type': 'action',
+            'source': 'action',
             'action': action,
             'input_opts': input_opts,
             'output_opts': output_opts,
@@ -360,7 +363,7 @@ class DiagnosticUsage(Usage):
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
         self.recorder.append({
-            'type': 'assert_has_line_matching',
+            'source': 'assert_has_line_matching',
             'ref': ref,
             'label': label,
             'path': path,
