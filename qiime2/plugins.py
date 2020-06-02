@@ -33,6 +33,10 @@ class ArtifactAPIUsage(usage.Usage):
         # Don't need to compute anything, so just pass along the ref
         return ref
 
+    def _init_metadata_(self, ref, factory):
+        self._init_data_refs[ref] = factory
+        return ref
+
     def _merge_metadata_(self, ref, records):
         first_md = records[0].ref
         remaining_records = ', '.join([r.ref for r in records[1:]])
