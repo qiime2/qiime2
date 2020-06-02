@@ -43,14 +43,6 @@ def md2_factory():
                                                 name='id')))
 
 
-# TODO: drop this factory
-def mdc1_factory():
-    return CategoricalMetadataColumn(pd.Series(['1', '2', '3'],
-                                     name='a',
-                                     index=pd.Index(['0', '1', '2'],
-                                                    name='id')))
-
-
 def int_sequence_list_factory():
     int1 = ints1_factory()
     int2 = ints2_factory()
@@ -183,19 +175,6 @@ def identity_with_metadata_column_get_mdc(use):
     md = use.init_data('md', md1_factory)
 
     mdc = use.get_metadata_column('mdc', md, 'a')
-
-    use.action(
-        UsageAction(plugin_id='dummy_plugin',
-                    action_id='identity_with_metadata_column'),
-        UsageInputs(ints=ints, metadata=mdc),
-        UsageOutputNames(out='out'),
-    )
-
-
-def identity_with_metadata_column_from_factory(use):
-    ints = use.init_data('ints', ints1_factory)
-    # TODO: refactor to use `init_metadata` && `get_metadata_column`
-    mdc = use.init_data('mdc', mdc1_factory)
 
     use.action(
         UsageAction(plugin_id='dummy_plugin',

@@ -54,7 +54,6 @@ from .examples import (concatenate_ints_simple, concatenate_ints_complex,
                        comments_only, identity_with_metadata_simple,
                        identity_with_metadata_merging,
                        identity_with_metadata_column_get_mdc,
-                       identity_with_metadata_column_from_factory,
                        variadic_input_simple, optional_inputs,
                        )
 
@@ -293,8 +292,6 @@ dummy_plugin.methods.register_function(
     examples={
         'identity_with_metadata_column_get_mdc':
             identity_with_metadata_column_get_mdc,
-        'identity_with_metadata_column_from_factory':
-            identity_with_metadata_column_from_factory
     },
 )
 
