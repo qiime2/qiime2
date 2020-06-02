@@ -284,10 +284,11 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def get_result(self, ref):
-        source = self._scope.records[ref].source
+        record = self._get_record(ref)
+        source = record.source
         if source != "action":
             raise TypeError(f"source == {source} but must be 'action'")
-        return self._get_record(ref)
+        return record
 
     def _add_outputs_to_scope(self, outputs, computed_outputs):
         outputs.validate_computed(computed_outputs)
