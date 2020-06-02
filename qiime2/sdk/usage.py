@@ -381,7 +381,7 @@ class ExecutionUsage(Usage):
                              'Artifact.' % (factory, result_type))
 
         if result_type in (list, set):
-            if not all(isinstance(result, sdk.Artifact)):
+            if not all([isinstance(i, sdk.Artifact) for i in result]):
                 raise ValueError('Factory (%r) returned a %s where not all '
                                  'elements were Artifacts.' %
                                  (factory, result_type))
