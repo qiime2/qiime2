@@ -8,7 +8,7 @@
 
 import pandas as pd
 
-from qiime2 import Artifact, Metadata, CategoricalMetadataColumn
+from qiime2 import Artifact, Metadata
 
 from qiime2.plugin import UsageAction, UsageInputs, UsageOutputNames
 
