@@ -319,6 +319,9 @@ class DiagnosticUsage(Usage):
     def _init_data_(self, ref, factory):
         self.recorder.append({
             'type': 'init_data',
+    def _init_metadata_(self, ref, factory):
+        self.recorder.append({
+            'source': 'init_data',
             'ref': ref,
         })
         return ref
