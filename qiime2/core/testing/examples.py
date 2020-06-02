@@ -157,8 +157,8 @@ def identity_with_metadata_simple(use):
 
 def identity_with_metadata_merging(use):
     ints = use.init_data('ints', ints1_factory)
-    md1 = use.init_data('md1', md1_factory)
-    md2 = use.init_data('md2', md2_factory)
+    md1 = use.init_metadata('md1', md1_factory)
+    md2 = use.init_metadata('md2', md2_factory)
 
     md3 = use.merge_metadata('md3', md1, md2)
 
@@ -172,8 +172,7 @@ def identity_with_metadata_merging(use):
 
 def identity_with_metadata_column_get_mdc(use):
     ints = use.init_data('ints', ints1_factory)
-    md = use.init_data('md', md1_factory)
-
+    md = use.init_metadata('md', md1_factory)
     mdc = use.get_metadata_column('mdc', md, 'a')
 
     use.action(
