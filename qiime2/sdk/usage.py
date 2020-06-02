@@ -308,8 +308,7 @@ class Usage(metaclass=abc.ABCMeta):
         return self._scope.records
 
 
-# TODO: refactor tests that use this to compare the `type`
-# to the record.source
+# TODO: refactor tests that use this to compare the `type` to the record.source
 class DiagnosticUsage(Usage):
     def __init__(self):
         super().__init__()

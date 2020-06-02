@@ -34,12 +34,13 @@ class TestUsage(TestCaseUsage):
         self.assertEqual(5, len(use.recorder))
 
         obs1, obs2, obs3, obs4, obs5 = use.recorder
+        records = use._scope.records
 
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('init_data', obs3['type'])
-        self.assertEqual('comment', obs4['type'])
-        self.assertEqual('action', obs5['type'])
+        self.assertEqual('init_data', obs1['source'], records[obs1['ref']].source)
+        self.assertEqual('init_data', obs2['source'], records[obs2['ref']].source)
+        self.assertEqual('init_data', obs3['source'], records[obs3['ref']].source)
+        self.assertEqual('comment', obs4['source'])
+        self.assertEqual('action', obs5['source'])
 
         self.assertTrue('basic usage' in obs4['text'])
 
