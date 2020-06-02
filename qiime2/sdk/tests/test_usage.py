@@ -34,14 +34,13 @@ class TestUsage(TestCaseUsage):
         self.assertEqual(5, len(use.recorder))
 
         obs1, obs2, obs3, obs4, obs5 = use.recorder
-        records = use._scope.records
 
         self.assertEqual('init_data', obs1['source'],
-                         records[obs1['ref']].source)
+                         use._get_record(obs1['ref']).source)
         self.assertEqual('init_data', obs2['source'],
-                         records[obs2['ref']].source)
+                         use._get_record(obs2['ref']).source)
         self.assertEqual('init_data', obs3['source'],
-                         records[obs3['ref']].source)
+                         use._get_record(obs3['ref']).source)
         self.assertEqual('comment', obs4['source'])
         self.assertEqual('action', obs5['source'])
 
@@ -63,9 +62,12 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use.recorder
 
-        self.assertEqual('init_data', obs1['source'])
-        self.assertEqual('init_data', obs2['source'])
-        self.assertEqual('init_data', obs3['source'])
+        self.assertEqual('init_data', obs1['source'],
+                         use._get_record(obs1['ref']).source)
+        self.assertEqual('init_data', obs2['source'],
+                         use._get_record(obs2['ref']).source)
+        self.assertEqual('init_data', obs3['source'],
+                         use._get_record(obs3['ref']).source)
         self.assertEqual('comment', obs4['source'])
         self.assertEqual('action', obs5['source'])
         self.assertEqual('comment', obs6['source'])
@@ -114,10 +116,14 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3, obs4, obs5 = use.recorder
 
-        self.assertEqual('init_data', obs1['source'])
-        self.assertEqual('init_data', obs2['source'])
-        self.assertEqual('init_data', obs3['source'])
-        self.assertEqual('merge_metadata', obs4['source'])
+        self.assertEqual('init_data', obs1['source'],
+                         use._get_record(obs1['ref']).source)
+        self.assertEqual('init_data', obs2['source'],
+                         use._get_record(obs2['ref']).source)
+        self.assertEqual('init_data', obs3['source'],
+                         use._get_record(obs3['ref']).source)
+        self.assertEqual('merge_metadata', obs4['source'],
+                         use._get_record(obs4['ref']).source)
         self.assertEqual('action', obs5['source'])
 
     def test_get_metadata_column(self):
@@ -129,9 +135,12 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3, obs4 = use.recorder
 
-        self.assertEqual('init_data', obs1['source'])
-        self.assertEqual('init_data', obs2['source'])
-        self.assertEqual('get_metadata_column', obs3['source'])
+        self.assertEqual('init_data', obs1['source'],
+                         use._get_record(obs1['ref']).source)
+        self.assertEqual('init_data', obs2['source'],
+                         use._get_record(obs2['ref']).source)
+        self.assertEqual('get_metadata_column', obs3['source'],
+                         use._get_record(obs3['ref']).source)
         self.assertEqual('action', obs4['source'])
 
     def test_use_merge_feature_table(self):
@@ -143,8 +152,10 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3 = use.recorder
 
-        self.assertEqual('init_data', obs1['source'])
-        self.assertEqual('init_data', obs2['source'])
+        self.assertEqual('init_data', obs1['source'],
+                         use._get_record(obs1['ref']).source)
+        self.assertEqual('init_data', obs2['source'],
+                         use._get_record(obs2['ref']).source)
         self.assertEqual('action', obs3['source'])
         self.assertEqual(set, type(obs3['input_opts']['nums']))
 
@@ -160,7 +171,8 @@ class TestUsage(TestCaseUsage):
         self.assertEqual(5, len(use.recorder))
 
         obs1, obs2, obs3, obs4, obs5 = use.recorder
-        self.assertEqual('init_data', obs1['source'])
+        self.assertEqual('init_data', obs1['source'],
+                         use._get_record(obs1['ref']).source)
         self.assertEqual('action', obs2['source'])
         self.assertEqual('action', obs3['source'])
         self.assertEqual('action', obs4['source'])
