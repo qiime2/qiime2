@@ -126,18 +126,6 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3, obs4 = use.recorder
 
-    def test_use_metadata_column(self):
-        action = self.plugin.actions['identity_with_metadata_column']
-        use = usage.DiagnosticUsage()
-        action.examples['identity_with_metadata_column_from_factory'](use)
-
-        self.assertEqual(3, len(use.recorder))
-
-        obs1, obs2, obs3 = use.recorder
-
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('action', obs3['type'])
         self.assertEqual('init_data', obs1['source'])
         self.assertEqual('init_data', obs2['source'])
         self.assertEqual('get_metadata_column', obs3['source'])
