@@ -11,6 +11,7 @@ import re
 import types
 
 from qiime2 import sdk
+from ..metadata import Metadata
 
 # TODO: docstrings
 
@@ -388,16 +389,24 @@ class ExecutionUsage(Usage):
 
         return result
 
-    # TODO: implement this, include a Metadata typecheck
     def _init_metadata_(self, ref, factory):
-        return factory()
+        data = factory()
+        if not isinstance(data, Metadata):
+            raise TypeError(
+                f"data must be of type Metadata: type(data) == {type(data)}")
+        return data
 
     def _merge_metadata_(self, ref, records):
         mds = [r.result for r in records]
         return mds[0].merge(*mds[1:])
 
     def _get_metadata_column_(self, ref, record, column_name):
-        # TODO: check that ref == column.name
+        if not ref == column_name:
+            raise ValueError(
+                f"`ref` must match `column_name`:  {ref} != {column_name}\n"
+                f"Assign column name '{column_name}' "
+                f"to variable `{column_name}`."
+            )
         return record.result.get_column(column_name)
 
     def _comment_(self, text):
