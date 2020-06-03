@@ -372,7 +372,6 @@ class DiagnosticUsage(Usage):
 
 class ExecutionUsage(Usage):
     def _init_data_(self, ref, factory):
-        # TODO: write unit tests
         result = factory()
         result_type = type(result)
 
@@ -403,8 +402,6 @@ class ExecutionUsage(Usage):
         if not ref == column_name:
             raise ValueError(
                 f"`ref` must match `column_name`:  {ref} != {column_name}\n"
-                f"Assign column name '{column_name}' "
-                f"to variable `{column_name}`."
             )
         return record.result.get_column(column_name)
 

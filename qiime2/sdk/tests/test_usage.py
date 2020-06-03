@@ -12,8 +12,9 @@ import tempfile
 from qiime2.core.type import signature
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.type import Mapping
+import qiime2.core.testing.examples as examples
 from qiime2.sdk import usage, action
-from qiime2 import plugin
+from qiime2 import plugin, Metadata
 
 
 class TestCaseUsage(unittest.TestCase):
@@ -364,3 +365,27 @@ class TestScopeRecord(TestCaseUsage):
         with self.assertRaisesRegex(TypeError, 'should be a `callable`'):
             usage.ScopeRecord('foo', 'value', 'source',
                               assert_has_line_matching='spleen')
+
+
+class TestExecutionUsage(TestCaseUsage):
+    def test_init_data(self):
+        use = usage.ExecutionUsage()
+
+        with self.assertRaisesRegex(ValueError, 'expected an Artifact'):
+            use.init_data('name', lambda: object)
+
+        with self.assertRaisesRegex(ValueError, 'not all .* Artifacts'):
+            use.init_data('name', lambda: [object])
+
+        with self.assertRaisesRegex(TypeError, 'must be of type Metadata'):
+            use.init_metadata('name', lambda: object)
+
+        with self.assertRaisesRegex(ValueError, '`ref` must match'):
+            use.get_metadata_column('name', Metadata, 'a')
+
+    def test_merge_metadata(self):
+        use = usage.ExecutionUsage()
+        md1 = use.init_metadata('md1', examples.md1_factory)
+        md2 = use.init_metadata('md2', examples.md2_factory)
+        merged = use.merge_metadata('md3', md1, md2)
+        self.assertIsInstance(merged.result, Metadata)

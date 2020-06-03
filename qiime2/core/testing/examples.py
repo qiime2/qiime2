@@ -173,7 +173,7 @@ def identity_with_metadata_merging(use):
 def identity_with_metadata_column_get_mdc(use):
     ints = use.init_data('ints', ints1_factory)
     md = use.init_metadata('md', md1_factory)
-    mdc = use.get_metadata_column('mdc', md, 'a')
+    mdc = use.get_metadata_column('a', md, 'a')
 
     use.action(
         UsageAction(plugin_id='dummy_plugin',
