@@ -377,11 +377,8 @@ class TestExecutionUsage(TestCaseUsage):
         with self.assertRaisesRegex(ValueError, 'not all .* Artifacts'):
             use.init_data('name', lambda: [object])
 
-        with self.assertRaisesRegex(TypeError, 'must be of type Metadata'):
+        with self.assertRaisesRegex(TypeError, 'expected Metadata'):
             use.init_metadata('name', lambda: object)
-
-        with self.assertRaisesRegex(ValueError, '`ref` must match'):
-            use.get_metadata_column('name', Metadata, 'a')
 
     def test_merge_metadata(self):
         use = usage.ExecutionUsage()

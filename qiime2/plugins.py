@@ -44,10 +44,10 @@ class ArtifactAPIUsage(usage.Usage):
         self._recorder.append(t)
         return ref
 
-    def _get_metadata_column_(self, ref, record, column_name):
-        t = '%s = %s.get_column(%r)\n' % (ref, record.ref, column_name)
+    def _get_metadata_column_(self, column_name, record):
+        t = '%s = %s.get_column(%r)\n' % (column_name, record.ref, column_name)
         self._recorder.append(t)
-        return ref
+        return column_name
 
     def _comment_(self, text: str):
         self._recorder.append('# %s' % (text, ))

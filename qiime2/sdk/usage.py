@@ -10,8 +10,7 @@ import abc
 import re
 import types
 
-from qiime2 import sdk
-from ..metadata import Metadata
+from qiime2 import sdk, metadata
 
 # TODO: docstrings
 
@@ -249,11 +248,11 @@ class Usage(metaclass=abc.ABCMeta):
     def _merge_metadata_(self, ref, records):
         raise NotImplementedError
 
-    def get_metadata_column(self, ref, record, column_name):
-        value = self._get_metadata_column_(ref, record, column_name)
-        return self._push_record(ref, value, 'get_metadata_column')
+    def get_metadata_column(self, column_name, record):
+        value = self._get_metadata_column_(column_name, record)
+        return self._push_record(column_name, value, 'get_metadata_column')
 
-    def _get_metadata_column_(self, ref, record, column_name):
+    def _get_metadata_column_(self, column_name, record):
         raise NotImplementedError
 
     def comment(self, text: str):
@@ -287,8 +286,8 @@ class Usage(metaclass=abc.ABCMeta):
     def get_result(self, ref):
         record = self._get_record(ref)
         source = record.source
-        if source != "action":
-            raise TypeError(f"source == {source} but must be 'action'")
+        if source != 'action':
+            raise TypeError('source == %s but must be "action"' % source)
         return record
 
     def _add_outputs_to_scope(self, outputs, computed_outputs):
@@ -336,14 +335,14 @@ class DiagnosticUsage(Usage):
         })
         return ref
 
-    def _get_metadata_column_(self, ref, record, column_name):
+    def _get_metadata_column_(self, column_name, record):
         self.recorder.append({
             'source': 'get_metadata_column',
-            'ref': ref,
+            'ref': column_name,
             'record_ref': record.ref,
             'column_name': column_name,
         })
-        return ref
+        return column_name
 
     def _comment_(self, text):
         self.recorder.append({
@@ -388,21 +387,20 @@ class ExecutionUsage(Usage):
         return result
 
     def _init_metadata_(self, ref, factory):
-        data = factory()
-        if not isinstance(data, Metadata):
-            raise TypeError(
-                f"data must be of type Metadata: type(data) == {type(data)}")
-        return data
+        result = factory()
+        result_type = type(result)
+
+        if not isinstance(result, metadata.Metadata):
+            raise TypeError('Factory (%r) returned a %s, but expected '
+                            'Metadata.' % (factory, result_type))
+
+        return result
 
     def _merge_metadata_(self, ref, records):
         mds = [r.result for r in records]
         return mds[0].merge(*mds[1:])
 
-    def _get_metadata_column_(self, ref, record, column_name):
-        if not ref == column_name:
-            raise ValueError(
-                f"`ref` must match `column_name`:  {ref} != {column_name}\n"
-            )
+    def _get_metadata_column_(self, column_name, record):
         return record.result.get_column(column_name)
 
     def _comment_(self, text):
