@@ -169,7 +169,7 @@ def TypeMatch(listing):
     while intersections:
         to_add.extend(intersections)
         intersections = _get_intersections(intersections)
-    mapping = TypeMap({l: l for l in list(reversed(to_add)) + listing})
+    mapping = TypeMap({x: x for x in list(reversed(to_add)) + listing})
     # TypeMatch only produces a single variable
     # iter_outputs is used by match for solving, so the index must match
     return next(iter(mapping.iter_outputs(_double_as_input=True)))

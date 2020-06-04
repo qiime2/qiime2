@@ -54,7 +54,7 @@ def get_next_arguments(action, type="input"):
     return req, non_req
 
 
-def unravel(l):
+def unravel(list_):
     """
     Unravel Union node to get all permutations of types for each action
 
@@ -68,8 +68,8 @@ def unravel(l):
 
     """
 
-    result = [l]
-    for i, x in enumerate(l):
+    result = [list_]
+    for i, x in enumerate(list_):
         if len(list(x[1])) > 1:
             members = list(x[1])
             temp = copy.deepcopy(result)
