@@ -232,25 +232,11 @@ out, = identity_with_metadata(
         exp = """\
 from qiime2.plugins.dummy_plugin.methods import identity_with_metadata_column
 
-mdc = md.get_column('a')
+a = md.get_column('a')
 
 out, = identity_with_metadata_column(
     ints=ints,
-    metadata=mdc,
-)
-"""
-        self.assertEqual(exp, use.render())
-
-    def test_metadata_column_from_factory(self):
-        action = self.plugin.actions['identity_with_metadata_column']
-        use = ArtifactAPIUsage()
-        action.examples['identity_with_metadata_column_from_factory'](use)
-        exp = """\
-from qiime2.plugins.dummy_plugin.methods import identity_with_metadata_column
-
-out, = identity_with_metadata_column(
-    ints=ints,
-    metadata=mdc,
+    metadata=a,
 )
 """
         self.assertEqual(exp, use.render())

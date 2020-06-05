@@ -12,8 +12,9 @@ import tempfile
 from qiime2.core.type import signature
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.type import Mapping
+import qiime2.core.testing.examples as examples
 from qiime2.sdk import usage, action
-from qiime2 import plugin
+from qiime2 import plugin, Metadata
 
 
 class TestCaseUsage(unittest.TestCase):
@@ -35,11 +36,14 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3, obs4, obs5 = use.recorder
 
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('init_data', obs3['type'])
-        self.assertEqual('comment', obs4['type'])
-        self.assertEqual('action', obs5['type'])
+        self.assertEqual('init_data', obs1['source'],
+                         use._get_record(obs1['ref']).source)
+        self.assertEqual('init_data', obs2['source'],
+                         use._get_record(obs2['ref']).source)
+        self.assertEqual('init_data', obs3['source'],
+                         use._get_record(obs3['ref']).source)
+        self.assertEqual('comment', obs4['source'])
+        self.assertEqual('action', obs5['source'])
 
         self.assertTrue('basic usage' in obs4['text'])
 
@@ -59,13 +63,16 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use.recorder
 
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('init_data', obs3['type'])
-        self.assertEqual('comment', obs4['type'])
-        self.assertEqual('action', obs5['type'])
-        self.assertEqual('comment', obs6['type'])
-        self.assertEqual('action', obs7['type'])
+        self.assertEqual('init_data', obs1['source'],
+                         use._get_record(obs1['ref']).source)
+        self.assertEqual('init_data', obs2['source'],
+                         use._get_record(obs2['ref']).source)
+        self.assertEqual('init_data', obs3['source'],
+                         use._get_record(obs3['ref']).source)
+        self.assertEqual('comment', obs4['source'])
+        self.assertEqual('action', obs5['source'])
+        self.assertEqual('comment', obs6['source'])
+        self.assertEqual('action', obs7['source'])
 
         self.assertTrue('chained usage (pt 1)' in obs4['text'])
 
@@ -95,8 +102,8 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2 = use.recorder
 
-        self.assertEqual('comment', obs1['type'])
-        self.assertEqual('comment', obs2['type'])
+        self.assertEqual('comment', obs1['source'])
+        self.assertEqual('comment', obs2['source'])
 
         self.assertEqual('comment 1', obs1['text'])
         self.assertEqual('comment 2', obs2['text'])
@@ -110,11 +117,15 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3, obs4, obs5 = use.recorder
 
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('init_data', obs3['type'])
-        self.assertEqual('merge_metadata', obs4['type'])
-        self.assertEqual('action', obs5['type'])
+        self.assertEqual('init_data', obs1['source'],
+                         use._get_record(obs1['ref']).source)
+        self.assertEqual('init_data', obs2['source'],
+                         use._get_record(obs2['ref']).source)
+        self.assertEqual('init_data', obs3['source'],
+                         use._get_record(obs3['ref']).source)
+        self.assertEqual('merge_metadata', obs4['source'],
+                         use._get_record(obs4['ref']).source)
+        self.assertEqual('action', obs5['source'])
 
     def test_get_metadata_column(self):
         action = self.plugin.actions['identity_with_metadata_column']
@@ -125,23 +136,13 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3, obs4 = use.recorder
 
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('get_metadata_column', obs3['type'])
-        self.assertEqual('action', obs4['type'])
-
-    def test_use_metadata_column(self):
-        action = self.plugin.actions['identity_with_metadata_column']
-        use = usage.DiagnosticUsage()
-        action.examples['identity_with_metadata_column_from_factory'](use)
-
-        self.assertEqual(3, len(use.recorder))
-
-        obs1, obs2, obs3 = use.recorder
-
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('action', obs3['type'])
+        self.assertEqual('init_data', obs1['source'],
+                         use._get_record(obs1['ref']).source)
+        self.assertEqual('init_data', obs2['source'],
+                         use._get_record(obs2['ref']).source)
+        self.assertEqual('get_metadata_column', obs3['source'],
+                         use._get_record(obs3['ref']).source)
+        self.assertEqual('action', obs4['source'])
 
     def test_use_merge_feature_table(self):
         action = self.plugin.actions['variadic_input_method']
@@ -152,9 +153,11 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3 = use.recorder
 
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('init_data', obs2['type'])
-        self.assertEqual('action', obs3['type'])
+        self.assertEqual('init_data', obs1['source'],
+                         use._get_record(obs1['ref']).source)
+        self.assertEqual('init_data', obs2['source'],
+                         use._get_record(obs2['ref']).source)
+        self.assertEqual('action', obs3['source'])
         self.assertEqual(set, type(obs3['input_opts']['nums']))
 
         self.assertIn('int', obs3['input_opts']['ints'])
@@ -169,11 +172,12 @@ class TestUsage(TestCaseUsage):
         self.assertEqual(5, len(use.recorder))
 
         obs1, obs2, obs3, obs4, obs5 = use.recorder
-        self.assertEqual('init_data', obs1['type'])
-        self.assertEqual('action', obs2['type'])
-        self.assertEqual('action', obs3['type'])
-        self.assertEqual('action', obs4['type'])
-        self.assertEqual('action', obs5['type'])
+        self.assertEqual('init_data', obs1['source'],
+                         use._get_record(obs1['ref']).source)
+        self.assertEqual('action', obs2['source'])
+        self.assertEqual('action', obs3['source'])
+        self.assertEqual('action', obs4['source'])
+        self.assertEqual('action', obs5['source'])
 
 
 class TestUsageAction(TestCaseUsage):
@@ -359,4 +363,26 @@ class TestUsageBaseClass(TestCaseUsage):
 class TestScopeRecord(TestCaseUsage):
     def test_invalid_assert_has_line_matching(self):
         with self.assertRaisesRegex(TypeError, 'should be a `callable`'):
-            usage.ScopeRecord('foo', assert_has_line_matching='spleen')
+            usage.ScopeRecord('foo', 'value', 'source',
+                              assert_has_line_matching='spleen')
+
+
+class TestExecutionUsage(TestCaseUsage):
+    def test_init_data(self):
+        use = usage.ExecutionUsage()
+
+        with self.assertRaisesRegex(ValueError, 'expected an Artifact'):
+            use.init_data('name', lambda: object)
+
+        with self.assertRaisesRegex(ValueError, 'not all .* Artifacts'):
+            use.init_data('name', lambda: [object])
+
+        with self.assertRaisesRegex(TypeError, 'expected Metadata'):
+            use.init_metadata('name', lambda: object)
+
+    def test_merge_metadata(self):
+        use = usage.ExecutionUsage()
+        md1 = use.init_metadata('md1', examples.md1_factory)
+        md2 = use.init_metadata('md2', examples.md2_factory)
+        merged = use.merge_metadata('md3', md1, md2)
+        self.assertIsInstance(merged.result, Metadata)

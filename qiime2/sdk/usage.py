@@ -10,7 +10,7 @@ import abc
 import re
 import types
 
-from qiime2 import sdk
+from qiime2 import sdk, metadata
 
 # TODO: docstrings
 
@@ -166,7 +166,7 @@ class UsageOutputNames:
 
 
 class ScopeRecord:
-    def __init__(self, ref: str, value: object = None,
+    def __init__(self, ref: str, value: object, source: str,
                  assert_has_line_matching: callable = None):
         if assert_has_line_matching is not None and \
                 not callable(assert_has_line_matching):
@@ -175,14 +175,21 @@ class ScopeRecord:
 
         self.ref = ref
         self._result = value
+        self._source = source
         self._assert_has_line_matching_ = assert_has_line_matching
 
     def __repr__(self):
-        return 'ScopeRecord<ref=%s, result=%r>' % (self.ref, self.result)
+        return 'ScopeRecord<ref=%s, result=%r, source=%s>' % (self.ref,
+                                                              self.result,
+                                                              self.source)
 
     @property
     def result(self):
         return self._result
+
+    @property
+    def source(self):
+        return self._source
 
     def assert_has_line_matching(self, label, path, expression):
         return self._assert_has_line_matching_(self.ref, label, path,
@@ -200,8 +207,8 @@ class Scope:
     def records(self):
         return types.MappingProxyType(self._records)
 
-    def push_record(self, ref, value, assert_has_line_matching=None):
-        record = ScopeRecord(ref=ref, value=value,
+    def push_record(self, ref, value, source, assert_has_line_matching=None):
+        record = ScopeRecord(ref=ref, value=value, source=source,
                              assert_has_line_matching=assert_has_line_matching)
         self._records[ref] = record
         return record
@@ -219,9 +226,16 @@ class Usage(metaclass=abc.ABCMeta):
 
     def init_data(self, ref, factory):
         value = self._init_data_(ref, factory)
-        return self._push_record(ref, value)
+        return self._push_record(ref, value, 'init_data')
 
     def _init_data_(self, ref, factory):
+        raise NotImplementedError
+
+    def init_metadata(self, ref, factory):
+        value = self._init_metadata_(ref, factory)
+        return self._push_record(ref, value, 'init_metadata')
+
+    def _init_metadata_(self, ref, factory):
         raise NotImplementedError
 
     def merge_metadata(self, ref, *records):
@@ -229,16 +243,16 @@ class Usage(metaclass=abc.ABCMeta):
             raise ValueError('Must provide two or more Metadata inputs.')
 
         value = self._merge_metadata_(ref, records)
-        return self._push_record(ref, value)
+        return self._push_record(ref, value, 'merge_metadata')
 
     def _merge_metadata_(self, ref, records):
         raise NotImplementedError
 
-    def get_metadata_column(self, ref, record, column_name):
-        value = self._get_metadata_column_(ref, record, column_name)
-        return self._push_record(ref, value)
+    def get_metadata_column(self, column_name, record):
+        value = self._get_metadata_column_(column_name, record)
+        return self._push_record(column_name, value, 'get_metadata_column')
 
-    def _get_metadata_column_(self, ref, record, column_name):
+    def _get_metadata_column_(self, column_name, record):
         raise NotImplementedError
 
     def comment(self, text: str):
@@ -270,17 +284,21 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def get_result(self, ref):
-        return self._get_record(ref)
+        record = self._get_record(ref)
+        source = record.source
+        if source != 'action':
+            raise TypeError('source == %s but must be "action"' % source)
+        return record
 
     def _add_outputs_to_scope(self, outputs, computed_outputs):
         outputs.validate_computed(computed_outputs)
         for output, result in computed_outputs.items():
             ref = outputs.get(output)
-            self._push_record(ref, result)
+            self._push_record(ref, result, 'action')
 
-    def _push_record(self, ref, value):
+    def _push_record(self, ref, value, source):
         return self._scope.push_record(
-            ref=ref, value=value,
+            ref=ref, value=value, source=source,
             assert_has_line_matching=self._assert_has_line_matching_)
 
     def _get_record(self, ref):
@@ -297,37 +315,44 @@ class DiagnosticUsage(Usage):
 
     def _init_data_(self, ref, factory):
         self.recorder.append({
-            'type': 'init_data',
+            'source': 'init_data',
+            'ref': ref,
+        })
+        return ref
+
+    def _init_metadata_(self, ref, factory):
+        self.recorder.append({
+            'source': 'init_data',
             'ref': ref,
         })
         return ref
 
     def _merge_metadata_(self, ref, records):
         self.recorder.append({
-            'type': 'merge_metadata',
+            'source': 'merge_metadata',
             'ref': ref,
             'records_refs': [r.ref for r in records],
         })
         return ref
 
-    def _get_metadata_column_(self, ref, record, column_name):
+    def _get_metadata_column_(self, column_name, record):
         self.recorder.append({
-            'type': 'get_metadata_column',
-            'ref': ref,
+            'source': 'get_metadata_column',
+            'ref': column_name,
             'record_ref': record.ref,
             'column_name': column_name,
         })
-        return ref
+        return column_name
 
     def _comment_(self, text):
         self.recorder.append({
-            'type': 'comment',
+            'source': 'comment',
             'text': text,
         })
 
     def _action_(self, action, input_opts, output_opts):
         self.recorder.append({
-            'type': 'action',
+            'source': 'action',
             'action': action,
             'input_opts': input_opts,
             'output_opts': output_opts,
@@ -336,7 +361,7 @@ class DiagnosticUsage(Usage):
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
         self.recorder.append({
-            'type': 'assert_has_line_matching',
+            'source': 'assert_has_line_matching',
             'ref': ref,
             'label': label,
             'path': path,
@@ -346,13 +371,36 @@ class DiagnosticUsage(Usage):
 
 class ExecutionUsage(Usage):
     def _init_data_(self, ref, factory):
-        return factory()
+        result = factory()
+        result_type = type(result)
+
+        if result_type not in (list, set, sdk.Artifact):
+            raise ValueError('Factory (%r) returned a %s, expected an '
+                             'Artifact.' % (factory, result_type))
+
+        if result_type in (list, set):
+            if not all([isinstance(i, sdk.Artifact) for i in result]):
+                raise ValueError('Factory (%r) returned a %s where not all '
+                                 'elements were Artifacts.' %
+                                 (factory, result_type))
+
+        return result
+
+    def _init_metadata_(self, ref, factory):
+        result = factory()
+        result_type = type(result)
+
+        if not isinstance(result, metadata.Metadata):
+            raise TypeError('Factory (%r) returned a %s, but expected '
+                            'Metadata.' % (factory, result_type))
+
+        return result
 
     def _merge_metadata_(self, ref, records):
         mds = [r.result for r in records]
         return mds[0].merge(*mds[1:])
 
-    def _get_metadata_column_(self, ref, record, column_name):
+    def _get_metadata_column_(self, column_name, record):
         return record.result.get_column(column_name)
 
     def _comment_(self, text):

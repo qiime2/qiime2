@@ -33,6 +33,10 @@ class ArtifactAPIUsage(usage.Usage):
         # Don't need to compute anything, so just pass along the ref
         return ref
 
+    def _init_metadata_(self, ref, factory):
+        self._init_data_refs[ref] = factory
+        return ref
+
     def _merge_metadata_(self, ref, records):
         first_md = records[0].ref
         remaining_records = ', '.join([r.ref for r in records[1:]])
@@ -40,10 +44,10 @@ class ArtifactAPIUsage(usage.Usage):
         self._recorder.append(t)
         return ref
 
-    def _get_metadata_column_(self, ref, record, column_name):
-        t = '%s = %s.get_column(%r)\n' % (ref, record.ref, column_name)
+    def _get_metadata_column_(self, column_name, record):
+        t = '%s = %s.get_column(%r)\n' % (column_name, record.ref, column_name)
         self._recorder.append(t)
-        return ref
+        return column_name
 
     def _comment_(self, text: str):
         self._recorder.append('# %s' % (text, ))
