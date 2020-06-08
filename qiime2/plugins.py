@@ -37,6 +37,15 @@ class ArtifactAPIUsage(usage.Usage):
         self._init_data_refs[ref] = factory
         return ref
 
+    def _init_data_collection_(self, ref, records):
+
+        def factory():
+            container_type = type(records)
+            return container_type([i() for i in records])
+
+        self._init_data_refs[ref] = factory
+        return ref
+
     def _merge_metadata_(self, ref, records):
         first_md = records[0].ref
         remaining_records = ', '.join([r.ref for r in records[1:]])
