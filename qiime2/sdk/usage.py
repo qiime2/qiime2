@@ -238,6 +238,16 @@ class Usage(metaclass=abc.ABCMeta):
     def _init_metadata_(self, ref, factory):
         raise NotImplementedError
 
+    def init_data_collection(self, ref, records):
+        if len(records) < 2:
+            raise ValueError('Must provide two or more Artifact inputs.')
+
+        value = self._init_data_collection_(ref, records)
+        return self._push_record(ref, value, 'init_data_collection')
+
+    def _init_data_collection_(self, ref, records):
+        raise NotImplementedError
+
     def merge_metadata(self, ref, *records):
         if len(records) < 2:
             raise ValueError('Must provide two or more Metadata inputs.')
