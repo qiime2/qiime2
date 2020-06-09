@@ -337,6 +337,13 @@ class DiagnosticUsage(Usage):
         })
         return ref
 
+    def _init_data_collection_(self, ref, records):
+        self.recorder.append({
+            'source': 'init_data_collection',
+            'ref': ref,
+        })
+        return ref
+
     def _merge_metadata_(self, ref, records):
         self.recorder.append({
             'source': 'merge_metadata',
@@ -405,6 +412,15 @@ class ExecutionUsage(Usage):
                             'Metadata.' % (factory, result_type))
 
         return result
+
+    def _init_data_collection_(self, ref, records):
+        for factory in records:
+            result = factory()
+            result_type = type(result)
+
+            if not isinstance(result_type, sdk.Artifact):
+                raise ValueError('Factory (%r) returned a %s, expected an '
+                                 'Artifact.' % (factory, result_type))
 
     def _merge_metadata_(self, ref, records):
         mds = [r.result for r in records]
