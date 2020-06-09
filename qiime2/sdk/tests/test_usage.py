@@ -153,9 +153,9 @@ class TestUsage(TestCaseUsage):
 
         obs1, obs2, obs3 = use.recorder
 
-        self.assertEqual('init_data', obs1['source'],
+        self.assertEqual('init_data_collection', obs1['source'],
                          use._get_record(obs1['ref']).source)
-        self.assertEqual('init_data', obs2['source'],
+        self.assertEqual('init_data_collection', obs2['source'],
                          use._get_record(obs2['ref']).source)
         self.assertEqual('action', obs3['source'])
         self.assertEqual(set, type(obs3['input_opts']['nums']))
