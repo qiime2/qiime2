@@ -90,7 +90,7 @@ class BoundFile:
         found_members = False
         root = pathlib.Path(self._directory_format.path)
         for path in collected_paths:
-            if re.match(self.pathspec, str(path.relative_to(root))):
+            if re.fullmatch(self.pathspec, str(path.relative_to(root))):
                 if collected_paths[path]:
                     # Not a ValidationError, this just shouldn't happen.
                     raise ValueError("%r was already validated by another"
