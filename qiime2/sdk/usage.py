@@ -238,14 +238,14 @@ class Usage(metaclass=abc.ABCMeta):
     def _init_metadata_(self, ref, factory):
         raise NotImplementedError
 
-    def init_data_collection(self, ref, records):
+    def init_data_collection(self, ref, container_type, **records):
         if len(records) < 2:
             raise ValueError('Must provide two or more Artifact inputs.')
 
-        value = self._init_data_collection_(ref, records)
+        value = self._init_data_collection_(ref, list, **records)
         return self._push_record(ref, value, 'init_data_collection')
 
-    def _init_data_collection_(self, ref, records):
+    def _init_data_collection_(self, ref, container_type, **records):
         raise NotImplementedError
 
     def merge_metadata(self, ref, *records):
@@ -337,12 +337,12 @@ class DiagnosticUsage(Usage):
         })
         return ref
 
-    def _init_data_collection_(self, ref, records):
+    def _init_data_collection_(self, ref, container_type, **records):
         self.recorder.append({
             'source': 'init_data_collection',
             'ref': ref,
         })
-        return ref
+        return ref, records.keys()
 
     def _merge_metadata_(self, ref, records):
         self.recorder.append({
@@ -413,8 +413,8 @@ class ExecutionUsage(Usage):
 
         return result
 
-    def _init_data_collection_(self, ref, records):
-        for factory in records:
+    def _init_data_collection_(self, ref, container_type, **records):
+        for factory in records.values():
             result = factory()
             result_type = type(result)
 

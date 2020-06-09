@@ -172,8 +172,11 @@ def identity_with_metadata_column_get_mdc(use):
 
 
 def variadic_input_simple(use):
-    ints = use.init_data_collection('int', [ints1_factory, ints2_factory])
-    int_set = use.init_data_collection('int_set', {single_int1_factory, single_int2_factory})
+    ints = use.init_data_collection('int', list, int1=ints1_factory,
+                                    int2=ints2_factory)
+    int_set = use.init_data_collection('int_set', set,
+                                       single_int1=single_int1_factory,
+                                       single_int2=single_int2_factory)
 
     use.action(
         UsageAction(plugin_id='dummy_plugin',
