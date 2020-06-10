@@ -178,7 +178,8 @@ def variadic_input_simple(use):
 
     single_int1 = use.init_data('single_int1', single_int1_factory)
     single_int2 = use.init_data('single_int2', single_int2_factory)
-    int_set = use.init_data_collection('int_set', set, single_int1, single_int2)
+    int_set = use.init_data_collection('int_set', set, single_int1,
+                                       single_int2)
 
     use.action(
         UsageAction(plugin_id='dummy_plugin',
