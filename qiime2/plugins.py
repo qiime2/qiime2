@@ -37,7 +37,7 @@ class ArtifactAPIUsage(usage.Usage):
         self._init_data_refs[ref] = factory
         return ref
 
-    def _init_data_collection_(self, ref, container_type, **records):
+    def _init_data_collection_(self, ref, container_type, *records):
 
         def factory():
             container_type = type(records)
