@@ -149,19 +149,29 @@ class TestUsage(TestCaseUsage):
         use = usage.DiagnosticUsage()
         action.examples['variadic_input_simple'](use)
 
-        self.assertEqual(len(use.recorder), 3)
+        self.assertEqual(len(use.recorder), 7)
 
-        obs1, obs2, obs3 = use.recorder
+        obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use.recorder
 
-        self.assertEqual('init_data_collection', obs1['source'],
+        self.assertEqual('init_data', obs1['source'],
                          use._get_record(obs1['ref']).source)
-        self.assertEqual('init_data_collection', obs2['source'],
+        self.assertEqual('init_data', obs2['source'],
                          use._get_record(obs2['ref']).source)
-        self.assertEqual('action', obs3['source'])
-        self.assertEqual(set, type(obs3['input_opts']['nums']))
+        self.assertEqual('init_data_collection', obs3['source'],
+                         use._get_record(obs3['ref']).source)
 
-        self.assertIn('int', obs3['input_opts']['ints'])
-        self.assertIn('int_set', obs3['input_opts']['int_set'])
+        self.assertEqual('init_data', obs4['source'],
+                         use._get_record(obs4['ref']).source)
+        self.assertEqual('init_data', obs5['source'],
+                         use._get_record(obs5['ref']).source)
+        self.assertEqual('init_data_collection', obs6['source'],
+                         use._get_record(obs6['ref']).source)
+        self.assertEqual('action', obs7['source'])
+
+        self.assertEqual(set, type(obs7['input_opts']['nums']))
+
+        self.assertIn('ints', obs7['input_opts']['ints'])
+        self.assertIn('int_set', obs7['input_opts']['int_set'])
 
     def test_optional_inputs(self):
         action = self.plugin.actions['optional_artifacts_method']

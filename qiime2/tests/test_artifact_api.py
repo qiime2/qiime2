@@ -250,7 +250,7 @@ out, = identity_with_metadata_column(
 from qiime2.plugins.dummy_plugin.methods import variadic_input_method
 
 out, = variadic_input_method(
-    ints=int,
+    ints=ints,
     int_set=int_set,
     nums={8, 9, 7},
 )
