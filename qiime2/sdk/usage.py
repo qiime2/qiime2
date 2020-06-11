@@ -416,7 +416,7 @@ class ExecutionUsage(Usage):
     def _init_data_collection_(self, ref, container_type, *records):
         for record in records:
             result_type = type(record)
-            if not isinstance(result_type, ScopeRecord):
+            if not isinstance(record, ScopeRecord):
                 raise ValueError('Record (%r) returned a %s, expected a '
                                  'ScopeRecord.' % (record, result_type))
 
