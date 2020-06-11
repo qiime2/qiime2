@@ -39,7 +39,9 @@ class ArtifactAPIUsage(usage.Usage):
 
     def _init_data_collection_(self, ref, container_type, *records):
         self._init_data_refs[ref] = ref
-        return ref
+        collection = container_type([i.ref for i in records])
+        t = str(collection).replace("'", "")
+        return t
 
     def _merge_metadata_(self, ref, records):
         first_md = records[0].ref
