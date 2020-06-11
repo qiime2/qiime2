@@ -144,7 +144,7 @@ class TestUsage(TestCaseUsage):
                          use._get_record(obs3['ref']).source)
         self.assertEqual('action', obs4['source'])
 
-    def test_use_merge_feature_table(self):
+    def test_use_init_collection_data(self):
         action = self.plugin.actions['variadic_input_method']
         use = usage.DiagnosticUsage()
         action.examples['variadic_input_simple'](use)
