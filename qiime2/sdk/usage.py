@@ -239,7 +239,7 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def init_data_collection(self, ref, container_type, *records):
-        if len(records) < 2:
+        if len(records) < 1:
             raise ValueError('Must provide two or more ScopeRecord inputs.')
 
         value = self._init_data_collection_(ref, container_type, *records)
