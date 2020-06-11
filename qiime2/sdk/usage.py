@@ -240,7 +240,7 @@ class Usage(metaclass=abc.ABCMeta):
 
     def init_data_collection(self, ref, collection_type, *records):
         if len(records) < 1:
-            raise ValueError('Must provide two or more ScopeRecord inputs.')
+            raise ValueError('Must provide at least one ScopeRecord input.')
 
         value = self._init_data_collection_(ref, collection_type, *records)
         return self._push_record(ref, value, 'init_data_collection')
