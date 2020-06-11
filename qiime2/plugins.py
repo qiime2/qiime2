@@ -39,7 +39,8 @@ class ArtifactAPIUsage(usage.Usage):
 
     def _init_data_collection_(self, ref, container_type, *records):
         self._init_data_refs[ref] = ref
-        collection = container_type([i.ref for i in records])
+        collection = sorted([i.ref for i in records])
+        collection = container_type(collection)
         t = str(collection).replace("'", "")
         return t
 

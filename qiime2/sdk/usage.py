@@ -342,7 +342,7 @@ class DiagnosticUsage(Usage):
             'source': 'init_data_collection',
             'ref': ref,
         })
-        return ref, [i.ref for i in records]
+        return ref, container_type([i.ref for i in records])
 
     def _merge_metadata_(self, ref, records):
         self.recorder.append({
