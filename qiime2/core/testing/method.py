@@ -117,7 +117,7 @@ def optional_artifacts_method(ints: list, num1: int, optional1: list = None,
     return result
 
 
-def variadic_input_method(ints: list, int_set: set, nums: int,
+def variadic_input_method(ints: list, int_set: int, nums: int,
                           opt_nums: int = None) -> list:
     results = []
 
