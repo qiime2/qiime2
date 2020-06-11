@@ -390,6 +390,10 @@ class TestExecutionUsage(TestCaseUsage):
         with self.assertRaisesRegex(TypeError, 'expected Metadata'):
             use.init_metadata('name', lambda: object)
 
+        with self.assertRaisesRegex(ValueError, 'expected a ScopeRecord.'):
+            use.init_data_collection('', list, object)
+            use.init_data_collection('', list, object, object)
+
     def test_merge_metadata(self):
         use = usage.ExecutionUsage()
         md1 = use.init_metadata('md1', examples.md1_factory)
