@@ -414,11 +414,15 @@ class ExecutionUsage(Usage):
         return result
 
     def _init_data_collection_(self, ref, container_type, *records):
+        collection = []
         for record in records:
             result_type = type(record)
             if not isinstance(record, ScopeRecord):
                 raise ValueError('Record (%r) returned a %s, expected a '
                                  'ScopeRecord.' % (record, result_type))
+            collection.append(record.result)
+
+        return container_type(collection)
 
     def _merge_metadata_(self, ref, records):
         mds = [r.result for r in records]
