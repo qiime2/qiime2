@@ -392,7 +392,10 @@ class TestExecutionUsage(TestCaseUsage):
 
         with self.assertRaisesRegex(ValueError, 'expected a ScopeRecord.'):
             use.init_data_collection('', list, object)
-            use.init_data_collection('', list, object, object)
+
+        with self.assertRaisesRegex(ValueError, 'expected a ScopeRecord.'):
+            use.init_data_collection('', list,
+                                     usage.ScopeRecord('', object, ''), object)
 
     def test_merge_metadata(self):
         use = usage.ExecutionUsage()
