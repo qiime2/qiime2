@@ -40,8 +40,10 @@ class ArtifactAPIUsage(usage.Usage):
     def _init_data_collection_(self, ref, collection_type, *records):
         self._init_data_refs[ref] = ref
         collection = sorted([i.ref for i in records])
-        collection = collection_type(collection)
         t = str(collection).replace("'", "")
+        if collection_type is set:
+            translation = t.maketrans("[]", "{}")
+            t = t.translate(translation)
         return t
 
     def _merge_metadata_(self, ref, records):
