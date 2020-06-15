@@ -408,10 +408,16 @@ class TestExecutionUsage(TestCaseUsage):
         use = usage.ExecutionUsage()
         action = self.plugin.actions['variadic_input_method']
         action.examples['variadic_input_simple'](use)
-        for record in use._get_records().values():
-            result = record.result
-            if isinstance(result, (list, set)):
-                for i in result:
-                    self.assertIsInstance(i, Artifact)
-            else:
-                self.assertIsInstance(result, Artifact)
+        ints_a, ints_b, ints, single_int1, single_int2, int_set, out = \
+            use._get_records().values()
+        self.assertIsInstance(ints_a.result, Artifact)
+        self.assertIsInstance(ints_b.result, Artifact)
+        self.assertIsInstance(ints.result, list)
+        self.assertEqual(ints.result[0], ints_a.result)
+        self.assertEqual(ints.result[1], ints_b.result)
+        self.assertIsInstance(single_int1.result, Artifact)
+        self.assertIsInstance(single_int2.result, Artifact)
+        self.assertIsInstance(int_set.result, set)
+        self.assertIn(single_int1.result, int_set.result)
+        self.assertIn(single_int2.result, int_set.result)
+        self.assertIsInstance(out.result, Artifact)
