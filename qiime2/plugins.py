@@ -39,9 +39,8 @@ class ArtifactAPIUsage(usage.Usage):
 
     def _init_data_collection_(self, ref, collection_type, *records):
         self._init_data_refs[ref] = ref
-        refs = sorted([i.ref for i in records])
-        t = ', '.join(refs).strip(',')
-        t = f"[{t}]" if collection_type is list else f"{{{t}}}"
+        t = ', '.join(sorted([i.ref for i in records]))
+        t = '[%s]' % t if collection_type is list else '{%s}' % t
         return t
 
     def _merge_metadata_(self, ref, records):
