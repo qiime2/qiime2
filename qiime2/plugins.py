@@ -38,7 +38,6 @@ class ArtifactAPIUsage(usage.Usage):
         return ref
 
     def _init_data_collection_(self, ref, collection_type, *records):
-        self._init_data_refs[ref] = ref
         t = ', '.join(sorted([i.ref for i in records]))
         t = '[%s]' % t if collection_type is list else '{%s}' % t
         return t
