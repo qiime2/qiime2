@@ -14,7 +14,7 @@ from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.type import Mapping
 import qiime2.core.testing.examples as examples
 from qiime2.sdk import usage, action
-from qiime2 import plugin, Metadata
+from qiime2 import plugin, Metadata, Artifact
 
 
 class TestCaseUsage(unittest.TestCase):
@@ -403,3 +403,15 @@ class TestExecutionUsage(TestCaseUsage):
         md2 = use.init_metadata('md2', examples.md2_factory)
         merged = use.merge_metadata('md3', md1, md2)
         self.assertIsInstance(merged.result, Metadata)
+
+    def test_variadic_input_simple(self):
+        use = usage.ExecutionUsage()
+        action = self.plugin.actions['variadic_input_method']
+        action.examples['variadic_input_simple'](use)
+        for record in use._get_records().values():
+            result = record.result
+            if isinstance(result, (list, set)):
+                for i in result:
+                    self.assertIsInstance(i, Artifact)
+            else:
+                self.assertIsInstance(result, Artifact)
