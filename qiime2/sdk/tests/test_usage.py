@@ -408,8 +408,13 @@ class TestExecutionUsage(TestCaseUsage):
         use = usage.ExecutionUsage()
         action = self.plugin.actions['variadic_input_method']
         action.examples['variadic_input_simple'](use)
-        ints_a, ints_b, ints, single_int1, single_int2, int_set, out = \
-            use._get_records().values()
+        ints_a = use._get_record('ints_a')
+        ints_b = use._get_record('ints_b')
+        ints = use._get_record('ints')
+        single_int1 = use._get_record('single_int1')
+        single_int2 = use._get_record('single_int2')
+        int_set = use._get_record('int_set')
+        out = use._get_record('out')
         self.assertIsInstance(ints_a.result, Artifact)
         self.assertIsInstance(ints_b.result, Artifact)
         self.assertIsInstance(ints.result, list)
