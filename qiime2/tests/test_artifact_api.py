@@ -241,7 +241,7 @@ out, = identity_with_metadata_column(
 """
         self.assertEqual(exp, use.render())
 
-    def test_use_merge_feature_table(self):
+    def test_use_init_collection_data(self):
         action = self.plugin.actions['variadic_input_method']
         use = ArtifactAPIUsage()
         action.examples['variadic_input_simple'](use)
@@ -250,8 +250,8 @@ out, = identity_with_metadata_column(
 from qiime2.plugins.dummy_plugin.methods import variadic_input_method
 
 out, = variadic_input_method(
-    ints=int,
-    int_set=int_set,
+    ints=[ints_a, ints_b],
+    int_set={single_int1, single_int2},
     nums={8, 9, 7},
 )
 """

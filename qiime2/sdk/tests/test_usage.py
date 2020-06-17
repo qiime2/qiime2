@@ -14,7 +14,7 @@ from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.type import Mapping
 import qiime2.core.testing.examples as examples
 from qiime2.sdk import usage, action
-from qiime2 import plugin, Metadata
+from qiime2 import plugin, Metadata, Artifact
 
 
 class TestCaseUsage(unittest.TestCase):
@@ -144,24 +144,34 @@ class TestUsage(TestCaseUsage):
                          use._get_record(obs3['ref']).source)
         self.assertEqual('action', obs4['source'])
 
-    def test_use_merge_feature_table(self):
+    def test_use_init_collection_data(self):
         action = self.plugin.actions['variadic_input_method']
         use = usage.DiagnosticUsage()
         action.examples['variadic_input_simple'](use)
 
-        self.assertEqual(len(use.recorder), 3)
+        self.assertEqual(len(use.recorder), 7)
 
-        obs1, obs2, obs3 = use.recorder
+        obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use.recorder
 
         self.assertEqual('init_data', obs1['source'],
                          use._get_record(obs1['ref']).source)
         self.assertEqual('init_data', obs2['source'],
                          use._get_record(obs2['ref']).source)
-        self.assertEqual('action', obs3['source'])
-        self.assertEqual(set, type(obs3['input_opts']['nums']))
+        self.assertEqual('init_data_collection', obs3['source'],
+                         use._get_record(obs3['ref']).source)
 
-        self.assertIn('int', obs3['input_opts']['ints'])
-        self.assertIn('int_set', obs3['input_opts']['int_set'])
+        self.assertEqual('init_data', obs4['source'],
+                         use._get_record(obs4['ref']).source)
+        self.assertEqual('init_data', obs5['source'],
+                         use._get_record(obs5['ref']).source)
+        self.assertEqual('init_data_collection', obs6['source'],
+                         use._get_record(obs6['ref']).source)
+        self.assertEqual('action', obs7['source'])
+
+        self.assertEqual(set, type(obs7['input_opts']['nums']))
+
+        self.assertIn('ints', obs7['input_opts']['ints'])
+        self.assertIn('int_set', obs7['input_opts']['int_set'])
 
     def test_optional_inputs(self):
         action = self.plugin.actions['optional_artifacts_method']
@@ -380,9 +390,39 @@ class TestExecutionUsage(TestCaseUsage):
         with self.assertRaisesRegex(TypeError, 'expected Metadata'):
             use.init_metadata('name', lambda: object)
 
+        with self.assertRaisesRegex(ValueError, 'expected a ScopeRecord.'):
+            use.init_data_collection('', list, object)
+
+        with self.assertRaisesRegex(ValueError, 'expected a ScopeRecord.'):
+            use.init_data_collection('', list,
+                                     usage.ScopeRecord('', object, ''), object)
+
     def test_merge_metadata(self):
         use = usage.ExecutionUsage()
         md1 = use.init_metadata('md1', examples.md1_factory)
         md2 = use.init_metadata('md2', examples.md2_factory)
         merged = use.merge_metadata('md3', md1, md2)
         self.assertIsInstance(merged.result, Metadata)
+
+    def test_variadic_input_simple(self):
+        use = usage.ExecutionUsage()
+        action = self.plugin.actions['variadic_input_method']
+        action.examples['variadic_input_simple'](use)
+        ints_a = use._get_record('ints_a')
+        ints_b = use._get_record('ints_b')
+        ints = use._get_record('ints')
+        single_int1 = use._get_record('single_int1')
+        single_int2 = use._get_record('single_int2')
+        int_set = use._get_record('int_set')
+        out = use._get_record('out')
+        self.assertIsInstance(ints_a.result, Artifact)
+        self.assertIsInstance(ints_b.result, Artifact)
+        self.assertIsInstance(ints.result, list)
+        self.assertEqual(ints.result[0], ints_a.result)
+        self.assertEqual(ints.result[1], ints_b.result)
+        self.assertIsInstance(single_int1.result, Artifact)
+        self.assertIsInstance(single_int2.result, Artifact)
+        self.assertIsInstance(int_set.result, set)
+        self.assertIn(single_int1.result, int_set.result)
+        self.assertIn(single_int2.result, int_set.result)
+        self.assertIsInstance(out.result, Artifact)

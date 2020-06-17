@@ -43,24 +43,12 @@ def md2_factory():
                                                 name='id')))
 
 
-def int_sequence_list_factory():
-    int1 = ints1_factory()
-    int2 = ints2_factory()
-    return [int1, int2]
-
-
 def single_int1_factory():
     return Artifact.import_data(SingleInt, 10)
 
 
 def single_int2_factory():
     return Artifact.import_data(SingleInt, 11)
-
-
-def single_int_set_factory():
-    single_int1 = single_int1_factory()
-    single_int2 = single_int2_factory()
-    return {single_int1, single_int2}
 
 
 def concatenate_ints_simple(use):
@@ -184,8 +172,14 @@ def identity_with_metadata_column_get_mdc(use):
 
 
 def variadic_input_simple(use):
-    ints = use.init_data('int', int_sequence_list_factory)
-    int_set = use.init_data('int_set', single_int_set_factory)
+    ints_a = use.init_data('ints_a', ints1_factory)
+    ints_b = use.init_data('ints_b', ints2_factory)
+    ints = use.init_data_collection('ints', list, ints_a, ints_b)
+
+    single_int1 = use.init_data('single_int1', single_int1_factory)
+    single_int2 = use.init_data('single_int2', single_int2_factory)
+    int_set = use.init_data_collection('int_set', set, single_int1,
+                                       single_int2)
 
     use.action(
         UsageAction(plugin_id='dummy_plugin',

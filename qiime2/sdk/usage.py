@@ -238,6 +238,20 @@ class Usage(metaclass=abc.ABCMeta):
     def _init_metadata_(self, ref, factory):
         raise NotImplementedError
 
+    def init_data_collection(self, ref, collection_type, *records):
+        if len(records) < 1:
+            raise ValueError('Must provide at least one ScopeRecord input.')
+        for record in records:
+            if not isinstance(record, ScopeRecord):
+                raise ValueError('Record (%r) returned a %s, expected a '
+                                 'ScopeRecord.' % (record, type(record)))
+
+        value = self._init_data_collection_(ref, collection_type, *records)
+        return self._push_record(ref, value, 'init_data_collection')
+
+    def _init_data_collection_(self, ref, collection_type, *records):
+        raise NotImplementedError
+
     def merge_metadata(self, ref, *records):
         if len(records) < 2:
             raise ValueError('Must provide two or more Metadata inputs.')
@@ -327,6 +341,13 @@ class DiagnosticUsage(Usage):
         })
         return ref
 
+    def _init_data_collection_(self, ref, collection_type, *records):
+        self.recorder.append({
+            'source': 'init_data_collection',
+            'ref': ref,
+        })
+        return ref, collection_type([i.ref for i in records])
+
     def _merge_metadata_(self, ref, records):
         self.recorder.append({
             'source': 'merge_metadata',
@@ -395,6 +416,13 @@ class ExecutionUsage(Usage):
                             'Metadata.' % (factory, result_type))
 
         return result
+
+    def _init_data_collection_(self, ref, collection_type, *records):
+        collection = []
+        for record in records:
+            collection.append(record.result)
+
+        return collection_type(collection)
 
     def _merge_metadata_(self, ref, records):
         mds = [r.result for r in records]
