@@ -242,10 +242,9 @@ class Usage(metaclass=abc.ABCMeta):
         if len(records) < 1:
             raise ValueError('Must provide at least one ScopeRecord input.')
         for record in records:
-            result_type = type(record)
             if not isinstance(record, ScopeRecord):
                 raise ValueError('Record (%r) returned a %s, expected a '
-                                 'ScopeRecord.' % (record, result_type))
+                                 'ScopeRecord.' % (record, type(result)))
 
         value = self._init_data_collection_(ref, collection_type, *records)
         return self._push_record(ref, value, 'init_data_collection')
