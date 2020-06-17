@@ -244,7 +244,7 @@ class Usage(metaclass=abc.ABCMeta):
         for record in records:
             if not isinstance(record, ScopeRecord):
                 raise ValueError('Record (%r) returned a %s, expected a '
-                                 'ScopeRecord.' % (record, type(result)))
+                                 'ScopeRecord.' % (record, type(record)))
 
         value = self._init_data_collection_(ref, collection_type, *records)
         return self._push_record(ref, value, 'init_data_collection')
