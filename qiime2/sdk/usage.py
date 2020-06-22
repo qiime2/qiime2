@@ -101,12 +101,6 @@ class UsageInputs:
                 v = self.values[name]
                 if isinstance(v, ScopeRecord) and v.ref in scope.records:
                     value = self.values[name].result
-                elif (isinstance(v, list)
-                      and all(isinstance(n, ScopeRecord) for n in v)):
-                    value = [item.result for item in v]
-                elif (isinstance(v, set)
-                      and all(isinstance(n, ScopeRecord) for n in v)):
-                    value = {item.result for item in v}
                 else:
                     value = v
                 opts[name] = value
