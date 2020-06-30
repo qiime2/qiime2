@@ -486,8 +486,8 @@ class Pipeline(Action):
 
         for output in outputs:
             if not isinstance(output, qiime2.sdk.Result):
-                raise TypeError("Pipelines must return Result objects, not %r"
-                                % output)
+                raise TypeError("Pipelines must return `Result` objects, "
+                                "not %s" % (type(output), ))
 
         # This condition *is* tested by the caller of _callable_executor_, but
         # the kinds of errors a plugin developer see will make more sense if
