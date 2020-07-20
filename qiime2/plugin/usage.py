@@ -9,59 +9,49 @@
 import abc
 import re
 import types
+from typing import Tuple, Callable, Optional, Union, Sequence
 
-from qiime2 import sdk, metadata
+from qiime2 import sdk, Metadata, Artifact
+from qiime2.plugin import Plugin
+from qiime2.core.type import MethodSignature
 
-# TODO: docstrings
-
-
-class UsageAction:
-    def __init__(self, *, plugin_id: str, action_id: str):
-        if plugin_id == '':
-            raise ValueError('Must specify a value for plugin_id.')
-
-        if action_id == '':
-            raise ValueError('Must specify a value for action_id.')
-
-        self.plugin_id = plugin_id
-        self.action_id = action_id
-        self._plugin_manager = sdk.PluginManager()
-
-    def __repr__(self):
-        return 'UsageAction(plugin_id=%r, action_id=%r)' %\
-            (self.plugin_id, self.action_id)
-
-    def get_action(self):
-        plugin = self._plugin_manager.get_plugin(id=self.plugin_id)
-        # TODO: should this validation be pushed up into
-        # plugin.py or action.py?
-        try:
-            action_f = plugin.actions[self.action_id]
-        except KeyError:
-            raise KeyError('No action currently registered with '
-                           'id: "%s".' % (self.action_id,))
-        return (action_f, action_f.signature)
-
-    def validate(self, inputs, outputs):
-        if not isinstance(inputs, UsageInputs):
-            raise TypeError('Must provide an instance of UsageInputs.')
-        if not isinstance(outputs, UsageOutputNames):
-            raise TypeError('Must provide an instance of UsageOutputNames.')
-
-        _, sig = self.get_action()
-
-        inputs.validate(sig)
-        outputs.validate(sig)
+Factory = Callable[..., Union[Metadata, Artifact]]
+Inputs = Union[Factory, Sequence]
 
 
 class UsageInputs:
-    def __init__(self, **kwargs):
+    """
+
+    Parameters
+    ----------
+    **kwargs
+
+    """
+
+    def __init__(self, **kwargs: Dict[str, Factory]):
         self.values = kwargs
 
     def __repr__(self):
         return 'UsageInputs(**%r)' % (self.values,)
 
-    def validate(self, signature):
+    def validate(self, signature: MethodSignature) -> None:
+        """
+        Validate inputs provided to a usage example
+
+        Parameters
+        ----------
+        signature : MethodSignature
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            If there are missing or extra inputs or parameters
+
+        """
         provided = set(self.values.keys())
         inputs, params = signature.inputs, signature.parameters
 
@@ -109,6 +99,7 @@ class UsageInputs:
 
 
 class UsageOutputNames:
+
     def __init__(self, **kwargs):
         for key, val in kwargs.items():
             if not isinstance(val, str):
@@ -136,7 +127,24 @@ class UsageOutputNames:
         if len(extra) > 0:
             raise ValueError('Extra output(s): %r' % (extra, ))
 
-    def validate_computed(self, computed_outputs):
+    def validate_computed(self, computed_outputs: dict) -> None:
+        """
+        Validate inputs provided to a usage example
+
+        Parameters
+        ----------
+        computed_outputs :
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            If there are missing or extra outputs
+
+        """
         provided = set(computed_outputs.keys())
         exp_outputs = set(self.values.keys())
 
@@ -159,9 +167,95 @@ class UsageOutputNames:
         return opts
 
 
+
+
+class UsageAction:
+    """
+    Parameters
+    ----------
+    plugin_id : str
+        String representation of the plugin ID
+    action_id : str
+        String representation of the action ID
+    """
+
+    def __init__(self, *, plugin_id: str, action_id: str):
+        if plugin_id == '':
+            raise ValueError('Must specify a value for plugin_id.')
+
+        if action_id == '':
+            raise ValueError('Must specify a value for action_id.')
+
+        self.plugin_id = plugin_id
+        self.action_id = action_id
+        self._plugin_manager = sdk.PluginManager()
+
+    def __repr__(self):
+        return 'UsageAction(plugin_id=%r, action_id=%r)' %\
+            (self.plugin_id, self.action_id)
+
+    def get_action(self) -> Tuple[Plugin, MethodSignature]:
+        """
+        Get the action and signature for `self.action_id`
+
+        Returns
+        -------
+        action_f : Plugin
+            The plugin action
+        action_f.signature: MethodSignature
+            The method signature for the plugin action
+
+        """
+
+        plugin = self._plugin_manager.get_plugin(id=self.plugin_id)
+        # TODO: should this validation be pushed up into
+        # plugin.py or action.py?
+        try:
+            action_f = plugin.actions[self.action_id]
+        except KeyError:
+            raise KeyError('No action currently registered with '
+                           'id: "%s".' % (self.action_id,))
+        return action_f, action_f.signature
+
+    def validate(self, inputs: UsageInputs, outputs: UsageOutputNames) -> None:
+        """
+        Validate inputs and outputs provide to a Usage example
+
+        Parameters
+        ----------
+        inputs : UsageInputs
+        outputs : UsageOutputNames
+
+        """
+        if not isinstance(inputs, UsageInputs):
+            raise TypeError('Must provide an instance of UsageInputs.')
+        if not isinstance(outputs, UsageOutputNames):
+            raise TypeError('Must provide an instance of UsageOutputNames.')
+
+        _, sig = self.get_action()
+
+        inputs.validate(sig)
+        outputs.validate(sig)
+
+
 class ScopeRecord:
     def __init__(self, ref: str, value: object, source: str,
-                 assert_has_line_matching: callable = None):
+                 assert_has_line_matching: Optional[Callable] = None):
+        """
+
+        Parameters
+        ----------
+        ref
+            A reference to `value`.
+        value
+            The value of `ref`.
+        source
+            The Usage method called to initialize example data.  This is
+            required by some Usage drivers to correctly template out certain
+            examples.
+        assert_has_line_matching
+        """
+
         if assert_has_line_matching is not None and \
                 not callable(assert_has_line_matching):
             raise TypeError('Value for `assert_has_line_matching` should be a '
@@ -169,6 +263,7 @@ class ScopeRecord:
 
         self.ref = ref
         self._result = value
+        # TODO: Put a guard somewhere for acceptable sources?
         self._source = source
         self._assert_has_line_matching_ = assert_has_line_matching
 
@@ -185,23 +280,85 @@ class ScopeRecord:
     def source(self):
         return self._source
 
-    def assert_has_line_matching(self, label, path, expression):
+    def assert_has_line_matching(
+            self, label: str, path: str, expression: str
+    ) -> None:
+        """
+        Verify that file contents of `path` has line matching `expression`
+
+        Parameters
+        ----------
+        label : str
+            A label for describing this assertion
+        path : str
+            Path to example data file
+        expression : str
+            a regex pattern to be passed as the first argument to `re.search`
+
+        Returns
+        -------
+        # TODO:  Should we return a bool here?
+        None
+
+        Raises
+        ______
+        AssertionError
+            If `expression` is not found in `path`
+
+        See Also
+        --------
+        See ExecutionUsage for an example implementation
+        """
         return self._assert_has_line_matching_(self.ref, label, path,
                                                expression)
 
 
 class Scope:
+    """
+    An object for tracking ScopeRecords in a usage example.
+    """
+
     def __init__(self):
-        self._records = dict()
+        self._records: dict = dict()
 
     def __repr__(self):
         return '%r' % (self._records, )
 
     @property
-    def records(self):
+    def records(self) -> types.MappingProxyType:
+        """
+        Returns
+        -------
+        types.MappingProxyType
+            a dynamic, read-only view of all current records.
+        """
         return types.MappingProxyType(self._records)
 
-    def push_record(self, ref, value, source, assert_has_line_matching=None):
+    def push_record(
+            self, ref: str,
+            value: Union[
+                Callable[..., Union[list, set, dict]]
+            ],
+            source: str,
+            assert_has_line_matching: Optional[Callable[[str, str, str], None]] = None
+    ) -> ScopeRecord:
+        """
+        Update `self._records` with an entry for this record where `ref` is
+        the key and `ScopeRecord` is the value.
+
+        Parameters
+        ----------
+        ref : str
+        value : a qiime2 Artifact or Metadata object, or a built-in data type
+            Data passed to a Usage data initialization method
+        source : ScopeRecord.source
+        assert_has_line_matching : ScopeRecord.assert_has_line_matching
+
+        Returns
+        -------
+        ScopeRecord
+
+        """
         record = ScopeRecord(ref=ref, value=value, source=source,
                              assert_has_line_matching=assert_has_line_matching)
         self._records[ref] = record
@@ -215,10 +372,26 @@ class Scope:
 
 
 class Usage(metaclass=abc.ABCMeta):
+    """
+    Baseclass for Usage drivers
+    """
+
     def __init__(self):
         self._scope = Scope()
 
-    def init_data(self, ref, factory):
+    def init_data(self, ref: str, factory: Factory):
+        """
+        Initialize example data from a factory
+
+        Parameters
+        ----------
+        ref
+        factory
+
+        Returns
+        -------
+
+        """
         value = self._init_data_(ref, factory)
         return self._push_record(ref, value, 'init_data')
 
@@ -270,7 +443,19 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def action(self, action: UsageAction, inputs: UsageInputs,
-               outputs: UsageOutputNames):
+               outputs: UsageOutputNames) -> None:
+        """
+
+        Parameters
+        ----------
+        action : UsageAction
+        inputs : UsageInputs
+        outputs : UsageOutputNames
+
+        Returns
+        -------
+
+        """
 
         if not isinstance(action, UsageAction):
             raise TypeError('Must provide an instance of UsageAction.')
@@ -405,7 +590,7 @@ class ExecutionUsage(Usage):
         result = factory()
         result_type = type(result)
 
-        if not isinstance(result, metadata.Metadata):
+        if not isinstance(result, Metadata):
             raise TypeError('Factory (%r) returned a %s, but expected '
                             'Metadata.' % (factory, result_type))
 
