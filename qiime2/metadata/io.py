@@ -145,8 +145,7 @@ class MetadataReader:
                     "Found unrecognized ID column name %r while searching for "
                     "header. The first column name in the header defines the "
                     "ID column, and must be one of these values:\n\n%s\n\n"
-                    "NOTE: Metadata files must be tab separated not comma "
-                    "separated." %
+                    "NOTE: Metadata files must contain tab-separated values." %
                     (row[0], FORMATTED_ID_HEADERS))
 
         if header is None:
