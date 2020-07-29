@@ -10,7 +10,7 @@ import pandas as pd
 
 from qiime2 import Artifact, Metadata
 
-from qiime2.plugin import UsageAction, UsageInputs, UsageOutputNames
+from qiime2.sdk import UsageAction, UsageInputs, UsageOutputNames
 
 from .type import IntSequence1, IntSequence2, Mapping, SingleInt
 
