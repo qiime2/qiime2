@@ -40,7 +40,7 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      params_only_method, no_input_method, deprecated_method,
                      optional_artifacts_method, long_description_method,
                      docstring_order_method, variadic_input_method,
-                     unioned_primitives)
+                     unioned_primitives, type_match_list_and_set)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -460,6 +460,33 @@ dummy_plugin.methods.register_function(
         'output': 'All of the above mashed together'
     },
     examples={'variadic_input_simple': variadic_input_simple},
+)
+
+T = TypeMatch([IntSequence1, IntSequence2])
+dummy_plugin.methods.register_function(
+    function=type_match_list_and_set,
+    inputs={
+        'ints': T
+    },
+    parameters={
+        'strs1': List[Str],
+        'strs2': Set[Str]
+    },
+    outputs=[
+        ('output', T)
+    ],
+    name='TypeMatch with list and set params',
+    description='Just a method with a TypeMatch and list/set params',
+    input_descriptions={
+        'ints': 'An int artifact'
+    },
+    parameter_descriptions={
+        'strs1': 'A list of strings',
+        'strs2': 'A set of strings'
+    },
+    output_descriptions={
+        'output': '[0]'
+    }
 )
 
 dummy_plugin.visualizers.register_function(

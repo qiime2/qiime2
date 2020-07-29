@@ -129,3 +129,7 @@ def variadic_input_method(ints: list, int_set: int, nums: int,
         results += opt_nums
 
     return results
+
+
+def type_match_list_and_set(ints: list, strs1: list, strs2: set) -> list:
+    return [0]
