@@ -21,4 +21,4 @@ __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
            'Metadata', 'MetadataColumn', 'Categorical', 'Numeric',
            'Properties', 'Range', 'Start', 'End', 'Choices', 'Visualization',
            'TypeMap', 'TypeMatch', 'ValidationError', 'Citations',
-           'CitationRecord', 'UsageAction', 'UsageInputs', 'UsageOutputNames']
+           'CitationRecord']
