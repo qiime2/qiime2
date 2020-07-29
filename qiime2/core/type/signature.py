@@ -393,10 +393,10 @@ class PipelineSignature:
             # Shouldn't happen:
             raise ValueError("Parameter passed not consistent with signature.")
         if type(value) is list:
-            inner = UnionExp((self._infer_type(v) for v in value))
+            inner = UnionExp((self._infer_type(key, v) for v in value))
             return List[inner.normalize()]
         if type(value) is set:
-            inner = UnionExp((self._infer_type(v) for v in value))
+            inner = UnionExp((self._infer_type(key, v) for v in value))
             return Set[inner.normalize()]
         if isinstance(value, qiime2.sdk.Artifact):
             return value.type
