@@ -485,9 +485,9 @@ class Usage(metaclass=abc.ABCMeta):
 
     def _add_outputs_to_scope(self, outputs, computed_outputs):
         outputs.validate_computed(computed_outputs)
-        for output, result in computed_outputs.items():
+        for output, value in computed_outputs.items():
             ref = outputs.get(output)
-            self._push_record(ref, result, 'action')
+            self._push_record(ref, value, 'action')
 
     def _push_record(self, ref, value, source):
         return self._scope.push_record(
