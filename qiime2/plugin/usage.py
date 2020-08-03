@@ -32,7 +32,7 @@ class ScopeRecord:
         Parameters
         ----------
         ref: str
-            A name for referring to `value`.
+            A unique name for referring to `value`.
         value: Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
             The value referred to by `ref`.
         source: str
