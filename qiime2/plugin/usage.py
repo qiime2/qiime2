@@ -8,23 +8,25 @@
 
 import abc
 import re
-from types import MappingProxyType
-from typing import Tuple, Callable, Optional, Union, List, Set, Dict
+import types
+import typing
 
 from qiime2 import sdk, metadata
 from qiime2.core.type import MethodSignature, PipelineSignature
 
-# Is Metadata sufficient for typing, or should we specify MetadataColumn
-# as well?
-Factory = Callable[..., Union[metadata.Metadata, sdk.Artifact]]
-ExampleInputs = Union[str, int, List[int], Set[int], None, Factory]
-ActionData = Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
-Signature = Union[MethodSignature, PipelineSignature]
+Factory = typing.Callable[..., typing.Union[metadata.Metadata, sdk.Artifact]]
+ExampleInputs = typing.Union[
+    str, int, typing.List[int], typing.Set[int], None, Factory
+]
+ActionData = typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
+Signature = typing.Union[MethodSignature, PipelineSignature]
 
 
 class ScopeRecord:
-    def __init__(self, ref: str, value: ActionData, source: str,
-                 assert_has_line_matching: Optional[Callable] = None):
+    def __init__(
+            self, ref: str, value: ActionData, source: str,
+            assert_has_line_matching: typing.Optional[typing.Callable] = None
+    ):
         """
         An object for recording information needed by Usage drivers to render
         Usage examples for QIIME 2 interfaces.
@@ -33,13 +35,13 @@ class ScopeRecord:
         ----------
         ref: str
             A unique name for referring to `value`.
-        value: Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
+        value: typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
             The value referred to by `ref`.
         source: str
             The Usage method called to initialize example data.  This is
             required by some Usage drivers to correctly template out certain
             examples.
-        assert_has_line_matching: Callable
+        assert_has_line_matching: typing.Callable
             A callable for asserting something about rendered example data.
         """
 
@@ -62,8 +64,8 @@ class ScopeRecord:
     @property
     def result(self) -> ActionData:
         """
-        Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]: The value
-        referred to by `self.ref`
+        typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]: The
+        value referred to by `self.ref`
         """
         return self._result
 
@@ -114,23 +116,25 @@ class Scope:
     """
 
     def __init__(self):
-        self._records: Dict[str, ScopeRecord] = dict()
+        self._records: typing.Dict[str, ScopeRecord] = dict()
 
     def __repr__(self):
         return '%r' % (self._records, )
 
     @property
-    def records(self) -> MappingProxyType:
+    def records(self) -> types.MappingProxyType:
         """
         Returns
         -------
         MappingProxyType
             A dynamic, read-only view of `ScopeRecords` in the current scope.
         """
-        return MappingProxyType(self._records)
+        return types.MappingProxyType(self._records)
 
-    def push_record(self, ref: str, value: ActionData, source: str,
-                    assert_has_line_matching: Callable = None) -> ScopeRecord:
+    def push_record(
+            self, ref: str, value: ActionData, source: str,
+            assert_has_line_matching: typing.Callable = None
+    ) -> ScopeRecord:
         """
         Update `self._records` with an entry for this record where `ref` is
         the key and `ScopeRecord` is the value.
@@ -142,7 +146,7 @@ class Scope:
             Data passed to a Usage data initialization method
         source : str
             The `ScopeRecord.source` property
-        assert_has_line_matching : Callable
+        assert_has_line_matching : typing.Callable
             see ScopeRecord.assert_has_line_matching
 
         Returns
@@ -249,10 +253,6 @@ class UsageInputs:
         """
         opts = {}
 
-        # TODO: mypy reports Item "ParameterSpec" of "Union[MethodSignature,
-        #  ParameterSpec, PipelineSignature]" has no attribute
-        #  "signature_order" which is odd since when `signature` is a
-        #  ParameterSpec, the code below works just fine
         for name, signature in signature.signature_order.items():
             if name in self.values:
                 v = self.values[name]
@@ -294,7 +294,9 @@ class UsageOutputNames:
         if len(extra) > 0:
             raise ValueError('Extra output(s): %r' % (extra, ))
 
-    def validate_computed(self, computed_outputs: dict) -> None:
+    def validate_computed(
+            self, computed_outputs: typing.Dict[ActionData]
+    ) -> None:
         """
         Validate inputs provided to a usage example
 
@@ -359,7 +361,9 @@ class UsageAction:
         return 'UsageAction(plugin_id=%r, action_id=%r)' %\
             (self.plugin_id, self.action_id)
 
-    def get_action(self) -> Tuple[Union[sdk.Method, sdk.Pipeline], Signature]:
+    def get_action(
+            self
+    ) -> typing.Tuple[typing.Union[sdk.Method, sdk.Pipeline], Signature]:
         """
         Get the action and signature for `self.action_id`
 
@@ -502,7 +506,7 @@ class Usage(metaclass=abc.ABCMeta):
         self._add_outputs_to_scope(outputs, computed_outputs)
 
     def _action_(self, action: UsageAction,
-                 input_opts: dict, output_opts: dict):
+                 input_opts: dict, output_opts: dict) -> dict:
         raise NotImplementedError
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
