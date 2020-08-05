@@ -159,7 +159,18 @@ class Scope:
         self._records[ref] = record
         return record
 
-    def get_record(self, ref):
+    def get_record(self, ref: str) -> ScopeRecord:
+        """
+        Parameters
+        ----------
+        ref : str
+            The name of a ScopeRecord
+
+        Returns
+        -------
+        ScopeRecord
+
+        """
         try:
             return self.records[ref]
         except KeyError:
@@ -169,14 +180,16 @@ class Scope:
 class UsageInputs:
     """
     Inputs for the plugin action of a Usage example
-
-    Parameters
-    ----------
-    **kwargs : Inputs
-        Inputs to be passed in as keyword arguments to `Usage.action`.
     """
 
     def __init__(self, **kwargs: ExampleInputs):
+        """
+
+        Parameters
+        ----------
+        kwargs : ExampleInputs
+            Inputs to be passed in as keyword arguments to `Usage.action`.
+        """
         self.values = kwargs
 
     def __repr__(self):
@@ -184,11 +197,13 @@ class UsageInputs:
 
     def validate(self, signature: Signature) -> None:
         """
-        Validate inputs provided to a Usage example
+        Confirm inputs provided in a Usage example are valid inputs as per the
+        action's signature.
 
         Parameters
         ----------
         signature : Signature
+            The plugin action's signature
 
         Returns
         -------
@@ -233,22 +248,21 @@ class UsageInputs:
 
     def build_opts(self, signature: Signature, scope: Scope) -> dict:
         """
-        Builds a dictionary mapping input names to input values for an action
-        example. The value is derived from the corresponding ScopeRecord, if
-        one exists, or the value passed into the constructor as a keyword
+        Build a dictionary mapping input names to their values for an example.
+        Values are derived from either the corresponding ScopeRecord, or the
+        value passed into the constructor of the corresponding keyword
         argument.
-
 
         Parameters
         ----------
         signature
-            A QIIME 2 action signature
+            The plugin action's signature
         scope
             The `Scope` object of a Usage example
 
         Returns
         -------
-        A mapping between the name of an input and its value.
+        A mapping between the unique name assigned to an input and its value.
 
         """
         opts = {}
@@ -266,8 +280,18 @@ class UsageInputs:
 
 
 class UsageOutputNames:
+    """
+    Output names for a Usage example.
+    """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: str):
+        """
+        Parameters
+        ----------
+        kwargs : str
+            A mapping between output names as per the action signature and
+            unique and arbitrary names given to their results.
+        """
         for key, val in kwargs.items():
             if not isinstance(val, str):
                 raise TypeError(
@@ -282,7 +306,24 @@ class UsageOutputNames:
     def get(self, key):
         return self.values[key]
 
-    def validate(self, signature):
+    def validate(self, signature) -> None:
+        """
+
+        Parameters
+        ----------
+        signature
+
+        Raises
+        ------
+        ValueError
+            If the example has missing or extra outputs as per the action
+            signature
+
+        Returns
+        -------
+        None
+
+        """
         provided = set(self.values.keys())
         exp_outputs = set(signature.outputs)
 
@@ -298,11 +339,13 @@ class UsageOutputNames:
             self, computed_outputs: typing.Dict[ActionData]
     ) -> None:
         """
-        Validate inputs provided to a usage example
+        Check that outputs are still valid after processing, i.e., after a
+        Usage driver's implementation of `Usage._action_`` is called.
 
         Parameters
         ----------
-        computed_outputs :
+        computed_outputs : typing.Dict[ActionData]
+            Outputs that have been run through `Usage._action_`
 
         Returns
         -------
@@ -311,7 +354,7 @@ class UsageOutputNames:
         Raises
         ------
         ValueError
-            If there are missing or extra outputs
+            If there are missing or extra outputs as per the action signature.
 
         """
         provided = set(computed_outputs.keys())
