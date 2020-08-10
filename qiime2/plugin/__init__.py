@@ -14,7 +14,7 @@ from qiime2.core.type import (SemanticType, Int, Str, Float, Metadata,
                               MetadataColumn, Categorical, Numeric, Properties,
                               Range, Start, End, Choices, Bool, Set, List,
                               Visualization, TypeMap, TypeMatch)
-from qiime2.sdk.usage import UsageAction, UsageInputs, UsageOutputNames
+from .usage import UsageAction, UsageInputs, UsageOutputNames
 
 
 __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',

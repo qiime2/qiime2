@@ -9,7 +9,7 @@
 import sys
 import importlib.machinery
 
-from qiime2.sdk import usage
+from qiime2.plugin import usage
 
 __all__ = ['available_plugins', 'ArtifactAPIUsage']
 __path__ = []

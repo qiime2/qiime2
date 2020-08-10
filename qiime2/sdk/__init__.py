@@ -13,7 +13,9 @@ from .result import Result, Artifact, Visualization
 from .results import Results
 from .util import parse_type, parse_format, type_from_ast
 from ..core.cite import Citations
+from qiime2.plugin.usage import UsageAction, UsageInputs, UsageOutputNames
 
 __all__ = ['Result', 'Results', 'Artifact', 'Visualization', 'Action',
            'Method', 'Visualizer', 'Pipeline', 'PluginManager', 'parse_type',
-           'parse_format', 'type_from_ast', 'Context', 'Citations']
+           'parse_format', 'type_from_ast', 'Context', 'Citations',
+           'UsageAction', 'UsageInputs', 'UsageOutputNames']

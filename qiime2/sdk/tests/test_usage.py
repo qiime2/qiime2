@@ -13,7 +13,8 @@ from qiime2.core.type import signature
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.type import Mapping
 import qiime2.core.testing.examples as examples
-from qiime2.sdk import usage, action
+from qiime2.sdk import action
+from qiime2.plugin import usage
 from qiime2 import plugin, Metadata, Artifact
 
 
