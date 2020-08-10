@@ -23,25 +23,26 @@ Signature = typing.Union[MethodSignature, PipelineSignature]
 
 
 class ScopeRecord:
+    """
+    Tracks information needed by Usage drivers to render usage examples.
+    """
+
     def __init__(
             self, ref: str, value: ActionData, source: str,
             assert_has_line_matching: typing.Optional[typing.Callable] = None
     ):
         """
-        An object for recording information needed by Usage drivers to render
-        Usage examples for QIIME 2 interfaces.
-
         Parameters
         ----------
-        ref: str
+        ref : str
             A unique name for referring to `value`.
-        value: typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
+        value : ActionData
             The value referred to by `ref`.
-        source: str
+        source : str
             The Usage method called to initialize example data.  This is
             required by some Usage drivers to correctly template out certain
             examples.
-        assert_has_line_matching: typing.Callable
+        assert_has_line_matching : typing.Callable
             A callable for asserting something about rendered example data.
         """
 
@@ -64,16 +65,21 @@ class ScopeRecord:
     @property
     def result(self) -> ActionData:
         """
-        typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]: The
-        value referred to by `self.ref`
+        An artifact, visualization, or metadata
+
+        Returns
+        -------
+        ActionData
+            The value referred to by `self.ref`
         """
         return self._result
 
     @property
     def source(self) -> str:
         """
-        str: The Usage method called to initialize example data.  This is used
-        by Usage drivers to render Usage examples.
+        str : The Usage method called to initialize example data.  This allows
+        Usage drivers make decisions based on the type of data they are dealing
+        with without needing to materialize data by calling a factory.
         """
         return self._source
 
@@ -112,7 +118,7 @@ class ScopeRecord:
 
 class Scope:
     """
-    An object for tracking ScopeRecords in a Usage example.
+    Tracks all ScopeRecords for a Usage example.
     """
 
     def __init__(self):
@@ -142,12 +148,12 @@ class Scope:
         Parameters
         ----------
         ref : str
-        value : a qiime2 Artifact or Metadata object, or a built-in data type
-            Data passed to a Usage data initialization method
+        value : ActionData
+            Data from a Usage data initialization method.
         source : str
-            The `ScopeRecord.source` property
+            The Usage method called to initialize example data.
         assert_has_line_matching : typing.Callable
-            see ScopeRecord.assert_has_line_matching
+            See `ScopeRecord.assert_has_line_matching`
 
         Returns
         -------
@@ -161,10 +167,17 @@ class Scope:
 
     def get_record(self, ref: str) -> ScopeRecord:
         """
+        Get a `ScopeRecord` from the current scope.
+
         Parameters
         ----------
         ref : str
             The name of a ScopeRecord
+
+        Raises
+        ------
+        KeyError
+            If the record name isn't in the scope
 
         Returns
         -------
@@ -179,12 +192,11 @@ class Scope:
 
 class UsageInputs:
     """
-    Inputs for the plugin action of a Usage example
+    Inputs for a Usage example.
     """
 
     def __init__(self, **kwargs: ExampleInputs):
         """
-
         Parameters
         ----------
         kwargs : ExampleInputs
@@ -197,8 +209,8 @@ class UsageInputs:
 
     def validate(self, signature: Signature) -> None:
         """
-        Confirm inputs provided in a Usage example are valid inputs as per the
-        action's signature.
+        Confirm that inputs for an example are valid as per the action's
+        signature.
 
         Parameters
         ----------
@@ -248,22 +260,22 @@ class UsageInputs:
 
     def build_opts(self, signature: Signature, scope: Scope) -> dict:
         """
-        Build a dictionary mapping input names to their values for an example.
-        Values are derived from either the corresponding ScopeRecord, or the
-        value passed into the constructor of the corresponding keyword
-        argument.
+        Build a dictionary mapping action input names to example input values.
+        Values are derived from either an input's `ScopeRecord`
+        (`ScopeRecord.value`), or the value a keyword argument passed into the
+        `UsageInputs` constructor.
 
         Parameters
         ----------
-        signature
+        signature : Signature
             The plugin action's signature
-        scope
-            The `Scope` object of a Usage example
+        scope : Scope
+            A Usage example's current scope
 
         Returns
         -------
-        A mapping between the unique name assigned to an input and its value.
-
+        dict
+            Input names and their example values.
         """
         opts = {}
 
@@ -280,8 +292,7 @@ class UsageInputs:
 
 
 class UsageOutputNames:
-    """
-    Output names for a Usage example.
+    """Output names for a Usage example.
     """
 
     def __init__(self, **kwargs: str):
@@ -290,7 +301,7 @@ class UsageOutputNames:
         ----------
         kwargs : str
             A mapping between output names as per the action signature and
-            unique and arbitrary names given to their results.
+            the unique names given to their results.
         """
         for key, val in kwargs.items():
             if not isinstance(val, str):
@@ -303,15 +314,24 @@ class UsageOutputNames:
     def __repr__(self):
         return 'UsageOutputNames(**%r)' % (self.values, )
 
-    def get(self, key):
+    def get(self, key) -> str:
+        """Get an output name
+
+        Returns
+        -------
+        str
+            The name of an example output
+        """
         return self.values[key]
 
-    def validate(self, signature) -> None:
+    def validate(self, signature: Signature) -> None:
         """
+        Check the provided outputs against the action signature.
 
         Parameters
         ----------
         signature
+            Action signature
 
         Raises
         ------
@@ -336,16 +356,16 @@ class UsageOutputNames:
             raise ValueError('Extra output(s): %r' % (extra, ))
 
     def validate_computed(
-            self, computed_outputs: typing.Dict[ActionData]
+            self, computed_outputs: typing.Dict[str, ActionData]
     ) -> None:
         """
-        Check that outputs are still valid after processing, i.e., after a
-        Usage driver's implementation of `Usage._action_`` is called.
+        Check that outputs are still valid after being processed by a Usage
+        driver's `_action_`. method.
 
         Parameters
         ----------
-        computed_outputs : typing.Dict[ActionData]
-            Outputs that have been run through `Usage._action_`
+        computed_outputs : typing.Dict[str, ActionData]
+            Outputs returned by the Usage driver's `._action_` method
 
         Returns
         -------
@@ -370,7 +390,22 @@ class UsageOutputNames:
             raise ValueError('SDK implementation has specified extra '
                              'output(s): %r' % (extra, ))
 
-    def build_opts(self, action_signature, scope):
+    def build_opts(self, action_signature: Signature, scope: Scope) -> dict:
+        """
+        Build a dictionary mapping action output names to example output value.
+
+        Parameters
+        ----------
+        action_signature : Signature
+            The plugin action's signature
+        scope : Scope
+            A Usage example's current scope
+
+        Returns
+        -------
+        dict
+            Output names and their example values.
+        """
         opts = {}
 
         for output in action_signature.outputs.keys():
@@ -380,16 +415,21 @@ class UsageOutputNames:
 
 
 class UsageAction:
-    """
-    Parameters
-    ----------
-    plugin_id : str
-        String representation of the plugin ID
-    action_id : str
-        String representation of the action ID
+    """Usage example action
     """
 
+    # TODO If *arg here is necessary, create an exampl
     def __init__(self, *, plugin_id: str, action_id: str):
+
+        """
+        Parameters
+        ----------
+        plugin_id : str
+            Plugin ID
+        action_id : str
+            Action ID
+        """
+
         if plugin_id == '':
             raise ValueError('Must specify a value for plugin_id.')
 
@@ -408,15 +448,14 @@ class UsageAction:
             self
     ) -> typing.Tuple[typing.Union[sdk.Method, sdk.Pipeline], Signature]:
         """
-        Get the action and signature for `self.action_id`
+        Get this example action's QIIME 2 action and signature
 
         Returns
         -------
-        action_f : Plugin
+        action_f : typing.Union[sdk.Method, sdk.Pipeline]
             The plugin action
         action_f.signature: Signature
             The method signature for the plugin action
-
         """
 
         plugin = self._plugin_manager.get_plugin(id=self.plugin_id)
@@ -451,8 +490,7 @@ class UsageAction:
 
 
 class Usage(metaclass=abc.ABCMeta):
-    """
-    Baseclass for Usage drivers
+    """Baseclass for Usage drivers
     """
 
     def __init__(self):
@@ -562,7 +600,8 @@ class Usage(metaclass=abc.ABCMeta):
             raise TypeError('source == %s but must be "action"' % source)
         return record
 
-    def _add_outputs_to_scope(self, outputs, computed_outputs):
+    def _add_outputs_to_scope(self, outputs: UsageOutputNames,
+                              computed_outputs):
         outputs.validate_computed(computed_outputs)
         for output, value in computed_outputs.items():
             ref = outputs.get(output)
