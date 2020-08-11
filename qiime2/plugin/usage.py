@@ -14,13 +14,6 @@ import typing
 from qiime2 import sdk, metadata
 from qiime2.core.type import MethodSignature, PipelineSignature
 
-Factory = typing.Callable[..., typing.Union[metadata.Metadata, sdk.Artifact]]
-ExampleInputs = typing.Union[
-    str, int, typing.List[int], typing.Set[int], None, Factory
-]
-ActionData = typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
-Signature = typing.Union[MethodSignature, PipelineSignature]
-
 
 class ScopeRecord:
     """
@@ -28,15 +21,20 @@ class ScopeRecord:
     """
 
     def __init__(
-            self, ref: str, value: ActionData, source: str,
-            assert_has_line_matching: typing.Optional[typing.Callable] = None
+        self,
+        ref: str,
+        value: typing.Union[
+            sdk.Artifact, sdk.Visualization, metadata.Metadata
+        ],
+        source: str,
+        assert_has_line_matching: typing.Optional[typing.Callable] = None,
     ):
         """
         Parameters
         ----------
         ref : str
             A unique name for referring to `value`.
-        value : ActionData
+        value : Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
             The value referred to by `ref`.
         source : str
             The Usage method called to initialize example data.  This is
@@ -63,13 +61,15 @@ class ScopeRecord:
                                                               self.source)
 
     @property
-    def result(self) -> ActionData:
+    def result(
+        self,
+    ) -> typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]:
         """
         An artifact, visualization, or metadata
 
         Returns
         -------
-        ActionData
+        typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
             The value referred to by `self.ref`
         """
         return self._result
@@ -138,8 +138,13 @@ class Scope:
         return types.MappingProxyType(self._records)
 
     def push_record(
-            self, ref: str, value: ActionData, source: str,
-            assert_has_line_matching: typing.Callable = None
+        self,
+        ref: str,
+        value: typing.Union[
+            sdk.Artifact, sdk.Visualization, metadata.Metadata
+        ],
+        source: str,
+        assert_has_line_matching: typing.Callable = None,
     ) -> ScopeRecord:
         """
         Update `self._records` with an entry for this record where `ref` is
@@ -148,7 +153,7 @@ class Scope:
         Parameters
         ----------
         ref : str
-        value : ActionData
+        value : Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
             Data from a Usage data initialization method.
         source : str
             The Usage method called to initialize example data.
@@ -195,7 +200,18 @@ class UsageInputs:
     Inputs for a Usage example.
     """
 
-    def __init__(self, **kwargs: ExampleInputs):
+    def __init__(
+        self,
+        **kwargs: typing.Union[
+            int,
+            bool,
+            None,
+            typing.Iterable[int],
+            typing.Callable[
+                ..., typing.Union[metadata.Metadata, sdk.Artifact]
+            ],
+        ]
+    ):
         """
         Parameters
         ----------
@@ -207,14 +223,16 @@ class UsageInputs:
     def __repr__(self):
         return 'UsageInputs(**%r)' % (self.values,)
 
-    def validate(self, signature: Signature) -> None:
+    def validate(
+        self, signature: typing.Union[MethodSignature, PipelineSignature]
+    ) -> None:
         """
         Confirm that inputs for an example are valid as per the action's
         signature.
 
         Parameters
         ----------
-        signature : Signature
+        signature : typing.Union[MethodSignature, PipelineSignature]
             The plugin action's signature
 
         Returns
@@ -258,7 +276,11 @@ class UsageInputs:
             raise ValueError('Extra input(s) or parameter(s): %r' %
                              (extra, ))
 
-    def build_opts(self, signature: Signature, scope: Scope) -> dict:
+    def build_opts(
+        self,
+        signature: typing.Union[MethodSignature, PipelineSignature],
+        scope: Scope,
+    ) -> dict:
         """
         Build a dictionary mapping action input names to example input values.
         Values are derived from either an input's `ScopeRecord`
@@ -267,7 +289,7 @@ class UsageInputs:
 
         Parameters
         ----------
-        signature : Signature
+        signature : typing.Union[MethodSignature, PipelineSignature]
             The plugin action's signature
         scope : Scope
             A Usage example's current scope
@@ -324,7 +346,9 @@ class UsageOutputNames:
         """
         return self.values[key]
 
-    def validate(self, signature: Signature) -> None:
+    def validate(
+        self, signature: typing.Union[MethodSignature, PipelineSignature]
+    ) -> None:
         """
         Check the provided outputs against the action signature.
 
@@ -356,7 +380,11 @@ class UsageOutputNames:
             raise ValueError('Extra output(s): %r' % (extra, ))
 
     def validate_computed(
-            self, computed_outputs: typing.Dict[str, ActionData]
+        self,
+        computed_outputs: typing.Dict[
+            str,
+            typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata],
+        ],
     ) -> None:
         """
         Check that outputs are still valid after being processed by a Usage
@@ -364,7 +392,8 @@ class UsageOutputNames:
 
         Parameters
         ----------
-        computed_outputs : typing.Dict[str, ActionData]
+        computed_outputs : Dict[
+            str, Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]]
             Outputs returned by the Usage driver's `._action_` method
 
         Returns
@@ -390,13 +419,17 @@ class UsageOutputNames:
             raise ValueError('SDK implementation has specified extra '
                              'output(s): %r' % (extra, ))
 
-    def build_opts(self, action_signature: Signature, scope: Scope) -> dict:
+    def build_opts(
+        self,
+        action_signature: typing.Union[MethodSignature, PipelineSignature],
+        scope: Scope,
+    ) -> dict:
         """
         Build a dictionary mapping action output names to example output value.
 
         Parameters
         ----------
-        action_signature : Signature
+        action_signature : typing.Union[MethodSignature, PipelineSignature]
             The plugin action's signature
         scope : Scope
             A Usage example's current scope
@@ -445,8 +478,11 @@ class UsageAction:
             (self.plugin_id, self.action_id)
 
     def get_action(
-            self
-    ) -> typing.Tuple[typing.Union[sdk.Method, sdk.Pipeline], Signature]:
+        self,
+    ) -> typing.Tuple[
+        typing.Union[sdk.Method, sdk.Pipeline],
+        typing.Union[MethodSignature, PipelineSignature],
+    ]:
         """
         Get this example action's QIIME 2 action and signature
 
@@ -454,7 +490,7 @@ class UsageAction:
         -------
         action_f : typing.Union[sdk.Method, sdk.Pipeline]
             The plugin action
-        action_f.signature: Signature
+        action_f.signature: typing.Union[MethodSignature, PipelineSignature]
             The method signature for the plugin action
         """
 
@@ -490,25 +526,34 @@ class UsageAction:
 
 
 class Usage(metaclass=abc.ABCMeta):
-    """Baseclass for Usage drivers
+    """Base class for Usage drivers
     """
 
     def __init__(self):
         self._scope = Scope()
 
-    def init_data(self, ref: str, factory: Factory):
-        """
-        Initialize example data from a factory
+    def init_data(
+        self,
+        ref: str,
+        factory: typing.Callable[
+            ..., typing.Union[metadata.Metadata, sdk.Artifact]
+        ],
+    ) -> ScopeRecord:
+        """Initialize example data from a factory
 
         Parameters
         ----------
-        ref
-        factory
+        ref : str
+            Unique name for example data
+        factory : Callable[..., Union[metadata.Metadata, sdk.Artifact]]
+            A factory that returns example data
 
         Returns
         -------
-
+        ScopeRecord
+            A record with information about the example data.
         """
+
         value = self._init_data_(ref, factory)
         return self._push_record(ref, value, 'init_data')
 
@@ -559,8 +604,12 @@ class Usage(metaclass=abc.ABCMeta):
     def _comment_(self, text: str):
         raise NotImplementedError
 
-    def action(self, action: UsageAction, inputs: UsageInputs,
-               outputs: UsageOutputNames) -> None:
+    def action(
+        self,
+        action: UsageAction,
+        inputs: UsageInputs,
+        outputs: UsageOutputNames,
+    ) -> None:
         """
 
         Parameters
