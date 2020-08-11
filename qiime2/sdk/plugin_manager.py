@@ -134,7 +134,7 @@ class PluginManager:
         for (input, output), transformer_record in plugin.transformers.items():
             if output in self.transformers[input]:
                 raise ValueError("Transformer from %r to %r already exists."
-                                 % transformer_record)
+                                 % (input, output))
             self.transformers[input][output] = transformer_record
             self._reverse_transformers[output][input] = transformer_record
 
