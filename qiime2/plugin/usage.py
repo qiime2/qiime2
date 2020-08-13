@@ -15,9 +15,15 @@ from qiime2 import sdk, metadata
 from qiime2.core.type import MethodSignature, PipelineSignature
 
 
+# Put Scope objects in sdk?
 class ScopeRecord:
     """
-    Tracks information needed by Usage drivers to render usage examples.
+    Track information needed by Usage drivers to render usage examples.
+
+    Note
+    ----
+    `ScopeRecord` is an internal implementation and need not be
+    instantiated manually.
     """
 
     def __init__(
@@ -37,9 +43,7 @@ class ScopeRecord:
         value : Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
             The value referred to by `ref`.
         source : str
-            The Usage method called to initialize example data.  This is
-            required by some Usage drivers to correctly template out certain
-            examples.
+            The Usage method called to initialize example data.
         assert_has_line_matching : typing.Callable
             A callable for asserting something about rendered example data.
         """
@@ -65,7 +69,7 @@ class ScopeRecord:
         self,
     ) -> typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]:
         """
-        An artifact, visualization, or metadata
+        An Artifact, Visualization, or Metadata
 
         Returns
         -------
@@ -77,9 +81,8 @@ class ScopeRecord:
     @property
     def source(self) -> str:
         """
-        str : The Usage method called to initialize example data.  This allows
-        Usage drivers make decisions based on the type of data they are dealing
-        with without needing to materialize data by calling a factory.
+        str :
+            The Usage method called to initialize example data.
         """
         return self._source
 
@@ -88,6 +91,7 @@ class ScopeRecord:
     ) -> None:
         """
         Verify that the file at `path` contains a line matching `expression`
+        within an Artifact.
 
         Parameters
         ----------
@@ -96,7 +100,7 @@ class ScopeRecord:
         path : str
             Path to example data file
         expression : str
-            a regex pattern to be passed as the first argument to `re.search`
+            A regex pattern to be passed as the first argument to `re.search`.
 
         Returns
         -------
@@ -109,16 +113,20 @@ class ScopeRecord:
 
         See Also
         --------
-        See `ExecutionUsage` for an example implementation
+        See `ExecutionUsage` for an example implementation.
         """
-        # TODO: mypy reports "None" not callable. Should we refactor?
         return self._assert_has_line_matching_(self.ref, label, path,
                                                expression)
 
 
 class Scope:
     """
-    Tracks all ScopeRecords for a Usage example.
+    Track all ScopeRecords for a Usage example.
+
+    Note
+    ----
+    `Scope` is an internal implementation and need not be
+    instantiated manually.
     """
 
     def __init__(self):
@@ -177,7 +185,7 @@ class Scope:
         Parameters
         ----------
         ref : str
-            The name of a ScopeRecord
+            The name of a `ScopeRecord`.
 
         Raises
         ------
@@ -196,8 +204,7 @@ class Scope:
 
 
 class UsageInputs:
-    """
-    Inputs for a Usage example.
+    """Provide inputs for a Usage example.
     """
 
     def __init__(
@@ -314,7 +321,7 @@ class UsageInputs:
 
 
 class UsageOutputNames:
-    """Output names for a Usage example.
+    """Provide output names for a Usage example.
     """
 
     def __init__(self, **kwargs: str):
@@ -448,7 +455,7 @@ class UsageOutputNames:
 
 
 class UsageAction:
-    """Usage example action
+    """Provide an action for a Usage example.
     """
 
     # TODO If *arg here is necessary, create an exampl
@@ -526,7 +533,7 @@ class UsageAction:
 
 
 class Usage(metaclass=abc.ABCMeta):
-    """Base class for Usage drivers
+    """`Usage` is the base class for Usage driver implementations.
     """
 
     def __init__(self):
@@ -539,14 +546,14 @@ class Usage(metaclass=abc.ABCMeta):
             ..., typing.Union[metadata.Metadata, sdk.Artifact]
         ],
     ) -> ScopeRecord:
-        """Initialize example data from a factory
+        """Initialize example data from a factory.
 
         Parameters
         ----------
         ref : str
-            Unique name for example data
+            Unique name for example data.
         factory : Callable[..., Union[metadata.Metadata, sdk.Artifact]]
-            A factory that returns example data
+            A factory that returns example data.
 
         Returns
         -------
@@ -668,6 +675,7 @@ class Usage(metaclass=abc.ABCMeta):
         return self._scope.records
 
 
+# TODO Try moving drivers to sdk
 class DiagnosticUsage(Usage):
     def __init__(self):
         super().__init__()
