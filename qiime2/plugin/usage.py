@@ -30,7 +30,7 @@ class ScopeRecord:
         self,
         ref: str,
         value: typing.Union[
-            sdk.Artifact, sdk.Visualization, metadata.Metadata
+            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
         ],
         source: str,
         assert_has_line_matching: typing.Optional[typing.Callable] = None,
@@ -67,7 +67,9 @@ class ScopeRecord:
     @property
     def result(
         self,
-    ) -> typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]:
+    ) -> typing.Union[
+        "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+    ]:
         """
         An Artifact, Visualization, or Metadata
 
@@ -149,7 +151,7 @@ class Scope:
         self,
         ref: str,
         value: typing.Union[
-            sdk.Artifact, sdk.Visualization, metadata.Metadata
+            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
         ],
         source: str,
         assert_has_line_matching: typing.Callable = None,
@@ -215,7 +217,7 @@ class UsageInputs:
             None,
             typing.Iterable[int],
             typing.Callable[
-                ..., typing.Union[metadata.Metadata, sdk.Artifact]
+                ..., typing.Union["metadata.Metadata", "sdk.Artifact"]
             ],
         ]
     ):
@@ -390,7 +392,9 @@ class UsageOutputNames:
         self,
         computed_outputs: typing.Dict[
             str,
-            typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata],
+            typing.Union[
+                "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+            ],
         ],
     ) -> None:
         """
@@ -543,7 +547,7 @@ class Usage(metaclass=abc.ABCMeta):
         self,
         ref: str,
         factory: typing.Callable[
-            ..., typing.Union[metadata.Metadata, sdk.Artifact]
+            ..., typing.Union["metadata.Metadata", "sdk.Artifact"]
         ],
     ) -> ScopeRecord:
         """Initialize example data from a factory.
