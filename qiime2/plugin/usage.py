@@ -589,7 +589,7 @@ class Usage(metaclass=abc.ABCMeta):
         value = self._init_data_collection_(ref, collection_type, *records)
         return self._push_record(ref, value, 'init_data_collection')
 
-    def _init_data_collection_(self, ref, collection_type, *records):
+    def _init_data_collection_(self, ref, collection_type, records):
         raise NotImplementedError
 
     def merge_metadata(self, ref, *records):
