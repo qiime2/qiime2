@@ -27,25 +27,25 @@ class ScopeRecord:
     """
 
     def __init__(
-        self,
-        ref: str,
-        value: typing.Union[
-            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
-        ],
-        source: str,
-        assert_has_line_matching: typing.Optional[typing.Callable] = None,
+            self,
+            ref: str,
+            value: typing.Union[
+                "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+            ],
+            source: str,
+            assert_has_line_matching: typing.Optional[typing.Callable] = None,
     ):
         """
         Parameters
         ----------
         ref : str
             A unique name for referring to `value`.
-        value : Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
+        value : Artifact, Visualization, or Metadata
             The value referred to by `ref`.
         source : str
             The Usage method called to initialize example data.
-        assert_has_line_matching : typing.Callable
-            A callable for asserting something about rendered example data.
+        assert_has_line_matching : callable
+            A function for asserting something about rendered example data.
         """
 
         if assert_has_line_matching is not None and \
@@ -55,7 +55,6 @@ class ScopeRecord:
 
         self.ref = ref
         self._result = value
-        # TODO: Should we put a guard somewhere for acceptable sources?
         self._source = source
         self._assert_has_line_matching_ = assert_has_line_matching
 
@@ -66,25 +65,19 @@ class ScopeRecord:
 
     @property
     def result(
-        self,
+            self,
     ) -> typing.Union[
         "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
     ]:
         """
-        An Artifact, Visualization, or Metadata
-
-        Returns
-        -------
-        typing.Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
-            The value referred to by `self.ref`
+        Artifact, Visualization, or Metadata value referred to by `self.ref`.
         """
         return self._result
 
     @property
     def source(self) -> str:
         """
-        str :
-            The Usage method called to initialize example data.
+        Usage method called to initialize example data.
         """
         return self._source
 
@@ -102,11 +95,7 @@ class ScopeRecord:
         path : str
             Path to example data file
         expression : str
-            A regex pattern to be passed as the first argument to `re.search`.
-
-        Returns
-        -------
-        None
+            A regex pattern to be passed as the first argument to `re.search`
 
         Raises
         ______
@@ -127,34 +116,31 @@ class Scope:
 
     Note
     ----
-    `Scope` is an internal implementation and need not be
-    instantiated manually.
+    `Scope` is an internal implementation and need not be instantiated
+    manually.
     """
 
     def __init__(self):
         self._records: typing.Dict[str, ScopeRecord] = dict()
 
     def __repr__(self):
-        return '%r' % (self._records, )
+        return '%r' % (self._records,)
 
     @property
     def records(self) -> types.MappingProxyType:
         """
-        Returns
-        -------
-        MappingProxyType
-            A dynamic, read-only view of `ScopeRecords` in the current scope.
+        A dynamic, read-only view of `ScopeRecords` in the current scope.
         """
         return types.MappingProxyType(self._records)
 
     def push_record(
-        self,
-        ref: str,
-        value: typing.Union[
-            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
-        ],
-        source: str,
-        assert_has_line_matching: typing.Callable = None,
+            self,
+            ref: str,
+            value: typing.Union[
+                "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+            ],
+            source: str,
+            assert_has_line_matching: typing.Callable = None,
     ) -> ScopeRecord:
         """
         Update `self._records` with an entry for this record where `ref` is
@@ -163,16 +149,18 @@ class Scope:
         Parameters
         ----------
         ref : str
-        value : Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]
+        value : Artifact, Visualization, or Metadata
             Data from a Usage data initialization method.
         source : str
             The Usage method called to initialize example data.
-        assert_has_line_matching : typing.Callable
-            See `ScopeRecord.assert_has_line_matching`
+        assert_has_line_matching : callable
+            Verify that the file at `path` contains a line matching
+            `expression` within an Artifact. See
+            `ScopeRecord.assert_has_line_matching`.
 
         Returns
         -------
-        ScopeRecord
+        record : ScopeRecord
 
         """
         record = ScopeRecord(ref=ref, value=value, source=source,
@@ -196,13 +184,13 @@ class Scope:
 
         Returns
         -------
-        ScopeRecord
+        record : ScopeRecord
 
         """
         try:
             return self.records[ref]
         except KeyError:
-            raise KeyError('No record with ref id: "%s" in scope.' % (ref, ))
+            raise KeyError('No record with ref id: "%s" in scope.' % (ref,))
 
 
 class UsageInputs:
@@ -210,16 +198,16 @@ class UsageInputs:
     """
 
     def __init__(
-        self,
-        **kwargs: typing.Union[
-            int,
-            bool,
-            None,
-            typing.Iterable[int],
-            typing.Callable[
-                ..., typing.Union["metadata.Metadata", "sdk.Artifact"]
-            ],
-        ]
+            self,
+            **kwargs: typing.Union[
+                int,
+                bool,
+                None,
+                typing.Iterable[int],
+                typing.Callable[
+                    ..., typing.Union["metadata.Metadata", "sdk.Artifact"]
+                ],
+            ]
     ):
         """
         Parameters
@@ -233,7 +221,7 @@ class UsageInputs:
         return 'UsageInputs(**%r)' % (self.values,)
 
     def validate(
-        self, signature: typing.Union[MethodSignature, PipelineSignature]
+            self, signature: typing.Union[MethodSignature, PipelineSignature]
     ) -> None:
         """
         Confirm that inputs for an example are valid as per the action's
@@ -273,22 +261,22 @@ class UsageInputs:
 
         missing = exp_inputs - provided
         if len(missing) > 0:
-            raise ValueError('Missing input(s): %r' % (missing, ))
+            raise ValueError('Missing input(s): %r' % (missing,))
 
         missing = exp_params - provided
         if len(missing) > 0:
-            raise ValueError('Missing parameter(s): %r' % (missing, ))
+            raise ValueError('Missing parameter(s): %r' % (missing,))
 
         all_vals = exp_inputs | optional_inputs | exp_params | optional_params
         extra = provided - all_vals
         if len(extra) > 0:
             raise ValueError('Extra input(s) or parameter(s): %r' %
-                             (extra, ))
+                             (extra,))
 
     def build_opts(
-        self,
-        signature: typing.Union[MethodSignature, PipelineSignature],
-        scope: Scope,
+            self,
+            signature: typing.Union[MethodSignature, PipelineSignature],
+            scope: Scope,
     ) -> dict:
         """
         Build a dictionary mapping action input names to example input values.
@@ -343,7 +331,7 @@ class UsageOutputNames:
         self.values = kwargs
 
     def __repr__(self):
-        return 'UsageOutputNames(**%r)' % (self.values, )
+        return 'UsageOutputNames(**%r)' % (self.values,)
 
     def get(self, key) -> str:
         """Get an output name
@@ -356,7 +344,7 @@ class UsageOutputNames:
         return self.values[key]
 
     def validate(
-        self, signature: typing.Union[MethodSignature, PipelineSignature]
+            self, signature: typing.Union[MethodSignature, PipelineSignature]
     ) -> None:
         """
         Check the provided outputs against the action signature.
@@ -382,20 +370,20 @@ class UsageOutputNames:
 
         missing = exp_outputs - provided
         if len(missing) > 0:
-            raise ValueError('Missing output(s): %r' % (missing, ))
+            raise ValueError('Missing output(s): %r' % (missing,))
 
         extra = provided - exp_outputs
         if len(extra) > 0:
-            raise ValueError('Extra output(s): %r' % (extra, ))
+            raise ValueError('Extra output(s): %r' % (extra,))
 
     def validate_computed(
-        self,
-        computed_outputs: typing.Dict[
-            str,
-            typing.Union[
-                "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+            self,
+            computed_outputs: typing.Dict[
+                str,
+                typing.Union[
+                    "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+                ],
             ],
-        ],
     ) -> None:
         """
         Check that outputs are still valid after being processed by a Usage
@@ -423,17 +411,17 @@ class UsageOutputNames:
         missing = exp_outputs - provided
         if len(missing) > 0:
             raise ValueError('SDK implementation is missing output(s): %r' %
-                             (missing, ))
+                             (missing,))
 
         extra = provided - exp_outputs
         if len(extra) > 0:
             raise ValueError('SDK implementation has specified extra '
-                             'output(s): %r' % (extra, ))
+                             'output(s): %r' % (extra,))
 
     def build_opts(
-        self,
-        action_signature: typing.Union[MethodSignature, PipelineSignature],
-        scope: Scope,
+            self,
+            action_signature: typing.Union[MethodSignature, PipelineSignature],
+            scope: Scope,
     ) -> dict:
         """
         Build a dictionary mapping action output names to example output value.
@@ -462,7 +450,7 @@ class UsageAction:
     """Provide an action for a Usage example.
     """
 
-    # TODO If *arg here is necessary, create an exampl
+    # TODO If *arg here is necessary, create an example
     def __init__(self, *, plugin_id: str, action_id: str):
 
         """
@@ -485,11 +473,11 @@ class UsageAction:
         self._plugin_manager = sdk.PluginManager()
 
     def __repr__(self):
-        return 'UsageAction(plugin_id=%r, action_id=%r)' %\
-            (self.plugin_id, self.action_id)
+        return 'UsageAction(plugin_id=%r, action_id=%r)' % \
+               (self.plugin_id, self.action_id)
 
     def get_action(
-        self,
+            self,
     ) -> typing.Tuple[
         typing.Union[sdk.Method, sdk.Pipeline],
         typing.Union[MethodSignature, PipelineSignature],
@@ -544,41 +532,76 @@ class Usage(metaclass=abc.ABCMeta):
         self._scope = Scope()
 
     def init_data(
-        self,
-        ref: str,
-        factory: typing.Callable[
-            ..., typing.Union["metadata.Metadata", "sdk.Artifact"]
-        ],
-    ) -> ScopeRecord:
+            self,
+            ref: str,
+            factory: typing.Callable[[], "sdk.Artifact"]) -> ScopeRecord:
         """Initialize example data from a factory.
 
         Parameters
         ----------
         ref : str
-            Unique name for example data.
-        factory : Callable[..., Union[metadata.Metadata, sdk.Artifact]]
-            A factory that returns example data.
+            Unique name for example data
+        factory : callable
+            A factory that returns an example Artifact
 
         Returns
         -------
-        ScopeRecord
-            A record with information about the example data.
+        record : ScopeRecord
+            A record with information about example data
         """
-
         value = self._init_data_(ref, factory)
         return self._push_record(ref, value, 'init_data')
 
     def _init_data_(self, ref, factory):
         raise NotImplementedError
 
-    def init_metadata(self, ref, factory):
+    def init_metadata(
+            self,
+            ref: str,
+            factory: typing.Callable[[], "metadata.Metadata"]) -> ScopeRecord:
+        """Initialize metadata for a Usage example.
+
+        Parameters
+        ----------
+        ref : str
+            Unique name for example metadata
+        factory : callable
+            A factory that returns example Metadata
+
+        Returns
+        -------
+        record : ScopeRecord
+            A record with information about example metadata
+        """
         value = self._init_metadata_(ref, factory)
         return self._push_record(ref, value, 'init_metadata')
 
     def _init_metadata_(self, ref, factory):
         raise NotImplementedError
 
-    def init_data_collection(self, ref, collection_type, *records):
+    def init_data_collection(
+            self,
+            ref: str,
+            collection_type: typing.Union[list, set],
+            *records: ScopeRecord
+    ) -> ScopeRecord:
+        """Initialize a collection of data for a Usage example.
+
+        Parameters
+        ----------
+        ref : str
+            Unique name for example data collection
+        collection_type : list or set
+            The type of collection required by an action
+        records : ScopeRecords belonging to the collection
+            The record associated with data to be initialized in the
+            collection.
+
+        Returns
+        -------
+        record : ScopeRecord
+            A record with information about the example metadata.
+        """
         if len(records) < 1:
             raise ValueError('Must provide at least one ScopeRecord input.')
         for record in records:
@@ -592,7 +615,22 @@ class Usage(metaclass=abc.ABCMeta):
     def _init_data_collection_(self, ref, collection_type, records):
         raise NotImplementedError
 
-    def merge_metadata(self, ref, *records):
+    def merge_metadata(self, ref: str, *records: ScopeRecord) -> ScopeRecord:
+        """
+
+        Parameters
+        ----------
+        ref : str
+            Unique name for merged metadata
+        records : ScopeRecords
+            Records for the example metadata to be merged
+
+        Returns
+        -------
+        record : ScopeRecord
+            A new record with information about the merged example metadata.
+        """
+
         if len(records) < 2:
             raise ValueError('Must provide two or more Metadata inputs.')
 
@@ -602,7 +640,26 @@ class Usage(metaclass=abc.ABCMeta):
     def _merge_metadata_(self, ref, records):
         raise NotImplementedError
 
-    def get_metadata_column(self, column_name, record):
+    def get_metadata_column(
+            self,
+            column_name: str,
+            record: ScopeRecord
+    ) -> ScopeRecord:
+        """
+        Create a new record for a specific column in example Metadata.
+
+        Parameters
+        ----------
+        column_name : str
+            The name of a column in example Metadata
+        record : ScopeRecord
+            The record associated with example Metadata
+
+        Returns
+        -------
+        record : ScopeRecord
+            A new scope record for example metadata column `column_name`
+        """
         value = self._get_metadata_column_(column_name, record)
         return self._push_record(column_name, value, 'get_metadata_column')
 
@@ -616,22 +673,22 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def action(
-        self,
-        action: UsageAction,
-        inputs: UsageInputs,
-        outputs: UsageOutputNames,
+            self,
+            action: UsageAction,
+            inputs: UsageInputs,
+            outputs: UsageOutputNames,
     ) -> None:
+        # TODO: Flesh out this docstring with examples.
         """
+        This is the primary entry point for Usage API.  This method
+        is where Usage example developers provide the Usage API all of the
+        necessary information for a driver to generate Usage examples.
 
         Parameters
         ----------
         action : UsageAction
         inputs : UsageInputs
         outputs : UsageOutputNames
-
-        Returns
-        -------
-
         """
 
         if not isinstance(action, UsageAction):
