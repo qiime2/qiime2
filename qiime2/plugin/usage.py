@@ -18,7 +18,8 @@ from qiime2.core.type import MethodSignature, PipelineSignature
 # Put Scope objects in sdk?
 class ScopeRecord:
     """
-    Track information needed by Usage drivers to render usage examples.
+    Track information about a Usage example needed by Usage drivers to render
+    usage examples.
 
     Note
     ----
@@ -39,13 +40,13 @@ class ScopeRecord:
         Parameters
         ----------
         ref : str
-            A unique name for referring to `value`.
+            A unique name for referring to `value`
         value : Artifact, Visualization, or Metadata
-            The value referred to by `ref`.
+            The value referred to by `ref`
         source : str
-            The Usage method called to initialize example data.
+            The Usage method called to initialize example data
         assert_has_line_matching : callable
-            A function for asserting something about rendered example data.
+            A function for asserting something about rendered example data
         """
 
         if assert_has_line_matching is not None and \
@@ -70,14 +71,14 @@ class ScopeRecord:
         "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
     ]:
         """
-        Artifact, Visualization, or Metadata value referred to by `self.ref`.
+        Artifact, Visualization, or Metadata value referred to by `self.ref`
         """
         return self._result
 
     @property
     def source(self) -> str:
         """
-        Usage method called to initialize example data.
+        Usage method called to initialize example data
         """
         return self._source
 
@@ -150,9 +151,9 @@ class Scope:
         ----------
         ref : str
         value : Artifact, Visualization, or Metadata
-            Data from a Usage data initialization method.
+            Data from a Usage data initialization method
         source : str
-            The Usage method called to initialize example data.
+            The Usage method called to initialize example data
         assert_has_line_matching : callable
             Verify that the file at `path` contains a line matching
             `expression` within an Artifact. See
@@ -175,7 +176,7 @@ class Scope:
         Parameters
         ----------
         ref : str
-            The name of a `ScopeRecord`.
+            The name of a `ScopeRecord`
 
         Raises
         ------
@@ -194,7 +195,7 @@ class Scope:
 
 
 class UsageInputs:
-    """Provide inputs for a Usage example.
+    """Define the inputs for a Usage example.
     """
 
     def __init__(
@@ -229,12 +230,8 @@ class UsageInputs:
 
         Parameters
         ----------
-        signature : typing.Union[MethodSignature, PipelineSignature]
+        signature : QIIME 2 Method or Pipeline signature
             The plugin action's signature
-
-        Returns
-        -------
-        None
 
         Raises
         ------
@@ -286,7 +283,7 @@ class UsageInputs:
 
         Parameters
         ----------
-        signature : typing.Union[MethodSignature, PipelineSignature]
+        signature : QIIME 2 Method or Pipeline signature
             The plugin action's signature
         scope : Scope
             A Usage example's current scope
@@ -311,7 +308,7 @@ class UsageInputs:
 
 
 class UsageOutputNames:
-    """Provide output names for a Usage example.
+    """Define the outputs for a Usage example.
     """
 
     def __init__(self, **kwargs: str):
@@ -334,7 +331,7 @@ class UsageOutputNames:
         return 'UsageOutputNames(**%r)' % (self.values,)
 
     def get(self, key) -> str:
-        """Get an output name
+        """Get an example output's name.
 
         Returns
         -------
@@ -359,11 +356,6 @@ class UsageOutputNames:
         ValueError
             If the example has missing or extra outputs as per the action
             signature
-
-        Returns
-        -------
-        None
-
         """
         provided = set(self.values.keys())
         exp_outputs = set(signature.outputs)
@@ -385,25 +377,18 @@ class UsageOutputNames:
                 ],
             ],
     ) -> None:
-        """
-        Check that outputs are still valid after being processed by a Usage
+        """Check that outputs are still valid after being processed by a Usage
         driver's `_action_`. method.
 
         Parameters
         ----------
-        computed_outputs : Dict[
-            str, Union[sdk.Artifact, sdk.Visualization, metadata.Metadata]]
+        computed_outputs : dict of outputs
             Outputs returned by the Usage driver's `._action_` method
-
-        Returns
-        -------
-        None
 
         Raises
         ------
         ValueError
-            If there are missing or extra outputs as per the action signature.
-
+            If there are missing or extra outputs as per the action signature
         """
         provided = set(computed_outputs.keys())
         exp_outputs = set(self.values.keys())
@@ -428,7 +413,7 @@ class UsageOutputNames:
 
         Parameters
         ----------
-        action_signature : typing.Union[MethodSignature, PipelineSignature]
+        action_signature : QIIME 2 Method or Pipeline signature
             The plugin action's signature
         scope : Scope
             A Usage example's current scope
@@ -436,7 +421,7 @@ class UsageOutputNames:
         Returns
         -------
         dict
-            Output names and their example values.
+            Output names and their example values
         """
         opts = {}
 
@@ -483,13 +468,13 @@ class UsageAction:
         typing.Union[MethodSignature, PipelineSignature],
     ]:
         """
-        Get this example action's QIIME 2 action and signature
+        Get this example's action and signature.
 
         Returns
         -------
-        action_f : typing.Union[sdk.Method, sdk.Pipeline]
+        action_f : QIIME 2 Method or Pipeline
             The plugin action
-        action_f.signature: typing.Union[MethodSignature, PipelineSignature]
+        action_f.signature: QIIME 2 Method or Pipeline signature
             The method signature for the plugin action
         """
 
@@ -505,7 +490,7 @@ class UsageAction:
 
     def validate(self, inputs: UsageInputs, outputs: UsageOutputNames) -> None:
         """
-        Validate inputs and outputs provide to a Usage example
+        Validate inputs and outputs for this example.
 
         Parameters
         ----------
@@ -571,7 +556,7 @@ class Usage(metaclass=abc.ABCMeta):
         Returns
         -------
         record : ScopeRecord
-            A record with information about example metadata
+            A record with information about example Metadata
         """
         value = self._init_metadata_(ref, factory)
         return self._push_record(ref, value, 'init_metadata')
@@ -600,7 +585,7 @@ class Usage(metaclass=abc.ABCMeta):
         Returns
         -------
         record : ScopeRecord
-            A record with information about the example metadata.
+            A record with information about the example Metadata.
         """
         if len(records) < 1:
             raise ValueError('Must provide at least one ScopeRecord input.')
@@ -617,18 +602,19 @@ class Usage(metaclass=abc.ABCMeta):
 
     def merge_metadata(self, ref: str, *records: ScopeRecord) -> ScopeRecord:
         """
+        Create a `ScopeRecord` for merged Metadata.
 
         Parameters
         ----------
         ref : str
-            Unique name for merged metadata
+            Unique name for merged Metadata
         records : ScopeRecords
-            Records for the example metadata to be merged
+            Records for the example Metadata to be merged
 
         Returns
         -------
         record : ScopeRecord
-            A new record with information about the merged example metadata.
+            A new record with information about the merged example Metadata.
         """
 
         if len(records) < 2:
@@ -658,7 +644,7 @@ class Usage(metaclass=abc.ABCMeta):
         Returns
         -------
         record : ScopeRecord
-            A new scope record for example metadata column `column_name`
+            A new scope record for example Metadata column `column_name`
         """
         value = self._get_metadata_column_(column_name, record)
         return self._push_record(column_name, value, 'get_metadata_column')
@@ -679,19 +665,22 @@ class Usage(metaclass=abc.ABCMeta):
             outputs: UsageOutputNames,
     ) -> None:
         """
-        This is the primary entry point for Usage API.  This method
-        is where Usage example developers provide the Usage API all of the
-        necessary information for a driver to generate Usage examples.
+        This is the primary entry point for the Usage API.  This method is
+        where Usage example developers pass in information necessary for
+        drivers to render Usage examples.
 
         Parameters
         ----------
         action : UsageAction
+            Example action
         inputs : UsageInputs
+            Example inputs
         outputs : UsageOutputNames
+            Example outputs
 
         Examples
         --------
-        See qiime2/core/testing/examples.py for examples.
+        qiime2.core.testing.examples : Usage examples
         """
 
         if not isinstance(action, UsageAction):
@@ -758,8 +747,7 @@ class DiagnosticUsage(Usage):
 
     See Also
     --------
-    qiime2/sdk/tests/test_usage.py
-
+    qiime2.plugin.tests.TestUsage : Unit tests using this driver
     """
     def __init__(self):
         super().__init__()
@@ -833,7 +821,8 @@ class ExecutionUsage(Usage):
 
     See Also
     --------
-    qiime2/sdk/tests/test_usage.py and qiime2/plugin/testing.py
+    qiime2.plugin.tests.TestUsage : Unit tests using this driver
+    qiime2.plugin.testing.execute_examples : Executes rendered examples
     """
     def _init_data_(self, ref, factory):
         result = factory()
