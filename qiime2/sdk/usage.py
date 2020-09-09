@@ -28,13 +28,13 @@ class ScopeRecord:
     """
 
     def __init__(
-            self,
-            ref: str,
-            value: typing.Union[
-                "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
-            ],
-            source: str,
-            assert_has_line_matching: typing.Optional[typing.Callable] = None,
+        self,
+        ref: str,
+        value: typing.Union[
+            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+        ],
+        source: str,
+        assert_has_line_matching: typing.Optional[typing.Callable] = None,
     ):
         """
         Parameters
@@ -66,7 +66,7 @@ class ScopeRecord:
 
     @property
     def result(
-            self,
+        self,
     ) -> typing.Union[
         "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
     ]:
@@ -83,7 +83,7 @@ class ScopeRecord:
         return self._source
 
     def assert_has_line_matching(
-            self, label: str, path: str, expression: str
+        self, label: str, path: str, expression: str
     ) -> None:
         """
         Verify that the file at `path` contains a line matching `expression`
@@ -135,13 +135,13 @@ class Scope:
         return types.MappingProxyType(self._records)
 
     def push_record(
-            self,
-            ref: str,
-            value: typing.Union[
-                "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
-            ],
-            source: str,
-            assert_has_line_matching: typing.Callable = None,
+        self,
+        ref: str,
+        value: typing.Union[
+            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+        ],
+        source: str,
+        assert_has_line_matching: typing.Callable = None,
     ) -> ScopeRecord:
         """
         Update `self._records` with an entry for this record where `ref` is
@@ -199,16 +199,16 @@ class UsageInputs:
     """
 
     def __init__(
-            self,
-            **kwargs: typing.Union[
-                int,
-                bool,
-                None,
-                typing.Iterable[int],
-                typing.Callable[
-                    ..., typing.Union["metadata.Metadata", "sdk.Artifact"]
-                ],
-            ]
+        self,
+        **kwargs: typing.Union[
+            int,
+            bool,
+            None,
+            typing.Iterable[int],
+            typing.Callable[
+                ..., typing.Union["metadata.Metadata", "sdk.Artifact"]
+            ],
+        ]
     ):
         """
         Parameters
@@ -222,7 +222,7 @@ class UsageInputs:
         return 'UsageInputs(**%r)' % (self.values,)
 
     def validate(
-            self, signature: typing.Union[MethodSignature, PipelineSignature]
+        self, signature: typing.Union[MethodSignature, PipelineSignature]
     ) -> None:
         """
         Confirm that inputs for an example are valid as per the action's
@@ -271,9 +271,9 @@ class UsageInputs:
                              (extra,))
 
     def build_opts(
-            self,
-            signature: typing.Union[MethodSignature, PipelineSignature],
-            scope: Scope,
+        self,
+        signature: typing.Union[MethodSignature, PipelineSignature],
+        scope: Scope,
     ) -> dict:
         """
         Build a dictionary mapping action input names to example input values.
@@ -341,7 +341,7 @@ class UsageOutputNames:
         return self.values[key]
 
     def validate(
-            self, signature: typing.Union[MethodSignature, PipelineSignature]
+        self, signature: typing.Union[MethodSignature, PipelineSignature]
     ) -> None:
         """
         Check the provided outputs against the action signature.
@@ -369,13 +369,13 @@ class UsageOutputNames:
             raise ValueError('Extra output(s): %r' % (extra,))
 
     def validate_computed(
-            self,
-            computed_outputs: typing.Dict[
-                str,
-                typing.Union[
-                    "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
-                ],
+        self,
+        computed_outputs: typing.Dict[
+            str,
+            typing.Union[
+                "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
             ],
+        ],
     ) -> None:
         """Check that outputs are still valid after being processed by a Usage
         driver's `_action_`. method.
@@ -404,9 +404,9 @@ class UsageOutputNames:
                              'output(s): %r' % (extra,))
 
     def build_opts(
-            self,
-            action_signature: typing.Union[MethodSignature, PipelineSignature],
-            scope: Scope,
+        self,
+        action_signature: typing.Union[MethodSignature, PipelineSignature],
+        scope: Scope,
     ) -> dict:
         """
         Build a dictionary mapping action output names to example output value.
@@ -462,7 +462,7 @@ class UsageAction:
                (self.plugin_id, self.action_id)
 
     def get_action(
-            self,
+        self,
     ) -> typing.Tuple[
         typing.Union[sdk.Method, sdk.Pipeline],
         typing.Union[MethodSignature, PipelineSignature],
@@ -517,9 +517,8 @@ class Usage(metaclass=abc.ABCMeta):
         self._scope = Scope()
 
     def init_data(
-            self,
-            ref: str,
-            factory: typing.Callable[[], "sdk.Artifact"]) -> ScopeRecord:
+        self, ref: str, factory: typing.Callable[[], "sdk.Artifact"]
+    ) -> ScopeRecord:
         """Initialize example data from a factory.
 
         Parameters
@@ -541,9 +540,8 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def init_metadata(
-            self,
-            ref: str,
-            factory: typing.Callable[[], "metadata.Metadata"]) -> ScopeRecord:
+        self, ref: str, factory: typing.Callable[[], "metadata.Metadata"]
+    ) -> ScopeRecord:
         """Initialize metadata for a Usage example.
 
         Parameters
@@ -565,10 +563,10 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def init_data_collection(
-            self,
-            ref: str,
-            collection_type: typing.Union[list, set],
-            *records: ScopeRecord
+        self,
+        ref: str,
+        collection_type: typing.Union[list, set],
+        *records: ScopeRecord
     ) -> ScopeRecord:
         """Initialize a collection of data for a Usage example.
 
@@ -627,9 +625,7 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def get_metadata_column(
-            self,
-            column_name: str,
-            record: ScopeRecord
+        self, column_name: str, record: ScopeRecord
     ) -> ScopeRecord:
         """
         Create a new record for a specific column in example Metadata.
@@ -659,10 +655,10 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def action(
-            self,
-            action: UsageAction,
-            inputs: UsageInputs,
-            outputs: UsageOutputNames,
+        self,
+        action: UsageAction,
+        inputs: UsageInputs,
+        outputs: UsageOutputNames,
     ) -> None:
         """
         This is the primary entry point for the Usage API.  This method is
@@ -695,8 +691,9 @@ class Usage(metaclass=abc.ABCMeta):
         computed_outputs = self._action_(action, input_opts, output_opts)
         self._add_outputs_to_scope(outputs, computed_outputs)
 
-    def _action_(self, action: UsageAction,
-                 input_opts: dict, output_opts: dict) -> dict:
+    def _action_(
+        self, action: UsageAction, input_opts: dict, output_opts: dict
+    ) -> dict:
         raise NotImplementedError
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
@@ -723,8 +720,9 @@ class Usage(metaclass=abc.ABCMeta):
             raise TypeError('source == %s but must be "action"' % source)
         return record
 
-    def _add_outputs_to_scope(self, outputs: UsageOutputNames,
-                              computed_outputs):
+    def _add_outputs_to_scope(
+        self, outputs: UsageOutputNames, computed_outputs
+    ):
         outputs.validate_computed(computed_outputs)
         for output, value in computed_outputs.items():
             ref = outputs.get(output)
@@ -732,8 +730,11 @@ class Usage(metaclass=abc.ABCMeta):
 
     def _push_record(self, ref, value, source):
         return self._scope.push_record(
-            ref=ref, value=value, source=source,
-            assert_has_line_matching=self._assert_has_line_matching_)
+            ref=ref,
+            value=value,
+            source=source,
+            assert_has_line_matching=self._assert_has_line_matching_,
+        )
 
     def _get_record(self, ref):
         return self._scope.get_record(ref)
@@ -867,8 +868,9 @@ class ExecutionUsage(Usage):
     def _comment_(self, text):
         pass
 
-    def _action_(self, action: UsageAction,
-                 input_opts: dict, output_opts: dict):
+    def _action_(
+        self, action: UsageAction, input_opts: dict, output_opts: dict
+    ):
         action_f, _ = action.get_action()
         results = action_f(**input_opts)
         return {k: getattr(results, k) for k in output_opts.keys()}
