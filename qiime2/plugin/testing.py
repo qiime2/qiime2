@@ -14,7 +14,7 @@ import pathlib
 
 import qiime2
 
-from qiime2.plugin import usage
+from qiime2.sdk import usage
 from qiime2.plugin.model.base import FormatBase
 
 
