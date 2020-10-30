@@ -36,7 +36,7 @@ class ScopeRecord:
         Parameters
         ----------
         ref : str
-            A unique name for referring to `value`
+            A unique identifier for referring to the record
         value : Artifact, Visualization, or Metadata
             The value referred to by `ref`
         source : str
@@ -163,12 +163,12 @@ class Scope:
         Parameters
         ----------
         ref : str
-            The name of a `ScopeRecord`
+            The identifier for a `ScopeRecord`
 
         Raises
         ------
         KeyError
-            If the record name isn't in the scope
+            If the record identifier isn't in the scope
 
         Returns
         -------
@@ -250,7 +250,7 @@ class UsageInputs:
         scope: Scope,
     ) -> dict:
         """
-        Build a dictionary mapping action input names to example input values.
+        Build a dictionary mapping action input identifiers to example input values.
         Values are derived from either an input's `ScopeRecord`
         (`ScopeRecord.value`), or the value a keyword argument passed into the
         `UsageInputs` constructor.
@@ -265,7 +265,7 @@ class UsageInputs:
         Returns
         -------
         dict
-            Input names and their example values.
+            Input identifiers and their example values.
         """
         opts = {}
 
@@ -288,8 +288,8 @@ class UsageOutputNames:
         Parameters
         ----------
         kwargs : str
-            A mapping between output names as per the action signature and
-            the unique names given to their results.
+            A mapping between output identifiers as per the action signature and
+            the unique identifiers given to their results.
         """
         for key, val in kwargs.items():
             if not isinstance(val, str):
@@ -303,12 +303,12 @@ class UsageOutputNames:
         return 'UsageOutputNames(**%r)' % (self.values,)
 
     def get(self, key) -> str:
-        """Get an example output's name.
+        """Get an example output's identifier.
 
         Returns
         -------
         str
-            The name of an example output
+            The identifier for an example output
         """
         return self.values[key]
 
@@ -377,7 +377,7 @@ class UsageOutputNames:
         scope: Scope,
     ) -> dict:
         """
-        Build a dictionary mapping action output names to example output value.
+        Build a dictionary mapping action output identifiers to example output value.
 
         Parameters
         ----------
@@ -389,7 +389,7 @@ class UsageOutputNames:
         Returns
         -------
         dict
-            Output names and their example values
+            Output identifiers and their example values
         """
         opts = {}
 
@@ -489,7 +489,7 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         ref : str
-            Unique name for example data
+            Unique identifier for example data
         factory : callable
             A factory that returns an example Artifact
 
@@ -512,7 +512,7 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         ref : str
-            Unique name for example metadata
+            Unique identifier for example metadata
         factory : callable
             A factory that returns example Metadata
 
@@ -538,7 +538,7 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         ref : str
-            Unique name for example data collection
+            Unique identifier for example data collection
         collection_type : list or set
             The type of collection required by an action
         records : ScopeRecords belonging to the collection
@@ -571,7 +571,7 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         ref : str
-            Unique name for merged Metadata
+            Unique identifier for merged Metadata
         records : ScopeRecords
             Records for the example Metadata to be merged
 
@@ -671,7 +671,7 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         ref : str
-            Output name
+            Output identifier
 
         Raises
         ------
