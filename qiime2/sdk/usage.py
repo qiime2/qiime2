@@ -12,10 +12,8 @@ import types
 import typing
 
 from qiime2 import sdk, metadata
-from qiime2.core.type import MethodSignature, PipelineSignature
 
 
-# Put Scope objects in sdk?
 class ScopeRecord:
     """
     Track information about a Usage example needed by Usage drivers to render
@@ -30,9 +28,7 @@ class ScopeRecord:
     def __init__(
         self,
         ref: str,
-        value: typing.Union[
-            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
-        ],
+        value: typing.Union['Artifact', 'Visualization', 'Metadata'],
         source: str,
         assert_has_line_matching: typing.Optional[typing.Callable] = None,
     ):
@@ -65,11 +61,7 @@ class ScopeRecord:
                                                               self.source)
 
     @property
-    def result(
-        self,
-    ) -> typing.Union[
-        "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
-    ]:
+    def result(self) -> typing.Union['Artifact', 'Visualization', 'Metadata']:
         """
         Artifact, Visualization, or Metadata value referred to by `self.ref`
         """
@@ -82,17 +74,15 @@ class ScopeRecord:
         """
         return self._source
 
-    def assert_has_line_matching(
-        self, label: str, path: str, expression: str
-    ) -> None:
+    def assert_has_line_matching(self, label: str, path: str, expression: str) -> None:
         """
-        Verify that the file at `path` contains a line matching `expression`
-        within an Artifact.
+        Verify that the file at `path` contains a line matching `expression`.
 
         Parameters
         ----------
         label : str
-            A label for describing this assertion
+            A label for describing this assertion. Interface drivers may
+            choose to omit this information in the rendered output.
         path : str
             Path to example data file
         expression : str
@@ -137,15 +127,12 @@ class Scope:
     def push_record(
         self,
         ref: str,
-        value: typing.Union[
-            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
-        ],
+        value: typing.Union['Artifact', 'Visualization', 'Metadata'],
         source: str,
         assert_has_line_matching: typing.Callable = None,
     ) -> ScopeRecord:
         """
-        Update `self._records` with an entry for this record where `ref` is
-        the key and `ScopeRecord` is the value.
+        Appends a new `ScopeRecord`.
 
         Parameters
         ----------
@@ -171,7 +158,7 @@ class Scope:
 
     def get_record(self, ref: str) -> ScopeRecord:
         """
-        Get a `ScopeRecord` from the current scope.
+        Look up a `ScopeRecord` from the current scope by identifier.
 
         Parameters
         ----------
@@ -195,21 +182,8 @@ class Scope:
 
 
 class UsageInputs:
-    """Define the inputs for a Usage example.
-    """
 
-    def __init__(
-        self,
-        **kwargs: typing.Union[
-            int,
-            bool,
-            None,
-            typing.Iterable[int],
-            typing.Callable[
-                ..., typing.Union["metadata.Metadata", "sdk.Artifact"]
-            ],
-        ]
-    ):
+    def __init__(self, **kwargs: typing.Any):
         """
         Parameters
         ----------
@@ -258,11 +232,11 @@ class UsageInputs:
 
         missing = exp_inputs - provided
         if len(missing) > 0:
-            raise ValueError('Missing input(s): %r' % (missing,))
+            raise ValueError('Missing input(s): %r' % (missing, ))
 
         missing = exp_params - provided
         if len(missing) > 0:
-            raise ValueError('Missing parameter(s): %r' % (missing,))
+            raise ValueError('Missing parameter(s): %r' % (missing, ))
 
         all_vals = exp_inputs | optional_inputs | exp_params | optional_params
         extra = provided - all_vals
@@ -308,8 +282,6 @@ class UsageInputs:
 
 
 class UsageOutputNames:
-    """Define the outputs for a Usage example.
-    """
 
     def __init__(self, **kwargs: str):
         """
@@ -371,12 +343,8 @@ class UsageOutputNames:
     def validate_computed(
         self,
         computed_outputs: typing.Dict[
-            str,
-            typing.Union[
-                "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
-            ],
-        ],
-    ) -> None:
+            str, typing.Union['Artifact', 'Visualization', 'Metadata'],
+        ]) -> None:
         """Check that outputs are still valid after being processed by a Usage
         driver's `_action_`. method.
 
@@ -396,7 +364,7 @@ class UsageOutputNames:
         missing = exp_outputs - provided
         if len(missing) > 0:
             raise ValueError('SDK implementation is missing output(s): %r' %
-                             (missing,))
+                             (missing, ))
 
         extra = provided - exp_outputs
         if len(extra) > 0:
@@ -432,8 +400,6 @@ class UsageOutputNames:
 
 
 class UsageAction:
-    """Provide an action for a Usage example.
-    """
 
     # TODO If *arg here is necessary, create an example
     def __init__(self, *, plugin_id: str, action_id: str):
@@ -516,9 +482,8 @@ class Usage(metaclass=abc.ABCMeta):
     def __init__(self):
         self._scope = Scope()
 
-    def init_data(
-        self, ref: str, factory: typing.Callable[[], "sdk.Artifact"]
-    ) -> ScopeRecord:
+    def init_data(self, ref: str,
+                  factory: typing.Callable[[], 'Artifact']) -> ScopeRecord:
         """Initialize example data from a factory.
 
         Parameters
@@ -539,10 +504,10 @@ class Usage(metaclass=abc.ABCMeta):
     def _init_data_(self, ref, factory):
         raise NotImplementedError
 
-    def init_metadata(
-        self, ref: str, factory: typing.Callable[[], "metadata.Metadata"]
-    ) -> ScopeRecord:
-        """Initialize metadata for a Usage example.
+    def init_metadata(self, ref: str,
+                      factory: typing.Callable[[], 'Metadata']) -> ScopeRecord:
+        """
+        Initialize metadata for a Usage example.
 
         Parameters
         ----------
@@ -598,7 +563,8 @@ class Usage(metaclass=abc.ABCMeta):
     def _init_data_collection_(self, ref, collection_type, records):
         raise NotImplementedError
 
-    def merge_metadata(self, ref: str, *records: ScopeRecord) -> ScopeRecord:
+    def merge_metadata(self, ref: str,
+                       *records: typing.List[ScopeRecord]) -> ScopeRecord:
         """
         Create a `ScopeRecord` for merged Metadata.
 
@@ -661,9 +627,7 @@ class Usage(metaclass=abc.ABCMeta):
         outputs: UsageOutputNames,
     ) -> None:
         """
-        This is the primary entry point for the Usage API.  This method is
-        where Usage example developers pass in information necessary for
-        drivers to render Usage examples.
+        This method invokes (or simulates invokation) of a QIIME 2 Action.
 
         Parameters
         ----------
@@ -724,9 +688,9 @@ class Usage(metaclass=abc.ABCMeta):
         self, outputs: UsageOutputNames, computed_outputs
     ):
         outputs.validate_computed(computed_outputs)
-        for output, value in computed_outputs.items():
+        for output, result in computed_outputs.items():
             ref = outputs.get(output)
-            self._push_record(ref, value, 'action')
+            self._push_record(ref, result, 'action')
 
     def _push_record(self, ref, value, source):
         return self._scope.push_record(
@@ -744,7 +708,9 @@ class Usage(metaclass=abc.ABCMeta):
 
 
 class DiagnosticUsage(Usage):
-    """Generate information for testing the Usage API.
+    """
+    Reference implementation of a Usage driver. Used to generate information
+    for testing the Usage API.
 
     See Also
     --------
