@@ -103,7 +103,7 @@ class ScopeRecord:
 
 class Scope:
     """
-    Track all ScopeRecords for a Usage example.
+    Sequentially track all ScopeRecords for a Usage example.
 
     Note
     ----
@@ -204,7 +204,7 @@ class UsageInputs:
 
         Parameters
         ----------
-        signature : QIIME 2 Method or Pipeline signature
+        signature : QIIME 2 Method, Visualizer, or Pipeline signature
             The plugin action's signature
 
         Raises
@@ -257,7 +257,7 @@ class UsageInputs:
 
         Parameters
         ----------
-        signature : QIIME 2 Method or Pipeline signature
+        signature : QIIME 2 Method, Visualizer, or Pipeline signature
             The plugin action's signature
         scope : Scope
             A Usage example's current scope
@@ -381,7 +381,7 @@ class UsageOutputNames:
 
         Parameters
         ----------
-        action_signature : QIIME 2 Method or Pipeline signature
+        action_signature : QIIME 2 Method, Visualizer, or Pipeline signature
             The plugin action's signature
         scope : Scope
             A Usage example's current scope
@@ -438,9 +438,9 @@ class UsageAction:
 
         Returns
         -------
-        action_f : QIIME 2 Method or Pipeline
+        action_f : QIIME 2 Method, Visualizer, or Pipeline
             The plugin action
-        action_f.signature: QIIME 2 Method or Pipeline signature
+        action_f.signature: QIIME 2 Method, Visualizer, or Pipeline signature
             The method signature for the plugin action
         """
 
