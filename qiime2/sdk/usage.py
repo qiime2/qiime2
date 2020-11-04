@@ -23,6 +23,17 @@ class ScopeRecord:
     ----
     `ScopeRecord` is an internal implementation and need not be
     instantiated manually.
+
+    Parameters
+    ----------
+    ref : str
+        A unique identifier for referring to the record
+    value : Artifact, Visualization, or Metadata
+        The value referred to by `ref`
+    source : str
+        The Usage method called to initialize example data
+    assert_has_line_matching : callable
+        A function for asserting something about rendered example data
     """
 
     def __init__(
@@ -34,18 +45,6 @@ class ScopeRecord:
         source: str,
         assert_has_line_matching: typing.Optional[typing.Callable] = None,
     ):
-        """
-        Parameters
-        ----------
-        ref : str
-            A unique identifier for referring to the record
-        value : Artifact, Visualization, or Metadata
-            The value referred to by `ref`
-        source : str
-            The Usage method called to initialize example data
-        assert_has_line_matching : callable
-            A function for asserting something about rendered example data
-        """
 
         if assert_has_line_matching is not None and \
                 not callable(assert_has_line_matching):
@@ -189,14 +188,14 @@ class Scope:
 
 
 class UsageInputs:
+    """
+    Parameters
+    ----------
+    kwargs : ExampleInputs
+        Inputs to be passed in as keyword arguments to `Usage.action`.
+    """
 
     def __init__(self, **kwargs: typing.Any):
-        """
-        Parameters
-        ----------
-        kwargs : ExampleInputs
-            Inputs to be passed in as keyword arguments to `Usage.action`.
-        """
         self.values = kwargs
 
     def __repr__(self):
@@ -283,15 +282,15 @@ class UsageInputs:
 
 
 class UsageOutputNames:
+    """
+    Parameters
+    ----------
+    kwargs : str
+        A mapping between output identifiers as per the action signature
+        and the unique identifiers given to their results.
+    """
 
     def __init__(self, **kwargs: str):
-        """
-        Parameters
-        ----------
-        kwargs : str
-            A mapping between output identifiers as per the action signature
-            and the unique identifiers given to their results.
-        """
         for key, val in kwargs.items():
             if not isinstance(val, str):
                 raise TypeError(
@@ -403,18 +402,17 @@ class UsageOutputNames:
 
 
 class UsageAction:
+    """
+    Parameters
+    ----------
+    plugin_id : str
+        Plugin ID
+    action_id : str
+        Action ID
+    """
 
     # TODO If *arg here is necessary, create an example
     def __init__(self, *, plugin_id: str, action_id: str):
-        """
-        Parameters
-        ----------
-        plugin_id : str
-            Plugin ID
-        action_id : str
-            Action ID
-        """
-
         if plugin_id == '':
             raise ValueError('Must specify a value for plugin_id.')
 
