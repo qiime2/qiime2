@@ -11,7 +11,7 @@ import re
 import types
 import typing
 
-from qiime2 import sdk, metadata
+from qiime2 import core, sdk, metadata
 
 
 class ScopeRecord:
@@ -80,7 +80,8 @@ class ScopeRecord:
         """
         return self._source
 
-    def assert_has_line_matching(self, label: str, path: str, expression: str) -> None:
+    def assert_has_line_matching(self, label: str, path: str,
+                                 expression: str) -> None:
         """
         Verify that the file at `path` contains a line matching `expression`.
 
@@ -203,9 +204,7 @@ class UsageInputs:
     def __repr__(self):
         return 'UsageInputs(**%r)' % (self.values,)
 
-    def validate(
-        self, signature: typing.Union[MethodSignature, PipelineSignature]
-    ) -> None:
+    def validate(self, signature: "core.PipelineSignature") -> None:
         """
         Confirm that inputs for an example are valid as per the action's
         signature.
@@ -252,14 +251,11 @@ class UsageInputs:
             raise ValueError('Extra input(s) or parameter(s): %r' %
                              (extra,))
 
-    def build_opts(
-        self,
-        signature: typing.Union[MethodSignature, PipelineSignature],
-        scope: Scope,
-    ) -> dict:
+    def build_opts(self, signature: "core.PipelineSignature",
+                   scope: Scope) -> dict:
         """
-        Build a dictionary mapping action input identifiers to example input values.
-        Values are derived from either an input's `ScopeRecord`
+        Build a dictionary mapping action input identifiers to example input
+        values. Values are derived from either an input's `ScopeRecord`
         (`ScopeRecord.value`), or the value a keyword argument passed into the
         `UsageInputs` constructor.
 
@@ -296,8 +292,8 @@ class UsageOutputNames:
         Parameters
         ----------
         kwargs : str
-            A mapping between output identifiers as per the action signature and
-            the unique identifiers given to their results.
+            A mapping between output identifiers as per the action signature
+            and the unique identifiers given to their results.
         """
         for key, val in kwargs.items():
             if not isinstance(val, str):
@@ -320,9 +316,7 @@ class UsageOutputNames:
         """
         return self.values[key]
 
-    def validate(
-        self, signature: typing.Union[MethodSignature, PipelineSignature]
-    ) -> None:
+    def validate(self, signature: "core.PipelineSignature") -> None:
         """
         Check the provided outputs against the action signature.
 
@@ -383,13 +377,11 @@ class UsageOutputNames:
             raise ValueError('SDK implementation has specified extra '
                              'output(s): %r' % (extra,))
 
-    def build_opts(
-        self,
-        action_signature: typing.Union[MethodSignature, PipelineSignature],
-        scope: Scope,
-    ) -> dict:
+    def build_opts(self, action_signature: "core.PipelineSignature",
+                   scope: Scope) -> dict:
         """
-        Build a dictionary mapping action output identifiers to example output value.
+        Build a dictionary mapping action output identifiers to example output
+        value.
 
         Parameters
         ----------
@@ -415,7 +407,6 @@ class UsageAction:
 
     # TODO If *arg here is necessary, create an example
     def __init__(self, *, plugin_id: str, action_id: str):
-
         """
         Parameters
         ----------
@@ -441,10 +432,8 @@ class UsageAction:
 
     def get_action(
         self,
-    ) -> typing.Tuple[
-        typing.Union[sdk.Method, sdk.Pipeline],
-        typing.Union[MethodSignature, PipelineSignature],
-    ]:
+    ) -> typing.Tuple[typing.Union[sdk.Method, sdk.Pipeline],
+                      "core.PipelineSignature", ]:
         """
         Get this example's action and signature.
 
