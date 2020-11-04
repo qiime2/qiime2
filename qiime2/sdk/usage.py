@@ -158,7 +158,6 @@ class Scope:
         Returns
         -------
         record : ScopeRecord
-
         """
         record = ScopeRecord(ref=ref, value=value, source=source,
                              assert_has_line_matching=assert_has_line_matching)
@@ -182,7 +181,6 @@ class Scope:
         Returns
         -------
         record : ScopeRecord
-
         """
         try:
             return self.records[ref]
@@ -218,7 +216,6 @@ class UsageInputs:
         ------
         ValueError
             If there are missing or extra inputs or parameters
-
         """
         provided = set(self.values.keys())
         inputs, params = signature.inputs, signature.parameters
@@ -307,7 +304,8 @@ class UsageOutputNames:
         return 'UsageOutputNames(**%r)' % (self.values,)
 
     def get(self, key) -> str:
-        """Get an example output's identifier.
+        """
+        Get an example output's identifier.
 
         Returns
         -------
@@ -351,7 +349,8 @@ class UsageOutputNames:
             ],
         ],
     ) -> None:
-        """Check that outputs are still valid after being processed by a Usage
+        """
+        Check that outputs are still valid after being processed by a Usage
         driver's `_action_`. method.
 
         Parameters
@@ -463,7 +462,6 @@ class UsageAction:
         ----------
         inputs : UsageInputs
         outputs : UsageOutputNames
-
         """
         if not isinstance(inputs, UsageInputs):
             raise TypeError('Must provide an instance of UsageInputs.')
@@ -477,7 +475,8 @@ class UsageAction:
 
 
 class Usage(metaclass=abc.ABCMeta):
-    """`Usage` is the base class for Usage driver implementations.
+    """
+    `Usage` is the base class for Usage driver implementations.
     """
 
     def __init__(self):
@@ -486,7 +485,8 @@ class Usage(metaclass=abc.ABCMeta):
     def init_data(
         self, ref: str, factory: typing.Callable[[], "sdk.Artifact"]
     ) -> ScopeRecord:
-        """Initialize example data from a factory.
+        """
+        Initialize example data from a factory.
 
         Parameters
         ----------
@@ -509,7 +509,8 @@ class Usage(metaclass=abc.ABCMeta):
     def init_metadata(
         self, ref: str, factory: typing.Callable[[], "metadata.Metadata"]
     ) -> ScopeRecord:
-        """Initialize metadata for a Usage example.
+        """
+        Initialize metadata for a Usage example.
 
         Parameters
         ----------
@@ -535,7 +536,8 @@ class Usage(metaclass=abc.ABCMeta):
         collection_type: typing.Union[list, set],
         *records: ScopeRecord
     ) -> ScopeRecord:
-        """Initialize a collection of data for a Usage example.
+        """
+        Initialize a collection of data for a Usage example.
 
         Parameters
         ----------
@@ -790,7 +792,8 @@ class DiagnosticUsage(Usage):
 
 
 class ExecutionUsage(Usage):
-    """Execute and test rendered examples.
+    """
+    Execute and test rendered examples.
 
     See Also
     --------
