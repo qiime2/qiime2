@@ -40,7 +40,7 @@ class ScopeRecord:
         self,
         ref: str,
         value: typing.Union[
-            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+            'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
         ],
         source: str,
         assert_has_line_matching: typing.Optional[typing.Callable] = None,
@@ -65,7 +65,7 @@ class ScopeRecord:
     def result(
         self,
     ) -> typing.Union[
-        "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+        'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
     ]:
         """
         Artifact, Visualization, or Metadata value referred to by `self.ref`
@@ -134,7 +134,7 @@ class Scope:
         self,
         ref: str,
         value: typing.Union[
-            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+            'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
         ],
         source: str,
         assert_has_line_matching: typing.Callable = None,
@@ -201,7 +201,7 @@ class UsageInputs:
     def __repr__(self):
         return 'UsageInputs(**%r)' % (self.values,)
 
-    def validate(self, signature: "core.PipelineSignature") -> None:
+    def validate(self, signature: 'core.PipelineSignature') -> None:
         """
         Confirm that inputs for an example are valid as per the action's
         signature.
@@ -247,7 +247,7 @@ class UsageInputs:
             raise ValueError('Extra input(s) or parameter(s): %r' %
                              (extra,))
 
-    def build_opts(self, signature: "core.PipelineSignature",
+    def build_opts(self, signature: 'core.PipelineSignature',
                    scope: Scope) -> dict:
         """
         Build a dictionary mapping action input identifiers to example input
@@ -313,7 +313,7 @@ class UsageOutputNames:
         """
         return self.values[key]
 
-    def validate(self, signature: "core.PipelineSignature") -> None:
+    def validate(self, signature: 'core.PipelineSignature') -> None:
         """
         Check the provided outputs against the action signature.
 
@@ -344,7 +344,7 @@ class UsageOutputNames:
         computed_outputs: typing.Dict[
             str,
             typing.Union[
-                "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+                'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
             ],
         ],
     ) -> None:
@@ -375,7 +375,7 @@ class UsageOutputNames:
             raise ValueError('SDK implementation has specified extra '
                              'output(s): %r' % (extra,))
 
-    def build_opts(self, action_signature: "core.PipelineSignature",
+    def build_opts(self, action_signature: 'core.PipelineSignature',
                    scope: Scope) -> dict:
         """
         Build a dictionary mapping action output identifiers to example output
@@ -430,7 +430,7 @@ class UsageAction:
     def get_action(
         self,
     ) -> typing.Tuple[typing.Union[sdk.Method, sdk.Pipeline],
-                      "core.PipelineSignature", ]:
+                      'core.PipelineSignature', ]:
         """
         Get this example's action and signature.
 
@@ -481,7 +481,7 @@ class Usage(metaclass=abc.ABCMeta):
         self._scope = Scope()
 
     def init_data(
-        self, ref: str, factory: typing.Callable[[], "sdk.Artifact"]
+        self, ref: str, factory: typing.Callable[[], 'sdk.Artifact']
     ) -> ScopeRecord:
         """
         Initialize example data from a factory.
@@ -505,7 +505,7 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def init_metadata(
-        self, ref: str, factory: typing.Callable[[], "metadata.Metadata"]
+        self, ref: str, factory: typing.Callable[[], 'metadata.Metadata']
     ) -> ScopeRecord:
         """
         Initialize metadata for a Usage example.
