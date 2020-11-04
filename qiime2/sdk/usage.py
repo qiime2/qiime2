@@ -28,7 +28,9 @@ class ScopeRecord:
     def __init__(
         self,
         ref: str,
-        value: typing.Union['Artifact', 'Visualization', 'Metadata'],
+        value: typing.Union[
+            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+        ],
         source: str,
         assert_has_line_matching: typing.Optional[typing.Callable] = None,
     ):
@@ -61,7 +63,11 @@ class ScopeRecord:
                                                               self.source)
 
     @property
-    def result(self) -> typing.Union['Artifact', 'Visualization', 'Metadata']:
+    def result(
+        self,
+    ) -> typing.Union[
+        "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+    ]:
         """
         Artifact, Visualization, or Metadata value referred to by `self.ref`
         """
@@ -127,7 +133,9 @@ class Scope:
     def push_record(
         self,
         ref: str,
-        value: typing.Union['Artifact', 'Visualization', 'Metadata'],
+        value: typing.Union[
+            "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+        ],
         source: str,
         assert_has_line_matching: typing.Callable = None,
     ) -> ScopeRecord:
@@ -343,8 +351,12 @@ class UsageOutputNames:
     def validate_computed(
         self,
         computed_outputs: typing.Dict[
-            str, typing.Union['Artifact', 'Visualization', 'Metadata'],
-        ]) -> None:
+            str,
+            typing.Union[
+                "sdk.Artifact", "sdk.Visualization", "metadata.Metadata"
+            ],
+        ],
+    ) -> None:
         """Check that outputs are still valid after being processed by a Usage
         driver's `_action_`. method.
 
@@ -482,8 +494,9 @@ class Usage(metaclass=abc.ABCMeta):
     def __init__(self):
         self._scope = Scope()
 
-    def init_data(self, ref: str,
-                  factory: typing.Callable[[], 'Artifact']) -> ScopeRecord:
+    def init_data(
+        self, ref: str, factory: typing.Callable[[], "sdk.Artifact"]
+    ) -> ScopeRecord:
         """Initialize example data from a factory.
 
         Parameters
@@ -504,10 +517,10 @@ class Usage(metaclass=abc.ABCMeta):
     def _init_data_(self, ref, factory):
         raise NotImplementedError
 
-    def init_metadata(self, ref: str,
-                      factory: typing.Callable[[], 'Metadata']) -> ScopeRecord:
-        """
-        Initialize metadata for a Usage example.
+    def init_metadata(
+        self, ref: str, factory: typing.Callable[[], "metadata.Metadata"]
+    ) -> ScopeRecord:
+        """Initialize metadata for a Usage example.
 
         Parameters
         ----------
