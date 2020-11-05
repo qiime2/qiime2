@@ -215,7 +215,9 @@ class UsageInputs:
     def __repr__(self):
         return 'UsageInputs(**%r)' % (self.values,)
 
-    def validate(self, signature: 'core.PipelineSignature') -> None:
+    def validate(
+            self, signature: typing.Type['core.PipelineSignature']
+    ) -> None:
         """
         Confirm that inputs for an example are valid as per the action's
         signature.
@@ -261,7 +263,7 @@ class UsageInputs:
             raise ValueError('Extra input(s) or parameter(s): %r' %
                              (extra,))
 
-    def build_opts(self, signature: 'core.PipelineSignature',
+    def build_opts(self, signature: typing.Type['core.PipelineSignature'],
                    scope: Scope) -> dict:
         """
         Build a dictionary mapping action input identifiers to example input
@@ -327,7 +329,9 @@ class UsageOutputNames:
         """
         return self.values[key]
 
-    def validate(self, signature: 'core.PipelineSignature') -> None:
+    def validate(
+            self, signature: typing.Type['core.PipelineSignature']
+    ) -> None:
         """
         Check the provided outputs against the action signature.
 
@@ -389,8 +393,11 @@ class UsageOutputNames:
             raise ValueError('SDK implementation has specified extra '
                              'output(s): %r' % (extra,))
 
-    def build_opts(self, action_signature: 'core.PipelineSignature',
-                   scope: Scope) -> dict:
+    def build_opts(
+            self,
+            action_signature: typing.Type['core.PipelineSignature'],
+            scope: Scope
+    ) -> dict:
         """
         Build a dictionary mapping action output identifiers to example output
         value.
@@ -444,7 +451,7 @@ class UsageAction:
     def get_action(
         self,
     ) -> typing.Tuple[typing.Union[sdk.Method, sdk.Pipeline],
-                      'core.PipelineSignature', ]:
+                      typing.Type['core.PipelineSignature']]:
         """
         Get this example's action and signature.
 
