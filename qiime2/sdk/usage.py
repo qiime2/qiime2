@@ -29,24 +29,25 @@ from qiime2 import core, sdk, metadata
 
 class ScopeRecord:
     """
-    Track information about a Usage example needed by Usage drivers to render
-    usage examples.
+    Track information about a Usage example.
 
-    Note
-    ----
-    `ScopeRecord` is an internal implementation and need not be
-    instantiated manually.
+    Provides information needed by Usage drivers to render Usage examples.
 
     Parameters
     ----------
     ref : str
-        A unique identifier for referring to the record
+        A unique identifier for referring to the record.
     value : Artifact, Visualization, or Metadata
-        The value referred to by `ref`
+        The value referred to by `ref`.
     source : str
-        The Usage method called to initialize example data
+        The Usage method called to initialize example data.
     assert_has_line_matching : callable
-        A function for asserting something about rendered example data
+        A function for asserting something about rendered example data.
+
+    Notes
+    -----
+    `ScopeRecord` is an internal implementation and need not be
+    instantiated manually.
     """
 
     def __init__(
@@ -81,14 +82,14 @@ class ScopeRecord:
         'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
     ]:
         """
-        Artifact, Visualization, or Metadata value referred to by `self.ref`
+        Artifact, Visualization, or Metadata value referred to by `self.ref`.
         """
         return self._result
 
     @property
     def source(self) -> str:
         """
-        Usage method called to initialize example data
+        Usage method called to initialize example data.
         """
         return self._source
 
@@ -103,14 +104,14 @@ class ScopeRecord:
             A label for describing this assertion. Interface drivers may
             choose to omit this information in the rendered output.
         path : str
-            Path to example data file
+            Path to example data file.
         expression : str
-            A regex pattern to be passed as the first argument to `re.search`
+            A regex pattern to be passed as the first argument to `re.search`.
 
         Raises
         ______
         AssertionError
-            If `expression` is not found in `path`
+            If `expression` is not found in `path`.
 
         See Also
         --------
@@ -124,8 +125,8 @@ class Scope:
     """
     Sequentially track all ScopeRecords for a Usage example.
 
-    Note
-    ----
+    Notes
+    -----
     `Scope` is an internal implementation and need not be instantiated
     manually.
     """
@@ -159,9 +160,9 @@ class Scope:
         ----------
         ref : str
         value : Artifact, Visualization, or Metadata
-            Data from a Usage data initialization method
+            Data from a Usage data initialization method.
         source : str
-            The Usage method called to initialize example data
+            The Usage method called to initialize example data.
         assert_has_line_matching : callable
             Verify that the file at `path` contains a line matching
             `expression` within an Artifact. See
@@ -419,9 +420,9 @@ class UsageAction:
     Parameters
     ----------
     plugin_id : str
-        Plugin ID
+        Plugin ID.
     action_id : str
-        Action ID
+        Action ID.
     """
 
     # TODO If *arg here is necessary, create an example
@@ -728,12 +729,13 @@ class Usage(metaclass=abc.ABCMeta):
 
 class DiagnosticUsage(Usage):
     """
-    Reference implementation of a Usage driver. Used to generate information
-    for testing the Usage API.
+    Reference implementation of a Usage driver.
+
+    Used to generate information for testing the Usage API.
 
     See Also
     --------
-    qiime2.plugin.tests.TestUsage : Unit tests using this driver
+    qiime2.plugin.tests.TestUsage : Unit tests using this driver.
     """
     def __init__(self):
         super().__init__()
@@ -808,8 +810,8 @@ class ExecutionUsage(Usage):
 
     See Also
     --------
-    qiime2.plugin.tests.TestUsage : Unit tests using this driver
-    qiime2.plugin.testing.execute_examples : Executes rendered examples
+    qiime2.plugin.tests.TestUsage : Unit tests using this driver.
+    qiime2.plugin.testing.execute_examples : Executes rendered examples.
     """
     def _init_data_(self, ref, factory):
         result = factory()
