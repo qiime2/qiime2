@@ -27,178 +27,77 @@ import typing
 from qiime2 import core, sdk, metadata
 
 
-class ScopeRecord:
+class UsageAction:
     """
-    Track information about a Usage example.
-
-    Provides information needed by Usage drivers to render Usage examples.
-
     Parameters
     ----------
-    ref : str
-        A unique identifier for referring to the record.
-    value : Artifact, Visualization, or Metadata
-        The value referred to by `ref`.
-    source : str
-        The Usage method called to initialize example data.
-    assert_has_line_matching : callable
-        A function for asserting something about rendered example data.
-
-    Notes
-    -----
-    `ScopeRecord` is an internal implementation and need not be
-    instantiated manually.
+    plugin_id : str
+        Plugin ID.
+    action_id : str
+        Action ID.
     """
 
-    def __init__(
-        self,
-        ref: str,
-        value: typing.Union[
-            'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
-        ],
-        source: str,
-        assert_has_line_matching: typing.Optional[typing.Callable] = None,
-    ):
+    # TODO If *arg here is necessary, create an example
+    def __init__(self, *, plugin_id: str, action_id: str):
+        if plugin_id == '':
+            raise ValueError('Must specify a value for plugin_id.')
 
-        if assert_has_line_matching is not None and \
-                not callable(assert_has_line_matching):
-            raise TypeError('Value for `assert_has_line_matching` should be a '
-                            '`callable`.')
+        if action_id == '':
+            raise ValueError('Must specify a value for action_id.')
 
-        self.ref = ref
-        self._result = value
-        self._source = source
-        self._assert_has_line_matching_ = assert_has_line_matching
+        self.plugin_id = plugin_id
+        self.action_id = action_id
+        self._plugin_manager = sdk.PluginManager()
 
     def __repr__(self):
-        return 'ScopeRecord<ref=%s, result=%r, source=%s>' % (self.ref,
-                                                              self.result,
-                                                              self.source)
+        return 'UsageAction(plugin_id=%r, action_id=%r)' % \
+               (self.plugin_id, self.action_id)
 
-    @property
-    def result(
+    def get_action(
         self,
-    ) -> typing.Union[
-        'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
-    ]:
+    ) -> typing.Tuple[typing.Union['sdk.Method', 'sdk.Pipeline'],
+                      typing.Type['core.PipelineSignature']]:
         """
-        Artifact, Visualization, or Metadata value referred to by `self.ref`.
-        """
-        return self._result
-
-    @property
-    def source(self) -> str:
-        """
-        Usage method called to initialize example data.
-        """
-        return self._source
-
-    def assert_has_line_matching(self, label: str, path: str,
-                                 expression: str) -> None:
-        """
-        Verify that the file at `path` contains a line matching `expression`.
-
-        Parameters
-        ----------
-        label : str
-            A label for describing this assertion. Interface drivers may
-            choose to omit this information in the rendered output.
-        path : str
-            Path to example data file.
-        expression : str
-            A regex pattern to be passed as the first argument to `re.search`.
-
-        Raises
-        ______
-        AssertionError
-            If `expression` is not found in `path`.
-
-        See Also
-        --------
-        See `ExecutionUsage` for an example implementation.
-        """
-        return self._assert_has_line_matching_(self.ref, label, path,
-                                               expression)
-
-
-class Scope:
-    """
-    Sequentially track all ScopeRecords for a Usage example.
-
-    Notes
-    -----
-    `Scope` is an internal implementation and need not be instantiated
-    manually.
-    """
-
-    def __init__(self):
-        self._records: typing.Dict[str, ScopeRecord] = dict()
-
-    def __repr__(self):
-        return '%r' % (self._records,)
-
-    @property
-    def records(self) -> types.MappingProxyType:
-        """
-        A dynamic, read-only view of `ScopeRecords` in the current scope.
-        """
-        return types.MappingProxyType(self._records)
-
-    def push_record(
-        self,
-        ref: str,
-        value: typing.Union[
-            'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
-        ],
-        source: str,
-        assert_has_line_matching: typing.Callable = None,
-    ) -> ScopeRecord:
-        """
-        Appends a new `ScopeRecord`.
-
-        Parameters
-        ----------
-        ref : str
-        value : Artifact, Visualization, or Metadata
-            Data from a Usage data initialization method.
-        source : str
-            The Usage method called to initialize example data.
-        assert_has_line_matching : callable
-            Verify that the file at `path` contains a line matching
-            `expression` within an Artifact. See
-            `ScopeRecord.assert_has_line_matching`.
+        Get this example's action and signature.
 
         Returns
         -------
-        record : ScopeRecord
+        action_f : QIIME 2 Method, Visualizer, or Pipeline
+            The plugin action
+        action_f.signature: QIIME 2 Method, Visualizer, or Pipeline signature
+            The method signature for the plugin action
         """
-        record = ScopeRecord(ref=ref, value=value, source=source,
-                             assert_has_line_matching=assert_has_line_matching)
-        self._records[ref] = record
-        return record
 
-    def get_record(self, ref: str) -> ScopeRecord:
-        """
-        Look up a `ScopeRecord` from the current scope by identifier.
-
-        Parameters
-        ----------
-        ref : str
-            The identifier for a `ScopeRecord`
-
-        Raises
-        ------
-        KeyError
-            If the record identifier isn't in the scope
-
-        Returns
-        -------
-        record : ScopeRecord
-        """
+        plugin = self._plugin_manager.get_plugin(id=self.plugin_id)
+        # TODO: should this validation be pushed up into
+        # plugin.py or action.py?
         try:
-            return self.records[ref]
+            action_f = plugin.actions[self.action_id]
         except KeyError:
-            raise KeyError('No record with ref id: "%s" in scope.' % (ref,))
+            raise KeyError('No action currently registered with '
+                           'id: "%s".' % (self.action_id,))
+        return action_f, action_f.signature
+
+    def validate(
+            self, inputs: 'UsageInputs', outputs: 'UsageOutputNames'
+    ) -> None:
+        """
+        Validate inputs and outputs for this example.
+
+        Parameters
+        ----------
+        inputs : UsageInputs
+        outputs : UsageOutputNames
+        """
+        if not isinstance(inputs, UsageInputs):
+            raise TypeError('Must provide an instance of UsageInputs.')
+        if not isinstance(outputs, UsageOutputNames):
+            raise TypeError('Must provide an instance of UsageOutputNames.')
+
+        _, sig = self.get_action()
+
+        inputs.validate(sig)
+        outputs.validate(sig)
 
 
 class UsageInputs:
@@ -264,7 +163,7 @@ class UsageInputs:
                              (extra,))
 
     def build_opts(self, signature: typing.Type['core.PipelineSignature'],
-                   scope: Scope) -> dict:
+                   scope: 'Scope') -> dict:
         """
         Build a dictionary mapping action input identifiers to example input
         values. Values are derived from either an input's `ScopeRecord`
@@ -396,7 +295,7 @@ class UsageOutputNames:
     def build_opts(
             self,
             action_signature: typing.Type['core.PipelineSignature'],
-            scope: Scope
+            scope: 'Scope'
     ) -> dict:
         """
         Build a dictionary mapping action output identifiers to example output
@@ -422,75 +321,178 @@ class UsageOutputNames:
         return opts
 
 
-class UsageAction:
+class ScopeRecord:
     """
+    Track information about a Usage example.
+
+    Provides information needed by Usage drivers to render Usage examples.
+
     Parameters
     ----------
-    plugin_id : str
-        Plugin ID.
-    action_id : str
-        Action ID.
+    ref : str
+        A unique identifier for referring to the record.
+    value : Artifact, Visualization, or Metadata
+        The value referred to by `ref`.
+    source : str
+        The Usage method called to initialize example data.
+    assert_has_line_matching : callable
+        A function for asserting something about rendered example data.
+
+    Notes
+    -----
+    `ScopeRecord` is an internal implementation and need not be
+    instantiated manually.
     """
 
-    # TODO If *arg here is necessary, create an example
-    def __init__(self, *, plugin_id: str, action_id: str):
-        if plugin_id == '':
-            raise ValueError('Must specify a value for plugin_id.')
+    def __init__(
+        self,
+        ref: str,
+        value: typing.Union[
+            'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
+        ],
+        source: str,
+        assert_has_line_matching: typing.Optional[typing.Callable] = None,
+    ):
 
-        if action_id == '':
-            raise ValueError('Must specify a value for action_id.')
+        if assert_has_line_matching is not None and \
+                not callable(assert_has_line_matching):
+            raise TypeError('Value for `assert_has_line_matching` should be a '
+                            '`callable`.')
 
-        self.plugin_id = plugin_id
-        self.action_id = action_id
-        self._plugin_manager = sdk.PluginManager()
+        self.ref = ref
+        self._result = value
+        self._source = source
+        self._assert_has_line_matching_ = assert_has_line_matching
 
     def __repr__(self):
-        return 'UsageAction(plugin_id=%r, action_id=%r)' % \
-               (self.plugin_id, self.action_id)
+        return 'ScopeRecord<ref=%s, result=%r, source=%s>' % (self.ref,
+                                                              self.result,
+                                                              self.source)
 
-    def get_action(
+    @property
+    def result(
         self,
-    ) -> typing.Tuple[typing.Union[sdk.Method, sdk.Pipeline],
-                      typing.Type['core.PipelineSignature']]:
+    ) -> typing.Union[
+        'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
+    ]:
         """
-        Get this example's action and signature.
-
-        Returns
-        -------
-        action_f : QIIME 2 Method, Visualizer, or Pipeline
-            The plugin action
-        action_f.signature: QIIME 2 Method, Visualizer, or Pipeline signature
-            The method signature for the plugin action
+        Artifact, Visualization, or Metadata value referred to by `self.ref`.
         """
+        return self._result
 
-        plugin = self._plugin_manager.get_plugin(id=self.plugin_id)
-        # TODO: should this validation be pushed up into
-        # plugin.py or action.py?
-        try:
-            action_f = plugin.actions[self.action_id]
-        except KeyError:
-            raise KeyError('No action currently registered with '
-                           'id: "%s".' % (self.action_id,))
-        return action_f, action_f.signature
-
-    def validate(self, inputs: UsageInputs, outputs: UsageOutputNames) -> None:
+    @property
+    def source(self) -> str:
         """
-        Validate inputs and outputs for this example.
+        Usage method called to initialize example data.
+        """
+        return self._source
+
+    def assert_has_line_matching(self, label: str, path: str,
+                                 expression: str) -> None:
+        """
+        Verify that the file at `path` contains a line matching `expression`.
 
         Parameters
         ----------
-        inputs : UsageInputs
-        outputs : UsageOutputNames
+        label : str
+            A label for describing this assertion. Interface drivers may
+            choose to omit this information in the rendered output.
+        path : str
+            Path to example data file.
+        expression : str
+            A regex pattern to be passed as the first argument to `re.search`.
+
+        Raises
+        ______
+        AssertionError
+            If `expression` is not found in `path`.
+
+        See Also
+        --------
+        See `ExecutionUsage` for an example implementation.
         """
-        if not isinstance(inputs, UsageInputs):
-            raise TypeError('Must provide an instance of UsageInputs.')
-        if not isinstance(outputs, UsageOutputNames):
-            raise TypeError('Must provide an instance of UsageOutputNames.')
+        return self._assert_has_line_matching_(self.ref, label, path,
+                                               expression)
 
-        _, sig = self.get_action()
 
-        inputs.validate(sig)
-        outputs.validate(sig)
+class Scope:
+    """
+    Sequentially track all ScopeRecords for a Usage example.
+
+    Notes
+    -----
+    `Scope` is an internal implementation and need not be instantiated
+    manually.
+    """
+
+    def __init__(self):
+        self._records: typing.Dict[str, 'ScopeRecord'] = dict()
+
+    def __repr__(self):
+        return '%r' % (self._records,)
+
+    @property
+    def records(self) -> types.MappingProxyType:
+        """
+        A dynamic, read-only view of `ScopeRecords` in the current scope.
+        """
+        return types.MappingProxyType(self._records)
+
+    def push_record(
+        self,
+        ref: str,
+        value: typing.Union[
+            'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
+        ],
+        source: str,
+        assert_has_line_matching: typing.Callable = None,
+    ) -> 'ScopeRecord':
+        """
+        Appends a new `ScopeRecord`.
+
+        Parameters
+        ----------
+        ref : str
+        value : Artifact, Visualization, or Metadata
+            Data from a Usage data initialization method.
+        source : str
+            The Usage method called to initialize example data.
+        assert_has_line_matching : callable
+            Verify that the file at `path` contains a line matching
+            `expression` within an Artifact. See
+            `ScopeRecord.assert_has_line_matching`.
+
+        Returns
+        -------
+        record : ScopeRecord
+        """
+        record = ScopeRecord(ref=ref, value=value, source=source,
+                             assert_has_line_matching=assert_has_line_matching)
+        self._records[ref] = record
+        return record
+
+    def get_record(self, ref: str) -> ScopeRecord:
+        """
+        Look up a `ScopeRecord` from the current scope by identifier.
+
+        Parameters
+        ----------
+        ref : str
+            The identifier for a `ScopeRecord`
+
+        Raises
+        ------
+        KeyError
+            If the record identifier isn't in the scope
+
+        Returns
+        -------
+        record : ScopeRecord
+        """
+        try:
+            return self.records[ref]
+        except KeyError:
+            raise KeyError('No record with ref id: "%s" in scope.' % (ref,))
 
 
 class Usage(metaclass=abc.ABCMeta):
@@ -503,7 +505,7 @@ class Usage(metaclass=abc.ABCMeta):
 
     def init_data(
         self, ref: str, factory: typing.Callable[[], 'sdk.Artifact']
-    ) -> ScopeRecord:
+    ) -> 'ScopeRecord':
         """
         Initialize example data from a factory.
 
@@ -527,7 +529,7 @@ class Usage(metaclass=abc.ABCMeta):
 
     def init_metadata(
         self, ref: str, factory: typing.Callable[[], 'metadata.Metadata']
-    ) -> ScopeRecord:
+    ) -> 'ScopeRecord':
         """
         Initialize metadata for a Usage example.
 
@@ -554,7 +556,7 @@ class Usage(metaclass=abc.ABCMeta):
         ref: str,
         collection_type: typing.Union[list, set],
         *records: ScopeRecord
-    ) -> ScopeRecord:
+    ) -> 'ScopeRecord':
         """
         Initialize a collection of data for a Usage example.
 
@@ -587,7 +589,7 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def merge_metadata(self, ref: str,
-                       *records: typing.List[ScopeRecord]) -> ScopeRecord:
+                       *records: typing.List['ScopeRecord']) -> 'ScopeRecord':
         """
         Create a `ScopeRecord` for merged Metadata.
 
@@ -615,7 +617,7 @@ class Usage(metaclass=abc.ABCMeta):
 
     def get_metadata_column(
         self, column_name: str, record: ScopeRecord
-    ) -> ScopeRecord:
+    ) -> 'ScopeRecord':
         """
         Create a new record for a specific column in example Metadata.
 
@@ -686,7 +688,7 @@ class Usage(metaclass=abc.ABCMeta):
     def _assert_has_line_matching_(self, ref, label, path, expression):
         raise NotImplementedError
 
-    def get_result(self, ref: str) -> ScopeRecord:
+    def get_result(self, ref: str) -> 'ScopeRecord':
         """
         Get the record for a Usage example output. This is a convenience
         method used to access records generated after running `Usage.action`.
