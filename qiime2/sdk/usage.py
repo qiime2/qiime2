@@ -63,9 +63,9 @@ class UsageAction:
         Returns
         -------
         action_f : QIIME 2 Method, Visualizer, or Pipeline
-            The plugin action
+            The plugin action.
         action_f.signature: QIIME 2 Method, Visualizer, or Pipeline signature
-            The method signature for the plugin action
+            The method signature for the plugin action.
         """
 
         plugin = self._plugin_manager.get_plugin(id=self.plugin_id)
@@ -124,12 +124,12 @@ class UsageInputs:
         Parameters
         ----------
         signature : QIIME 2 Method, Visualizer, or Pipeline signature
-            The plugin action's signature
+            The plugin action's signature.
 
         Raises
         ------
         ValueError
-            If there are missing or extra inputs or parameters
+            If there are missing or extra inputs or parameters.
         """
         provided = set(self.values.keys())
         inputs, params = signature.inputs, signature.parameters
@@ -173,9 +173,9 @@ class UsageInputs:
         Parameters
         ----------
         signature : QIIME 2 Method, Visualizer, or Pipeline signature
-            The plugin action's signature
+            The plugin action's signature.
         scope : Scope
-            A Usage example's current scope
+            A Usage example's current scope.
 
         Returns
         -------
@@ -224,7 +224,7 @@ class UsageOutputNames:
         Returns
         -------
         str
-            The identifier for an example output
+            The identifier for an example output.
         """
         return self.values[key]
 
@@ -237,13 +237,13 @@ class UsageOutputNames:
         Parameters
         ----------
         signature
-            Action signature
+            Action signature.
 
         Raises
         ------
         ValueError
             If the example has missing or extra outputs as per the action
-            signature
+            signature.
         """
         provided = set(self.values.keys())
         exp_outputs = set(signature.outputs)
@@ -272,12 +272,12 @@ class UsageOutputNames:
         Parameters
         ----------
         computed_outputs : dict of outputs
-            Outputs returned by the Usage driver's `._action_` method
+            Outputs returned by the Usage driver's `._action_` method.
 
         Raises
         ------
         ValueError
-            If there are missing or extra outputs as per the action signature
+            If there are missing or extra outputs as per the action signature.
         """
         provided = set(computed_outputs.keys())
         exp_outputs = set(self.values.keys())
@@ -304,14 +304,14 @@ class UsageOutputNames:
         Parameters
         ----------
         action_signature : QIIME 2 Method, Visualizer, or Pipeline signature
-            The plugin action's signature
+            The plugin action's signature.
         scope : Scope
-            A Usage example's current scope
+            A Usage example's current scope.
 
         Returns
         -------
         dict
-            Output identifiers and their example values
+            Output identifiers and their example values.
         """
         opts = {}
 
@@ -478,12 +478,12 @@ class Scope:
         Parameters
         ----------
         ref : str
-            The identifier for a `ScopeRecord`
+            The identifier for a `ScopeRecord`.
 
         Raises
         ------
         KeyError
-            If the record identifier isn't in the scope
+            If the record identifier isn't in the scope.
 
         Returns
         -------
@@ -512,14 +512,14 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         ref : str
-            Unique identifier for example data
+            Unique identifier for example data.
         factory : callable
-            A factory that returns an example Artifact
+            A factory that returns an example Artifact.
 
         Returns
         -------
         record : ScopeRecord
-            A record with information about example data
+            A record with information about example data.
         """
         value = self._init_data_(ref, factory)
         return self._push_record(ref, value, 'init_data')
@@ -536,14 +536,14 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         ref : str
-            Unique identifier for example metadata
+            Unique identifier for example metadata.
         factory : callable
-            A factory that returns example Metadata
+            A factory that returns example Metadata.
 
         Returns
         -------
         record : ScopeRecord
-            A record with information about example Metadata
+            A record with information about example Metadata.
         """
         value = self._init_metadata_(ref, factory)
         return self._push_record(ref, value, 'init_metadata')
@@ -563,9 +563,9 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         ref : str
-            Unique identifier for example data collection
+            Unique identifier for example data collection.
         collection_type : list or set
-            The type of collection required by an action
+            The type of collection required by an action.
         records : ScopeRecords belonging to the collection
             The record associated with data to be initialized in the
             collection.
@@ -596,9 +596,9 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         ref : str
-            Unique identifier for merged Metadata
+            Unique identifier for merged Metadata.
         records : ScopeRecords
-            Records for the example Metadata to be merged
+            Records for the example Metadata to be merged.
 
         Returns
         -------
@@ -624,9 +624,9 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         column_name : str
-            The name of a column in example Metadata
+            The name of a column in example Metadata.
         record : ScopeRecord
-            The record associated with example Metadata
+            The record associated with example Metadata.
 
         Returns
         -------
@@ -657,11 +657,11 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         action : UsageAction
-            Example action
+            Example action.
         inputs : UsageInputs
-            Example inputs
+            Example inputs.
         outputs : UsageOutputNames
-            Example outputs
+            Example outputs.
 
         Examples
         --------
@@ -696,16 +696,16 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         ref : str
-            Output identifier
+            Output identifier.
 
         Raises
         ------
         TypeError
-            If the source type is not an Action
+            If the source type is not an Action.
 
         ValueError
             If `ref` is not associated with a record generated by
-            `Usage.action`
+            `Usage.action`.
         """
         record = self._get_record(ref)
         source = record.source
