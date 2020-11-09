@@ -507,7 +507,8 @@ class Usage(metaclass=abc.ABCMeta):
         self, ref: str, factory: typing.Callable[[], 'sdk.Artifact']
     ) -> 'ScopeRecord':
         """
-        Initialize example data from a factory. Whether or not the example data is actually created is dependent on the driver executing the example. 
+        Initialize example data from a factory. Whether or not the example data
+        is actually created is dependent on the driver executing the example
 
         Parameters
         ----------
@@ -531,7 +532,9 @@ class Usage(metaclass=abc.ABCMeta):
         self, ref: str, factory: typing.Callable[[], 'metadata.Metadata']
     ) -> 'ScopeRecord':
         """
-        Initialize metadata for a Usage example. Whether or not the example metadata is actually created is dependent on the driver executing the example. 
+        Initialize metadata for a Usage example. Whether or not the example
+        metadata is actually created is dependent on the driver executing the
+        example.
 
         Parameters
         ----------
@@ -648,7 +651,9 @@ class Usage(metaclass=abc.ABCMeta):
     def action(self, action: UsageAction, inputs: UsageInputs,
                outputs: UsageOutputNames) -> None:
         """
-        This method is a proxy for invoking a QIIME 2 Action. Whether or not the Action is actually invoked is dependent on the driver executing the example. 
+        This method is a proxy for invoking a QIIME 2 Action. Whether or not
+        the Action is actually invoked is dependent on the driver executing the
+        example.
 
         Parameters
         ----------
