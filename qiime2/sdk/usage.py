@@ -507,7 +507,7 @@ class Usage(metaclass=abc.ABCMeta):
         self, ref: str, factory: typing.Callable[[], 'sdk.Artifact']
     ) -> 'ScopeRecord':
         """
-        Initialize example data from a factory.
+        Initialize example data from a factory. Whether or not the example data is actually created is dependent on the driver executing the example. 
 
         Parameters
         ----------
@@ -531,7 +531,7 @@ class Usage(metaclass=abc.ABCMeta):
         self, ref: str, factory: typing.Callable[[], 'metadata.Metadata']
     ) -> 'ScopeRecord':
         """
-        Initialize metadata for a Usage example.
+        Initialize metadata for a Usage example. Whether or not the example metadata is actually created is dependent on the driver executing the example. 
 
         Parameters
         ----------
@@ -645,14 +645,10 @@ class Usage(metaclass=abc.ABCMeta):
     def _comment_(self, text: str):
         raise NotImplementedError
 
-    def action(
-        self,
-        action: UsageAction,
-        inputs: UsageInputs,
-        outputs: UsageOutputNames,
-    ) -> None:
+    def action(self, action: UsageAction, inputs: UsageInputs,
+               outputs: UsageOutputNames) -> None:
         """
-        This method invokes (or simulates invokation) of a QIIME 2 Action.
+        This method is a proxy for invoking a QIIME 2 Action. Whether or not the Action is actually invoked is dependent on the driver executing the example. 
 
         Parameters
         ----------
@@ -680,9 +676,8 @@ class Usage(metaclass=abc.ABCMeta):
         computed_outputs = self._action_(action, input_opts, output_opts)
         self._add_outputs_to_scope(outputs, computed_outputs)
 
-    def _action_(
-        self, action: UsageAction, input_opts: dict, output_opts: dict
-    ) -> dict:
+    def _action_(self, action: UsageAction, input_opts: dict,
+                 output_opts: dict) -> dict:
         raise NotImplementedError
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
@@ -713,9 +708,8 @@ class Usage(metaclass=abc.ABCMeta):
             raise TypeError('source == %s but must be "action"' % source)
         return record
 
-    def _add_outputs_to_scope(
-        self, outputs: UsageOutputNames, computed_outputs
-    ):
+    def _add_outputs_to_scope(self, outputs: UsageOutputNames,
+                              computed_outputs):
         outputs.validate_computed(computed_outputs)
         for output, result in computed_outputs.items():
             ref = outputs.get(output)
@@ -865,9 +859,8 @@ class ExecutionUsage(Usage):
     def _comment_(self, text):
         pass
 
-    def _action_(
-        self, action: UsageAction, input_opts: dict, output_opts: dict
-    ):
+    def _action_(self, action: UsageAction,
+                 input_opts: dict, output_opts: dict):
         action_f, _ = action.get_action()
         results = action_f(**input_opts)
         return {k: getattr(results, k) for k in output_opts.keys()}
