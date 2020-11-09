@@ -573,7 +573,7 @@ class Usage(metaclass=abc.ABCMeta):
         Returns
         -------
         record : ScopeRecord
-            A record with information about the example Metadata.
+            A record with information about an example of collection data.
         """
         if len(records) < 1:
             raise ValueError('Must provide at least one ScopeRecord input.')
