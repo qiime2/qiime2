@@ -567,7 +567,7 @@ class Usage(metaclass=abc.ABCMeta):
         collection_type : list or set
             The type of collection required by an action.
         records : ScopeRecords belonging to the collection
-            The record associated with data to be initialized in the
+            The records associated with data to be initialized in the
             collection.
 
         Returns
