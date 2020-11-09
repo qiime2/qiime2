@@ -171,7 +171,7 @@ class TestPipeline(unittest.TestCase):
 
     def test_failing_from_return_view(self):
         for call in self.iter_callables('failing_pipeline'):
-            with self.assertRaisesRegex(TypeError, 'Result objects'):
+            with self.assertRaisesRegex(TypeError, 'Result.*objects.*None'):
                 call(self.int_sequence, break_from='return-view')
 
     def test_failing_from_method(self):
