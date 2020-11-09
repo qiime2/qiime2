@@ -586,7 +586,7 @@ class Usage(metaclass=abc.ABCMeta):
     def merge_metadata(self, ref: str,
                        *records: typing.List['ScopeRecord']) -> 'ScopeRecord':
         """
-        Create a ``ScopeRecord`` for merged Metadata.
+        Merge previously initialized example Metadata.
 
         Parameters
         ----------
@@ -614,7 +614,7 @@ class Usage(metaclass=abc.ABCMeta):
         self, column_name: str, record: ScopeRecord
     ) -> 'ScopeRecord':
         """
-        Create a new record for a specific column in example Metadata.
+        Get a Metadata column from previously initialized example Metadata.
 
         Parameters
         ----------
