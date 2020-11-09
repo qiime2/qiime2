@@ -28,7 +28,6 @@ class UsageAction:
         Action ID.
     """
 
-    # TODO If *arg here is necessary, create an example
     def __init__(self, *, plugin_id: str, action_id: str):
         if plugin_id == '':
             raise ValueError('Must specify a value for plugin_id.')
