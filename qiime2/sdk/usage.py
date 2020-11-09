@@ -96,7 +96,7 @@ class UsageInputs:
     Parameters
     ----------
     kwargs : ExampleInputs
-        Inputs to be passed in as keyword arguments to `Usage.action`.
+        Inputs to be passed in as keyword arguments to ``Usage.action``.
     """
 
     def __init__(self, **kwargs: typing.Any):
@@ -157,9 +157,9 @@ class UsageInputs:
                    scope: 'Scope') -> dict:
         """
         Build a dictionary mapping action input identifiers to example input
-        values. Values are derived from either an input's `ScopeRecord`
-        (`ScopeRecord.value`), or the value a keyword argument passed into the
-        `UsageInputs` constructor.
+        values. Values are derived from either an input's ``ScopeRecord``
+        (``ScopeRecord.value``), or the value a keyword argument passed into
+        the ``UsageInputs`` constructor.
 
         Parameters
         ----------
@@ -258,12 +258,12 @@ class UsageOutputNames:
     ) -> None:
         """
         Check that outputs are still valid after being processed by a Usage
-        driver's `_action_`. method.
+        driver's ``_action_``. method.
 
         Parameters
         ----------
         computed_outputs : dict of outputs
-            Outputs returned by the Usage driver's `._action_` method.
+            Outputs returned by the Usage driver's ``._action_`` method.
 
         Raises
         ------
@@ -323,7 +323,7 @@ class ScopeRecord:
     ref : str
         A unique identifier for referring to the record.
     value : Artifact, Visualization, or Metadata
-        The value referred to by `ref`.
+        The value referred to by ``ref``.
     source : str
         The Usage method called to initialize example data.
     assert_has_line_matching : callable
@@ -331,7 +331,7 @@ class ScopeRecord:
 
     Notes
     -----
-    `ScopeRecord` is an internal implementation and need not be
+    ``ScopeRecord`` is an internal implementation and need not be
     instantiated manually.
     """
 
@@ -367,7 +367,7 @@ class ScopeRecord:
         'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
     ]:
         """
-        Artifact, Visualization, or Metadata value referred to by `self.ref`.
+        Artifact, Visualization, or Metadata value referred to by ``self.ref``.
         """
         return self._result
 
@@ -381,7 +381,8 @@ class ScopeRecord:
     def assert_has_line_matching(self, label: str, path: str,
                                  expression: str) -> None:
         """
-        Verify that the file at `path` contains a line matching `expression`.
+        Verify that the file at ``path`` contains a line matching
+        ``expression``.
 
         Parameters
         ----------
@@ -391,16 +392,17 @@ class ScopeRecord:
         path : str
             Path to example data file.
         expression : str
-            A regex pattern to be passed as the first argument to `re.search`.
+            A regex pattern to be passed as the first argument to
+            ``re.search``.
 
         Raises
         ______
         AssertionError
-            If `expression` is not found in `path`.
+            If ``expression`` is not found in ``path``.
 
         See Also
         --------
-        See `ExecutionUsage` for an example implementation.
+        See ``ExecutionUsage`` for an example implementation.
         """
         return self._assert_has_line_matching_(self.ref, label, path,
                                                expression)
@@ -412,7 +414,7 @@ class Scope:
 
     Notes
     -----
-    `Scope` is an internal implementation and need not be instantiated
+    ``Scope`` is an internal implementation and need not be instantiated
     manually.
     """
 
@@ -425,7 +427,7 @@ class Scope:
     @property
     def records(self) -> types.MappingProxyType:
         """
-        A dynamic, read-only view of `ScopeRecords` in the current scope.
+        A dynamic, read-only view of ``ScopeRecords`` in the current scope.
         """
         return types.MappingProxyType(self._records)
 
@@ -439,7 +441,7 @@ class Scope:
         assert_has_line_matching: typing.Callable = None,
     ) -> 'ScopeRecord':
         """
-        Appends a new `ScopeRecord`.
+        Appends a new ``ScopeRecord``.
 
         Parameters
         ----------
@@ -449,9 +451,9 @@ class Scope:
         source : str
             The Usage method called to initialize example data.
         assert_has_line_matching : callable
-            Verify that the file at `path` contains a line matching
-            `expression` within an Artifact. See
-            `ScopeRecord.assert_has_line_matching`.
+            Verify that the file at ``path`` contains a line matching
+            ``expression`` within an Artifact. See
+            ``ScopeRecord.assert_has_line_matching``.
 
         Returns
         -------
@@ -464,12 +466,12 @@ class Scope:
 
     def get_record(self, ref: str) -> ScopeRecord:
         """
-        Look up a `ScopeRecord` from the current scope by identifier.
+        Look up a ``ScopeRecord`` from the current scope by identifier.
 
         Parameters
         ----------
         ref : str
-            The identifier for a `ScopeRecord`.
+            The identifier for a ``ScopeRecord``.
 
         Raises
         ------
@@ -488,7 +490,7 @@ class Scope:
 
 class Usage(metaclass=abc.ABCMeta):
     """
-    `Usage` is the base class for Usage driver implementations.
+    ``Usage`` is the base class for Usage driver implementations.
     """
 
     def __init__(self):
@@ -585,7 +587,7 @@ class Usage(metaclass=abc.ABCMeta):
     def merge_metadata(self, ref: str,
                        *records: typing.List['ScopeRecord']) -> 'ScopeRecord':
         """
-        Create a `ScopeRecord` for merged Metadata.
+        Create a ``ScopeRecord`` for merged Metadata.
 
         Parameters
         ----------
@@ -625,7 +627,7 @@ class Usage(metaclass=abc.ABCMeta):
         Returns
         -------
         record : ScopeRecord
-            A new scope record for example Metadata column `column_name`
+            A new scope record for example Metadata column ``column_name``
         """
         value = self._get_metadata_column_(column_name, record)
         return self._push_record(column_name, value, 'get_metadata_column')
@@ -682,7 +684,7 @@ class Usage(metaclass=abc.ABCMeta):
     def get_result(self, ref: str) -> 'ScopeRecord':
         """
         Get the record for a Usage example output. This is a convenience
-        method used to access records generated after running `Usage.action`.
+        method used to access records generated after running ``Usage.action``.
 
         Parameters
         ----------
@@ -695,8 +697,8 @@ class Usage(metaclass=abc.ABCMeta):
             If the source type is not an Action.
 
         ValueError
-            If `ref` is not associated with a record generated by
-            `Usage.action`.
+            If ``ref`` is not associated with a record generated by
+            ``Usage.action``.
         """
         record = self._get_record(ref)
         source = record.source
