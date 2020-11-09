@@ -8,15 +8,6 @@
 
 """
 The Usage module enables generating examples for multiple QIIME 2 interfaces.
-
-The Usage API provides an interface-agnostic way for QIIME 2 plugin developers
-to define examples of how to use their plugin’s actions. This enables the
-programmatic generation of examples for all QIIME 2 interfaces, eliminating the
-need to maintain specific examples for multiple interfaces.
-
-Examples
---------
-Please see `qiime2.core.testing.examples` for examples.
 """
 
 import abc
