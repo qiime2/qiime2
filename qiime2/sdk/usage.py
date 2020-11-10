@@ -53,7 +53,7 @@ class UsageAction:
         -------
         action_f : QIIME 2 Method, Visualizer, or Pipeline
             The plugin action.
-        action_f.signature: QIIME 2 Method, Visualizer, or Pipeline signature
+        action_f.signature : QIIME 2 Method, Visualizer, or Pipeline Signature
             The method signature for the plugin action.
         """
 
@@ -112,7 +112,7 @@ class UsageInputs:
 
         Parameters
         ----------
-        signature : QIIME 2 Method, Visualizer, or Pipeline signature
+        signature : QIIME 2 Method, Visualizer, or Pipeline Signature
             The plugin action's signature.
 
         Raises
@@ -161,7 +161,7 @@ class UsageInputs:
 
         Parameters
         ----------
-        signature : QIIME 2 Method, Visualizer, or Pipeline signature
+        signature : QIIME 2 Method, Visualizer, or Pipeline Signature
             The plugin action's signature.
         scope : Scope
             A Usage example's current scope.
@@ -287,7 +287,7 @@ class UsageOutputNames:
 
         Parameters
         ----------
-        action_signature : QIIME 2 Method, Visualizer, or Pipeline signature
+        action_signature : QIIME 2 Method, Visualizer, or Pipeline Signature
             The plugin action's signature.
         scope : Scope
             A Usage example's current scope.
