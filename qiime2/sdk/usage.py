@@ -263,7 +263,7 @@ class UsageOutputNames:
         Parameters
         ----------
         computed_outputs : dict of outputs
-            Outputs returned by the Usage driver's ``._action_`` method.
+            Outputs returned by the Usage driver's ``_action_`` method.
 
         Raises
         ------
@@ -384,8 +384,8 @@ class ScopeRecord:
     def assert_has_line_matching(self, label: str, path: str,
                                  expression: str) -> None:
         """
-        Verify that the file at ``path`` contains a line matching
-        ``expression``.
+        A proxy for a Usage driver's reference implementation for verifying
+        that the file at ``path`` contains a line matching ``expression``.
 
         Parameters
         ----------
@@ -413,7 +413,10 @@ class ScopeRecord:
 
 class Scope:
     """
-    Sequentially track all ScopeRecords for a Usage example.
+    Sequentially track all ``ScopeRecord``s for a Usage example. The Scope
+    provides a detailed, start-to-finish accounting of all of the steps
+    necessary for translating the Usage example into an interface-specific
+    representation.
 
     Notes
     -----
@@ -430,7 +433,7 @@ class Scope:
     @property
     def records(self) -> types.MappingProxyType:
         """
-        A dynamic, read-only view of ``ScopeRecords`` in the current scope.
+        A read-only view of ``ScopeRecords`` in the current scope.
         """
         return types.MappingProxyType(self._records)
 
@@ -442,7 +445,7 @@ class Scope:
                     assert_has_line_matching: typing.Callable = None,
                     ) -> 'ScopeRecord':
         """
-        Appends a new ``ScopeRecord``.
+        Appends a new ``ScopeRecord`` to the Usage Example's scope.
 
         Parameters
         ----------
@@ -450,11 +453,12 @@ class Scope:
         value : Artifact, Visualization, or Metadata
             Data from a Usage data initialization method.
         source : str
-            The Usage method called to initialize example data.
+            The origin of Usage example data.
         assert_has_line_matching : callable
             Verify that the file at ``path`` contains a line matching
             ``expression`` within an Artifact. See
-            ``ScopeRecord.assert_has_line_matching``.
+            ``ScopeRecord.assert_has_line_matching``. A proxy for a Usage
+            driver's reference implementation.
 
         Returns
         -------
@@ -491,7 +495,8 @@ class Scope:
 
 class Usage(metaclass=abc.ABCMeta):
     """
-    ``Usage`` is the base class for Usage driver implementations.
+    ``Usage`` is the base class for Usage driver implementations and should be
+    customized for the interface or implementation.
     """
 
     def __init__(self):
@@ -501,8 +506,9 @@ class Usage(metaclass=abc.ABCMeta):
         self, ref: str, factory: typing.Callable[[], 'sdk.Artifact']
     ) -> 'ScopeRecord':
         """
-        Initialize example data from a factory. Whether or not the example data
-        is actually created is dependent on the driver executing the example
+        Initialize example Artifact data from a factory. Whether or not the
+        example data is actually created is dependent on the driver executing
+        the example.
 
         Parameters
         ----------
@@ -526,7 +532,7 @@ class Usage(metaclass=abc.ABCMeta):
         self, ref: str, factory: typing.Callable[[], 'metadata.Metadata']
     ) -> 'ScopeRecord':
         """
-        Initialize metadata for a Usage example. Whether or not the example
+        Initialize Metadata for a Usage example. Whether or not the example
         metadata is actually created is dependent on the driver executing the
         example.
 
