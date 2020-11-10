@@ -65,7 +65,7 @@ class UsageAction:
         except KeyError:
             raise KeyError('No action currently registered with '
                            'id: "%s".' % (self.action_id,))
-        return action_f, action_f.signature
+        return (action_f, action_f.signature)
 
     def validate(
             self, inputs: 'UsageInputs', outputs: 'UsageOutputNames'
