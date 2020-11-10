@@ -43,10 +43,9 @@ class UsageAction:
         return 'UsageAction(plugin_id=%r, action_id=%r)' % \
                (self.plugin_id, self.action_id)
 
-    def get_action(
-        self,
-    ) -> typing.Tuple[typing.Union['sdk.Method', 'sdk.Pipeline'],
-                      typing.Type['core.PipelineSignature']]:
+    def get_action(self) -> typing.Tuple[
+            typing.Union['sdk.Method', 'sdk.Pipeline'],
+            typing.Type['core.PipelineSignature']]:
         """
         Get this example's action and signature.
 
@@ -246,15 +245,12 @@ class UsageOutputNames:
         if len(extra) > 0:
             raise ValueError('Extra output(s): %r' % (extra,))
 
-    def validate_computed(
-        self,
-        computed_outputs: typing.Dict[
-            str,
-            typing.Union[
-                'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
-            ],
-        ],
-    ) -> None:
+    def validate_computed(self,
+                          computed_outputs: typing.Dict[
+                              str,
+                              typing.Union['sdk.Artifact', 'sdk.Visualization',
+                                           'metadata.Metadata']]
+                          ) -> None:
         """
         Check that outputs are still valid after being processed by a Usage
         driver's ``_action_``. method.
@@ -282,11 +278,9 @@ class UsageOutputNames:
             raise ValueError('SDK implementation has specified extra '
                              'output(s): %r' % (extra,))
 
-    def build_opts(
-            self,
-            action_signature: typing.Type['core.PipelineSignature'],
-            scope: 'Scope'
-    ) -> dict:
+    def build_opts(self,
+                   action_signature: typing.Type['core.PipelineSignature'],
+                   scope: 'Scope') -> dict:
         """
         Build a dictionary mapping action output identifiers to example output
         value.
@@ -334,15 +328,13 @@ class ScopeRecord:
     instantiated manually.
     """
 
-    def __init__(
-        self,
-        ref: str,
-        value: typing.Union[
-            'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
-        ],
-        source: str,
-        assert_has_line_matching: typing.Optional[typing.Callable] = None,
-    ):
+    def __init__(self,
+                 ref: str,
+                 value: typing.Union['sdk.Artifact', 'sdk.Visualization',
+                                     'metadata.Metadata'],
+                 source: str,
+                 assert_has_line_matching: typing.Optional[
+                     typing.Callable] = None):
 
         if assert_has_line_matching is not None and \
                 not callable(assert_has_line_matching):
@@ -360,11 +352,8 @@ class ScopeRecord:
                                                               self.source)
 
     @property
-    def result(
-        self,
-    ) -> typing.Union[
-        'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
-    ]:
+    def result(self) -> typing.Union[
+            'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata']:
         """
         Artifact, Visualization, or Metadata value referred to by ``self.ref``.
         """
@@ -430,15 +419,13 @@ class Scope:
         """
         return types.MappingProxyType(self._records)
 
-    def push_record(
-        self,
-        ref: str,
-        value: typing.Union[
-            'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata'
-        ],
-        source: str,
-        assert_has_line_matching: typing.Callable = None,
-    ) -> 'ScopeRecord':
+    def push_record(self,
+                    ref: str,
+                    value: typing.Union['sdk.Artifact', 'sdk.Visualization',
+                                        'metadata.Metadata'],
+                    source: str,
+                    assert_has_line_matching: typing.Callable = None,
+                    ) -> 'ScopeRecord':
         """
         Appends a new ``ScopeRecord``.
 
@@ -546,12 +533,10 @@ class Usage(metaclass=abc.ABCMeta):
     def _init_metadata_(self, ref, factory):
         raise NotImplementedError
 
-    def init_data_collection(
-        self,
-        ref: str,
-        collection_type: typing.Union[list, set],
-        *records: ScopeRecord
-    ) -> 'ScopeRecord':
+    def init_data_collection(self,
+                             ref: str,
+                             collection_type: typing.Union[list, set],
+                             *records: ScopeRecord) -> 'ScopeRecord':
         """
         Initialize a collection of data for a Usage example.
 
@@ -856,8 +841,10 @@ class ExecutionUsage(Usage):
     def _comment_(self, text):
         pass
 
-    def _action_(self, action: UsageAction,
-                 input_opts: dict, output_opts: dict):
+    def _action_(self,
+                 action: UsageAction,
+                 input_opts: dict,
+                 output_opts: dict):
         action_f, _ = action.get_action()
         results = action_f(**input_opts)
         return {k: getattr(results, k) for k in output_opts.keys()}
