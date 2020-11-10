@@ -635,11 +635,11 @@ class Usage(metaclass=abc.ABCMeta):
         Parameters
         ----------
         action : UsageAction
-            Example action.
+            Specifies the Plugin and Action for a Usage example.
         inputs : UsageInputs
-            Example inputs.
+            Specifies the inputs to an Action for a Usage example.
         outputs : UsageOutputNames
-            Example outputs.
+            Species the outputs of an Action for a Usage example.
 
         Examples
         --------
