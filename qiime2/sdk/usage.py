@@ -64,7 +64,7 @@ class UsageAction:
             action_f = plugin.actions[self.action_id]
         except KeyError:
             raise KeyError('No action currently registered with '
-                           'id: "%s".' % (self.action_id,))
+                           'id: "%s".' % (self.action_id, ))
         return (action_f, action_f.signature)
 
     def validate(
@@ -105,7 +105,7 @@ class UsageInputs:
         self.values = kwargs
 
     def __repr__(self):
-        return 'UsageInputs(**%r)' % (self.values,)
+        return 'UsageInputs(**%r)' % (self.values, )
 
     def validate(
             self, signature: typing.Type['core.PipelineSignature']
@@ -153,7 +153,7 @@ class UsageInputs:
         extra = provided - all_vals
         if len(extra) > 0:
             raise ValueError('Extra input(s) or parameter(s): %r' %
-                             (extra,))
+                             (extra, ))
 
     def build_opts(self, signature: typing.Type['core.PipelineSignature'],
                    scope: 'Scope') -> dict:
@@ -208,7 +208,7 @@ class UsageOutputNames:
         self.values = kwargs
 
     def __repr__(self):
-        return 'UsageOutputNames(**%r)' % (self.values,)
+        return 'UsageOutputNames(**%r)' % (self.values, )
 
     def get(self, key) -> str:
         """
@@ -244,11 +244,11 @@ class UsageOutputNames:
 
         missing = exp_outputs - provided
         if len(missing) > 0:
-            raise ValueError('Missing output(s): %r' % (missing,))
+            raise ValueError('Missing output(s): %r' % (missing, ))
 
         extra = provided - exp_outputs
         if len(extra) > 0:
-            raise ValueError('Extra output(s): %r' % (extra,))
+            raise ValueError('Extra output(s): %r' % (extra, ))
 
     def validate_computed(self,
                           computed_outputs: typing.Dict[
@@ -281,7 +281,7 @@ class UsageOutputNames:
         extra = provided - exp_outputs
         if len(extra) > 0:
             raise ValueError('SDK implementation has specified extra '
-                             'output(s): %r' % (extra,))
+                             'output(s): %r' % (extra, ))
 
     def build_opts(self,
                    action_signature: typing.Type['core.PipelineSignature'],
@@ -425,7 +425,7 @@ class Scope:
         self._records: typing.Dict[str, 'ScopeRecord'] = dict()
 
     def __repr__(self):
-        return '%r' % (self._records,)
+        return '%r' % (self._records, )
 
     @property
     def records(self) -> types.MappingProxyType:
@@ -486,7 +486,7 @@ class Scope:
         try:
             return self.records[ref]
         except KeyError:
-            raise KeyError('No record with ref id: "%s" in scope.' % (ref,))
+            raise KeyError('No record with ref id: "%s" in scope.' % (ref, ))
 
 
 class Usage(metaclass=abc.ABCMeta):
