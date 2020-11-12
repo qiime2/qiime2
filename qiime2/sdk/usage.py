@@ -583,7 +583,7 @@ class Usage(metaclass=abc.ABCMeta):
                 raise ValueError('Record (%r) returned a %s, expected a '
                                  'ScopeRecord.' % (record, type(record)))
 
-        value = self._init_data_collection_(ref, collection_type, *records)
+        value = self._init_data_collection_(ref, collection_type, records)
         return self._push_record(ref, value, 'init_data_collection')
 
     def _init_data_collection_(self, ref, collection_type, records):
@@ -761,7 +761,7 @@ class DiagnosticUsage(Usage):
         })
         return ref
 
-    def _init_data_collection_(self, ref, collection_type, *records):
+    def _init_data_collection_(self, ref, collection_type, records):
         self.recorder.append({
             'source': 'init_data_collection',
             'ref': ref,
@@ -845,7 +845,7 @@ class ExecutionUsage(Usage):
 
         return result
 
-    def _init_data_collection_(self, ref, collection_type, *records):
+    def _init_data_collection_(self, ref, collection_type, records):
         collection = []
         for record in records:
             collection.append(record.result)
