@@ -457,8 +457,8 @@ class Scope:
         assert_has_line_matching : callable
             Verify that the file at ``path`` contains a line matching
             ``expression`` within an Artifact. See
-            ``ScopeRecord.assert_has_line_matching``. A proxy for a Usage
-            driver's reference implementation.
+            ``ScopeRecord.assert_has_line_matching``. This is a proxy for a
+            Usage driver's reference implementation.
 
         Returns
         -------
