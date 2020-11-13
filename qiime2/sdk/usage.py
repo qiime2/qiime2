@@ -632,7 +632,7 @@ class Usage(metaclass=abc.ABCMeta):
         Returns
         -------
         record : ScopeRecord
-            A new scope record for example Metadata column ``column_name``
+            A new scope record for example Metadata column ``column_name``.
         """
         value = self._get_metadata_column_(column_name, record)
         return self._push_record(column_name, value, 'get_metadata_column')
