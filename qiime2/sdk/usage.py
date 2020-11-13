@@ -40,8 +40,8 @@ class UsageAction:
         self._plugin_manager = sdk.PluginManager()
 
     def __repr__(self):
-        return 'UsageAction(plugin_id=%r, action_id=%r)' % \
-               (self.plugin_id, self.action_id)
+        return 'UsageAction(plugin_id=%r, action_id=%r)' %\
+            (self.plugin_id, self.action_id)
 
     def get_action(self) -> typing.Tuple[
             typing.Union['sdk.Method', 'sdk.Pipeline'],
@@ -64,7 +64,7 @@ class UsageAction:
             action_f = plugin.actions[self.action_id]
         except KeyError:
             raise KeyError('No action currently registered with '
-                           'id: "%s".' % (self.action_id, ))
+                           'id: "%s".' % (self.action_id,))
         return (action_f, action_f.signature)
 
     def validate(
@@ -105,7 +105,7 @@ class UsageInputs:
         self.values = kwargs
 
     def __repr__(self):
-        return 'UsageInputs(**%r)' % (self.values, )
+        return 'UsageInputs(**%r)' % (self.values,)
 
     def validate(
             self, signature: typing.Type['core.PipelineSignature']
@@ -720,11 +720,8 @@ class Usage(metaclass=abc.ABCMeta):
 
     def _push_record(self, ref, value, source):
         return self._scope.push_record(
-            ref=ref,
-            value=value,
-            source=source,
-            assert_has_line_matching=self._assert_has_line_matching_,
-        )
+            ref=ref, value=value, source=source,
+            assert_has_line_matching=self._assert_has_line_matching_)
 
     def _get_record(self, ref):
         return self._scope.get_record(ref)
