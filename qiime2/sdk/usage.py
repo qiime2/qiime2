@@ -67,9 +67,8 @@ class UsageAction:
                            'id: "%s".' % (self.action_id,))
         return (action_f, action_f.signature)
 
-    def validate(
-            self, inputs: 'UsageInputs', outputs: 'UsageOutputNames'
-    ) -> None:
+    def validate(self, inputs: 'UsageInputs',
+                 outputs: 'UsageOutputNames') -> None:
         """
         Ensure that all required inputs and outputs are declared and reference
         appropriate scope records, if necessary.
@@ -107,9 +106,8 @@ class UsageInputs:
     def __repr__(self):
         return 'UsageInputs(**%r)' % (self.values,)
 
-    def validate(
-            self, signature: typing.Type['core.PipelineSignature']
-    ) -> None:
+    def validate(self,
+                 signature: typing.Type['core.PipelineSignature']) -> None:
         """
         Ensure that all required inputs are accounted for and that there are no
         unnecessary or extra parameters provided.
@@ -221,9 +219,8 @@ class UsageOutputNames:
         """
         return self.values[key]
 
-    def validate(
-            self, signature: typing.Type['core.PipelineSignature']
-    ) -> None:
+    def validate(self,
+                 signature: typing.Type['core.PipelineSignature']) -> None:
         """
         Ensure that all required outputs are accounted for and that there are
         no unnecessary or extra outputs provided.
@@ -258,7 +255,7 @@ class UsageOutputNames:
                           ) -> None:
         """
         Check that outputs are still valid after being processed by a Usage
-        driver's ``_action_``. method.
+        driver's ``_action_`` method.
 
         Parameters
         ----------
@@ -502,9 +499,9 @@ class Usage(metaclass=abc.ABCMeta):
     def __init__(self):
         self._scope = Scope()
 
-    def init_data(
-        self, ref: str, factory: typing.Callable[[], 'sdk.Artifact']
-    ) -> 'ScopeRecord':
+    def init_data(self, ref: str,
+                  factory: typing.Callable[[], 'sdk.Artifact']) \
+            -> 'ScopeRecord':
         """
         Initialize example Artifact data from a factory. Whether or not the
         example data is actually created is dependent on the driver executing
@@ -528,9 +525,9 @@ class Usage(metaclass=abc.ABCMeta):
     def _init_data_(self, ref, factory):
         raise NotImplementedError
 
-    def init_metadata(
-        self, ref: str, factory: typing.Callable[[], 'metadata.Metadata']
-    ) -> 'ScopeRecord':
+    def init_metadata(self, ref: str,
+                      factory: typing.Callable[[], 'metadata.Metadata']) \
+            -> 'ScopeRecord':
         """
         Initialize Metadata for a Usage example. Whether or not the example
         metadata is actually created is dependent on the driver executing the
@@ -616,9 +613,8 @@ class Usage(metaclass=abc.ABCMeta):
     def _merge_metadata_(self, ref, records):
         raise NotImplementedError
 
-    def get_metadata_column(
-        self, column_name: str, record: ScopeRecord
-    ) -> 'ScopeRecord':
+    def get_metadata_column(self, column_name: str,
+                            record: ScopeRecord) -> 'ScopeRecord':
         """
         Get a Metadata column from previously initialized example Metadata.
 
