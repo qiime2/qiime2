@@ -20,7 +20,7 @@ requirements:
     - python {{ python }}
     - pyyaml
     - decorator
-    - pandas
+    - pandas >=1
     - tzlocal
     - python-dateutil
     - bibtexparser
