@@ -1162,7 +1162,7 @@ class NumericMetadataColumn(MetadataColumn):
 
     @classmethod
     def _is_supported_dtype(cls, dtype):
-        return dtype == 'float' or dtype == 'int'
+        return dtype == 'float' or dtype == 'int' or dtype == 'int64'
 
     @classmethod
     def _normalize_(cls, series):
