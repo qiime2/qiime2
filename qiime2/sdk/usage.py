@@ -496,9 +496,9 @@ class Usage(metaclass=abc.ABCMeta):
     customized for the interface or implementation.
     """
 
-    lookup_action = UsageAction
-    inputs = UsageInputs
-    output_names = UsageOutputNames
+    UsageAction = UsageAction
+    UsageInputs = UsageInputs
+    UsageOutputNames = UsageOutputNames
 
     def __init__(self):
         self._scope = Scope()
