@@ -31,67 +31,83 @@ class TestUsage(TestCaseUsage):
         action = self.plugin.actions['concatenate_ints']
         use = usage.DiagnosticUsage()
         action.examples['concatenate_ints_simple'](use)
+        records = use._get_records()
 
-        self.assertEqual(5, len(use.recorder))
+        self.assertEqual(5, len(records))
 
-        obs1, obs2, obs3, obs4, obs5 = use.recorder
+        obs1, obs2, obs3, obs4, obs5 = records.values()
 
-        self.assertEqual('init_data', obs1['source'],
-                         use._get_record(obs1['ref']).source)
-        self.assertEqual('init_data', obs2['source'],
-                         use._get_record(obs2['ref']).source)
-        self.assertEqual('init_data', obs3['source'],
-                         use._get_record(obs3['ref']).source)
-        self.assertEqual('comment', obs4['source'])
-        self.assertEqual('action', obs5['source'])
+        self.assertEqual('init_data', obs1.source)
+        self.assertEqual('init_data', obs2.source)
+        self.assertEqual('init_data', obs3.source)
+        self.assertEqual('comment', obs4.source)
+        self.assertEqual('action', obs5.source)
 
-        self.assertTrue('basic usage' in obs4['text'])
+        self.assertTrue('basic usage' in obs4.result['text'])
 
-        self.assertEqual('dummy_plugin', obs5['action'].plugin_id)
-        self.assertEqual('concatenate_ints', obs5['action'].action_id)
-        self.assertEqual({'int1': 4, 'int2': 2, 'ints1': 'ints_a',
-                          'ints2': 'ints_b', 'ints3': 'ints_c'},
-                         obs5['input_opts'])
-        self.assertEqual({'concatenated_ints': 'ints_d'}, obs5['output_opts'])
+        self.assertEqual('dummy_plugin', obs5.result['plugin_id'])
+        self.assertEqual('concatenate_ints', obs5.result['action_id'])
+        self.assertEqual({'int1': 4, 'int2': 2,
+                          'ints1': {'ref': 'ints_a', 'source': 'init_data'},
+                          'ints2': {'ref': 'ints_b', 'source': 'init_data'},
+                          'ints3': {'ref': 'ints_c', 'source': 'init_data'}},
+                         obs5.result['input_opts'])
+        self.assertEqual({'concatenated_ints': 'ints_d'},
+                         obs5.result['output_opts'])
 
     def test_chained(self):
         action = self.plugin.actions['concatenate_ints']
         use = usage.DiagnosticUsage()
         action.examples['concatenate_ints_complex'](use)
+        records = use._get_records()
 
-        self.assertEqual(7, len(use.recorder))
+        self.assertEqual(7, len(records))
 
-        obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use.recorder
+        obs1, obs2, obs3, obs4, obs5, obs6, obs7 = records.values()
 
-        self.assertEqual('init_data', obs1['source'],
-                         use._get_record(obs1['ref']).source)
-        self.assertEqual('init_data', obs2['source'],
-                         use._get_record(obs2['ref']).source)
-        self.assertEqual('init_data', obs3['source'],
-                         use._get_record(obs3['ref']).source)
-        self.assertEqual('comment', obs4['source'])
-        self.assertEqual('action', obs5['source'])
-        self.assertEqual('comment', obs6['source'])
-        self.assertEqual('action', obs7['source'])
+        self.assertEqual('init_data', obs1.source)
+        self.assertEqual('init_data', obs2.source)
+        self.assertEqual('init_data', obs3.source)
+        self.assertEqual('comment', obs4.source)
+        self.assertEqual('action', obs5.source)
+        self.assertEqual('comment', obs6.source)
+        self.assertEqual('action', obs7.source)
 
-        self.assertTrue('chained usage (pt 1)' in obs4['text'])
+        self.assertTrue('chained usage (pt 1)' in obs4.result['text'])
 
-        self.assertEqual('dummy_plugin', obs5['action'].plugin_id)
-        self.assertEqual('concatenate_ints', obs5['action'].action_id)
-        self.assertEqual({'int1': 4, 'int2': 2, 'ints1': 'ints_a',
-                          'ints2': 'ints_b', 'ints3': 'ints_c'},
-                         obs5['input_opts'])
-        self.assertEqual({'concatenated_ints': 'ints_d'}, obs5['output_opts'])
+        self.maxDiff = None
+        self.assertEqual('dummy_plugin', obs5.result['plugin_id'])
+        self.assertEqual('concatenate_ints', obs5.result['action_id'])
+        self.assertEqual({'int1': 4, 'int2': 2,
+                          'ints1': {'ref': 'ints_a', 'source': 'init_data'},
+                          'ints2': {'ref': 'ints_b', 'source': 'init_data'},
+                          'ints3': {'ref': 'ints_c', 'source': 'init_data'}},
+                         obs5.result['input_opts'])
+        self.assertEqual({'concatenated_ints': 'ints_d'},
+                         obs5.result['output_opts'])
 
-        self.assertTrue('chained usage (pt 2)' in obs6['text'])
+        self.assertTrue('chained usage (pt 2)' in obs6.result['text'])
 
-        self.assertEqual('dummy_plugin', obs7['action'].plugin_id)
-        self.assertEqual('concatenate_ints', obs7['action'].action_id)
-        self.assertEqual({'int1': 41, 'int2': 0, 'ints1': 'ints_d',
-                          'ints2': 'ints_b', 'ints3': 'ints_c'},
-                         obs7['input_opts'])
+        self.assertEqual('dummy_plugin', obs7.result['plugin_id'])
+        self.assertEqual('concatenate_ints', obs7.result['action_id'])
+        exp7 = {'int1': 41, 'int2': 0,
+                'ints1': {'action_id': 'concatenate_ints',
+                          'input_opts': {'int1': 4, 'int2': 2,
+                                         'ints1': {'ref': 'ints_a',
+                                                   'source': 'init_data'},
+                                         'ints2': {'ref': 'ints_b',
+                                                   'source': 'init_data'},
+                                         'ints3': {'ref': 'ints_c',
+                                                   'source': 'init_data'}},
+                          'output_opt': 'concatenated_ints',
+                          'output_opts': {'concatenated_ints': 'ints_d'},
+                          'plugin_id': 'dummy_plugin',
+                          'source': 'action'},
+                'ints2': {'ref': 'ints_b', 'source': 'init_data'},
+                'ints3': {'ref': 'ints_c', 'source': 'init_data'}}
+        self.assertEqual(exp7, obs7.result['input_opts'])
         self.assertEqual({'concatenated_ints': 'concatenated_ints'},
-                         obs7['output_opts'])
+                         obs7.result['output_opts'])
 
     def test_comments_only(self):
         action = self.plugin.actions['concatenate_ints']
