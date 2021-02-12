@@ -75,7 +75,6 @@ class TestUsage(TestCaseUsage):
 
         self.assertTrue('chained usage (pt 1)' in obs4.result['text'])
 
-        self.maxDiff = None
         self.assertEqual('dummy_plugin', obs5.result['plugin_id'])
         self.assertEqual('concatenate_ints', obs5.result['action_id'])
         self.assertEqual({'int1': 4, 'int2': 2,
