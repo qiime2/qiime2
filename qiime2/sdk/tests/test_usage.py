@@ -113,97 +113,88 @@ class TestUsage(TestCaseUsage):
         action = self.plugin.actions['concatenate_ints']
         use = usage.DiagnosticUsage()
         action.examples['comments_only'](use)
+        records = use._get_records()
 
-        self.assertEqual(2, len(use.recorder))
+        self.assertEqual(2, len(records))
 
-        obs1, obs2 = use.recorder
+        obs1, obs2 = records.values()
 
-        self.assertEqual('comment', obs1['source'])
-        self.assertEqual('comment', obs2['source'])
+        self.assertEqual('comment', obs1.source)
+        self.assertEqual('comment', obs2.source)
 
-        self.assertEqual('comment 1', obs1['text'])
-        self.assertEqual('comment 2', obs2['text'])
+        self.assertEqual('comment 1', obs1.result['text'])
+        self.assertEqual('comment 2', obs2.result['text'])
 
     def test_metadata_merging(self):
         action = self.plugin.actions['identity_with_metadata']
         use = usage.DiagnosticUsage()
         action.examples['identity_with_metadata_merging'](use)
+        records = use._get_records()
 
-        self.assertEqual(5, len(use.recorder))
+        self.assertEqual(5, len(records))
 
-        obs1, obs2, obs3, obs4, obs5 = use.recorder
+        obs1, obs2, obs3, obs4, obs5 = records.values()
 
-        self.assertEqual('init_data', obs1['source'],
-                         use._get_record(obs1['ref']).source)
-        self.assertEqual('init_data', obs2['source'],
-                         use._get_record(obs2['ref']).source)
-        self.assertEqual('init_data', obs3['source'],
-                         use._get_record(obs3['ref']).source)
-        self.assertEqual('merge_metadata', obs4['source'],
-                         use._get_record(obs4['ref']).source)
-        self.assertEqual('action', obs5['source'])
+        self.assertEqual('init_data', obs1.source)
+        self.assertEqual('init_metadata', obs2.source)
+        self.assertEqual('init_metadata', obs3.source)
+        self.assertEqual('merge_metadata', obs4.source)
+        self.assertEqual('action', obs5.source)
 
     def test_get_metadata_column(self):
         action = self.plugin.actions['identity_with_metadata_column']
         use = usage.DiagnosticUsage()
         action.examples['identity_with_metadata_column_get_mdc'](use)
+        records = use._get_records()
 
-        self.assertEqual(4, len(use.recorder))
+        self.assertEqual(4, len(records))
 
-        obs1, obs2, obs3, obs4 = use.recorder
+        obs1, obs2, obs3, obs4 = records.values()
 
-        self.assertEqual('init_data', obs1['source'],
-                         use._get_record(obs1['ref']).source)
-        self.assertEqual('init_data', obs2['source'],
-                         use._get_record(obs2['ref']).source)
-        self.assertEqual('get_metadata_column', obs3['source'],
-                         use._get_record(obs3['ref']).source)
-        self.assertEqual('action', obs4['source'])
+        self.assertEqual('init_data', obs1.source)
+        self.assertEqual('init_metadata', obs2.source)
+        self.assertEqual('get_metadata_column', obs3.source)
+        self.assertEqual('action', obs4.source)
 
     def test_use_init_collection_data(self):
         action = self.plugin.actions['variadic_input_method']
         use = usage.DiagnosticUsage()
         action.examples['variadic_input_simple'](use)
+        records = use._get_records()
 
-        self.assertEqual(len(use.recorder), 7)
+        self.assertEqual(7, len(records))
 
-        obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use.recorder
+        obs1, obs2, obs3, obs4, obs5, obs6, obs7 = records.values()
 
-        self.assertEqual('init_data', obs1['source'],
-                         use._get_record(obs1['ref']).source)
-        self.assertEqual('init_data', obs2['source'],
-                         use._get_record(obs2['ref']).source)
-        self.assertEqual('init_data_collection', obs3['source'],
-                         use._get_record(obs3['ref']).source)
+        self.assertEqual('init_data', obs1.source)
+        self.assertEqual('init_data', obs2.source)
+        self.assertEqual('init_data_collection', obs3.source)
 
-        self.assertEqual('init_data', obs4['source'],
-                         use._get_record(obs4['ref']).source)
-        self.assertEqual('init_data', obs5['source'],
-                         use._get_record(obs5['ref']).source)
-        self.assertEqual('init_data_collection', obs6['source'],
-                         use._get_record(obs6['ref']).source)
-        self.assertEqual('action', obs7['source'])
+        self.assertEqual('init_data', obs4.source)
+        self.assertEqual('init_data', obs5.source)
+        self.assertEqual('init_data_collection', obs6.source)
+        self.assertEqual('action', obs7.source)
 
-        self.assertEqual(set, type(obs7['input_opts']['nums']))
+        self.assertEqual(set, type(obs7.result['input_opts']['nums']))
 
-        self.assertIn('ints', obs7['input_opts']['ints'])
-        self.assertIn('int_set', obs7['input_opts']['int_set'])
+        self.assertEqual('ints', obs7.result['input_opts']['ints'][0]['ref'])
+        self.assertEqual('int_set',
+                         obs7.result['input_opts']['int_set'][0]['ref'])
 
     def test_optional_inputs(self):
         action = self.plugin.actions['optional_artifacts_method']
         use = usage.DiagnosticUsage()
+        records = use._get_records()
 
         action.examples['optional_inputs'](use)
 
-        self.assertEqual(5, len(use.recorder))
+        self.assertEqual(3, len(records))
 
-        obs1, obs2, obs3, obs4, obs5 = use.recorder
-        self.assertEqual('init_data', obs1['source'],
-                         use._get_record(obs1['ref']).source)
-        self.assertEqual('action', obs2['source'])
-        self.assertEqual('action', obs3['source'])
-        self.assertEqual('action', obs4['source'])
-        self.assertEqual('action', obs5['source'])
+        obs1, obs2, obs3 = records.values()
+
+        self.assertEqual('init_data', obs1.source)
+        self.assertEqual('action', obs2.source)
+        self.assertEqual('action', obs3.source)
 
 
 class TestUsageAction(TestCaseUsage):
