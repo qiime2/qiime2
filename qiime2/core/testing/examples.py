@@ -10,8 +10,6 @@ import pandas as pd
 
 from qiime2 import Artifact, Metadata
 
-from qiime2.plugin import UsageAction, UsageInputs, UsageOutputNames
-
 from .type import IntSequence1, IntSequence2, Mapping, SingleInt
 
 
@@ -58,9 +56,11 @@ def concatenate_ints_simple(use):
 
     use.comment('This example demonstrates basic usage.')
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_id='concatenate_ints'),
-        UsageInputs(ints1=ints_a, ints2=ints_b, ints3=ints_c, int1=4, int2=2),
-        UsageOutputNames(concatenated_ints='ints_d'),
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='concatenate_ints'),
+        use.UsageInputs(ints1=ints_a, ints2=ints_b, ints3=ints_c, int1=4,
+                        int2=2),
+        use.UsageOutputNames(concatenated_ints='ints_d'),
     )
 
 
@@ -71,17 +71,21 @@ def concatenate_ints_complex(use):
 
     use.comment('This example demonstrates chained usage (pt 1).')
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_id='concatenate_ints'),
-        UsageInputs(ints1=ints_a, ints2=ints_b, ints3=ints_c, int1=4, int2=2),
-        UsageOutputNames(concatenated_ints='ints_d'),
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='concatenate_ints'),
+        use.UsageInputs(ints1=ints_a, ints2=ints_b, ints3=ints_c, int1=4,
+                        int2=2),
+        use.UsageOutputNames(concatenated_ints='ints_d'),
     )
 
     ints_d = use.get_result('ints_d')
     use.comment('This example demonstrates chained usage (pt 2).')
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_id='concatenate_ints'),
-        UsageInputs(ints1=ints_d, ints2=ints_b, ints3=ints_c, int1=41, int2=0),
-        UsageOutputNames(concatenated_ints='concatenated_ints'),
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='concatenate_ints'),
+        use.UsageInputs(ints1=ints_d, ints2=ints_b, ints3=ints_c, int1=41,
+                        int2=0),
+        use.UsageOutputNames(concatenated_ints='concatenated_ints'),
     )
 
 
@@ -90,10 +94,12 @@ def typical_pipeline_simple(use):
     mapper = use.init_data('mapper', mapping1_factory)
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_id='typical_pipeline'),
-        UsageInputs(int_sequence=ints, mapping=mapper, do_extra_thing=True),
-        UsageOutputNames(out_map='out_map', left='left', right='right',
-                         left_viz='left_viz', right_viz='right_viz')
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='typical_pipeline'),
+        use.UsageInputs(int_sequence=ints, mapping=mapper,
+                        do_extra_thing=True),
+        use.UsageOutputNames(out_map='out_map', left='left', right='right',
+                             left_viz='left_viz', right_viz='right_viz')
     )
 
 
@@ -102,20 +108,24 @@ def typical_pipeline_complex(use):
     mapper1 = use.init_data('mapper1', mapping1_factory)
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_id='typical_pipeline'),
-        UsageInputs(int_sequence=ints1, mapping=mapper1, do_extra_thing=True),
-        UsageOutputNames(out_map='out_map1', left='left1', right='right1',
-                         left_viz='left_viz1', right_viz='right_viz1')
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='typical_pipeline'),
+        use.UsageInputs(int_sequence=ints1, mapping=mapper1,
+                        do_extra_thing=True),
+        use.UsageOutputNames(out_map='out_map1', left='left1', right='right1',
+                             left_viz='left_viz1', right_viz='right_viz1')
     )
 
     ints2 = use.get_result('left1')
     mapper2 = use.get_result('out_map1')
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin', action_id='typical_pipeline'),
-        UsageInputs(int_sequence=ints2, mapping=mapper2, do_extra_thing=False),
-        UsageOutputNames(out_map='out_map2', left='left2', right='right2',
-                         left_viz='left_viz2', right_viz='right_viz2')
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='typical_pipeline'),
+        use.UsageInputs(int_sequence=ints2, mapping=mapper2,
+                        do_extra_thing=False),
+        use.UsageOutputNames(out_map='out_map2', left='left2', right='right2',
+                             left_viz='left_viz2', right_viz='right_viz2')
     )
 
     right2 = use.get_result('right2')
@@ -136,10 +146,10 @@ def identity_with_metadata_simple(use):
     md = use.init_metadata('md', md1_factory)
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin',
-                    action_id='identity_with_metadata'),
-        UsageInputs(ints=ints, metadata=md),
-        UsageOutputNames(out='out'),
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='identity_with_metadata'),
+        use.UsageInputs(ints=ints, metadata=md),
+        use.UsageOutputNames(out='out'),
     )
 
 
@@ -151,10 +161,10 @@ def identity_with_metadata_merging(use):
     md3 = use.merge_metadata('md3', md1, md2)
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin',
-                    action_id='identity_with_metadata'),
-        UsageInputs(ints=ints, metadata=md3),
-        UsageOutputNames(out='out'),
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='identity_with_metadata'),
+        use.UsageInputs(ints=ints, metadata=md3),
+        use.UsageOutputNames(out='out'),
     )
 
 
@@ -164,10 +174,10 @@ def identity_with_metadata_column_get_mdc(use):
     mdc = use.get_metadata_column('a', md)
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin',
-                    action_id='identity_with_metadata_column'),
-        UsageInputs(ints=ints, metadata=mdc),
-        UsageOutputNames(out='out'),
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='identity_with_metadata_column'),
+        use.UsageInputs(ints=ints, metadata=mdc),
+        use.UsageOutputNames(out='out'),
     )
 
 
@@ -182,10 +192,10 @@ def variadic_input_simple(use):
                                        single_int2)
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin',
-                    action_id='variadic_input_method'),
-        UsageInputs(ints=ints, int_set=int_set, nums={7, 8, 9}),
-        UsageOutputNames(output='out'),
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='variadic_input_method'),
+        use.UsageInputs(ints=ints, int_set=int_set, nums={7, 8, 9}),
+        use.UsageOutputNames(output='out'),
     )
 
 
@@ -193,31 +203,31 @@ def optional_inputs(use):
     ints_a = use.init_data('ints', ints1_factory)
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin',
-                    action_id='optional_artifacts_method'),
-        UsageInputs(ints=ints_a, num1=1),
-        UsageOutputNames(output='output'),
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='optional_artifacts_method'),
+        use.UsageInputs(ints=ints_a, num1=1),
+        use.UsageOutputNames(output='output'),
     )
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin',
-                    action_id='optional_artifacts_method'),
-        UsageInputs(ints=ints_a, num1=1, num2=2),
-        UsageOutputNames(output='output'),
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='optional_artifacts_method'),
+        use.UsageInputs(ints=ints_a, num1=1, num2=2),
+        use.UsageOutputNames(output='output'),
     )
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin',
-                    action_id='optional_artifacts_method'),
-        UsageInputs(ints=ints_a, num1=1, num2=None),
-        UsageOutputNames(output='ints_b'),
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='optional_artifacts_method'),
+        use.UsageInputs(ints=ints_a, num1=1, num2=None),
+        use.UsageOutputNames(output='ints_b'),
     )
 
     ints_b = use.get_result('ints_b')
 
     use.action(
-        UsageAction(plugin_id='dummy_plugin',
-                    action_id='optional_artifacts_method'),
-        UsageInputs(ints=ints_a, optional1=ints_b, num1=3, num2=4),
-        UsageOutputNames(output='output'),
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='optional_artifacts_method'),
+        use.UsageInputs(ints=ints_a, optional1=ints_b, num1=3, num2=4),
+        use.UsageOutputNames(output='output'),
     )

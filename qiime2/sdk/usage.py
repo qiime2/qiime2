@@ -496,6 +496,10 @@ class Usage(metaclass=abc.ABCMeta):
     customized for the interface or implementation.
     """
 
+    UsageAction = UsageAction
+    UsageInputs = UsageInputs
+    UsageOutputNames = UsageOutputNames
+
     def __init__(self):
         self._scope = Scope()
 
