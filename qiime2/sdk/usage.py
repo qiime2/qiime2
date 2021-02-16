@@ -637,7 +637,8 @@ class Usage(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     def comment(self, text: str):
-        return self._comment_(text)
+        comment = self._comment_(text)
+        return self._push_record(str(comment), comment, 'comment')
 
     def _comment_(self, text: str):
         raise NotImplementedError
@@ -738,69 +739,67 @@ class DiagnosticUsage(Usage):
     """
     def __init__(self):
         super().__init__()
-        self.recorder = []
 
     def _init_data_(self, ref, factory):
-        self.recorder.append({
+        return {
             'source': 'init_data',
             'ref': ref,
-        })
-        return ref
+        }
 
     def _init_metadata_(self, ref, factory):
-        self.recorder.append({
+        return {
             'source': 'init_data',
             'ref': ref,
-        })
-        return ref
+        }
 
     def _init_data_collection_(self, ref, collection_type, records):
-        self.recorder.append({
+        return {
             'source': 'init_data_collection',
             'ref': ref,
-        })
-        return ref, collection_type([i.ref for i in records])
+        },  collection_type([i.ref for i in records])
 
     def _merge_metadata_(self, ref, records):
-        self.recorder.append({
+        return {
             'source': 'merge_metadata',
             'ref': ref,
             'records_refs': [r.ref for r in records],
-        })
-        return ref
+        }
 
     def _get_metadata_column_(self, column_name, record):
-        self.recorder.append({
+        return {
             'source': 'get_metadata_column',
             'ref': column_name,
             'record_ref': record.ref,
             'column_name': column_name,
-        })
-        return column_name
+        }
 
     def _comment_(self, text):
-        self.recorder.append({
+        return {
             'source': 'comment',
             'text': text,
-        })
+        }
 
     def _action_(self, action, input_opts, output_opts):
-        self.recorder.append({
-            'source': 'action',
-            'action': action,
-            'input_opts': input_opts,
-            'output_opts': output_opts,
-        })
-        return output_opts
+        results = dict()
+        for output_opt in output_opts.keys():
+            results[output_opt] = {
+                'source': 'action',
+                'plugin_id': action.plugin_id,
+                'action_id': action.action_id,
+                'input_opts': input_opts,
+                'output_opts': output_opts,
+                'output_opt': output_opt,
+            }
+        return results
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
-        self.recorder.append({
+        return {
             'source': 'assert_has_line_matching',
             'ref': ref,
             'label': label,
             'path': path,
             'expression': expression,
-        })
+        }
 
 
 class ExecutionUsage(Usage):
