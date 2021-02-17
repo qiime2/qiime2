@@ -1,0 +1,50 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout source
+      uses: actions/checkout@v2
+
+    - name: set up python 3.6
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.6
+
+    - name: install dependencies
+      run: python -m pip install --upgrade pip
+
+    - name: lint
+      run: |
+        pip install -q https://github.com/qiime2/q2lint/archive/master.zip
+        q2lint
+        pip install -q flake8
+        flake8
+
+  build-and-test:
+    needs: lint
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: checkout source
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: set up git repo for versioneer
+      run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+
+    - uses: qiime2/action-library-packaging@alpha1
+      with:
+        package-name: qiime2
+        build-target: staging
+        additional-tests: QIIMETEST= py.test --pyargs qiime2
