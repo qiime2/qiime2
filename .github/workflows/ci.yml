@@ -51,4 +51,4 @@ jobs:
       with:
         package-name: qiime2
         build-target: staging
-        additional-tests: QIIMETEST= py.test --pyargs qiime2 --capture=tee-sys
+        additional-tests: QIIMETEST= py.test --pyargs qiime2
