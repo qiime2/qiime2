@@ -317,7 +317,12 @@ class ProvenanceCapture:
         self.write_action_yaml()
         self.write_citations_bib()
 
-        self.path.rename(final_path)
+        # Certain networked filesystems will experience a race
+        # condition on `rename`, so fall back to copying.
+        try:
+            self.path.rename(final_path)
+        except FileExistsError:
+            distutils.dir_util.copy_tree(str(self.path), str(final_path))
 
     def fork(self):
         forked = copy.copy(self)

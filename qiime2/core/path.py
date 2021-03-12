@@ -27,14 +27,22 @@ class OwnedPath(_ConcretePath):
         self._user_owned = True
         return self
 
+    def _copy_dir_or_file(self, other):
+        if self.is_dir():
+            return distutils.dir_util.copy_tree(str(self), str(other))
+        else:
+            return shutil.copy(str(self), str(other))
+
     def _move_or_copy(self, other):
         if self._user_owned:
-            if self.is_dir():
-                return distutils.dir_util.copy_tree(str(self), str(other))
-            else:
-                return shutil.copy(str(self), str(other))
+            return self._copy_dir_or_file(other)
         else:
-            return _ConcretePath.rename(self, other)
+            # Certain networked filesystems will experience a race
+            # condition on `rename`, so fall back to copying.
+            try:
+                return _ConcretePath.rename(self, other)
+            except FileExistsError:
+                return self._copy_dir_or_file(other)
 
 
 class InPath(OwnedPath):
