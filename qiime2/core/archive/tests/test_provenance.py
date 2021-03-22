@@ -262,6 +262,20 @@ class TestProvenanceIntegration(unittest.TestCase):
         self.assertEqual(obs, exp)
         self.assertTrue(mocked_tzlocal.called)
 
+    def test_prov_rename(self):
+        viz, = dummy_plugin.actions.no_input_viz()
+
+        viz_p_dir = viz._archiver.provenance_dir
+        self.assertTrue(viz_p_dir.exists())
+
+    @mock.patch('qiime2.core.path.ProvenancePath.rename',
+                side_effect=FileExistsError)
+    def test_prov_rename_file_exists(self, _):
+        viz, = dummy_plugin.actions.no_input_viz()
+
+        viz_p_dir = viz._archiver.provenance_dir
+        self.assertTrue(viz_p_dir.exists())
+
 
 if __name__ == '__main__':
     unittest.main()
