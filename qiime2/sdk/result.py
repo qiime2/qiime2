@@ -11,6 +11,7 @@ import shutil
 import collections
 import distutils.dir_util
 import pathlib
+from typing import Union
 
 import qiime2.metadata
 import qiime2.plugin
@@ -282,10 +283,31 @@ class Artifact(Result):
                 "Artifact %r cannot be viewed as QIIME 2 Metadata." % self)
 
         from_type = transform.ModelType.from_view_type(self.format)
-        to_type = transform.ModelType.from_view_type(view_type)
 
-        transformation = from_type.make_transformation(to_type,
-                                                       recorder=recorder)
+        if isinstance(view_type, type(Union)):
+            transformation = None
+            # TODO: in Python >=3.8 replace with typing.get_args(view_type)
+            for arg in view_type.__args__:
+                to_type = transform.ModelType.from_view_type(arg)
+                try:
+                    transformation = from_type.make_transformation(
+                        to_type, recorder=recorder)
+                    if transformation:
+                        break
+                except Exception as e:
+                    if str(e).startswith("No transformation from"):
+                        continue
+                    else:
+                        raise e
+            if not transformation:
+                raise Exception(
+                    "No transformation into either of %s was found" %
+                    ", ".join([str(x) for x in view_type.__args__])
+                )
+        else:
+            to_type = transform.ModelType.from_view_type(view_type)
+            transformation = from_type.make_transformation(to_type,
+                                                           recorder=recorder)
         result = transformation(self._archiver.data_dir)
 
         if view_type is qiime2.Metadata:

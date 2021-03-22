@@ -12,6 +12,8 @@ import tempfile
 import unittest
 import uuid
 import pathlib
+from typing import Union
+
 import pkg_resources
 
 import pandas as pd
@@ -74,6 +76,55 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
         # Can produce same view if called again.
         self.assertEqual(artifact.view(list), [-1, 42, 0, 43])
+
+    def test_from_view_union(self):
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
+                                       self.provenance_capture)
+
+        self.assertEqual(artifact.type, FourInts)
+        # We don't know what the UUID is because it's generated within
+        # Artifact._from_view.
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+        self.assertEqual(artifact.view(Union[list, str]), [-1, 42, 0, 43])
+        # Can produce same view if called again.
+        self.assertEqual(artifact.view(Union[list, str]), [-1, 42, 0, 43])
+
+    def test_from_view_union_async(self):
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
+                                       self.provenance_capture)
+
+        self.assertEqual(artifact.type, FourInts)
+        # We don't know what the UUID is because it's generated within
+        # Artifact._from_view.
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+        self.assertEqual(artifact.view(Union[list, str]), [-1, 42, 0, 43])
+        # Can produce same view if called again.
+        self.assertEqual(artifact.view(Union[list, str]), [-1, 42, 0, 43])
+
+    def test_from_view_union_reordered(self):
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
+                                       self.provenance_capture)
+
+        self.assertEqual(artifact.type, FourInts)
+        # We don't know what the UUID is because it's generated within
+        # Artifact._from_view.
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+        self.assertEqual(artifact.view(Union[str, list]), [-1, 42, 0, 43])
+        # Can produce same view if called again.
+        self.assertEqual(artifact.view(Union[str, list]), [-1, 42, 0, 43])
+
+    def test_from_view_union_not_valid(self):
+        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
+                                       self.provenance_capture)
+
+        self.assertEqual(artifact.type, FourInts)
+        # We don't know what the UUID is because it's generated within
+        # Artifact._from_view.
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+        with self.assertRaisesRegex(
+                Exception,
+                'No transformation into either of'):
+            self.assertEqual(artifact.view(Union[str, dict]), [-1, 42, 0, 43])
 
     def test_from_view_different_type_with_multiple_view_types(self):
         artifact = Artifact._from_view(IntSequence1, [42, 42, 43, -999, 42],

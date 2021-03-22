@@ -40,7 +40,7 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      params_only_method, no_input_method, deprecated_method,
                      optional_artifacts_method, long_description_method,
                      docstring_order_method, variadic_input_method,
-                     unioned_primitives, type_match_list_and_set)
+                     unioned_primitives, type_match_list_and_set, union_inputs)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -691,6 +691,27 @@ dummy_plugin.pipelines.register_function(
     name='Test different ways of failing',
     description=('This is useful to make sure all of the intermediate stuff is'
                  ' cleaned up the way it should be.')
+)
+
+dummy_plugin.methods.register_function(
+    function=union_inputs,
+    inputs={
+        'ints1': IntSequence1,
+        'ints2': IntSequence2,
+    },
+    parameters={},
+    outputs=[
+        ('ints', IntSequence1)
+    ],
+    name='Inputs with typing.Union',
+    input_descriptions={
+        'ints1': 'An int artifact',
+        'ints2': 'An int artifact'
+    },
+    output_descriptions={
+        'ints': '[0]',
+    },
+    description='This method accepts a list or dict as first input.'
 )
 
 import_module('qiime2.core.testing.mapped')
