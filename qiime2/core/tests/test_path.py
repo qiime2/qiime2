@@ -62,11 +62,14 @@ class TestOwnedPath(unittest.TestCase):
         d._move_or_copy(self.to_dir)
 
         # since from_dir is not owned, but the network fs race condition crops
-        # up, _move_or_copy should copy, not move
-        self.assertTrue(os.path.exists(os.path.join(self.from_dir, 'foo.txt')))
+        # up, _move_or_copy should copy, not move, but then we still ensure
+        # that the original path has been cleaned up
+        self.assertFalse(os.path.exists(os.path.join(self.from_dir,
+                                                     'foo.txt')))
         self.assertTrue(os.path.exists(os.path.join(self.to_dir, 'foo.txt')))
 
-        shutil.rmtree(self.from_dir)
+        with self.assertRaises(FileNotFoundError):
+            shutil.rmtree(self.from_dir)
         shutil.rmtree(self.to_dir)
 
 

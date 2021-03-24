@@ -33,6 +33,12 @@ class OwnedPath(_ConcretePath):
         else:
             return shutil.copy(str(self), str(other))
 
+    def _destruct(self):
+        if self.is_dir():
+            distutils.dir_util.remove_tree(str(self))
+        else:
+            self.unlink()
+
     def _move_or_copy(self, other):
         if self._user_owned:
             return self._copy_dir_or_file(other)
@@ -42,7 +48,9 @@ class OwnedPath(_ConcretePath):
             try:
                 return _ConcretePath.rename(self, other)
             except FileExistsError:
-                return self._copy_dir_or_file(other)
+                copied = self._copy_dir_or_file(other)
+                self._destruct()
+                return copied
 
 
 class InPath(OwnedPath):

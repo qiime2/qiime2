@@ -274,7 +274,9 @@ class TestProvenanceIntegration(unittest.TestCase):
         viz, = dummy_plugin.actions.no_input_viz()
 
         viz_p_dir = viz._archiver.provenance_dir
-        self.assertTrue(viz_p_dir.exists())
+
+        with (viz_p_dir / 'action' / 'action.yaml').open() as fh:
+            self.assertIn('output-name: visualization', fh.read())
 
 
 if __name__ == '__main__':
