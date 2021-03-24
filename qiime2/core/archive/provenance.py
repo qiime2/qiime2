@@ -324,8 +324,6 @@ class ProvenanceCapture:
         except FileExistsError:
             distutils.dir_util.copy_tree(str(self.path), str(final_path))
             distutils.dir_util.remove_tree(str(self.path))
-            # TODO: update self.path? This doesn't seem to work as hoped
-            # self.path = qiime2.core.path.ProvenancePath(str(final_path))
 
     def fork(self):
         forked = copy.copy(self)
