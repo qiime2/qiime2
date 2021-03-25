@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import os
 import time
 import collections
 import pkg_resources
@@ -320,7 +321,7 @@ class ProvenanceCapture:
         # Certain networked filesystems will experience a race
         # condition on `rename`, so fall back to copying.
         try:
-            self.path.rename(final_path)
+            os.rename(self.path, final_path)
         except FileExistsError:
             distutils.dir_util.copy_tree(str(self.path), str(final_path))
             distutils.dir_util.remove_tree(str(self.path))

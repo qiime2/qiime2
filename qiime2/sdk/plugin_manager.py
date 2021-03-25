@@ -197,7 +197,7 @@ class PluginManager:
         the user and the semantic type. The return is a dictionary of filtered
         formats keyed on their string names.
         """
-        if filter is not None and filter not in GetFormatFilters:
+        if filter is not None and not isinstance(filter, GetFormatFilters):
             raise ValueError("The format filter provided: %s is not "
                              "valid.", (filter))
 
