@@ -9,6 +9,7 @@
 import os
 import time
 import collections
+import collections.abc
 import pkg_resources
 import uuid
 import copy
@@ -410,7 +411,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
     def add_input(self, name, input):
         if input is None:
             self.inputs[name] = None
-        elif isinstance(input, collections.Iterable):
+        elif isinstance(input, collections.abc.Iterable):
             values = []
             for artifact in input:
                 record = self.add_ancestor(artifact)

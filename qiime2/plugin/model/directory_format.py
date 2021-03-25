@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import re
+import sys
 import pathlib
 
 from qiime2.core import transform
@@ -195,6 +196,7 @@ def SingleFileDirectoryFormat(name, pathspec, format):
     # (arguably the code is going to be broken if defined dynamically anyways,
     # but better to find that out later than writing in the module namespace
     # even if it isn't called module-level [which is must be!])
-    df = globals()[name] = type(name, (SingleFileDirectoryFormatBase,),
-                                {'file': File(pathspec, format=format)})
+    df = type(name, (SingleFileDirectoryFormatBase,),
+              {'file': File(pathspec, format=format)})
+    df.__module__ = sys._getframe(1).f_globals.get('__name__', '__main__')
     return df
