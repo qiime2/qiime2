@@ -11,17 +11,16 @@ import collections
 import pkg_resources
 import uuid
 import copy
-import shutil
 import sys
 from datetime import datetime, timezone
 
-import distutils
 import yaml
 import tzlocal
 import dateutil.relativedelta as relativedelta
 
 import qiime2
-import qiime2.core.util as util
+import qiime2.util as util
+import qiime2.core.util as cutil
 from qiime2.core.cite import Citations
 
 
@@ -162,9 +161,8 @@ class ProvenanceCapture:
         # (and so are its ancestors)
         if not destination.exists():
             # Handle root node of ancestor
-            shutil.copytree(
-                str(other_path), str(destination),
-                ignore=shutil.ignore_patterns(self.ANCESTOR_DIR + '*'))
+            util.graft(other_path, destination,
+                       ignore=lambda d: self.ANCESTOR_DIR in d.name)
 
             # Handle ancestral nodes of ancestor
             grandcestor_path = other_path / self.ANCESTOR_DIR
@@ -172,7 +170,7 @@ class ProvenanceCapture:
                 for grandcestor in grandcestor_path.iterdir():
                     destination = self.ancestor_dir / grandcestor.name
                     if not destination.exists():
-                        shutil.copytree(str(grandcestor), str(destination))
+                        util.graft(grandcestor, destination)
 
         return str(artifact.uuid)
 
@@ -260,7 +258,7 @@ class ProvenanceCapture:
         runtime['start'] = start = _ts_to_date(self.start)
         runtime['end'] = end = _ts_to_date(self.end)
         runtime['duration'] = \
-            util.duration_time(relativedelta.relativedelta(end, start))
+            cutil.duration_time(relativedelta.relativedelta(end, start))
 
         return execution
 
@@ -311,19 +309,11 @@ class ProvenanceCapture:
     def finalize(self, final_path, node_members):
         self.end = time.time()
 
-        for member in node_members:
-            shutil.copy(str(member), str(self.path))
-
         self.write_action_yaml()
         self.write_citations_bib()
 
-        # Certain networked filesystems will experience a race
-        # condition on `rename`, so fall back to copying.
-        try:
-            self.path.rename(final_path)
-        except FileExistsError:
-            distutils.dir_util.copy_tree(str(self.path), str(final_path))
-            distutils.dir_util.remove_tree(str(self.path))
+        util.graft_iterable(node_members, self.path)
+        util.graft(self.path, final_path, merge=True, remove_src=True)
 
     def fork(self):
         forked = copy.copy(self)
@@ -334,7 +324,7 @@ class ProvenanceCapture:
         # create a copy of the backing dir so factory (the hard stuff is
         # mostly done by this point)
         forked._build_paths()
-        distutils.dir_util.copy_tree(str(self.path), str(forked.path))
+        util.graft(self.path, forked.path, merge=True)
 
         return forked
 

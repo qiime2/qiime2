@@ -74,23 +74,165 @@ def duplicate(src, dst):
     Unlike copyfile, this will not overwrite the destination if it exists.
 
     """
-    if os.path.isdir(src):
-        # os.link will give a permission error
+    graft_file(src, dst)
+
+
+def graft(src, dst, *, merge=False, overwrite=False, graft_within=False,
+          remove_src=False, mkdirs=False, ignore=None):
+    """Graft inodes onto another part of the filesystem (copying as needed).
+
+    Your one-stop shop for migrating files from point A to point B (unless you
+    really mean to duplicate the data on disk, in which case, don't use this).
+
+    Cheat sheet:
+        TODO
+
+    Parameters
+    ----------
+    src : path (file or directory)
+        The source to move, may be deleted by `remove_src`
+    dst : path (file or directory)
+        The destination recieving new files, may exist if `merge` or
+        `graft_within` are True, otherwise, should not yet exist.
+    merge : bool
+        `src` must be a directory. If so, then the contents
+        of `src` will be merged into `dst` (if it exists).
+    overwrite : bool
+        Whether files will be overwritten in the engraftment. This will not
+        cause files to be replaced with directories or vice versa. Directories
+        will never be overwritten (use `merge` or remove them before calling
+        `graft`).
+    graft_within : bool
+        Places `src` *within* the `dst` directory. If `dst` does not exist,
+        it will be assumed to be a directory.
+    remove_src : bool
+        Whether to remove the source file/directory after finishing (replicates
+        `os.rename` behavior)
+    mkdirs : bool
+        Whether to create parent directories of `dst` as needed.
+    ignore : filter
+        ....
+
+    Returns
+    -------
+    A list of (action, src, dst).
+    """
+    system_actions = []
+    if dst == src:
+        raise ValueError("destination cannot be the same as the source")
+
+    if os.path.commonpath([src, dst]) == os.path.normpath(src):
+        raise ValueError("destination cannot be nested within source")
+
+    if not os.path.exists(src):
+        raise OSError(errno.ENOENT, 'No such file or directory', src)
+
+    if mkdirs:
+        system_actions.append(
+            lambda: os.makedirs(os.path.dirname(dst), exist_ok=True))
+    elif os.path.dirname(dst) and not os.path.exists(os.path.dirname(dst)):
+        raise OSError(errno.ENOENT, 'No such directory', os.path.dirname(dst))
+
+    if graft_within:
+        if os.path.isfile(dst):
+            raise OSError(errno.ENOTDIR, "Not a directory", dst)
+        elif not os.path.exists(dst):
+            system_actions.append(lambda: os.mkdir(dst))
+
+        dst = os.path.join(dst, os.path.basename(src))
+
+    # dst may have changed
+    if os.path.isdir(dst) and os.path.isdir(src) and not merge:
+        raise ValueError("Cannot combine directory into an existing directory"
+                         " without explicit `merge`. %s -> %s" % (src, dst))
+    if merge and os.path.isfile(src):
+        raise ValueError("Cannot use `merge` with a single file, use"
+                         " `overwrite` instead.")
+
+    if os.path.isfile(dst) and os.path.isdir(src):
         raise OSError(errno.EISDIR, "Is a directory", src)
-    if os.path.isdir(dst):
-        # os.link will give a FileExists error
+
+    # most validation finished
+    for action in system_actions:
+        action()
+
+    res = []
+    if os.path.isdir(src):
+        if remove_src and not merge:
+            res.append(_checked_call(os.rename, src, dst))
+        if not res:
+            if not os.path.isdir(dst):
+                os.mkdir(dst)
+            for dir_entry in os.scandir(src):
+                if ignore is not None and ignore(dir_entry):
+                    continue
+                merge = merge and dir_entry.is_dir()
+                res.extend(graft(dir_entry.path, dst, graft_within=True,
+                                 overwrite=overwrite, merge=merge,
+                                 ignore=ignore))
+
+        if remove_src and os.path.exists(src):
+            shutil.rmtree(src)
+
+    else:
+        res.append(graft_file(src, dst, overwrite=overwrite,
+                              remove_src=remove_src))
+    return res
+
+
+def _checked_call(func, src, dst, reraise=False):
+    try:
+        func(src, dst)
+    except OSError:
+        if reraise:
+            raise
+        return False
+    return (func, src, dst)
+
+
+def graft_file(src, dst, overwrite=False, remove_src=False):
+    # Validate source
+    if not os.path.exists(src):
+        raise OSError(errno.ENOENT, 'No such file', src)
+    elif os.path.isdir(src):
+        raise OSError(errno.EISDIR, "Is a directory", src)
+
+    # Validate destination
+    if os.path.isfile(dst):
+        if overwrite:
+            os.remove(dst)
+        else:
+            raise OSError(errno.EEXIST, "File exists", dst)
+    elif os.path.isdir(dst):
         raise OSError(errno.EISDIR, "Is a directory", dst)
 
-    if os.path.exists(dst):
-        # shutil.copyfile will overwrite the existing file
-        raise OSError(errno.EEXIST, "File exists", src, "File exists", dst)
+    # Strategy: try, try, try, and try again
+    succeeded = False
+    # If we can destroy the source, then a rename is the fastest
+    if remove_src:
+        succeeded = _checked_call(os.rename, src, dst)
+    # Try a hard-link
+    if not succeeded:
+        succeeded = _checked_call(os.link, src, dst)
+    # Try a file copy
+    if not succeeded:
+        succeeded = _checked_call(shutil.copyfile, src, dst,
+                                  reraise=True)
+    # The engraftment is finished, cleanup source if needed
+    if remove_src and os.path.exists(src):
+        os.remove(src)
 
-    try:
-        os.link(src, dst)
-    except OSError as e:
-        if e.errno == errno.EXDEV:  # Invalid cross-device link
-            shutil.copyfile(src, dst)
-        elif e.errno == errno.EPERM:  # Permissions/ownership error
-            shutil.copyfile(src, dst)
-        else:
-            raise
+    return succeeded
+
+
+def graft_iterable(iterable, dst, overwrite=False, remove_src=False,
+                   mkdirs=False, ignore=None):
+    for src in iterable:
+        merge = True
+        if os.path.isfile(src):
+            merge = False
+        graft(src, dst, merge=merge, graft_within=True,
+              overwrite=overwrite,
+              remove_src=remove_src,
+              mkdirs=mkdirs,
+              ignore=ignore)

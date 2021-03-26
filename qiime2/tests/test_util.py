@@ -61,14 +61,6 @@ class TestDuplicate(unittest.TestCase):
         with self.assertRaisesRegex(IsADirectoryError, self.dir):
             util.duplicate(self.src, self.dir)
 
-    @mock.patch('qiime2.util.os.link', side_effect=EACCES)
-    def test_perm_error_EACCES(self, mocked_link):
-        with self.assertRaisesRegex(
-                PermissionError, "insufficient r/w permissions"):
-            util.duplicate(self.src, self.dst1)
-
-        assert mocked_link.called
-
     @mock.patch('qiime2.util.os.link', side_effect=EPERM)
     def test_perm_error_EPERM(self, mocked_link):
         util.duplicate(self.src, self.dst1)
