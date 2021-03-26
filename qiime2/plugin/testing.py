@@ -237,6 +237,7 @@ class TestPluginBase(unittest.TestCase):
             source_path = self.temp_dir.name
             for filename in filenames:
                 filepath = self.get_data_path(filename)
+                # make a copy, who knows what will happen to these poor files
                 shutil.copy(filepath, source_path)
         input = source_format(source_path, mode='r')
 

@@ -6,12 +6,10 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import os
-import shutil
 import collections
-import distutils.dir_util
 import pathlib
 
+import qiime2.util as util
 import qiime2.metadata
 import qiime2.plugin
 import qiime2.sdk
@@ -19,7 +17,7 @@ import qiime2.core.type
 import qiime2.core.transform as transform
 import qiime2.core.archive as archive
 import qiime2.plugin.model as model
-import qiime2.core.util as util
+import qiime2.core.util as cutil
 import qiime2.core.exceptions as exceptions
 
 # Note: Result, Artifact, and Visualization classes are in this file to avoid
@@ -133,8 +131,7 @@ class Result:
         return not (self == other)
 
     def export_data(self, output_dir):
-        distutils.dir_util.copy_tree(
-            str(self._archiver.data_dir), str(output_dir))
+        util.graft(self._archiver.data_dir, output_dir, merge=True)
         # Return None for now, although future implementations that include
         # format tranformations may return the invoked transformers
         return None
@@ -151,11 +148,7 @@ class Result:
 
     def _alias(self, provenance_capture):
         def clone_original(into):
-            # directory is empty, this function is meant to fix that, so we
-            # can rmdir so that copytree is happy
-            into.rmdir()
-            shutil.copytree(str(self._archiver.data_dir), str(into),
-                            copy_function=os.link)  # Use hardlinks
+            util.graft(self._archiver.data_dir, into, merge=True)
 
         cls = type(self)
         alias = cls.__new__(cls)
@@ -228,9 +221,9 @@ class Artifact(Result):
         if is_format:
             path = pathlib.Path(view)
             if path.is_file():
-                md5sums = {path.name: util.md5sum(path)}
+                md5sums = {path.name: cutil.md5sum(path)}
             elif path.is_dir():
-                md5sums = util.md5sum_directory(path)
+                md5sums = cutil.md5sum_directory(path)
             else:
                 raise qiime2.plugin.ValidationError(
                     "Path '%s' does not exist." % path)
@@ -330,10 +323,8 @@ class Visualization(Result):
 
     @classmethod
     def _from_data_dir(cls, data_dir, provenance_capture):
-        # shutil.copytree doesn't allow the destination directory to exist.
         def data_initializer(destination):
-            return distutils.dir_util.copy_tree(
-                str(data_dir), str(destination))
+            util.graft(data_dir, destination, merge=True)
 
         viz = cls.__new__(cls)
         viz._archiver = archive.Archiver.from_data(

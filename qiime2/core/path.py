@@ -9,9 +9,9 @@
 import os
 import pathlib
 import shutil
-import distutils
 import tempfile
 import weakref
+import qiime2.util as util
 
 
 _ConcretePath = type(pathlib.Path())
@@ -27,30 +27,15 @@ class OwnedPath(_ConcretePath):
         self._user_owned = True
         return self
 
-    def _copy_dir_or_file(self, other):
-        if self.is_dir():
-            return distutils.dir_util.copy_tree(str(self), str(other))
-        else:
-            return shutil.copy(str(self), str(other))
-
     def _destruct(self):
         if self.is_dir():
-            distutils.dir_util.remove_tree(str(self))
+            shutil.rmtree(self)
         else:
             self.unlink()
 
     def _move_or_copy(self, other):
-        if self._user_owned:
-            return self._copy_dir_or_file(other)
-        else:
-            # Certain networked filesystems will experience a race
-            # condition on `rename`, so fall back to copying.
-            try:
-                return _ConcretePath.rename(self, other)
-            except FileExistsError:
-                copied = self._copy_dir_or_file(other)
-                self._destruct()
-                return copied
+        util.graft(self, other,
+                   remove_src=not self._user_owned, merge=self.is_dir())
 
 
 class InPath(OwnedPath):
