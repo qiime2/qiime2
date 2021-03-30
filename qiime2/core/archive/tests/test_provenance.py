@@ -115,7 +115,7 @@ class TestProvenanceIntegration(unittest.TestCase):
         new_merged_md = qiime2.Metadata.load(
             str(p_dir / 'artifacts' / str(b.uuid) / 'action' / 'metadata.tsv'))
         pd.testing.assert_frame_equal(new_merged_md.to_dataframe(),
-                               merged_md.to_dataframe())
+                                      merged_md.to_dataframe())
 
         # Check that provenance of originating metadata artifacts exists
         self.assertTrue((p_dir / 'artifacts' / str(md_artifact1.uuid) /
