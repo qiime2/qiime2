@@ -45,8 +45,8 @@ class TestInvalidMetadataColumnConstruction(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,
                                     'DummyMetadataColumn.*at least one ID'):
             DummyMetadataColumn(pd.Series([], name='col',
-                                          index=pd.Index([], name='id',
-                                          dtype=object)))
+                                          index=pd.Index([], name='id'),
+                                          dtype=object))
 
     def test_invalid_id_header(self):
         # default index name
