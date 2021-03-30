@@ -11,7 +11,6 @@ import re
 import unittest.mock as mock
 
 import pandas as pd
-import pandas.util.testing as pdt
 
 import qiime2
 from qiime2.plugins import dummy_plugin
@@ -36,7 +35,7 @@ class TestProvenanceIntegration(unittest.TestCase):
         new_m = qiime2.Metadata.load(
             str(p_dir / 'artifacts' / str(b.uuid) / 'action' / 'metadata.tsv'))
 
-        pdt.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe())
+        pd.testing.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe())
 
         with (p_dir / 'action' / 'metadata.tsv').open() as fh:
             self.assertEqual(
@@ -72,7 +71,7 @@ class TestProvenanceIntegration(unittest.TestCase):
         new_m = qiime2.Metadata.load(
             str(p_dir / 'artifacts' / str(b.uuid) / 'action' / 'metadata.tsv'))
 
-        pdt.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe())
+        pd.testing.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe())
 
         # Check that provenance of originating metadata artifact exists
         self.assertTrue((p_dir / 'artifacts' / str(metadata_artifact_1.uuid) /
@@ -115,8 +114,8 @@ class TestProvenanceIntegration(unittest.TestCase):
 
         new_merged_md = qiime2.Metadata.load(
             str(p_dir / 'artifacts' / str(b.uuid) / 'action' / 'metadata.tsv'))
-        pdt.assert_frame_equal(new_merged_md.to_dataframe(),
-                               merged_md.to_dataframe())
+        pd.testing.assert_frame_equal(new_merged_md.to_dataframe(),
+                                      merged_md.to_dataframe())
 
         # Check that provenance of originating metadata artifacts exists
         self.assertTrue((p_dir / 'artifacts' / str(md_artifact1.uuid) /
