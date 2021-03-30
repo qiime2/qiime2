@@ -529,7 +529,7 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
         md_no_artifact = Metadata(md_from_artifact.to_dataframe())
 
         pd.testing.assert_frame_equal(md_from_artifact.to_dataframe(),
-                               md_no_artifact.to_dataframe())
+                                      md_no_artifact.to_dataframe())
         self.assertReallyNotEqual(md_from_artifact, md_no_artifact)
 
     def test_artifact_mismatch(self):
