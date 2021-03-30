@@ -52,8 +52,7 @@ class TestInvalidMetadataColumnConstruction(unittest.TestCase):
         # default index name
         with self.assertRaisesRegex(ValueError, r'Index\.name.*None'):
             DummyMetadataColumn(pd.Series([1, 2, 3], name='col',
-                                          index=pd.Index(['a', 'b', 'c'],
-                                          dtype=object)))
+                                          index=pd.Index(['a', 'b', 'c'])))
 
         with self.assertRaisesRegex(ValueError, r'Index\.name.*my-id-header'):
             DummyMetadataColumn(pd.Series(
