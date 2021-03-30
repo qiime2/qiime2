@@ -11,7 +11,6 @@ import tempfile
 import unittest
 
 import pandas as pd
-import pandas.util.testing as pdt
 import numpy as np
 
 from qiime2 import Artifact
@@ -46,7 +45,8 @@ class TestInvalidMetadataColumnConstruction(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,
                                     'DummyMetadataColumn.*at least one ID'):
             DummyMetadataColumn(pd.Series([], name='col',
-                                          index=pd.Index([], name='id')))
+                                          index=pd.Index([], name='id',
+                                          dtype=object)))
 
     def test_invalid_id_header(self):
         # default index name
