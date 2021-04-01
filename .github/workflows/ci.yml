@@ -8,7 +8,7 @@ on:
   pull_request:
   push:
     branches:
-      - py38
+      - master
 
 jobs:
   lint:
