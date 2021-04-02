@@ -8,7 +8,7 @@
 
 import pickle
 import unittest
-import collections
+import collections.abc
 
 import qiime2.core.type.grammar as grammar
 import qiime2.core.type.template as template
@@ -291,7 +291,7 @@ class TestTypeExp(unittest.TestCase):
         Z = MockTemplate('Z')
         P = MockPredicate('P')
 
-        self.assertIsInstance(X, collections.Hashable)
+        self.assertIsInstance(X, collections.abc.Hashable)
         # There really shouldn't be a collision between these:
         self.assertNotEqual(hash(X), hash(Z % P))
 

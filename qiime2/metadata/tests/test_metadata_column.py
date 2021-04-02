@@ -11,7 +11,6 @@ import tempfile
 import unittest
 
 import pandas as pd
-import pandas.util.testing as pdt
 import numpy as np
 
 from qiime2 import Artifact
@@ -46,13 +45,15 @@ class TestInvalidMetadataColumnConstruction(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,
                                     'DummyMetadataColumn.*at least one ID'):
             DummyMetadataColumn(pd.Series([], name='col',
-                                          index=pd.Index([], name='id')))
+                                          index=pd.Index([], name='id'),
+                                          dtype=object))
 
     def test_invalid_id_header(self):
         # default index name
         with self.assertRaisesRegex(ValueError, r'Index\.name.*None'):
             DummyMetadataColumn(pd.Series([1, 2, 3], name='col',
-                                          index=pd.Index(['a', 'b', 'c'])))
+                                          index=pd.Index(['a', 'b', 'c'],
+                                          dtype=object)))
 
         with self.assertRaisesRegex(ValueError, r'Index\.name.*my-id-header'):
             DummyMetadataColumn(pd.Series(
@@ -458,7 +459,7 @@ class TestToSeries(unittest.TestCase):
 
         obs = mdc.to_series()
 
-        pdt.assert_series_equal(obs, series)
+        pd.testing.assert_series_equal(obs, series)
 
     def test_multiple_ids(self):
         series = pd.Series([-1.5, np.nan, 42], name='col',
@@ -467,7 +468,7 @@ class TestToSeries(unittest.TestCase):
 
         obs = mdc.to_series()
 
-        pdt.assert_series_equal(obs, series)
+        pd.testing.assert_series_equal(obs, series)
 
     def test_id_header_preserved(self):
         series = pd.Series(
@@ -477,7 +478,7 @@ class TestToSeries(unittest.TestCase):
 
         obs = mdc.to_series()
 
-        pdt.assert_series_equal(obs, series)
+        pd.testing.assert_series_equal(obs, series)
         self.assertEqual(obs.index.name, '#OTU ID')
 
     def test_series_copy(self):
@@ -487,7 +488,7 @@ class TestToSeries(unittest.TestCase):
 
         obs = mdc.to_series()
 
-        pdt.assert_series_equal(obs, series)
+        pd.testing.assert_series_equal(obs, series)
         self.assertIsNot(obs, series)
 
 
@@ -501,7 +502,7 @@ class TestToDataframe(unittest.TestCase):
 
         exp = pd.DataFrame({'col': [0.0]}, index=pd.Index(['id1'], name='id'))
 
-        pdt.assert_frame_equal(obs, exp)
+        pd.testing.assert_frame_equal(obs, exp)
 
     def test_multiple_ids(self):
         series = pd.Series([0.0, 4.2, np.nan], name='my column',
@@ -513,7 +514,7 @@ class TestToDataframe(unittest.TestCase):
         exp = pd.DataFrame({'my column': [0.0, 4.2, np.nan]},
                            index=pd.Index(['a', 'b', 'c'], name='id'))
 
-        pdt.assert_frame_equal(obs, exp)
+        pd.testing.assert_frame_equal(obs, exp)
 
     def test_id_header_preserved(self):
         series = pd.Series([0.0, 4.2, 123], name='my column',
@@ -525,7 +526,7 @@ class TestToDataframe(unittest.TestCase):
         exp = pd.DataFrame({'my column': [0.0, 4.2, 123]},
                            index=pd.Index(['a', 'b', 'c'], name='#Sample ID'))
 
-        pdt.assert_frame_equal(obs, exp)
+        pd.testing.assert_frame_equal(obs, exp)
         self.assertEqual(obs.index.name, '#Sample ID')
 
 
@@ -826,7 +827,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
         self.assertEqual(mdc.name, 'my column')
 
         obs_series = mdc.to_series()
-        pdt.assert_series_equal(obs_series, series)
+        pd.testing.assert_series_equal(obs_series, series)
         self.assertEqual(obs_series.dtype, object)
 
     def test_numeric_strings_preserved_as_strings(self):
@@ -841,7 +842,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
         self.assertEqual(mdc.name, 'my column')
 
         obs_series = mdc.to_series()
-        pdt.assert_series_equal(obs_series, series)
+        pd.testing.assert_series_equal(obs_series, series)
         self.assertEqual(obs_series.dtype, object)
 
     def test_missing_data_normalized(self):
@@ -856,7 +857,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
             [np.nan, 'foo', np.nan, np.nan], name='col1',
             index=pd.Index(['a', 'b', 'c', 'd'], name='id'))
 
-        pdt.assert_series_equal(obs, exp)
+        pd.testing.assert_series_equal(obs, exp)
         self.assertEqual(obs.dtype, object)
         self.assertTrue(np.isnan(obs['a']))
         self.assertTrue(np.isnan(obs['c']))
@@ -873,7 +874,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
             np.array([np.nan, np.nan, np.nan], dtype=object), name='col1',
             index=pd.Index(['a', 'b', 'c'], name='id'))
 
-        pdt.assert_series_equal(obs, exp)
+        pd.testing.assert_series_equal(obs, exp)
         self.assertEqual(obs.dtype, object)
 
     def test_leading_trailing_whitespace_value(self):
@@ -939,7 +940,7 @@ class TestNumericMetadataColumn(unittest.TestCase):
         self.assertEqual(mdc.name, 'my column')
 
         obs_series = mdc.to_series()
-        pdt.assert_series_equal(obs_series, series)
+        pd.testing.assert_series_equal(obs_series, series)
         self.assertEqual(obs_series.dtype, np.float64)
 
     def test_supported_dtype_int(self):
@@ -959,7 +960,7 @@ class TestNumericMetadataColumn(unittest.TestCase):
             [0.0, 1.0, 42.0, -2.0], name='my column',
             index=pd.Index(['a', 'b', 'c', 'd'], name='id'))
 
-        pdt.assert_series_equal(obs_series, exp_series)
+        pd.testing.assert_series_equal(obs_series, exp_series)
         self.assertEqual(obs_series.dtype, np.float64)
 
     def test_missing_data_normalized(self):
@@ -974,7 +975,7 @@ class TestNumericMetadataColumn(unittest.TestCase):
             [np.nan, 4.2, np.nan, -5.678], name='col1',
             index=pd.Index(['a', 'b', 'c', 'd'], name='id'))
 
-        pdt.assert_series_equal(obs, exp)
+        pd.testing.assert_series_equal(obs, exp)
         self.assertEqual(obs.dtype, np.float64)
         self.assertTrue(np.isnan(obs['a']))
         self.assertTrue(np.isnan(obs['c']))
@@ -990,7 +991,7 @@ class TestNumericMetadataColumn(unittest.TestCase):
             [np.nan, np.nan, np.nan], name='col1',
             index=pd.Index(['a', 'b', 'c'], name='id'))
 
-        pdt.assert_series_equal(obs, exp)
+        pd.testing.assert_series_equal(obs, exp)
         self.assertEqual(obs.dtype, np.float64)
 
 

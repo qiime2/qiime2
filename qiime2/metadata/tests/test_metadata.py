@@ -11,7 +11,6 @@ import unittest
 import warnings
 
 import pandas as pd
-import pandas.util.testing as pdt
 import numpy as np
 
 from qiime2 import Artifact
@@ -529,8 +528,8 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
 
         md_no_artifact = Metadata(md_from_artifact.to_dataframe())
 
-        pdt.assert_frame_equal(md_from_artifact.to_dataframe(),
-                               md_no_artifact.to_dataframe())
+        pd.testing.assert_frame_equal(md_from_artifact.to_dataframe(),
+                                      md_no_artifact.to_dataframe())
         self.assertReallyNotEqual(md_from_artifact, md_no_artifact)
 
     def test_artifact_mismatch(self):
@@ -542,7 +541,7 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
         md1 = artifact1.view(Metadata)
         md2 = artifact2.view(Metadata)
 
-        pdt.assert_frame_equal(md1.to_dataframe(), md2.to_dataframe())
+        pd.testing.assert_frame_equal(md1.to_dataframe(), md2.to_dataframe())
         self.assertReallyNotEqual(md1, md2)
 
     def test_id_mismatch(self):
@@ -621,7 +620,7 @@ class TestToDataframe(unittest.TestCase):
 
         obs = md.to_dataframe()
 
-        pdt.assert_frame_equal(obs, df)
+        pd.testing.assert_frame_equal(obs, df)
 
     def test_id_header_preserved(self):
         df = pd.DataFrame({'col1': [42, 2.5], 'col2': ['foo', 'bar']},
@@ -630,7 +629,7 @@ class TestToDataframe(unittest.TestCase):
 
         obs = md.to_dataframe()
 
-        pdt.assert_frame_equal(obs, df)
+        pd.testing.assert_frame_equal(obs, df)
         self.assertEqual(obs.index.name, '#SampleID')
 
     def test_dataframe_copy(self):
@@ -640,7 +639,7 @@ class TestToDataframe(unittest.TestCase):
 
         obs = md.to_dataframe()
 
-        pdt.assert_frame_equal(obs, df)
+        pd.testing.assert_frame_equal(obs, df)
         self.assertIsNot(obs, df)
 
     def test_retains_column_order(self):
@@ -655,7 +654,7 @@ class TestToDataframe(unittest.TestCase):
 
         obs = md.to_dataframe()
 
-        pdt.assert_frame_equal(obs, df)
+        pd.testing.assert_frame_equal(obs, df)
         self.assertEqual(obs.columns.tolist(), ['z', 'a', 'ch'])
 
     def test_missing_data(self):
@@ -680,7 +679,7 @@ class TestToDataframe(unittest.TestCase):
                               dtype=object))]),
             index=index)
 
-        pdt.assert_frame_equal(obs, exp)
+        pd.testing.assert_frame_equal(obs, exp)
         self.assertEqual(obs.dtypes.to_dict(),
                          {'col1': np.float64, 'NA': object, 'col3': object,
                           'col4': object})
@@ -707,7 +706,7 @@ class TestToDataframe(unittest.TestCase):
                             'col3': [42.0, np.nan, 0.0]},
                            index=index)
 
-        pdt.assert_frame_equal(obs, exp)
+        pd.testing.assert_frame_equal(obs, exp)
         self.assertEqual(obs.dtypes.to_dict(),
                          {'col1': np.float64, 'col2': np.float64,
                           'col3': np.float64})
