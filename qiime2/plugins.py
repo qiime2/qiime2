@@ -62,7 +62,11 @@ class ArtifactAPIUsage(usage.Usage):
         action_f, action_sig = action.get_action()
         self._update_imports(action_f)
 
-        t = self._template_action(action_f, input_opts, output_opts)
+        signature = self._destructure_signature(action_sig)
+        inputs, params, mds, outputs = self._destructure_opts(
+            signature, input_opts, output_opts)
+
+        t = self._template_action(action_f, inputs, params, mds, outputs)
         self._recorder.append(t)
 
         return output_opts
@@ -78,15 +82,23 @@ class ArtifactAPIUsage(usage.Usage):
     def get_example_data(self):
         return {r: f() for r, f in self._init_data_refs.items()}
 
-    def _template_action(self, action_f, input_opts, output_opts):
-        output_opts = list(output_opts.values())
+    def _template_action(self, action_f, inputs, params, mds, outputs):
+        output_opts = [x for x, _ in outputs.values()]
         if len(output_opts) == 1:
             output_opts.append('')
         output_vars = ', '.join(output_opts)
 
         t = '%s = %s(\n' % (output_vars.strip(), action_f.id)
-        for k, v in input_opts.items():
+
+        for k, (v, _) in inputs.items():
             t += '    %s=%s,\n' % (k, v)
+
+        for k, (v, _) in params.items():
+            t += '    %s=%r,\n' % (k, v)
+
+        for k, (v, _) in mds.items():
+            t += '    %s=%s,\n' % (k, v)
+
         t += ')\n'
 
         return t
