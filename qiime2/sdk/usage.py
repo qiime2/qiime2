@@ -740,9 +740,6 @@ class Usage(metaclass=abc.ABCMeta):
         outputs = {k: distill_spec(v) for k, v in action_sig.outputs.items()}
         params, mds = {}, {}
 
-        for param_name, spec in action_sig.inputs.items():
-            inputs[param_name] = distill_spec(spec)
-
         for param_name, spec in action_sig.parameters.items():
             if sdk.util.is_metadata_type(spec.qiime_type):
                 mds[param_name] = distill_spec(spec)
