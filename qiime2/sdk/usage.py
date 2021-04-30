@@ -815,6 +815,10 @@ class ExecutionUsage(Usage):
     qiime2.sdk.tests.test_usage.TestExecutionUsage : Tests using this driver.
     qiime2.plugin.testing.TestPluginBase.execute_examples : Executes examples.
     """
+    def __init__(self, asynchronous=False):
+        super().__init__()
+        self.asynchronous = asynchronous
+
     def _init_data_(self, ref, factory):
         result = factory()
         result_type = type(result)
@@ -863,7 +867,12 @@ class ExecutionUsage(Usage):
                  input_opts: dict,
                  output_opts: dict):
         action_f, _ = action.get_action()
-        results = action_f(**input_opts)
+
+        if self.asynchronous:
+            results = action_f.asynchronous(**input_opts).result()
+        else:
+            results = action_f(**input_opts)
+
         return {k: getattr(results, k) for k in output_opts.keys()}
 
     def _assert_has_line_matching_(self, ref, label, path, expression):
