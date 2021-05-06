@@ -626,6 +626,11 @@ class TestUnion(unittest.TestCase):
             repr(Foo % P | Bar % Q | Foo % R | Bar % S),
             'Foo % (P | R) | Bar % (Q | S)')
 
+        self.assertEqual(
+            repr(grammar.UnionExp(
+                 [Foo % P, Bar % Q, Foo % R, Bar % S]).normalize()),
+            'Foo % (P | R) | Bar % (Q | S)')
+
     def test_maximum_antichain(self):
         P = MockPredicate('P', alphabetize=True)
         Q = MockPredicate('Q', alphabetize=True)
