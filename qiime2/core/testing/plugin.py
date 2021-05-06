@@ -55,6 +55,7 @@ from .examples import (concatenate_ints_simple, concatenate_ints_complex,
                        identity_with_metadata_merging,
                        identity_with_metadata_column_get_mdc,
                        variadic_input_simple, optional_inputs,
+                       comments_only_factory,
                        )
 
 
@@ -153,7 +154,10 @@ dummy_plugin.methods.register_function(
     citations=[citations['baerheim1994effect']],
     examples={'concatenate_ints_simple': concatenate_ints_simple,
               'concatenate_ints_complex': concatenate_ints_complex,
-              'comments_only': comments_only},
+              'comments_only': comments_only,
+              # execute factory to make a closure to test pickling
+              'comments_only_factory': comments_only_factory(),
+              },
 )
 
 T = TypeMatch([IntSequence1, IntSequence2])
