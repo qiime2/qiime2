@@ -592,7 +592,7 @@ class UnionExp(_IdentityExpBase):
 
         if groups:
             elements = []
-            for canidate, group in groups.items():
+            for candidate, group in groups.items():
                 if len(group) == 1:
                     elements.append(group[0])
                 else:
