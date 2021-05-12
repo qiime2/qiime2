@@ -157,21 +157,37 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
     def test_save_artifact_auto_extension(self):
         artifact = Artifact.import_data(FourInts, [0, 0, 42, 1000])
 
-        # No extension.
+        # No extension in filename; no extension input.
         fp = os.path.join(self.test_dir.name, 'artifact')
         obs_fp = artifact.save(fp)
         obs_filename = os.path.basename(obs_fp)
 
         self.assertEqual(obs_filename, 'artifact.qza')
 
-        # Wrong extension.
+#######################################################################
+        # No extension in filename; different extension input.
+        fp = os.path.join(self.test_dir.name, 'artifact','.txt')
+        obs_fp = artifact.save(fp)
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.txt')
+
+        # No extension in filename; default extension input.
+        fp = os.path.join(self.test_dir.name, 'artifact','.qza')
+        obs_fp = artifact.save(fp)
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.qza')
+
+######################################################################
+        # Different extension in filename; no extension input.
         fp = os.path.join(self.test_dir.name, 'artifact.zip')
         obs_fp = artifact.save(fp)
         obs_filename = os.path.basename(obs_fp)
 
         self.assertEqual(obs_filename, 'artifact.zip.qza')
 
-        # Correct extension.
+        # Default extension in filename; no extension input.
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         obs_fp = artifact.save(fp)
         obs_filename = os.path.basename(obs_fp)
