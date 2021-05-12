@@ -166,15 +166,15 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
 #######################################################################
         # No extension in filename; different extension input.
-        fp = os.path.join(self.test_dir.name, 'artifact','.txt')
-        obs_fp = artifact.save(fp)
+        fp = os.path.join(self.test_dir.name, 'artifact')
+        obs_fp = artifact.save(fp, '.txt')
         obs_filename = os.path.basename(obs_fp)
 
         self.assertEqual(obs_filename, 'artifact.txt')
 
         # No extension in filename; default extension input.
-        fp = os.path.join(self.test_dir.name, 'artifact','.qza')
-        obs_fp = artifact.save(fp)
+        fp = os.path.join(self.test_dir.name, 'artifact')
+        obs_fp = artifact.save(fp, '.qza')
         obs_filename = os.path.basename(obs_fp)
 
         self.assertEqual(obs_filename, 'artifact.qza')
