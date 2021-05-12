@@ -730,9 +730,8 @@ class Usage(metaclass=abc.ABCMeta):
     def _get_records(self):
         return self._scope.records
 
-    def _destructure_opts(self, destructured_signature,
-                          input_opts, output_opts):
-        sig_inputs, sig_params, sig_mds, sig_outputs = destructured_signature
+    def _destructure_opts(self, signature, input_opts, output_opts):
+        sig_inputs, sig_params, sig_mds, sig_outputs = signature.destructure()
         inputs, params, mds, outputs = {}, {}, {}, {}
 
         for opt_name, val in input_opts.items():
