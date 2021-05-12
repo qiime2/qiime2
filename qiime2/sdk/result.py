@@ -326,7 +326,7 @@ class Artifact(Result):
 
 
 class Visualization(Result):
-    # extension = '.qzv'
+    extension = '.qzv'
 
     @classmethod
     def _is_valid_type(cls, type_):
@@ -366,9 +366,3 @@ class Visualization(Result):
     def _repr_html_(self):
         from qiime2.jupyter import make_html
         return make_html(str(self._archiver.path))
-
-    def save(self, filepath, extension='.qzv'):
-        if not filepath.endswith(self.extension):
-            filepath += self.extension
-        self._archiver.save(filepath)
-        return filepath
