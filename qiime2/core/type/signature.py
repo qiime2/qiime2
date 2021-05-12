@@ -18,7 +18,7 @@ from .collection import List, Set
 from .primitive import infer_primitive_type
 from .visualization import Visualization
 from . import meta
-from .util import is_semantic_type, is_primitive_type
+from .util import is_semantic_type, is_primitive_type, is_metadata_type
 from ..util import ImmutableBase
 
 
@@ -421,6 +421,31 @@ class PipelineSignature:
 
     def __ne__(self, other):
         return not (self == other)
+
+    def destructure(self):
+        # In the future this util could return a more robust spec subset,
+        # if necessary.
+        def distill_spec(spec):
+            return str(spec.qiime_type)
+
+        inputs = {k: distill_spec(v) for k, v in self.inputs.items()}
+        outputs = {k: distill_spec(v) for k, v in self.outputs.items()}
+
+        parameters, metadatas = {}, {}
+        for param_name, spec in self.parameters.items():
+            if is_metadata_type(spec.qiime_type):
+                metadatas[param_name] = distill_spec(spec)
+            else:
+                parameters[param_name] = distill_spec(spec)
+
+        return (
+            inputs,
+            parameters,
+            # metadata is technically a parameter, but it is convenient to
+            # promote it to its own signature group, here.
+            metadatas,
+            outputs,
+        )
 
 
 class MethodSignature(PipelineSignature):

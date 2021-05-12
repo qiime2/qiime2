@@ -283,8 +283,8 @@ ints_b, = optional_artifacts_method(
 
 output, = optional_artifacts_method(
     ints=ints,
-    num1=3,
     optional1=ints_b,
+    num1=3,
     num2=4,
 )
 """

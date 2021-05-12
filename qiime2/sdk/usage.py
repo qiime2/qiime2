@@ -730,38 +730,21 @@ class Usage(metaclass=abc.ABCMeta):
     def _get_records(self):
         return self._scope.records
 
-    def _destructure_signature(self, action_sig):
-        # In the future this could return a more robust spec subset,
-        # if necessary.
-        def distill_spec(spec):
-            return str(spec.qiime_type)
-
-        inputs = {k: distill_spec(v) for k, v in action_sig.inputs.items()}
-        outputs = {k: distill_spec(v) for k, v in action_sig.outputs.items()}
-        params, mds = {}, {}
-
-        for param_name, spec in action_sig.parameters.items():
-            if sdk.util.is_metadata_type(spec.qiime_type):
-                mds[param_name] = distill_spec(spec)
-            else:
-                params[param_name] = distill_spec(spec)
-
-        return {'inputs': inputs, 'params': params,
-                'mds': mds, 'outputs': outputs}
-
-    def _destructure_opts(self, signature, input_opts, output_opts):
+    def _destructure_opts(self, destructured_signature,
+                          input_opts, output_opts):
+        sig_inputs, sig_params, sig_mds, sig_outputs = destructured_signature
         inputs, params, mds, outputs = {}, {}, {}, {}
 
         for opt_name, val in input_opts.items():
-            if opt_name in signature['inputs'].keys():
-                inputs[opt_name] = (val, signature['inputs'][opt_name])
-            elif opt_name in signature['params'].keys():
-                params[opt_name] = (val, signature['params'][opt_name])
-            elif opt_name in signature['mds'].keys():
-                mds[opt_name] = (val, signature['mds'][opt_name])
+            if opt_name in sig_inputs.keys():
+                inputs[opt_name] = (val, sig_inputs[opt_name])
+            elif opt_name in sig_params.keys():
+                params[opt_name] = (val, sig_params[opt_name])
+            elif opt_name in sig_mds.keys():
+                mds[opt_name] = (val, sig_mds[opt_name])
 
         for opt_name, val in output_opts.items():
-            outputs[opt_name] = (val, signature['outputs'][opt_name])
+            outputs[opt_name] = (val, sig_outputs[opt_name])
 
         return inputs, params, mds, outputs
 

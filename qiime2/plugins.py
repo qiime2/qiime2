@@ -62,9 +62,9 @@ class ArtifactAPIUsage(usage.Usage):
         action_f, action_sig = action.get_action()
         self._update_imports(action_f)
 
-        signature = self._destructure_signature(action_sig)
+        destructured_sig = action_sig.destructure()
         inputs, params, mds, outputs = self._destructure_opts(
-            signature, input_opts, output_opts)
+            destructured_sig, input_opts, output_opts)
 
         t = self._template_action(action_f, inputs, params, mds, outputs)
         self._recorder.append(t)
