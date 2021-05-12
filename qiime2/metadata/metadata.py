@@ -473,7 +473,7 @@ class Metadata(_MetadataBase):
         """
         return not (self == other)
 
-    def save(self, filepath):
+    def save(self, filepath, extension=None):
         """Save a TSV metadata file.
 
         The TSV metadata file format is described at https://docs.qiime2.org in
@@ -493,7 +493,12 @@ class Metadata(_MetadataBase):
 
         """
         from .io import MetadataWriter
+        
+        if extension is not None and not filepath.endswith(extension):
+            filepath += extension
+
         MetadataWriter(self).write(filepath)
+        return filepath
 
     def to_dataframe(self):
         """Create a pandas dataframe from the metadata.

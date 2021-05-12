@@ -143,9 +143,13 @@ class Result:
     def _destructor(self):
         return self._archiver._destructor
 
-    def save(self, filepath):
-        if not filepath.endswith(self.extension):
-            filepath += self.extension
+    def save(self, filepath, extension=None):
+        if extension is None:
+            extension = self.extension
+        
+        if not filepath.endswith(extension):
+            filepath += extension
+
         self._archiver.save(filepath)
         return filepath
 
@@ -320,9 +324,15 @@ class Artifact(Result):
 
         self.format.validate(self.view(self.format), level)
 
+    # def save(self, filepath, extension='.qza'):
+    #     if not filepath.endswith(self.extension):
+    #         filepath += self.extension
+    #     self._archiver.save(filepath)
+    #     return filepath
+
 
 class Visualization(Result):
-    extension = '.qzv'
+    # extension = '.qzv'
 
     @classmethod
     def _is_valid_type(cls, type_):
@@ -362,3 +372,9 @@ class Visualization(Result):
     def _repr_html_(self):
         from qiime2.jupyter import make_html
         return make_html(str(self._archiver.path))
+
+    def save(self, filepath, extension='.qzv'):
+        if not filepath.endswith(self.extension):
+            filepath += self.extension
+        self._archiver.save(filepath)
+        return filepath
