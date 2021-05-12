@@ -324,12 +324,6 @@ class Artifact(Result):
 
         self.format.validate(self.view(self.format), level)
 
-    # def save(self, filepath, extension='.qza'):
-    #     if not filepath.endswith(self.extension):
-    #         filepath += self.extension
-    #     self._archiver.save(filepath)
-    #     return filepath
-
 
 class Visualization(Result):
     # extension = '.qzv'
