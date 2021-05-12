@@ -6,8 +6,10 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import os
 import time
 import collections
+import collections.abc
 import pkg_resources
 import uuid
 import copy
@@ -317,7 +319,13 @@ class ProvenanceCapture:
         self.write_action_yaml()
         self.write_citations_bib()
 
-        self.path.rename(final_path)
+        # Certain networked filesystems will experience a race
+        # condition on `rename`, so fall back to copying.
+        try:
+            os.rename(self.path, final_path)
+        except FileExistsError:
+            distutils.dir_util.copy_tree(str(self.path), str(final_path))
+            distutils.dir_util.remove_tree(str(self.path))
 
     def fork(self):
         forked = copy.copy(self)
@@ -403,7 +411,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
     def add_input(self, name, input):
         if input is None:
             self.inputs[name] = None
-        elif isinstance(input, collections.Iterable):
+        elif isinstance(input, collections.abc.Iterable):
             values = []
             for artifact in input:
                 record = self.add_ancestor(artifact)

@@ -87,17 +87,11 @@ def _convert_literals(expr):
         return {_convert_literals(k): _convert_literals(v)
                 for k, v in zip(expr.keys, expr.values)}
 
-    if node is ast.NameConstant:
+    if node is ast.Constant:
         return expr.value
 
     if node is ast.Name and expr.id == 'inf':
         return float('inf')
-
-    if node is ast.Num:
-        return expr.n
-
-    if node is ast.Str:
-        return expr.s
 
     raise ValueError("Unknown literal: %r" % node)
 

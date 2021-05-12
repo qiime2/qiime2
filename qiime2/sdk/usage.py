@@ -752,7 +752,7 @@ class DiagnosticUsage(Usage):
 
     def _init_metadata_(self, ref, factory):
         return {
-            'source': 'init_data',
+            'source': 'init_metadata',
             'ref': ref,
         }
 

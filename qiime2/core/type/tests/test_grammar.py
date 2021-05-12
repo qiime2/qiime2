@@ -8,7 +8,7 @@
 
 import pickle
 import unittest
-import collections
+import collections.abc
 
 import qiime2.core.type.grammar as grammar
 import qiime2.core.type.template as template
@@ -291,7 +291,7 @@ class TestTypeExp(unittest.TestCase):
         Z = MockTemplate('Z')
         P = MockPredicate('P')
 
-        self.assertIsInstance(X, collections.Hashable)
+        self.assertIsInstance(X, collections.abc.Hashable)
         # There really shouldn't be a collision between these:
         self.assertNotEqual(hash(X), hash(Z % P))
 
@@ -624,6 +624,11 @@ class TestUnion(unittest.TestCase):
 
         self.assertEqual(
             repr(Foo % P | Bar % Q | Foo % R | Bar % S),
+            'Foo % (P | R) | Bar % (Q | S)')
+
+        self.assertEqual(
+            repr(grammar.UnionExp(
+                 [Foo % P, Bar % Q, Foo % R, Bar % S]).normalize()),
             'Foo % (P | R) | Bar % (Q | S)')
 
     def test_maximum_antichain(self):
