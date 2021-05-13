@@ -185,14 +185,16 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertEqual(obs_filename, 'artifact.zip.qza')
 
-        # Different extension in filename; different extension input (non-matching).
+        # Different extension in filename;
+        # Different extension input (non-matching).
         fp = os.path.join(self.test_dir.name, 'artifact.zip')
         obs_fp = artifact.save(fp, '.txt')
         obs_filename = os.path.basename(obs_fp)
 
         self.assertEqual(obs_filename, 'artifact.zip.txt')
 
-        # Different extension in filename; different extension input (matching).
+        # Different extension in filename;
+        # Different extension input (matching).
         fp = os.path.join(self.test_dir.name, 'artifact.zip')
         obs_fp = artifact.save(fp, '.zip')
         obs_filename = os.path.basename(obs_fp)
@@ -259,14 +261,16 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertEqual(obs_filename, 'visualization.zip.qzv')
 
-        # Different extension in filename; different extension input (non-matching).
+        # Different extension in filename;
+        # Different extension input (non-matching).
         fp = os.path.join(self.test_dir.name, 'visualization.zip')
         obs_fp = visualization.save(fp, '.txt')
         obs_filename = os.path.basename(obs_fp)
 
         self.assertEqual(obs_filename, 'visualization.zip.txt')
 
-        # Different extension in filename; different extension input (matching).
+        # Different extension in filename;
+        # Different extension input (matching).
         fp = os.path.join(self.test_dir.name, 'visualization.zip')
         obs_fp = visualization.save(fp, '.zip')
         obs_filename = os.path.basename(obs_fp)
