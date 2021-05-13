@@ -197,7 +197,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         obs_fp = artifact.save(fp, '.zip')
         obs_filename = os.path.basename(obs_fp)
 
-        self.assertEqual(obs_filename, 'artifact.zip')        
+        self.assertEqual(obs_filename, 'artifact.zip')
 
         # Different extension in filename; default extension input.
         fp = os.path.join(self.test_dir.name, 'artifact.zip')
@@ -271,7 +271,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         obs_fp = visualization.save(fp, '.zip')
         obs_filename = os.path.basename(obs_fp)
 
-        self.assertEqual(obs_filename, 'visualization.zip')        
+        self.assertEqual(obs_filename, 'visualization.zip')
 
         # Different extension in filename; default extension input.
         fp = os.path.join(self.test_dir.name, 'visualization.zip')

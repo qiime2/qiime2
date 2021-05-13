@@ -156,14 +156,16 @@ class Result:
         load
 
         extension : str
-            Preferred file extension (.qza, .qzv, .txt, etc). If no preferred extension input is included,
-            Artifact extension will default to .qza and Visualization extension will default to .qzv.
+            Preferred file extension (.qza, .qzv, .txt, etc).
+            If no preferred extension input is included,
+            Artifact extension will default to .qza and
+            Visualization extension will default to .qzv.
 
 
         """
         if extension is None:
             extension = self.extension
-        
+
         if not filepath.endswith(extension):
             filepath += extension
 

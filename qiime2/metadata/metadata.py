@@ -492,7 +492,8 @@ class Metadata(_MetadataBase):
         load
 
         extension : str
-            Preferred file extension (.tsv, .txt, etc). Will be left blank if no extension is included.
+            Preferred file extension (.tsv, .txt, etc).
+            Will be left blank if no extension is included.
 
         """
         from .io import MetadataWriter

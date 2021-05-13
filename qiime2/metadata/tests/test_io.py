@@ -853,7 +853,7 @@ class TestSave(unittest.TestCase):
         obs_md = md.save(fp, '.tsv')
         obs_filename = os.path.basename(obs_md)
 
-        self.assertEqual(obs_filename, 'metadata.tsv')        
+        self.assertEqual(obs_filename, 'metadata.tsv')
 
         # Extension in filename; no extension input.
         fp = os.path.join(self.temp_dir, 'metadata.tsv')
@@ -874,7 +874,7 @@ class TestSave(unittest.TestCase):
         obs_md = md.save(fp, '.tsv')
         obs_filename = os.path.basename(obs_md)
 
-        self.assertEqual(obs_filename, 'metadata.tsv')        
+        self.assertEqual(obs_filename, 'metadata.tsv')
 
     def test_no_bom(self):
         md = Metadata(pd.DataFrame(
