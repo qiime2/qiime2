@@ -157,7 +157,7 @@ class Result:
 
         extension : str
             Preferred file extension (.qza, .qzv, .txt, etc). If no preferred extension input is included,
-            Artifact extensions will default to .qza and Visualization extensions will default to .qzv.
+            Artifact extension will default to .qza and Visualization extension will default to .qzv.
 
 
         """
