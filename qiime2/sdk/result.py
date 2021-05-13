@@ -144,6 +144,23 @@ class Result:
         return self._archiver._destructor
 
     def save(self, filepath, extension=None):
+        """Save an artifact (.qza) or visualization (.qzv) file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to save artifact or visualization file at.
+
+        See Also
+        --------
+        load
+
+        extension : str
+            Preferred file extension (.qza, .qzv, .txt, etc). If no preferred extension input is included,
+            Artifact extensions will default to .qza and Visualization extensions will default to .qzv.
+
+
+        """
         if extension is None:
             extension = self.extension
         

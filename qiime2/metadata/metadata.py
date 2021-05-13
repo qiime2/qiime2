@@ -474,9 +474,9 @@ class Metadata(_MetadataBase):
         return not (self == other)
 
     def save(self, filepath, extension=None):
-        """Save a TSV metadata file.
+        """Save a metadata file.
 
-        The TSV metadata file format is described at https://docs.qiime2.org in
+        The metadata file format is described at https://docs.qiime2.org in
         the Metadata Tutorial.
 
         The file will always include the ``#q2:types`` directive in order to
@@ -485,15 +485,18 @@ class Metadata(_MetadataBase):
         Parameters
         ----------
         filepath : str
-            Path to save TSV metadata file at.
+            Path to save metadata file at.
 
         See Also
         --------
         load
 
+        extension : str
+            Preferred file extension (.tsv, etc). Will be left blank if no extension is included.
+
         """
         from .io import MetadataWriter
-        
+
         if extension is not None and not filepath.endswith(extension):
             filepath += extension
 
