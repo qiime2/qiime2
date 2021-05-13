@@ -185,9 +185,26 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertEqual(obs_filename, 'artifact.zip.qza')
 
-        # Different extension in filename; different extension input.
+        # Different extension in filename; different extension input (non-matching).
+        fp = os.path.join(self.test_dir.name, 'artifact.zip')
+        obs_fp = artifact.save(fp, '.txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.zip.txt')
+
+        # Different extension in filename; different extension input (matching).
+        fp = os.path.join(self.test_dir.name, 'artifact.zip')
+        obs_fp = artifact.save(fp, '.zip')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.zip')        
 
         # Different extension in filename; default extension input.
+        fp = os.path.join(self.test_dir.name, 'artifact.zip')
+        obs_fp = artifact.save(fp, '.qza')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.zip.qza')
 
         # Default extension in filename; no extension input.
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
@@ -197,8 +214,18 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(obs_filename, 'artifact.qza')
 
         # Default extension in filename; different extension input.
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        obs_fp = artifact.save(fp, '.txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.qza.txt')
 
         # Default extension in filename; default extension input.
+        fp = os.path.join(self.test_dir.name, 'artifact.qza')
+        obs_fp = artifact.save(fp, '.qza')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.qza')
 
     def test_save_visualization_auto_extension(self):
         visualization = Visualization._from_data_dir(
@@ -232,9 +259,26 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertEqual(obs_filename, 'visualization.zip.qzv')
 
-        # Different extension in filename; different extension input.
+        # Different extension in filename; different extension input (non-matching).
+        fp = os.path.join(self.test_dir.name, 'visualization.zip')
+        obs_fp = visualization.save(fp, '.txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.zip.txt')
+
+        # Different extension in filename; different extension input (matching).
+        fp = os.path.join(self.test_dir.name, 'visualization.zip')
+        obs_fp = visualization.save(fp, '.zip')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.zip')        
 
         # Different extension in filename; default extension input.
+        fp = os.path.join(self.test_dir.name, 'visualization.zip')
+        obs_fp = visualization.save(fp, '.qzv')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.zip.qzv')
 
         # Default extension in filename; no extension input.
         fp = os.path.join(self.test_dir.name, 'visualization.qzv')
@@ -244,8 +288,18 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(obs_filename, 'visualization.qzv')
 
         # Default extension in filename; different extension input.
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
+        obs_fp = visualization.save(fp, '.txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.qzv.txt')
 
         # Default extension in filename; default extension input.
+        fp = os.path.join(self.test_dir.name, 'visualization.qzv')
+        obs_fp = visualization.save(fp, '.qzv')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.qzv')
 
     def test_import_data_single_dirfmt_to_single_dirfmt(self):
         temp_data_dir = os.path.join(self.test_dir.name, 'import')
