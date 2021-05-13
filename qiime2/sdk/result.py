@@ -143,7 +143,7 @@ class Result:
     def _destructor(self):
         return self._archiver._destructor
 
-    def save(self, filepath, extension=None):
+    def save(self, filepath, ext=None):
         """Save an artifact (.qza) or visualization (.qzv) file.
 
         Parameters
@@ -163,11 +163,11 @@ class Result:
 
 
         """
-        if extension is None:
-            extension = self.extension
+        if ext is None:
+            ext = self.ext
 
-        if not filepath.endswith(extension):
-            filepath += extension
+        if not filepath.endswith(ext):
+            filepath += ext
 
         self._archiver.save(filepath)
         return filepath

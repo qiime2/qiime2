@@ -473,7 +473,7 @@ class Metadata(_MetadataBase):
         """
         return not (self == other)
 
-    def save(self, filepath, extension=None):
+    def save(self, filepath, ext=None):
         """Save a metadata file.
 
         The metadata file format is described at https://docs.qiime2.org in
@@ -498,8 +498,8 @@ class Metadata(_MetadataBase):
         """
         from .io import MetadataWriter
 
-        if extension is not None and not filepath.endswith(extension):
-            filepath += extension
+        if ext is not None and not filepath.endswith(ext):
+            filepath += ext
 
         MetadataWriter(self).write(filepath)
         return filepath
