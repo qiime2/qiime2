@@ -160,14 +160,24 @@ class Result:
             If no preferred extension input is included,
             Artifact extension will default to .qza and
             Visualization extension will default to .qzv.
+            Note that including a period in the extension is
+            optional, and if either none or multiple periods
+            are included, they will be replaced with a single
+            period at the beginning of the extension.
 
 
         """
         if ext is None:
             ext = self.extension
+    
+        # This accounts for edge cases in the filename extension
+        # and ensures that there is only a single period in the ext.
+        if filepath.endswith('.') or ext.startswith('.'):
+            filepath = filepath.rstrip('.')
+            ext = ext.lstrip('.')
 
         if not filepath.endswith(ext):
-            filepath += ext
+            filepath += '.' + ext
 
         self._archiver.save(filepath)
         return filepath
@@ -208,7 +218,7 @@ class Result:
 
 
 class Artifact(Result):
-    extension = '.qza'
+    extension = 'qza'
 
     @classmethod
     def _is_valid_type(cls, type_):
@@ -345,7 +355,7 @@ class Artifact(Result):
 
 
 class Visualization(Result):
-    extension = '.qzv'
+    extension = 'qzv'
 
     @classmethod
     def _is_valid_type(cls, type_):

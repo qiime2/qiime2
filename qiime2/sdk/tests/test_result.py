@@ -157,6 +157,55 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
     def test_save_artifact_auto_extension(self):
         artifact = Artifact.import_data(FourInts, [0, 0, 42, 1000])
 
+        # No period in filename; no period in extension.
+        fp = os.path.join(self.test_dir.name, 'artifact')
+        obs_fp = artifact.save(fp, 'txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.txt')
+
+        # No period in filename; multiple periods in extension.
+        fp = os.path.join(self.test_dir.name, 'artifact')
+        obs_fp = artifact.save(fp, '..txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.txt')
+
+        # Single period in filename; no period in extension.
+        fp = os.path.join(self.test_dir.name, 'artifact.')
+        obs_fp = artifact.save(fp, 'txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.txt')
+
+        # Single period in filename; single period in extension.
+        fp = os.path.join(self.test_dir.name, 'artifact.')
+        obs_fp = artifact.save(fp, '.txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.txt')
+
+        # Single period in filename; multiple periods in extension.
+        fp = os.path.join(self.test_dir.name, 'artifact.')
+        obs_fp = artifact.save(fp, '..txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.txt')
+
+        # Multiple periods in filename; single period in extension.
+        fp = os.path.join(self.test_dir.name, 'artifact..')
+        obs_fp = artifact.save(fp, '.txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.txt')
+
+        # Multiple periods in filename; multiple periods in extension.
+        fp = os.path.join(self.test_dir.name, 'artifact..')
+        obs_fp = artifact.save(fp, '..txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifact.txt')
+
         # No extension in filename; no extension input.
         fp = os.path.join(self.test_dir.name, 'artifact')
         obs_fp = artifact.save(fp)
@@ -232,6 +281,55 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
     def test_save_visualization_auto_extension(self):
         visualization = Visualization._from_data_dir(
              self.data_dir, self.make_provenance_capture())
+
+        # No period in filename; no period in extension.
+        fp = os.path.join(self.test_dir.name, 'visualization')
+        obs_fp = visualization.save(fp, 'txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.txt')
+
+        # No period in filename; multiple periods in extension.
+        fp = os.path.join(self.test_dir.name, 'visualization')
+        obs_fp = visualization.save(fp, '..txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.txt')
+
+        # Single period in filename; no period in extension.
+        fp = os.path.join(self.test_dir.name, 'visualization.')
+        obs_fp = visualization.save(fp, 'txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.txt')
+
+        # Single period in filename; single period in extension.
+        fp = os.path.join(self.test_dir.name, 'visualization.')
+        obs_fp = visualization.save(fp, '.txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.txt')
+
+        # Single period in filename; multiple periods in extension.
+        fp = os.path.join(self.test_dir.name, 'visualization.')
+        obs_fp = visualization.save(fp, '..txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.txt')
+
+        # Multiple periods in filename; single period in extension.
+        fp = os.path.join(self.test_dir.name, 'visualization..')
+        obs_fp = visualization.save(fp, '.txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.txt')
+
+        # Multiple periods in filename; multiple periods in extension.
+        fp = os.path.join(self.test_dir.name, 'visualization..')
+        obs_fp = visualization.save(fp, '..txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualization.txt')
 
         # No extension in filename; no extension input.
         fp = os.path.join(self.test_dir.name, 'visualization')
