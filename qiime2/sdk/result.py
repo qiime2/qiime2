@@ -164,7 +164,7 @@ class Result:
 
         """
         if ext is None:
-            ext = self.ext
+            ext = self.extension
 
         if not filepath.endswith(ext):
             filepath += ext
