@@ -494,12 +494,23 @@ class Metadata(_MetadataBase):
         extension : str
             Preferred file extension (.tsv, .txt, etc).
             Will be left blank if no extension is included.
+            Note that including a period in the extension is
+            optional, and if either none or multiple periods
+            are included, they will be replaced with a single
+            period at the beginning of the extension.
 
         """
         from .io import MetadataWriter
 
-        if ext is not None and not filepath.endswith(ext):
-            filepath += ext
+        if ext is None:
+            ext = ''
+
+        if filepath.endswith('.') or ext.startswith('.'):
+            filepath = filepath.rstrip('.')
+            ext = ext.lstrip('.')
+
+        if not filepath.endswith(ext):
+            filepath += '.' + ext
 
         MetadataWriter(self).write(filepath)
         return filepath

@@ -841,6 +841,62 @@ class TestSave(unittest.TestCase):
              'col3': ['foo', 'bar', '42']},
             index=pd.Index(['id1', 'id2', 'id3'], name='id')))
 
+        # No period in filename; no extension included.
+        fp = os.path.join(self.temp_dir, 'metadata')
+        obs_md = md.save(fp)
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata')
+
+        # No period in filename; no period in extension.
+        fp = os.path.join(self.temp_dir, 'metadata')
+        obs_md = md.save(fp, 'tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # No period in filename; multiple periods in extension.
+        fp = os.path.join(self.temp_dir, 'metadata')
+        obs_md = md.save(fp, '..tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Single period in filename; no period in extension.
+        fp = os.path.join(self.temp_dir, 'metadata.')
+        obs_md = md.save(fp, 'tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Single period in filename; single period in extension.
+        fp = os.path.join(self.temp_dir, 'metadata.')
+        obs_md = md.save(fp, '.tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Single period in filename; multiple periods in extension.
+        fp = os.path.join(self.temp_dir, 'metadata.')
+        obs_md = md.save(fp, '..tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Multiple periods in filename; single period in extension.
+        fp = os.path.join(self.temp_dir, 'metadata..')
+        obs_md = md.save(fp, '.tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Multiple periods in filename; multiple periods in extension.
+        fp = os.path.join(self.temp_dir, 'metadata..')
+        obs_md = md.save(fp, '..tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
         # No extension in filename; no extension input.
         fp = os.path.join(self.temp_dir, 'metadata')
         obs_md = md.save(fp)
