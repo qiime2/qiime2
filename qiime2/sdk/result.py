@@ -169,7 +169,7 @@ class Result:
         """
         if ext is None:
             ext = self.extension
-    
+
         # This accounts for edge cases in the filename extension
         # and ensures that there is only a single period in the ext.
         if filepath.endswith('.') or ext.startswith('.'):
