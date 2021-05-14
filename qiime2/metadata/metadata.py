@@ -504,13 +504,13 @@ class Metadata(_MetadataBase):
 
         if ext is None:
             ext = ''
+        else:
+            ext = '.' + ext.lstrip('.')
 
-        if filepath.endswith('.') or ext.startswith('.'):
-            filepath = filepath.rstrip('.')
-            ext = ext.lstrip('.')
+        filepath = filepath.rstrip('.')
 
         if not filepath.endswith(ext):
-            filepath += '.' + ext
+            filepath += ext
 
         MetadataWriter(self).write(filepath)
         return filepath

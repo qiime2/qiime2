@@ -841,6 +841,13 @@ class TestSave(unittest.TestCase):
              'col3': ['foo', 'bar', '42']},
             index=pd.Index(['id1', 'id2', 'id3'], name='id')))
 
+        # Filename & extension endswith is matching (non-default).
+        fp = os.path.join(self.temp_dir, 'metadatatsv')
+        obs_md = md.save(fp, '.tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadatatsv.tsv')
+
         # No period in filename; no extension included.
         fp = os.path.join(self.temp_dir, 'metadata')
         obs_md = md.save(fp)

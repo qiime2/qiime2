@@ -172,12 +172,11 @@ class Result:
 
         # This accounts for edge cases in the filename extension
         # and ensures that there is only a single period in the ext.
-        if filepath.endswith('.') or ext.startswith('.'):
-            filepath = filepath.rstrip('.')
-            ext = ext.lstrip('.')
+        filepath = filepath.rstrip('.')
+        ext = '.' + ext.lstrip('.')
 
         if not filepath.endswith(ext):
-            filepath += '.' + ext
+            filepath += ext
 
         self._archiver.save(filepath)
         return filepath

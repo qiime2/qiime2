@@ -157,6 +157,20 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
     def test_save_artifact_auto_extension(self):
         artifact = Artifact.import_data(FourInts, [0, 0, 42, 1000])
 
+        # Filename & extension endswith is matching (default).
+        fp = os.path.join(self.test_dir.name, 'artifactqza')
+        obs_fp = artifact.save(fp)
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifactqza.qza')
+
+        # Filename & extension endswith is matching (non-default).
+        fp = os.path.join(self.test_dir.name, 'artifacttxt')
+        obs_fp = artifact.save(fp, 'txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'artifacttxt.txt')
+
         # No period in filename; no period in extension.
         fp = os.path.join(self.test_dir.name, 'artifact')
         obs_fp = artifact.save(fp, 'txt')
@@ -281,6 +295,20 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
     def test_save_visualization_auto_extension(self):
         visualization = Visualization._from_data_dir(
              self.data_dir, self.make_provenance_capture())
+
+        # Filename & extension endswith is matching (default).
+        fp = os.path.join(self.test_dir.name, 'visualizationqzv')
+        obs_fp = visualization.save(fp)
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualizationqzv.qzv')
+
+        # Filename & extension endswith is matching (non-default).
+        fp = os.path.join(self.test_dir.name, 'visualizationtxt')
+        obs_fp = visualization.save(fp, 'txt')
+        obs_filename = os.path.basename(obs_fp)
+
+        self.assertEqual(obs_filename, 'visualizationtxt.txt')
 
         # No period in filename; no period in extension.
         fp = os.path.join(self.test_dir.name, 'visualization')
