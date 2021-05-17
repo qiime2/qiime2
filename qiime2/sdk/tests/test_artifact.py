@@ -89,18 +89,6 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         # Can produce same view if called again.
         self.assertEqual(artifact.view(Union[list, str]), [-1, 42, 0, 43])
 
-    def test_from_view_union_async(self):
-        artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
-                                       self.provenance_capture)
-
-        self.assertEqual(artifact.type, FourInts)
-        # We don't know what the UUID is because it's generated within
-        # Artifact._from_view.
-        self.assertIsInstance(artifact.uuid, uuid.UUID)
-        self.assertEqual(artifact.view(Union[list, str]), [-1, 42, 0, 43])
-        # Can produce same view if called again.
-        self.assertEqual(artifact.view(Union[list, str]), [-1, 42, 0, 43])
-
     def test_from_view_union_reordered(self):
         artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
                                        self.provenance_capture)
