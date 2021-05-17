@@ -144,27 +144,26 @@ class Result:
         return self._archiver._destructor
 
     def save(self, filepath, ext=None):
-        """Save an artifact (.qza) or visualization (.qzv) file.
+        """Save to a file.
 
         Parameters
         ----------
         filepath : str
-            Path to save artifact or visualization file at.
-
-        See Also
-        --------
-        load
+            Path to save file at.
 
         extension : str
             Preferred file extension (.qza, .qzv, .txt, etc).
             If no preferred extension input is included,
             Artifact extension will default to .qza and
             Visualization extension will default to .qzv.
-            Note that including a period in the extension is
-            optional, and if either none or multiple periods
-            are included, they will be replaced with a single
-            period at the beginning of the extension.
+            Including a period in the extension is
+            optional, and any additional periods delimiting
+            the filepath and the extension will be reduced
+            to a single period.
 
+        See Also
+        --------
+        load
 
         """
         if ext is None:
@@ -217,7 +216,7 @@ class Result:
 
 
 class Artifact(Result):
-    extension = 'qza'
+    extension = '.qza'
 
     @classmethod
     def _is_valid_type(cls, type_):
@@ -354,7 +353,7 @@ class Artifact(Result):
 
 
 class Visualization(Result):
-    extension = 'qzv'
+    extension = '.qzv'
 
     @classmethod
     def _is_valid_type(cls, type_):
