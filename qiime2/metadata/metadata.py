@@ -1120,7 +1120,7 @@ class CategoricalMetadataColumn(MetadataColumn):
 
     @classmethod
     def _is_supported_dtype(cls, dtype):
-        return dtype == 'object'
+        return dtype == 'object' or dtype == 'int'
 
     @classmethod
     def _normalize_(cls, series):
