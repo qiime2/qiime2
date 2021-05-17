@@ -237,7 +237,7 @@ class _MetadataBase:
 
         """
         from .io import MetadataWriter
-        
+
         if ext is None:
             ext = ''
         else:
@@ -250,6 +250,7 @@ class _MetadataBase:
 
         MetadataWriter(self).write(filepath)
         return filepath
+
 
 # Other properties such as units can be included here in the future!
 ColumnProperties = collections.namedtuple('ColumnProperties', ['type'])
