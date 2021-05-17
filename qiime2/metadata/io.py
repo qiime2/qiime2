@@ -338,7 +338,17 @@ class MetadataWriter:
     def __init__(self, metadata):
         self._metadata = metadata
 
-    def write(self, filepath):
+    def write(self, filepath, ext=None):
+        if ext is None:
+            ext = ''
+        else:
+            ext = '.' + ext.lstrip('.')
+
+        filepath = filepath.rstrip('.')
+
+        if not filepath.endswith(ext):
+            filepath += ext
+
         # Newline settings based on recommendation from csv docs:
         #     https://docs.python.org/3/library/csv.html#id3
 
@@ -367,6 +377,8 @@ class MetadataWriter:
             df.fillna('', inplace=True)
             df = df.applymap(self._format)
             tsv_writer.writerows(df.itertuples(index=True))
+
+        return filepath
 
     def _format(self, value):
         if isinstance(value, str):

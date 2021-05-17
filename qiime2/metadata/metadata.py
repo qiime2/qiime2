@@ -487,13 +487,19 @@ class Metadata(_MetadataBase):
         filepath : str
             Path to save TSV metadata file at.
 
-        extension : str
+        ext : str
             Preferred file extension (.tsv, .txt, etc).
             Will be left blank if no extension is included.
             Including a period in the extension is
             optional, and any additional periods delimiting
             the filepath and the extension will be reduced
             to a single period.
+
+        Returns
+        -------
+        str
+            Filepath and extension (if provided) that the
+            file was saved to.
 
         See Also
         --------
@@ -502,18 +508,7 @@ class Metadata(_MetadataBase):
         """
         from .io import MetadataWriter
 
-        if ext is None:
-            ext = ''
-        else:
-            ext = '.' + ext.lstrip('.')
-
-        filepath = filepath.rstrip('.')
-
-        if not filepath.endswith(ext):
-            filepath += ext
-
-        MetadataWriter(self).write(filepath)
-        return filepath
+        return MetadataWriter(self).write(filepath, ext)
 
     def to_dataframe(self):
         """Create a pandas dataframe from the metadata.
@@ -958,7 +953,7 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         """
         return not (self == other)
 
-    def save(self, filepath):
+    def save(self, filepath, ext=None):
         """Save a TSV metadata file containing this metadata column.
 
         The TSV metadata file format is described at https://docs.qiime2.org in
@@ -972,9 +967,24 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         filepath : str
             Path to save TSV metadata file at.
 
+        ext : str
+            Preferred file extension (.tsv, .txt, etc).
+            Will be left blank if no extension is included.
+            Including a period in the extension is
+            optional, and any additional periods delimiting
+            the filepath and the extension will be reduced
+            to a single period.
+
+        Returns
+        -------
+        str
+            Filepath and extension (if provided) that the
+            file was saved to.
+
         """
         from .io import MetadataWriter
-        MetadataWriter(self).write(filepath)
+
+        return MetadataWriter(self).write(filepath, ext)
 
     def to_series(self):
         """Create a pandas series from the metadata column.
