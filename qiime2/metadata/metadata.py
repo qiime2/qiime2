@@ -203,6 +203,54 @@ class _MetadataBase:
         return df_or_series.drop(labels=ids_to_discard, axis='index',
                                  inplace=False, errors='raise')
 
+    def save(self, filepath, ext=None):
+        """Save a TSV metadata file.
+
+        The TSV metadata file format is described at https://docs.qiime2.org in
+        the Metadata Tutorial.
+
+        The file will always include the ``#q2:types`` directive in order to
+        make the file roundtrippable without relying on column type inference.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to save TSV metadata file at.
+
+        ext : str
+            Preferred file extension (.tsv, .txt, etc).
+            Will be left blank if no extension is included.
+            Including a period in the extension is
+            optional, and any additional periods delimiting
+            the filepath and the extension will be reduced
+            to a single period.
+
+        Returns
+        -------
+        str
+            Filepath and extension (if provided) that the
+            file was saved to.
+
+        See Also
+        --------
+        Metadata.load
+
+        """
+        from .io import MetadataWriter
+
+        if ext is None:
+            ext = ''
+        else:
+            ext = '.' + ext.lstrip('.')
+
+        filepath = filepath.rstrip('.')
+
+        if not filepath.endswith(ext):
+            filepath += ext
+
+        MetadataWriter(self).write(filepath)
+        return filepath
+
 
 # Other properties such as units can be included here in the future!
 ColumnProperties = collections.namedtuple('ColumnProperties', ['type'])
@@ -472,28 +520,6 @@ class Metadata(_MetadataBase):
 
         """
         return not (self == other)
-
-    def save(self, filepath):
-        """Save a TSV metadata file.
-
-        The TSV metadata file format is described at https://docs.qiime2.org in
-        the Metadata Tutorial.
-
-        The file will always include the ``#q2:types`` directive in order to
-        make the file roundtrippable without relying on column type inference.
-
-        Parameters
-        ----------
-        filepath : str
-            Path to save TSV metadata file at.
-
-        See Also
-        --------
-        load
-
-        """
-        from .io import MetadataWriter
-        MetadataWriter(self).write(filepath)
 
     def to_dataframe(self):
         """Create a pandas dataframe from the metadata.
@@ -937,24 +963,6 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
         """
         return not (self == other)
-
-    def save(self, filepath):
-        """Save a TSV metadata file containing this metadata column.
-
-        The TSV metadata file format is described at https://docs.qiime2.org in
-        the Metadata Tutorial.
-
-        The file will always include the ``#q2:types`` directive in order to
-        make the file roundtrippable without relying on column type inference.
-
-        Parameters
-        ----------
-        filepath : str
-            Path to save TSV metadata file at.
-
-        """
-        from .io import MetadataWriter
-        MetadataWriter(self).write(filepath)
 
     def to_series(self):
         """Create a pandas series from the metadata column.

@@ -143,9 +143,46 @@ class Result:
     def _destructor(self):
         return self._archiver._destructor
 
-    def save(self, filepath):
-        if not filepath.endswith(self.extension):
-            filepath += self.extension
+    def save(self, filepath, ext=None):
+        """Save to a file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to save file at.
+
+        extension : str
+            Preferred file extension (.qza, .qzv, .txt, etc).
+            If no preferred extension input is included,
+            Artifact extension will default to .qza and
+            Visualization extension will default to .qzv.
+            Including a period in the extension is
+            optional, and any additional periods delimiting
+            the filepath and the extension will be reduced
+            to a single period.
+
+        Returns
+        -------
+        str
+            Filepath and extension (if provided) that the
+            file was saved to.
+
+        See Also
+        --------
+        load
+
+        """
+        if ext is None:
+            ext = self.extension
+
+        # This accounts for edge cases in the filename extension
+        # and ensures that there is only a single period in the ext.
+        filepath = filepath.rstrip('.')
+        ext = '.' + ext.lstrip('.')
+
+        if not filepath.endswith(ext):
+            filepath += ext
+
         self._archiver.save(filepath)
         return filepath
 

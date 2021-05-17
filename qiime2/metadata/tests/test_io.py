@@ -834,6 +834,111 @@ class TestSave(unittest.TestCase):
 
         self.assertEqual(obs, exp)
 
+    def test_save_metadata_auto_extension(self):
+        md = Metadata(pd.DataFrame(
+            {'col1': [1.0, 2.0, 3.0],
+             'col2': ['a', 'b', 'c'],
+             'col3': ['foo', 'bar', '42']},
+            index=pd.Index(['id1', 'id2', 'id3'], name='id')))
+
+        # Filename & extension endswith is matching (non-default).
+        fp = os.path.join(self.temp_dir, 'metadatatsv')
+        obs_md = md.save(fp, '.tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadatatsv.tsv')
+
+        # No period in filename; no extension included.
+        fp = os.path.join(self.temp_dir, 'metadata')
+        obs_md = md.save(fp)
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata')
+
+        # No period in filename; no period in extension.
+        fp = os.path.join(self.temp_dir, 'metadata')
+        obs_md = md.save(fp, 'tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # No period in filename; multiple periods in extension.
+        fp = os.path.join(self.temp_dir, 'metadata')
+        obs_md = md.save(fp, '..tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Single period in filename; no period in extension.
+        fp = os.path.join(self.temp_dir, 'metadata.')
+        obs_md = md.save(fp, 'tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Single period in filename; single period in extension.
+        fp = os.path.join(self.temp_dir, 'metadata.')
+        obs_md = md.save(fp, '.tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Single period in filename; multiple periods in extension.
+        fp = os.path.join(self.temp_dir, 'metadata.')
+        obs_md = md.save(fp, '..tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Multiple periods in filename; single period in extension.
+        fp = os.path.join(self.temp_dir, 'metadata..')
+        obs_md = md.save(fp, '.tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Multiple periods in filename; multiple periods in extension.
+        fp = os.path.join(self.temp_dir, 'metadata..')
+        obs_md = md.save(fp, '..tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # No extension in filename; no extension input.
+        fp = os.path.join(self.temp_dir, 'metadata')
+        obs_md = md.save(fp)
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata')
+
+        # No extension in filename; extension input.
+        fp = os.path.join(self.temp_dir, 'metadata')
+        obs_md = md.save(fp, '.tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Extension in filename; no extension input.
+        fp = os.path.join(self.temp_dir, 'metadata.tsv')
+        obs_md = md.save(fp)
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
+        # Extension in filename; extension input (non-matching).
+        fp = os.path.join(self.temp_dir, 'metadata.tsv')
+        obs_md = md.save(fp, '.txt')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv.txt')
+
+        # Extension in filename; extension input (matching).
+        fp = os.path.join(self.temp_dir, 'metadata.tsv')
+        obs_md = md.save(fp, '.tsv')
+        obs_filename = os.path.basename(obs_md)
+
+        self.assertEqual(obs_filename, 'metadata.tsv')
+
     def test_no_bom(self):
         md = Metadata(pd.DataFrame(
             {'col1': [1.0, 2.0, 3.0],
