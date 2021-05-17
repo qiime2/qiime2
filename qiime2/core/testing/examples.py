@@ -141,6 +141,14 @@ def comments_only(use):
     use.comment('comment 2')
 
 
+def comments_only_factory():
+    def comments_only_closure(use):
+        use.comment('comment 1')
+        use.comment('comment 2')
+
+    return comments_only_closure
+
+
 def identity_with_metadata_simple(use):
     ints = use.init_data('ints', ints1_factory)
     md = use.init_metadata('md', md1_factory)

@@ -14,6 +14,7 @@ import textwrap
 import itertools
 
 import decorator
+import dill
 
 import qiime2.sdk
 import qiime2.core.type as qtype
@@ -144,7 +145,7 @@ class Action(metaclass=abc.ABCMeta):
         return "<%s %s>" % (self.type, self.get_import_path())
 
     def __getstate__(self):
-        return {
+        return dill.dumps({
             'callable': self._callable,
             'signature': self.signature,
             'plugin_id': self.plugin_id,
@@ -153,10 +154,10 @@ class Action(metaclass=abc.ABCMeta):
             'citations': self.citations,
             'deprecated': self.deprecated,
             'examples': self.examples,
-        }
+        })
 
     def __setstate__(self, state):
-        self.__init(**state)
+        self.__init(**dill.loads(state))
 
     def _bind(self, context_factory):
         """Bind an action to a Context factory, returning a decorated function.

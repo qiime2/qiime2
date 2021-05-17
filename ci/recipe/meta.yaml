@@ -25,6 +25,7 @@ requirements:
     - python-dateutil
     - bibtexparser
     - networkx
+    - dill
 
 test:
   imports:
