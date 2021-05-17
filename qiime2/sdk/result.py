@@ -161,6 +161,11 @@ class Result:
             the filepath and the extension will be reduced
             to a single period.
 
+        Returns
+        -------
+        str
+            Filepath and extension (if provided) that the
+            file was saved to.
         See Also
         --------
         load
