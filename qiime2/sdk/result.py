@@ -11,7 +11,7 @@ import shutil
 import collections
 import distutils.dir_util
 import pathlib
-from typing import Union
+from typing import Union, get_args, get_origin
 
 import qiime2.metadata
 import qiime2.plugin
@@ -284,10 +284,9 @@ class Artifact(Result):
 
         from_type = transform.ModelType.from_view_type(self.format)
 
-        if isinstance(view_type, type(Union)):
+        if isinstance(get_origin(view_type), type(Union)):
             transformation = None
-            # TODO: in Python >=3.8 replace with typing.get_args(view_type)
-            for arg in view_type.__args__:
+            for arg in get_args(view_type):
                 to_type = transform.ModelType.from_view_type(arg)
                 try:
                     transformation = from_type.make_transformation(
