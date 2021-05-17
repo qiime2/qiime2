@@ -233,7 +233,7 @@ class _MetadataBase:
 
         See Also
         --------
-        load
+        Metadata.load
 
         """
         from .io import MetadataWriter
