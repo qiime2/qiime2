@@ -438,10 +438,10 @@ class Metadata(_MetadataBase):
 
     @property
     def id(self):
-        if not isinstance(self._id, uuid.UUID):
-            return f'{self._id:x}'
+        if isinstance(self._id, uuid.UUID):
+            return str(self._id)
         else:
-            return self._id
+            return f'{self._id:x}'
 
     @property
     def _id(self):
