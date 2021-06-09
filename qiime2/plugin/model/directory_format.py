@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import re
+import sys
 import pathlib
 
 from qiime2.core import transform
@@ -90,7 +91,7 @@ class BoundFile:
         found_members = False
         root = pathlib.Path(self._directory_format.path)
         for path in collected_paths:
-            if re.match(self.pathspec, str(path.relative_to(root))):
+            if re.fullmatch(self.pathspec, str(path.relative_to(root))):
                 if collected_paths[path]:
                     # Not a ValidationError, this just shouldn't happen.
                     raise ValueError("%r was already validated by another"
@@ -195,6 +196,7 @@ def SingleFileDirectoryFormat(name, pathspec, format):
     # (arguably the code is going to be broken if defined dynamically anyways,
     # but better to find that out later than writing in the module namespace
     # even if it isn't called module-level [which is must be!])
-    df = globals()[name] = type(name, (SingleFileDirectoryFormatBase,),
-                                {'file': File(pathspec, format=format)})
+    df = type(name, (SingleFileDirectoryFormatBase,),
+              {'file': File(pathspec, format=format)})
+    df.__module__ = sys._getframe(1).f_globals.get('__name__', '__main__')
     return df

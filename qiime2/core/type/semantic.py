@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -7,7 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import types
-import collections
+import collections.abc
 import itertools
 
 from qiime2.core.type.grammar import IncompleteExp, UnionExp, IntersectionExp
@@ -116,7 +116,7 @@ def _munge_field_members(field_names, field_members):
 
     if field_members is None:
         return fixed
-    if not isinstance(field_members, collections.Mapping):
+    if not isinstance(field_members, collections.abc.Mapping):
         raise ValueError("")
 
     fixed.update(field_members)

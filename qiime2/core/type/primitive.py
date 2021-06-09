@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -419,12 +419,12 @@ class _MetadataColumn(_PrimitiveTemplateBase):
             raise TypeError("Unsupported type in field: %r"
                             % (field.get_name(),))
 
-    def decode(self, metadata):
+    def decode(self, value):
         # This interface should have already retrieved this object.
-        if not self.is_element(metadata):
+        if not isinstance(value, metadata.MetadataColumn):
             raise TypeError("`Metadata` must be provided by the interface"
                             " directly.")
-        return metadata
+        return value
 
     def encode(self, value):
         # TODO: Should this be the provenance representation? Does that affect

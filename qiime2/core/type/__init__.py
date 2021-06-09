@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -15,13 +15,14 @@ from .signature import PipelineSignature, MethodSignature, VisualizerSignature
 from .meta import TypeMap, TypeMatch
 from .util import (is_primitive_type, is_semantic_type, is_metadata_type,
                    is_collection_type, is_visualization_type,
-                   interrogate_collection_type, parse_primitive)
+                   interrogate_collection_type, parse_primitive,
+                   is_union, is_metadata_column_type)
 
 __all__ = [
     # Type Helpers
     'is_semantic_type', 'is_visualization_type', 'is_primitive_type',
     'is_metadata_type', 'is_collection_type', 'interrogate_collection_type',
-    'parse_primitive',
+    'parse_primitive', 'is_union', 'is_metadata_column_type',
     # Collection Types
     'Set', 'List',
     # Semantic Types

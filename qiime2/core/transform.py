@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -161,33 +161,34 @@ class SingleFileDirectoryFormatType(FormatType):
         # - y: output format y
         # - ->: implicit transformer
         # - =>: registered transformer
+        # - :> final transformation
         # - |: or, used when multiple situation are possible
 
         # It looks like all permutations because it is...
 
-        # Dx -> y | Dy via Dx => y | Dy
+        # Dx :> y | Dy via Dx => y | Dy
         transformer, record = self._wrap_transformer(self, other)
         if transformer is not None:
             return transformer, record
 
-        # Dx -> Dy via Dx -> x => y | Dy
+        # Dx :> Dy via Dx -> x => y | Dy
         transformer, record = self._wrap_transformer(self, other,
                                                      wrap_input=True)
         if transformer is not None:
             return transformer, record
 
         if type(other) is type(self):
-            # Dx -> Dy via Dx -> x => y -> Dy
+            # Dx :> Dy via Dx -> x => y -> Dy
             transformer, record = self._wrap_transformer(
                 self, other, wrap_input=True, wrap_output=True)
             if transformer is not None:
                 return transformer, record
 
-        # Out of options, try for Dx -> Dy via Dx => y -> Dy
+        # Out of options, try for Dx :> Dy via Dx => y -> Dy
         return other._get_transformer_from(self)  # record is included
 
     def _get_transformer_from(self, other):
-        # x | Dx -> Dy via x | Dx => y -> Dy
+        # x | Dx :> Dy via x | Dx => y -> Dy
         # IMPORTANT: reverse other and self, this method is like __radd__
         return self._wrap_transformer(other, self, wrap_output=True)
 

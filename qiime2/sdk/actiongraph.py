@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -54,7 +54,7 @@ def get_next_arguments(action, type="input"):
     return req, non_req
 
 
-def unravel(l):
+def unravel(list_):
     """
     Unravel Union node to get all permutations of types for each action
 
@@ -68,8 +68,8 @@ def unravel(l):
 
     """
 
-    result = [l]
-    for i, x in enumerate(l):
+    result = [list_]
+    for i, x in enumerate(list_):
         if len(list(x[1])) > 1:
             members = list(x[1])
             temp = copy.deepcopy(result)
@@ -187,15 +187,15 @@ def build_graph(action_list=[], opt=False):
                             name = "opt_"+str(in_v)
                             G.add_edge(name, str(dict_))
                             G[name][str(dict_)]['name'] = in_k[1:]
-                            G.node[name]['type'] = in_v
-                            G.node[name]['optional'] = True
-                            G.node[name]['node'] = 'type'
+                            G.nodes[name]['type'] = in_v
+                            G.nodes[name]['optional'] = True
+                            G.nodes[name]['node'] = 'type'
                         else:
                             G.add_edge(in_v, str(dict_))
                             G[in_v][str(dict_)]['name'] = in_k
-                            G.node[in_v]['type'] = in_v
-                            G.node[in_v]['optional'] = False
-                            G.node[in_v]['node'] = 'type'
+                            G.nodes[in_v]['type'] = in_v
+                            G.nodes[in_v]['optional'] = False
+                            G.nodes[in_v]['node'] = 'type'
                 else:
                     for out_k, out_v in v.items():
                         if not out_v:
@@ -204,13 +204,13 @@ def build_graph(action_list=[], opt=False):
                             name = "opt_"+str(out_v)
                             G.add_edge("opt_"+str(out_v), str(dict_))
                             G[str(dict_)][name]['name'] = out_k[1:]
-                            G.node[name]['type'] = in_v
-                            G.node[name]['optional'] = True
-                            G.node[name]['node'] = 'type'
+                            G.nodes[name]['type'] = in_v
+                            G.nodes[name]['optional'] = True
+                            G.nodes[name]['node'] = 'type'
                         else:
                             G.add_edge(str(dict_), out_v)
                             G[str(dict_)][out_v]['name'] = out_k
-                            G.node[out_v]['type'] = out_v
-                            G.node[out_v]['optional'] = False
-                            G.node[out_v]['node'] = 'type'
+                            G.nodes[out_v]['type'] = out_v
+                            G.nodes[out_v]['optional'] = False
+                            G.nodes[out_v]['node'] = 'type'
     return G

@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -11,6 +11,7 @@ import qiime2.plugin as plugin
 
 IntSequence1 = plugin.SemanticType('IntSequence1')
 IntSequence2 = plugin.SemanticType('IntSequence2')
+IntSequence3 = plugin.SemanticType('IntSequence3')
 Mapping = plugin.SemanticType('Mapping')
 FourInts = plugin.SemanticType('FourInts')
 SingleInt = plugin.SemanticType('SingleInt')

@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -8,13 +8,14 @@
 
 import unittest
 import re
+import unittest.mock as mock
 
 import pandas as pd
-import pandas.util.testing as pdt
 
 import qiime2
 from qiime2.plugins import dummy_plugin
 from qiime2.core.testing.type import IntSequence1, Mapping
+import qiime2.core.archive.provenance as provenance
 
 
 class TestProvenanceIntegration(unittest.TestCase):
@@ -34,7 +35,7 @@ class TestProvenanceIntegration(unittest.TestCase):
         new_m = qiime2.Metadata.load(
             str(p_dir / 'artifacts' / str(b.uuid) / 'action' / 'metadata.tsv'))
 
-        pdt.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe())
+        pd.testing.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe())
 
         with (p_dir / 'action' / 'metadata.tsv').open() as fh:
             self.assertEqual(
@@ -70,7 +71,7 @@ class TestProvenanceIntegration(unittest.TestCase):
         new_m = qiime2.Metadata.load(
             str(p_dir / 'artifacts' / str(b.uuid) / 'action' / 'metadata.tsv'))
 
-        pdt.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe())
+        pd.testing.assert_frame_equal(m.to_dataframe(), new_m.to_dataframe())
 
         # Check that provenance of originating metadata artifact exists
         self.assertTrue((p_dir / 'artifacts' / str(metadata_artifact_1.uuid) /
@@ -114,8 +115,8 @@ class TestProvenanceIntegration(unittest.TestCase):
 
         new_merged_md = qiime2.Metadata.load(
             str(p_dir / 'artifacts' / str(b.uuid) / 'action' / 'metadata.tsv'))
-        pdt.assert_frame_equal(new_merged_md.to_dataframe(),
-                               merged_md.to_dataframe())
+        pd.testing.assert_frame_equal(new_merged_md.to_dataframe(),
+                                      merged_md.to_dataframe())
 
         # Check that provenance of originating metadata artifacts exists
         self.assertTrue((p_dir / 'artifacts' / str(md_artifact1.uuid) /
@@ -238,6 +239,44 @@ class TestProvenanceIntegration(unittest.TestCase):
         self.assertIn('type: method', actual_method_yaml)
         self.assertIn('ints: %s' % ints.uuid, actual_method_yaml)
         self.assertIn('action: split_ints', actual_method_yaml)
+
+    def test_unioned_primitives(self):
+        r = dummy_plugin.actions.unioned_primitives(3, 2)
+
+        prov_dir = r.out._archiver.provenance_dir
+
+        with (prov_dir / 'action' / 'action.yaml').open() as fh:
+            prov_yml = fh.read()
+
+        self.assertIn('foo: 3', prov_yml)
+        self.assertIn('bar: 2', prov_yml)
+
+    @mock.patch('qiime2.core.archive.provenance.tzlocal.get_localzone',
+                side_effect=ValueError())
+    def test_ts_to_date(self, mocked_tzlocal):
+        q2_paper_date = 1563984000
+
+        obs = str(provenance._ts_to_date(q2_paper_date))
+        exp = "2019-07-24 16:00:00+00:00"
+
+        self.assertEqual(obs, exp)
+        self.assertTrue(mocked_tzlocal.called)
+
+    def test_prov_rename(self):
+        viz, = dummy_plugin.actions.no_input_viz()
+
+        viz_p_dir = viz._archiver.provenance_dir
+        self.assertTrue(viz_p_dir.exists())
+
+    @mock.patch('qiime2.core.path.ProvenancePath.rename',
+                side_effect=FileExistsError)
+    def test_prov_rename_file_exists(self, _):
+        viz, = dummy_plugin.actions.no_input_viz()
+
+        viz_p_dir = viz._archiver.provenance_dir
+
+        with (viz_p_dir / 'action' / 'action.yaml').open() as fh:
+            self.assertIn('output-name: visualization', fh.read())
 
 
 if __name__ == '__main__':

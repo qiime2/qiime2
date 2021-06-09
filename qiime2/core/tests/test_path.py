@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -7,9 +7,70 @@
 # ----------------------------------------------------------------------------
 
 import os
+import pathlib
+import shutil
+import tempfile
 import unittest
 
-from qiime2.core.path import OutPath
+from qiime2.core.path import OwnedPath, OutPath
+
+
+class TestOwnedPath(unittest.TestCase):
+    def setUp(self):
+        self.from_dir = tempfile.mkdtemp()
+        (pathlib.Path(self.from_dir) / 'foo.txt').touch()
+
+        self.to_dir = tempfile.mkdtemp()
+        # assume to_dir is empty for all tests
+
+    def test_move_or_copy_owned(self):
+        d = OwnedPath(self.from_dir)
+        # ensure that we are owned
+        d._user_owned = True
+
+        d._move_or_copy(self.to_dir)
+
+        # since from_dir is owned, _move_or_copy should copy, not move
+        self.assertTrue(os.path.exists(os.path.join(self.from_dir, 'foo.txt')))
+        self.assertTrue(os.path.exists(os.path.join(self.to_dir, 'foo.txt')))
+
+        shutil.rmtree(self.from_dir)
+        shutil.rmtree(self.to_dir)
+
+    def test_move_or_copy_not_owned_rename(self):
+        d = OwnedPath(self.from_dir)
+        # ensure that we are not owned
+        d._user_owned = False
+
+        d._move_or_copy(self.to_dir)
+
+        # since from_dir is not owned, _move_or_copy should move, not copy
+        self.assertFalse(os.path.exists(os.path.join(self.from_dir,
+                                                     'foo.txt')))
+        self.assertTrue(os.path.exists(os.path.join(self.to_dir, 'foo.txt')))
+
+        with self.assertRaises(FileNotFoundError):
+            shutil.rmtree(self.from_dir)
+        shutil.rmtree(self.to_dir)
+
+    @unittest.mock.patch('pathlib.Path.rename', side_effect=FileExistsError)
+    def test_move_or_copy_not_owned_copy(self, _):
+        d = OwnedPath(self.from_dir)
+        # ensure that we are not owned
+        d._user_owned = False
+
+        d._move_or_copy(self.to_dir)
+
+        # since from_dir is not owned, but the network fs race condition crops
+        # up, _move_or_copy should copy, not move, but then we still ensure
+        # that the original path has been cleaned up
+        self.assertFalse(os.path.exists(os.path.join(self.from_dir,
+                                                     'foo.txt')))
+        self.assertTrue(os.path.exists(os.path.join(self.to_dir, 'foo.txt')))
+
+        with self.assertRaises(FileNotFoundError):
+            shutil.rmtree(self.from_dir)
+        shutil.rmtree(self.to_dir)
 
 
 class TestOutPath(unittest.TestCase):

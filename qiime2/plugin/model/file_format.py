@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -8,6 +8,7 @@
 
 import abc
 
+from qiime2.core import transform
 from .base import FormatBase, ValidationError, _check_validation_level
 
 
@@ -38,6 +39,13 @@ class _FileFormat(FormatBase, metaclass=abc.ABCMeta):
         else:
             raise NotImplementedError("%r does not implement validate."
                                       % type(self))
+
+    def view(self, view_type):
+        from_type = transform.ModelType.from_view_type(self.__class__)
+        to_type = transform.ModelType.from_view_type(view_type)
+
+        transformation = from_type.make_transformation(to_type)
+        return transformation(self)
 
 
 class TextFileFormat(_FileFormat):

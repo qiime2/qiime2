@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -87,17 +87,11 @@ def _convert_literals(expr):
         return {_convert_literals(k): _convert_literals(v)
                 for k, v in zip(expr.keys, expr.values)}
 
-    if node is ast.NameConstant:
+    if node is ast.Constant:
         return expr.value
 
     if node is ast.Name and expr.id == 'inf':
         return float('inf')
-
-    if node is ast.Num:
-        return expr.n
-
-    if node is ast.Str:
-        return expr.s
 
     raise ValueError("Unknown literal: %r" % node)
 

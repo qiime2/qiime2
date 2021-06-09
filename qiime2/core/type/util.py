@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -17,7 +17,7 @@ from qiime2.core.type.parse import ast_to_type
 
 def _strip_predicates(expr):
     if isinstance(expr, UnionExp):
-        return UnionExp(_strip_predicates(m) for m in expr.members)
+        return UnionExp(_strip_predicates(m) for m in expr.members).normalize()
 
     if hasattr(expr, 'fields'):
         new_fields = tuple(_strip_predicates(f) for f in expr.fields)
@@ -93,6 +93,11 @@ def is_metadata_type(t):
     return is_primitive_type(t) and expr.name.startswith('Metadata')
 
 
+def is_metadata_column_type(t):
+    expr = _norm_input(t)
+    return is_primitive_type(t) and expr.name.endswith('MetadataColumn')
+
+
 def is_semantic_type(t):
     expr = _norm_input(t)
     return hasattr(expr, 'kind') and expr.kind == 'semantic-type'
@@ -103,13 +108,18 @@ def is_visualization_type(t):
     return hasattr(expr, 'kind') and expr.kind == 'visualization'
 
 
+def is_union(t):
+    expr = _norm_input(t)
+    return isinstance(expr, UnionExp)
+
+
 def is_collection_type(t):
     expr = _norm_input(t)
 
     if expr.name in _VARIADIC:
         return True
 
-    if isinstance(expr, UnionExp):
+    if is_union(expr):
         for m in expr.members:
             if m.name in _VARIADIC:
                 return True

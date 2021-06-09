@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -169,7 +169,7 @@ def TypeMatch(listing):
     while intersections:
         to_add.extend(intersections)
         intersections = _get_intersections(intersections)
-    mapping = TypeMap({l: l for l in list(reversed(to_add)) + listing})
+    mapping = TypeMap({x: x for x in list(reversed(to_add)) + listing})
     # TypeMatch only produces a single variable
     # iter_outputs is used by match for solving, so the index must match
     return next(iter(mapping.iter_outputs(_double_as_input=True)))

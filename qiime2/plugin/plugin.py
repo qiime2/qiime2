@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -21,6 +21,8 @@ TransformerRecord = collections.namedtuple(
     'TransformerRecord', ['transformer', 'plugin', 'citations'])
 SemanticTypeRecord = collections.namedtuple(
     'SemanticTypeRecord', ['semantic_type', 'plugin'])
+SemanticTypeFragmentRecord = collections.namedtuple(
+    'SemanticTypeFragmentRecord', ['fragment', 'plugin'])
 FormatRecord = collections.namedtuple('FormatRecord', ['format', 'plugin'])
 ViewRecord = collections.namedtuple(
     'ViewRecord', ['name', 'view', 'plugin', 'citations'])
@@ -29,13 +31,17 @@ TypeFormatRecord = collections.namedtuple(
 
 
 class Plugin:
-    def __init__(self, name, version, website, package, citation_text=None,
-                 user_support_text=None, short_description=None,
-                 description=None, citations=None):
+    def __init__(self, name, version, website, package=None, project_name=None,
+                 citation_text=None, user_support_text=None,
+                 short_description=None, description=None, citations=None):
+        self.id = name.replace('-', '_')
         self.name = name
         self.version = version
         self.website = website
+
+        # Filled in by the PluginManager if not provided.
         self.package = package
+        self.project_name = project_name
 
         if user_support_text is None:
             self.user_support_text = ('Please post to the QIIME 2 forum for '
@@ -67,9 +73,12 @@ class Plugin:
 
         self.formats = {}
         self.views = {}
-        self.types = {}
+        self.type_fragments = {}
         self.transformers = {}
         self.type_formats = []
+
+    def freeze(self):
+        pass
 
     @property
     def actions(self):
@@ -82,6 +91,17 @@ class Plugin:
         actions.update(self.visualizers)
         actions.update(self.pipelines)
         return types.MappingProxyType(actions)
+
+    @property
+    def types(self):
+        types = {}
+
+        for record in self.type_formats:
+            for type_ in record.type_expression:
+                types[str(type_)] = \
+                    SemanticTypeRecord(semantic_type=type_, plugin=self)
+
+        return types
 
     def register_formats(self, *formats, citations=None):
         for format in formats:
@@ -170,23 +190,24 @@ class Plugin:
             # Apply the decorator as we were applied with a single function
             return decorator(_fn)
 
-    def register_semantic_types(self, *semantic_types):
-        for semantic_type in semantic_types:
-            if not is_semantic_type(semantic_type):
-                raise TypeError("%r is not a semantic type." % semantic_type)
+    def register_semantic_types(self, *type_fragments):
+        for type_fragment in type_fragments:
+            if not is_semantic_type(type_fragment):
+                raise TypeError("%r is not a semantic type." % type_fragment)
 
-            if not (isinstance(semantic_type, grammar.IncompleteExp) or
-                    (semantic_type.is_concrete() and
-                    not semantic_type.fields)):
+            if not (isinstance(type_fragment, grammar.IncompleteExp) or
+                    (type_fragment.is_concrete() and
+                    not type_fragment.fields)):
                 raise ValueError("%r is not a semantic type symbol."
-                                 % semantic_type)
+                                 % type_fragment)
 
-            if semantic_type.name in self.types:
+            if type_fragment.name in self.type_fragments:
                 raise ValueError("Duplicate semantic type symbol %r."
-                                 % semantic_type)
+                                 % type_fragment)
 
-            self.types[semantic_type.name] = SemanticTypeRecord(
-                semantic_type=semantic_type, plugin=self)
+            self.type_fragments[type_fragment.name] = \
+                SemanticTypeFragmentRecord(
+                    fragment=type_fragment, plugin=self)
 
     def register_semantic_type_to_format(self, semantic_type, artifact_format):
         if not issubclass(artifact_format, DirectoryFormat):
@@ -202,77 +223,80 @@ class Plugin:
                                  " on predicate is not supported.")
 
         self.type_formats.append(TypeFormatRecord(
-            type_expression=semantic_type,
-            format=artifact_format, plugin=self))
+            type_expression=semantic_type, format=artifact_format,
+            plugin=self))
 
 
 class PluginActions(dict):
-    _subpackage = None
-
     def __init__(self, plugin):
-        self._plugin = plugin
-        self._package = 'qiime2.plugins.%s.%s' % (
-            self._plugin.name.replace('-', '_'), self._subpackage)
+        self._plugin_id = plugin.id
         super().__init__()
 
 
 class PluginMethods(PluginActions):
-    _subpackage = 'methods'
-
-    # TODO is `register` a better name now that functions are the only accepted
-    # source (i.e. markdown support is gone)?
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
-                          output_descriptions=None, citations=None):
+                          output_descriptions=None, citations=None,
+                          deprecated=False, examples=None):
         if citations is None:
             citations = ()
         else:
             citations = tuple(citations)
 
+        if examples is None:
+            examples = {}
+
         method = qiime2.sdk.Method._init(function, inputs, parameters, outputs,
-                                         self._package, name, description,
+                                         self._plugin_id, name, description,
                                          input_descriptions,
                                          parameter_descriptions,
-                                         output_descriptions, citations)
+                                         output_descriptions, citations,
+                                         deprecated, examples)
         self[method.id] = method
 
 
 class PluginVisualizers(PluginActions):
-    _subpackage = 'visualizers'
-
     def register_function(self, function, inputs, parameters, name,
                           description, input_descriptions=None,
-                          parameter_descriptions=None, citations=None):
+                          parameter_descriptions=None, citations=None,
+                          deprecated=False, examples=None):
         if citations is None:
             citations = ()
         else:
             citations = tuple(citations)
 
+        if examples is None:
+            examples = {}
+
         visualizer = qiime2.sdk.Visualizer._init(function, inputs, parameters,
-                                                 self._package, name,
+                                                 self._plugin_id, name,
                                                  description,
                                                  input_descriptions,
                                                  parameter_descriptions,
-                                                 citations)
+                                                 citations, deprecated,
+                                                 examples)
         self[visualizer.id] = visualizer
 
 
 class PluginPipelines(PluginActions):
-    _subpackage = 'pipelines'
-
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
-                          output_descriptions=None, citations=None):
+                          output_descriptions=None, citations=None,
+                          deprecated=False, examples=None):
         if citations is None:
             citations = ()
         else:
             citations = tuple(citations)
 
+        if examples is None:
+            examples = {}
+
         pipeline = qiime2.sdk.Pipeline._init(function, inputs, parameters,
-                                             outputs, self._package, name,
+                                             outputs, self._plugin_id, name,
                                              description, input_descriptions,
                                              parameter_descriptions,
-                                             output_descriptions, citations)
+                                             output_descriptions, citations,
+                                             deprecated, examples)
         self[pipeline.id] = pipeline

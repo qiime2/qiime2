@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -127,11 +127,6 @@ class _MetadataBase:
                     "Detected empty metadata %s. %ss must consist of at least "
                     "one character." % (label, label))
 
-            if value != value.strip():
-                raise ValueError(
-                    "Detected metadata %s with leading or trailing "
-                    "whitespace characters: %r" % (label, value))
-
             if axis == 'id' and value.startswith('#'):
                 raise ValueError(
                     "Detected metadata %s that begins with a pound sign "
@@ -178,6 +173,54 @@ class _MetadataBase:
         ids_to_discard = ids - ids_to_keep
         return df_or_series.drop(labels=ids_to_discard, axis='index',
                                  inplace=False, errors='raise')
+
+    def save(self, filepath, ext=None):
+        """Save a TSV metadata file.
+
+        The TSV metadata file format is described at https://docs.qiime2.org in
+        the Metadata Tutorial.
+
+        The file will always include the ``#q2:types`` directive in order to
+        make the file roundtrippable without relying on column type inference.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to save TSV metadata file at.
+
+        ext : str
+            Preferred file extension (.tsv, .txt, etc).
+            Will be left blank if no extension is included.
+            Including a period in the extension is
+            optional, and any additional periods delimiting
+            the filepath and the extension will be reduced
+            to a single period.
+
+        Returns
+        -------
+        str
+            Filepath and extension (if provided) that the
+            file was saved to.
+
+        See Also
+        --------
+        Metadata.load
+
+        """
+        from .io import MetadataWriter
+
+        if ext is None:
+            ext = ''
+        else:
+            ext = '.' + ext.lstrip('.')
+
+        filepath = filepath.rstrip('.')
+
+        if not filepath.endswith(ext):
+            filepath += ext
+
+        MetadataWriter(self).write(filepath)
+        return filepath
 
 
 # Other properties such as units can be included here in the future!
@@ -375,6 +418,7 @@ class Metadata(_MetadataBase):
         super().__init__(dataframe.index)
 
         self._dataframe, self._columns = self._normalize_dataframe(dataframe)
+        self._validate_index(self._dataframe.columns, axis='column')
         self.contains_renamed_columns = False
 
         self._column_names = {}
@@ -409,11 +453,16 @@ class Metadata(_MetadataBase):
             return int(md5sum(fh.name), 16)
 
     def _normalize_dataframe(self, dataframe):
-        self._validate_index(dataframe.columns, axis='column')
-
         norm_df = dataframe.copy()
+
+        # Do not attempt to strip empty metadata
+        if not norm_df.columns.empty:
+            norm_df.columns = norm_df.columns.str.strip()
+
+        norm_df.index = norm_df.index.str.strip()
+
         columns = collections.OrderedDict()
-        for column_name, series in dataframe.items():
+        for column_name, series in norm_df.items():
             metadata_column = self._metadata_column_factory(series)
             norm_df[column_name] = metadata_column.to_series()
             properties = ColumnProperties(type=metadata_column.type)
@@ -518,28 +567,6 @@ class Metadata(_MetadataBase):
 
         """
         return not (self == other)
-
-    def save(self, filepath):
-        """Save a TSV metadata file.
-
-        The TSV metadata file format is described at https://docs.qiime2.org in
-        the Metadata Tutorial.
-
-        The file will always include the ``#q2:types`` directive in order to
-        make the file roundtrippable without relying on column type inference.
-
-        Parameters
-        ----------
-        filepath : str
-            Path to save TSV metadata file at.
-
-        See Also
-        --------
-        load
-
-        """
-        from .io import MetadataWriter
-        MetadataWriter(self).write(filepath)
 
     def to_dataframe(self):
         """Create a pandas dataframe from the metadata.
@@ -1011,8 +1038,6 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
         super().__init__(series.index)
 
-        self._validate_index([series.name], axis='column')
-
         if not self._is_supported_dtype(series.dtype):
             raise TypeError(
                 "%s %r does not support a pandas.Series object with dtype %s" %
@@ -1023,6 +1048,8 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
     def _init(self, md):
         self._source_metadata = md
+
+        self._validate_index([self._series.name], axis='column')
 
     def __repr__(self):
         """String summary of the metadata column."""
@@ -1086,24 +1113,6 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
         """
         return not (self == other)
-
-    def save(self, filepath):
-        """Save a TSV metadata file containing this metadata column.
-
-        The TSV metadata file format is described at https://docs.qiime2.org in
-        the Metadata Tutorial.
-
-        The file will always include the ``#q2:types`` directive in order to
-        make the file roundtrippable without relying on column type inference.
-
-        Parameters
-        ----------
-        filepath : str
-            Path to save TSV metadata file at.
-
-        """
-        from .io import MetadataWriter
-        MetadataWriter(self).write(filepath)
 
     def to_series(self):
         """Create a pandas series from the metadata column.
@@ -1275,6 +1284,7 @@ class CategoricalMetadataColumn(MetadataColumn):
     def _normalize_(cls, series):
         def normalize(value):
             if isinstance(value, str):
+                value = value.strip()
                 if value == '':
                     raise ValueError(
                         "%s does not support empty strings as values. Use an "
@@ -1282,11 +1292,6 @@ class CategoricalMetadataColumn(MetadataColumn):
                         "(e.g. `numpy.nan`) or supply a non-empty string as "
                         "the value in column %r." %
                         (cls.__name__, series.name))
-                elif value != value.strip():
-                    raise ValueError(
-                        "%s does not support values with leading or trailing "
-                        "whitespace characters. Column %r has the following "
-                        "value: %r" % (cls.__name__, series.name, value))
                 else:
                     return value
             elif pd.isnull(value):  # permits np.nan, Python float nan, None
@@ -1297,7 +1302,10 @@ class CategoricalMetadataColumn(MetadataColumn):
                     "%r of type %r in column %r." %
                     (cls.__name__, value, type(value), series.name))
 
-        return series.apply(normalize, convert_dtype=False)
+        norm_series = series.apply(normalize, convert_dtype=False)
+        norm_series.index = norm_series.index.str.strip()
+        norm_series.name = norm_series.name.strip()
+        return norm_series
 
 
 class NumericMetadataColumn(MetadataColumn):

@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -40,7 +40,8 @@ class TestUtil(unittest.TestCase):
             'Visualize most common integers',
             'Split sequence of integers in half',
             'Test different ways of failing', 'Optional artifacts method',
-            'Do stuff normally, but override this one step sometimes'])]
+            'Do stuff normally, but override this one step sometimes',
+            'TypeMatch with list and set params'])]
         self.assertEqual(len(obs), 1)
         self.assertEqual(obs[0][0], exp[0][0])
         self.assertCountEqual(obs[0][1], exp[0][1])

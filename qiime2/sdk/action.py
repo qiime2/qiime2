@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -14,6 +14,7 @@ import textwrap
 import itertools
 
 import decorator
+import dill
 
 import qiime2.sdk
 import qiime2.core.type as qtype
@@ -72,14 +73,15 @@ class Action(metaclass=abc.ABCMeta):
 
     # Private constructor
     @classmethod
-    def _init(cls, callable, signature, package, name, description, citations):
+    def _init(cls, callable, signature, plugin_id, name, description,
+              citations, deprecated, examples):
         """
 
         Parameters
         ----------
         callable : callable
         signature : qiime2.core.type.Signature
-        package : str
+        plugin_id : str
         name : str
             Human-readable name for this action.
         description : str
@@ -87,20 +89,23 @@ class Action(metaclass=abc.ABCMeta):
 
         """
         self = cls.__new__(cls)
-        self.__init(callable, signature, package, name, description, citations)
+        self.__init(callable, signature, plugin_id, name, description,
+                    citations, deprecated, examples)
         return self
 
     # This "extra private" constructor is necessary because `Action` objects
     # can be initialized from a static (classmethod) context or on an
     # existing instance (see `_init` and `__setstate__`, respectively).
-    def __init(self, callable, signature, package, name, description,
-               citations):
+    def __init(self, callable, signature, plugin_id, name, description,
+               citations, deprecated, examples):
         self._callable = callable
         self.signature = signature
-        self.package = package
+        self.plugin_id = plugin_id
         self.name = name
         self.description = description
         self.citations = citations
+        self.deprecated = deprecated
+        self.examples = examples
 
         self.id = callable.__name__
         self._dynamic_call = self._get_callable_wrapper()
@@ -130,24 +135,29 @@ class Action(metaclass=abc.ABCMeta):
                 self._callable.__name__)
         return markdown_source_template % {'source': source}
 
-    def get_import_path(self):
-        return self.package + '.' + self.id
+    def get_import_path(self, include_self=True):
+        path = f'qiime2.plugins.{self.plugin_id}.{self.type}s'
+        if include_self:
+            path += f'.{self.id}'
+        return path
 
     def __repr__(self):
         return "<%s %s>" % (self.type, self.get_import_path())
 
     def __getstate__(self):
-        return {
+        return dill.dumps({
             'callable': self._callable,
             'signature': self.signature,
-            'package': self.package,
+            'plugin_id': self.plugin_id,
             'name': self.name,
             'description': self.description,
-            'citations': self.citations
-        }
+            'citations': self.citations,
+            'deprecated': self.deprecated,
+            'examples': self.examples,
+        })
 
     def __setstate__(self, state):
-        self.__init(**state)
+        self.__init(**dill.loads(state))
 
     def _bind(self, context_factory):
         """Bind an action to a Context factory, returning a decorated function.
@@ -187,7 +197,7 @@ class Action(metaclass=abc.ABCMeta):
             # manager will clean up. (It also cleans up when things go right)
             with ctx as scope:
                 provenance = self._ProvCaptureCls(
-                    self.type, self.package, self.id)
+                    self.type, self.plugin_id, self.id)
                 scope.add_reference(provenance)
 
                 # Collate user arguments
@@ -225,6 +235,11 @@ class Action(metaclass=abc.ABCMeta):
                                 spec.view_type, recorder)
                     else:
                         callable_args[name] = artifact
+
+                if self.deprecated:
+                    with qiime2.core.util.warning() as warn:
+                        warn(self._build_deprecation_message(),
+                             FutureWarning)
 
                 # Execute
                 outputs = self._callable_executor_(scope, callable_args,
@@ -294,7 +309,7 @@ class Action(metaclass=abc.ABCMeta):
         wrapper.__name__ = wrapper.__qualname__ = name
 
     def _set_wrapper_properties(self, wrapper):
-        wrapper.__module__ = self.package
+        wrapper.__module__ = self.get_import_path(include_self=False)
         wrapper.__doc__ = self._build_numpydoc()
         wrapper.__annotations__ = self._build_annotations()
         # This is necessary so that `inspect` doesn't display the wrapped
@@ -319,11 +334,18 @@ class Action(metaclass=abc.ABCMeta):
     def _build_numpydoc(self):
         numpydoc = []
         numpydoc.append(textwrap.fill(self.name, width=75))
+        if self.deprecated:
+            base_msg = textwrap.indent(
+                textwrap.fill(self._build_deprecation_message(), width=72),
+                '   ')
+            numpydoc.append('.. deprecated::\n' + base_msg)
         numpydoc.append(textwrap.fill(self.description, width=75))
 
         sig = self.signature
         parameters = self._build_section("Parameters", sig.signature_order)
         returns = self._build_section("Returns", sig.outputs)
+
+        # TODO: include Usage-rendered examples here
 
         for section in (parameters, returns):
             if section:
@@ -348,6 +370,10 @@ class Action(metaclass=abc.ABCMeta):
                         str(value.description), width=71), '    '))
 
         return '\n'.join(section).strip()
+
+    def _build_deprecation_message(self):
+        return (f'This {self.type.title()} is deprecated and will be removed '
+                'in a future version of this plugin.')
 
 
 class Method(Action):
@@ -398,15 +424,15 @@ class Method(Action):
         return tuple(output_artifacts)
 
     @classmethod
-    def _init(cls, callable, inputs, parameters, outputs, package, name,
+    def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions, citations):
+              output_descriptions, citations, deprecated, examples):
         signature = qtype.MethodSignature(callable, inputs, parameters,
                                           outputs, input_descriptions,
                                           parameter_descriptions,
                                           output_descriptions)
-        return super()._init(callable, signature, package, name, description,
-                             citations)
+        return super()._init(callable, signature, plugin_id, name, description,
+                             citations, deprecated, examples)
 
 
 class Visualizer(Action):
@@ -437,13 +463,14 @@ class Visualizer(Action):
             return (viz,)
 
     @classmethod
-    def _init(cls, callable, inputs, parameters, package, name, description,
-              input_descriptions, parameter_descriptions, citations):
+    def _init(cls, callable, inputs, parameters, plugin_id, name, description,
+              input_descriptions, parameter_descriptions, citations,
+              deprecated, examples):
         signature = qtype.VisualizerSignature(callable, inputs, parameters,
                                               input_descriptions,
                                               parameter_descriptions)
-        return super()._init(callable, signature, package, name, description,
-                             citations)
+        return super()._init(callable, signature, plugin_id, name, description,
+                             citations, deprecated, examples)
 
 
 class Pipeline(Action):
@@ -460,8 +487,8 @@ class Pipeline(Action):
 
         for output in outputs:
             if not isinstance(output, qiime2.sdk.Result):
-                raise TypeError("Pipelines must return Result objects, not %r"
-                                % output)
+                raise TypeError("Pipelines must return `Result` objects, "
+                                "not %s" % (type(output), ))
 
         # This condition *is* tested by the caller of _callable_executor_, but
         # the kinds of errors a plugin developer see will make more sense if
@@ -491,15 +518,15 @@ class Pipeline(Action):
         return tuple(results)
 
     @classmethod
-    def _init(cls, callable, inputs, parameters, outputs, package, name,
+    def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions, citations):
+              output_descriptions, citations, deprecated, examples):
         signature = qtype.PipelineSignature(callable, inputs, parameters,
                                             outputs, input_descriptions,
                                             parameter_descriptions,
                                             output_descriptions)
-        return super()._init(callable, signature, package, name, description,
-                             citations)
+        return super()._init(callable, signature, plugin_id, name, description,
+                             citations, deprecated, examples)
 
 
 markdown_source_template = """

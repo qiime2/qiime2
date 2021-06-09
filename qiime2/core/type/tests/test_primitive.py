@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -8,6 +8,9 @@
 
 import unittest
 
+import pandas as pd
+
+import qiime2.metadata as metadata
 import qiime2.core.type.primitive as primitive
 import qiime2.core.type.grammar as grammar
 
@@ -45,6 +48,30 @@ class TestIntersectTwoRanges(unittest.TestCase):
         b = primitive.Range(5, 9, inclusive_start=False)
 
         self.assertIntersectEqual(a, b, grammar.UnionExp())
+
+
+class TestMetadataColumn(unittest.TestCase):
+
+    def test_decode_categorical_value(self):
+        value = pd.Series({'a': 'a', 'b': 'b', 'c': 'c'}, name='foo')
+        value.index.name = 'id'
+        cat_md = metadata.CategoricalMetadataColumn(value)
+
+        res = primitive.MetadataColumn[primitive.Categorical].decode(cat_md)
+        self.assertIs(res, cat_md)
+
+    def test_decode_numeric_value(self):
+        value = pd.Series({'a': 1, 'b': 2, 'c': 3}, name='foo')
+        value.index.name = 'id'
+        num_md = metadata.NumericMetadataColumn(value)
+
+        res = primitive.MetadataColumn[primitive.Categorical].decode(num_md)
+        self.assertIs(res, num_md)
+
+    def test_decode_other(self):
+        with self.assertRaisesRegex(TypeError, 'provided.*directly'):
+            primitive.MetadataColumn[primitive.Categorical].decode(
+                "<metadata>")
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -144,7 +144,8 @@ class MetadataReader:
                 raise MetadataFileError(
                     "Found unrecognized ID column name %r while searching for "
                     "header. The first column name in the header defines the "
-                    "ID column, and must be one of these values:\n\n%s" %
+                    "ID column, and must be one of these values:\n\n%s\n\n"
+                    "NOTE: Metadata files must contain tab-separated values." %
                     (row[0], FORMATTED_ID_HEADERS))
 
         if header is None:

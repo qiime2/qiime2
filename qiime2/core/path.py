@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -27,14 +27,30 @@ class OwnedPath(_ConcretePath):
         self._user_owned = True
         return self
 
+    def _copy_dir_or_file(self, other):
+        if self.is_dir():
+            return distutils.dir_util.copy_tree(str(self), str(other))
+        else:
+            return shutil.copy(str(self), str(other))
+
+    def _destruct(self):
+        if self.is_dir():
+            distutils.dir_util.remove_tree(str(self))
+        else:
+            self.unlink()
+
     def _move_or_copy(self, other):
         if self._user_owned:
-            if self.is_dir():
-                return distutils.dir_util.copy_tree(str(self), str(other))
-            else:
-                return shutil.copy(str(self), str(other))
+            return self._copy_dir_or_file(other)
         else:
-            return _ConcretePath.rename(self, other)
+            # Certain networked filesystems will experience a race
+            # condition on `rename`, so fall back to copying.
+            try:
+                return _ConcretePath.rename(self, other)
+            except FileExistsError:
+                copied = self._copy_dir_or_file(other)
+                self._destruct()
+                return copied
 
 
 class InPath(OwnedPath):

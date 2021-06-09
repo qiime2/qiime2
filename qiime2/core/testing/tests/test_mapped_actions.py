@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -10,6 +10,8 @@ import unittest
 
 from qiime2 import Artifact
 from qiime2.core.testing.util import get_dummy_plugin
+
+from ..type import IntSequence1, IntSequence2
 
 
 class ActionTester(unittest.TestCase):
@@ -184,6 +186,22 @@ class TestPredicatesPreservedMethod(ActionTester):
         x, = self.run_action(a=a)
 
         self.assertEqual(repr(x.type), "Foo % Properties('A', 'B')")
+
+
+class TestTypeMatchWithListAndSet(ActionTester):
+    ACTION = 'type_match_list_and_set'
+
+    def test_intsequence1(self):
+        a = Artifact.import_data('IntSequence1', [1])
+
+        x = self.run_action(ints=a, strs1=['a'], strs2={'a'})
+        self.assertEqual(x.output.type, IntSequence1)
+
+    def test_intsequence2(self):
+        a = Artifact.import_data('IntSequence2', [1])
+
+        x = self.run_action(ints=a, strs1=['a'], strs2={'a'})
+        self.assertEqual(x.output.type, IntSequence2)
 
 
 if __name__ == '__main__':

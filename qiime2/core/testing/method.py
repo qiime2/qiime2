@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -40,9 +40,18 @@ def params_only_method(name: str, age: int) -> dict:
     return {name: age}
 
 
+# Unioned primitives
+def unioned_primitives(foo: int, bar: str = 'auto_bar') -> dict:
+    return {'foo': foo, 'bar': bar}
+
+
 # No input artifacts or parameters.
 def no_input_method() -> dict:
     return {'foo': 42}
+
+
+def deprecated_method() -> dict:
+    return {'foo': 43}
 
 
 def long_description_method(mapping1: dict, name: str, age: int) -> dict:
@@ -120,3 +129,7 @@ def variadic_input_method(ints: list, int_set: int, nums: int,
         results += opt_nums
 
     return results
+
+
+def type_match_list_and_set(ints: list, strs1: list, strs2: set) -> list:
+    return [0]

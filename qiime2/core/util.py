@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -182,6 +182,7 @@ def warning():
     default_warn_format = warnings.formatwarning
     try:
         warnings.formatwarning = _warnformat
+        warnings.filterwarnings('always')
         yield warnings.warn
     finally:
         warnings.formatwarning = default_warn_format

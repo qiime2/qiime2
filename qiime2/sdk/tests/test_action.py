@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -9,6 +9,9 @@
 import os
 import collections
 import tempfile
+import unittest
+import warnings
+
 import qiime2.core.archive as archive
 
 from qiime2.core.testing.util import get_dummy_plugin
@@ -159,3 +162,23 @@ class TestBadInputs(TestPluginBase):
         with self.assertRaisesRegex(
                 TypeError, 'break_from.*\'invalid choice\''):
             pipeline(int_sequence, break_from)
+
+
+class TestDeprecation(unittest.TestCase):
+    def setUp(self):
+        self.plugin = get_dummy_plugin()
+        self.method = self.plugin.methods['deprecated_method']
+
+    def test_successful_registration(self):
+        self.assertTrue(self.method.deprecated)
+
+    def test_deprecation_warning(self):
+        with warnings.catch_warnings(record=True) as w:
+            self.method()
+            self.assertEqual(1, len(w))
+            warning = w[0]
+            self.assertEqual(warning.category, FutureWarning)
+            self.assertTrue('Method is deprecated' in str(warning.message))
+
+    def test_docstring(self):
+        self.assertIn('Method is deprecated', self.method.__call__.__doc__)

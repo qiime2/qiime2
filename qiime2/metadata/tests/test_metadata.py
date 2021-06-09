@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -11,7 +11,6 @@ import unittest
 import warnings
 
 import pandas as pd
-import pandas.util.testing as pdt
 import numpy as np
 
 from qiime2 import Artifact
@@ -76,22 +75,6 @@ class TestInvalidMetadataConstruction(unittest.TestCase):
                 {'col': [1, 2, 3],
                  '': [4, 5, 6]}, index=pd.Index(['a', 'b', 'c'], name='id')))
 
-    def test_leading_trailing_whitespace_id(self):
-        with self.assertRaisesRegex(ValueError, "metadata ID.*leading or "
-                                                "trailing whitespace.*' b '"):
-            Metadata(pd.DataFrame(
-                {'col': [1, 2, 3]},
-                index=pd.Index(['a', ' b ', 'c'], name='id')))
-
-    def test_leading_trailing_whitespace_column_name(self):
-        with self.assertRaisesRegex(
-                ValueError, "metadata column name.*leading or trailing "
-                            "whitespace.*' col2 '"):
-            Metadata(pd.DataFrame(
-                {'col1': [1, 2, 3],
-                 ' col2 ': [4, 5, 6]},
-                index=pd.Index(['a', 'b', 'c'], name='id')))
-
     def test_pound_sign_id(self):
         with self.assertRaisesRegex(
                 ValueError, "metadata ID.*begins with a pound sign.*'#b'"):
@@ -155,15 +138,6 @@ class TestInvalidMetadataConstruction(unittest.TestCase):
             Metadata(pd.DataFrame(
                 {'col1': [1, 2, 3],
                  'col2': ['foo', '', 'bar']},
-                index=pd.Index(['a', 'b', 'c'], name='id')))
-
-    def test_categorical_column_leading_trailing_whitespace_value(self):
-        with self.assertRaisesRegex(
-                ValueError, "CategoricalMetadataColumn.*leading or trailing "
-                            "whitespace characters.*Column 'col2'.*' bar '"):
-            Metadata(pd.DataFrame(
-                {'col1': [1, 2, 3],
-                 'col2': ['foo', ' bar ', 'baz']},
                 index=pd.Index(['a', 'b', 'c'], name='id')))
 
     def test_numeric_column_infinity(self):
@@ -402,6 +376,38 @@ class TestMetadataConstructionAndProperties(unittest.TestCase):
 
         self.assertEqual(set(metadata.columns), {'column', 'Column'})
 
+    def test_categorical_column_leading_trailing_whitespace_value(self):
+        md1 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3],
+             'col2': ['foo', ' bar ', 'baz']},
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+        md2 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3],
+             'col2': ['foo', 'bar', 'baz']},
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(md1, md2)
+
+    def test_leading_trailing_whitespace_id(self):
+        md1 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3], 'col2': [4, 5, 6]},
+            index=pd.Index(['a', ' b ', 'c'], name='id')))
+        md2 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3], 'col2': [4, 5, 6]},
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(md1, md2)
+
+    def test_leading_trailing_whitespace_column_name(self):
+        md1 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3], ' col2 ': [4, 5, 6]},
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+        md2 = Metadata(pd.DataFrame(
+            {'col1': [1, 2, 3], 'col2': [4, 5, 6]},
+            index=pd.Index(['a', 'b', 'c'], name='id')))
+
+        self.assertEqual(md1, md2)
+
 
 class TestSourceArtifacts(unittest.TestCase):
     def setUp(self):
@@ -517,8 +523,8 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
 
         md_no_artifact = Metadata(md_from_artifact.to_dataframe())
 
-        pdt.assert_frame_equal(md_from_artifact.to_dataframe(),
-                               md_no_artifact.to_dataframe())
+        pd.testing.assert_frame_equal(md_from_artifact.to_dataframe(),
+                                      md_no_artifact.to_dataframe())
         self.assertReallyNotEqual(md_from_artifact, md_no_artifact)
 
     def test_artifact_mismatch(self):
@@ -530,7 +536,7 @@ class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
         md1 = artifact1.view(Metadata)
         md2 = artifact2.view(Metadata)
 
-        pdt.assert_frame_equal(md1.to_dataframe(), md2.to_dataframe())
+        pd.testing.assert_frame_equal(md1.to_dataframe(), md2.to_dataframe())
         self.assertReallyNotEqual(md1, md2)
 
     def test_id_mismatch(self):
@@ -609,7 +615,7 @@ class TestToDataframe(unittest.TestCase):
 
         obs = md.to_dataframe()
 
-        pdt.assert_frame_equal(obs, df)
+        pd.testing.assert_frame_equal(obs, df)
 
     def test_id_header_preserved(self):
         df = pd.DataFrame({'col1': [42, 2.5], 'col2': ['foo', 'bar']},
@@ -618,7 +624,7 @@ class TestToDataframe(unittest.TestCase):
 
         obs = md.to_dataframe()
 
-        pdt.assert_frame_equal(obs, df)
+        pd.testing.assert_frame_equal(obs, df)
         self.assertEqual(obs.index.name, '#SampleID')
 
     def test_dataframe_copy(self):
@@ -628,7 +634,7 @@ class TestToDataframe(unittest.TestCase):
 
         obs = md.to_dataframe()
 
-        pdt.assert_frame_equal(obs, df)
+        pd.testing.assert_frame_equal(obs, df)
         self.assertIsNot(obs, df)
 
     def test_retains_column_order(self):
@@ -643,7 +649,7 @@ class TestToDataframe(unittest.TestCase):
 
         obs = md.to_dataframe()
 
-        pdt.assert_frame_equal(obs, df)
+        pd.testing.assert_frame_equal(obs, df)
         self.assertEqual(obs.columns.tolist(), ['z', 'a', 'ch'])
 
     def test_missing_data(self):
@@ -668,7 +674,7 @@ class TestToDataframe(unittest.TestCase):
                               dtype=object))]),
             index=index)
 
-        pdt.assert_frame_equal(obs, exp)
+        pd.testing.assert_frame_equal(obs, exp)
         self.assertEqual(obs.dtypes.to_dict(),
                          {'col1': np.float64, 'NA': object, 'col3': object,
                           'col4': object})
@@ -695,7 +701,7 @@ class TestToDataframe(unittest.TestCase):
                             'col3': [42.0, np.nan, 0.0]},
                            index=index)
 
-        pdt.assert_frame_equal(obs, exp)
+        pd.testing.assert_frame_equal(obs, exp)
         self.assertEqual(obs.dtypes.to_dict(),
                          {'col1': np.float64, 'col2': np.float64,
                           'col3': np.float64})

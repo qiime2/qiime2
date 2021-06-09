@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -15,6 +15,7 @@ from qiime2.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
 from .format import (
     IntSequenceFormat,
     IntSequenceFormatV2,
+    IntSequenceMultiFileDirectoryFormat,
     MappingFormat,
     SingleIntFormat,
     IntSequenceDirectoryFormat,
@@ -28,17 +29,18 @@ from .format import (
     EchoDirectoryFormat
 )
 
-from .type import (IntSequence1, IntSequence2, Mapping, FourInts, SingleInt,
-                   Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz)
+from .type import (IntSequence1, IntSequence2, IntSequence3, Mapping, FourInts,
+                   SingleInt, Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz)
 from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_column,
                      identity_with_categorical_metadata_column,
                      identity_with_numeric_metadata_column,
                      identity_with_optional_metadata,
                      identity_with_optional_metadata_column,
-                     params_only_method, no_input_method,
+                     params_only_method, no_input_method, deprecated_method,
                      optional_artifacts_method, long_description_method,
-                     docstring_order_method, variadic_input_method)
+                     docstring_order_method, variadic_input_method,
+                     unioned_primitives, type_match_list_and_set)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -46,6 +48,16 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        pipelines_in_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
+
+from .examples import (concatenate_ints_simple, concatenate_ints_complex,
+                       typical_pipeline_simple, typical_pipeline_complex,
+                       comments_only, identity_with_metadata_simple,
+                       identity_with_metadata_merging,
+                       identity_with_metadata_column_get_mdc,
+                       variadic_input_simple, optional_inputs,
+                       comments_only_factory,
+                       )
+
 
 citations = Citations.load('citations.bib', package='qiime2.core.testing')
 dummy_plugin = Plugin(
@@ -62,14 +74,15 @@ dummy_plugin = Plugin(
 import_module('qiime2.core.testing.transformer')
 
 # Register semantic types
-dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, Mapping,
-                                     FourInts, Kennel, Dog, Cat, SingleInt,
-                                     C1, C2, C3, Foo, Bar, Baz)
+dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, IntSequence3,
+                                     Mapping, FourInts, Kennel, Dog, Cat,
+                                     SingleInt, C1, C2, C3, Foo, Bar, Baz)
 
 # Register formats
 dummy_plugin.register_formats(
     IntSequenceFormatV2, MappingFormat, IntSequenceV2DirectoryFormat,
-    MappingDirectoryFormat, EchoDirectoryFormat, EchoFormat)
+    IntSequenceMultiFileDirectoryFormat, MappingDirectoryFormat,
+    EchoDirectoryFormat, EchoFormat)
 
 dummy_plugin.register_formats(
     FourIntsDirectoryFormat, UnimportableDirectoryFormat, UnimportableFormat,
@@ -87,6 +100,10 @@ dummy_plugin.register_semantic_type_to_format(
 dummy_plugin.register_semantic_type_to_format(
     IntSequence2,
     artifact_format=IntSequenceV2DirectoryFormat
+)
+dummy_plugin.register_semantic_type_to_format(
+    IntSequence3,
+    artifact_format=IntSequenceMultiFileDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     Mapping,
@@ -134,7 +151,13 @@ dummy_plugin.methods.register_function(
     name='Concatenate integers',
     description='This method concatenates integers into a single sequence in '
                 'the order they are provided.',
-    citations=[citations['baerheim1994effect']]
+    citations=[citations['baerheim1994effect']],
+    examples={'concatenate_ints_simple': concatenate_ints_simple,
+              'concatenate_ints_complex': concatenate_ints_complex,
+              'comments_only': comments_only,
+              # execute factory to make a closure to test pickling
+              'comments_only_factory': comments_only_factory(),
+              },
 )
 
 T = TypeMatch([IntSequence1, IntSequence2])
@@ -190,7 +213,10 @@ dummy_plugin.methods.register_function(
         ('out', IntSequence1)
     ],
     name='Identity',
-    description='This method does nothing, but takes metadata'
+    description='This method does nothing, but takes metadata',
+    examples={
+        'identity_with_metadata_simple': identity_with_metadata_simple,
+        'identity_with_metadata_merging': identity_with_metadata_merging},
 )
 
 dummy_plugin.methods.register_function(
@@ -265,7 +291,12 @@ dummy_plugin.methods.register_function(
         ('out', IntSequence1)
     ],
     name='Identity',
-    description='This method does nothing, but takes a generic metadata column'
+    description='This method does nothing, '
+                'but takes a generic metadata column',
+    examples={
+        'identity_with_metadata_column_get_mdc':
+            identity_with_metadata_column_get_mdc,
+    },
 )
 
 
@@ -345,9 +376,22 @@ dummy_plugin.methods.register_function(
         ('out', Mapping)
     ],
     name='Parameters only method',
-    description='This method only accepts parameters.'
+    description='This method only accepts parameters.',
 )
 
+dummy_plugin.methods.register_function(
+    function=unioned_primitives,
+    inputs={},
+    parameters={
+        'foo': Int % Range(1, None) | Str % Choices(['auto_foo']),
+        'bar': Int % Range(1, None) | Str % Choices(['auto_bar']),
+    },
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='Unioned primitive parameter',
+    description='This method has a unioned primitive parameter'
+)
 
 dummy_plugin.methods.register_function(
     function=no_input_method,
@@ -358,6 +402,18 @@ dummy_plugin.methods.register_function(
     ],
     name='No input method',
     description='This method does not accept any type of input.'
+)
+
+dummy_plugin.methods.register_function(
+    function=deprecated_method,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='A deprecated method',
+    description='This deprecated method does not accept any type of input.',
+    deprecated=True,
 )
 
 
@@ -377,7 +433,8 @@ dummy_plugin.methods.register_function(
     ],
     name='Optional artifacts method',
     description='This method declares optional artifacts and concatenates '
-                'whatever integers are supplied as input.'
+                'whatever integers are supplied as input.',
+    examples={'optional_inputs': optional_inputs},
 )
 
 dummy_plugin.methods.register_function(
@@ -405,6 +462,34 @@ dummy_plugin.methods.register_function(
     },
     output_descriptions={
         'output': 'All of the above mashed together'
+    },
+    examples={'variadic_input_simple': variadic_input_simple},
+)
+
+T = TypeMatch([IntSequence1, IntSequence2])
+dummy_plugin.methods.register_function(
+    function=type_match_list_and_set,
+    inputs={
+        'ints': T
+    },
+    parameters={
+        'strs1': List[Str],
+        'strs2': Set[Str]
+    },
+    outputs=[
+        ('output', T)
+    ],
+    name='TypeMatch with list and set params',
+    description='Just a method with a TypeMatch and list/set params',
+    input_descriptions={
+        'ints': 'An int artifact'
+    },
+    parameter_descriptions={
+        'strs1': 'A list of strings',
+        'strs2': 'A set of strings'
+    },
+    output_descriptions={
+        'output': '[0]'
     }
 )
 
@@ -518,7 +603,9 @@ dummy_plugin.pipelines.register_function(
     },
     name='A typical pipeline with the potential to raise an error',
     description='Waste some time shuffling data around for no reason',
-    citations=citations  # ALL of them.
+    citations=citations,  # ALL of them.
+    examples={'typical_pipeline_simple': typical_pipeline_simple,
+              'typical_pipeline_complex': typical_pipeline_complex},
 )
 
 dummy_plugin.pipelines.register_function(

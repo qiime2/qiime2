@@ -19,13 +19,13 @@ requirements:
   run:
     - python {{ python }}
     - pyyaml
-    - decorator
-    - pandas
+    - decorator >=4,<5
+    - pandas >=1
     - tzlocal
     - python-dateutil
-    - pyparsing ==2.3.0
     - bibtexparser
     - networkx
+    - dill
 
 test:
   imports:

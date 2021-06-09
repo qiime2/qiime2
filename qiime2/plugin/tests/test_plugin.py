@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2019, QIIME 2 development team.
+# Copyright (c) 2016-2021, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -12,6 +12,8 @@ import unittest
 import qiime2.plugin
 import qiime2.sdk
 
+from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
+                                      FourInts, Kennel, Dog, Cat, SingleInt)
 from qiime2.core.testing.util import get_dummy_plugin
 
 
@@ -90,7 +92,11 @@ class TestPlugin(unittest.TestCase):
                           'combinatorically_mapped_method',
                           'double_bound_variable_method',
                           'bool_flag_swaps_output_method',
-                          'predicates_preserved_method'})
+                          'predicates_preserved_method',
+                          'deprecated_method',
+                          'unioned_primitives',
+                          'type_match_list_and_set',
+                          })
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
 
@@ -118,7 +124,11 @@ class TestPlugin(unittest.TestCase):
                           'combinatorically_mapped_method',
                           'double_bound_variable_method',
                           'bool_flag_swaps_output_method',
-                          'predicates_preserved_method'})
+                          'predicates_preserved_method',
+                          'deprecated_method',
+                          'unioned_primitives',
+                          'type_match_list_and_set',
+                          })
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)
 
@@ -144,14 +154,27 @@ class TestPlugin(unittest.TestCase):
 
     # TODO test registration of directory formats.
 
-    def test_types(self):
-        types = self.plugin.types.keys()
+    def test_type_fragments(self):
+        types = self.plugin.type_fragments.keys()
 
         self.assertEqual(
             set(types),
-            set(['IntSequence1', 'IntSequence2', 'Mapping', 'FourInts',
-                 'Kennel', 'Dog', 'Cat', 'SingleInt', 'C1', 'C2', 'C3',
-                 'Foo', 'Bar', 'Baz']))
+            set(['IntSequence1', 'IntSequence2', 'IntSequence3', 'Mapping',
+                 'FourInts', 'Kennel', 'Dog', 'Cat', 'SingleInt', 'C1', 'C2',
+                 'C3', 'Foo', 'Bar', 'Baz']))
+
+    def test_types(self):
+        types = self.plugin.types
+        # Get just the SemanticTypeRecords out of the types dictionary, then
+        # get just the types out of the SemanticTypeRecord namedtuples
+        types = {type_.semantic_type for type_ in types.values()}
+
+        exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],
+               Kennel[Cat], SingleInt}
+        self.assertLessEqual(exp, types)
+        self.assertNotIn(Cat, types)
+        self.assertNotIn(Dog, types)
+        self.assertNotIn(Kennel, types)
 
 
 if __name__ == '__main__':
