@@ -36,7 +36,7 @@ class ActionTester(unittest.TestCase):
 class TestConstrainedInputVisualization(ActionTester):
     ACTION = 'constrained_input_visualization'
 
-    def test_match_foo(self):
+    def test_match_foo_1(self):
         a = Artifact.import_data('Foo', "element 1", view_type=str)
         b = Artifact.import_data('Foo', "element 2", view_type=str)
 
@@ -44,9 +44,17 @@ class TestConstrainedInputVisualization(ActionTester):
 
         contents = (viz._archiver.data_dir / 'index.html').read_text()
         self.assertIn('element 1', contents)
+        
+    def test_match_foo_2(self):
+        a = Artifact.import_data('Foo', "element 1", view_type=str)
+        b = Artifact.import_data('Foo', "element 2", view_type=str)
+
+        viz, = self.run_action(a=a, b=b)
+
+        contents = (viz._archiver.data_dir / 'index.html').read_text()
         self.assertIn('element 2', contents)
 
-    def test_match_nested(self):
+    def test_match_nested_1(self):
         a = Artifact.import_data('C1[Baz]', "element 1", view_type=str)
         b = Artifact.import_data('C1[Baz]', "element 2", view_type=str)
 
@@ -54,7 +62,16 @@ class TestConstrainedInputVisualization(ActionTester):
 
         contents = (viz._archiver.data_dir / 'index.html').read_text()
         self.assertIn('element 1', contents)
+        
+    def test_match_nested_2(self):
+        a = Artifact.import_data('C1[Baz]', "element 1", view_type=str)
+        b = Artifact.import_data('C1[Baz]', "element 2", view_type=str)
+
+        viz, = self.run_action(a=a, b=b)
+
+        contents = (viz._archiver.data_dir / 'index.html').read_text()
         self.assertIn('element 2', contents)
+
 
     def test_mismatch_foo_bar(self):
         a = Artifact.import_data('Foo', "element 1", view_type=str)
@@ -74,7 +91,7 @@ class TestConstrainedInputVisualization(ActionTester):
 class TestCombinatoricallyMappedMethod(ActionTester):
     ACTION = 'combinatorically_mapped_method'
 
-    def test_match_foo(self):
+    def test_match_foo_1(self):
         a = Artifact.import_data('C1[Foo]', 'element 1', view_type=str)
         b = Artifact.import_data('C3[Foo, Foo, Foo]',
                                  'element 2', view_type=str)
@@ -82,9 +99,17 @@ class TestCombinatoricallyMappedMethod(ActionTester):
         x, y = self.run_action(a=a, b=b)
 
         self.assertEqual(repr(x.type), 'C2[Bar, Bar]')
+        
+    def test_match_foo_2(self):
+        a = Artifact.import_data('C1[Foo]', 'element 1', view_type=str)
+        b = Artifact.import_data('C3[Foo, Foo, Foo]',
+                                 'element 2', view_type=str)
+
+        x, y = self.run_action(a=a, b=b)
+
         self.assertEqual(repr(y.type), 'Foo')
 
-    def test_match_bar_foo(self):
+    def test_match_bar_foo_1(self):
         a = Artifact.import_data('C1[Bar]', 'element 1', view_type=str)
         b = Artifact.import_data('C3[Foo, Foo, Foo]',
                                  'element 2', view_type=str)
@@ -92,9 +117,17 @@ class TestCombinatoricallyMappedMethod(ActionTester):
         x, y = self.run_action(a=a, b=b)
 
         self.assertEqual(repr(x.type), 'C2[Baz, Baz]')
+        
+     def test_match_bar_foo_2(self):
+        a = Artifact.import_data('C1[Bar]', 'element 1', view_type=str)
+        b = Artifact.import_data('C3[Foo, Foo, Foo]',
+                                 'element 2', view_type=str)
+
+        x, y = self.run_action(a=a, b=b)
+
         self.assertEqual(repr(y.type), 'Foo')
 
-    def test_match_baz_misc(self):
+    def test_match_baz_misc_1(self):
         a = Artifact.import_data('C1[Baz]', 'element 1', view_type=str)
         b = Artifact.import_data('C3[Foo, Bar, Baz]',
                                  'element 2', view_type=str)
@@ -102,6 +135,14 @@ class TestCombinatoricallyMappedMethod(ActionTester):
         x, y = self.run_action(a=a, b=b)
 
         self.assertEqual(repr(x.type), 'C2[Foo, Foo]')
+        
+    def test_match_baz_misc_2(self):
+        a = Artifact.import_data('C1[Baz]', 'element 1', view_type=str)
+        b = Artifact.import_data('C3[Foo, Bar, Baz]',
+                                 'element 2', view_type=str)
+
+        x, y = self.run_action(a=a, b=b)
+
         self.assertEqual(repr(y.type), 'Baz')
 
     def test_mismatch(self):
