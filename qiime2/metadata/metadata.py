@@ -767,7 +767,7 @@ class Metadata(_MetadataBase):
             sources = copy.deepcopy(md._column_sources)
             column_sources.append(sources)
 
-            for new_name, old_name in names.items():
+            for new_name, old_name in md._column_names.items():
                 # Track new column names
                 if old_name not in columns:
                     columns[old_name] = md_number
@@ -1044,6 +1044,7 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
                 (self.__class__.__name__, series.name, series.dtype))
 
         self._series = self._normalize_(series)
+        self._validate_index([self._series.name], axis='column')
         self._source_metadata = None
 
     def _init(self, md):
