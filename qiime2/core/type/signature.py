@@ -18,7 +18,7 @@ from .collection import List, Set
 from .primitive import infer_primitive_type
 from .visualization import Visualization
 from . import meta
-from .util import is_semantic_type, is_primitive_type
+from .util import is_semantic_type, is_primitive_type, parse_primitive
 from ..util import ImmutableBase
 
 
@@ -317,7 +317,7 @@ class PipelineSignature:
                     kwargs[key] is None):
                 params[key] = None
             else:
-                params[key] = spec.qiime_type.decode(kwargs[key])
+                params[key] = parse_primitive(spec.qiime_type, kwargs[key])
         return params
 
     def check_types(self, **kwargs):
