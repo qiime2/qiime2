@@ -204,7 +204,6 @@ class TestTypeMatchWithListAndSet(ActionTester):
         self.assertEqual(x.output.type, IntSequence2)
 
 
-
 class TestUnionedPrimitiveDecode(ActionTester):
     ACTION = 'unioned_primitives'
 
