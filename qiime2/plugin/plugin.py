@@ -20,16 +20,16 @@ from qiime2.core.util import get_view_name
 TransformerRecord = collections.namedtuple(
     'TransformerRecord', ['transformer', 'plugin', 'citations'])
 SemanticTypeRecord = collections.namedtuple(
-    'SemanticTypeRecord', ['semantic_type', 'plugin', 'validators'])
+    'SemanticTypeRecord', ['semantic_type', 'plugin'])
 SemanticTypeFragmentRecord = collections.namedtuple(
-    'SemanticTypeFragmentRecord', ['fragment', 'plugin', 'validators'])
+    'SemanticTypeFragmentRecord', ['fragment', 'plugin'])
 FormatRecord = collections.namedtuple('FormatRecord', ['format', 'plugin'])
 ViewRecord = collections.namedtuple(
     'ViewRecord', ['name', 'view', 'plugin', 'citations'])
 TypeFormatRecord = collections.namedtuple(
     'TypeFormatRecord', ['type_expression', 'format', 'plugin'])
 ValidatorRecord = collections.namedtuple(
-    'ValidatorRecord', ['validator', 'plugin'])
+    'ValidatorRecord', ['validator', 'plugin', 'context'])
 
 
 class Plugin:
@@ -102,8 +102,7 @@ class Plugin:
         for record in self.type_formats:
             for type_ in record.type_expression:
                 types[str(type_)] = \
-                    SemanticTypeRecord(semantic_type=type_, plugin=self,
-                                       validators=[])
+                    SemanticTypeRecord(semantic_type=type_, plugin=self)
 
         return types
 
@@ -139,14 +138,21 @@ class Plugin:
             if is_format:
                 self.formats[name] = FormatRecord(format=view, plugin=self)
 
-    def register_validator(self, semantic_types: list):
+    def register_validator(self, semantic_expression):
+        if not is_semantic_type(semantic_expression):
+            raise TypeError('%s is not a Semantic Type' % semantic_expression)
+
         def decorator(validator):
-            for semantic_type in semantic_types:
-                if semantic_type not in self.type_fragments:
-                    TypeError('%s is not a semantic_type' % semantic_type)
-                self.type_formats[semantic_type].validators.append(validator)
+            self.validators.append(ValidatorRecord(
+                                             validator=validator,
+                                             plugin=self,
+                                             context=semantic_expression))
+
+            #for semantic_type in semantic_types:
+            #    if semantic_type not in self.type_fragments:
+            #        TypeError('%s is not a semantic_type' % semantic_type)
+            #    self.type_formats[semantic_type].validators.append(validator)
         return decorator
-        #self.validators[] = ValidatorRecord(validator=validator, plugin=self)
 
     def register_transformer(self, _fn=None, *, citations=None):
         """
@@ -220,7 +226,7 @@ class Plugin:
 
             self.type_fragments[type_fragment.name] = \
                 SemanticTypeFragmentRecord(
-                    fragment=type_fragment, plugin=self, validators=[])
+                    fragment=type_fragment, plugin=self)
 
     def register_semantic_type_to_format(self, semantic_type, artifact_format):
         if not issubclass(artifact_format, DirectoryFormat):
