@@ -148,10 +148,6 @@ class Plugin:
                                              plugin=self,
                                              context=semantic_expression))
 
-            #for semantic_type in semantic_types:
-            #    if semantic_type not in self.type_fragments:
-            #        TypeError('%s is not a semantic_type' % semantic_type)
-            #    self.type_formats[semantic_type].validators.append(validator)
         return decorator
 
     def register_transformer(self, _fn=None, *, citations=None):
