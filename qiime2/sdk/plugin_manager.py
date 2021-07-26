@@ -71,6 +71,7 @@ class PluginManager:
         self.views = {}
         self.type_formats = []
         self._ff_to_sfdf = {}
+        self.validators = []
 
         if add_plugins:
             # These are all dependent loops, each requires the loop above it to

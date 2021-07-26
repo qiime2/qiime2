@@ -147,6 +147,7 @@ class Plugin:
                                              validator=validator,
                                              plugin=self,
                                              context=semantic_expression))
+            return validator
 
         return decorator
 
