@@ -72,6 +72,8 @@ dummy_plugin = Plugin(
 )
 
 import_module('qiime2.core.testing.transformer')
+import_module('qiime2.core.testing.validator')
+
 
 # Register semantic types
 dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, IntSequence3,

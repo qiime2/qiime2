@@ -78,7 +78,7 @@ class Plugin:
         self.type_fragments = {}
         self.transformers = {}
         self.type_formats = []
-        self.validators = []
+        self.validators = {}
 
     def freeze(self):
         pass
@@ -143,10 +143,13 @@ class Plugin:
             raise TypeError('%s is not a Semantic Type' % semantic_expression)
 
         def decorator(validator):
-            self.validators.append(ValidatorRecord(
-                                             validator=validator,
-                                             plugin=self,
-                                             context=semantic_expression))
+            for semantic_type in semantic_expression:
+                if semantic_type not in self.validators:
+                    self.validators[semantic_type] = []
+                self.validators[semantic_type].append(ValidatorRecord(
+                                                 validator=validator,
+                                                 plugin=self,
+                                                 context=semantic_expression))
             return validator
 
         return decorator

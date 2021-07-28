@@ -176,6 +176,10 @@ class TestPlugin(unittest.TestCase):
         self.assertNotIn(Dog, types)
         self.assertNotIn(Kennel, types)
 
+    def test_validator(self):
+        validators = self.plugin.validators
+        print(validators)
+
 
 if __name__ == '__main__':
     unittest.main()
