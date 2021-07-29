@@ -81,15 +81,25 @@ class PluginManager:
                 package = entry_point.module_name.split('.')[0]
                 plugin = entry_point.load()
 
-                self.add_plugin(plugin, package, project_name)
+                self.add_plugin(plugin, package, project_name,
+                                consistency_check=False)
 
-    def add_plugin(self, plugin, package=None, project_name=None):
+            self.add_plugin(plugin, package, project_name,
+                            consistency_check=True)
+
+    def _consistency_check(self):
+        pass
+
+    def add_plugin(self, plugin, package=None, project_name=None,
+                   consistency_check=True):
         self.plugins[plugin.name] = plugin
         self._plugin_by_id[plugin.id] = plugin
         if plugin.package is None:
             plugin.package = package
         if plugin.project_name is None:
             plugin.project_name = project_name
+        if consistency_check is True:
+            return self._consistency_check(plugin)
 
         # validate _after_ applying arguments
         if plugin.package is None:
