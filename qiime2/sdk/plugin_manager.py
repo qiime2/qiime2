@@ -84,8 +84,7 @@ class PluginManager:
                 self.add_plugin(plugin, package, project_name,
                                 consistency_check=False)
 
-            self.add_plugin(plugin, package, project_name,
-                            consistency_check=True)
+            return self._consistency_check(plugin)
 
     def _consistency_check(self):
         pass
@@ -98,8 +97,6 @@ class PluginManager:
             plugin.package = package
         if plugin.project_name is None:
             plugin.project_name = project_name
-        if consistency_check is True:
-            return self._consistency_check(plugin)
 
         # validate _after_ applying arguments
         if plugin.package is None:
@@ -113,6 +110,8 @@ class PluginManager:
 
         self._integrate_plugin(plugin)
         plugin.freeze()
+        if consistency_check is True:
+            return self._consistency_check(plugin)
 
     def get_plugin(self, *, id=None, name=None):
         if id is None and name is None:
