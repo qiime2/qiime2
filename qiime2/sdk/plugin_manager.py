@@ -84,7 +84,7 @@ class PluginManager:
                 self.add_plugin(plugin, package, project_name,
                                 consistency_check=False)
 
-            return self._consistency_check(plugin)
+            self._consistency_check(plugin)
 
     def _consistency_check(self):
         pass
