@@ -29,7 +29,7 @@ ViewRecord = collections.namedtuple(
 TypeFormatRecord = collections.namedtuple(
     'TypeFormatRecord', ['type_expression', 'format', 'plugin'])
 ValidatorRecord = collections.namedtuple(
-    'ValidatorRecord', ['validator', 'plugin', 'context'])
+    'ValidatorRecord', ['validator', 'view', 'plugin', 'context'])
 
 
 class Plugin:
@@ -143,11 +143,15 @@ class Plugin:
             raise TypeError('%s is not a Semantic Type' % semantic_expression)
 
         def decorator(validator):
+            if not validator.__annotations__['view']:
+                raise KeyError('No expected view defined by %s' %
+                        validator.__name__)
             for semantic_type in semantic_expression:
                 if semantic_type not in self.validators:
                     self.validators[semantic_type] = []
                 self.validators[semantic_type].append(ValidatorRecord(
                                                  validator=validator,
+                                                 view=validator.__annotations__['view'],
                                                  plugin=self,
                                                  context=semantic_expression))
             return validator
