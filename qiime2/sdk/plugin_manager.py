@@ -71,7 +71,7 @@ class PluginManager:
         self.views = {}
         self.type_formats = []
         self._ff_to_sfdf = {}
-        self.validators = []
+        self.validators = {}
 
         if add_plugins:
             # These are all dependent loops, each requires the loop above it to
@@ -177,6 +177,13 @@ class PluginManager:
 
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
+        
+        for semantic_type, records in plugin.validators.items():
+            if semantic_type not in self.validators:
+                self.validators[semantic_type] = []
+
+            for record in records:
+                self.validators[semantic_type].append(record)
 
     def get_semantic_types(self):
         types = {}
