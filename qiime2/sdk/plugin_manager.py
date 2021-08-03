@@ -177,7 +177,7 @@ class PluginManager:
 
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
-        
+
         for semantic_type, records in plugin.validators.items():
             if semantic_type not in self.validators:
                 self.validators[semantic_type] = []
