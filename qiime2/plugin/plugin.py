@@ -145,7 +145,7 @@ class Plugin:
         def decorator(validator):
             if not validator.__annotations__['view']:
                 raise KeyError('No expected view defined by %s' %
-                        validator.__name__)
+                        validator)
             for semantic_type in semantic_expression:
                 if semantic_type not in self.validators:
                     self.validators[semantic_type] = []
