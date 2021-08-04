@@ -88,6 +88,16 @@ class PluginManager:
 
     def _consistency_check(self):
         pass
+        # from qiime2.sdk import PluginManager as pm
+        # from qiime2.core.transform import ModelType as mt
+
+        # for semantic_type in pm.get_semantic_types():
+            # for record in pm.validators.values():
+                # try:
+                    # mt.has_transformation(record.view)
+                # else:
+                    # raise Exception
+
 
     def add_plugin(self, plugin, package=None, project_name=None,
                    consistency_check=True):
