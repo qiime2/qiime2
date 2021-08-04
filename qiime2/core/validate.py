@@ -8,8 +8,8 @@
 
 class SemanticValidation:
     def __init__(self, concrete_type):
-       self._validators = super.validators
-       self._concrete_type = concrete_type
+        self._validators = super.validators
+        self._concrete_type = concrete_type
 
     def get_validators(self, concrete_type, validators):
         return validators[concrete_type]
