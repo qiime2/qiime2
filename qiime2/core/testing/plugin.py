@@ -151,8 +151,8 @@ dummy_plugin.methods.register_function(
         ('concatenated_ints', IntSequence1)
     ],
     name='Concatenate integers',
-    description='This method concatenates integers into a single sequence in '
-                'the order they are provided.',
+    description='This method concatenates integers into'
+                'a single sequence in the order they are provided.',
     citations=[citations['baerheim1994effect']],
     examples={'concatenate_ints_simple': concatenate_ints_simple,
               'concatenate_ints_complex': concatenate_ints_complex,

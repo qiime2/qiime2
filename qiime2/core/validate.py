@@ -17,10 +17,10 @@ class SemanticValidation:
     def _sort_validators(self, validators):
         """does nothing right now"""
         return validators
-    
+
     def run_validators(self, concrete_type, validators):
         type_validators = self.get_validators(concrete_type, validators)
         sorted_validators = self._sort_validators(type_validators)
-    
+
         for validator in sorted_validators:
             validator.validator(view=validator.view)
