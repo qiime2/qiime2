@@ -89,13 +89,14 @@ class PluginManager:
     def _consistency_check(self):
         pass
         # from qiime2.sdk import PluginManager as pm
-        # from qiime2.core.transform import ModelType as mt
+        # from qiime2.core.transform import ModelType
 
         # for semantic_type in pm.get_semantic_types():
+            # mt = ModelType(semantic_type)
             # for record in pm.validators.values():
                 # try:
                     # mt.has_transformation(record.view)
-                # else:
+                # except:
                     # raise Exception
 
 
