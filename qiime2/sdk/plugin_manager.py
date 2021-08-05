@@ -96,7 +96,7 @@ class PluginManager:
             # mt = ModelType(semantic_type)
             # for record in pm.validators.values():
                 # try:
-                    # mt.has_transformation(record)
+                    # mt.has_transformation(pm.views)
                 # except ValueError:
                     # print("Whoops! Something went wrong.")
 
