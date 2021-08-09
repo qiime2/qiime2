@@ -51,8 +51,12 @@ class PluginManager:
     def __new__(cls, add_plugins=True):
         if cls.__instance is None:
             self = super().__new__(cls)
-            self._init(add_plugins=add_plugins)
             cls.__instance = self
+            try:
+                self._init(add_plugins=add_plugins)
+            except Exception:
+                cls.__instance = None
+                raise
         else:
             if add_plugins is False:
                 raise ValueError(
@@ -87,7 +91,17 @@ class PluginManager:
             self._consistency_check()
 
     def _consistency_check(self):
-        pass
+        from qiime2.core.transform import ModelType
+
+        for semantic_type, records in self.validators.items():
+            # Model type here is just a view type that we are creating an instance of 
+            mt = ModelType(self.get_directory_format(semantic_type))
+            for record in records:
+                mt_other = ModelType(record.view)
+                if not mt.has_transformation(mt_other):
+                    raise ValueError(
+                        'Whoops! Something went wrong.'
+                    )
 
     def add_plugin(self, plugin, package=None, project_name=None,
                    consistency_check=True):
