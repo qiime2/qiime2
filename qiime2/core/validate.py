@@ -7,20 +7,23 @@
 # ----------------------------------------------------------------------------
 
 class SemanticValidation:
-    def __init__(self, concrete_type):
-        self._validators = super.validators
-        self._concrete_type = concrete_type
+    def __init__(self, validation_target, concrete_type, validators, validate_level):
+        self.data = validation_target
+        self.validators = validators
+        self.concrete_type = concrete_type
+        self.validate_level = validate_level
 
-    def get_validators(self, concrete_type, validators):
-        return validators[concrete_type]
+    def _get_type_validators(self):
+        self.type_validators = self.validators[self.concrete_type]
 
-    def _sort_validators(self, validators):
+    def _sort_validators(self):
         """does nothing right now"""
-        return validators
+        self.sorted_validators = self.type_validators
+        pass
 
-    def run_validators(self, concrete_type, validators):
-        type_validators = self.get_validators(concrete_type, validators)
-        sorted_validators = self._sort_validators(type_validators)
+    def run_validators(self):
+        self._get_type_validators()
+        self._sort_validators()
 
-        for validator in sorted_validators:
+        for validator in self.sorted_validators:
             validator.validator(view=validator.view)
