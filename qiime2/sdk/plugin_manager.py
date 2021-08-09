@@ -14,6 +14,7 @@ import enum
 import qiime2.core.type
 from qiime2.core.format import FormatBase
 from qiime2.plugin.model import SingleFileDirectoryFormatBase
+from qiime2.core.transform import ModelType
 from qiime2.sdk.util import parse_type
 from qiime2.core.type import is_semantic_type
 
@@ -91,10 +92,9 @@ class PluginManager:
             self._consistency_check()
 
     def _consistency_check(self):
-        from qiime2.core.transform import ModelType
-
         for semantic_type, records in self.validators.items():
-            # Model type here is just a view type that we are creating an instance of 
+            # Model type here is just a view type
+            # that we are creating an instance of
             mt = ModelType(self.get_directory_format(semantic_type))
             for record in records:
                 mt_other = ModelType(record.view)
