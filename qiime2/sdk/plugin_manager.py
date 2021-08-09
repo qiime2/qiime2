@@ -97,7 +97,8 @@ class PluginManager:
             # Model type here is just a view type that we are creating an instance of 
             mt = ModelType(self.get_directory_format(semantic_type))
             for record in records:
-                if not mt.has_transformation(record.view):
+                mt_other = ModelType(record.view)
+                if not mt.has_transformation(mt_other):
                     raise ValueError(
                         'Whoops! Something went wrong.'
                     )
