@@ -16,7 +16,6 @@ def validator_test_null(view: str):
     pass
 
 
-import qiime2.core.transform as transform
 @dummy_plugin.register_validator(Kennel[Dog | Cat])
 def test_subset_or(view: pd.DataFrame):
     pass
