@@ -303,7 +303,8 @@ class Artifact(Result):
         transformation = from_type.make_transformation(to_type,
                                                        recorder=recorder)
         result = transformation(view, validate_level)
-        validator = validate.SemanticValidation(validation_obj=result,
+        validator = validate.SemanticValidation(validation_target=result,
+                                                validators=pm.validators,
                                                 concrete_type=to_type,
                                                 validate_level=validate_level)
         validator.run_validators()
