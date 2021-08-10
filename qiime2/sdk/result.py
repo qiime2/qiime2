@@ -305,7 +305,7 @@ class Artifact(Result):
         result = transformation(view, validate_level)
         validator = validate.SemanticValidation(validation_target=result,
                                                 validators=pm.validators,
-                                                concrete_type=to_type,
+                                                concrete_type=type,
                                                 validate_level=validate_level)
         validator.run_validators()
 

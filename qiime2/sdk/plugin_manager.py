@@ -14,6 +14,7 @@ import enum
 import qiime2.core.type
 from qiime2.core.format import FormatBase
 from qiime2.plugin.model import SingleFileDirectoryFormatBase
+from qiime2.core.validate import ValidationChain
 from qiime2.core.transform import ModelType
 from qiime2.sdk.util import parse_type
 from qiime2.core.type import is_semantic_type
@@ -100,7 +101,8 @@ class PluginManager:
                 mt_other = ModelType(record.view)
                 if not mt.has_transformation(mt_other):
                     raise ValueError(
-                        'Whoops! Something went wrong.'
+                        '%s No transformation available from %s to %s' %
+                        (record, mt._view_type, mt_other._view_type)
                     )
 
     def add_plugin(self, plugin, package=None, project_name=None,
@@ -192,12 +194,12 @@ class PluginManager:
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
 
-        for semantic_type, records in plugin.validators.items():
+        for semantic_type, chain in plugin.validators.items():
             if semantic_type not in self.validators:
-                self.validators[semantic_type] = []
+                self.validators[semantic_type] = \
+                    ValidationChain(semantic_type)
 
-            for record in records:
-                self.validators[semantic_type].append(record)
+            self.validators[semantic_type].add_validation_chain(chain)
 
     def get_semantic_types(self):
         types = {}
