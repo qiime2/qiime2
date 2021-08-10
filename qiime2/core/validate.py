@@ -7,7 +7,8 @@
 # ----------------------------------------------------------------------------
 
 class SemanticValidation:
-    def __init__(self, validation_target, concrete_type, validators, validate_level):
+    def __init__(self, validation_target, concrete_type, validators,
+                 validate_level):
         self.data = validation_target
         self.validators = validators
         self.concrete_type = concrete_type
