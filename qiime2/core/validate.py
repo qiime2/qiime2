@@ -13,7 +13,7 @@ class ValidationChain:
         self._is_sorted = False
 
     def add_validator(self, validator):
-        self._validators += validator
+        self._validators.append(validator)
         self._is_sorted = False
 
     def add_validation_object(self, *others):
