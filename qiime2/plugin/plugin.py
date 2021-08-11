@@ -11,6 +11,7 @@ import types
 
 import qiime2.sdk
 import qiime2.core.type.grammar as grammar
+from qiime2.core.validate import ValidationChain
 from qiime2.plugin.model import DirectoryFormat
 from qiime2.plugin.model.base import FormatBase
 from qiime2.core.type import is_semantic_type
@@ -146,15 +147,24 @@ class Plugin:
             if not validator.__annotations__['view']:
                 raise KeyError('No expected view type defined.' %
                                validator)
+
             for semantic_type in semantic_expression:
                 if semantic_type not in self.validators:
-                    self.validators[semantic_type] = []
-                self.validators[semantic_type].append(ValidatorRecord(
-                    validator=validator,
-                    view=validator.__annotations__['view'],
-                    plugin=self,
-                    context=semantic_expression))
-            return validator
+                    self.validators[semantic_type] = \
+                        ValidationChain(semantic_type)
+
+                self.validators[semantic_type].add_validator(
+                    ValidatorRecord(
+                        validator=validator,
+                        view=validator.__annotations__['view'],
+                        plugin=self,
+                        context=semantic_expression))
+                #self.validators[semantic_type].append(ValidatorRecord(
+                #    validator=validator,
+                #    view=validator.__annotations__['view'],
+                #    plugin=self,
+                #    context=semantic_expression))
+            #return validator
 
         return decorator
 

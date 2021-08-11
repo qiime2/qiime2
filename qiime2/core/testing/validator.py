@@ -7,20 +7,21 @@
 # ----------------------------------------------------------------------------
 
 import pandas as pd
+from qiime2 import Metadata
 from .type import Kennel, Dog, Cat
 from .plugin import dummy_plugin
 
 
-@dummy_plugin.register_validator(Kennel[Dog])
-def validator_test_null(view: str):
-    pass
+#@dummy_plugin.register_validator(Kennel[Dog])
+#def validator_test_null(view: str):
+#    pass
 
 
 @dummy_plugin.register_validator(Kennel[Dog | Cat])
-def test_subset_or(view: pd.DataFrame):
+def test_subset_or(view: dict):
     pass
 
 
 @dummy_plugin.register_validator(Kennel[Dog])
-def validator_test_null2(view: pd.Series):
+def validator_test_null2(view: Metadata):
     print('does know everything')
