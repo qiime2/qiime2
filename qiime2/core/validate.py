@@ -16,28 +16,26 @@ class ValidationChain:
         self._validators += validator
         self._is_sorted = False
 
-    def add_validation_oject(self, *others):
+    def add_validation_object(self, *others):
         for other in others:
             self._validators += other._validators
         self._is_sorted = False
 
 
     @property
-    def validators(self) -> list:
+    def validators(self):
         if not self._is_sorted:
             self._validators = self._sort_validators()
-            self._is_sorted = True
 
         return self._validators
 
     def _sort_validators(self):
         """does nothing right now"""
-        self.sorted_validators = self.type_validators
-        pass
+        self._is_sorted = True
 
     def run_validators(self, target, validate_level: str = 'min'):
         for validator in self.validators:
-            validator.validator(target)
+            validator.validator(target, view=validator.view)
         #self._get_type_validators()
         #self._sort_validators()
 

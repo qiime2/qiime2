@@ -90,7 +90,7 @@ class PluginManager:
                 self.add_plugin(plugin, package, project_name,
                                 consistency_check=False)
 
-            self._consistency_check()
+            #self._consistency_check()
 
     def _consistency_check(self):
         for semantic_type, records in self.validators.items():
@@ -199,7 +199,7 @@ class PluginManager:
                 self.validators[semantic_type] = \
                     ValidationChain(semantic_type)
 
-            self.validators[semantic_type].add_validation_chain(chain)
+            self.validators[semantic_type].add_validation_object(chain)
 
     def get_semantic_types(self):
         types = {}
