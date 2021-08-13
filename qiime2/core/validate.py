@@ -6,14 +6,14 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-class ValidationChain:
+class ValidationObject:
     def __init__(self, concrete_type):
         self._validators = []
         self.concrete_type = concrete_type
         self._is_sorted = False
 
-    def add_validator(self, validator):
-        self._validators.append(validator)
+    def add_validator(self, validator_record):
+        self._validators.append(validator_record)
         self._is_sorted = False
 
     def add_validation_object(self, *others):
@@ -23,7 +23,7 @@ class ValidationChain:
 
 
     @property
-    def validators(self):
+    def validators(self) -> list:
         if not self._is_sorted:
             self._validators = self._sort_validators()
 
@@ -31,13 +31,13 @@ class ValidationChain:
 
     def _sort_validators(self):
         """does nothing right now"""
+        self._validators = self._validators
         self._is_sorted = True
 
-    def run_validators(self, target, validate_level: str = 'min'):
+    def run_validators(self, data, validate_level: str = 'min'):
         for validator in self.validators:
-            validator.validator(target, view=validator.view)
-        #self._get_type_validators()
-        #self._sort_validators()
+            validator.validator(data=data, validate_level=validate_level)
 
-        #for validator in self.sorted_validators:
-        #    validator.validator(view=validator.view)
+    def __call__(self, data):
+        for validator in self.validators:
+            validator.validator(data=data)

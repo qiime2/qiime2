@@ -18,10 +18,10 @@ from .plugin import dummy_plugin
 
 
 @dummy_plugin.register_validator(Kennel[Dog | Cat])
-def test_subset_or(view: dict):
+def test_subset_or(data: dict):
     pass
 
 
 @dummy_plugin.register_validator(Kennel[Dog])
-def validator_test_null2(view: Metadata):
+def validator_test_null2(data: Metadata):
     print('does know everything')

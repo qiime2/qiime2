@@ -304,9 +304,10 @@ class Artifact(Result):
         transformation = from_type.make_transformation(to_type,
                                                        recorder=recorder)
         result = transformation(view, validate_level)
-        print('\n' + str(type.is_concrete()) + ' : ' + '\n')
         if type in pm.validators:
-            validator = pm.validators[type]
+            validation_object = pm.validators[type]
+            validation_object()
+            
 
         artifact = cls.__new__(cls)
         artifact._archiver = archive.Archiver.from_data(

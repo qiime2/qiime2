@@ -14,7 +14,7 @@ import enum
 import qiime2.core.type
 from qiime2.core.format import FormatBase
 from qiime2.plugin.model import SingleFileDirectoryFormatBase
-from qiime2.core.validate import ValidationChain
+from qiime2.core.validate import ValidationObject
 from qiime2.core.transform import ModelType
 from qiime2.sdk.util import parse_type
 from qiime2.core.type import is_semantic_type
@@ -192,12 +192,12 @@ class PluginManager:
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
 
-        for semantic_type, chain in plugin.validators.items():
+        for semantic_type, validation_object in plugin.validators.items():
             if semantic_type not in self.validators:
                 self.validators[semantic_type] = \
-                    ValidationChain(semantic_type)
+                    ValidationObject(semantic_type)
 
-            self.validators[semantic_type].add_validation_object(chain)
+            self.validators[semantic_type].add_validation_object(validation_object)
 
     def get_semantic_types(self):
         types = {}
