@@ -21,7 +21,8 @@ requirements:
     - pyyaml
     - decorator >=4,<5
     - pandas >=1
-    - tzlocal
+    # tzlocal 3 is currently broken - once this is fixed drop pin
+    - tzlocal <3
     - python-dateutil
     - bibtexparser
     - networkx
