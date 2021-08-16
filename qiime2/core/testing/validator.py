@@ -6,15 +6,9 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import pandas as pd
 from qiime2 import Metadata
 from .type import Kennel, Dog, Cat
 from .plugin import dummy_plugin
-
-
-#@dummy_plugin.register_validator(Kennel[Dog])
-#def validator_test_null(view: str):
-#    pass
 
 
 @dummy_plugin.register_validator(Kennel[Dog | Cat])

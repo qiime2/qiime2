@@ -197,7 +197,8 @@ class PluginManager:
                 self.validators[semantic_type] = \
                     ValidationObject(semantic_type)
 
-            self.validators[semantic_type].add_validation_object(validation_object)
+            self.validators[semantic_type].add_validation_object(
+                validation_object)
 
     def get_semantic_types(self):
         types = {}

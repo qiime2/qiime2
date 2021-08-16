@@ -21,7 +21,6 @@ class ValidationObject:
             self._validators += other._validators
         self._is_sorted = False
 
-
     @property
     def validators(self) -> list:
         if not self._is_sorted:
@@ -38,6 +37,6 @@ class ValidationObject:
         for validator in self.validators:
             validator.validator(data=data, validate_level=validate_level)
 
-    def __call__(self, data, validate_level = None):
+    def __call__(self, data, validate_level=None):
         for validator in self.validators:
             validator.validator(data=data)

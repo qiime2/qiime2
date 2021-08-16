@@ -17,7 +17,6 @@ import qiime2.plugin
 import qiime2.sdk
 import qiime2.core.type
 import qiime2.core.transform as transform
-import qiime2.core.validate as validate
 import qiime2.core.archive as archive
 import qiime2.plugin.model as model
 import qiime2.core.util as util
@@ -305,11 +304,10 @@ class Artifact(Result):
                                                        recorder=recorder)
         result = transformation(view, validate_level)
 
-        if type in pm.validators:
+        if type_raw in pm.validators:
             validation_object = pm.validators[type]
             validation_object(data=result, validate_level=validate_level)
             print("validator run on %s" % result.__name__)
-            
 
         artifact = cls.__new__(cls)
         artifact._archiver = archive.Archiver.from_data(
