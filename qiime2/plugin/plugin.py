@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import collections
+import inspect
 import types
 
 import qiime2.sdk
@@ -144,9 +145,16 @@ class Plugin:
             raise TypeError('%s is not a Semantic Type' % semantic_expression)
 
         def decorator(validator):
-            if not validator.__annotations__['data']:
+
+            validator_signature = inspect.getfullargspec(validator)
+
+            if 'data' not in validator_signature.annotations:
                 raise KeyError('No expected view type provided as annotation'
-                        'for `data` variable for %s.' % (validator))
+                               'for `data` variable for %s.' % (validator))
+
+            if 'validate_level' not in validator_signature.annotations:
+                raise KeyError('`validate_level` not defined in validator %s'
+                               % validator.__name__)
 
             for semantic_type in semantic_expression:
                 if semantic_type not in self.validators:
@@ -159,13 +167,6 @@ class Plugin:
                         view=validator.__annotations__['data'],
                         plugin=self,
                         context=semantic_expression))
-                #self.validators[semantic_type].append(ValidatorRecord(
-                #    validator=validator,
-                #    view=validator.__annotations__['view'],
-                #    plugin=self,
-                #    context=semantic_expression))
-            #return validator
-
         return decorator
 
     def register_transformer(self, _fn=None, *, citations=None):

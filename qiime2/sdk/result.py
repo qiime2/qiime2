@@ -304,9 +304,11 @@ class Artifact(Result):
         transformation = from_type.make_transformation(to_type,
                                                        recorder=recorder)
         result = transformation(view, validate_level)
+
         if type in pm.validators:
             validation_object = pm.validators[type]
-            validation_object()
+            validation_object(data=result, validate_level=validate_level)
+            print("validator run on %s" % result.__name__)
             
 
         artifact = cls.__new__(cls)

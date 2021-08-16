@@ -38,6 +38,6 @@ class ValidationObject:
         for validator in self.validators:
             validator.validator(data=data, validate_level=validate_level)
 
-    def __call__(self, data):
+    def __call__(self, data, validate_level = None):
         for validator in self.validators:
             validator.validator(data=data)
