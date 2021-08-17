@@ -166,6 +166,12 @@ def _15(df: MappingDirectoryFormat) -> Metadata:
     return Metadata(pd.DataFrame(d, index=pd.Index(["0"], name='id')))
 
 
+@dummy_plugin.register_transformer()
+def _16(data: MappingDirectoryFormat) -> pd.DataFrame:
+   mapped = data.mapping.view(dict)
+   return pd.DataFrame(mapped, index=pd.Index(["0"], name='id')
+
+
 @dummy_plugin.register_transformer
 def _3(df: FourIntsDirectoryFormat) -> list:
     # Note: most uses of `iter_views` will need to look at the first element

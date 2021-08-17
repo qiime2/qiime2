@@ -152,7 +152,7 @@ class Plugin:
                 raise KeyError('No expected view type provided as annotation'
                                'for `data` variable for %s.' % (validator))
 
-            if 'validate_level' not in validator_signature.annotations:
+            if 'validate_level' not in validator_signature.args:
                 raise KeyError('`validate_level` not defined in validator %s'
                                % validator.__name__)
 
