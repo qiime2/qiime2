@@ -94,9 +94,10 @@ class PluginManager:
 
     def _consistency_check(self):
         for semantic_type, validator_obj in self.validators.items():
-            mt = ModelType(self.get_directory_format(semantic_type))
+            mt = ModelType.from_view_type(
+                     self.get_directory_format(semantic_type))
             for record in validator_obj._validators:
-                mt_other = ModelType(record.view)
+                mt_other = ModelType.from_view_type(record.view)
                 if not mt.has_transformation(mt_other):
                     raise ValueError(
                         '%s No transformation available from %s to %s' %

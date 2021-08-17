@@ -30,7 +30,8 @@ from .format import (
 )
 
 from .type import (IntSequence1, IntSequence2, IntSequence3, Mapping, FourInts,
-                   SingleInt, Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz)
+                   SingleInt, Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz,
+                   AscIntSequence)
 from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_column,
                      identity_with_categorical_metadata_column,
@@ -78,7 +79,8 @@ import_module('qiime2.core.testing.validator')
 # Register semantic types
 dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, IntSequence3,
                                      Mapping, FourInts, Kennel, Dog, Cat,
-                                     SingleInt, C1, C2, C3, Foo, Bar, Baz)
+                                     SingleInt, C1, C2, C3, Foo, Bar, Baz,
+                                     AscIntSequence)
 
 # Register formats
 dummy_plugin.register_formats(
@@ -134,6 +136,10 @@ dummy_plugin.register_semantic_type_to_format(
     | Bar
     | Baz,
     artifact_format=EchoDirectoryFormat)
+
+dummy_plugin.register_semantic_type_to_format(
+    AscIntSequence,
+    artifact_format=IntSequenceDirectoryFormat)
 
 # TODO add an optional parameter to this method when they are supported
 dummy_plugin.methods.register_function(
