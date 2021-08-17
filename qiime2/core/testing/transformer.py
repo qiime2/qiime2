@@ -169,7 +169,7 @@ def _15(df: MappingDirectoryFormat) -> Metadata:
 @dummy_plugin.register_transformer()
 def _16(data: MappingDirectoryFormat) -> pd.DataFrame:
    mapped = data.mapping.view(dict)
-   return pd.DataFrame(mapped, index=pd.Index(["0"], name='id')
+   return pd.DataFrame(mapped, index=pd.Index(["0"], name='id'))
 
 
 @dummy_plugin.register_transformer
