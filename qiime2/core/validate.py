@@ -6,6 +6,9 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+from qiime2.core.exceptions import ValidationError, ImplementationError
+from qiime2.core.transform import ModelType
+
 class ValidationObject:
     def __init__(self, concrete_type):
         self._validators = []
@@ -30,13 +33,26 @@ class ValidationObject:
 
     def _sort_validators(self):
         """does nothing right now"""
-        self._validators = self._validators
+        #self._validators = self._validators
         self._is_sorted = True
+        return self._validators
 
-    def run_validators(self, data, validate_level: str = 'min'):
-        for validator in self.validators:
-            validator.validator(data=data, validate_level=validate_level)
+    def __call__(self, data, validate_level):
 
-    def __call__(self, data, validate_level=None):
+        from_mt = ModelType.from_view_type(type(data))
+
         for validator in self.validators:
-            validator.validator(data=data)
+            to_mt = ModelType.from_view_type(validator.view)
+            transformation = from_mt.make_transformation(to_mt)
+            data = transformation(data)
+            try:
+                validator.validator(data=data, validate_level=validate_level)
+            except ValidationError:
+                raise
+            except Exception as e:
+                raise ImplementationError("An unexpected error occured when %s"
+                        " from %s attempted to validate %r" % (
+                            validator.validator,
+                            validator.plugin,
+                            data)) from e
+

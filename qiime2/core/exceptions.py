@@ -9,3 +9,7 @@
 
 class ValidationError(Exception):
     pass
+
+
+class ImplementationError(Exception):
+    pass

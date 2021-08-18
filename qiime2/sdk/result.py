@@ -307,7 +307,6 @@ class Artifact(Result):
         if type_raw in pm.validators:
             validation_object = pm.validators[type]
             validation_object(data=result, validate_level=validate_level)
-            print("validator run on %s" % result.__name__)
 
         artifact = cls.__new__(cls)
         artifact._archiver = archive.Archiver.from_data(
