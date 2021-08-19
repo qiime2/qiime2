@@ -9,6 +9,7 @@
 from qiime2.core.exceptions import ValidationError, ImplementationError
 from qiime2.core.transform import ModelType
 
+
 class ValidationObject:
     def __init__(self, concrete_type):
         self._validators = []
@@ -33,7 +34,7 @@ class ValidationObject:
 
     def _sort_validators(self):
         """does nothing right now"""
-        #self._validators = self._validators
+        # self._validators = self._validators
         self._is_sorted = True
         return self._validators
 
@@ -51,8 +52,7 @@ class ValidationObject:
                 raise
             except Exception as e:
                 raise ImplementationError("An unexpected error occured when %s"
-                        " from %s attempted to validate %r" % (
-                            validator.validator,
-                            validator.plugin,
-                            data)) from e
-
+                                          " from %s attempted to validate %r"
+                                          % (validator.validator,
+                                             validator.plugin,
+                                             data)) from e

@@ -6,13 +6,12 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-
-from qiime2.core.exceptions import ImplementationError
 import unittest
 from qiime2.core.validate import ValidationObject
 from qiime2.plugin.plugin import ValidatorRecord
 from qiime2.core.testing.type import IntSequence1
 from qiime2.core.testing.format import IntSequenceFormat
+
 
 class TestValidationObject(unittest.TestCase):
 
@@ -27,7 +26,6 @@ class TestValidationObject(unittest.TestCase):
         validator_object = ValidationObject(IntSequence1)
 
         self.assertEqual(validator_object.concrete_type, IntSequence1)
-
 
     def test_add_validator(self):
 
@@ -45,23 +43,23 @@ class TestValidationObject(unittest.TestCase):
         self.assertEqual(validator_object._validators,
                          [test_record])
 
-
     def test_add_validation_object(self):
         first_VO = ValidationObject(IntSequence1)
         second_VO = ValidationObject(IntSequence1)
 
         def first_validator(data: list, validate_level):
             pass
+
         def second_validator(data: list, validate_level):
             pass
 
         first_record = ValidatorRecord(validator=first_validator,
-                                      view=list, plugin='this_plugin',
-                                      context=IntSequence1)
+                                       view=list, plugin='this_plugin',
+                                       context=IntSequence1)
 
         second_record = ValidatorRecord(validator=second_validator,
-                                      view=list, plugin='this_plugin',
-                                      context=IntSequence1)
+                                        view=list, plugin='this_plugin',
+                                        context=IntSequence1)
 
         first_VO.add_validator(first_record)
 
@@ -82,16 +80,17 @@ class TestValidationObject(unittest.TestCase):
 
         def first_validator(data: list, validate_level):
             pass
+
         def second_validator(data: list, validate_level):
             pass
 
         first_record = ValidatorRecord(validator=first_validator,
-                                      view=list, plugin='this_plugin',
-                                      context=IntSequence1)
+                                       view=list, plugin='this_plugin',
+                                       context=IntSequence1)
 
         second_record = ValidatorRecord(validator=second_validator,
-                                      view=list, plugin='this_plugin',
-                                      context=IntSequence1)
+                                        view=list, plugin='this_plugin',
+                                        context=IntSequence1)
 
         validator_object.add_validator(first_record)
         validator_object.add_validator(second_record)
@@ -104,7 +103,7 @@ class TestValidationObject(unittest.TestCase):
 
         validator_object = ValidationObject(IntSequence1)
 
-        has_run = False 
+        has_run = False
 
         def test_validator_method(data: list, validate_level):
             nonlocal has_run

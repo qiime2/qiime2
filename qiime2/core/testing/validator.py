@@ -20,6 +20,7 @@ def test_subset_or(data: dict, validate_level):
 def validator_test_null2(data: Metadata, validate_level):
     pass
 
+
 @dummy_plugin.register_validator(AscIntSequence)
 def validate_ascending_seq(data: list, validate_level):
     prev = float('-inf')
