@@ -286,6 +286,36 @@ class TestChecksumFormat(unittest.TestCase):
         self.assertEqual(fp, 'filepath/\n/with/\\newline')
         self.assertEqual(chks, '939aaaae6098ebdab049b0f3abe7b68c')
 
+    def test_filepath_with_leading_backslash(self):
+        line = r'\d41d8cd98f00b204e9800998ecf8427e  \\.qza'
+        fp, chks = util.from_checksum_format(line)
+
+        self.assertEqual(chks, 'd41d8cd98f00b204e9800998ecf8427e')
+        self.assertEqual(fp, r'\.qza')
+
+    def test_filepath_with_leading_backslashes(self):
+        line = r'\d41d8cd98f00b204e9800998ecf8427e  \\\\\\.qza'
+        fp, chks = util.from_checksum_format(line)
+
+        self.assertEqual(fp, r'\\\.qza')
+        self.assertEqual(chks, 'd41d8cd98f00b204e9800998ecf8427e')
+
+    def test_impossible_backslash(self):
+        # It may be impossible to generate a single '\' in the md5sum digest,
+        # because each '\' is escaped (as '\\') in the digest. We'll
+        # test for it anyway, for full coverage.
+
+        fp, _ = util.from_checksum_format(
+            r'fake_checksum  \.qza'
+        )
+
+        fp2, _ = util.from_checksum_format(
+            r'\fake_checksum  \.qza'
+        )
+
+        self.assertEqual(fp, r'\.qza')
+        self.assertEqual(fp2, r'\.qza')
+
     def test_from_legacy_format(self):
         fp, chks = util.from_checksum_format(
             r'0ed29022ace300b4d96847882daaf0ef *this/means/binary/mode')
