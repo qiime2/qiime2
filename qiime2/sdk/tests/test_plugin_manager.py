@@ -29,9 +29,9 @@ from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
                                         EchoFormat,
                                         EchoDirectoryFormat)
 
-from qiime2.core.testing.validator import (validator_test_null1,
+from qiime2.core.testing.validator import (validator_example_null1,
                                            validate_ascending_seq,
-                                           validator_test_null2)
+                                           validator_example_null2)
 
 from qiime2.core.testing.util import get_dummy_plugin
 
@@ -53,12 +53,13 @@ class TestPluginManager(unittest.TestCase):
                          set(self.pm.validators))
 
         self.assertEqual(
-            [r.validator for r in self.pm.validators[Kennel[Dog]]._validators],
-            [validator_test_null1, validator_test_null2])
+            set([r.validator for r in
+                self.pm.validators[Kennel[Dog]]._validators]),
+            {validator_example_null1, validator_example_null2})
 
         self.assertEqual(
             [r.validator for r in self.pm.validators[Kennel[Cat]]._validators],
-            [validator_test_null1])
+            [validator_example_null1])
 
         self.assertEqual(
             [r.validator

@@ -13,12 +13,12 @@ from .plugin import dummy_plugin
 
 
 @dummy_plugin.register_validator(Kennel[Dog | Cat])
-def validator_test_null1(data: dict, level):
+def validator_example_null1(data: dict, level):
     pass
 
 
 @dummy_plugin.register_validator(Kennel[Dog])
-def validator_test_null2(data: Metadata, level):
+def validator_example_null2(data: Metadata, level):
     pass
 
 

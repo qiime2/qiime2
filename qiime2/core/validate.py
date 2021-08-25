@@ -27,6 +27,8 @@ class ValidationObject:
 
     @property
     def validators(self) -> list:
+        """
+        """
         if not self._is_sorted:
             self._validators = self._sort_validators()
 
