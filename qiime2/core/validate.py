@@ -39,20 +39,32 @@ class ValidationObject:
         return self._validators
 
     def __call__(self, data, validate_level):
-
         from_mt = ModelType.from_view_type(type(data))
 
-        for validator in self.validators:
-            to_mt = ModelType.from_view_type(validator.view)
+        for record in self.validators:
+            to_mt = ModelType.from_view_type(record.view)
             transformation = from_mt.make_transformation(to_mt)
             data = transformation(data)
             try:
-                validator.validator(data=data, validate_level=validate_level)
+                record.validator(data=data, validate_level=validate_level)
             except ValidationError:
                 raise
             except Exception as e:
-                raise ImplementationError("An unexpected error occured when %s"
-                                          " from %s attempted to validate %r"
-                                          % (validator.validator,
-                                             validator.plugin,
+                raise ImplementationError("An unexpected error occured when %r"
+                                          " from %r attempted to validate %r"
+                                          % (record.validator.__name__,
+                                             record.plugin,
                                              data)) from e
+
+    def assert_transformation_available(self, dir_fmt):
+        mt = ModelType.from_view_type(dir_fmt)
+
+        for record in self._validators:
+            mt_other = ModelType.from_view_type(record.view)
+            if not mt.has_transformation(mt_other):
+                raise AssertionError(
+                    'Could not validate %s using %r because there was no'
+                    ' transformation from %r to %r' %
+                    (self.concrete_type, record.validator.__name__,
+                     mt._view_name, mt_other._view_name)
+                )

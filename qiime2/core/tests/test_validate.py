@@ -6,10 +6,13 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+from qiime2.core.exceptions import ValidationError, ImplementationError
 import unittest
 from qiime2.core.validate import ValidationObject
-from qiime2.plugin.plugin import ValidatorRecord
-from qiime2.core.testing.type import IntSequence1
+from qiime2.sdk import PluginManager
+from qiime2.plugin.plugin import ValidatorRecord, Plugin
+from qiime2.core.testing.type import IntSequence1, AscIntSequence, Kennel, Dog
+from qiime2.core.testing.validator import validate_ascending_seq
 from qiime2.core.testing.format import IntSequenceFormat
 
 
@@ -99,6 +102,15 @@ class TestValidationObject(unittest.TestCase):
                          [first_record, second_record])
         self.assertTrue(validator_object._is_sorted)
 
+    def test_catch_missing_validator_arg(self):
+        assert False
+    
+    def test_catch_extra_validator_arg(self):
+        assert False
+
+    def test_catch_no_data_annotation_in_validator(self):
+        assert False
+
     def test_run_validators(self):
 
         validator_object = ValidationObject(IntSequence1)
@@ -120,3 +132,82 @@ class TestValidationObject(unittest.TestCase):
         validator_object(self.simple_int_seq, validate_level='max')
 
         self.assertTrue(has_run)
+
+    def test_run_validators_validation_exception(self):
+        validator_object = ValidationObject(AscIntSequence)
+
+        def test_raising_validation_exception(data: list, validate_level):
+            raise ValidationError("2021-08-24")
+
+        test_record = ValidatorRecord(
+                          validator=test_raising_validation_exception,
+                          view=list, plugin='this_plugin',
+                          context=AscIntSequence)
+
+        validator_object.add_validator(test_record)
+
+        with self.assertRaisesRegex(ValidationError,
+                                    "2021-08-24"):
+            validator_object(data=[], validate_level=None)
+
+    def test_run_validators_unknown_exception(self):
+        validator_object = ValidationObject(AscIntSequence)
+
+        def test_raising_validation_exception(data: list, validate_level):
+            raise KeyError("2021-08-24")
+
+        test_record = ValidatorRecord(
+                          validator=test_raising_validation_exception,
+                          view=list, plugin='this_plugin',
+                          context=AscIntSequence)
+
+        validator_object.add_validator(test_record)
+
+        with self.assertRaisesRegex(ImplementationError,
+                                    "attempted to validate"):
+            validator_object(data=[], validate_level=None)
+
+
+class TestValidatorIntegration(unittest.TestCase):
+
+    def setUp(self):
+
+        # setup test plugin
+
+        self.test_plugin = Plugin(name='validator_test_plugin',
+                                  version='0.0.1',
+                                  website='test.com',
+                                  package='qiime2.core.tests',
+                                  project_name='validator_test')
+
+        self.pm = PluginManager()
+
+        # setup test data
+        self.simple_int_seq = IntSequenceFormat()
+
+        with self.simple_int_seq.open() as fh:
+            fh.write('\n'.join(map(str, range(3))))
+        self.simple_int_seq.validate(level='max')
+
+    def tearDown(self):
+        # This is a deadman switch to ensure that the test_plugin has been
+        # added
+        self.assertIn(self.test_plugin.name, self.pm.plugins)
+        self.pm.destroy_singleton()
+
+    def test_validator_from_each_type_in_expression(self):
+        @self.test_plugin.register_validator(IntSequence1 | AscIntSequence)
+        def blank_validator(data: list, validate_level):
+            pass
+
+        self.pm.add_plugin(self.test_plugin)
+
+    def test_no_transformer_available(self):
+        @self.test_plugin.register_validator(IntSequence1 | Kennel[Dog])
+        def blank_validator(data: list, validate_level):
+            pass
+
+        with self.assertRaisesRegex(
+                AssertionError,
+                r"Kennel\[Dog\].*blank_validator.*transform.*builtins:list"):
+            self.pm.add_plugin(self.test_plugin)

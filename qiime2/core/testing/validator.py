@@ -7,12 +7,13 @@
 # ----------------------------------------------------------------------------
 
 from qiime2 import Metadata
+from qiime2.plugin import ValidationError
 from .type import Kennel, Dog, Cat, AscIntSequence
 from .plugin import dummy_plugin
 
 
 @dummy_plugin.register_validator(Kennel[Dog | Cat])
-def test_subset_or(data: dict, validate_level):
+def validator_test_null1(data: dict, validate_level):
     pass
 
 
@@ -23,7 +24,11 @@ def validator_test_null2(data: Metadata, validate_level):
 
 @dummy_plugin.register_validator(AscIntSequence)
 def validate_ascending_seq(data: list, validate_level):
+    # landmine for testing
+    if data == [2021, 8, 24]:
+        raise KeyError
+
     prev = float('-inf')
     for number in data:
         if not number > prev:
-            raise ValueError("%s is not greater than %s" % (number, prev))
+            raise ValidationError("%s is not greater than %s" % (number, prev))

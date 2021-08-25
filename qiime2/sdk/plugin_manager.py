@@ -15,7 +15,6 @@ import qiime2.core.type
 from qiime2.core.format import FormatBase
 from qiime2.plugin.model import SingleFileDirectoryFormatBase
 from qiime2.core.validate import ValidationObject
-from qiime2.core.transform import ModelType
 from qiime2.sdk.util import parse_type
 from qiime2.core.type import is_semantic_type
 
@@ -66,6 +65,14 @@ class PluginManager:
                     'default value for `add_plugins`.')
         return cls.__instance
 
+    def destroy_singleton(self):
+        """Allows later instatiation of PluginManager to produce new object
+
+        This is done by clearing class member which saves the instance. This
+        will NOT invalidate or remove the object this method is called on.
+        """
+        self.__class__.__instance = None
+
     def _init(self, add_plugins):
         self.plugins = {}
         self.type_fragments = {}
@@ -94,15 +101,8 @@ class PluginManager:
 
     def _consistency_check(self):
         for semantic_type, validator_obj in self.validators.items():
-            mt = ModelType.from_view_type(
-                     self.get_directory_format(semantic_type))
-            for record in validator_obj._validators:
-                mt_other = ModelType.from_view_type(record.view)
-                if not mt.has_transformation(mt_other):
-                    raise ValueError(
-                        '%s No transformation available from %s to %s' %
-                        (record, mt._view_type, mt_other._view_type)
-                    )
+            validator_obj.assert_transformation_available(
+                self.get_directory_format(semantic_type))
 
     def add_plugin(self, plugin, package=None, project_name=None,
                    consistency_check=True):

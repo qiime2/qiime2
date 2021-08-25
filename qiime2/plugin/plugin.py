@@ -149,12 +149,16 @@ class Plugin:
             validator_signature = inspect.getfullargspec(validator)
 
             if 'data' not in validator_signature.annotations:
-                raise KeyError('No expected view type provided as annotation'
-                               'for `data` variable for %s.' % (validator))
+                raise TypeError('No expected view type provided as annotation'
+                               'for `data` variable in %r.' %
+                               (validator.__name__))
 
-            if 'validate_level' not in validator_signature.args:
-                raise KeyError('`validate_level` not defined in validator %s'
-                               % validator.__name__)
+            if not ['data', 'level'] == validator_signature.args:
+                raise TypeError('The function signature %r does not contain' 
+                                ' the required and only the required arguments'
+                                ' required signature %r' % (
+                                    validator_signature.args,
+                                    ['data', 'level'])
 
             for semantic_type in semantic_expression:
                 if semantic_type not in self.validators:
@@ -167,6 +171,7 @@ class Plugin:
                         view=validator.__annotations__['data'],
                         plugin=self,
                         context=semantic_expression))
+            return validator
         return decorator
 
     def register_transformer(self, _fn=None, *, citations=None):
