@@ -213,18 +213,18 @@ class TestValidatorRegistration(unittest.TestCase):
                                   package='qiime2.core.tests',
                                   project_name='validator_test')
 
-    
     def test_catch_missing_validator_arg(self):
 
         run_checker = False
 
         with self.assertRaisesRegex(TypeError, "does not contain the"
-            " required arguments"):
+                                    " required arguments"):
             run_checker = True
+
             @self.test_plugin.register_validator(IntSequence1)
             def validator_missing_level(data: list):
                 pass
- 
+
         assert run_checker
 
     def test_catch_extra_validator_arg(self):
@@ -232,8 +232,9 @@ class TestValidatorRegistration(unittest.TestCase):
         run_checker = False
 
         with self.assertRaisesRegex(TypeError, "does not contain the"
-            " required arguments"):
+                                    " required arguments"):
             run_checker = True
+
             @self.test_plugin.register_validator(IntSequence1)
             def validator_extra_arg(data: list, level, spleen):
                 pass
@@ -244,8 +245,10 @@ class TestValidatorRegistration(unittest.TestCase):
         run_checker = False
 
         with self.assertRaisesRegex(TypeError, "No expected view type"
-            " provided as annotation for `data` variable"):
+                                    " provided as annotation for `data`"
+                                    " variable"):
             run_checker = True
+
             @self.test_plugin.register_validator(IntSequence1)
             def validator_no_view_annotation(data, level):
                 pass
