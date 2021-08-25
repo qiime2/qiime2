@@ -154,9 +154,9 @@ class Plugin:
                                 (validator.__name__))
 
             if not ['data', 'level'] == validator_signature.args:
-                raise TypeError('The function signature %r does not contain'
-                                ' the required and only the required arguments'
-                                ' required signature %r' % (
+                raise TypeError('The function signature: %r does not contain'
+                                ' the required arguments and only the required'
+                                ' arguments: %r' % (
                                     validator_signature.args,
                                     ['data', 'level']))
 

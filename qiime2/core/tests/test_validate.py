@@ -102,13 +102,19 @@ class TestValidationObject(unittest.TestCase):
         self.assertTrue(validator_object._is_sorted)
 
     def test_catch_missing_validator_arg(self):
-        assert False
+    
+        validator_object = ValidationObject(IntSequence1)
 
-    def test_catch_extra_validator_arg(self):
-        assert False
+        pm = PluginManager()
 
-    def test_catch_no_data_annotation_in_validator(self):
-        assert False
+        @pm.register_validator(IntSequence1)
+        def validator_missing_arg(data: list):
+            pass
+
+        test_record = ValidatorRecord(validator=validator_missing_arg,
+                                      view=list, plugin='this_plugin',
+                                      context=IntSequence1)
+
 
     def test_run_validators(self):
 
@@ -210,3 +216,34 @@ class TestValidatorIntegration(unittest.TestCase):
                 AssertionError,
                 r"Kennel\[Dog\].*blank_validator.*transform.*builtins:list"):
             self.pm.add_plugin(self.test_plugin)
+
+
+class TestValidatorRegistration(unittest.TestCase):
+
+    def setUp(self):
+
+        self.test_plugin = Plugin(name='validator_test_plugin',
+                                  version='0.0.1',
+                                  website='test.com',
+                                  package='qiime2.core.tests',
+                                  project_name='validator_test')
+
+    
+    def test_catch_missing_validator_arg(self):
+
+        run_checker = False
+
+        with self.assertRaisesRegex(TypeError, "does not contain the"
+            " required arguments"):
+            run_checker = True
+            @self.test_plugin.register_validator(IntSequence1)
+            def validator_missing_level(data: list):
+                pass
+ 
+        assert run_checker
+
+    def test_catch_extra_validator_arg(self):
+        assert False
+
+    def test_catch_no_data_annotation_in_validator(self):
+        assert False
