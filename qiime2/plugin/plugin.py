@@ -150,7 +150,7 @@ class Plugin:
 
             if 'data' not in validator_signature.annotations:
                 raise TypeError('No expected view type provided as annotation'
-                                'for `data` variable in %r.' %
+                                ' for `data` variable in %r.' %
                                 (validator.__name__))
 
             if not ['data', 'level'] == validator_signature.args:

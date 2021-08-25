@@ -101,21 +101,6 @@ class TestValidationObject(unittest.TestCase):
                          [first_record, second_record])
         self.assertTrue(validator_object._is_sorted)
 
-    def test_catch_missing_validator_arg(self):
-    
-        validator_object = ValidationObject(IntSequence1)
-
-        pm = PluginManager()
-
-        @pm.register_validator(IntSequence1)
-        def validator_missing_arg(data: list):
-            pass
-
-        test_record = ValidatorRecord(validator=validator_missing_arg,
-                                      view=list, plugin='this_plugin',
-                                      context=IntSequence1)
-
-
     def test_run_validators(self):
 
         validator_object = ValidationObject(IntSequence1)
@@ -243,7 +228,26 @@ class TestValidatorRegistration(unittest.TestCase):
         assert run_checker
 
     def test_catch_extra_validator_arg(self):
-        assert False
+
+        run_checker = False
+
+        with self.assertRaisesRegex(TypeError, "does not contain the"
+            " required arguments"):
+            run_checker = True
+            @self.test_plugin.register_validator(IntSequence1)
+            def validator_extra_arg(data: list, level, spleen):
+                pass
+
+        assert run_checker
 
     def test_catch_no_data_annotation_in_validator(self):
-        assert False
+        run_checker = False
+
+        with self.assertRaisesRegex(TypeError, "No expected view type"
+            " provided as annotation for `data` variable"):
+            run_checker = True
+            @self.test_plugin.register_validator(IntSequence1)
+            def validator_no_view_annotation(data, level):
+                pass
+
+        assert run_checker
