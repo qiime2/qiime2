@@ -150,15 +150,15 @@ class Plugin:
 
             if 'data' not in validator_signature.annotations:
                 raise TypeError('No expected view type provided as annotation'
-                               'for `data` variable in %r.' %
-                               (validator.__name__))
+                                'for `data` variable in %r.' %
+                                (validator.__name__))
 
             if not ['data', 'level'] == validator_signature.args:
-                raise TypeError('The function signature %r does not contain' 
+                raise TypeError('The function signature %r does not contain'
                                 ' the required and only the required arguments'
                                 ' required signature %r' % (
                                     validator_signature.args,
-                                    ['data', 'level'])
+                                    ['data', 'level']))
 
             for semantic_type in semantic_expression:
                 if semantic_type not in self.validators:

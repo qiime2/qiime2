@@ -38,7 +38,7 @@ class ValidationObject:
         self._is_sorted = True
         return self._validators
 
-    def __call__(self, data, validate_level):
+    def __call__(self, data, level):
         from_mt = ModelType.from_view_type(type(data))
 
         for record in self.validators:
@@ -46,7 +46,7 @@ class ValidationObject:
             transformation = from_mt.make_transformation(to_mt)
             data = transformation(data)
             try:
-                record.validator(data=data, validate_level=validate_level)
+                record.validator(data=data, level=level)
             except ValidationError:
                 raise
             except Exception as e:

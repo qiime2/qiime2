@@ -13,17 +13,17 @@ from .plugin import dummy_plugin
 
 
 @dummy_plugin.register_validator(Kennel[Dog | Cat])
-def validator_test_null1(data: dict, validate_level):
+def validator_test_null1(data: dict, level):
     pass
 
 
 @dummy_plugin.register_validator(Kennel[Dog])
-def validator_test_null2(data: Metadata, validate_level):
+def validator_test_null2(data: Metadata, level):
     pass
 
 
 @dummy_plugin.register_validator(AscIntSequence)
-def validate_ascending_seq(data: list, validate_level):
+def validate_ascending_seq(data: list, level):
     # landmine for testing
     if data == [2021, 8, 24]:
         raise KeyError

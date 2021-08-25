@@ -63,9 +63,9 @@ class ModelType:
                      input_record=self._record, output_name=other._view_name,
                      output_record=other._record)
 
-        def transformation(view, validate_level='min'):
+        def transformation(view, level='min'):
             view = self.coerce_view(view)
-            self.validate(view, validate_level)
+            self.validate(view, level)
 
             new_view = transformer(view)
 
