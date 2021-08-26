@@ -29,6 +29,9 @@ requirements:
     - dill
 
 test:
+  requires:
+    - pytest
+
   imports:
     - qiime2
 
