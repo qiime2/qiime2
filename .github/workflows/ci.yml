@@ -50,6 +50,6 @@ jobs:
     - uses: qiime2/action-library-packaging@alpha1
       with:
         package-name: qiime2
-        build-target: tested
+        build-target: dev
         additional-tests: QIIMETEST= py.test --pyargs qiime2
         library-token: ${{ secrets.LIBRARY_TOKEN }}
