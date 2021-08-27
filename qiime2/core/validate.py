@@ -8,6 +8,7 @@
 
 from qiime2.core.exceptions import ValidationError, ImplementationError
 from qiime2.core.transform import ModelType
+from qiime2.core.util import sorted_poset
 
 
 class ValidationObject:
@@ -17,10 +18,22 @@ class ValidationObject:
         self._is_sorted = False
 
     def add_validator(self, validator_record):
+        """
+        Used by Plugin to add a `ValidatorRecord` for a new validator to a
+        plugin. See plugin/plugin for definition of `ValidatorRecord`. Usually
+        called through the `register_validtor` decorator.
+        """
         self._validators.append(validator_record)
         self._is_sorted = False
 
     def add_validation_object(self, *others):
+        """
+        Used to combine `ValidationObject`s for the same `concrete_type` from
+        different plugins(or just different objects. This is done
+                non-heirarchically by `PluginManager` by creating a new, blank
+                object for each `concrete_type` that it encounters, then adds
+                the `ValidationObject`s from each plugin.
+        """
         for other in others:
             self._validators += other._validators
         self._is_sorted = False
@@ -28,17 +41,27 @@ class ValidationObject:
     @property
     def validators(self) -> list:
         """
+        'Public' facing way to access validators, this insures that a sorted
+        list is returned so the actual validation can be run.
         """
         if not self._is_sorted:
-            self._validators = self._sort_validators()
+            self._sort_validators()
 
         return self._validators
 
     def _sort_validators(self):
-        """does nothing right now"""
-        # self._validators = self._validators
+        """
+        A partial ordered sort that will return a sorted list of validators.
+        \theta(n^2). This is not a concern, as the number of validators
+        present for any particular type is expected to remain trivially low.
+        """
+        index_of_context = 3
+        self._validators = sorted_poset(
+            iterable=self._validators,
+            key= lambda r: r[index_of_context],
+            reverse=True)
+            
         self._is_sorted = True
-        return self._validators
 
     def __call__(self, data, level):
         from_mt = ModelType.from_view_type(type(data))
