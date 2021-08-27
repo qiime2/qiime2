@@ -58,9 +58,9 @@ class ValidationObject:
         index_of_context = 3
         self._validators = sorted_poset(
             iterable=self._validators,
-            key= lambda r: r[index_of_context],
+            key= lambda r: r.context,
             reverse=True)
-            
+
         self._is_sorted = True
 
     def __call__(self, data, level):
