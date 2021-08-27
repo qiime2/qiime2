@@ -16,9 +16,10 @@ from qiime2.sdk.plugin_manager import GetFormatFilters
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, IntSequence3,
                                       Mapping, FourInts, Kennel, Dog, Cat,
                                       SingleInt, C1, C2, C3, Foo, Bar, Baz,
-                                      AscIntSequence)
+                                      AscIntSequence, Squid, Octopus,
+                                      Cuttlefish)
 
-from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
+from qiime2.core.testing.format import (Cephalapod, IntSequenceDirectoryFormat,
                                         MappingDirectoryFormat,
                                         IntSequenceV2DirectoryFormat,
                                         IntSequenceFormatV2,
@@ -27,7 +28,8 @@ from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
                                         IntSequenceFormat,
                                         RedundantSingleIntDirectoryFormat,
                                         EchoFormat,
-                                        EchoDirectoryFormat)
+                                        EchoDirectoryFormat,
+                                        CephalapodDirectoryFormat)
 
 from qiime2.core.testing.validator import (validator_example_null1,
                                            validate_ascending_seq,
@@ -49,7 +51,8 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(plugins, exp)
 
     def test_validators(self):
-        self.assertEqual({Kennel[Dog], Kennel[Cat], AscIntSequence},
+        self.assertEqual({Kennel[Dog], Kennel[Cat], AscIntSequence, Squid,
+                          Octopus, Cuttlefish},
                          set(self.pm.validators))
 
         self.assertEqual(
@@ -101,8 +104,13 @@ class TestPluginManager(unittest.TestCase):
             'Baz':            SemanticTypeRecord(semantic_type=Baz,
                                                  plugin=self.plugin),
             'AscIntSequence': SemanticTypeRecord(semantic_type=AscIntSequence,
-                                                 plugin=self.plugin)
-
+                                                 plugin=self.plugin),
+            'Squid':          SemanticTypeRecord(semantic_type=Squid,
+                                                 plugin=self.plugin),
+            'Octopus':        SemanticTypeRecord(semantic_type=Octopus,
+                                                 plugin=self.plugin),
+            'Cuttlefish':     SemanticTypeRecord(semantic_type=Cuttlefish,
+                                                 plugin=self.plugin),
         }
 
         self.assertEqual(types, exp)
@@ -124,7 +132,7 @@ class TestPluginManager(unittest.TestCase):
             'Kennel[Cat]':  SemanticTypeRecord(semantic_type=Kennel[Cat],
                                                plugin=self.plugin),
             'SingleInt':    SemanticTypeRecord(semantic_type=SingleInt,
-                                               plugin=self.plugin)
+                                               plugin=self.plugin),
         }
 
         self.assertLessEqual(exp.keys(), types.keys())
@@ -164,6 +172,11 @@ class TestPluginManager(unittest.TestCase):
                              plugin=self.plugin),
             'MappingDirectoryFormat':
                 FormatRecord(format=MappingDirectoryFormat,
+                             plugin=self.plugin),
+            'Cephalapod':
+                FormatRecord(format=Cephalapod, plugin=self.plugin),
+            'CephalapodDirectoryFormat':
+                FormatRecord(format=CephalapodDirectoryFormat,
                              plugin=self.plugin),
         }
 

@@ -8,8 +8,9 @@
 
 from qiime2 import Metadata
 from qiime2.plugin import ValidationError
-from .type import (Kennel, Dog, Cat, AscIntSequence, Squid, Octopus, Cuddlefish)
-from .format import EchoFormat
+from .type import (Kennel, Dog, Cat, AscIntSequence, Squid, Octopus,
+                   Cuttlefish)
+from .format import Cephalapod
 from .plugin import dummy_plugin
 
 
@@ -33,23 +34,23 @@ def validate_ascending_seq(data: list, level):
     for number in data:
         if not number > prev:
             raise ValidationError("%s is not greater than %s" % (number, prev))
-#
-#
-#@dummy_plugin.register_validator(Squid | Cuddlefish)
-#def validator_sort_middle_b(data: EchoFormat, level):
-#    pass
-#
-#
-#@dummy_plugin.register_validator(Squid)
-#def validator_sort_last(data: EchoFormat, level):
-#    pass
-#
-#
-#@dummy_plugin.register_validator(Squid | Octopus | Cuddlefish)
-#def validator_sort_first(data: EchoFormat, level):
-#    pass
-#
-#
-#@dummy_plugin.register_validator(Squid | Octopus)
-#def validator_sort_middle(data: EchoFormat, level):
-#    pass
+
+
+@dummy_plugin.register_validator(Squid | Cuttlefish)
+def validator_sort_middle_b(data: Cephalapod, level):
+    pass
+
+
+@dummy_plugin.register_validator(Squid)
+def validator_sort_last(data: Cephalapod, level):
+    pass
+
+
+@dummy_plugin.register_validator(Squid | Octopus | Cuttlefish)
+def validator_sort_first(data: Cephalapod, level):
+    pass
+
+
+@dummy_plugin.register_validator(Squid | Octopus)
+def validator_sort_middle(data: Cephalapod, level):
+    pass

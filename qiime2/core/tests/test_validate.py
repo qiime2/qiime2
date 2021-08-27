@@ -11,8 +11,8 @@ import unittest
 from qiime2.core.validate import ValidationObject
 from qiime2.sdk import PluginManager
 from qiime2.plugin.plugin import ValidatorRecord, Plugin
-from qiime2.core.testing.type import (Foo, IntSequence1, AscIntSequence,
-                                      Kennel, Dog)
+from qiime2.core.testing.type import (IntSequence1, AscIntSequence,
+                                      Kennel, Dog, Squid)
 from qiime2.core.testing.format import IntSequenceFormat
 
 
@@ -161,7 +161,7 @@ class TestValidationObject(unittest.TestCase):
     def test_validator_sorts(self):
         self.pm = PluginManager()
 
-        test_object = self.pm.validators[Foo]
+        test_object = self.pm.validators[Squid]
 
         self.assertFalse(test_object._is_sorted)
 

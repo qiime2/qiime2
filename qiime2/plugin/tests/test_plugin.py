@@ -161,7 +161,8 @@ class TestPlugin(unittest.TestCase):
             set(types),
             set(['IntSequence1', 'IntSequence2', 'IntSequence3', 'Mapping',
                  'FourInts', 'Kennel', 'Dog', 'Cat', 'SingleInt', 'C1', 'C2',
-                 'C3', 'Foo', 'Bar', 'Baz', 'AscIntSequence']))
+                 'C3', 'Foo', 'Bar', 'Baz', 'AscIntSequence', 'Squid',
+                 'Octopus', 'Cuttlefish']))
 
     def test_types(self):
         types = self.plugin.types
@@ -175,10 +176,6 @@ class TestPlugin(unittest.TestCase):
         self.assertNotIn(Cat, types)
         self.assertNotIn(Dog, types)
         self.assertNotIn(Kennel, types)
-
-    def test_validator(self):
-        validators = self.plugin.validators
-        print(validators)
 
 
 if __name__ == '__main__':

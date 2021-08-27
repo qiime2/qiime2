@@ -37,7 +37,11 @@ _variants = [
     C2.field['second'], C3.field['second'],
     C3.field['third']
 ]
+# C1[C2[C3[Foo, Bar, Baz], C1[Foo]]] ... etc
 Foo = plugin.SemanticType('Foo', variant_of=_variants)
 Bar = plugin.SemanticType('Bar', variant_of=_variants)
 Baz = plugin.SemanticType('Baz', variant_of=_variants)
-# C1[C2[C3[Foo, Bar, Baz], C1[Foo]]] ... etc
+
+Squid = plugin.SemanticType('Squid')
+Octopus = plugin.SemanticType('Octopus')
+Cuttlefish = plugin.SemanticType('Cuttlefish')
