@@ -388,5 +388,6 @@ class TestSortedPoset(unittest.TestCase):
         self.assertLess(idx_bar, idx_barfoo)
         self.assertLess(idx_bar, idx_foobar)
 
+
 if __name__ == '__main__':
     unittest.main()

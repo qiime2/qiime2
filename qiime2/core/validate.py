@@ -51,19 +51,25 @@ class ValidationObject:
 
     def _sort_validators(self):
         """
-        A partial ordered sort that will return a sorted list of validators.
-        \theta(n^2). This is not a concern, as the number of validators
-        present for any particular type is expected to remain trivially low.
+        A partial order sort that will return a sorted list of validators. The
+        runtime for this sort is \theta(n^2). This is not a concern, as the
+        number of validators present for any particular type is expected to
+        remain trivially low. The validators are sorted from general to
+        specific.
         """
-        index_of_context = 3
         self._validators = sorted_poset(
             iterable=self._validators,
-            key= lambda r: r.context,
+            key=lambda record: record.context,
             reverse=True)
 
         self._is_sorted = True
 
     def __call__(self, data, level):
+        """
+        Runs all validators stored in object on the provided data. Use of
+        `level` is required but the behaviour is defined in the individual
+        validators.
+        """
         from_mt = ModelType.from_view_type(type(data))
 
         for record in self.validators:
@@ -82,6 +88,10 @@ class ValidationObject:
                                              data)) from e
 
     def assert_transformation_available(self, dir_fmt):
+        """
+        Called by `qiime2.sdk.PluginManager._consistency_check` to ensure that
+        the validators required to run the transformer are defined.
+        """
         mt = ModelType.from_view_type(dir_fmt)
 
         for record in self._validators:

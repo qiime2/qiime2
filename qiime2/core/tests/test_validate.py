@@ -11,7 +11,8 @@ import unittest
 from qiime2.core.validate import ValidationObject
 from qiime2.sdk import PluginManager
 from qiime2.plugin.plugin import ValidatorRecord, Plugin
-from qiime2.core.testing.type import IntSequence1, AscIntSequence, Kennel, Dog
+from qiime2.core.testing.type import (Foo, IntSequence1, AscIntSequence,
+                                      Kennel, Dog)
 from qiime2.core.testing.format import IntSequenceFormat
 
 
@@ -156,6 +157,28 @@ class TestValidationObject(unittest.TestCase):
         with self.assertRaisesRegex(ImplementationError,
                                     "attempted to validate"):
             validator_object(data=[], level=None)
+
+    def test_validator_sorts(self):
+        self.pm = PluginManager()
+
+        test_object = self.pm.validators[Foo]
+
+        self.assertFalse(test_object._is_sorted)
+
+        exp = ['validator_sort_first',
+               'validator_sort_middle',
+               'validator_sort_middle_b',
+               'validator_sort_last']
+
+        exp2 = ['validator_sort_first',
+                'validator_sort_middle_b',
+                'validator_sort_middle',
+                'validator_sort_last']
+
+        obs = [record.validator.__name__ for record in test_object.validators]
+
+        self.assertIn(obs, [exp, exp2])
+        self.assertTrue(test_object._is_sorted)
 
 
 class TestValidatorIntegration(unittest.TestCase):

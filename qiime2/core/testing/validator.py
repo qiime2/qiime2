@@ -8,7 +8,8 @@
 
 from qiime2 import Metadata
 from qiime2.plugin import ValidationError
-from .type import Kennel, Dog, Cat, AscIntSequence
+from .type import (Kennel, Dog, Cat, AscIntSequence, Foo, Bar, Baz)
+from .format import EchoFormat
 from .plugin import dummy_plugin
 
 
@@ -32,3 +33,23 @@ def validate_ascending_seq(data: list, level):
     for number in data:
         if not number > prev:
             raise ValidationError("%s is not greater than %s" % (number, prev))
+
+
+@dummy_plugin.register_validator(Foo | Baz)
+def validator_sort_middle_b(data: EchoFormat, level):
+    pass
+
+
+@dummy_plugin.register_validator(Foo)
+def validator_sort_last(data: EchoFormat, level):
+    pass
+
+
+@dummy_plugin.register_validator(Foo | Bar | Baz)
+def validator_sort_first(data: EchoFormat, level):
+    pass
+
+
+@dummy_plugin.register_validator(Foo | Bar)
+def validator_sort_middle(data: EchoFormat, level):
+    pass
