@@ -63,9 +63,9 @@ class ModelType:
                      input_record=self._record, output_name=other._view_name,
                      output_record=other._record)
 
-        def transformation(view, level='min'):
+        def transformation(view, validate_level='min'):
             view = self.coerce_view(view)
-            self.validate(view, level)
+            self.validate(view, validate_level)
 
             new_view = transformer(view)
 
@@ -135,12 +135,12 @@ class FormatType(ModelType):
 
         return view
 
-    def validate(self, view, level='min'):
+    def validate(self, view, validate_level='min'):
         if not isinstance(view, self._view_type):
             raise TypeError("%r is not an instance of %r."
                             % (view, self._view_type))
         # Formats have a validate method, so defer to it
-        view.validate(level)
+        view.validate(validate_level)
 
     def set_user_owned(self, view, value):
         view.path._user_owned = value
@@ -228,7 +228,7 @@ class SingleFileDirectoryFormatType(FormatType):
 
 
 class ObjectType(ModelType):
-    def validate(self, view, level=None):
+    def validate(self, view, validate_level=None):
         if not isinstance(view, self._view_type):
             raise TypeError("%r is not of type %r, cannot transform further."
                             % (view, self._view_type))
