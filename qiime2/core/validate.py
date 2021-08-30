@@ -88,10 +88,8 @@ class ValidationObject:
                                              data)) from e
 
     def assert_transformation_available(self, dir_fmt):
-        """
-        Called by `qiime2.sdk.PluginManager._consistency_check` to ensure that
-        the validators required to run the transformer are defined.
-        """
+        # Called by `qiime2.sdk.PluginManager._consistency_check` to ensure that
+        # the validators required to run the transformer are defined.
         mt = ModelType.from_view_type(dir_fmt)
 
         for record in self._validators:

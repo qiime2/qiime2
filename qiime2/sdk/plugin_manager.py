@@ -65,7 +65,7 @@ class PluginManager:
                     'default value for `add_plugins`.')
         return cls.__instance
 
-    def destroy_singleton(self):
+    def forget_singleton(self):
         """Allows later instatiation of PluginManager to produce new object
 
         This is done by clearing class member which saves the instance. This

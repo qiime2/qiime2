@@ -206,7 +206,7 @@ class TestValidatorIntegration(unittest.TestCase):
         # This is a deadman switch to ensure that the test_plugin has been
         # added
         self.assertIn(self.test_plugin.name, self.pm.plugins)
-        self.pm.destroy_singleton()
+        self.pm.forget_singleton()
 
     def test_validator_from_each_type_in_expression(self):
         @self.test_plugin.register_validator(IntSequence1 | AscIntSequence)
