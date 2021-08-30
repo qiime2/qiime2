@@ -18,21 +18,39 @@ class ValidationObject:
         self._is_sorted = False
 
     def add_validator(self, validator_record):
-        """
+        r"""
+        Adds validator object to plugin.
+
+        Parameters
+        ----------
+        validator_record: collections.namedtuple
+            Should be of the form `ValidatorRecord`, found in
+            `plugin\plugin.py`.
+
+        Notes
+        -----
         Used by Plugin to add a `ValidatorRecord` for a new validator to a
-        plugin. See plugin/plugin for definition of `ValidatorRecord`. Usually
-        called through the `register_validtor` decorator.
+        plugin.  Usually called through the `register_validator` decorator.
+
         """
         self._validators.append(validator_record)
         self._is_sorted = False
 
     def add_validation_object(self, *others):
-        """
-        Used to combine `ValidationObject`s for the same `concrete_type` from
-        different plugins(or just different objects. This is done
-                non-heirarchically by `PluginManager` by creating a new, blank
-                object for each `concrete_type` that it encounters, then adds
-                the `ValidationObject`s from each plugin.
+        r"""
+        Incorporates another validation object of the same concrete type.
+
+        Parameters
+        ----------
+        *others: Any number of validation objects of the same concrete type.
+
+        Notes
+        -----
+        Used to combine validation objects from different plugins. This is
+        done non-heirarchically by `PluginManager` by creating a new, blank
+        object for each `concrete_type` that it encounters, then adds the
+        objects from each plugin.
+
         """
         for other in others:
             self._validators += other._validators
@@ -40,9 +58,14 @@ class ValidationObject:
 
     @property
     def validators(self) -> list:
-        """
-        'Public' facing way to access validators, this insures that a sorted
-        list is returned so the actual validation can be run.
+        r"""
+        Public access method for the validators stored in ValidationObject.
+
+        Returns
+        -------
+        list
+            A sorted list of validator records.
+
         """
         if not self._is_sorted:
             self._sort_validators()
@@ -50,12 +73,16 @@ class ValidationObject:
         return self._validators
 
     def _sort_validators(self):
-        """
-        A partial order sort that will return a sorted list of validators. The
-        runtime for this sort is \theta(n^2). This is not a concern, as the
-        number of validators present for any particular type is expected to
-        remain trivially low. The validators are sorted from general to
-        specific.
+        r"""
+        Sorts validators
+
+        Notes
+        -----
+        A partial order sort of the validators. The runtime for this sort is
+        :math:`\theta(n^2)`. This is not a concern, as the number of
+        validators present for any particular type is expected to remain
+        trivially low. The validators are sorted from general to specific.
+
         """
         self._validators = sorted_poset(
             iterable=self._validators,
@@ -65,10 +92,21 @@ class ValidationObject:
         self._is_sorted = True
 
     def __call__(self, data, level):
-        """
-        Runs all validators stored in object on the provided data. Use of
-        `level` is required but the behaviour is defined in the individual
-        validators.
+        r"""
+        Runs all validators.
+
+        Parameters
+        ----------
+        data: an object storing the data.
+
+        level: str % Choices('min', 'max')
+            specifies the level validation occurs at.
+
+        Notes
+        -----
+        Use of `level` is required but the behaviour is defined in the
+        individual validators.
+
         """
         from_mt = ModelType.from_view_type(type(data))
 
