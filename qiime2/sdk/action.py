@@ -49,6 +49,7 @@ class Action(metaclass=abc.ABCMeta):
 
     __call__ = LateBindingAttribute('_dynamic_call')
     asynchronous = LateBindingAttribute('_dynamic_async')
+    parsl = LateBindingAttribute('_dynamic_parsl')
 
     # Converts a callable's signature into its wrapper's signature (i.e.
     # converts the "view API" signature into the "artifact API" signature).
@@ -110,6 +111,8 @@ class Action(metaclass=abc.ABCMeta):
         self.id = callable.__name__
         self._dynamic_call = self._get_callable_wrapper()
         self._dynamic_async = self._get_async_wrapper()
+        # This a temp thing to play with parsl before integrating more deeply
+        self._dynamic_parsl = self._get_parsl_wrapper()
 
     def __init__(self):
         raise NotImplementedError(
@@ -298,6 +301,39 @@ class Action(metaclass=abc.ABCMeta):
         self._set_wrapper_properties(async_wrapper)
         self._set_wrapper_name(async_wrapper, 'asynchronous')
         return async_wrapper
+
+    def _get_parsl_wrapper(self):
+        def parsl_wrapper(*args, **kwargs):
+            # Do a parsl?
+            import parsl
+            # join_app or @python_app(join=True)
+            from parsl.app.app import python_app
+            from parsl.config import Config
+            from parsl.executors.threads import ThreadPoolExecutor
+
+            local_threads = Config(
+                executors=[
+                    ThreadPoolExecutor(
+                        max_threads=8,
+                        label='local_threads'
+                    )
+                ]
+            )
+
+            parsl.clear()
+            parsl.load(local_threads)
+
+            @python_app
+            def run_action():
+                return self(*args[1:], **kwargs)
+
+            future = run_action()
+            return future
+
+        parsl_wrapper = self._rewrite_wrapper_signature(parsl_wrapper)
+        self._set_wrapper_properties(parsl_wrapper)
+        self._set_wrapper_name(parsl_wrapper, 'parsl')
+        return parsl_wrapper
 
     def _rewrite_wrapper_signature(self, wrapper):
         # Convert the callable's signature into the wrapper's signature and set
