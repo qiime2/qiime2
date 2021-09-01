@@ -12,6 +12,28 @@ from qiime2.core.util import sorted_poset
 
 
 class ValidationObject:
+    r"""
+    An object to store all semantic validation information for a single,
+    complete semantic type(a `concrete type`).
+
+    Parameters
+    ----------
+    concrete_type: semantic type
+        The single, complete semantic type that the validators are to be
+        associated with.
+
+    Attributes
+    ----------
+    _validators: list
+        A list of ValidatorRecords
+
+    _is_sorted: Bool
+        Indicates whether or not `_validators` has been sorted or not.
+
+    concrete_type: SemanticType
+        The semantic type for which the validators are valid for.
+
+    """
     def __init__(self, concrete_type):
         self._validators = []
         self.concrete_type = concrete_type
@@ -19,13 +41,13 @@ class ValidationObject:
 
     def add_validator(self, validator_record):
         r"""
-        Adds validator object to plugin.
+        Adds new validator record to plugin.
 
         Parameters
         ----------
-        validator_record: collections.namedtuple
-            Should be of the form `ValidatorRecord`, found in
-            `plugin\plugin.py`.
+        validator_record: ValidatorRecord
+            ValidatorRecord is a collections.namedtuple found in
+            `qiime2/plugin/plugin.py`.
 
         Notes
         -----
@@ -93,13 +115,13 @@ class ValidationObject:
 
     def __call__(self, data, level):
         r"""
-        Runs all validators.
+        Validates that provided data meets the conditions of a semantic type.
 
         Parameters
         ----------
-        data: an object storing the data.
+        data: A view of the data to be validated.
 
-        level: str % Choices('min', 'max')
+        level: {'min', 'max'}
             specifies the level validation occurs at.
 
         Notes
@@ -126,8 +148,26 @@ class ValidationObject:
                                              data)) from e
 
     def assert_transformation_available(self, dir_fmt):
-        # Called by `qiime2.sdk.PluginManager._consistency_check` to ensure
-        # the validators required to run the transformer are defined.
+        r"""
+        Checks that required transformations exist.
+
+        Parameters
+        ----------
+        dir_fmt: view
+            view type of input data.
+
+        Raises
+        ------
+        AssertionError
+            If no transformation exists from the data view to the view
+            expected by a particular validator.
+
+        Notes
+        -----
+        Called by `qiime2.sdk.PluginManager._consistency_check` to ensure
+        the transformers required to run the validators are defined.
+
+        """
         mt = ModelType.from_view_type(dir_fmt)
 
         for record in self._validators:
