@@ -12,8 +12,8 @@ from qiime2.core.validate import ValidationObject
 from qiime2.sdk import PluginManager
 from qiime2.plugin.plugin import ValidatorRecord, Plugin
 from qiime2.core.testing.type import (IntSequence1, AscIntSequence,
-                                      Kennel, Dog, Squid)
-from qiime2.core.testing.format import IntSequenceFormat
+                                      Kennel, Dog, Squid, Octopus)
+from qiime2.core.testing.format import IntSequenceFormat, Cephalapod
 
 
 class TestValidationObject(unittest.TestCase):
@@ -76,6 +76,32 @@ class TestValidationObject(unittest.TestCase):
 
         self.assertEqual(first_VO._validators, [first_record, second_record])
         self.assertFalse(first_VO._is_sorted)
+
+    def test_catch_different_concrete_types(self):
+        squid_vo = ValidationObject(Squid)
+        octopus_vo = ValidationObject(Octopus)
+
+        def squid_validator(data: Cephalapod, level):
+            pass
+
+        def octopus_validator(data: Cephalapod, level):
+            pass
+
+        squid_record = ValidatorRecord(validator=squid_validator,
+                                       view=Cephalapod,
+                                       plugin='ocean_plugin',
+                                       context=Squid)
+
+        octopus_record = ValidatorRecord(validator=octopus_validator,
+                                         view=Cephalapod,
+                                         plugin='sea_plugin',
+                                         context=Octopus)
+
+        squid_vo.add_validator(squid_record)
+        octopus_vo.add_validator(octopus_record)
+
+        with self.assertRaisesRegex(TypeError, "Unable to add"):
+            squid_vo.add_validation_object(octopus_vo)
 
     def test_public_validators_generation(self):
 
