@@ -158,13 +158,13 @@ class ValidationObject:
                                              record.plugin,
                                              data)) from e
 
-    def assert_transformation_available(self, dir_fmt):
+    def assert_transformation_available(self, data):
         r"""
         Checks that required transformations exist.
 
         Parameters
         ----------
-        dir_fmt: view
+        data: view
             view type of input data.
 
         Raises
@@ -179,7 +179,7 @@ class ValidationObject:
         the transformers required to run the validators are defined.
 
         """
-        mt = ModelType.from_view_type(dir_fmt)
+        mt = ModelType.from_view_type(data)
 
         for record in self._validators:
             mt_other = ModelType.from_view_type(record.view)
