@@ -148,3 +148,14 @@ class EchoFormat(TextFileFormat):
 
 EchoDirectoryFormat = model.SingleFileDirectoryFormat(
     'EchoDirectoryFormat', 'echo.txt', EchoFormat)
+
+
+class Cephalapod(TextFileFormat):
+    """
+    Class that inherits from text file format.
+    Used for testing validator sorting.
+    """
+
+
+CephalapodDirectoryFormat = model.SingleFileDirectoryFormat(
+    'CephalapodDirectoryFormat', 'squids.tsv', Cephalapod)

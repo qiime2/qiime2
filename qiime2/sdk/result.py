@@ -280,6 +280,7 @@ class Artifact(Result):
     @classmethod
     def _from_view(cls, type, view, view_type, provenance_capture,
                    validate_level='min'):
+        type_raw = type
         if isinstance(type, str):
             type = qiime2.sdk.parse_type(type)
 
@@ -302,6 +303,10 @@ class Artifact(Result):
         transformation = from_type.make_transformation(to_type,
                                                        recorder=recorder)
         result = transformation(view, validate_level)
+
+        if type_raw in pm.validators:
+            validation_object = pm.validators[type]
+            validation_object(data=result, level=validate_level)
 
         artifact = cls.__new__(cls)
         artifact._archiver = archive.Archiver.from_data(

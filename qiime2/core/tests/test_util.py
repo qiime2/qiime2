@@ -14,6 +14,7 @@ import datetime
 import dateutil.relativedelta as relativedelta
 
 import qiime2.core.util as util
+from qiime2.core.testing.type import Foo, Bar, Baz
 
 
 class TestFindDuplicates(unittest.TestCase):
@@ -342,6 +343,80 @@ class TestChecksumFormat(unittest.TestCase):
         self.check_roundtrip(
             r'FZ\rywG:7Q%"J@}Rk>\&zbWdS0nhEl_k1y1cMU#Lk_"*#*/uGi>Evl7M1suNNVE',
             '9c7753f252116473994e8bffba2c620b')
+
+
+class TestSortedPoset(unittest.TestCase):
+    def test_already_sorted_incomparable(self):
+        a = [Foo, Bar, Baz]
+
+        r = util.sorted_poset(a)
+
+        # Incomparable elements, so as long as they
+        # are present, any order is valid.
+        self.assertEqual(len(r), 3)
+        self.assertIn(Foo, r)
+        self.assertIn(Bar, r)
+        self.assertIn(Baz, r)
+
+    def test_already_sorted_all_comparable(self):
+        a = [Foo, Foo | Bar, Foo | Bar | Baz]
+
+        r = util.sorted_poset(a)
+
+        self.assertEqual(a, r)
+
+    def test_already_sorted_all_comparable_reverse(self):
+        a = [Foo, Foo | Bar, Foo | Bar | Baz]
+
+        r = util.sorted_poset(a, reverse=True)
+
+        self.assertEqual(list(reversed(a)), r)
+
+    def test_mixed_elements(self):
+        a = [Foo | Bar, Foo | Baz, Foo]
+
+        r = util.sorted_poset(a)
+
+        self.assertEqual(r[0], Foo)
+        # Order of others won't matter
+
+    def test_mxed_elements_diamond(self):
+        a = [Foo | Bar, Foo, Bar | Baz | Foo, Baz | Foo]
+
+        r = util.sorted_poset(a)
+
+        self.assertEqual(r[0], Foo)
+        self.assertEqual(r[-1], Bar | Baz | Foo)
+
+    def test_multiple_minimums(self):
+        a = [Foo | Bar, Foo, Bar | Baz | Foo, Bar, Baz]
+
+        r = util.sorted_poset(a)
+
+        idx_foo = r.index(Foo)
+        idx_bar = r.index(Bar)
+        idx_foobar = r.index(Foo | Bar)
+
+        self.assertLess(idx_foo, idx_foobar)
+        self.assertLess(idx_bar, idx_foobar)
+        self.assertEqual(r[-1], Bar | Baz | Foo)
+
+    def test_multiple_equivalents(self):
+        a = [Baz, Foo | Bar, Foo, Bar | Foo, Bar]
+
+        r = util.sorted_poset(a)
+
+        idx_foo = r.index(Foo)
+        idx_bar = r.index(Bar)
+        idx_barfoo = r.index(Bar | Foo)
+        idx_foobar = r.index(Foo | Bar)
+
+        adjacent = -1 <= idx_barfoo - idx_foobar <= 1
+        self.assertTrue(adjacent)
+        self.assertLess(idx_foo, idx_barfoo)
+        self.assertLess(idx_foo, idx_foobar)
+        self.assertLess(idx_bar, idx_barfoo)
+        self.assertLess(idx_bar, idx_foobar)
 
 
 if __name__ == '__main__':
