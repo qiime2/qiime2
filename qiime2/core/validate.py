@@ -25,21 +25,23 @@ class ValidationObject:
     """
     def __init__(self, concrete_type):
         r"""
+        Create a new ValidationObject to add ValidatorRecords to.
+
         Parameters
         ----------
         concrete_type: semantic type
             The single, complete semantic type that the validators are to be
             associated with.
 
-        Attributes
-        ----------
-        _validators: list
-            A list of ValidatorRecords
-
-        _is_sorted: Bool
-            Tracks whether or not `_validators` has been sorted or not.
-
         """
+        # Private Attributes
+        # ------------------
+        # _validators: list
+        #     A list of ValidatorRecords
+
+        # _is_sorted: Bool
+        #     Tracks whether or not `_validators` has been sorted or not.
+
         self._validators = []
         self.concrete_type = concrete_type
         self._is_sorted = False
