@@ -9,12 +9,14 @@
 import abc
 import concurrent.futures
 import inspect
+from os import set_blocking
 import tempfile
 import textwrap
 import itertools
 
 import decorator
 import dill
+import parsl
 
 import qiime2.sdk
 import qiime2.core.type as qtype
@@ -40,6 +42,14 @@ def _subprocess_apply(action, args, kwargs):
         # do need to detach these. The specifics are not understood.
         r._destructor.detach()
     return results
+
+
+@parsl.app.app.python_app
+def run_action(function, *args, **kwargs):
+    from qiime2.sdk import Context
+    ctx = Context()
+    exe = function._bind(lambda: ctx)
+    return exe(*args, **kwargs)
 
 
 class Action(metaclass=abc.ABCMeta):
@@ -114,6 +124,7 @@ class Action(metaclass=abc.ABCMeta):
         # This a temp thing to play with parsl before integrating more deeply
         self._dynamic_parsl = self._get_parsl_wrapper()
 
+
     def __init__(self):
         raise NotImplementedError(
             "%s constructor is private." % self.__class__.__name__)
@@ -162,6 +173,8 @@ class Action(metaclass=abc.ABCMeta):
     def __setstate__(self, state):
         self.__init(**dill.loads(state))
 
+    # Use bind to bind parsl config to action when action is being sent to
+    # executor
     def _bind(self, context_factory):
         """Bind an action to a Context factory, returning a decorated function.
 
@@ -304,31 +317,37 @@ class Action(metaclass=abc.ABCMeta):
 
     def _get_parsl_wrapper(self):
         def parsl_wrapper(*args, **kwargs):
-            # Do a parsl?
-            import parsl
-            # join_app or @python_app(join=True)
-            from parsl.app.app import python_app
-            from parsl.config import Config
-            from parsl.executors.threads import ThreadPoolExecutor
+            # Create a Context object that will look up the config
+            # Call bind with a factory that returns Context we just created
+            # ctx = qiime2.sdk.Context()
+            # Rehydrate bound context instead of trying to bind new one on
+            # rehydration
+            # Create new class holding context and action then its call binds
+            # context to the action then executes action
+            # function = self._bind(lambda: ctx)
 
-            local_threads = Config(
-                executors=[
-                    ThreadPoolExecutor(
-                        max_threads=8,
-                        label='local_threads'
-                    )
-                ]
-            )
+            # Toml for config file. Use thread local to store configuration
+            # Have some default config changed by putting file with new config
+            # in a place
+            # Create global (default) config object somewhere
+            # Default numthreads to max(psutil.cpu_count() - 1), 1)
+            # Create context manager that changes it
+            # Sys admin might make default config but allow users to overwrite
+            # Check env var
+            # Look for home writable user location
+            # Look for system writable location
+            # Look inside our own code
+            # Thing that stores current Config for current instance is threading.local
+            # parsl.clear()
 
+            # function = self._bind(qiime2.sdk.Context)
+            ctx = qiime2.sdk.Context()
             parsl.clear()
-            parsl.load(local_threads)
+            parsl.load(ctx.config)
+            # wrap = ParslWrapper(self, ctx)
+            function = self._bind(lambda: ctx)
 
-            @python_app
-            def run_action():
-                return self(*args[1:], **kwargs)
-
-            future = run_action()
-            return future
+            return run_action(self, *args[1:], **kwargs)
 
         parsl_wrapper = self._rewrite_wrapper_signature(parsl_wrapper)
         self._set_wrapper_properties(parsl_wrapper)
@@ -410,6 +429,17 @@ class Action(metaclass=abc.ABCMeta):
     def _build_deprecation_message(self):
         return (f'This {self.type.title()} is deprecated and will be removed '
                 'in a future version of this plugin.')
+
+
+class ParslWrapper():
+    def __init__(self, func, ctx):
+        self.func = func
+        self.ctx = ctx
+        # self.exe = self.func._bind(lambda: self.ctx)
+
+    # @parsl.app.app.python_app
+    # def __call__(self):
+    #     return self.exe(*self.args, **self.kwargs)
 
 
 class Method(Action):
