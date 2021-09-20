@@ -7,22 +7,15 @@
 # ----------------------------------------------------------------------------
 
 import qiime2.sdk
-from qiime2.sdk.config import get_config
 
 
 class Context:
     def __init__(self, parent=None):
-        if parent is None:
-            self.config = get_config()
-        else:
-            self.config = parent.config
         self._parent = parent
         self._scope = None
 
-
     def get_action(self, plugin: str, action: str):
         """Return a function matching the callable API of an action.
-
         This function is aware of the pipeline context and manages its own
         cleanup as appropriate.
         """
