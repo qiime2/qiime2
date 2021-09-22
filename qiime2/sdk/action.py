@@ -52,6 +52,8 @@ def run_single_action(function, ctx, *args, **kwargs):
 
 @join_app
 def run_pipeline(executor, function, ctx, *args, **kwargs):
+    # In here we need to have the pipeline run all of its actions in
+    # python_apps. This is obviously not that.
     return python_app(
         executors=[executor])(
             run_single_action)(function, ctx, *args, **kwargs)
