@@ -35,7 +35,8 @@ class Context:
         # parent. This allows scope cleanup to happen recursively.
         # A factory is necessary so that independent applications of the
         # returned callable recieve their own Context objects.
-        return action_obj._bind(lambda: Context(parent=self))
+        # return action_obj._bind(lambda: Context(parent=self))
+        return action_obj._bind_parsl(lambda: Context(parent=self))
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.

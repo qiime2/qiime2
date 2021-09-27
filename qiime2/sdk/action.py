@@ -46,6 +46,7 @@ def _subprocess_apply(action, args, kwargs):
 
 
 def run_single_action(function, ctx, *args, **kwargs):
+    print('Run action\n\n')
     exe = function._bind(lambda: ctx)
     return exe(*args, **kwargs)
 
@@ -54,9 +55,14 @@ def run_single_action(function, ctx, *args, **kwargs):
 def run_pipeline(executor, function, ctx, *args, **kwargs):
     # In here we need to have the pipeline run all of its actions in
     # python_apps. This is obviously not that.
-    return python_app(
-        executors=[executor])(
-            run_single_action)(function, ctx, *args, **kwargs)
+    exe = function._bind_parsl(lambda: ctx)
+    print(f'Call exe: {exe}\n\n')
+    future = exe(*args, **kwargs)
+    print('Post exe\n\n')
+    return future
+    # return python_app(
+    #     executors=[executor])(
+    #         run_single_action)(function, ctx, *args, **kwargs)
 
 
 class Action(metaclass=abc.ABCMeta):
@@ -283,6 +289,112 @@ class Action(metaclass=abc.ABCMeta):
         self._set_wrapper_name(bound_callable, self.id)
         return bound_callable
 
+    # Use bind to bind parsl config to action when action is being sent to
+    # executor
+    def _bind_parsl(self, context_factory):
+        """Bind an action to a Context factory, returning a decorated function.
+
+        This is a very primitive API and should be used primarily by the
+        framework and very advanced interfaces which need deep control over
+        the calling semantics of pipelines and garbage collection.
+
+        The basic idea behind this is outlined as follows:
+
+        Every action is defined as an *instance* that a plugin constructs.
+        This means that `self` represents the internal details as to what
+        the action is. If you need to associate additional state with the
+        *application* of an action, you cannot mutate `self` without
+        changing all future applications. So there needs to be an
+        additional instance variable that can serve as the state of a given
+        application. We call this a Context object. It is also important
+        that each application of an action has *independent* state, so
+        providing an instance of Context won't work. We need a factory.
+
+        Parameterizing the context is necessary because it is possible for
+        an action to call other actions. The details need to be coordinated
+        behind the scenes to the user, so we can parameterize the behavior
+        by providing different context factories to `bind` at different
+        points in the "call stack".
+
+        """
+        def bound_callable(*args, **kwargs):
+            # This function's signature is rewritten below using
+            # `decorator.decorator`. When the signature is rewritten,
+            # args[0] is the function whose signature was used to rewrite
+            # this function's signature.
+            args = args[1:]
+            ctx = context_factory()
+            # Set up a scope under which we can track destructable references
+            # if something goes wrong, the __exit__ handler of this context
+            # manager will clean up. (It also cleans up when things go right)
+            with ctx as scope:
+                provenance = self._ProvCaptureCls(
+                    self.type, self.plugin_id, self.id)
+                scope.add_reference(provenance)
+
+                # Collate user arguments
+                user_input = {name: value for value, name in
+                              zip(args, self.signature.signature_order)}
+                user_input.update(kwargs)
+
+                # Type management
+                print(f'user_input: {user_input}\n\n')
+                self.signature.check_types(**user_input)
+                output_types = self.signature.solve_output(**user_input)
+                callable_args = {}
+
+                # Record parameters
+                for name, spec in self.signature.parameters.items():
+                    parameter = callable_args[name] = user_input[name]
+                    provenance.add_parameter(name, spec.qiime_type, parameter)
+
+                # Record and transform inputs
+                for name, spec in self.signature.inputs.items():
+                    artifact = user_input[name]
+                    provenance.add_input(name, artifact)
+                    if artifact is None:
+                        callable_args[name] = None
+                    elif spec.has_view_type():
+                        recorder = provenance.transformation_recorder(name)
+                        if qtype.is_collection_type(spec.qiime_type):
+                            # Always put in a list. Sometimes the view isn't
+                            # hashable, which isn't relevant, but would break
+                            # a Set[SomeType].
+                            callable_args[name] = [
+                                a._view(spec.view_type, recorder)
+                                for a in user_input[name]]
+                        else:
+                            callable_args[name] = artifact._view(
+                                spec.view_type, recorder)
+                    else:
+                        callable_args[name] = artifact
+
+                if self.deprecated:
+                    with qiime2.core.util.warning() as warn:
+                        warn(self._build_deprecation_message(),
+                             FutureWarning)
+
+                # Execute
+                outputs = self.parsl(scope, callable_args, output_types,
+                                     provenance,)
+
+                if len(outputs) != len(self.signature.outputs):
+                    raise ValueError(
+                        "Number of callable outputs must match number of "
+                        "outputs defined in signature: %d != %d" %
+                        (len(outputs), len(self.signature.outputs)))
+
+                # Wrap in a Results object mapping output name to value so
+                # users have access to outputs by name or position.
+                return qiime2.sdk.Results(self.signature.outputs.keys(),
+                                          outputs)
+
+        bound_callable = self._rewrite_wrapper_signature(bound_callable)
+        self._set_wrapper_properties(bound_callable)
+        self._set_wrapper_name(bound_callable, self.id)
+        print(f'Bound callable: {bound_callable}\n\n')
+        return bound_callable
+
     def _get_callable_wrapper(self):
         # This is a "root" level invocation (not a nested call within a
         # pipeline), so no special factory is needed.
@@ -334,10 +446,10 @@ class Action(metaclass=abc.ABCMeta):
                 executor = 'default'
 
             if isinstance(self, qiime2.sdk.action.Pipeline):
-                print(f'{self.id}\n\n')
+                print('pipeline')
                 return run_pipeline(executor, self, ctx, *args[1:], **kwargs)
             else:
-                print(f'{self.id}\n\n')
+                print('method or viz')
                 return python_app(
                     executors=[executor])(
                         run_single_action)(self, ctx, *args[1:], **kwargs)
