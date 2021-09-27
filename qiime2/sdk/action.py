@@ -19,7 +19,8 @@ import parsl
 from parsl.app.app import python_app, join_app
 
 import qiime2.sdk
-from qiime2.sdk.config import LOCAL_CONFIG, get_config
+# from qiime2.sdk.config import LOCAL_CONFIG, get_config
+from qiime2.sdk.config import config, action_executor_mapping, get_config
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
@@ -51,15 +52,13 @@ def run_single_action(function, ctx, *args, **kwargs):
     return exe(*args, **kwargs)
 
 
-@join_app
+@python_app
 def run_pipeline(executor, function, ctx, *args, **kwargs):
     # In here we need to have the pipeline run all of its actions in
     # python_apps. This is obviously not that.
-    exe = function._bind_parsl(lambda: ctx)
+    exe = function._bind(lambda: ctx)
     print(f'Call exe: {exe}\n\n')
-    future = exe(*args, **kwargs)
-    print('Post exe\n\n')
-    return future
+    return exe(*args, **kwargs)
     # return python_app(
     #     executors=[executor])(
     #         run_single_action)(function, ctx, *args, **kwargs)
@@ -323,6 +322,9 @@ class Action(metaclass=abc.ABCMeta):
             # args[0] is the function whose signature was used to rewrite
             # this function's signature.
             args = args[1:]
+            if isinstance(args[0], qiime2.sdk.context.Scope):
+                args = args[1:]
+            print(f'ARGS: {args}\nKWARGS: {kwargs}\n\n')
             ctx = context_factory()
             # Set up a scope under which we can track destructable references
             # if something goes wrong, the __exit__ handler of this context
@@ -375,14 +377,14 @@ class Action(metaclass=abc.ABCMeta):
                              FutureWarning)
 
                 # Execute
-                outputs = self.parsl(scope, callable_args, output_types,
-                                     provenance,)
+                print(f'Callable args: {callable_args}\n\n')
+                outputs = self.parsl(**user_input)
 
-                if len(outputs) != len(self.signature.outputs):
-                    raise ValueError(
-                        "Number of callable outputs must match number of "
-                        "outputs defined in signature: %d != %d" %
-                        (len(outputs), len(self.signature.outputs)))
+                # if len(outputs) != len(self.signature.outputs):
+                #     raise ValueError(
+                #         "Number of callable outputs must match number of "
+                #         "outputs defined in signature: %d != %d" %
+                #         (len(outputs), len(self.signature.outputs)))
 
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position.
@@ -440,8 +442,10 @@ class Action(metaclass=abc.ABCMeta):
             parsl.load(get_config())
             ctx = qiime2.sdk.Context()
 
-            if self.id in LOCAL_CONFIG.action_executor_mapping:
-                executor = LOCAL_CONFIG.action_executor_mapping[self.id]
+            # if self.id in LOCAL_CONFIG.action_executor_mapping:
+                # executor = LOCAL_CONFIG.action_executor_mapping[self.id]
+            if self.id in action_executor_mapping:
+                executor = action_executor_mapping[self.id]
             else:
                 executor = 'default'
 

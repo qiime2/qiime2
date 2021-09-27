@@ -5,6 +5,7 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
+import parsl
 
 
 # This class provides an interface similar to a `namedtuple` type. We can't use
@@ -26,8 +27,10 @@ class Results(tuple):
 
     # Subclassing `tuple` requires `__new__` override.
     def __new__(cls, fields, values):
+        print(f'Fields: {fields}\nValues: {values}\n\n')
         fields = tuple(fields)
-        values = tuple(values)
+        if not isinstance(values, tuple):
+            values = tuple(values.result())
 
         if len(fields) != len(values):
             raise ValueError(
