@@ -18,11 +18,9 @@ from parsl.executors.threads import ThreadPoolExecutor
 from parsl.executors import HighThroughputExecutor
 
 
-# LOCAL_CONFIG = threading.local()
-# LOCAL_CONFIG.config = None
-# LOCAL_CONFIG.action_executor_mapping = {}
-config = None
-action_executor_mapping = {}
+LOCAL_CONFIG = threading.local()
+LOCAL_CONFIG.config = None
+LOCAL_CONFIG.action_executor_mapping = {}
 
 
 def get_config():
@@ -50,8 +48,7 @@ def get_config():
     # Load vendored default
     # If no custom config do this. This will probably end up in a vendored file
     else:
-        # LOCAL_CONFIG.config = Config(
-        config = Config(
+        LOCAL_CONFIG.config = Config(
             executors=[
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
@@ -61,40 +58,34 @@ def get_config():
                     max_threads=max(psutil.cpu_count() - 1, 1),
                     label='not_default'
                 ),
-                HighThroughputExecutor(
-                    label='htex',
-                    max_workers=6,
-                    worker_logdir_root=os.getcwd(),
+                # HighThroughputExecutor(
+                #     label='default',
+                #     max_workers=6,
+                #     worker_logdir_root=os.getcwd(),
 
-                    provider=AdHocProvider(
-                        # Command to be run before starting a worker, such as:
-                        # 'module load Anaconda; source activate parsl_env'.
-                        worker_init='',
-                        channels=[parsl.channels.LocalChannel(
-                            script_dir=os.getcwd())]
-                    )
-                )
+                #     provider=AdHocProvider(
+                #         # Command to be run before starting a worker, such as:
+                #         # 'module load Anaconda; source activate parsl_env'.
+                #         worker_init='',
+                #         channels=[parsl.channels.LocalChannel(
+                #             script_dir=os.getcwd())]
+                #     )
+                # )
             ],
             #  AdHoc Clusters should not be setup with scaling strategy.
             strategy=None,
         )
 
-    # return LOCAL_CONFIG.config
-    return config
+    return LOCAL_CONFIG.config
 
 
 class ParallelConfig():
-    global action_executor_mapping
-
-    def __init__(self, new_action_executor_mapping):
-        # self.backup = LOCAL_CONFIG.action_executor_mapping
-        # LOCAL_CONFIG.action_executor_mapping = action_executor_mapping
-        self.backup = self.action_executor_mapping
-        self.action_executor_mapping = new_action_executor_mapping
+    def __init__(self, action_executor_mapping):
+        self.backup = LOCAL_CONFIG.action_executor_mapping
+        LOCAL_CONFIG.action_executor_mapping = action_executor_mapping
 
     def __enter__(self):
         pass
 
     def __exit__(self, *args):
-        # LOCAL_CONFIG.action_executor_mapping = self.backup
-        self.action_executor_mapping = self.backup
+        LOCAL_CONFIG.action_executor_mapping = self.backup

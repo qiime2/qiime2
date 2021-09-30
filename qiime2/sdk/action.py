@@ -19,8 +19,6 @@ import parsl
 from parsl.app.app import python_app, join_app
 
 import qiime2.sdk
-# from qiime2.sdk.config import LOCAL_CONFIG, get_config
-from qiime2.sdk.config import config, action_executor_mapping, get_config
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
@@ -47,21 +45,15 @@ def _subprocess_apply(action, args, kwargs):
 
 
 def run_single_action(function, ctx, *args, **kwargs):
-    print('Run action\n\n')
-    exe = function._bind(lambda: ctx)
-    return exe(*args, **kwargs)
+    print(f'Run action: {function}\n')
+    return function(*args, **kwargs)
 
 
 @python_app
-def run_pipeline(executor, function, ctx, *args, **kwargs):
-    # In here we need to have the pipeline run all of its actions in
-    # python_apps. This is obviously not that.
+def run_pipeline(function, ctx, *args, **kwargs):
     exe = function._bind(lambda: ctx)
-    print(f'Call exe: {exe}\n\n')
+    print(f'Call exe: {exe}\n')
     return exe(*args, **kwargs)
-    # return python_app(
-    #     executors=[executor])(
-    #         run_single_action)(function, ctx, *args, **kwargs)
 
 
 class Action(metaclass=abc.ABCMeta):
@@ -186,7 +178,7 @@ class Action(metaclass=abc.ABCMeta):
 
     # Use bind to bind parsl config to action when action is being sent to
     # executor
-    def _bind(self, context_factory):
+    def _bind(self, context_factory, parsl=False):
         """Bind an action to a Context factory, returning a decorated function.
 
         This is a very primitive API and should be used primarily by the
@@ -269,122 +261,18 @@ class Action(metaclass=abc.ABCMeta):
                              FutureWarning)
 
                 # Execute
-                outputs = self._callable_executor_(scope, callable_args,
-                                                   output_types, provenance)
+                if parsl:
+                    print(f'ctx: {ctx}\nUSER INPUT: {user_input}')
+                    outputs = self.parsl(**user_input)
+                else:
+                    outputs = self._callable_executor_(scope, callable_args,
+                                                    output_types, provenance)
 
-                if len(outputs) != len(self.signature.outputs):
-                    raise ValueError(
-                        "Number of callable outputs must match number of "
-                        "outputs defined in signature: %d != %d" %
-                        (len(outputs), len(self.signature.outputs)))
-
-                # Wrap in a Results object mapping output name to value so
-                # users have access to outputs by name or position.
-                return qiime2.sdk.Results(self.signature.outputs.keys(),
-                                          outputs)
-
-        bound_callable = self._rewrite_wrapper_signature(bound_callable)
-        self._set_wrapper_properties(bound_callable)
-        self._set_wrapper_name(bound_callable, self.id)
-        return bound_callable
-
-    # Use bind to bind parsl config to action when action is being sent to
-    # executor
-    def _bind_parsl(self, context_factory):
-        """Bind an action to a Context factory, returning a decorated function.
-
-        This is a very primitive API and should be used primarily by the
-        framework and very advanced interfaces which need deep control over
-        the calling semantics of pipelines and garbage collection.
-
-        The basic idea behind this is outlined as follows:
-
-        Every action is defined as an *instance* that a plugin constructs.
-        This means that `self` represents the internal details as to what
-        the action is. If you need to associate additional state with the
-        *application* of an action, you cannot mutate `self` without
-        changing all future applications. So there needs to be an
-        additional instance variable that can serve as the state of a given
-        application. We call this a Context object. It is also important
-        that each application of an action has *independent* state, so
-        providing an instance of Context won't work. We need a factory.
-
-        Parameterizing the context is necessary because it is possible for
-        an action to call other actions. The details need to be coordinated
-        behind the scenes to the user, so we can parameterize the behavior
-        by providing different context factories to `bind` at different
-        points in the "call stack".
-
-        """
-        def bound_callable(*args, **kwargs):
-            # This function's signature is rewritten below using
-            # `decorator.decorator`. When the signature is rewritten,
-            # args[0] is the function whose signature was used to rewrite
-            # this function's signature.
-            args = args[1:]
-            if isinstance(args[0], qiime2.sdk.context.Scope):
-                args = args[1:]
-            print(f'ARGS: {args}\nKWARGS: {kwargs}\n\n')
-            ctx = context_factory()
-            # Set up a scope under which we can track destructable references
-            # if something goes wrong, the __exit__ handler of this context
-            # manager will clean up. (It also cleans up when things go right)
-            with ctx as scope:
-                provenance = self._ProvCaptureCls(
-                    self.type, self.plugin_id, self.id)
-                scope.add_reference(provenance)
-
-                # Collate user arguments
-                user_input = {name: value for value, name in
-                              zip(args, self.signature.signature_order)}
-                user_input.update(kwargs)
-
-                # Type management
-                print(f'user_input: {user_input}\n\n')
-                self.signature.check_types(**user_input)
-                output_types = self.signature.solve_output(**user_input)
-                callable_args = {}
-
-                # Record parameters
-                for name, spec in self.signature.parameters.items():
-                    parameter = callable_args[name] = user_input[name]
-                    provenance.add_parameter(name, spec.qiime_type, parameter)
-
-                # Record and transform inputs
-                for name, spec in self.signature.inputs.items():
-                    artifact = user_input[name]
-                    provenance.add_input(name, artifact)
-                    if artifact is None:
-                        callable_args[name] = None
-                    elif spec.has_view_type():
-                        recorder = provenance.transformation_recorder(name)
-                        if qtype.is_collection_type(spec.qiime_type):
-                            # Always put in a list. Sometimes the view isn't
-                            # hashable, which isn't relevant, but would break
-                            # a Set[SomeType].
-                            callable_args[name] = [
-                                a._view(spec.view_type, recorder)
-                                for a in user_input[name]]
-                        else:
-                            callable_args[name] = artifact._view(
-                                spec.view_type, recorder)
-                    else:
-                        callable_args[name] = artifact
-
-                if self.deprecated:
-                    with qiime2.core.util.warning() as warn:
-                        warn(self._build_deprecation_message(),
-                             FutureWarning)
-
-                # Execute
-                print(f'Callable args: {callable_args}\n\n')
-                outputs = self.parsl(**user_input)
-
-                # if len(outputs) != len(self.signature.outputs):
-                #     raise ValueError(
-                #         "Number of callable outputs must match number of "
-                #         "outputs defined in signature: %d != %d" %
-                #         (len(outputs), len(self.signature.outputs)))
+                    if len(outputs) != len(self.signature.outputs):
+                        raise ValueError(
+                            "Number of callable outputs must match number of "
+                            "outputs defined in signature: %d != %d" %
+                            (len(outputs), len(self.signature.outputs)))
 
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position.
@@ -394,7 +282,6 @@ class Action(metaclass=abc.ABCMeta):
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
         self._set_wrapper_name(bound_callable, self.id)
-        print(f'Bound callable: {bound_callable}\n\n')
         return bound_callable
 
     def _get_callable_wrapper(self):
@@ -436,24 +323,30 @@ class Action(metaclass=abc.ABCMeta):
         return async_wrapper
 
     def _get_parsl_wrapper(self):
-        def parsl_wrapper(*args, **kwargs):
+        def parsl_wrapper(*args, ctx=None, **kwargs):
             # Would love a way to check if there was already a config loaded
-            parsl.clear()
-            parsl.load(get_config())
-            ctx = qiime2.sdk.Context()
+            if ctx is None:
+                ctx = qiime2.sdk.Context()
+            else:
+                print(ctx)
 
-            # if self.id in LOCAL_CONFIG.action_executor_mapping:
-                # executor = LOCAL_CONFIG.action_executor_mapping[self.id]
-            if self.id in action_executor_mapping:
-                executor = action_executor_mapping[self.id]
+            # If you find a good way to determine if a parsl context is loaded.
+            # Use it here
+            try:
+                parsl.load(ctx.config)
+            except RuntimeError:
+                pass
+
+            if self.id in ctx.action_executor_mapping:
+                executor = ctx.action_executor_mapping[self.id]
             else:
                 executor = 'default'
 
             if isinstance(self, qiime2.sdk.action.Pipeline):
-                print('pipeline')
-                return run_pipeline(executor, self, ctx, *args[1:], **kwargs)
+                print(f'pipeline: {ctx.action_executor_mapping}')
+                return run_pipeline(self, ctx, *args[1:], **kwargs)
             else:
-                print('method or viz')
+                print(f'method or viz: {ctx.action_executor_mapping}')
                 return python_app(
                     executors=[executor])(
                         run_single_action)(self, ctx, *args[1:], **kwargs)
