@@ -143,9 +143,46 @@ class Result:
     def _destructor(self):
         return self._archiver._destructor
 
-    def save(self, filepath):
-        if not filepath.endswith(self.extension):
-            filepath += self.extension
+    def save(self, filepath, ext=None):
+        """Save to a file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to save file at.
+
+        extension : str
+            Preferred file extension (.qza, .qzv, .txt, etc).
+            If no preferred extension input is included,
+            Artifact extension will default to .qza and
+            Visualization extension will default to .qzv.
+            Including a period in the extension is
+            optional, and any additional periods delimiting
+            the filepath and the extension will be reduced
+            to a single period.
+
+        Returns
+        -------
+        str
+            Filepath and extension (if provided) that the
+            file was saved to.
+
+        See Also
+        --------
+        load
+
+        """
+        if ext is None:
+            ext = self.extension
+
+        # This accounts for edge cases in the filename extension
+        # and ensures that there is only a single period in the ext.
+        filepath = filepath.rstrip('.')
+        ext = '.' + ext.lstrip('.')
+
+        if not filepath.endswith(ext):
+            filepath += ext
+
         self._archiver.save(filepath)
         return filepath
 
@@ -243,6 +280,7 @@ class Artifact(Result):
     @classmethod
     def _from_view(cls, type, view, view_type, provenance_capture,
                    validate_level='min'):
+        type_raw = type
         if isinstance(type, str):
             type = qiime2.sdk.parse_type(type)
 
@@ -265,6 +303,10 @@ class Artifact(Result):
         transformation = from_type.make_transformation(to_type,
                                                        recorder=recorder)
         result = transformation(view, validate_level)
+
+        if type_raw in pm.validators:
+            validation_object = pm.validators[type]
+            validation_object(data=result, level=validate_level)
 
         artifact = cls.__new__(cls)
         artifact._archiver = archive.Archiver.from_data(

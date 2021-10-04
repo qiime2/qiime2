@@ -7,10 +7,12 @@
 # ----------------------------------------------------------------------------
 
 import collections
+import inspect
 import types
 
 import qiime2.sdk
 import qiime2.core.type.grammar as grammar
+from qiime2.core.validate import ValidationObject
 from qiime2.plugin.model import DirectoryFormat
 from qiime2.plugin.model.base import FormatBase
 from qiime2.core.type import is_semantic_type
@@ -28,6 +30,8 @@ ViewRecord = collections.namedtuple(
     'ViewRecord', ['name', 'view', 'plugin', 'citations'])
 TypeFormatRecord = collections.namedtuple(
     'TypeFormatRecord', ['type_expression', 'format', 'plugin'])
+ValidatorRecord = collections.namedtuple(
+    'ValidatorRecord', ['validator', 'view', 'plugin', 'context'])
 
 
 class Plugin:
@@ -76,6 +80,7 @@ class Plugin:
         self.type_fragments = {}
         self.transformers = {}
         self.type_formats = []
+        self.validators = {}
 
     def freeze(self):
         pass
@@ -134,6 +139,40 @@ class Plugin:
 
             if is_format:
                 self.formats[name] = FormatRecord(format=view, plugin=self)
+
+    def register_validator(self, semantic_expression):
+        if not is_semantic_type(semantic_expression):
+            raise TypeError('%s is not a Semantic Type' % semantic_expression)
+
+        def decorator(validator):
+
+            validator_signature = inspect.getfullargspec(validator)
+
+            if 'data' not in validator_signature.annotations:
+                raise TypeError('No expected view type provided as annotation'
+                                ' for `data` variable in %r.' %
+                                (validator.__name__))
+
+            if not ['data', 'level'] == validator_signature.args:
+                raise TypeError('The function signature: %r does not contain'
+                                ' the required arguments and only the required'
+                                ' arguments: %r' % (
+                                    validator_signature.args,
+                                    ['data', 'level']))
+
+            for semantic_type in semantic_expression:
+                if semantic_type not in self.validators:
+                    self.validators[semantic_type] = \
+                        ValidationObject(semantic_type)
+
+                self.validators[semantic_type].add_validator(
+                    ValidatorRecord(
+                        validator=validator,
+                        view=validator.__annotations__['data'],
+                        plugin=self,
+                        context=semantic_expression))
+            return validator
+        return decorator
 
     def register_transformer(self, _fn=None, *, citations=None):
         """

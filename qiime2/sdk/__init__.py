@@ -13,7 +13,9 @@ from .result import Result, Artifact, Visualization
 from .results import Results
 from .util import parse_type, parse_format, type_from_ast
 from ..core.cite import Citations
+from ..core.exceptions import ValidationError, ImplementationError
 
 __all__ = ['Result', 'Results', 'Artifact', 'Visualization', 'Action',
            'Method', 'Visualizer', 'Pipeline', 'PluginManager', 'parse_type',
-           'parse_format', 'type_from_ast', 'Context', 'Citations']
+           'parse_format', 'type_from_ast', 'Context', 'Citations',
+           'ValidationError', 'ImplementationError', ]

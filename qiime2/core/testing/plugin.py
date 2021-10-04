@@ -26,11 +26,14 @@ from .format import (
     UnimportableFormat,
     UnimportableDirectoryFormat,
     EchoFormat,
-    EchoDirectoryFormat
+    EchoDirectoryFormat,
+    Cephalapod,
+    CephalapodDirectoryFormat,
 )
 
 from .type import (IntSequence1, IntSequence2, IntSequence3, Mapping, FourInts,
-                   SingleInt, Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz)
+                   SingleInt, Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz,
+                   AscIntSequence, Squid, Octopus, Cuttlefish)
 from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_column,
                      identity_with_categorical_metadata_column,
@@ -55,6 +58,7 @@ from .examples import (concatenate_ints_simple, concatenate_ints_complex,
                        identity_with_metadata_merging,
                        identity_with_metadata_column_get_mdc,
                        variadic_input_simple, optional_inputs,
+                       comments_only_factory,
                        )
 
 
@@ -71,17 +75,21 @@ dummy_plugin = Plugin(
 )
 
 import_module('qiime2.core.testing.transformer')
+import_module('qiime2.core.testing.validator')
+
 
 # Register semantic types
 dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, IntSequence3,
                                      Mapping, FourInts, Kennel, Dog, Cat,
-                                     SingleInt, C1, C2, C3, Foo, Bar, Baz)
+                                     SingleInt, C1, C2, C3, Foo, Bar, Baz,
+                                     AscIntSequence, Squid, Octopus,
+                                     Cuttlefish)
 
 # Register formats
 dummy_plugin.register_formats(
     IntSequenceFormatV2, MappingFormat, IntSequenceV2DirectoryFormat,
     IntSequenceMultiFileDirectoryFormat, MappingDirectoryFormat,
-    EchoDirectoryFormat, EchoFormat)
+    EchoDirectoryFormat, EchoFormat, Cephalapod, CephalapodDirectoryFormat)
 
 dummy_plugin.register_formats(
     FourIntsDirectoryFormat, UnimportableDirectoryFormat, UnimportableFormat,
@@ -132,6 +140,14 @@ dummy_plugin.register_semantic_type_to_format(
     | Baz,
     artifact_format=EchoDirectoryFormat)
 
+dummy_plugin.register_semantic_type_to_format(
+    AscIntSequence,
+    artifact_format=IntSequenceDirectoryFormat)
+
+dummy_plugin.register_semantic_type_to_format(
+    Squid | Octopus | Cuttlefish,
+    artifact_format=CephalapodDirectoryFormat)
+
 # TODO add an optional parameter to this method when they are supported
 dummy_plugin.methods.register_function(
     function=concatenate_ints,
@@ -148,12 +164,15 @@ dummy_plugin.methods.register_function(
         ('concatenated_ints', IntSequence1)
     ],
     name='Concatenate integers',
-    description='This method concatenates integers into a single sequence in '
-                'the order they are provided.',
+    description='This method concatenates integers into'
+                ' a single sequence in the order they are provided.',
     citations=[citations['baerheim1994effect']],
     examples={'concatenate_ints_simple': concatenate_ints_simple,
               'concatenate_ints_complex': concatenate_ints_complex,
-              'comments_only': comments_only},
+              'comments_only': comments_only,
+              # execute factory to make a closure to test pickling
+              'comments_only_factory': comments_only_factory(),
+              },
 )
 
 T = TypeMatch([IntSequence1, IntSequence2])

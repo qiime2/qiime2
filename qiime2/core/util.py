@@ -235,3 +235,25 @@ class ImmutableBase:
         if hasattr(self, '_frozen'):
             _immutable_error(self)
         super().__setattr__(*args)
+
+
+def sorted_poset(iterable, *, key=None, reverse=False):
+    values = list(iterable)
+    elements = values
+    if key is not None:
+        elements = [key(x) for x in values]
+
+    result = []
+    sorted_elements = []
+    for value, element in zip(values, elements):
+        idx = 0
+        for idx, placed in enumerate(sorted_elements, 1):
+            if element <= placed:
+                idx -= 1
+                break
+
+        result.insert(idx, value)
+        sorted_elements.insert(idx, element)
+    if reverse:
+        result = list(reversed(result))
+    return result
