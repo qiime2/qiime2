@@ -135,6 +135,12 @@ def typical_pipeline_complex(use):
         expression='1',
     )
 
+    # test that the non-string type works
+    right2.assert_output_type(label='some label', semantic_type=IntSequence1)
+    # test that the string type works
+    out_map = use.get_result('out_map1')
+    out_map.assert_output_type(label='another label', semantic_type='Mapping')
+
 
 def comments_only(use):
     use.comment('comment 1')

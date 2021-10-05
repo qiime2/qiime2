@@ -70,6 +70,9 @@ class ArtifactAPIUsage(usage.Usage):
     def _assert_has_line_matching_(self, ref, label, path, expression):
         pass
 
+    def _assert_output_type_(self, ref, label, semantic_type):
+        pass
+
     def render(self):
         sorted_imps = sorted(self._imports, key=lambda x: x[0])
         imps = ['from %s import %s\n' % i for i in sorted_imps]

@@ -382,6 +382,11 @@ class TestScopeRecord(TestCaseUsage):
             usage.ScopeRecord('foo', 'value', 'source',
                               assert_has_line_matching='spleen')
 
+    def test_invalid_assert_output_type(self):
+        with self.assertRaisesRegex(TypeError, 'should be a `callable`'):
+            usage.ScopeRecord('foo', 'value', 'source',
+                              assert_output_type='spleen')
+
 
 class TestExecutionUsage(TestCaseUsage):
     def test_init_data(self):
