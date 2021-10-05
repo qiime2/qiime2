@@ -336,17 +336,24 @@ class ScopeRecord:
                                      'metadata.Metadata'],
                  source: str,
                  assert_has_line_matching: typing.Optional[
-                     typing.Callable] = None):
+                     typing.Callable] = None,
+                 assert_output_type: typing.Optional[typing.Callable] = None):
 
         if assert_has_line_matching is not None and \
                 not callable(assert_has_line_matching):
             raise TypeError('Value for `assert_has_line_matching` should be a '
                             '`callable`.')
 
+        if assert_output_type is not None and \
+                not callable(assert_output_type):
+            raise TypeError('Value for `assert_output_type` should be a '
+                            '`callable`.')
+
         self.ref = ref
         self._result = value
         self._source = source
         self._assert_has_line_matching_ = assert_has_line_matching
+        self._assert_output_type_ = assert_output_type
 
     def __repr__(self):
         return 'ScopeRecord<ref=%s, result=%r, source=%s>' % (self.ref,
@@ -407,6 +414,30 @@ class ScopeRecord:
         return self._assert_has_line_matching_(self.ref, label, path,
                                                expression)
 
+    def assert_output_type(self, label: str, semantic_type: str) -> None:
+        """
+        A proxy for a Usage driver's reference implementation for verifying
+        that this record has the appropriate semantic type.
+
+        Parameters
+        ----------
+        label : str
+            A label for describing this assertion. Interface drivers may
+            choose to omit this information in the rendered output.
+        semantic_type : str
+            The semantic type (or "Visualization") which should be expected.
+
+        Raises
+        ______
+        AssertionError
+            If the record has the incorrect type.
+
+        See Also
+        --------
+        See ``ExecutionUsage`` for an example implementation.
+        """
+        return self._assert_output_type_(self.ref, label, semantic_type)
+
 
 class Scope:
     """
@@ -440,6 +471,7 @@ class Scope:
                                         'metadata.Metadata'],
                     source: str,
                     assert_has_line_matching: typing.Callable = None,
+                    assert_output_type: typing.Callable = None,
                     ) -> 'ScopeRecord':
         """
         Appends a new ``ScopeRecord`` to the Usage Example's scope.
@@ -456,13 +488,18 @@ class Scope:
             ``expression`` within an Artifact. See
             ``ScopeRecord.assert_has_line_matching``. This is a proxy for a
             Usage driver's reference implementation.
+        assert_output_type : callable
+            Verify that the result of this record has the correct type. See
+            ``ScopeRecord.assert_output_type``. This is a proxy for a
+            Usage driver's reference implementation.
 
         Returns
         -------
         record : ScopeRecord
         """
         record = ScopeRecord(ref=ref, value=value, source=source,
-                             assert_has_line_matching=assert_has_line_matching)
+                             assert_has_line_matching=assert_has_line_matching,
+                             assert_output_type=assert_output_type)
         self._records[ref] = record
         return record
 
@@ -687,6 +724,9 @@ class Usage(metaclass=abc.ABCMeta):
     def _assert_has_line_matching_(self, ref, label, path, expression):
         raise NotImplementedError
 
+    def _assert_output_type_(self, ref, label, semantic_type):
+        raise NotImplementedError
+
     def get_result(self, ref: str) -> 'ScopeRecord':
         """
         Get the record for a Usage example output. This is a convenience
@@ -722,7 +762,8 @@ class Usage(metaclass=abc.ABCMeta):
     def _push_record(self, ref, value, source):
         return self._scope.push_record(
             ref=ref, value=value, source=source,
-            assert_has_line_matching=self._assert_has_line_matching_)
+            assert_has_line_matching=self._assert_has_line_matching_,
+            assert_output_type=self._assert_output_type_)
 
     def _get_record(self, ref):
         return self._scope.get_record(ref)
@@ -803,6 +844,14 @@ class DiagnosticUsage(Usage):
             'label': label,
             'path': path,
             'expression': expression,
+        }
+
+    def _assert_output_type_(self, ref, label, semantic_type):
+        return {
+            'source': 'assert_output_type',
+            'ref': ref,
+            'label': label,
+            'semantic_type': semantic_type,
         }
 
 
@@ -888,3 +937,7 @@ class ExecutionUsage(Usage):
         if match is None:
             raise AssertionError('Expression %r not found in %s.' %
                                  (expression, path))
+
+    def _assert_output_type_(self, ref, label, semantic_type):
+        data = self._get_record(ref).result
+        assert str(data.type) == str(semantic_type)
