@@ -940,4 +940,7 @@ class ExecutionUsage(Usage):
 
     def _assert_output_type_(self, ref, label, semantic_type):
         data = self._get_record(ref).result
-        assert str(data.type) == str(semantic_type)
+        if str(data.type) != str(semantic_type):
+            raise AssertionError("Output %r has type %s, which does not match"
+                                 " expected output type of %s"
+                                 % (ref, data.type, semantic_type))
