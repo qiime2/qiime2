@@ -58,19 +58,19 @@ def get_config():
                     max_threads=max(psutil.cpu_count() - 1, 1),
                     label='not_default'
                 ),
-                # HighThroughputExecutor(
-                #     label='default',
-                #     max_workers=6,
-                #     worker_logdir_root=os.getcwd(),
+                HighThroughputExecutor(
+                    label='htex',
+                    max_workers=6,
+                    worker_logdir_root=os.getcwd(),
 
-                #     provider=AdHocProvider(
-                #         # Command to be run before starting a worker, such as:
-                #         # 'module load Anaconda; source activate parsl_env'.
-                #         worker_init='',
-                #         channels=[parsl.channels.LocalChannel(
-                #             script_dir=os.getcwd())]
-                #     )
-                # )
+                    provider=AdHocProvider(
+                        # Command to be run before starting a worker, such as:
+                        # 'module load Anaconda; source activate parsl_env'.
+                        worker_init='',
+                        channels=[parsl.channels.LocalChannel(
+                            script_dir=os.getcwd())]
+                    )
+                )
             ],
             #  AdHoc Clusters should not be setup with scaling strategy.
             strategy=None,

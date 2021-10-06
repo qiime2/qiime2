@@ -5,7 +5,6 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
-import parsl
 
 
 # This class provides an interface similar to a `namedtuple` type. We can't use

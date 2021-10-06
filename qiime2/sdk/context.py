@@ -11,14 +11,6 @@ import qiime2.sdk
 
 class Context:
     def __init__(self, parent=None):
-        if parent is None:
-            self.action_executor_mapping = \
-                qiime2.sdk.config.LOCAL_CONFIG.action_executor_mapping
-            self.config = qiime2.sdk.config.LOCAL_CONFIG.config
-        else:
-            self.action_executor_mapping = parent.action_executor_mapping
-            self.config = parent.config
-
         self._parent = parent
         self._scope = None
 
@@ -43,11 +35,7 @@ class Context:
         # parent. This allows scope cleanup to happen recursively.
         # A factory is necessary so that independent applications of the
         # returned callable recieve their own Context objects.
-        # return action_obj._bind(lambda: Context(parent=self))
-        if isinstance(action_obj, qiime2.sdk.action.Pipeline):
-            return action_obj._bind(lambda: Context(parent=self))
-        else:
-            return action_obj._bind(lambda: Context(parent=self), parsl=True)
+        return action_obj._bind(lambda: Context(parent=self))
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.

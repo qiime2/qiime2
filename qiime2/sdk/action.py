@@ -22,6 +22,7 @@ import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
+from qiime2.sdk.config import LOCAL_CONFIG, get_config
 
 
 def _subprocess_apply(action, args, kwargs):
@@ -45,11 +46,12 @@ def _subprocess_apply(action, args, kwargs):
 
 
 def run_single_action(function, ctx, *args, **kwargs):
-    print(f'Run action: {function}\n')
-    return function(*args, **kwargs)
+    exe = function._bind(lambda: ctx)
+    print(f'Run action: {exe}\n')
+    return exe(*args, **kwargs)
 
 
-@python_app
+@join_app
 def run_pipeline(function, ctx, *args, **kwargs):
     exe = function._bind(lambda: ctx)
     print(f'Call exe: {exe}\n')
@@ -84,6 +86,10 @@ class Action(metaclass=abc.ABCMeta):
     # type (e.g. semantic type).
     @abc.abstractmethod
     def _callable_executor_(self, scope, view_args, output_types):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _parsl_executor_(self, scope, view_args, output_types):
         raise NotImplementedError
 
     # Private constructor
@@ -260,24 +266,22 @@ class Action(metaclass=abc.ABCMeta):
                         warn(self._build_deprecation_message(),
                              FutureWarning)
 
-                # Execute
-                if parsl:
-                    print(f'ctx: {ctx}\nUSER INPUT: {user_input}')
-                    outputs = self.parsl(**user_input)
-                else:
-                    outputs = self._callable_executor_(scope, callable_args,
-                                                    output_types, provenance)
+                outputs = self._callable_executor_(scope, callable_args,
+                                                   output_types, provenance)
 
-                    if len(outputs) != len(self.signature.outputs):
-                        raise ValueError(
-                            "Number of callable outputs must match number of "
-                            "outputs defined in signature: %d != %d" %
-                            (len(outputs), len(self.signature.outputs)))
+                if len(outputs) != len(self.signature.outputs):
+                    raise ValueError(
+                        "Number of callable outputs must match number of "
+                        "outputs defined in signature: %d != %d" %
+                        (len(outputs), len(self.signature.outputs)))
 
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position.
-                return qiime2.sdk.Results(self.signature.outputs.keys(),
-                                          outputs)
+                if parsl:
+                    pass
+                else:
+                    return qiime2.sdk.Results(self.signature.outputs.keys(),
+                                              outputs)
 
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
@@ -323,30 +327,26 @@ class Action(metaclass=abc.ABCMeta):
         return async_wrapper
 
     def _get_parsl_wrapper(self):
-        def parsl_wrapper(*args, ctx=None, **kwargs):
-            # Would love a way to check if there was already a config loaded
-            if ctx is None:
-                ctx = qiime2.sdk.Context()
-            else:
-                print(ctx)
+        def parsl_wrapper(*args, **kwargs):
+            ctx = qiime2.sdk.Context()
 
             # If you find a good way to determine if a parsl context is loaded.
             # Use it here
             try:
-                parsl.load(ctx.config)
+                parsl.load(get_config())
             except RuntimeError:
                 pass
 
-            if self.id in ctx.action_executor_mapping:
-                executor = ctx.action_executor_mapping[self.id]
+            if self.id in LOCAL_CONFIG.action_executor_mapping:
+                executor = LOCAL_CONFIG.action_executor_mapping[self.id]
             else:
                 executor = 'default'
 
             if isinstance(self, qiime2.sdk.action.Pipeline):
-                print(f'pipeline: {ctx.action_executor_mapping}')
+                print(f'pipeline: {LOCAL_CONFIG.action_executor_mapping}')
                 return run_pipeline(self, ctx, *args[1:], **kwargs)
             else:
-                print(f'method or viz: {ctx.action_executor_mapping}')
+                print(f'method or viz: {LOCAL_CONFIG.action_executor_mapping}')
                 return python_app(
                     executors=[executor])(
                         run_single_action)(self, ctx, *args[1:], **kwargs)
