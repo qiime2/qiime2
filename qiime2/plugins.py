@@ -24,71 +24,73 @@ def available_plugins():
 class ArtifactAPIUsage(usage.Usage):
     def __init__(self):
         super().__init__()
-        self._imports = set()
-        self._recorder = []
-        self._init_data_refs = dict()
+        self.imports = set()
+        self.recorder = []
+        self.init_data_refs = dict()
 
-    def _init_data_(self, ref, factory):
-        self._init_data_refs[ref] = factory
-        # Don't need to compute anything, so just pass along the ref
-        return ref
+    def init_artifact(self, name, factory):
+        variable = super().init_artifact(name, factory)
+        self.init_data_refs[name] = variable
+        return variable
 
-    def _init_metadata_(self, ref, factory):
-        self._init_data_refs[ref] = factory
-        return ref
+    def init_metadata(self, name, factory):
+        variable = super().init_metadata(name, factory)
+        self.init_data_refs[name] = variable
+        return variable
 
-    def _init_data_collection_(self, ref, collection_type, records):
-        t = ', '.join(sorted([r.ref for r in records]))
-        t = '[%s]' % t if collection_type is list else '{%s}' % t
-        return t
+    def merge_metadata(self, name, *variables):
+        variable = super().merge_metadata(name, *variables)
 
-    def _merge_metadata_(self, ref, records):
-        first_md = records[0].ref
-        remaining_records = ', '.join([r.ref for r in records[1:]])
-        t = '%s = %s.merge(%s)\n' % (ref, first_md, remaining_records)
-        self._recorder.append(t)
-        return ref
+        first_md = variables[0].to_interface_name()
+        remaining = ', '.join([r.to_interface_name() for r in variables[1:]])
+        t = '%s = %s.merge(%s)\n' % (name, first_md, remaining)
+        self.recorder.append(t)
 
-    def _get_metadata_column_(self, column_name, record):
-        t = '%s = %s.get_column(%r)\n' % (column_name, record.ref, column_name)
-        self._recorder.append(t)
-        return column_name
+        return variable
 
-    def _comment_(self, text: str):
-        self._recorder.append('# %s' % (text, ))
+    def get_metadata_column(self, name, column_name, variable):
+        col_variable = super().get_metadata_column(name, column_name, variable)
 
-    def _action_(self, action: usage.UsageAction,
-                 input_opts: dict, output_opts: dict):
-        action_f, action_sig = action.get_action()
+        t = '%s = %s.get_column(%r)\n' % (col_variable.to_interface_name(),
+                                          variable.to_interface_name(),
+                                          column_name)
+
+        self.recorder.append(t)
+
+        return col_variable
+
+    def comment(self, text: str):
+        self.recorder.append('# %s' % (text, ))
+
+    def action(self, action, input_opts, output_opts):
+        variables = super().action(action, input_opts, output_opts)
+
+        action_f = action.get_action()
         self._update_imports(action_f)
 
-        t = self._template_action(action_f, input_opts, output_opts)
-        self._recorder.append(t)
+        t = self._template_action(action_f, input_opts, variables)
+        self.recorder.append(t)
 
-        return output_opts
-
-    def _assert_has_line_matching_(self, ref, label, path, expression):
-        pass
-
-    def _assert_output_type_(self, ref, label, semantic_type):
-        pass
+        return variables
 
     def render(self):
-        sorted_imps = sorted(self._imports, key=lambda x: x[0])
+        sorted_imps = sorted(self.imports, key=lambda x: x[0])
         imps = ['from %s import %s\n' % i for i in sorted_imps]
-        return '\n'.join(imps + self._recorder)
+        return '\n'.join(imps + self.recorder)
 
     def get_example_data(self):
-        return {r: f() for r, f in self._init_data_refs.items()}
+        return {r: f() for r, f in self.init_data_refs.items()}
 
     def _template_action(self, action_f, input_opts, output_opts):
-        output_opts = list(output_opts.values())
-        if len(output_opts) == 1:
-            output_opts.append('')
-        output_vars = ', '.join(output_opts)
+        outs = [o.to_interface_name() for o in output_opts]
+        if len(outs) == 1:
+            outs.append('')
+        output_vars = ', '.join(outs)
 
         t = '%s = %s(\n' % (output_vars.strip(), action_f.id)
-        for k, v in input_opts.items():
+        for k, v in input_opts.values.items():
+            if isinstance(v, usage.UsageVariable):
+                v = v.to_interface_name()
             t += '    %s=%s,\n' % (k, v)
         t += ')\n'
 
@@ -97,7 +99,7 @@ class ArtifactAPIUsage(usage.Usage):
     def _update_imports(self, action_f):
         full_import = action_f.get_import_path()
         import_path, action_api_name = full_import.rsplit('.', 1)
-        self._imports.add((import_path, action_api_name))
+        self.imports.add((import_path, action_api_name))
 
 
 class QIIMEArtifactAPIImporter:

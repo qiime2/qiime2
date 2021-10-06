@@ -232,59 +232,44 @@ out, = identity_with_metadata(
         exp = """\
 from qiime2.plugins.dummy_plugin.methods import identity_with_metadata_column
 
-a = md.get_column('a')
+mdc = md.get_column('a')
 
 out, = identity_with_metadata_column(
     ints=ints,
-    metadata=a,
-)
-"""
-        self.assertEqual(exp, use.render())
-
-    def test_use_init_collection_data(self):
-        action = self.plugin.actions['variadic_input_method']
-        use = ArtifactAPIUsage()
-        action.examples['variadic_input_simple'](use)
-
-        exp = """\
-from qiime2.plugins.dummy_plugin.methods import variadic_input_method
-
-out, = variadic_input_method(
-    ints=[ints_a, ints_b],
-    int_set={single_int1, single_int2},
-    nums={8, 9, 7},
+    metadata=mdc,
 )
 """
         self.assertEqual(exp, use.render())
 
     def test_optional_inputs(self):
+        self.maxDiff = None
         action = self.plugin.actions['optional_artifacts_method']
         use = ArtifactAPIUsage()
         action.examples['optional_inputs'](use)
         exp = """\
 from qiime2.plugins.dummy_plugin.methods import optional_artifacts_method
 
-output, = optional_artifacts_method(
+output1, = optional_artifacts_method(
     ints=ints,
     num1=1,
 )
 
-output, = optional_artifacts_method(
+output2, = optional_artifacts_method(
     ints=ints,
     num1=1,
     num2=2,
 )
 
-ints_b, = optional_artifacts_method(
+output3, = optional_artifacts_method(
     ints=ints,
     num1=1,
     num2=None,
 )
 
-output, = optional_artifacts_method(
+output4, = optional_artifacts_method(
     ints=ints,
+    optional1=output3,
     num1=3,
-    optional1=ints_b,
     num2=4,
 )
 """
