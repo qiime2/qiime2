@@ -45,15 +45,15 @@ def _subprocess_apply(action, args, kwargs):
     return results
 
 
-def run_single_action(function, ctx, *args, **kwargs):
-    exe = function._bind(lambda: ctx)
+def run_single_action(action, ctx, *args, **kwargs):
+    exe = action._bind(lambda: ctx)
     print(f'Run action: {exe}\n')
     return exe(*args, **kwargs)
 
 
 @join_app
-def run_pipeline(function, ctx, *args, **kwargs):
-    exe = function._bind(lambda: ctx)
+def run_pipeline(action, ctx, *args, **kwargs):
+    exe = action._bind(lambda: ctx)
     print(f'Call exe: {exe}\n')
     return exe(*args, **kwargs)
 
@@ -86,10 +86,6 @@ class Action(metaclass=abc.ABCMeta):
     # type (e.g. semantic type).
     @abc.abstractmethod
     def _callable_executor_(self, scope, view_args, output_types):
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def _parsl_executor_(self, scope, view_args, output_types):
         raise NotImplementedError
 
     # Private constructor
@@ -184,7 +180,7 @@ class Action(metaclass=abc.ABCMeta):
 
     # Use bind to bind parsl config to action when action is being sent to
     # executor
-    def _bind(self, context_factory, parsl=False):
+    def _bind(self, context_factory, pipeline=False):
         """Bind an action to a Context factory, returning a decorated function.
 
         This is a very primitive API and should be used primarily by the
@@ -266,8 +262,10 @@ class Action(metaclass=abc.ABCMeta):
                         warn(self._build_deprecation_message(),
                              FutureWarning)
 
+                # Wrap in a Results object mapping output name to value so
+                # users have access to outputs by name or position.
                 outputs = self._callable_executor_(scope, callable_args,
-                                                   output_types, provenance)
+                                                    output_types, provenance)
 
                 if len(outputs) != len(self.signature.outputs):
                     raise ValueError(
@@ -275,13 +273,8 @@ class Action(metaclass=abc.ABCMeta):
                         "outputs defined in signature: %d != %d" %
                         (len(outputs), len(self.signature.outputs)))
 
-                # Wrap in a Results object mapping output name to value so
-                # users have access to outputs by name or position.
-                if parsl:
-                    pass
-                else:
-                    return qiime2.sdk.Results(self.signature.outputs.keys(),
-                                              outputs)
+                return qiime2.sdk.Results(self.signature.outputs.keys(),
+                                          outputs)
 
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
@@ -326,30 +319,33 @@ class Action(metaclass=abc.ABCMeta):
         self._set_wrapper_name(async_wrapper, 'asynchronous')
         return async_wrapper
 
+    def _bind_parsl(self, ctx, *args, **kwargs):
+        print(f'args: {args}\nkwargs: {kwargs}')
+
+        # If you find a good way to determine if a parsl context is loaded.
+        # Use it here
+        try:
+            parsl.load(get_config())
+        except RuntimeError:
+            pass
+
+        if self.id in ctx.action_executor_mapping:
+            executor = ctx.action_executor_mapping[self.id]
+        else:
+            executor = 'default'
+
+        if isinstance(self, qiime2.sdk.action.Pipeline):
+            print(f'pipeline: {ctx.action_executor_mapping}')
+            return run_pipeline(self, ctx, *args[1:], **kwargs)
+        else:
+            print(f'method or viz: {ctx.action_executor_mapping}')
+            return python_app(
+                executors=[executor])(
+                    run_single_action)(self, ctx, *args[1:], **kwargs)
+
     def _get_parsl_wrapper(self):
         def parsl_wrapper(*args, **kwargs):
-            ctx = qiime2.sdk.Context()
-
-            # If you find a good way to determine if a parsl context is loaded.
-            # Use it here
-            try:
-                parsl.load(get_config())
-            except RuntimeError:
-                pass
-
-            if self.id in LOCAL_CONFIG.action_executor_mapping:
-                executor = LOCAL_CONFIG.action_executor_mapping[self.id]
-            else:
-                executor = 'default'
-
-            if isinstance(self, qiime2.sdk.action.Pipeline):
-                print(f'pipeline: {LOCAL_CONFIG.action_executor_mapping}')
-                return run_pipeline(self, ctx, *args[1:], **kwargs)
-            else:
-                print(f'method or viz: {LOCAL_CONFIG.action_executor_mapping}')
-                return python_app(
-                    executors=[executor])(
-                        run_single_action)(self, ctx, *args[1:], **kwargs)
+            return self._bind_parsl(qiime2.sdk.Context(), *args, **kwargs)
 
         parsl_wrapper = self._rewrite_wrapper_signature(parsl_wrapper)
         self._set_wrapper_properties(parsl_wrapper)
