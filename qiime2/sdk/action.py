@@ -322,7 +322,7 @@ class Action(metaclass=abc.ABCMeta):
     def _bind_parsl(self, ctx, *args, **kwargs):
         print(f'args: {args}\nkwargs: {kwargs}')
 
-        # If you find a good way to determine if a parsl context is loaded.
+        # If you find a good way to determine if a parsl config is loaded.
         # Use it here
         try:
             parsl.load(get_config())
