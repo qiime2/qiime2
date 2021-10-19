@@ -6,28 +6,14 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-"""
-The Usage module enables generating examples for multiple QIIME 2 interfaces.
-"""
-
-import abc
+from dataclasses import dataclass
 import re
-import types
-import typing
 
-from qiime2 import core, sdk, metadata
+from qiime2 import sdk
+from qiime2.core.type import is_semantic_type, is_visualization_type
 
 
 class UsageAction:
-    """
-    Parameters
-    ----------
-    plugin_id : str
-        Plugin ID.
-    action_id : str
-        Action ID.
-    """
-
     def __init__(self, *, plugin_id: str, action_id: str):
         if plugin_id == '':
             raise ValueError('Must specify a value for plugin_id.')
@@ -37,92 +23,62 @@ class UsageAction:
 
         self.plugin_id = plugin_id
         self.action_id = action_id
-        self._plugin_manager = sdk.PluginManager()
+        try:
+            self._plugin_manager = sdk.PluginManager.reuse_existing()
+        except sdk.UninitializedPluginManagerError:
+            raise sdk.UninitializedPluginManagerError(
+                'Please create an instance of sdk.PluginManager'
+            )
 
     def __repr__(self):
         return 'UsageAction(plugin_id=%r, action_id=%r)' %\
             (self.plugin_id, self.action_id)
 
-    def get_action(self) -> typing.Tuple[
-            typing.Union['sdk.Method', 'sdk.Pipeline'],
-            typing.Type['core.PipelineSignature']]:
-        """
-        Get this example's action and signature.
-
-        Returns
-        -------
-        action_f : QIIME 2 Method, Visualizer, or Pipeline
-            The plugin action.
-        action_f.signature : QIIME 2 Method, Visualizer, or Pipeline Signature
-            The method signature for the plugin action.
-        """
-
+    def get_action(self):
         plugin = self._plugin_manager.get_plugin(id=self.plugin_id)
-        # TODO: should this validation be pushed up into
-        # plugin.py or action.py?
         try:
             action_f = plugin.actions[self.action_id]
         except KeyError:
             raise KeyError('No action currently registered with '
                            'id: "%s".' % (self.action_id,))
-        return (action_f, action_f.signature)
+        return action_f
 
-    def validate(self, inputs: 'UsageInputs',
-                 outputs: 'UsageOutputNames') -> None:
-        """
-        Ensure that all required inputs and outputs are declared and reference
-        appropriate scope records, if necessary.
-
-        Parameters
-        ----------
-        inputs : UsageInputs
-        outputs : UsageOutputNames
-        """
+    def validate(self, inputs: 'UsageInputs', outputs: 'UsageOutputNames'):
         if not isinstance(inputs, UsageInputs):
             raise TypeError('Must provide an instance of UsageInputs.')
         if not isinstance(outputs, UsageOutputNames):
             raise TypeError('Must provide an instance of UsageOutputNames.')
 
-        _, sig = self.get_action()
+        action_f = self.get_action()
 
-        inputs.validate(sig)
-        outputs.validate(sig)
+        inputs.validate(action_f.signature)
+        outputs.validate(action_f.signature)
 
 
 class UsageInputs:
-    """
-    A convenience object for assisting with construction of input options
-    and performing signature validation.
-
-    Parameters
-    ----------
-    kwargs : Example inputs
-        Inputs to be passed in to ``Usage.action``.
-    """
-
-    def __init__(self, **kwargs: typing.Any):
+    def __init__(self, **kwargs):
         self.values = kwargs
 
     def __repr__(self):
         return 'UsageInputs(**%r)' % (self.values,)
 
-    def validate(self,
-                 signature: typing.Type['core.PipelineSignature']) -> None:
-        """
-        Ensure that all required inputs are accounted for and that there are no
-        unnecessary or extra parameters provided.
+    def __getitem__(self, key):
+        return self.values[key]
 
-        Parameters
-        ----------
-        signature : QIIME 2 Method, Visualizer, or Pipeline Signature
-            The plugin action's signature.
+    def __contains__(self, key):
+        return key in self.values
 
-        Raises
-        ------
-        ValueError
-            If there are missing or extra inputs or parameters.
-        """
-        provided = set(self.values.keys())
+    def items(self):
+        return self.values.items()
+
+    def keys(self):
+        return self.values.keys()
+
+    def values(self):
+        return self.values.values()
+
+    def validate(self, signature):
+        provided = set(self.keys())
         inputs, params = signature.inputs, signature.parameters
 
         exp_inputs, optional_inputs = set(), set()
@@ -153,50 +109,32 @@ class UsageInputs:
             raise ValueError('Extra input(s) or parameter(s): %r' %
                              (extra, ))
 
-    def build_opts(self, signature: typing.Type['core.PipelineSignature'],
-                   scope: 'Scope') -> dict:
-        """
-        Build a dictionary mapping example ``ScopeRecord``s and primitives to
-        action inputs and parameters, respectively. Values are derived from
-        either an input's ``ScopeRecord`` (``ScopeRecord.value``), or the value
-        a keyword argument passed into the ``UsageInputs`` constructor.
-
-        Parameters
-        ----------
-        signature : QIIME 2 Method, Visualizer, or Pipeline Signature
-            The plugin action's signature.
-        scope : Scope
-            A Usage example's current scope.
-
-        Returns
-        -------
-        dict
-            Input identifiers and their example values.
-        """
+    def execute(self, signature):
         opts = {}
 
-        for name, signature in signature.signature_order.items():
-            if name in self.values:
-                v = self.values[name]
-                if isinstance(v, ScopeRecord) and v.ref in scope.records:
-                    value = self.values[name].result
+        def execute(v):
+            if isinstance(v, UsageVariable):
+                v = v.execute()
+            return v
+
+        for name in signature.signature_order.keys():
+            if name in self:
+                value = self[name]
+
+                if isinstance(value, list) or isinstance(value, set):
+                    collection_type = type(value)
+                    value = [execute(v) for v in value]
+                    value = collection_type(value)
                 else:
-                    value = v
+                    value = execute(value)
+
                 opts[name] = value
 
         return opts
 
 
 class UsageOutputNames:
-    """
-    Parameters
-    ----------
-    kwargs : str
-        A mapping between the Action's output name and the desired scope record
-        identifier in which to "store" the results.
-    """
-
-    def __init__(self, **kwargs: str):
+    def __init__(self, **kwargs):
         for key, val in kwargs.items():
             if not isinstance(val, str):
                 raise TypeError(
@@ -208,34 +146,22 @@ class UsageOutputNames:
     def __repr__(self):
         return 'UsageOutputNames(**%r)' % (self.values, )
 
-    def get(self, key) -> str:
-        """
-        Get an example output's identifier.
-
-        Returns
-        -------
-        str
-            The identifier for an example output.
-        """
+    def __getitem__(self, key):
         return self.values[key]
 
-    def validate(self,
-                 signature: typing.Type['core.PipelineSignature']) -> None:
-        """
-        Ensure that all required outputs are accounted for and that there are
-        no unnecessary or extra outputs provided.
+    def __contains__(self, key):
+        return key in self.values
 
-        Parameters
-        ----------
-        signature
-            Action signature.
+    def items(self):
+        return self.values.items()
 
-        Raises
-        ------
-        ValueError
-            If the example has missing or extra outputs as per the action
-            signature.
-        """
+    def keys(self):
+        return self.values.keys()
+
+    def values(self):
+        return self.values.values()
+
+    def validate(self, signature):
         provided = set(self.values.keys())
         exp_outputs = set(signature.outputs)
 
@@ -247,685 +173,209 @@ class UsageOutputNames:
         if len(extra) > 0:
             raise ValueError('Extra output(s): %r' % (extra, ))
 
-    def validate_computed(self,
-                          computed_outputs: typing.Dict[
-                              str,
-                              typing.Union['sdk.Artifact', 'sdk.Visualization',
-                                           'metadata.Metadata']]
-                          ) -> None:
-        """
-        Check that outputs are still valid after being processed by a Usage
-        driver's ``_action_`` method.
 
-        Parameters
-        ----------
-        computed_outputs : dict of outputs
-            Outputs returned by the Usage driver's ``_action_`` method.
+class UsageVariable:
+    DEFERRED = object()
+    VAR_TYPES = (
+        'artifact',
+        'visualization',
+        'metadata',
+        'column',
+        'file',
+    )
 
-        Raises
-        ------
-        ValueError
-            If there are missing or extra outputs as per the action signature.
-        """
-        provided = set(computed_outputs.keys())
-        exp_outputs = set(self.values.keys())
+    def __init__(self, name: str, factory: callable, var_type: str, usage):
+        if not name.isidentifier():
+            raise ValueError('invalid identifier: %r' % (name,))
 
-        missing = exp_outputs - provided
-        if len(missing) > 0:
-            raise ValueError('SDK implementation is missing output(s): %r' %
-                             (missing, ))
+        if not callable(factory):
+            raise TypeError('value for `factory` should be a `callable`, '
+                            'recieved %s' % (type(factory),))
 
-        extra = provided - exp_outputs
-        if len(extra) > 0:
-            raise ValueError('SDK implementation has specified extra '
-                             'output(s): %r' % (extra, ))
+        if var_type not in self.VAR_TYPES:
+            raise ValueError('value for `var_type` should be one of %r, '
+                             'received %s' % (self.VAR_TYPES, var_type))
 
-    def build_opts(self,
-                   action_signature: typing.Type['core.PipelineSignature'],
-                   scope: 'Scope') -> dict:
-        """
-        Build a dictionary mapping action output identifiers to example output
-        value.
-
-        Parameters
-        ----------
-        action_signature : QIIME 2 Method, Visualizer, or Pipeline Signature
-            The plugin action's signature.
-        scope : Scope
-            A Usage example's current scope.
-
-        Returns
-        -------
-        dict
-            Output identifiers and their example values.
-        """
-        opts = {}
-
-        for output in action_signature.outputs.keys():
-            opts[output] = self.get(output)
-
-        return opts
-
-
-class ScopeRecord:
-    """
-    Represents a discrete step in a Usage example.
-
-    Provides information needed by Usage drivers to render Usage examples.
-
-    Parameters
-    ----------
-    ref : str
-        A unique identifier for referring to the record.
-    value : Artifact, Visualization, or Metadata
-        The value referred to by ``ref``.
-    source : str
-        The Usage method called to initialize example data.
-    assert_has_line_matching : callable
-        A function for asserting something about rendered example data.
-
-    Notes
-    -----
-    ``ScopeRecord`` is an internal implementation and need not be
-    instantiated manually.
-    """
-
-    def __init__(self,
-                 ref: str,
-                 value: typing.Union['sdk.Artifact', 'sdk.Visualization',
-                                     'metadata.Metadata'],
-                 source: str,
-                 assert_has_line_matching: typing.Optional[
-                     typing.Callable] = None,
-                 assert_output_type: typing.Optional[typing.Callable] = None):
-
-        if assert_has_line_matching is not None and \
-                not callable(assert_has_line_matching):
-            raise TypeError('Value for `assert_has_line_matching` should be a '
-                            '`callable`.')
-
-        if assert_output_type is not None and \
-                not callable(assert_output_type):
-            raise TypeError('Value for `assert_output_type` should be a '
-                            '`callable`.')
-
-        self.ref = ref
-        self._result = value
-        self._source = source
-        self._assert_has_line_matching_ = assert_has_line_matching
-        self._assert_output_type_ = assert_output_type
+        self.name = name
+        self.factory = factory
+        self.var_type = var_type
+        self.value = self.DEFERRED
+        self.use = usage
 
     def __repr__(self):
-        return 'ScopeRecord<ref=%s, result=%r, source=%s>' % (self.ref,
-                                                              self.result,
-                                                              self.source)
+        return 'UsageVariable<name=%r, var_type=%r>' % (self.name,
+                                                        self.var_type)
 
     @property
-    def result(self) -> typing.Union[
-            'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata']:
-        """
-        Artifact, Visualization, or Metadata value referred to by ``self.ref``.
-        """
-        return self._result
+    def is_deferred(self):
+        return self.value is self.DEFERRED
 
-    @property
-    def source(self) -> str:
-        """
-        The origin of a ``ScopeRecord``. Possible values for this property
-        are ``init_data``, ``init_metadata``, ``init_data_collection``,
-        ``merge_metadata``, ``get_metadata_column``, or ``action``.  This
-        information is required by some Usage drivers in order to render
-        examples properly.
+    def execute(self):
+        if self.value is self.DEFERRED:
+            self.value = self.factory()
+        return self.value
 
-        See Also
-        --------
-        Scope.push_record
+    def to_interface_name(self):
+        return self.name
 
-        q2cli.q2cli.core.usage.CLIRenderer
-        """
-        return self._source
+    def assert_has_line_matching(self, path, expression):
+        pass
 
-    def assert_has_line_matching(self, label: str, path: str,
-                                 expression: str) -> None:
-        """
-        A proxy for a Usage driver's reference implementation for verifying
-        that the file at ``path`` contains a line matching ``expression``.
-
-        Parameters
-        ----------
-        label : str
-            A label for describing this assertion. Interface drivers may
-            choose to omit this information in the rendered output.
-        path : str
-            Path to example data file.
-        expression : str
-            A regex pattern to be passed as the first argument to
-            ``re.search``.
-
-        Raises
-        ______
-        AssertionError
-            If ``expression`` is not found in ``path``.
-
-        See Also
-        --------
-        See ``ExecutionUsage`` for an example implementation.
-        """
-        return self._assert_has_line_matching_(self.ref, label, path,
-                                               expression)
-
-    def assert_output_type(self, label: str, semantic_type: str) -> None:
-        """
-        A proxy for a Usage driver's reference implementation for verifying
-        that this record has the appropriate semantic type.
-
-        Parameters
-        ----------
-        label : str
-            A label for describing this assertion. Interface drivers may
-            choose to omit this information in the rendered output.
-        semantic_type : str
-            The semantic type (or "Visualization") which should be expected.
-
-        Raises
-        ______
-        AssertionError
-            If the record has the incorrect type.
-
-        See Also
-        --------
-        See ``ExecutionUsage`` for an example implementation.
-        """
-        return self._assert_output_type_(self.ref, label, semantic_type)
+    def assert_output_type(self, semantic_type):
+        pass
 
 
-class Scope:
-    """
-    Sequentially track all ``ScopeRecord``s for a Usage example. The Scope
-    provides a detailed, start-to-finish accounting of all of the steps
-    necessary for translating the Usage example into an interface-specific
-    representation.
-
-    Notes
-    -----
-    ``Scope`` is an internal implementation and need not be instantiated
-    manually.
-    """
-
-    def __init__(self):
-        self._records: typing.Dict[str, 'ScopeRecord'] = dict()
-
-    def __repr__(self):
-        return '%r' % (self._records, )
-
-    @property
-    def records(self) -> types.MappingProxyType:
-        """
-        A read-only view of ``ScopeRecords`` in the current scope.
-        """
-        return types.MappingProxyType(self._records)
-
-    def push_record(self,
-                    ref: str,
-                    value: typing.Union['sdk.Artifact', 'sdk.Visualization',
-                                        'metadata.Metadata'],
-                    source: str,
-                    assert_has_line_matching: typing.Callable = None,
-                    assert_output_type: typing.Callable = None,
-                    ) -> 'ScopeRecord':
-        """
-        Appends a new ``ScopeRecord`` to the Usage Example's scope.
-
-        Parameters
-        ----------
-        ref : str
-        value : Artifact, Visualization, or Metadata
-            Data from a Usage data initialization method.
-        source : str
-            The origin of Usage example data.
-        assert_has_line_matching : callable
-            Verify that the file at ``path`` contains a line matching
-            ``expression`` within an Artifact. See
-            ``ScopeRecord.assert_has_line_matching``. This is a proxy for a
-            Usage driver's reference implementation.
-        assert_output_type : callable
-            Verify that the result of this record has the correct type. See
-            ``ScopeRecord.assert_output_type``. This is a proxy for a
-            Usage driver's reference implementation.
-
-        Returns
-        -------
-        record : ScopeRecord
-        """
-        record = ScopeRecord(ref=ref, value=value, source=source,
-                             assert_has_line_matching=assert_has_line_matching,
-                             assert_output_type=assert_output_type)
-        self._records[ref] = record
-        return record
-
-    def get_record(self, ref: str) -> ScopeRecord:
-        """
-        Look up a ``ScopeRecord`` from the current scope by identifier.
-
-        Parameters
-        ----------
-        ref : str
-            The identifier for a ``ScopeRecord``.
-
-        Raises
-        ------
-        KeyError
-            If the record identifier isn't in the scope.
-
-        Returns
-        -------
-        record : ScopeRecord
-        """
-        try:
-            return self.records[ref]
-        except KeyError:
-            raise KeyError('No record with ref id: "%s" in scope.' % (ref, ))
-
-
-class Usage(metaclass=abc.ABCMeta):
-    """
-    ``Usage`` is the base class for Usage driver implementations and should be
-    customized for the interface or implementation.
-    """
-
+class Usage:
+    # these are here for namespace/import convenience
     UsageAction = UsageAction
     UsageInputs = UsageInputs
     UsageOutputNames = UsageOutputNames
 
-    def __init__(self):
-        self._scope = Scope()
+    def __init__(self, asynchronous=False):
+        self.asynchronous = asynchronous
 
-    def init_data(self, ref: str,
-                  factory: typing.Callable[[], 'sdk.Artifact']) \
-            -> 'ScopeRecord':
-        """
-        Initialize example Artifact data from a factory. Whether or not the
-        example data is actually created is dependent on the driver executing
-        the example.
+    def variable_factory(self, name, factory, var_type):
+        return UsageVariable(
+            name,
+            factory,
+            var_type,
+            self,
+        )
 
-        Parameters
-        ----------
-        ref : str
-            Unique identifier for example data.
-        factory : callable
-            A factory that returns an example Artifact.
+    def init_artifact(self, name, factory):
+        return self.variable_factory(name, factory, 'artifact')
 
-        Returns
-        -------
-        record : ScopeRecord
-            A record with information about example data.
-        """
-        value = self._init_data_(ref, factory)
-        return self._push_record(ref, value, 'init_data')
+    def init_metadata(self, name, factory):
+        return self.variable_factory(name, factory, 'metadata')
 
-    def _init_data_(self, ref, factory):
-        raise NotImplementedError
+    def import_data(*args, **kwargs):
+        # TODO
+        ...
 
-    def init_metadata(self, ref: str,
-                      factory: typing.Callable[[], 'metadata.Metadata']) \
-            -> 'ScopeRecord':
-        """
-        Initialize Metadata for a Usage example. Whether or not the example
-        metadata is actually created is dependent on the driver executing the
-        example.
+    def import_file(*args, **kwargs):
+        # TODO
+        ...
 
-        Parameters
-        ----------
-        ref : str
-            Unique identifier for example metadata.
-        factory : callable
-            A factory that returns example Metadata.
-
-        Returns
-        -------
-        record : ScopeRecord
-            A record with information about example Metadata.
-        """
-        value = self._init_metadata_(ref, factory)
-        return self._push_record(ref, value, 'init_metadata')
-
-    def _init_metadata_(self, ref, factory):
-        raise NotImplementedError
-
-    def init_data_collection(self,
-                             ref: str,
-                             collection_type: typing.Union[list, set],
-                             *records: ScopeRecord) -> 'ScopeRecord':
-        """
-        Initialize a collection of data for a Usage example.
-
-        Parameters
-        ----------
-        ref : str
-            Unique identifier for example data collection.
-        collection_type : list or set
-            The type of collection required by an action.
-        records : ScopeRecords belonging to the collection
-            The records associated with data to be initialized in the
-            collection.
-
-        Returns
-        -------
-        record : ScopeRecord
-            A record with information about an example of collection data.
-        """
-        if len(records) < 1:
-            raise ValueError('Must provide at least one ScopeRecord input.')
-        for record in records:
-            if not isinstance(record, ScopeRecord):
-                raise ValueError('Record (%r) returned a %s, expected a '
-                                 'ScopeRecord.' % (record, type(record)))
-
-        value = self._init_data_collection_(ref, collection_type, records)
-        return self._push_record(ref, value, 'init_data_collection')
-
-    def _init_data_collection_(self, ref, collection_type, records):
-        raise NotImplementedError
-
-    def merge_metadata(self, ref: str,
-                       *records: typing.List['ScopeRecord']) -> 'ScopeRecord':
-        """
-        Merge previously initialized example Metadata.
-
-        Parameters
-        ----------
-        ref : str
-            Unique identifier for merged Metadata.
-        records : ScopeRecords
-            Records for the example Metadata to be merged.
-
-        Returns
-        -------
-        record : ScopeRecord
-            A new record with information about the merged example Metadata.
-        """
-
-        if len(records) < 2:
+    def merge_metadata(self, name, *variables):
+        if len(variables) < 2:
             raise ValueError('Must provide two or more Metadata inputs.')
 
-        value = self._merge_metadata_(ref, records)
-        return self._push_record(ref, value, 'merge_metadata')
+        for variable in variables:
+            if variable.var_type != 'metadata':
+                raise ValueError('Incorrect input type for %s, need '
+                                 '`metadata` got %s' %
+                                 (variable.name, variable.var_type))
 
-    def _merge_metadata_(self, ref, records):
-        raise NotImplementedError
+        def factory():
+            mds = [v.execute() for v in variables]
+            return mds[0].merge(*mds[1:])
 
-    def get_metadata_column(self, column_name: str,
-                            record: ScopeRecord) -> 'ScopeRecord':
-        """
-        Get a Metadata column from previously initialized example Metadata.
+        return self.variable_factory(name, factory, 'metadata')
 
-        Parameters
-        ----------
-        column_name : str
-            The name of a column in example Metadata.
-        record : ScopeRecord
-            The record associated with example Metadata.
+    def get_metadata_column(self, name, column_name, variable):
+        def factory():
+            return variable.execute().get_column(column_name)
 
-        Returns
-        -------
-        record : ScopeRecord
-            A new scope record for example Metadata column ``column_name``.
-        """
-        value = self._get_metadata_column_(column_name, record)
-        return self._push_record(column_name, value, 'get_metadata_column')
-
-    def _get_metadata_column_(self, column_name, record):
-        raise NotImplementedError
+        return self.variable_factory(name, factory, 'column')
 
     def comment(self, text: str):
-        comment = self._comment_(text)
-        return self._push_record(str(comment), comment, 'comment')
-
-    def _comment_(self, text: str):
-        raise NotImplementedError
+        pass
 
     def action(self, action: UsageAction, inputs: UsageInputs,
-               outputs: UsageOutputNames) -> None:
-        """
-        This method is a proxy for invoking a QIIME 2 Action. Whether or not
-        the Action is actually invoked is dependent on the driver executing the
-        example.
-
-        Parameters
-        ----------
-        action : UsageAction
-            Specifies the Plugin and Action for a Usage example.
-        inputs : UsageInputs
-            Specifies the inputs to an Action for a Usage example.
-        outputs : UsageOutputNames
-            Species the outputs of an Action for a Usage example.
-
-        Examples
-        --------
-        qiime2.core.testing.examples : Usage examples
-        """
-
+               outputs: UsageOutputNames):
         if not isinstance(action, UsageAction):
             raise TypeError('Must provide an instance of UsageAction.')
         action.validate(inputs, outputs)
+        action_f = action.get_action()
 
-        _, action_signature = action.get_action()
+        def memoized_action(_result=[]):
+            if len(_result) == 1:
+                return _result[0]
 
-        input_opts = inputs.build_opts(action_signature, self._scope)
-        output_opts = outputs.build_opts(action_signature, self._scope)
+            execed_inputs = inputs.execute(action_f.signature)
 
-        computed_outputs = self._action_(action, input_opts, output_opts)
-        self._add_outputs_to_scope(outputs, computed_outputs)
+            if self.asynchronous:
+                results = action_f.asynchronous(**execed_inputs).result()
+            else:
+                results = action_f(**execed_inputs)
 
-    def _action_(self, action: UsageAction, input_opts: dict,
-                 output_opts: dict) -> dict:
-        raise NotImplementedError
+            _result.append(results)
+            return results
 
-    def _assert_has_line_matching_(self, ref, label, path, expression):
-        raise NotImplementedError
+        usage_results = []
+        for idx, (param_name, var_name) in enumerate(outputs.items()):
+            qiime_type = action_f.signature.outputs[param_name].qiime_type
+            if is_visualization_type(qiime_type):
+                var_type = 'visualization'
+            elif is_semantic_type(qiime_type):
+                var_type = 'artifact'
+            else:
+                raise
 
-    def _assert_output_type_(self, ref, label, semantic_type):
-        raise NotImplementedError
+            usage_results.append(
+                self.variable_factory(
+                    var_name,
+                    lambda i=idx: memoized_action()[i],
+                    var_type,
+                )
+            )
 
-    def get_result(self, ref: str) -> 'ScopeRecord':
-        """
-        Get the record for a Usage example output. This is a convenience
-        method used to access records generated after running ``Usage.action``.
-
-        Parameters
-        ----------
-        ref : str
-            Output identifier.
-
-        Raises
-        ------
-        KeyError
-            If ``ref`` is not associated with a record generated by
-            ``Usage.action``.
-
-        TypeError
-            If the source type is not an Action.
-        """
-        record = self._get_record(ref)
-        source = record.source
-        if source != 'action':
-            raise TypeError('source == %s but must be "action"' % source)
-        return record
-
-    def _add_outputs_to_scope(self, outputs: UsageOutputNames,
-                              computed_outputs):
-        outputs.validate_computed(computed_outputs)
-        for output, result in computed_outputs.items():
-            ref = outputs.get(output)
-            self._push_record(ref, result, 'action')
-
-    def _push_record(self, ref, value, source):
-        return self._scope.push_record(
-            ref=ref, value=value, source=source,
-            assert_has_line_matching=self._assert_has_line_matching_,
-            assert_output_type=self._assert_output_type_)
-
-    def _get_record(self, ref):
-        return self._scope.get_record(ref)
-
-    def _get_records(self):
-        return self._scope.records
+        return tuple(usage_results)
 
 
 class DiagnosticUsage(Usage):
-    """
-    Reference implementation of a Usage driver.
-
-    Used to generate information for testing the Usage API.
-
-    See Also
-    --------
-    qiime2.sdk.tests.test_usage.TestUsage : Unit tests using this driver.
-    """
     def __init__(self):
         super().__init__()
+        self.records = []
 
-    def _init_data_(self, ref, factory):
-        return {
-            'source': 'init_data',
-            'ref': ref,
-        }
+        @dataclass(frozen=True)
+        class DiagnosticUsageRecord:
+            source: str
+            variable: UsageVariable
 
-    def _init_metadata_(self, ref, factory):
-        return {
-            'source': 'init_metadata',
-            'ref': ref,
-        }
+        self.record_class = DiagnosticUsageRecord
 
-    def _init_data_collection_(self, ref, collection_type, records):
-        return {
-            'source': 'init_data_collection',
-            'ref': ref,
-        },  collection_type([i.ref for i in records])
+    def append_record(self, source, variable):
+        self.records.append(
+            self.record_class(source, variable)
+        )
 
-    def _merge_metadata_(self, ref, records):
-        return {
-            'source': 'merge_metadata',
-            'ref': ref,
-            'records_refs': [r.ref for r in records],
-        }
+    def init_artifact(self, name, factory):
+        variable = super().init_artifact(name, factory)
+        self.append_record('init_artifact', variable)
+        return variable
 
-    def _get_metadata_column_(self, column_name, record):
-        return {
-            'source': 'get_metadata_column',
-            'ref': column_name,
-            'record_ref': record.ref,
-            'column_name': column_name,
-        }
+    def init_metadata(self, name, factory):
+        variable = super().init_metadata(name, factory)
+        self.append_record('init_metadata', variable)
+        return variable
 
-    def _comment_(self, text):
-        return {
-            'source': 'comment',
-            'text': text,
-        }
+    def merge_metadata(self, name, *variables):
+        variable = super().merge_metadata(name, *variables)
+        self.append_record('merge_metadata', variable)
+        return variable
 
-    def _action_(self, action, input_opts, output_opts):
-        results = dict()
-        for output_opt in output_opts.keys():
-            results[output_opt] = {
-                'source': 'action',
-                'plugin_id': action.plugin_id,
-                'action_id': action.action_id,
-                'input_opts': input_opts,
-                'output_opts': output_opts,
-                'output_opt': output_opt,
-            }
-        return results
+    def get_metadata_column(self, name, column_name, variable):
+        variable = super().get_metadata_column(name, column_name, variable)
+        self.append_record('get_metadata_column', variable)
+        return variable
 
-    def _assert_has_line_matching_(self, ref, label, path, expression):
-        return {
-            'source': 'assert_has_line_matching',
-            'ref': ref,
-            'label': label,
-            'path': path,
-            'expression': expression,
-        }
+    def comment(self, text):
+        self.append_record('comment', text)
 
-    def _assert_output_type_(self, ref, label, semantic_type):
-        return {
-            'source': 'assert_output_type',
-            'ref': ref,
-            'label': label,
-            'semantic_type': semantic_type,
-        }
+    def action(self, action, input_opts, output_opts):
+        variables = super().action(action, input_opts, output_opts)
+        self.append_record('action', variables)
+        return variables
 
 
-class ExecutionUsage(Usage):
-    """
-    Execute and test rendered examples.
+class ExecutionUsageVariable(UsageVariable):
+    def __repr__(self):
+        return 'ExecutionUsageVariable<name=%r, var_type=%r>' % \
+                (self.name, self.var_type)
 
-    See Also
-    --------
-    qiime2.sdk.tests.test_usage.TestExecutionUsage : Tests using this driver.
-    qiime2.plugin.testing.TestPluginBase.execute_examples : Executes examples.
-    """
-    def __init__(self, asynchronous=False):
-        super().__init__()
-        self.asynchronous = asynchronous
-
-    def _init_data_(self, ref, factory):
-        result = factory()
-        result_type = type(result)
-
-        if result_type not in (list, set, sdk.Artifact):
-            raise ValueError('Factory (%r) returned a %s, expected an '
-                             'Artifact.' % (factory, result_type))
-
-        if result_type in (list, set):
-            if not all([isinstance(i, sdk.Artifact) for i in result]):
-                raise ValueError('Factory (%r) returned a %s where not all '
-                                 'elements were Artifacts.' %
-                                 (factory, result_type))
-
-        return result
-
-    def _init_metadata_(self, ref, factory):
-        result = factory()
-        result_type = type(result)
-
-        if not isinstance(result, metadata.Metadata):
-            raise TypeError('Factory (%r) returned a %s, but expected '
-                            'Metadata.' % (factory, result_type))
-
-        return result
-
-    def _init_data_collection_(self, ref, collection_type, records):
-        collection = []
-        for record in records:
-            collection.append(record.result)
-
-        return collection_type(collection)
-
-    def _merge_metadata_(self, ref, records):
-        mds = [r.result for r in records]
-        return mds[0].merge(*mds[1:])
-
-    def _get_metadata_column_(self, column_name, record):
-        return record.result.get_column(column_name)
-
-    def _comment_(self, text):
-        pass
-
-    def _action_(self,
-                 action: UsageAction,
-                 input_opts: dict,
-                 output_opts: dict):
-        action_f, _ = action.get_action()
-
-        if self.asynchronous:
-            results = action_f.asynchronous(**input_opts).result()
-        else:
-            results = action_f(**input_opts)
-
-        return {k: getattr(results, k) for k in output_opts.keys()}
-
-    def _assert_has_line_matching_(self, ref, label, path, expression):
-        data = self._get_record(ref).result
+    def assert_has_line_matching(self, path, expression):
+        data = self.value
 
         hits = sorted(data._archiver.data_dir.glob(path))
         if len(hits) != 1:
@@ -938,9 +388,65 @@ class ExecutionUsage(Usage):
             raise AssertionError('Expression %r not found in %s.' %
                                  (expression, path))
 
-    def _assert_output_type_(self, ref, label, semantic_type):
-        data = self._get_record(ref).result
+    def assert_output_type(self, semantic_type):
+        data = self.value
+
         if str(data.type) != str(semantic_type):
             raise AssertionError("Output %r has type %s, which does not match"
                                  " expected output type of %s"
-                                 % (ref, data.type, semantic_type))
+                                 % (self.name, data.type, semantic_type))
+
+
+class ExecutionUsage(Usage):
+    def __init__(self, asynchronous=False):
+        super().__init__(asynchronous)
+        self.records = dict()
+
+    def variable_factory(self, name, factory, var_type):
+        return ExecutionUsageVariable(
+            name,
+            factory,
+            var_type,
+            self,
+        )
+
+    def init_artifact(self, name, factory):
+        variable = super().init_artifact(name, factory)
+
+        variable.execute()
+        self.records[variable.name] = variable
+
+        return variable
+
+    def init_metadata(self, name, factory):
+        variable = super().init_metadata(name, factory)
+
+        variable.execute()
+        self.records[variable.name] = variable
+
+        return variable
+
+    def merge_metadata(self, name, *variables):
+        variable = super().merge_metadata(name, *variables)
+
+        variable.execute()
+        self.records[variable.name] = variable
+
+        return variable
+
+    def get_metadata_column(self, name, column_name, variable):
+        variable = super().get_metadata_column(name, column_name, variable)
+
+        variable.execute()
+        self.records[variable.name] = variable
+
+        return variable
+
+    def action(self, action, input_opts, output_opts):
+        variables = super().action(action, input_opts, output_opts)
+
+        for variable in variables:
+            variable.execute()
+            self.records[variable.name] = variable
+
+        return variables

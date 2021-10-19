@@ -8,7 +8,7 @@
 
 from .context import Context
 from .action import Action, Method, Visualizer, Pipeline
-from .plugin_manager import PluginManager
+from .plugin_manager import PluginManager, UninitializedPluginManagerError
 from .result import Result, Artifact, Visualization
 from .results import Results
 from .util import parse_type, parse_format, type_from_ast
@@ -18,4 +18,5 @@ from ..core.exceptions import ValidationError, ImplementationError
 __all__ = ['Result', 'Results', 'Artifact', 'Visualization', 'Action',
            'Method', 'Visualizer', 'Pipeline', 'PluginManager', 'parse_type',
            'parse_format', 'type_from_ast', 'Context', 'Citations',
-           'ValidationError', 'ImplementationError', ]
+           'ValidationError', 'ImplementationError',
+           'UninitializedPluginManagerError']

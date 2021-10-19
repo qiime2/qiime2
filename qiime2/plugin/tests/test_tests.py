@@ -6,7 +6,6 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import os
 import unittest
 import tempfile
 
@@ -21,8 +20,6 @@ class TestTesting(TestPluginBase):
         # TODO standardize temporary directories created by QIIME 2
         # create a temporary data_dir for sample Visualizations
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
-        self.data_dir = os.path.join(self.test_dir.name, 'viz-output')
-        os.mkdir(self.data_dir)
 
     def tearDown(self):
         self.test_dir.cleanup()

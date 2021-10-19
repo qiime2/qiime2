@@ -24,6 +24,10 @@ class GetFormatFilters(enum.Flag):
     IMPORTABLE = enum.auto()
 
 
+class UninitializedPluginManagerError(Exception):
+    pass
+
+
 class PluginManager:
     entry_point_group = 'qiime2.plugins'
     __instance = None
@@ -47,6 +51,12 @@ class PluginManager:
                 if entry_point.name != 'dummy-plugin':
                     yield entry_point
 
+    @classmethod
+    def reuse_existing(cls):
+        if cls.__instance is not None:
+            return cls.__instance
+        raise UninitializedPluginManagerError
+
     # This class is a singleton as it is slow to create, represents the
     # state of a qiime2 installation, and is needed *everywhere*
     def __new__(cls, add_plugins=True):
@@ -62,7 +72,7 @@ class PluginManager:
             if add_plugins is False:
                 raise ValueError(
                     'PluginManager singleton already exists, cannot change '
-                    'default value for `add_plugins`.')
+                    'current value for `add_plugins`.')
         return cls.__instance
 
     def forget_singleton(self):
