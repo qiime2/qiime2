@@ -23,6 +23,7 @@ import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 from qiime2.sdk.config import LOCAL_CONFIG, get_config
+from qiime2.sdk.results import Results
 
 
 def _subprocess_apply(action, args, kwargs):
@@ -45,16 +46,8 @@ def _subprocess_apply(action, args, kwargs):
     return results
 
 
-def run_single_action(action, ctx, *args, **kwargs):
+def run_parsl_action(action, ctx, *args, **kwargs):
     exe = action._bind(lambda: ctx)
-    print(f'Run action: {exe}\n')
-    return exe(*args, **kwargs)
-
-
-@join_app
-def run_pipeline(action, ctx, *args, **kwargs):
-    exe = action._bind(lambda: ctx)
-    print(f'Call exe: {exe}\n')
     return exe(*args, **kwargs)
 
 
@@ -264,9 +257,10 @@ class Action(metaclass=abc.ABCMeta):
 
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position.
+                print(f'About to call: {self}')
                 outputs = self._callable_executor_(scope, callable_args,
                                                     output_types, provenance)
-
+                print(f'Outputs: {outputs}')
                 if len(outputs) != len(self.signature.outputs):
                     raise ValueError(
                         "Number of callable outputs must match number of "
@@ -320,8 +314,6 @@ class Action(metaclass=abc.ABCMeta):
         return async_wrapper
 
     def _bind_parsl(self, ctx, *args, **kwargs):
-        print(f'args: {args}\nkwargs: {kwargs}')
-
         # If you find a good way to determine if a parsl config is loaded.
         # Use it here
         try:
@@ -335,13 +327,12 @@ class Action(metaclass=abc.ABCMeta):
             executor = 'default'
 
         if isinstance(self, qiime2.sdk.action.Pipeline):
-            print(f'pipeline: {ctx.action_executor_mapping}')
-            return run_pipeline(self, ctx, *args[1:], **kwargs)
+            return join_app()(
+                    run_parsl_action)(self, ctx, *args[1:], **kwargs)
         else:
-            print(f'method or viz: {ctx.action_executor_mapping}')
             return python_app(
                 executors=[executor])(
-                    run_single_action)(self, ctx, *args[1:], **kwargs)
+                    run_parsl_action)(self, ctx, *args[1:], **kwargs)
 
     def _get_parsl_wrapper(self):
         def parsl_wrapper(*args, **kwargs):

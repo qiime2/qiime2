@@ -26,6 +26,7 @@ class Results(tuple):
 
     # Subclassing `tuple` requires `__new__` override.
     def __new__(cls, fields, values):
+        print(f'Fields: {fields}\nValues: {values}')
         fields = tuple(fields)
         if not isinstance(values, tuple):
             values = tuple(values.result())
