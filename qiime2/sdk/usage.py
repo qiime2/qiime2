@@ -109,28 +109,25 @@ class UsageInputs:
             raise ValueError('Extra input(s) or parameter(s): %r' %
                              (extra, ))
 
-    def execute(self, signature):
-        opts = {}
+    def map_variables(self, function):
+        result = {}
 
-        def execute(v):
+        def mapped(v):
             if isinstance(v, UsageVariable):
-                v = v.execute()
+                v = function(v)
             return v
 
-        for name in signature.signature_order.keys():
-            if name in self:
-                value = self[name]
+        for name, value in self.items():
+            if isinstance(value, (list, set)):
+                collection_type = type(value)
+                value = [mapped(v) for v in value]
+                value = collection_type(value)
+            else:
+                value = mapped(value)
 
-                if isinstance(value, list) or isinstance(value, set):
-                    collection_type = type(value)
-                    value = [execute(v) for v in value]
-                    value = collection_type(value)
-                else:
-                    value = execute(value)
+            result[name] = value
 
-                opts[name] = value
-
-        return opts
+        return result
 
 
 class UsageOutputNames:
@@ -203,8 +200,8 @@ class UsageVariable:
         self.use = usage
 
     def __repr__(self):
-        return 'UsageVariable<name=%r, var_type=%r>' % (self.name,
-                                                        self.var_type)
+        return '%s<name=%r, var_type=%r>' % (self.__class__.__name__,
+                                             self.name, self.var_type)
 
     @property
     def is_deferred(self):
@@ -292,7 +289,7 @@ class Usage:
             if len(_result) == 1:
                 return _result[0]
 
-            execed_inputs = inputs.execute(action_f.signature)
+            execed_inputs = inputs.map_variables(lambda v: v.execute())
 
             if self.asynchronous:
                 results = action_f.asynchronous(**execed_inputs).result()
