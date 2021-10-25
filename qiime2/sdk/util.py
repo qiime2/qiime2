@@ -118,3 +118,30 @@ def actions_by_input_type(string):
                 commands.append((pg, actions))
 
     return commands
+
+
+# NOTE: Can put all artifact API methods on this class because we know what
+# type it will be (maybe not uuid)
+class ProxyArtifact:
+    def __init__(self, future, selector):
+        self.future = future
+        self.selector = selector
+
+    def get_element(self, results):
+        return getattr(results, self.selector)
+
+    def view(self, type):
+        return self.future.result().view(type)
+
+
+class ProxyResults:
+    def __init__(self, future, signature):
+        self.future = future
+        self.signature = signature
+
+    def __iter__(self):
+        for s in self.signature:
+            yield ProxyArtifact(self.future, s)
+
+    def __getattr__(self, attr):
+        return ProxyArtifact(self.future, attr)

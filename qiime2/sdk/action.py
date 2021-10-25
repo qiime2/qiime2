@@ -47,8 +47,22 @@ def _subprocess_apply(action, args, kwargs):
 
 
 def run_parsl_action(action, ctx, *args, **kwargs):
+    remapped_kwargs = {}
+    for key, value in kwargs.items():
+        if isinstance(value, qiime2.sdk.util.ProxyArtifact):
+            remapped_kwargs[key] = value.get_element(value.future.result())
+        else:
+            remapped_kwargs[key] = value
+
+    remapped_args = []
+    for arg in args:
+        if isinstance(arg, qiime2.sdk.util.ProxyArtifact):
+            remapped_args.append(arg.get_element(arg.future.result()))
+        else:
+            remapped_args.append(arg)
+
     exe = action._bind(lambda: ctx)
-    return exe(*args, **kwargs)
+    return exe(*remapped_args, **remapped_kwargs)
 
 
 class Action(metaclass=abc.ABCMeta):
@@ -209,7 +223,9 @@ class Action(metaclass=abc.ABCMeta):
             # Set up a scope under which we can track destructable references
             # if something goes wrong, the __exit__ handler of this context
             # manager will clean up. (It also cleans up when things go right)
+            print(f'BEFORE ENTER: {self}')
             with ctx as scope:
+                print(f'AFTER ENTER: {self}')
                 provenance = self._ProvCaptureCls(
                     self.type, self.plugin_id, self.id)
                 scope.add_reference(provenance)
@@ -257,10 +273,8 @@ class Action(metaclass=abc.ABCMeta):
 
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position.
-                print(f'About to call: {self}')
                 outputs = self._callable_executor_(scope, callable_args,
                                                     output_types, provenance)
-                print(f'Outputs: {outputs}')
                 if len(outputs) != len(self.signature.outputs):
                     raise ValueError(
                         "Number of callable outputs must match number of "
@@ -327,12 +341,14 @@ class Action(metaclass=abc.ABCMeta):
             executor = 'default'
 
         if isinstance(self, qiime2.sdk.action.Pipeline):
-            return join_app()(
+            future = join_app()(
                     run_parsl_action)(self, ctx, *args[1:], **kwargs)
         else:
-            return python_app(
+            future = python_app(
                 executors=[executor])(
                     run_parsl_action)(self, ctx, *args[1:], **kwargs)
+
+        return qiime2.sdk.util.ProxyResults(future, self.signature.outputs)
 
     def _get_parsl_wrapper(self):
         def parsl_wrapper(*args, **kwargs):
@@ -528,6 +544,7 @@ class Pipeline(Action):
     def _callable_executor_(self, scope, view_args, output_types, provenance):
         outputs = self._callable(scope.ctx, **view_args)
         outputs = tuplize(outputs)
+        outputs = [output.get_element(output.future.result()) for output in outputs]
 
         for output in outputs:
             if not isinstance(output, qiime2.sdk.Result):
