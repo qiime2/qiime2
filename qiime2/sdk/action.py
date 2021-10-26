@@ -23,6 +23,7 @@ import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 from qiime2.sdk.config import LOCAL_CONFIG, get_config
+from qiime2.sdk.context import Context
 from qiime2.sdk.results import Results
 
 
@@ -61,7 +62,7 @@ def run_parsl_action(action, ctx, *args, **kwargs):
         else:
             remapped_args.append(arg)
 
-    exe = action._bind(lambda: ctx)
+    exe = action._bind(ctx)
     return exe(*remapped_args, **remapped_kwargs)
 
 
@@ -187,7 +188,7 @@ class Action(metaclass=abc.ABCMeta):
 
     # Use bind to bind parsl config to action when action is being sent to
     # executor
-    def _bind(self, context_factory, pipeline=False):
+    def _bind(self, context_factory):
         """Bind an action to a Context factory, returning a decorated function.
 
         This is a very primitive API and should be used primarily by the
@@ -223,7 +224,7 @@ class Action(metaclass=abc.ABCMeta):
             # Set up a scope under which we can track destructable references
             # if something goes wrong, the __exit__ handler of this context
             # manager will clean up. (It also cleans up when things go right)
-            print(f'BEFORE ENTER: {self}')
+            print(f'BEFORE ENTER: {self}\n{ctx}')
             with ctx as scope:
                 print(f'AFTER ENTER: {self}')
                 provenance = self._ProvCaptureCls(
@@ -327,7 +328,7 @@ class Action(metaclass=abc.ABCMeta):
         self._set_wrapper_name(async_wrapper, 'asynchronous')
         return async_wrapper
 
-    def _bind_parsl(self, ctx, *args, **kwargs):
+    def _bind_parsl(self, ctx, *args, root_context=True, **kwargs):
         # If you find a good way to determine if a parsl config is loaded.
         # Use it here
         try:
@@ -335,13 +336,19 @@ class Action(metaclass=abc.ABCMeta):
         except RuntimeError:
             pass
 
-        if self.id in ctx.action_executor_mapping:
-            executor = ctx.action_executor_mapping[self.id]
+        if root_context:
+            context = ctx
+            ctx = lambda: context
+        else:
+            context = ctx()
+
+        if self.id in context.action_executor_mapping:
+            executor = context.action_executor_mapping[self.id]
         else:
             executor = 'default'
 
         if isinstance(self, qiime2.sdk.action.Pipeline):
-            future = join_app()(
+            future = python_app()(
                     run_parsl_action)(self, ctx, *args[1:], **kwargs)
         else:
             future = python_app(
@@ -544,7 +551,9 @@ class Pipeline(Action):
     def _callable_executor_(self, scope, view_args, output_types, provenance):
         outputs = self._callable(scope.ctx, **view_args)
         outputs = tuplize(outputs)
+        print(f'\n\nBEFORE RESULT\n')
         outputs = [output.get_element(output.future.result()) for output in outputs]
+        print(f'\n\nAFTER RESULT\n')
 
         for output in outputs:
             if not isinstance(output, qiime2.sdk.Result):
@@ -576,6 +585,7 @@ class Pipeline(Action):
 
             results.append(aliased_result)
 
+        print(f'\n\nTHE END: {results}\n')
         return tuple(results)
 
     @classmethod

@@ -43,10 +43,10 @@ class Context:
         # returned callable recieve their own Context objects.
         def _bind_parsl_context(ctx):
             def _bind_parsl_args(*args, **kwargs):
-                return action_obj._bind_parsl(ctx, *args, **kwargs)
+                return action_obj._bind_parsl(ctx, *args, root_context=False, **kwargs)
             return _bind_parsl_args
 
-        return _bind_parsl_context(Context(parent=self))
+        return _bind_parsl_context(lambda: Context(parent=self))
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.
