@@ -172,9 +172,7 @@ class UsageOutputNames:
 
 
 class UsageOutputs(sdk.Results):
-    def items(self):
-        for field in self._fields:
-            yield field, getattr(self, field)
+    pass
 
 
 class UsageVariable:

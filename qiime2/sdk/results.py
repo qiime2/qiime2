@@ -107,3 +107,6 @@ class Results(tuple):
         lines[1] = '-' * max_len
 
         return '\n'.join(lines)
+
+    def _asdict(self):
+        return dict(zip(self._fields, self))
