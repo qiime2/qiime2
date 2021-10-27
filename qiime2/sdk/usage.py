@@ -171,6 +171,10 @@ class UsageOutputNames:
             raise ValueError('Extra output(s): %r' % (extra, ))
 
 
+class UsageOutputs(sdk.Results):
+    pass
+
+
 class UsageVariable:
     DEFERRED = object()
     VAR_TYPES = (
@@ -227,6 +231,8 @@ class Usage:
     UsageAction = UsageAction
     UsageInputs = UsageInputs
     UsageOutputNames = UsageOutputNames
+    # NOTE: not exporting UsageOutputs here because example writers shouldn't
+    # be instantiating those on their own, anyway.
 
     def __init__(self, asynchronous=False):
         self.asynchronous = asynchronous
@@ -317,7 +323,7 @@ class Usage:
                 )
             )
 
-        return tuple(usage_results)
+        return UsageOutputs(outputs.keys(), usage_results)
 
 
 class DiagnosticUsage(Usage):
