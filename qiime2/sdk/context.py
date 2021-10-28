@@ -5,7 +5,7 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
-
+import pickle
 import qiime2.sdk
 from qiime2.sdk.config import LOCAL_CONFIG
 
@@ -43,10 +43,12 @@ class Context:
         # returned callable recieve their own Context objects.
         def _bind_parsl_context(ctx):
             def _bind_parsl_args(*args, **kwargs):
-                return action_obj._bind_parsl(ctx, *args, root_context=False, **kwargs)
+                return action_obj._bind_parsl(ctx, *args, **kwargs)
             return _bind_parsl_args
 
-        return _bind_parsl_context(lambda: Context(parent=self))
+        x = _bind_parsl_context(self)
+        pickle.dumps(x)
+        return x
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.
@@ -82,7 +84,7 @@ class Context:
             # Everything is fine, just cleanup internal references and pass
             # ownership off to the parent context.
             parent_refs = self._scope.destroy(local_references_only=True)
-            if self._parent is not None:
+            if self._parent is not None and self._parent._scope is not None:
                 for ref in parent_refs:
                     self._parent._scope.add_reference(ref)
 

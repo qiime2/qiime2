@@ -48,6 +48,10 @@ def _subprocess_apply(action, args, kwargs):
 
 
 def run_parsl_action(action, ctx, *args, **kwargs):
+    import qiime2.sdk.context
+
+    ctx_factory = lambda: Context(parent=ctx)
+
     remapped_kwargs = {}
     for key, value in kwargs.items():
         if isinstance(value, qiime2.sdk.util.ProxyArtifact):
@@ -62,7 +66,7 @@ def run_parsl_action(action, ctx, *args, **kwargs):
         else:
             remapped_args.append(arg)
 
-    exe = action._bind(ctx)
+    exe = action._bind(ctx_factory)
     return exe(*remapped_args, **remapped_kwargs)
 
 
@@ -328,7 +332,7 @@ class Action(metaclass=abc.ABCMeta):
         self._set_wrapper_name(async_wrapper, 'asynchronous')
         return async_wrapper
 
-    def _bind_parsl(self, ctx, *args, root_context=True, **kwargs):
+    def _bind_parsl(self, ctx, *args, **kwargs):
         # If you find a good way to determine if a parsl config is loaded.
         # Use it here
         try:
@@ -336,14 +340,8 @@ class Action(metaclass=abc.ABCMeta):
         except RuntimeError:
             pass
 
-        if root_context:
-            context = ctx
-            ctx = lambda: context
-        else:
-            context = ctx()
-
-        if self.id in context.action_executor_mapping:
-            executor = context.action_executor_mapping[self.id]
+        if self.id in ctx.action_executor_mapping:
+            executor = ctx.action_executor_mapping[self.id]
         else:
             executor = 'default'
 
@@ -551,7 +549,8 @@ class Pipeline(Action):
     def _callable_executor_(self, scope, view_args, output_types, provenance):
         outputs = self._callable(scope.ctx, **view_args)
         outputs = tuplize(outputs)
-        print(f'\n\nBEFORE RESULT\n')
+        print_outputs = [output.future for output in outputs]
+        print(f'\n\nBEFORE RESULT\n{print_outputs}\n')
         outputs = [output.get_element(output.future.result()) for output in outputs]
         print(f'\n\nAFTER RESULT\n')
 
