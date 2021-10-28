@@ -68,7 +68,8 @@ class ArtifactAPIUsage(usage.Usage):
         action_f = action.get_action()
         self._update_imports(action_f)
 
-        t = self._template_action(action_f, input_opts, variables)
+        inputs = input_opts.map_variables(lambda v: v.to_interface_name())
+        t = self._template_action(action_f, inputs, variables)
         self.recorder.append(t)
 
         return variables
@@ -88,10 +89,17 @@ class ArtifactAPIUsage(usage.Usage):
         output_vars = ', '.join(outs)
 
         t = '%s = %s(\n' % (output_vars.strip(), action_f.id)
-        for k, v in input_opts.values.items():
-            if isinstance(v, usage.UsageVariable):
-                v = v.to_interface_name()
-            t += '    %s=%s,\n' % (k, v)
+        for k, v in input_opts.items():
+            if isinstance(v, list):
+                t += '    %s=[' % (k,)
+                t += ', '.join('%s' % ele for ele in v)
+                t += '],\n'
+            elif isinstance(v, set):
+                t += '    %s={' % (k,)
+                t += ', '.join('%s' % ele for ele in sorted(v))
+                t += '},\n'
+            else:
+                t += '    %s=%s,\n' % (k, v)
         t += ')\n'
 
         return t
