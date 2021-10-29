@@ -21,10 +21,34 @@ def available_plugins():
     return set('qiime2.plugins.' + s.replace('-', '_') for s in pm.plugins)
 
 
+class ArtifactAPIUsageVariable(usage.UsageVariable):
+    class quoteless_variable_name:
+        def __init__(self, value):
+            self.value = value
+
+        def __repr__(self):
+            return self.value
+
+    def to_interface_name(self):
+        return self.quoteless_variable_name(self.name)
+
+
 class ArtifactAPIUsage(usage.Usage):
     def __init__(self):
         super().__init__()
-        self.imports = set()
+        self._reset_state()
+        self.global_imports = set()
+
+    def variable_factory(self, name, factory, var_type):
+        return ArtifactAPIUsageVariable(
+            name,
+            factory,
+            var_type,
+            self,
+        )
+
+    def _reset_state(self):
+        self.local_imports = set()
         self.recorder = []
         self.init_data_refs = dict()
 
@@ -74,10 +98,13 @@ class ArtifactAPIUsage(usage.Usage):
 
         return variables
 
-    def render(self):
-        sorted_imps = sorted(self.imports, key=lambda x: x[0])
+    def render(self, flush=False):
+        sorted_imps = sorted(self.local_imports, key=lambda x: x[0])
         imps = ['from %s import %s\n' % i for i in sorted_imps]
-        return '\n'.join(imps + self.recorder)
+        rendered = '\n'.join(imps + self.recorder)
+        if flush:
+            self._reset_state()
+        return rendered
 
     def get_example_data(self):
         return {r: f() for r, f in self.init_data_refs.items()}
@@ -86,20 +113,20 @@ class ArtifactAPIUsage(usage.Usage):
         outs = [o.to_interface_name() for o in output_opts]
         if len(outs) == 1:
             outs.append('')
-        output_vars = ', '.join(outs)
+        output_vars = ', '.join('%s' % ele for ele in outs)
 
         t = '%s = %s(\n' % (output_vars.strip(), action_f.id)
         for k, v in input_opts.items():
             if isinstance(v, list):
                 t += '    %s=[' % (k,)
-                t += ', '.join('%s' % ele for ele in v)
+                t += ', '.join('%r' % ele for ele in v)
                 t += '],\n'
             elif isinstance(v, set):
                 t += '    %s={' % (k,)
-                t += ', '.join('%s' % ele for ele in sorted(v))
+                t += ', '.join('%r' % ele for ele in sorted(v))
                 t += '},\n'
             else:
-                t += '    %s=%s,\n' % (k, v)
+                t += '    %s=%r,\n' % (k, v)
         t += ')\n'
 
         return t
@@ -107,7 +134,10 @@ class ArtifactAPIUsage(usage.Usage):
     def _update_imports(self, action_f):
         full_import = action_f.get_import_path()
         import_path, action_api_name = full_import.rsplit('.', 1)
-        self.imports.add((import_path, action_api_name))
+        import_info = (import_path, action_api_name)
+        if import_info not in self.global_imports:
+            self.local_imports.add(import_info)
+            self.global_imports.add(import_info)
 
 
 class QIIMEArtifactAPIImporter:
