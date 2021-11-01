@@ -245,6 +245,9 @@ class Usage:
             self,
         )
 
+    def render(self, flush=False):
+        raise NotImplementedError
+
     def init_artifact(self, name, factory):
         return self.variable_factory(name, factory, 'artifact')
 
@@ -329,7 +332,7 @@ class Usage:
 class DiagnosticUsage(Usage):
     def __init__(self):
         super().__init__()
-        self.records = []
+        self.recorder = []
 
         @dataclass(frozen=True)
         class DiagnosticUsageRecord:
@@ -339,7 +342,7 @@ class DiagnosticUsage(Usage):
         self.record_class = DiagnosticUsageRecord
 
     def append_record(self, source, variable):
-        self.records.append(
+        self.recorder.append(
             self.record_class(source, variable)
         )
 
@@ -373,10 +376,6 @@ class DiagnosticUsage(Usage):
 
 
 class ExecutionUsageVariable(UsageVariable):
-    def __repr__(self):
-        return 'ExecutionUsageVariable<name=%r, var_type=%r>' % \
-                (self.name, self.var_type)
-
     def assert_has_line_matching(self, path, expression):
         data = self.value
 
@@ -403,7 +402,8 @@ class ExecutionUsageVariable(UsageVariable):
 class ExecutionUsage(Usage):
     def __init__(self, asynchronous=False):
         super().__init__(asynchronous)
-        self.records = dict()
+        # This is here for testing-purposes
+        self.recorder = dict()
 
     def variable_factory(self, name, factory, var_type):
         return ExecutionUsageVariable(
@@ -417,7 +417,7 @@ class ExecutionUsage(Usage):
         variable = super().init_artifact(name, factory)
 
         variable.execute()
-        self.records[variable.name] = variable
+        self.recorder[variable.name] = variable
 
         return variable
 
@@ -425,7 +425,7 @@ class ExecutionUsage(Usage):
         variable = super().init_metadata(name, factory)
 
         variable.execute()
-        self.records[variable.name] = variable
+        self.recorder[variable.name] = variable
 
         return variable
 
@@ -433,7 +433,7 @@ class ExecutionUsage(Usage):
         variable = super().merge_metadata(name, *variables)
 
         variable.execute()
-        self.records[variable.name] = variable
+        self.recorder[variable.name] = variable
 
         return variable
 
@@ -441,7 +441,7 @@ class ExecutionUsage(Usage):
         variable = super().get_metadata_column(name, column_name, variable)
 
         variable.execute()
-        self.records[variable.name] = variable
+        self.recorder[variable.name] = variable
 
         return variable
 
@@ -450,6 +450,6 @@ class ExecutionUsage(Usage):
 
         for variable in variables:
             variable.execute()
-            self.records[variable.name] = variable
+            self.recorder[variable.name] = variable
 
         return variables
