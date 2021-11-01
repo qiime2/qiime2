@@ -66,7 +66,8 @@ class ArtifactAPIUsage(usage.Usage):
         variable = super().merge_metadata(name, *variables)
 
         first_md = variables[0].to_interface_name()
-        remaining = ', '.join([r.to_interface_name() for r in variables[1:]])
+        names = [str(r.to_interface_name()) for r in variables[1:]]
+        remaining = ', '.join(names)
         t = '%s = %s.merge(%s)\n' % (name, first_md, remaining)
         self.recorder.append(t)
 
