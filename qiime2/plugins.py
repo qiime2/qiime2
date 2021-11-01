@@ -91,7 +91,7 @@ class ArtifactAPIUsage(usage.Usage):
         variables = super().action(action, input_opts, output_opts)
 
         action_f = action.get_action()
-        self._update_imports(action_f)
+        self._update_action_imports(action_f)
 
         inputs = input_opts.map_variables(lambda v: v.to_interface_name())
         t = self._template_action(action_f, inputs, variables)
@@ -132,10 +132,13 @@ class ArtifactAPIUsage(usage.Usage):
 
         return t
 
-    def _update_imports(self, action_f):
+    def _update_action_imports(self, action_f):
         full_import = action_f.get_import_path()
         import_path, action_api_name = full_import.rsplit('.', 1)
         import_info = (import_path, action_api_name)
+        self._update_imports(import_info)
+
+    def _update_imports(self, import_info):
         if import_info not in self.global_imports:
             self.local_imports.add(import_info)
             self.global_imports.add(import_info)
