@@ -7,11 +7,14 @@
 # ----------------------------------------------------------------------------
 
 import abc
+from concurrent import futures
 import concurrent.futures
 import inspect
 import tempfile
 import textwrap
 import itertools
+import pickle
+from concurrent.futures import Future
 
 import decorator
 import dill
@@ -25,6 +28,7 @@ from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 from qiime2.sdk.config import LOCAL_CONFIG, get_config
 from qiime2.sdk.context import Context
 from qiime2.sdk.results import Results
+from qiime2.sdk.util import ProxyArtifact
 
 
 def _subprocess_apply(action, args, kwargs):
@@ -47,7 +51,7 @@ def _subprocess_apply(action, args, kwargs):
     return results
 
 
-def run_parsl_action(action, ctx, *args, **kwargs):
+def run_parsl_action(action, ctx, args, kwargs, inputs=[]):
     import qiime2.sdk.context
 
     ctx_factory = lambda: Context(parent=ctx)
@@ -55,14 +59,14 @@ def run_parsl_action(action, ctx, *args, **kwargs):
     remapped_kwargs = {}
     for key, value in kwargs.items():
         if isinstance(value, qiime2.sdk.util.ProxyArtifact):
-            remapped_kwargs[key] = value.get_element(value.future.result())
+            remapped_kwargs[key] = value.get_element(inputs[value.future])
         else:
             remapped_kwargs[key] = value
 
     remapped_args = []
     for arg in args:
         if isinstance(arg, qiime2.sdk.util.ProxyArtifact):
-            remapped_args.append(arg.get_element(arg.future.result()))
+            remapped_args.append(arg.get_element(inputs[arg.future]))
         else:
             remapped_args.append(arg)
 
@@ -278,16 +282,8 @@ class Action(metaclass=abc.ABCMeta):
 
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position.
-                outputs = self._callable_executor_(scope, callable_args,
+                return self._callable_executor_(scope, callable_args,
                                                     output_types, provenance)
-                if len(outputs) != len(self.signature.outputs):
-                    raise ValueError(
-                        "Number of callable outputs must match number of "
-                        "outputs defined in signature: %d != %d" %
-                        (len(outputs), len(self.signature.outputs)))
-
-                return qiime2.sdk.Results(self.signature.outputs.keys(),
-                                          outputs)
 
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
@@ -340,18 +336,35 @@ class Action(metaclass=abc.ABCMeta):
         except RuntimeError:
             pass
 
+        futures = []
+        remapped_args = []
+        for arg in args[1:]:
+            if isinstance(arg, ProxyArtifact):
+                futures.append(arg.future)
+                remapped_args.append(ProxyArtifact(len(futures) - 1, arg.selector))
+            else:
+                remapped_args.append(arg)
+
+        remapped_kwargs = {}
+        for key, value in kwargs.items():
+            if isinstance(value, ProxyArtifact):
+                futures.append(value.future)
+                remapped_kwargs[key] = ProxyArtifact(len(futures) - 1, value.selector)
+            else:
+                remapped_kwargs[key] = value
+
         if self.id in ctx.action_executor_mapping:
             executor = ctx.action_executor_mapping[self.id]
         else:
             executor = 'default'
 
         if isinstance(self, qiime2.sdk.action.Pipeline):
-            future = python_app()(
-                    run_parsl_action)(self, ctx, *args[1:], **kwargs)
+            future = python_app(join=True)(
+                    run_parsl_action)(self, ctx, remapped_args, remapped_kwargs, inputs=futures)
         else:
             future = python_app(
                 executors=[executor])(
-                    run_parsl_action)(self, ctx, *args[1:], **kwargs)
+                    run_parsl_action)(self, ctx, remapped_args, remapped_kwargs, inputs=futures)
 
         return qiime2.sdk.util.ProxyResults(future, self.signature.outputs)
 
@@ -486,7 +499,15 @@ class Method(Action):
 
             output_artifacts.append(artifact)
 
-        return tuple(output_artifacts)
+        results = Results(self.signature.outputs.keys(), output_artifacts)
+
+        if len(results) != len(self.signature.outputs):
+            raise ValueError(
+                "Number of callable outputs must match number of "
+                "outputs defined in signature: %d != %d" %
+                (len(results), len(self.signature.outputs)))
+
+        return results
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
@@ -525,7 +546,15 @@ class Visualizer(Action):
                                                           provenance)
             scope.add_parent_reference(viz)
 
-            return (viz,)
+            results = Results(self.signature.outputs.keys(), (viz,))
+
+            if len(results) != len(self.signature.outputs):
+                raise ValueError(
+                    "Number of callable outputs must match number of "
+                    "outputs defined in signature: %d != %d" %
+                    (len(results), len(self.signature.outputs)))
+
+            return results
 
     @classmethod
     def _init(cls, callable, inputs, parameters, plugin_id, name, description,
@@ -548,11 +577,8 @@ class Pipeline(Action):
 
     def _callable_executor_(self, scope, view_args, output_types, provenance):
         outputs = self._callable(scope.ctx, **view_args)
-        outputs = tuplize(outputs)
-        print_outputs = [output.future for output in outputs]
-        print(f'\n\nBEFORE RESULT\n{print_outputs}\n')
-        outputs = [output.get_element(output.future.result()) for output in outputs]
-        print(f'\n\nAFTER RESULT\n')
+        outputs = tuple(output.get_element(output.future.result()) for output in tuplize(outputs))
+        print(f'\n\nOUTPUTS: {outputs}\n')
 
         for output in outputs:
             if not isinstance(output, qiime2.sdk.Result):
@@ -584,8 +610,18 @@ class Pipeline(Action):
 
             results.append(aliased_result)
 
-        print(f'\n\nTHE END: {results}\n')
-        return tuple(results)
+        if len(results) != len(self.signature.outputs):
+            raise ValueError(
+                "Number of callable outputs must match number of "
+                "outputs defined in signature: %d != %d" %
+                (len(results), len(self.signature.outputs)))
+
+        results = qiime2.sdk.Results(self.signature.outputs.keys(),
+                                     results)
+
+        future = Future()
+        future.set_result(results)
+        return future
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,

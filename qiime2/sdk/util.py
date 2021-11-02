@@ -131,7 +131,7 @@ class ProxyArtifact:
         return getattr(results, self.selector)
 
     def view(self, type):
-        return self.future.result().view(type)
+        return self.get_element(self.future.result()).view(type)
 
 
 class ProxyResults:

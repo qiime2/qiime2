@@ -46,9 +46,7 @@ class Context:
                 return action_obj._bind_parsl(ctx, *args, **kwargs)
             return _bind_parsl_args
 
-        x = _bind_parsl_context(self)
-        pickle.dumps(x)
-        return x
+        return _bind_parsl_context(self)
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.
