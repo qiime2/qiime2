@@ -624,6 +624,7 @@ class Pipeline(Action):
         arg not implicitly.
         """
         from qiime2.sdk import Results
+
         return Results(self.signature.outputs.keys(), results)
 
     @classmethod
