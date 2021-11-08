@@ -616,12 +616,15 @@ class Pipeline(Action):
                 "outputs defined in signature: %d != %d" %
                 (len(results), len(self.signature.outputs)))
 
-        results = qiime2.sdk.Results(self.signature.outputs.keys(),
-                                     results)
+        return self._create_future(self, results)
 
-        future = Future()
-        future.set_result(results)
-        return future
+    @python_app
+    def _create_future(self, results):
+        """Since this is a parsl app, it needs to explicitly take self as an
+        arg not implicitly.
+        """
+        from qiime2.sdk import Results
+        return Results(self.signature.outputs.keys(), results)
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
