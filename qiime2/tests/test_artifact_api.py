@@ -133,17 +133,16 @@ class TestArtifactAPIUsage(unittest.TestCase):
         use = ArtifactAPIUsage()
         action.examples['concatenate_ints_simple'](use)
         exp = """\
-from qiime2.plugins.dummy_plugin.methods import concatenate_ints
+import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
 # This example demonstrates basic usage.
-ints_d, = concatenate_ints(
+ints_d, = dummy_plugin_actions.concatenate_ints(
     ints1=ints_a,
     ints2=ints_b,
     ints3=ints_c,
     int1=4,
     int2=2,
-)
-"""
+)"""
         self.assertEqual(exp, use.render())
 
     def test_chained(self):
@@ -151,26 +150,24 @@ ints_d, = concatenate_ints(
         use = ArtifactAPIUsage()
         action.examples['concatenate_ints_complex'](use)
         exp = """\
-from qiime2.plugins.dummy_plugin.methods import concatenate_ints
+import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
 # This example demonstrates chained usage (pt 1).
-ints_d, = concatenate_ints(
+ints_d, = dummy_plugin_actions.concatenate_ints(
     ints1=ints_a,
     ints2=ints_b,
     ints3=ints_c,
     int1=4,
     int2=2,
 )
-
 # This example demonstrates chained usage (pt 2).
-concatenated_ints, = concatenate_ints(
+concatenated_ints, = dummy_plugin_actions.concatenate_ints(
     ints1=ints_d,
     ints2=ints_b,
     ints3=ints_c,
     int1=41,
     int2=0,
-)
-"""
+)"""
         self.assertEqual(exp, use.render())
 
     def test_dereferencing(self):
@@ -178,14 +175,18 @@ concatenated_ints, = concatenate_ints(
         use = ArtifactAPIUsage()
         action.examples['typical_pipeline_simple'](use)
         exp = """\
-from qiime2.plugins.dummy_plugin.pipelines import typical_pipeline
+import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
-out_map, left, right, left_viz, right_viz = typical_pipeline(
+action_results = dummy_plugin_actions.typical_pipeline(
     int_sequence=ints,
     mapping=mapper,
     do_extra_thing=True,
 )
-"""
+out_map = action_results.out_map
+left = action_results.left
+right = action_results.right
+left_viz_viz = action_results.left_viz
+right_viz_viz = action_results.right_viz"""
         self.assertEqual(exp, use.render())
 
     def test_chained_dereferencing(self):
@@ -193,20 +194,28 @@ out_map, left, right, left_viz, right_viz = typical_pipeline(
         use = ArtifactAPIUsage()
         action.examples['typical_pipeline_complex'](use)
         exp = """\
-from qiime2.plugins.dummy_plugin.pipelines import typical_pipeline
+import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
-out_map1, left1, right1, left_viz1, right_viz1 = typical_pipeline(
+action_results = dummy_plugin_actions.typical_pipeline(
     int_sequence=ints1,
     mapping=mapper1,
     do_extra_thing=True,
 )
-
-out_map2, left2, right2, left_viz2, right_viz2 = typical_pipeline(
+out_map1 = action_results.out_map
+left1 = action_results.left
+right1 = action_results.right
+left_viz1_viz = action_results.left_viz
+right_viz1_viz = action_results.right_viz
+action_results = dummy_plugin_actions.typical_pipeline(
     int_sequence=left1,
     mapping=out_map1,
     do_extra_thing=False,
 )
-"""
+out_map2 = action_results.out_map
+left2 = action_results.left
+right2 = action_results.right
+left_viz2_viz = action_results.left_viz
+right_viz2_viz = action_results.right_viz"""
         self.assertEqual(exp, use.render())
 
     def test_metadata_merging(self):
@@ -214,15 +223,13 @@ out_map2, left2, right2, left_viz2, right_viz2 = typical_pipeline(
         use = ArtifactAPIUsage()
         action.examples['identity_with_metadata_merging'](use)
         exp = """\
-from qiime2.plugins.dummy_plugin.methods import identity_with_metadata
+import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
-md3 = md1.merge(md2)
-
-out, = identity_with_metadata(
+md3_md = md1_md.merge(md2_md)
+out, = dummy_plugin_actions.identity_with_metadata(
     ints=ints,
-    metadata=md3,
-)
-"""
+    metadata=md3_md,
+)"""
         self.assertEqual(exp, use.render())
 
     def test_metadata_column_from_helper(self):
@@ -230,15 +237,13 @@ out, = identity_with_metadata(
         use = ArtifactAPIUsage()
         action.examples['identity_with_metadata_column_get_mdc'](use)
         exp = """\
-from qiime2.plugins.dummy_plugin.methods import identity_with_metadata_column
+import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
-mdc = md.get_column('a')
-
-out, = identity_with_metadata_column(
+mdc_mdc = md_md.get_column('a')
+out, = dummy_plugin_actions.identity_with_metadata_column(
     ints=ints,
-    metadata=mdc,
-)
-"""
+    metadata=mdc_mdc,
+)"""
         self.assertEqual(exp, use.render())
 
     def test_optional_inputs(self):
@@ -247,32 +252,28 @@ out, = identity_with_metadata_column(
         use = ArtifactAPIUsage()
         action.examples['optional_inputs'](use)
         exp = """\
-from qiime2.plugins.dummy_plugin.methods import optional_artifacts_method
+import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
-output1, = optional_artifacts_method(
+output1, = dummy_plugin_actions.optional_artifacts_method(
     ints=ints,
     num1=1,
 )
-
-output2, = optional_artifacts_method(
+output2, = dummy_plugin_actions.optional_artifacts_method(
     ints=ints,
     num1=1,
     num2=2,
 )
-
-output3, = optional_artifacts_method(
+output3, = dummy_plugin_actions.optional_artifacts_method(
     ints=ints,
     num1=1,
     num2=None,
 )
-
-output4, = optional_artifacts_method(
+output4, = dummy_plugin_actions.optional_artifacts_method(
     ints=ints,
     optional1=output3,
     num1=3,
     num2=4,
-)
-"""
+)"""
 
         self.assertEqual(exp, use.render())
 

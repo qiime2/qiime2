@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+from dataclasses import dataclass
+import re
 import sys
 import importlib.machinery
 
@@ -22,7 +24,10 @@ def available_plugins():
 
 
 class ArtifactAPIUsageVariable(usage.UsageVariable):
-    class quoteless_variable_name:
+    # this lets us repr all inputs (including parameters) and have
+    # them template out in a consistent manner. without this we would wind
+    # up with `foo('my_artifact')` rather than `foo(my_artifact)`.
+    class repr_raw_variable_name:
         def __init__(self, value):
             self.value = value
 
@@ -30,118 +35,300 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
             return self.value
 
     def to_interface_name(self):
-        return self.quoteless_variable_name(self.name)
+        if self.var_type == 'format':
+            return self.name
+
+        parts = {
+            'artifact': [self.name],
+            'visualization': [self.name, 'viz'],
+            'metadata': [self.name, 'md'],
+            'column': [self.name, 'mdc'],
+            # No format here - it shouldn't be possible to make it this far
+        }[self.var_type]
+        var_name = '_'.join(parts)
+        # ensure var_name is a valid python identifier
+        var_name = re.sub(r'\W|^(?=\d)', '_', var_name)
+        return self.repr_raw_variable_name(var_name)
+
+    def assert_has_line_matching(self, path, expression):
+        if not self.use.enable_assertions:
+            return
+
+        self.use._update_imports(import_='re')
+        name = self.to_interface_name()
+        expr = expression
+
+        lines = [
+            'hits = sorted(%r._archiver.data_dir.glob(%r))' % (name, path),
+            'if len(hits) != 1:',
+            self.use.INDENT + 'raise ValueError',
+            'target = hits[0].read_text()',
+            'match = re.search(%r, target, flags=re.MULTILINE)' % (expr,),
+            'if match is None:',
+            self.use.INDENT + 'raise AssertionError',
+        ]
+
+        self.use._add(lines)
+
+    def assert_output_type(self, semantic_type):
+        if not self.use.enable_assertions:
+            return
+
+        name = self.to_interface_name()
+
+        lines = [
+            'if str(%r.type) != %r:' % (name, str(semantic_type)),
+            self.use.INDENT + 'raise AssertionError',
+        ]
+
+        self.use._add(lines)
 
 
 class ArtifactAPIUsage(usage.Usage):
-    def __init__(self):
+    INDENT = ' ' * 4
+
+    @dataclass(frozen=True)
+    class ImporterRecord:
+        import_: str
+        from_: str = None
+        as_: str = None
+
+        def render(self):
+            tmpl = 'import %s' % (self.import_,)
+            if self.from_ is not None:
+                tmpl = 'from %s %s' % (self.from_, tmpl)
+            if self.as_ is not None:
+                tmpl = '%s as %s' % (tmpl, self.as_)
+            return tmpl
+
+    def __init__(self, enable_assertions=False, action_collection_size=3):
         super().__init__()
-        self._reset_state()
-        self.global_imports = set()
+        self.enable_assertions = enable_assertions
+        self.action_collection_size = action_collection_size
+        self._reset_state(reset_global_imports=True)
 
-    def variable_factory(self, name, factory, var_type):
-        return ArtifactAPIUsageVariable(
-            name,
-            factory,
-            var_type,
-            self,
-        )
-
-    def _reset_state(self):
+    def _reset_state(self, reset_global_imports=False):
         self.local_imports = set()
         self.recorder = []
         self.init_data_refs = dict()
+        if reset_global_imports:
+            self.global_imports = set()
+
+    def _add(self, lines):
+        self.recorder.extend(lines)
+
+    def usage_variable(self, name, factory, var_type):
+        return ArtifactAPIUsageVariable(name, factory, var_type, self)
+
+    def render(self, flush=False):
+        sorted_imps = sorted(self.local_imports)
+        if sorted_imps:
+            sorted_imps = sorted_imps + ['']
+        rendered = '\n'.join(sorted_imps + self.recorder)
+        if flush:
+            self._reset_state()
+        return rendered
 
     def init_artifact(self, name, factory):
         variable = super().init_artifact(name, factory)
-        self.init_data_refs[name] = variable
+
+        var_name = str(variable.to_interface_name())
+        self.init_data_refs[var_name] = variable
+
         return variable
 
     def init_metadata(self, name, factory):
         variable = super().init_metadata(name, factory)
-        self.init_data_refs[name] = variable
+
+        var_name = str(variable.to_interface_name())
+        self.init_data_refs[var_name] = variable
+
+        return variable
+
+    def init_format(self, name, factory, ext=None):
+        if ext is not None:
+            name = '%s.%s' % (name, ext)
+
+        variable = super().init_format(name, factory, ext=ext)
+
+        var_name = str(variable.to_interface_name())
+        self.init_data_refs[var_name] = variable
+
+        return variable
+
+    def import_from_format(self, name, semantic_type,
+                           fmt_variable, view_type=None):
+        variable = super().import_from_format(
+            name, semantic_type, fmt_variable, view_type=view_type)
+
+        interface_name = variable.to_interface_name()
+        import_fp = fmt_variable.to_interface_name()
+
+        lines = [
+            '%s = Artifact.import_data(' % (interface_name,),
+            self.INDENT + '%r,' % (semantic_type,),
+            self.INDENT + '%r,' % (import_fp,),
+        ]
+
+        if view_type is not None:
+            lines.append(self.INDENT + '%r,' % (view_type,))
+
+        lines.append(')')
+
+        self._update_imports(from_='qiime2', import_='Artifact')
+        self._add(lines)
+
         return variable
 
     def merge_metadata(self, name, *variables):
         variable = super().merge_metadata(name, *variables)
 
-        first_md = variables[0].to_interface_name()
-        names = [str(r.to_interface_name()) for r in variables[1:]]
+        first_var, remaining_vars = variables[0], variables[1:]
+        first_md = first_var.to_interface_name()
+
+        names = [str(r.to_interface_name()) for r in remaining_vars]
         remaining = ', '.join(names)
-        t = '%s = %s.merge(%s)\n' % (name, first_md, remaining)
-        self.recorder.append(t)
+        var_name = variable.to_interface_name()
+
+        lines = ['%r = %r.merge(%s)' % (var_name, first_md, remaining)]
+
+        self._add(lines)
 
         return variable
 
     def get_metadata_column(self, name, column_name, variable):
         col_variable = super().get_metadata_column(name, column_name, variable)
 
-        t = '%s = %s.get_column(%r)\n' % (col_variable.to_interface_name(),
-                                          variable.to_interface_name(),
-                                          column_name)
+        to_name = col_variable.to_interface_name()
+        from_name = variable.to_interface_name()
 
-        self.recorder.append(t)
+        lines = ['%s = %s.get_column(%r)' % (to_name, from_name, column_name)]
+
+        self._add(lines)
 
         return col_variable
 
-    def comment(self, text: str):
-        self.recorder.append('# %s' % (text, ))
+    def view_as_metadata(self, name, from_variable):
+        to_variable = super().view_as_metadata(name, from_variable)
+
+        from_name = from_variable.to_interface_name()
+        to_name = to_variable.to_interface_name()
+
+        lines = ['%r = %r.view(Metadata)' % (to_name, from_name)]
+
+        self._update_imports(from_='qiime2', import_='Metadata')
+        self._add(lines)
+
+        return to_variable
+
+    def peek(self, variable):
+        var_name = variable.to_interface_name()
+
+        lines = []
+        for attr in ('uuid', 'type', 'format'):
+            lines.append('print(%r.%s)' % (var_name, attr))
+
+        self._add(lines)
+
+        return variable
+
+    def comment(self, text):
+        lines = ['# %s' % (text,)]
+
+        self._add(lines)
+
+    def help(self, action):
+        action_name = self._plugin_import_as_name(action)
+
+        # TODO: this isn't pretty, but it gets the job done
+        lines = ['help(%s.%s.__call__)' % (action_name, action.action_id)]
+
+        self._add(lines)
 
     def action(self, action, input_opts, output_opts):
         variables = super().action(action, input_opts, output_opts)
 
-        action_f = action.get_action()
-        self._update_action_imports(action_f)
+        self._plugin_import_as_name(action)
 
         inputs = input_opts.map_variables(lambda v: v.to_interface_name())
-        t = self._template_action(action_f, inputs, variables)
-        self.recorder.append(t)
+        self._template_action(action, inputs, variables)
 
         return variables
 
-    def render(self, flush=False):
-        sorted_imps = sorted(self.local_imports, key=lambda x: x[0])
-        imps = ['from %s import %s\n' % i for i in sorted_imps]
-        rendered = '\n'.join(imps + self.recorder)
-        if flush:
-            self._reset_state()
-        return rendered
-
     def get_example_data(self):
-        return {r: f() for r, f in self.init_data_refs.items()}
+        return {r: v.execute() for r, v in self.init_data_refs.items()}
 
-    def _template_action(self, action_f, input_opts, output_opts):
-        outs = [o.to_interface_name() for o in output_opts]
-        if len(outs) == 1:
-            outs.append('')
-        output_vars = ', '.join('%s' % ele for ele in outs)
-
-        t = '%s = %s(\n' % (output_vars.strip(), action_f.id)
-        for k, v in input_opts.items():
-            if isinstance(v, list):
-                t += '    %s=[' % (k,)
-                t += ', '.join('%r' % ele for ele in v)
-                t += '],\n'
-            elif isinstance(v, set):
-                t += '    %s={' % (k,)
-                t += ', '.join('%r' % ele for ele in sorted(v))
-                t += '},\n'
-            else:
-                t += '    %s=%r,\n' % (k, v)
-        t += ')\n'
-
-        return t
-
-    def _update_action_imports(self, action_f):
+    def _plugin_import_as_name(self, action):
+        action_f = action.get_action()
         full_import = action_f.get_import_path()
-        import_path, action_api_name = full_import.rsplit('.', 1)
-        import_info = (import_path, action_api_name)
-        self._update_imports(import_info)
+        base, _, _ = full_import.rsplit('.', 2)
+        as_ = '%s_actions' % (action.plugin_id,)
+        self._update_imports(import_='%s.actions' % (base,), as_=as_)
+        return as_
 
-    def _update_imports(self, import_info):
-        if import_info not in self.global_imports:
-            self.local_imports.add(import_info)
-            self.global_imports.add(import_info)
+    def _template_action(self, action, input_opts, variables):
+        if len(variables) > self.action_collection_size:
+            output_vars = 'action_results'
+        else:
+            output_vars = self._template_outputs(action, variables)
+
+        plugin_id = action.plugin_id
+        action_id = action.action_id
+        lines = [
+            '%s = %s_actions.%s(' % (output_vars, plugin_id, action_id),
+        ]
+
+        for k, v in input_opts.items():
+            line = self._template_input(k, v)
+            lines.append(line)
+
+        lines.append(')')
+
+        if len(variables) > self.action_collection_size:
+            for k, v in variables._asdict().items():
+                var_name = v.to_interface_name()
+                lines.append('%s = action_results.%s' % (var_name, k))
+
+        self._add(lines)
+
+    def _template_outputs(self, action, variables):
+        output_vars = []
+        action_f = action.get_action()
+
+        # need to coax the outputs into the correct order for unpacking
+        for output in action_f.signature.outputs:
+            variable = getattr(variables, output)
+            output_vars.append(str(variable.to_interface_name()))
+
+        if len(output_vars) == 1:
+            output_vars.append('')
+
+        return ', '.join(output_vars).strip()
+
+    def _template_input(self, input_name, value):
+        if isinstance(value, list):
+            t = ', '.join(repr(el) for el in value)
+            return self.INDENT + '%s=[%s],' % (input_name, t)
+
+        if isinstance(value, set):
+            t = ', '.join(repr(el) for el in sorted(value, key=str))
+            return self.INDENT + '%s={%s},' % (input_name, t)
+
+        return self.INDENT + '%s=%r,' % (input_name, value)
+
+    def _update_imports(self, import_, from_=None, as_=None):
+        import_record = self.ImporterRecord(
+            import_=import_, from_=from_, as_=as_)
+
+        if as_ is not None:
+            self.namespace.add(as_)
+        else:
+            self.namespace.add(import_)
+
+        rendered = import_record.render()
+        if rendered not in self.global_imports:
+            self.local_imports.add(rendered)
+            self.global_imports.add(rendered)
 
 
 class QIIMEArtifactAPIImporter:
