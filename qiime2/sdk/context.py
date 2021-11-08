@@ -11,11 +11,13 @@ from qiime2.sdk.config import LOCAL_CONFIG
 
 
 class Context:
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, parsl=False):
         if parent is not None:
             self.action_executor_mapping = parent.action_executor_mapping
+            self.parsl = parent.parsl
         else:
             self.action_executor_mapping = LOCAL_CONFIG.action_executor_mapping
+            self.parsl = parsl
 
         self._parent = parent
         self._scope = None
@@ -46,7 +48,10 @@ class Context:
                 return action_obj._bind_parsl(ctx, *args, **kwargs)
             return _bind_parsl_args
 
-        return _bind_parsl_context(self)
+        if self.parsl:
+            return _bind_parsl_context(self)
+
+        return action_obj._bind(lambda: Context(parent=self))
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.

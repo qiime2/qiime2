@@ -232,9 +232,7 @@ class Action(metaclass=abc.ABCMeta):
             # Set up a scope under which we can track destructable references
             # if something goes wrong, the __exit__ handler of this context
             # manager will clean up. (It also cleans up when things go right)
-            print(f'BEFORE ENTER: {self}\n{ctx}')
             with ctx as scope:
-                print(f'AFTER ENTER: {self}')
                 provenance = self._ProvCaptureCls(
                     self.type, self.plugin_id, self.id)
                 scope.add_reference(provenance)
@@ -282,6 +280,10 @@ class Action(metaclass=abc.ABCMeta):
 
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position.
+                if ctx.parsl and isinstance(self, qiime2.sdk.action.Pipeline):
+                    return self._parsl_callable_executor_(scope, callable_args,
+                                                    output_types, provenance)
+
                 return self._callable_executor_(scope, callable_args,
                                                     output_types, provenance)
 
@@ -370,7 +372,7 @@ class Action(metaclass=abc.ABCMeta):
 
     def _get_parsl_wrapper(self):
         def parsl_wrapper(*args, **kwargs):
-            return self._bind_parsl(qiime2.sdk.Context(), *args, **kwargs)
+            return self._bind_parsl(qiime2.sdk.Context(parsl=True), *args, **kwargs)
 
         parsl_wrapper = self._rewrite_wrapper_signature(parsl_wrapper)
         self._set_wrapper_properties(parsl_wrapper)
@@ -577,8 +579,43 @@ class Pipeline(Action):
 
     def _callable_executor_(self, scope, view_args, output_types, provenance):
         outputs = self._callable(scope.ctx, **view_args)
+        outputs = tuplize(outputs)
+
+        for output in outputs:
+            if not isinstance(output, qiime2.sdk.Result):
+                raise TypeError("Pipelines must return `Result` objects, "
+                                "not %s" % (type(output), ))
+
+        # This condition *is* tested by the caller of _callable_executor_, but
+        # the kinds of errors a plugin developer see will make more sense if
+        # this check happens before the subtype check. Otherwise forgetting an
+        # output would more likely error as a wrong type, which while correct,
+        # isn't root of the problem.
+        if len(outputs) != len(output_types):
+            raise TypeError(
+                "Number of outputs must match number of output "
+                "semantic types: %d != %d"
+                % (len(outputs), len(output_types)))
+
+        results = []
+        for output, (name, spec) in zip(outputs, output_types.items()):
+            if not (output.type <= spec.qiime_type):
+                raise TypeError(
+                    "Expected output type %r, received %r" %
+                    (spec.qiime_type, output.type))
+            prov = provenance.fork(name, output)
+            scope.add_reference(prov)
+
+            aliased_result = output._alias(prov)
+            scope.add_parent_reference(aliased_result)
+
+            results.append(aliased_result)
+
+        return Results(self.signature.outputs.keys(), tuple(results))
+
+    def _parsl_callable_executor_(self, scope, view_args, output_types, provenance):
+        outputs = self._callable(scope.ctx, **view_args)
         outputs = tuple(output.get_element(output.future.result()) for output in tuplize(outputs))
-        print(f'\n\nOUTPUTS: {outputs}\n')
 
         for output in outputs:
             if not isinstance(output, qiime2.sdk.Result):
@@ -616,16 +653,11 @@ class Pipeline(Action):
                 "outputs defined in signature: %d != %d" %
                 (len(results), len(self.signature.outputs)))
 
-        return self._create_future(self, results)
+        results = Results(self.signature.outputs.keys(), results)
 
-    @python_app
-    def _create_future(self, results):
-        """Since this is a parsl app, it needs to explicitly take self as an
-        arg not implicitly.
-        """
-        from qiime2.sdk import Results
-
-        return Results(self.signature.outputs.keys(), results)
+        future = Future()
+        future.set_result(results)
+        return future
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
