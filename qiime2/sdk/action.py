@@ -363,6 +363,8 @@ class Action(metaclass=abc.ABCMeta):
         # TODO: CREATE ISSUE IN PARSL ABOUT PYTHON_APP(JOIN=TRUE) SELECTING
         # EXECUTOR THAT IS NOT LOCAL TO THE MAIN PROCESS (EX: HTEX) BLOWING UP
         if isinstance(self, qiime2.sdk.action.Pipeline):
+            # NOTE: Do not make this a python_app(join=True). We need it to run
+            # in the parsl main thread
             future = join_app()(
                     run_parsl_action)(self, ctx, remapped_args, remapped_kwargs, inputs=futures)
         else:
