@@ -19,7 +19,7 @@ from concurrent.futures import Future
 import decorator
 import dill
 import parsl
-from parsl.app.app import python_app
+from parsl.app.app import python_app, join_app
 
 import qiime2.sdk
 import qiime2.core.type as qtype
@@ -360,8 +360,10 @@ class Action(metaclass=abc.ABCMeta):
         else:
             executor = 'default'
 
+        # TODO: CREATE ISSUE IN PARSL ABOUT PYTHON_APP(JOIN=TRUE) SELECTING
+        # EXECUTOR THAT IS NOT LOCAL TO THE MAIN PROCESS (EX: HTEX) BLOWING UP
         if isinstance(self, qiime2.sdk.action.Pipeline):
-            future = python_app(join=True)(
+            future = join_app()(
                     run_parsl_action)(self, ctx, remapped_args, remapped_kwargs, inputs=futures)
         else:
             future = python_app(
@@ -614,11 +616,8 @@ class Pipeline(Action):
         return Results(self.signature.outputs.keys(), tuple(results))
 
     def _parsl_callable_executor_(self, scope, view_args, output_types, provenance):
-        print('IN EXECUTOR\n')
         outputs = self._callable(scope.ctx, **view_args)
-        print(f'OUTPUT FUTURES: {outputs}\n')
         outputs = tuple(output.get_element(output.future.result()) for output in tuplize(outputs))
-        print(f'OUTPUTS: {outputs}')
 
         for output in outputs:
             if not isinstance(output, qiime2.sdk.Result):
