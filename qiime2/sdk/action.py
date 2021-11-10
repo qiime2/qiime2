@@ -614,8 +614,11 @@ class Pipeline(Action):
         return Results(self.signature.outputs.keys(), tuple(results))
 
     def _parsl_callable_executor_(self, scope, view_args, output_types, provenance):
+        print('IN EXECUTOR\n')
         outputs = self._callable(scope.ctx, **view_args)
+        print(f'OUTPUT FUTURES: {outputs}\n')
         outputs = tuple(output.get_element(output.future.result()) for output in tuplize(outputs))
+        print(f'OUTPUTS: {outputs}')
 
         for output in outputs:
             if not isinstance(output, qiime2.sdk.Result):
@@ -654,10 +657,10 @@ class Pipeline(Action):
                 (len(results), len(self.signature.outputs)))
 
         results = Results(self.signature.outputs.keys(), results)
-
-        future = Future()
-        future.set_result(results)
-        return future
+        return _create_future(results)
+        # future = Future()
+        # future.set_result(results)
+        # return future
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
@@ -669,6 +672,11 @@ class Pipeline(Action):
                                             output_descriptions)
         return super()._init(callable, signature, plugin_id, name, description,
                              citations, deprecated, examples)
+
+
+@python_app
+def _create_future(results):
+    return results
 
 
 markdown_source_template = """
