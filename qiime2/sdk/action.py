@@ -661,9 +661,6 @@ class Pipeline(Action):
 
         results = Results(self.signature.outputs.keys(), results)
         return _create_future(results)
-        # future = Future()
-        # future.set_result(results)
-        # return future
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
