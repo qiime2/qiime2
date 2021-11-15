@@ -27,6 +27,7 @@ class Results(tuple):
     # Subclassing `tuple` requires `__new__` override.
     def __new__(cls, fields, values):
         fields = tuple(fields)
+        values = tuple(values)
 
         if len(fields) != len(values):
             raise ValueError(

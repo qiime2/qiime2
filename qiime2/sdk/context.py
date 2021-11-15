@@ -5,7 +5,6 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
-import pickle
 import qiime2.sdk
 from qiime2.sdk.config import LOCAL_CONFIG
 
@@ -39,6 +38,7 @@ class Context:
         except KeyError:
             raise ValueError("An action named %r was not found for plugin %r"
                              % (action, plugin))
+
         # This factory will create new Contexts with this context as their
         # parent. This allows scope cleanup to happen recursively.
         # A factory is necessary so that independent applications of the

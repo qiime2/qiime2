@@ -7,14 +7,11 @@
 # ----------------------------------------------------------------------------
 
 import abc
-from concurrent import futures
 import concurrent.futures
 import inspect
 import tempfile
 import textwrap
 import itertools
-import pickle
-from concurrent.futures import Future
 
 import decorator
 import dill
@@ -25,7 +22,7 @@ import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
-from qiime2.sdk.config import LOCAL_CONFIG, get_config
+from qiime2.sdk.config import get_config
 from qiime2.sdk.context import Context
 from qiime2.sdk.results import Results
 from qiime2.sdk.util import ProxyArtifact
@@ -54,8 +51,6 @@ def _subprocess_apply(action, args, kwargs):
 def run_parsl_action(action, ctx, args, kwargs, inputs=[]):
     import qiime2.sdk.context
 
-    ctx_factory = lambda: Context(parent=ctx)
-
     remapped_kwargs = {}
     for key, value in kwargs.items():
         if isinstance(value, qiime2.sdk.util.ProxyArtifact):
@@ -70,7 +65,7 @@ def run_parsl_action(action, ctx, args, kwargs, inputs=[]):
         else:
             remapped_args.append(arg)
 
-    exe = action._bind(ctx_factory)
+    exe = action._bind(lambda: Context(parent=ctx))
     return exe(*remapped_args, **remapped_kwargs)
 
 
@@ -281,11 +276,11 @@ class Action(metaclass=abc.ABCMeta):
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position.
                 if ctx.parsl and isinstance(self, qiime2.sdk.action.Pipeline):
-                    return self._parsl_callable_executor_(scope, callable_args,
-                                                    output_types, provenance)
+                    return self._parsl_callable_executor_(
+                        scope, callable_args, output_types, provenance)
 
-                return self._callable_executor_(scope, callable_args,
-                                                    output_types, provenance)
+                return self._callable_executor_(
+                    scope, callable_args, output_types, provenance)
 
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
@@ -343,7 +338,8 @@ class Action(metaclass=abc.ABCMeta):
         for arg in args[1:]:
             if isinstance(arg, ProxyArtifact):
                 futures.append(arg.future)
-                remapped_args.append(ProxyArtifact(len(futures) - 1, arg.selector))
+                remapped_args.append(ProxyArtifact(len(futures) - 1,
+                                     arg.selector))
             else:
                 remapped_args.append(arg)
 
@@ -351,7 +347,8 @@ class Action(metaclass=abc.ABCMeta):
         for key, value in kwargs.items():
             if isinstance(value, ProxyArtifact):
                 futures.append(value.future)
-                remapped_kwargs[key] = ProxyArtifact(len(futures) - 1, value.selector)
+                remapped_kwargs[key] = ProxyArtifact(len(futures) - 1,
+                                                     value.selector)
             else:
                 remapped_kwargs[key] = value
 
@@ -366,17 +363,20 @@ class Action(metaclass=abc.ABCMeta):
             # NOTE: Do not make this a python_app(join=True). We need it to run
             # in the parsl main thread
             future = join_app()(
-                    run_parsl_action)(self, ctx, remapped_args, remapped_kwargs, inputs=futures)
+                    run_parsl_action)(self, ctx, remapped_args,
+                                      remapped_kwargs, inputs=futures)
         else:
             future = python_app(
                 executors=[executor])(
-                    run_parsl_action)(self, ctx, remapped_args, remapped_kwargs, inputs=futures)
+                    run_parsl_action)(self, ctx, remapped_args,
+                                      remapped_kwargs, inputs=futures)
 
         return qiime2.sdk.util.ProxyResults(future, self.signature.outputs)
 
     def _get_parsl_wrapper(self):
         def parsl_wrapper(*args, **kwargs):
-            return self._bind_parsl(qiime2.sdk.Context(parsl=True), *args, **kwargs)
+            return self._bind_parsl(qiime2.sdk.Context(parsl=True), *args,
+                                    **kwargs)
 
         parsl_wrapper = self._rewrite_wrapper_signature(parsl_wrapper)
         self._set_wrapper_properties(parsl_wrapper)
@@ -617,9 +617,11 @@ class Pipeline(Action):
 
         return Results(self.signature.outputs.keys(), tuple(results))
 
-    def _parsl_callable_executor_(self, scope, view_args, output_types, provenance):
+    def _parsl_callable_executor_(self, scope, view_args, output_types,
+                                  provenance):
         outputs = self._callable(scope.ctx, **view_args)
-        outputs = tuple(output.get_element(output.future.result()) for output in tuplize(outputs))
+        outputs = tuple(output.get_element(output.future.result())
+                        for output in tuplize(outputs))
 
         for output in outputs:
             if not isinstance(output, qiime2.sdk.Result):
