@@ -275,9 +275,12 @@ class Action(metaclass=abc.ABCMeta):
 
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position.
+                if isinstance(self, Pipeline) and ctx.parsl:
+                    return self._parsl_callable_executor_(
+                        scope, callable_args, output_types, provenance)
+
                 return self._callable_executor_(
-                    scope, callable_args, output_types, provenance,
-                    parsl=ctx.parsl)
+                    scope, callable_args, output_types, provenance)
 
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
@@ -468,9 +471,7 @@ class Method(Action):
         # No conversion necessary.
         return callable
 
-    # NOTE: parsl kwarg only exists to standardize calling site
-    def _callable_executor_(self, scope, view_args, output_types, provenance,
-                            parsl=False):
+    def _callable_executor_(self, scope, view_args, output_types, provenance):
         output_views = self._callable(**view_args)
         output_views = tuplize(output_views)
 
@@ -536,9 +537,7 @@ class Visualizer(Action):
     def _callable_sig_converter_(self, callable):
         return DropFirstParameter.from_function(callable)
 
-    # NOTE: parsl kwarg only exists to standardize calling site
-    def _callable_executor_(self, scope, view_args, output_types, provenance,
-                            parsl=False):
+    def _callable_executor_(self, scope, view_args, output_types, provenance):
         # TODO use qiime2.plugin.OutPath when it exists, and update visualizers
         # to work with OutPath instead of str. Visualization._from_data_dir
         # will also need to be updated to support OutPath instead of str.
@@ -582,15 +581,11 @@ class Pipeline(Action):
     def _callable_sig_converter_(self, callable):
         return DropFirstParameter.from_function(callable)
 
-    def _callable_executor_(self, scope, view_args, output_types, provenance,
-                            parsl=False):
+    def _parsl_callable_executor_(self, scope, view_args, output_types,
+                                  provenance):
         outputs = self._callable(scope.ctx, **view_args)
-
-        if parsl:
-            outputs = tuple(output.get_element(output.future.result())
-                            for output in tuplize(outputs))
-        else:
-            outputs = tuplize(outputs)
+        outputs = tuple(output.get_element(output.future.result())
+                        for output in tuplize(outputs))
 
         for output in outputs:
             if not isinstance(output, qiime2.sdk.Result):
@@ -629,11 +624,50 @@ class Pipeline(Action):
                 (len(results), len(self.signature.outputs)))
 
         results = Results(self.signature.outputs.keys(), tuple(results))
+        return _create_future(results)
 
-        if parsl:
-            return _create_future(results)
-        else:
-            return results
+    def _callable_executor_(self, scope, view_args, output_types, provenance):
+        outputs = self._callable(scope.ctx, **view_args)
+        outputs = tuplize(outputs)
+
+        for output in outputs:
+            if not isinstance(output, qiime2.sdk.Result):
+                raise TypeError("Pipelines must return `Result` objects, "
+                                "not %s" % (type(output), ))
+
+        # This condition *is* tested by the caller of _callable_executor_, but
+        # the kinds of errors a plugin developer see will make more sense if
+        # this check happens before the subtype check. Otherwise forgetting an
+        # output would more likely error as a wrong type, which while correct,
+        # isn't root of the problem.
+        if len(outputs) != len(output_types):
+            raise TypeError(
+                "Number of outputs must match number of output "
+                "semantic types: %d != %d"
+                % (len(outputs), len(output_types)))
+
+        results = []
+        for output, (name, spec) in zip(outputs, output_types.items()):
+            if not (output.type <= spec.qiime_type):
+                raise TypeError(
+                    "Expected output type %r, received %r" %
+                    (spec.qiime_type, output.type))
+            prov = provenance.fork(name, output)
+            scope.add_reference(prov)
+
+            aliased_result = output._alias(prov)
+            scope.add_parent_reference(aliased_result)
+
+            results.append(aliased_result)
+
+        if len(results) != len(self.signature.outputs):
+            raise ValueError(
+                "Number of callable outputs must match number of "
+                "outputs defined in signature: %d != %d" %
+                (len(results), len(self.signature.outputs)))
+
+        results = Results(self.signature.outputs.keys(), tuple(results))
+        return results
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
