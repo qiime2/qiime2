@@ -12,6 +12,10 @@ lint:
 test: all
 	QIIMETEST= nosetests
 
+# for parallel, pip install pytest-xdist
+mystery-stew: all
+	MYSTERY_STEW= pytest qiime2/tests/mystery_stew.py -n auto
+
 install: all
 	$(PYTHON) setup.py install && \
 	mkdir -p $(PREFIX)/etc/conda/activate.d && \

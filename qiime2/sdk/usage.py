@@ -6,11 +6,20 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from dataclasses import dataclass
+import dataclasses
+import functools
 import re
 
 from qiime2 import sdk
 from qiime2.core.type import is_semantic_type, is_visualization_type
+
+
+def assert_usage_var_type(usage_variable, *valid_var_types):
+    if usage_variable.var_type not in valid_var_types:
+        tmpl = (
+            usage_variable.name, valid_var_types, usage_variable.var_type,
+        )
+        raise ValueError('Incorrect var_type for %s, need %s got %s' % tmpl)
 
 
 class UsageAction:
@@ -43,17 +52,6 @@ class UsageAction:
                            'id: "%s".' % (self.action_id,))
         return action_f
 
-    def validate(self, inputs: 'UsageInputs', outputs: 'UsageOutputNames'):
-        if not isinstance(inputs, UsageInputs):
-            raise TypeError('Must provide an instance of UsageInputs.')
-        if not isinstance(outputs, UsageOutputNames):
-            raise TypeError('Must provide an instance of UsageOutputNames.')
-
-        action_f = self.get_action()
-
-        inputs.validate(action_f.signature)
-        outputs.validate(action_f.signature)
-
 
 class UsageInputs:
     def __init__(self, **kwargs):
@@ -77,43 +75,12 @@ class UsageInputs:
     def values(self):
         return self.values.values()
 
-    def validate(self, signature):
-        provided = set(self.keys())
-        inputs, params = signature.inputs, signature.parameters
-
-        exp_inputs, optional_inputs = set(), set()
-        for name, sig in inputs.items():
-            if sig.has_default():
-                optional_inputs.add(name)
-            else:
-                exp_inputs.add(name)
-
-        exp_params, optional_params = set(), set()
-        for name, sig in params.items():
-            if sig.has_default():
-                optional_params.add(name)
-            else:
-                exp_params.add(name)
-
-        missing = exp_inputs - provided
-        if len(missing) > 0:
-            raise ValueError('Missing input(s): %r' % (missing, ))
-
-        missing = exp_params - provided
-        if len(missing) > 0:
-            raise ValueError('Missing parameter(s): %r' % (missing, ))
-
-        all_vals = exp_inputs | optional_inputs | exp_params | optional_params
-        extra = provided - all_vals
-        if len(extra) > 0:
-            raise ValueError('Extra input(s) or parameter(s): %r' %
-                             (extra, ))
-
     def map_variables(self, function):
         result = {}
 
         def mapped(v):
             if isinstance(v, UsageVariable):
+                assert_usage_var_type(v, 'artifact', 'metadata', 'column')
                 v = function(v)
             return v
 
@@ -158,18 +125,6 @@ class UsageOutputNames:
     def values(self):
         return self.values.values()
 
-    def validate(self, signature):
-        provided = set(self.values.keys())
-        exp_outputs = set(signature.outputs)
-
-        missing = exp_outputs - provided
-        if len(missing) > 0:
-            raise ValueError('Missing output(s): %r' % (missing, ))
-
-        extra = provided - exp_outputs
-        if len(extra) > 0:
-            raise ValueError('Extra output(s): %r' % (extra, ))
-
 
 class UsageOutputs(sdk.Results):
     pass
@@ -182,13 +137,10 @@ class UsageVariable:
         'visualization',
         'metadata',
         'column',
-        'file',
+        'format',
     )
 
     def __init__(self, name: str, factory: callable, var_type: str, usage):
-        if not name.isidentifier():
-            raise ValueError('invalid identifier: %r' % (name,))
-
         if not callable(factory):
             raise TypeError('value for `factory` should be a `callable`, '
                             'recieved %s' % (type(factory),))
@@ -212,9 +164,13 @@ class UsageVariable:
         return self.value is self.DEFERRED
 
     def execute(self):
-        if self.value is self.DEFERRED:
+        if self.is_deferred:
             self.value = self.factory()
         return self.value
+
+    def save(self, filepath, ext=None):
+        value = self.execute()
+        return value.save(filepath, ext=ext)
 
     def to_interface_name(self):
         return self.name
@@ -236,147 +192,205 @@ class Usage:
 
     def __init__(self, asynchronous=False):
         self.asynchronous = asynchronous
+        self.namespace = set()
 
-    def variable_factory(self, name, factory, var_type):
-        return UsageVariable(
-            name,
-            factory,
-            var_type,
-            self,
-        )
+    def _usage_variable(self, name, factory, var_type):
+        variable = self.usage_variable(name, factory, var_type)
+        var_name = variable.to_interface_name()
+        if var_name in self.namespace:
+            raise ValueError(
+                '%r namespace collision (%r)' % (variable, var_name))
+        self.namespace.add(var_name)
+        return variable
+
+    def usage_variable(self, name, factory, var_type):
+        return UsageVariable(name, factory, var_type, self)
 
     def render(self, flush=False):
         raise NotImplementedError
 
     def init_artifact(self, name, factory):
-        return self.variable_factory(name, factory, 'artifact')
+        return self._usage_variable(name, factory, 'artifact')
 
     def init_metadata(self, name, factory):
-        return self.variable_factory(name, factory, 'metadata')
+        return self._usage_variable(name, factory, 'metadata')
 
-    def import_data(*args, **kwargs):
-        # TODO
-        ...
+    def init_format(self, name, factory, ext=None):
+        return self._usage_variable(name, factory, 'format')
 
-    def import_file(*args, **kwargs):
-        # TODO
-        ...
+    def import_from_format(self, name, semantic_type,
+                           variable, view_type=None):
+        assert_usage_var_type(variable, 'format')
+
+        def factory():
+            from qiime2 import Artifact
+
+            fmt = variable.execute()
+            artifact = Artifact.import_data(
+                semantic_type, str(fmt), view_type=view_type)
+
+            return artifact
+        return self._usage_variable(name, factory, 'artifact')
 
     def merge_metadata(self, name, *variables):
         if len(variables) < 2:
             raise ValueError('Must provide two or more Metadata inputs.')
 
         for variable in variables:
-            if variable.var_type != 'metadata':
-                raise ValueError('Incorrect input type for %s, need '
-                                 '`metadata` got %s' %
-                                 (variable.name, variable.var_type))
+            assert_usage_var_type(variable, 'metadata')
 
         def factory():
             mds = [v.execute() for v in variables]
             return mds[0].merge(*mds[1:])
-
-        return self.variable_factory(name, factory, 'metadata')
+        return self._usage_variable(name, factory, 'metadata')
 
     def get_metadata_column(self, name, column_name, variable):
+        assert_usage_var_type(variable, 'metadata')
+
         def factory():
             return variable.execute().get_column(column_name)
+        return self._usage_variable(name, factory, 'column')
 
-        return self.variable_factory(name, factory, 'column')
+    def view_as_metadata(self, name, variable):
+        assert_usage_var_type(variable, 'artifact')
 
-    def comment(self, text: str):
+        def factory():
+            from qiime2 import Metadata
+            return variable.execute().view(Metadata)
+        return self._usage_variable(name, factory, 'metadata')
+
+    def peek(self, variable):
+        assert_usage_var_type(variable, 'artifact', 'visualization')
+
+    def comment(self, text):
+        pass
+
+    def help(self, action: UsageAction):
         pass
 
     def action(self, action: UsageAction, inputs: UsageInputs,
                outputs: UsageOutputNames):
         if not isinstance(action, UsageAction):
-            raise TypeError('Must provide an instance of UsageAction.')
-        action.validate(inputs, outputs)
+            raise ValueError('Invalid value for `action`: expected %r, '
+                             'received %r.' % (UsageAction, type(action)))
+
+        if not isinstance(inputs, UsageInputs):
+            raise ValueError('Invalid value for `inputs`: expected %r, '
+                             'received %r.' % (UsageInputs, type(inputs)))
+
+        if not isinstance(outputs, UsageOutputNames):
+            raise ValueError('Invalid value for `outputs`: expected %r, '
+                             'received %r.' % (UsageOutputNames,
+                                               type(outputs)))
+
         action_f = action.get_action()
 
-        def memoized_action(_result=[]):
-            if len(_result) == 1:
-                return _result[0]
-
+        @functools.lru_cache(maxsize=None)
+        def memoized_action():
             execed_inputs = inputs.map_variables(lambda v: v.execute())
-
             if self.asynchronous:
-                results = action_f.asynchronous(**execed_inputs).result()
-            else:
-                results = action_f(**execed_inputs)
-
-            _result.append(results)
-            return results
+                return action_f.asynchronous(**execed_inputs).result()
+            return action_f(**execed_inputs)
 
         usage_results = []
-        for idx, (param_name, var_name) in enumerate(outputs.items()):
+        # outputs will be ordered by the `UsageOutputNames` order, not the
+        # signature order - this makes it so that the example writer doesn't
+        # need to be explicitly aware of the signature order
+        for param_name, var_name in outputs.items():
             qiime_type = action_f.signature.outputs[param_name].qiime_type
             if is_visualization_type(qiime_type):
                 var_type = 'visualization'
             elif is_semantic_type(qiime_type):
                 var_type = 'artifact'
             else:
-                raise
+                raise ValueError('unknown output type: %r' % (qiime_type,))
 
-            usage_results.append(
-                self.variable_factory(
-                    var_name,
-                    lambda i=idx: memoized_action()[i],
-                    var_type,
-                )
-            )
+            def factory(name=param_name):
+                results = memoized_action()
+                result = getattr(results, name)
+                return result
 
-        return UsageOutputs(outputs.keys(), usage_results)
+            variable = self._usage_variable(var_name, factory, var_type)
+            usage_results.append(variable)
+
+        results = UsageOutputs(outputs.keys(), usage_results)
+        cache_info = memoized_action.cache_info
+        cache_clear = memoized_action.cache_clear
+        # manually graft on cache operations
+        object.__setattr__(results, '_cache_info', cache_info)
+        object.__setattr__(results, '_cache_reset', cache_clear)
+        return results
 
 
 class DiagnosticUsage(Usage):
+    @dataclasses.dataclass(frozen=True)
+    class DiagnosticUsageRecord:
+        source: str
+        variable: UsageVariable
+
     def __init__(self):
         super().__init__()
         self.recorder = []
 
-        @dataclass(frozen=True)
-        class DiagnosticUsageRecord:
-            source: str
-            variable: UsageVariable
-
-        self.record_class = DiagnosticUsageRecord
-
-    def append_record(self, source, variable):
-        self.recorder.append(
-            self.record_class(source, variable)
-        )
+    def _append_record(self, source, variable):
+        self.recorder.append(self.DiagnosticUsageRecord(source, variable))
 
     def init_artifact(self, name, factory):
         variable = super().init_artifact(name, factory)
-        self.append_record('init_artifact', variable)
+        self._append_record('init_artifact', variable)
         return variable
 
     def init_metadata(self, name, factory):
         variable = super().init_metadata(name, factory)
-        self.append_record('init_metadata', variable)
+        self._append_record('init_metadata', variable)
+        return variable
+
+    def init_format(self, name, factory, ext=None):
+        variable = super().init_format(name, factory, ext=ext)
+        self._append_record('init_format', variable)
+        return variable
+
+    def import_from_format(self, name, semantic_type,
+                           fmt_variable, view_type=None):
+        variable = super().import_from_format(
+            name, semantic_type, fmt_variable, view_type=view_type)
+        self._append_record('import_from_format', variable)
         return variable
 
     def merge_metadata(self, name, *variables):
         variable = super().merge_metadata(name, *variables)
-        self.append_record('merge_metadata', variable)
+        self._append_record('merge_metadata', variable)
         return variable
 
     def get_metadata_column(self, name, column_name, variable):
         variable = super().get_metadata_column(name, column_name, variable)
-        self.append_record('get_metadata_column', variable)
+        self._append_record('get_metadata_column', variable)
         return variable
 
+    def view_as_metadata(self, name, artifact_variable):
+        variable = super().view_as_metadata(name, artifact_variable)
+        self._append_record('view_as_metadata', variable)
+        return variable
+
+    def peek(self, variable):
+        self._append_record('peek', variable)
+
     def comment(self, text):
-        self.append_record('comment', text)
+        self._append_record('comment', text)
+
+    def help(self, action):
+        self._append_record('help', action)
 
     def action(self, action, input_opts, output_opts):
         variables = super().action(action, input_opts, output_opts)
-        self.append_record('action', variables)
+        self._append_record('action', variables)
         return variables
 
 
 class ExecutionUsageVariable(UsageVariable):
     def assert_has_line_matching(self, path, expression):
+        assert_usage_var_type(self, 'artifact', 'visualization')
+
         data = self.value
 
         hits = sorted(data._archiver.data_dir.glob(path))
@@ -405,13 +419,8 @@ class ExecutionUsage(Usage):
         # This is here for testing-purposes
         self.recorder = dict()
 
-    def variable_factory(self, name, factory, var_type):
-        return ExecutionUsageVariable(
-            name,
-            factory,
-            var_type,
-            self,
-        )
+    def usage_variable(self, name, factory, var_type):
+        return ExecutionUsageVariable(name, factory, var_type, self)
 
     def init_artifact(self, name, factory):
         variable = super().init_artifact(name, factory)
@@ -429,6 +438,24 @@ class ExecutionUsage(Usage):
 
         return variable
 
+    def init_format(self, name, factory, ext=None):
+        variable = super().init_format(name, factory, ext=ext)
+
+        variable.execute()
+        self.recorder[variable.name] = variable
+
+        return variable
+
+    def import_from_format(self, name, semantic_type,
+                           fmt_variable, view_type=None):
+        variable = super().import_from_format(
+            name, semantic_type, fmt_variable, view_type=view_type)
+
+        variable.execute()
+        self.recorder[variable.name] = variable
+
+        return variable
+
     def merge_metadata(self, name, *variables):
         variable = super().merge_metadata(name, *variables)
 
@@ -439,6 +466,14 @@ class ExecutionUsage(Usage):
 
     def get_metadata_column(self, name, column_name, variable):
         variable = super().get_metadata_column(name, column_name, variable)
+
+        variable.execute()
+        self.recorder[variable.name] = variable
+
+        return variable
+
+    def view_as_metadata(self, name, artifact_variable):
+        variable = super().view_as_metadata(name, artifact_variable)
 
         variable.execute()
         self.recorder[variable.name] = variable

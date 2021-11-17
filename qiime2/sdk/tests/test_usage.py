@@ -6,15 +6,14 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import unittest.mock as mock
 import unittest
 import tempfile
 
-from qiime2.core.type import signature
 from qiime2.core.testing.util import get_dummy_plugin
-from qiime2.core.testing.type import Mapping
 import qiime2.core.testing.examples as examples
-from qiime2.sdk import usage, action
-from qiime2 import plugin, Metadata, Artifact
+from qiime2.sdk import usage, action, UninitializedPluginManagerError
+from qiime2 import Metadata, Artifact
 
 
 class TestCaseUsage(unittest.TestCase):
@@ -26,7 +25,163 @@ class TestCaseUsage(unittest.TestCase):
         self.test_dir.cleanup()
 
 
-class TestUsage(TestCaseUsage):
+class TestAssertUsageVarType(TestCaseUsage):
+    def test_success(self):
+        var = usage.UsageVariable('a', lambda: None, 'artifact', None)
+        usage.assert_usage_var_type(var, 'artifact')
+        self.assertTrue(True)
+
+    def test_failure(self):
+        var = usage.UsageVariable('a', lambda: None, 'artifact', None)
+        with self.assertRaisesRegex(ValueError,
+                                    'Incorrect.*a,.*visualization.*artifact'):
+            usage.assert_usage_var_type(var, 'visualization')
+
+
+class TestUsageAction(TestCaseUsage):
+    def test_successful_init(self):
+        obs = usage.UsageAction(plugin_id='foo', action_id='bar')
+        self.assertEqual('foo', obs.plugin_id)
+        self.assertEqual('bar', obs.action_id)
+
+    def test_invalid_plugin_id(self):
+        with self.assertRaisesRegex(ValueError,
+                                    'specify a value for plugin_id'):
+            usage.UsageAction(plugin_id='', action_id='bar')
+
+    def test_invalid_action_id(self):
+        with self.assertRaisesRegex(ValueError,
+                                    'specify a value for action_id'):
+            usage.UsageAction(plugin_id='foo', action_id='')
+
+    def test_successful_get_action(self):
+        ua = usage.UsageAction(
+            plugin_id='dummy_plugin', action_id='concatenate_ints')
+        obs_action_f = ua.get_action()
+
+        self.assertTrue(isinstance(obs_action_f, action.Method))
+
+    def test_unknown_action_get_action(self):
+        ua = usage.UsageAction(
+            plugin_id='dummy_plugin', action_id='concatenate_spleens')
+        with self.assertRaisesRegex(KeyError,
+                                    'No action.*concatenate_spleens'):
+            ua.get_action()
+
+    @mock.patch('qiime2.sdk.PluginManager.reuse_existing',
+                side_effect=UninitializedPluginManagerError)
+    def test_uninitialized_plugin_manager(self, _):
+        with self.assertRaisesRegex(UninitializedPluginManagerError,
+                                    'create an instance of sdk.PluginManager'):
+            usage.UsageAction(
+                plugin_id='dummy_plugin', action_id='concatenate_ints')
+
+
+class TestUsageInputs(TestCaseUsage):
+    def test_successful_init(self):
+        obs = usage.UsageInputs(foo='bar')
+        self.assertEqual(['foo'], list(obs.values.keys()))
+        self.assertEqual(['bar'], list(obs.values.values()))
+
+
+class TestUsageOutputNames(TestCaseUsage):
+    def test_successful_init(self):
+        obs = usage.UsageOutputNames(foo='bar')
+        self.assertEqual(['foo'], list(obs.values.keys()))
+        self.assertEqual(['bar'], list(obs.values.values()))
+
+    def test_invalid_init(self):
+        with self.assertRaisesRegex(TypeError, 'key.*foo.*string, not.*bool'):
+            usage.UsageOutputNames(foo=True)
+
+
+class TestUsageBaseClass(TestCaseUsage):
+    def setUp(self):
+        super().setUp()
+
+    def _reset_usage_variables(self, variables):
+        for variable in variables:
+            variable.value = usage.UsageVariable.DEFERRED
+
+    def test_action_invalid_action_provided(self):
+        use = usage.Usage()
+        with self.assertRaisesRegex(ValueError, 'expected.*UsageAction'):
+            use.action({}, {}, {})
+
+    def test_merge_metadata_one_input(self):
+        use = usage.Usage()
+        with self.assertRaisesRegex(ValueError, 'two or more'):
+            use.merge_metadata('foo')
+
+    def test_action_cache_is_working(self):
+        use = usage.Usage()
+
+        ints = use.init_artifact('ints', examples.ints1_factory)
+        mapper = use.init_artifact('mapper', examples.mapping1_factory)
+
+        obs = use.action(
+            use.UsageAction(plugin_id='dummy_plugin',
+                            action_id='typical_pipeline'),
+            use.UsageInputs(int_sequence=ints, mapping=mapper,
+                            do_extra_thing=True),
+            use.UsageOutputNames(out_map='out_map', left='left', right='right',
+                                 left_viz='left_viz', right_viz='right_viz')
+        )
+
+        # nothing has been executed yet...
+        self.assertEqual(obs._cache_info().misses, 0)
+        self.assertEqual(obs._cache_info().hits, 0)
+
+        obs_uuids = set()
+        for result in obs:
+            obs_result = result.execute()
+            obs_uuids.add(obs_result.uuid)
+
+        self.assertEqual(len(obs_uuids), 5)
+
+        self.assertEqual(obs._cache_info().misses, 1)
+        # 5 results, executed once, minus 1 miss
+        self.assertEqual(obs._cache_info().hits, 5 - 1)
+
+        # keep the lru cache intact, but reset the usage variables
+        self._reset_usage_variables(obs)
+
+        for result in obs:
+            obs_result = result.execute()
+            obs_uuids.add(obs_result.uuid)
+
+        # the theory here is that if the memoized action execution wasn't
+        # working, we would wind up with twice as many uuids
+        self.assertEqual(len(obs_uuids), 5)
+
+        self.assertEqual(obs._cache_info().misses, 1)
+        # 5 results, executed twice, minus 1 miss
+        self.assertEqual(obs._cache_info().hits, 5 * 2 - 1)
+
+        # this time, reset the lru cache and watch as the results are
+        # recompputed
+        obs._cache_reset()
+        self._reset_usage_variables(obs)
+
+        for result in obs:
+            obs_result = result.execute()
+            obs_uuids.add(obs_result.uuid)
+
+        # okay, now we should have duplicates of our 5 results
+        self.assertEqual(len(obs_uuids), 5 * 2)
+
+        self.assertEqual(obs._cache_info().misses, 1)
+        # 5 results, executed once, minus 1 miss
+        self.assertEqual(obs._cache_info().hits, 5 - 1)
+
+
+class TestUsageVariable(TestCaseUsage):
+    def test_basic(self):
+        # TODO
+        ...
+
+
+class TestDiagnosticUsage(TestCaseUsage):
     def test_basic(self):
         action = self.plugin.actions['concatenate_ints']
         use = usage.DiagnosticUsage()
@@ -215,179 +370,21 @@ class TestUsage(TestCaseUsage):
         self.assertTrue(obs5.variable[0].is_deferred)
 
 
-class TestUsageAction(TestCaseUsage):
-    def test_successful_init(self):
-        obs = usage.UsageAction(plugin_id='foo', action_id='bar')
-        self.assertEqual('foo', obs.plugin_id)
-        self.assertEqual('bar', obs.action_id)
-
-    def test_invalid_plugin_id(self):
-        with self.assertRaisesRegex(ValueError,
-                                    'specify a value for plugin_id'):
-            usage.UsageAction(plugin_id='', action_id='bar')
-
-    def test_invalid_action_id(self):
-        with self.assertRaisesRegex(ValueError,
-                                    'specify a value for action_id'):
-            usage.UsageAction(plugin_id='foo', action_id='')
-
-    def test_successful_get_action(self):
-        ua = usage.UsageAction(
-            plugin_id='dummy_plugin', action_id='concatenate_ints')
-        obs_action_f = ua.get_action()
-
-        self.assertTrue(isinstance(obs_action_f, action.Method))
-
-    def test_unknown_action_get_action(self):
-        ua = usage.UsageAction(
-            plugin_id='dummy_plugin', action_id='concatenate_spleens')
-        with self.assertRaisesRegex(KeyError,
-                                    'No action.*concatenate_spleens'):
-            ua.get_action()
-
-    def test_validate_invalid_inputs(self):
-        ua = usage.UsageAction(
-            plugin_id='dummy_plugin', action_id='concatenate_ints')
-        with self.assertRaisesRegex(TypeError, 'instance of UsageInputs'):
-            ua.validate({}, usage.UsageOutputNames())
-
-    def test_validate_invalid_outputs(self):
-        ua = usage.UsageAction(
-            plugin_id='dummy_plugin', action_id='concatenate_ints')
-        with self.assertRaisesRegex(TypeError, 'instance of UsageOutputNames'):
-            ua.validate(usage.UsageInputs(), {})
-
-
-class TestUsageInputs(TestCaseUsage):
-    def setUp(self):
-        super().setUp()
-
-        def foo(x: dict, z: str,
-                optional_input: dict = None,
-                optional_param: str = None) -> dict:
-            return x
-
-        self.signature = signature.MethodSignature(
-            foo,
-            inputs={'x': Mapping, 'optional_input': Mapping},
-            parameters={'z': plugin.Str, 'optional_param': plugin.Str},
-            outputs=[('y', Mapping)],
-        )
-
-    def test_successful_init(self):
-        obs = usage.UsageInputs(foo='bar')
-        self.assertEqual(['foo'], list(obs.values.keys()))
-        self.assertEqual(['bar'], list(obs.values.values()))
-
-    def test_validate_missing_required_input(self):
-        ui = usage.UsageInputs(y='hello',
-                               optional_input='a', optional_param='b')
-
-        with self.assertRaisesRegex(ValueError, 'Missing input.*x'):
-            ui.validate(self.signature)
-
-    def test_validate_missing_required_parameter(self):
-        ui = usage.UsageInputs(x='hello',
-                               optional_input='a', optional_param='b')
-
-        with self.assertRaisesRegex(ValueError, 'Missing parameter.*z'):
-            ui.validate(self.signature)
-
-    def test_validate_extra_values(self):
-        ui = usage.UsageInputs(x='hello', z='goodbye', foo=True,
-                               optional_input='a', optional_param='b')
-
-        with self.assertRaisesRegex(ValueError,
-                                    'Extra input.*parameter.*foo'):
-            ui.validate(self.signature)
-
-    def test_validate_missing_optional_input(self):
-        ui = usage.UsageInputs(x='hello', z='goodbye', optional_param='a')
-        ui.validate(self.signature)
-        self.assertTrue(True)
-
-    def test_validate_missing_optional_parameter(self):
-        ui = usage.UsageInputs(x='hello', z='goodbye', optional_input='a')
-        ui.validate(self.signature)
-        self.assertTrue(True)
-
-    def test_type_of_input(self):
-        test_inputs = usage.UsageInputs(x=[1, 2, 3], z={7, 8, 9})
-        test_inputs.validate(self.signature)
-
-        self.assertIsInstance(test_inputs.values['x'], list)
-        self.assertIsInstance(test_inputs.values['z'], set)
-
-
-class TestUsageOutputNames(TestCaseUsage):
-    def setUp(self):
-        super().setUp()
-
-        def foo(x: dict, z: str, optional: str = None) -> (dict, dict):
-            return x
-
-        self.signature = signature.MethodSignature(
-            foo,
-            inputs={'x': Mapping},
-            parameters={'z': plugin.Str, 'optional': plugin.Str},
-            outputs=[('y', Mapping), ('a', Mapping)],
-        )
-
-    def test_successful_init(self):
-        obs = usage.UsageOutputNames(foo='bar')
-        self.assertEqual(['foo'], list(obs.values.keys()))
-        self.assertEqual(['bar'], list(obs.values.values()))
-
-    def test_invalid_init(self):
-        with self.assertRaisesRegex(TypeError, 'key.*foo.*string, not.*bool'):
-            usage.UsageOutputNames(foo=True)
-
-    def test_validate_missing_output(self):
-        uo = usage.UsageOutputNames(y='hello')
-
-        with self.assertRaisesRegex(ValueError, 'Missing output.*a'):
-            uo.validate(self.signature)
-
-    def test_validate_extra_output(self):
-        uo = usage.UsageOutputNames(y='goodbye', a='hello', peanut='noeyes')
-
-        with self.assertRaisesRegex(ValueError, 'Extra output.*peanut'):
-            uo.validate(self.signature)
-
-
-class TestUsageBaseClass(TestCaseUsage):
-    def setUp(self):
-        super().setUp()
-
-        class Usage(usage.Usage):
-            pass
-        self.Usage = Usage
-
-    def test_action_invalid_action_provided(self):
-        use = self.Usage()
-        with self.assertRaisesRegex(TypeError, 'provide.*UsageAction'):
-            use.action({}, {}, {})
-
-    def test_merge_metadata_one_input(self):
-        use = self.Usage()
-        with self.assertRaisesRegex(ValueError, 'two or more'):
-            use.merge_metadata('foo')
-
-
-class TestUsageVariable(TestCaseUsage):
-    def test_basic(self):
-        # TODO
-        ...
-
-
-class TestBaseUsage(TestCaseUsage):
-    def test_async(self):
-        # TODO
-        ...
-
-
 class TestExecutionUsage(TestCaseUsage):
     def test_basic(self):
+        action = self.plugin.actions['concatenate_ints']
+        use = usage.ExecutionUsage()
+        action.examples['concatenate_ints_simple'](use)
+
+        # TODO
+        ...
+
+    def test_pipeline(self):
+        action = self.plugin.actions['typical_pipeline']
+        use = usage.ExecutionUsage()
+        action.examples['typical_pipeline_simple'](use)
+
+        # TODO
         ...
 
     def test_merge_metadata(self):

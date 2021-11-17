@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import re
+import shutil
 import sys
 import pathlib
 
@@ -185,6 +186,13 @@ class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
                     "%s is not a(n) %s:\n\n%s"
                     % (self.path, self.__class__.__name__, str(e))
                     ) from e
+
+    def save(self, path, ext=None):
+        path = str(path)  # in case of pathlib.Path
+        path = path.rstrip('.')
+
+        # ignore the extension when saving a directory
+        return shutil.copytree(self.path, path)
 
 
 class SingleFileDirectoryFormatBase(DirectoryFormat):
