@@ -183,6 +183,14 @@ def select_variables(expr):
     fragment replaced with the value of `swap`.
 
     e.g.
+    >>> from qiime2.core.type.tests.test_grammar import (MockTemplate,
+    ...                                                  MockPredicate)
+    >>> Example = MockTemplate('Example', fields=('x',))
+    >>> Foo = MockTemplate('Foo')
+    >>> Bar = MockPredicate('Bar')
+    >>> T = TypeMatch([Foo])
+    >>> U = TypeMatch([Bar])
+
     >>> select_u, select_t = select_variables(Example[T] % U)
     >>> t = select_t(Example[T] % U)
     >>> assert T is t
