@@ -57,7 +57,8 @@ class _FileFormat(FormatBase, metaclass=abc.ABCMeta):
             if not path.endswith(ext):
                 path += ext
 
-        return shutil.copyfile(self.path, path)
+        shutil.copyfile(self.path, path)
+        return path
 
 
 class TextFileFormat(_FileFormat):
