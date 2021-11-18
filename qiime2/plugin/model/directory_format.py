@@ -192,7 +192,8 @@ class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
         path = path.rstrip('.')
 
         # ignore the extension when saving a directory
-        return shutil.copytree(self.path, path)
+        shutil.copytree(self.path, path)
+        return path
 
 
 class SingleFileDirectoryFormatBase(DirectoryFormat):
