@@ -24,6 +24,7 @@ def available_plugins():
 
 
 class ArtifactAPIUsageVariable(usage.UsageVariable):
+    """A specialized implementation for :class:`ArtifactAPIUsage`."""
     # this lets us repr all inputs (including parameters) and have
     # them template out in a consistent manner. without this we would wind
     # up with `foo('my_artifact')` rather than `foo(my_artifact)`.
@@ -101,7 +102,25 @@ class ArtifactAPIUsage(usage.Usage):
                 tmpl = '%s as %s' % (tmpl, self.as_)
             return tmpl
 
-    def __init__(self, enable_assertions=False, action_collection_size=3):
+    def __init__(self, enable_assertions: bool = False,
+                 action_collection_size: int = 3):
+        """Constructor for ArtifactAPIUsage
+
+        Warning
+        -------
+        For SDK use only. Do not use in a written usage example.
+
+        Parameters
+        ----------
+        enable_assertions : bool
+            Whether :class:`qiime2.sdk.usage.UsageVariable` assertions should
+            be rendered. Note that these are not executed, rather code that
+            would assert is templated by :meth:`render`.
+        action_collection_size : int
+            The maximum number of outputs to automatically desctructure before
+            creating seperate lines with output property access. e.g.
+            ``x, y, z = foo()`` vs ``results = foo()`` with ``results.x`` etc.
+        """
         super().__init__()
         self.enable_assertions = enable_assertions
         self.action_collection_size = action_collection_size
@@ -120,7 +139,19 @@ class ArtifactAPIUsage(usage.Usage):
     def usage_variable(self, name, factory, var_type):
         return ArtifactAPIUsageVariable(name, factory, var_type, self)
 
-    def render(self, flush=False):
+    def render(self, flush: bool = False) -> str:
+        """Return a newline-seperated string of Artifact API python code.
+
+        Warning
+        -------
+        For SDK use only. Do not use in a written usage example.
+
+        Parameters
+        ----------
+        flush : bool
+            Whether to 'flush' the current code. Importantly, this will clear
+            the top-line imports for future invocations.
+        """
         sorted_imps = sorted(self.local_imports)
         if sorted_imps:
             sorted_imps = sorted_imps + ['']

@@ -33,7 +33,7 @@ class TestAssertUsageVarType(TestCaseUsage):
 
     def test_failure(self):
         var = usage.UsageVariable('a', lambda: None, 'artifact', None)
-        with self.assertRaisesRegex(ValueError,
+        with self.assertRaisesRegex(AssertionError,
                                     'Incorrect.*a,.*visualization.*artifact'):
             usage.assert_usage_var_type(var, 'visualization')
 
@@ -186,11 +186,10 @@ class TestDiagnosticUsage(TestCaseUsage):
         action = self.plugin.actions['concatenate_ints']
         use = usage.DiagnosticUsage()
         action.examples['concatenate_ints_simple'](use)
-        records = use.recorder
 
-        self.assertEqual(5, len(records))
+        self.assertEqual(5, len(use.render()))
 
-        obs1, obs2, obs3, obs4, obs5 = records
+        obs1, obs2, obs3, obs4, obs5 = use.render()
 
         self.assertEqual('init_artifact', obs1.source)
         self.assertEqual('init_artifact', obs2.source)
@@ -219,11 +218,10 @@ class TestDiagnosticUsage(TestCaseUsage):
         action = self.plugin.actions['concatenate_ints']
         use = usage.DiagnosticUsage()
         action.examples['concatenate_ints_complex'](use)
-        records = use.recorder
 
-        self.assertEqual(7, len(records))
+        self.assertEqual(7, len(use.render()))
 
-        obs1, obs2, obs3, obs4, obs5, obs6, obs7 = records
+        obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use.render()
 
         self.assertEqual('init_artifact', obs1.source)
         self.assertEqual('init_artifact', obs2.source)
@@ -259,11 +257,10 @@ class TestDiagnosticUsage(TestCaseUsage):
         action = self.plugin.actions['concatenate_ints']
         use = usage.DiagnosticUsage()
         action.examples['comments_only'](use)
-        records = use.recorder
 
-        self.assertEqual(2, len(records))
+        self.assertEqual(2, len(use.render()))
 
-        obs1, obs2 = records
+        obs1, obs2 = use.render()
 
         self.assertEqual('comment', obs1.source)
         self.assertEqual('comment', obs2.source)
@@ -275,11 +272,10 @@ class TestDiagnosticUsage(TestCaseUsage):
         action = self.plugin.actions['identity_with_metadata']
         use = usage.DiagnosticUsage()
         action.examples['identity_with_metadata_merging'](use)
-        records = use.recorder
 
-        self.assertEqual(5, len(records))
+        self.assertEqual(5, len(use.render()))
 
-        obs1, obs2, obs3, obs4, obs5 = records
+        obs1, obs2, obs3, obs4, obs5 = use.render()
 
         self.assertEqual('init_artifact', obs1.source)
         self.assertEqual('init_metadata', obs2.source)
@@ -309,11 +305,10 @@ class TestDiagnosticUsage(TestCaseUsage):
         action = self.plugin.actions['identity_with_metadata_column']
         use = usage.DiagnosticUsage()
         action.examples['identity_with_metadata_column_get_mdc'](use)
-        records = use.recorder
 
-        self.assertEqual(4, len(records))
+        self.assertEqual(4, len(use.render()))
 
-        obs1, obs2, obs3, obs4 = records
+        obs1, obs2, obs3, obs4 = use.render()
 
         self.assertEqual('init_artifact', obs1.source)
         self.assertEqual('init_metadata', obs2.source)
@@ -339,11 +334,10 @@ class TestDiagnosticUsage(TestCaseUsage):
         action = self.plugin.actions['optional_artifacts_method']
         use = usage.DiagnosticUsage()
         action.examples['optional_inputs'](use)
-        records = use.recorder
 
-        self.assertEqual(5, len(records))
+        self.assertEqual(5, len(use.render()))
 
-        obs1, obs2, obs3, obs4, obs5 = records
+        obs1, obs2, obs3, obs4, obs5 = use.render()
 
         self.assertEqual('init_artifact', obs1.source)
         self.assertEqual('action', obs2.source)
@@ -399,7 +393,7 @@ class TestExecutionUsage(TestCaseUsage):
         action = self.plugin.actions['variadic_input_method']
         action.examples['variadic_input_simple'](use)
 
-        ints_a, ints_b, single_int1, single_int2, out = use.recorder.values()
+        ints_a, ints_b, single_int1, single_int2, out = use.render().values()
 
         self.assertIsInstance(ints_a.value, Artifact)
         self.assertIsInstance(ints_b.value, Artifact)
@@ -412,7 +406,7 @@ class TestExecutionUsage(TestCaseUsage):
         action = self.plugin.actions['variadic_input_method']
         action.examples['variadic_input_simple'](use)
 
-        ints_a, ints_b, single_int1, single_int2, out = use.recorder.values()
+        ints_a, ints_b, single_int1, single_int2, out = use.render().values()
 
         self.assertIsInstance(ints_a.value, Artifact)
         self.assertIsInstance(ints_b.value, Artifact)
