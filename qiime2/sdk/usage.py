@@ -820,7 +820,7 @@ class Usage:
         Parameters
         ----------
         name : str
-            The cannonical name of the variable to be returned.
+            The canonical name of the variable to be returned.
         factory : Callable which returns :class:`qiime2.sdk.Artifact`
             A function which takes no parameters, and returns an artifact.
             This function may do anything internally to create the artifact.
@@ -856,7 +856,7 @@ class Usage:
         Parameters
         ----------
         name : str
-            The cannonical name of the variable to be returned.
+            The canonical name of the variable to be returned.
         factory : Callable which returns :class:`qiime2.Metadata`
             A function which takes no parameters, and returns metadata.
             This function may do anything internally to create the metadata.
@@ -893,7 +893,7 @@ class Usage:
         Parameters
         ----------
         name : str
-            The cannonical name of the variable to be returned.
+            The canonical name of the variable to be returned.
         factory : Callable which returns a file or directory format.
             A function which takes no parameters, and returns a format.
             This function may do anything internally to create the format.
@@ -1202,7 +1202,7 @@ class Usage:
 
         Examples
         --------
-        >>> use.help(use.UsageAction('dummpy_plugin', 'split_ints'))
+        >>> use.help(use.UsageAction('dummy_plugin', 'split_ints'))
         """
         pass
 
@@ -1447,7 +1447,7 @@ class ExecutionUsage(Usage):
         self._recorder = dict()
 
     def render(self, flush: bool = False) -> dict:
-        """Produce a dict of cannonically named, evaluated usage variables.
+        """Produce a dict of canonically named, evaluated usage variables.
 
         Warning
         -------
@@ -1461,7 +1461,7 @@ class ExecutionUsage(Usage):
         Returns
         -------
         dict
-            Evaluated variables named by their variable's cannonical name.
+            Evaluated variables named by their variable's canonical name.
 
         See Also
         --------
