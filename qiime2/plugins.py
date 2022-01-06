@@ -178,7 +178,7 @@ class ArtifactAPIUsage(usage.Usage):
 
     def init_format(self, name, factory, ext=None):
         if ext is not None:
-            name = '%s.%s' % (name, ext)
+            name = '%s.%s' % (name, ext.lstrip('.'))
 
         variable = super().init_format(name, factory, ext=ext)
 
