@@ -178,7 +178,7 @@ class ArtifactAPIUsage(usage.Usage):
 
     def init_format(self, name, factory, ext=None):
         if ext is not None:
-            name = '%s.%s' % (name, ext)
+            name = '%s.%s' % (name, ext.lstrip('.'))
 
         variable = super().init_format(name, factory, ext=ext)
 
@@ -188,12 +188,12 @@ class ArtifactAPIUsage(usage.Usage):
         return variable
 
     def import_from_format(self, name, semantic_type,
-                           fmt_variable, view_type=None):
-        variable = super().import_from_format(
-            name, semantic_type, fmt_variable, view_type=view_type)
+                           variable, view_type=None):
+        imported_var = super().import_from_format(
+            name, semantic_type, variable, view_type=view_type)
 
-        interface_name = variable.to_interface_name()
-        import_fp = fmt_variable.to_interface_name()
+        interface_name = imported_var.to_interface_name()
+        import_fp = variable.to_interface_name()
 
         lines = [
             '%s = Artifact.import_data(' % (interface_name,),
@@ -209,7 +209,7 @@ class ArtifactAPIUsage(usage.Usage):
         self._update_imports(from_='qiime2', import_='Artifact')
         self._add(lines)
 
-        return variable
+        return imported_var
 
     def merge_metadata(self, name, *variables):
         variable = super().merge_metadata(name, *variables)
