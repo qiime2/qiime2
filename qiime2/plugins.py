@@ -202,7 +202,23 @@ class ArtifactAPIUsage(usage.Usage):
         ]
 
         if view_type is not None:
-            lines.append(self.INDENT + '%r,' % (view_type,))
+            if type(view_type) is not str:
+                # Show users where these formats come from when used in the
+                # Python API to make things less "magical".
+                import_path = _cannonical_module(view_type)
+                view_type = view_type.__name__
+                if import_path is not None:
+                    self._update_imports(from_=import_path,
+                                         import_=view_type)
+                else:
+                    # May be in scope already, but something is quite wrong at
+                    # this point, so assume the plugin_manager is sufficiently
+                    # informed.
+                    view_type = repr(view_type)
+            else:
+                view_type = repr(view_type)
+
+            lines.append(self.INDENT + '%s,' % (view_type,))
 
         lines.append(')')
 
@@ -360,6 +376,24 @@ class ArtifactAPIUsage(usage.Usage):
         if rendered not in self.global_imports:
             self.local_imports.add(rendered)
             self.global_imports.add(rendered)
+
+
+def _cannonical_module(obj):
+    last_module = None
+    module_str = obj.__module__
+    parts = module_str.split('.')
+    while parts:
+        try:
+            module = importlib.import_module('.'.join(parts))
+        except ModuleNotFoundError:
+            return last_module
+        if not hasattr(module, obj.__name__):
+            return last_module
+
+        last_module = '.'.join(parts)
+        parts.pop()
+
+    return None
 
 
 class QIIMEArtifactAPIImporter:
