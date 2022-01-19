@@ -205,7 +205,7 @@ class ArtifactAPIUsage(usage.Usage):
             if type(view_type) is not str:
                 # Show users where these formats come from when used in the
                 # Python API to make things less "magical".
-                import_path = _cannonical_module(view_type)
+                import_path = _canonical_module(view_type)
                 view_type = view_type.__name__
                 if import_path is not None:
                     self._update_imports(from_=import_path,
@@ -378,7 +378,7 @@ class ArtifactAPIUsage(usage.Usage):
             self.global_imports.add(rendered)
 
 
-def _cannonical_module(obj):
+def _canonical_module(obj):
     last_module = None
     module_str = obj.__module__
     parts = module_str.split('.')
