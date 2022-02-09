@@ -13,6 +13,7 @@ import zipfile
 import importlib
 import os
 import io
+import shutil
 
 import qiime2
 import qiime2.core.cite as cite
@@ -225,6 +226,26 @@ class _ZipArchive(_Archive):
         if path == '.':
             path = ''
         return path
+
+
+class _NoOpArchive(_Archive):
+    """For dealing with unzipped artifacts"""
+
+    def relative_iterdir(self, relpath=''):
+        seen = set()
+        for name in os.listdir(str(self.path)):
+            if name.startswith(relpath) and name not in seen:
+                seen.add(name)
+                yield name
+
+    def open(self, relpath):
+        return open(os.path.join(self.path, self.uuid, relpath))
+
+    def mount(self, filepath):
+        shutil.copytree(self.path, filepath, dirs_exist_ok=True)
+        root = pathlib.Path(os.path.join(filepath, str(self.uuid)))
+        return ArchiveRecord(root, root / self.VERSION_FILE,
+                             self.uuid, self.version, self.framework_version)
 
 
 class Archiver:
