@@ -282,7 +282,7 @@ class Archiver:
         if _ZipArchive.is_archive_type(filepath):
             archive = _ZipArchive(filepath)
         else:
-            raise ValueError("%s is not a QIIME archive." % filepath)
+            archive = _NoOpArchive(filepath)
 
         return archive
 
