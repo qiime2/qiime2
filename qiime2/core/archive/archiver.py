@@ -290,7 +290,6 @@ class Archiver:
         else:
             raise ValueError("%s is not a QIIME archive." % filepath)
 
-
         return archive
 
     @classmethod
