@@ -231,6 +231,10 @@ class _ZipArchive(_Archive):
 class _NoOpArchive(_Archive):
     """For dealing with unzipped artifacts"""
 
+    @classmethod
+    def is_archive_type(cls, path):
+        return os.path.isdir(str(path))
+
     def relative_iterdir(self, relpath=''):
         seen = set()
         for name in os.listdir(str(self.path)):
@@ -281,7 +285,7 @@ class Archiver:
 
         if _ZipArchive.is_archive_type(filepath):
             archive = _ZipArchive(filepath)
-        elif os.path.isdir(filepath):
+        elif _NoOpArchive.is_archive_type(filepath):
             archive = _NoOpArchive(filepath)
         else:
             raise ValueError("%s is not a QIIME archive." % filepath)
