@@ -278,14 +278,14 @@ class Archiver:
         return getattr(importlib.import_module(imp), fmt_cls)
 
     @classmethod
-    def get_archive(cls, filepath):
+    def get_archive(cls, filepath, allow_no_op=False):
         filepath = pathlib.Path(filepath)
         if not filepath.exists():
             raise ValueError("%s does not exist." % filepath)
 
         if _ZipArchive.is_archive_type(filepath):
             archive = _ZipArchive(filepath)
-        elif _NoOpArchive.is_archive_type(filepath):
+        elif _NoOpArchive.is_archive_type(filepath) and allow_no_op:
             archive = _NoOpArchive(filepath)
         else:
             raise ValueError("%s is not a QIIME archive." % filepath)
