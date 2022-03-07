@@ -55,7 +55,7 @@ class Cache:
     def remove(self, key):
         pass
 
-    # Not entirely clear how this will work yet. We are assuming multi
+    # Not entirely clear how this will work yet. We are assuming multiplecle
     # processes from multiple systems will be interacting with the cache. This
     # means we can't even safely assume unique PIDs. We will probably create
     # some kind of lock file to lock the entire cache or to list locked
