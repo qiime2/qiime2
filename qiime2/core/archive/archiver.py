@@ -13,6 +13,7 @@ import zipfile
 import importlib
 import os
 import io
+import shutil
 
 import qiime2
 import qiime2.core.cite as cite
@@ -227,6 +228,30 @@ class _ZipArchive(_Archive):
         return path
 
 
+class _NoOpArchive(_Archive):
+    """For dealing with unzipped artifacts"""
+
+    @classmethod
+    def is_archive_type(cls, path):
+        return os.path.isdir(str(path))
+
+    def relative_iterdir(self, relpath=''):
+        seen = set()
+        for name in os.listdir(str(self.path)):
+            if name.startswith(relpath) and name not in seen:
+                seen.add(name)
+                yield name
+
+    def open(self, relpath):
+        return open(os.path.join(self.path, self.uuid, relpath))
+
+    def mount(self, filepath):
+        shutil.copytree(self.path, filepath, dirs_exist_ok=True)
+        root = pathlib.Path(os.path.join(filepath, str(self.uuid)))
+        return ArchiveRecord(root, root / self.VERSION_FILE,
+                             self.uuid, self.version, self.framework_version)
+
+
 class Archiver:
     CURRENT_FORMAT_VERSION = '5'
     CURRENT_ARCHIVE = _ZipArchive
@@ -253,13 +278,15 @@ class Archiver:
         return getattr(importlib.import_module(imp), fmt_cls)
 
     @classmethod
-    def get_archive(cls, filepath):
+    def get_archive(cls, filepath, allow_no_op=False):
         filepath = pathlib.Path(filepath)
         if not filepath.exists():
             raise ValueError("%s does not exist." % filepath)
 
         if _ZipArchive.is_archive_type(filepath):
             archive = _ZipArchive(filepath)
+        elif _NoOpArchive.is_archive_type(filepath) and allow_no_op:
+            archive = _NoOpArchive(filepath)
         else:
             raise ValueError("%s is not a QIIME archive." % filepath)
 
