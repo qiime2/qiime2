@@ -6,6 +6,18 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import os
+import pathlib
+from xml.etree.ElementTree import VERSION
+
+import qiime2
+
+_VERSION_TEMPLATE = """\
+    QIIME 2
+    cache: %s
+    framework: %s
+    """
+
 class Cache:
     """General structure of the cache
     artifact_cache/
@@ -23,19 +35,33 @@ class Cache:
     │       ├── uuid2 -> ../../data/uuid2/
     │       └── uuid3 -> ../../data/uuid3/
     ├── tmp
-    └── version.txt
+    └── VERSION
     """
     VERSION_FILE = 'VERSION'
+    CURRENT_FORMAT_VERSION = '1'
 
     def __init__(self, path):
-        self.path = path
+        self.path = pathlib.Path(path)
+
+        # Do we want a more rigorous check for whether or not we've been
+        # pointed at an existing cache?
+        if not os.path.exists(self.path / self.VERSION_FILE):
+            self.create_cache()
 
     # Surely this needs to be a thing? I suppose if they hand us a path that
     # doesn't exist we just create a cache there? do we want to create it at
     # that exact path do we slap a 'cache' sub-directory at that location and
     # use that?
     def create_cache(self):
-        pass
+        os.mkdir('data')
+        os.mkdir('keys')
+        os.mkdir('pools')
+        # Do we want this right off the bat?
+        os.mkdir('tmp')
+
+        version_fp = self.path / self.VERSION_FILE
+        version_fp.write_text(_VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
+                                                   qiime2.version))
 
     # Run the garbage collection algorithm
     def garbage_collection(self):
