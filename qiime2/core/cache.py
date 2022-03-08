@@ -88,3 +88,6 @@ class Cache:
     # elements of the cache or something
     def lock(self):
         pass
+
+    def unlock(self):
+        pass
