@@ -8,7 +8,6 @@
 
 import os
 import pathlib
-from xml.etree.ElementTree import VERSION
 
 import qiime2
 
@@ -17,6 +16,7 @@ _VERSION_TEMPLATE = """\
     cache: %s
     framework: %s
     """
+
 
 class Cache:
     """General structure of the cache
