@@ -91,3 +91,14 @@ class Cache:
 
     def unlock(self):
         pass
+
+    # Let's think about this a bit more than not at all. What do we do to check
+    # for a lock, and if there is one, then what do we do? We need to in some
+    # way wait for it to unlock, which suggests we need some way of managing
+    # locks across multiple processes. We're working on a locking transactional
+    # server in 565, and Dr. Otte told us to write a lock manager that exists
+    # entirely to manage locks and nothing else. Surely we have to wait in a
+    # queue until unlock or something right? We can't just drop what we're
+    # doing because we have a lock
+    def check_lock(self):
+        pass
