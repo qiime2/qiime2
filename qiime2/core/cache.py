@@ -7,14 +7,25 @@
 # ----------------------------------------------------------------------------
 
 import os
+import yaml
 import pathlib
 
 import qiime2
+from qiime2.sdk.result import Artifact
 
 _VERSION_TEMPLATE = """\
 QIIME 2
 cache: %s
 framework: %s
+"""
+
+_KEY_TEMPLATE = """\
+origin:
+ %s
+data:
+ %s
+pool:
+ %s
 """
 
 
@@ -71,9 +82,9 @@ class Cache:
         # can just... Heavily encourage it I guess
         # os.mkdir('tmp')
 
-        version_fp = self.path / self.VERSION_FILE
-        version_fp.write_text(_VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
-                                                   qiime2.__version__))
+        self.version.write_text(
+            _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
+                                 qiime2.__version__))
 
     # Tell us if the path is a cache or not
     def is_cache(self):
@@ -95,12 +106,18 @@ class Cache:
 
     # Save artifact to key in cache
     def save(self, artifact, key):
-        pass
+        data_fp = str(self.data / str(artifact.uuid))
+        artifact.save(data_fp)
+
+        # Write now we aren't worrying about pools at all
+        key_fp = self.keys / key
+        key_fp.write_text(
+            _KEY_TEMPLATE % (key, data_fp + artifact.extension, ''))
 
     # Artifact the load the data pointed to by the key. Does not work on pools.
     # Only works if you have data
     def load(self, key):
-        pass
+        return Artifact.load(yaml.safe_load(open(self.keys / key))['data'])
 
     # Remove key from cache
     def delete(self, key):
@@ -128,6 +145,18 @@ class Cache:
     # locking?
     def check_lock(self):
         pass
+
+    @property
+    def data(self):
+        return self.path / 'data'
+
+    @property
+    def keys(self):
+        return self.path / 'keys'
+
+    @property
+    def pools(self):
+        return self.path / 'pools'
 
     @property
     def version(self):
