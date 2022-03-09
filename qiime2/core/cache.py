@@ -109,7 +109,7 @@ class Cache:
         data_fp = str(self.data / str(artifact.uuid))
         artifact.save(data_fp)
 
-        # Write now we aren't worrying about pools at all
+        # Right now we aren't worrying about pools at all
         key_fp = self.keys / key
         key_fp.write_text(
             _KEY_TEMPLATE % (key, data_fp + artifact.extension, ''))
