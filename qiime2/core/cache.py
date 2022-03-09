@@ -48,7 +48,6 @@ class Cache:
     ├── tmp
     └── VERSION
     """
-    VERSION_FILE = 'VERSION'
     CURRENT_FORMAT_VERSION = '1'
 
     def __init__(self, path):
@@ -160,4 +159,4 @@ class Cache:
 
     @property
     def version(self):
-        return self.path / self.VERSION_FILE
+        return self.path / 'VERSION'
