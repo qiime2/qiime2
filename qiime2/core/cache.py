@@ -93,12 +93,16 @@ class Cache:
     def export(self, key):
         pass
 
+    # Save artifact to key in cache
+    def save(self, artifact, key):
+        pass
+
     # Artifact the load the data pointed to by the key. Does not work on pools.
     # Only works if you have data
     def load(self, key):
         pass
 
-    # Remove key and backing from cache
+    # Remove key from cache
     def delete(self, key):
         pass
 
