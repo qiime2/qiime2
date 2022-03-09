@@ -12,6 +12,8 @@ import unittest
 
 import qiime2
 from qiime2.core.cache import Cache
+from qiime2.core.testing.type import IntSequence1
+from qiime2.sdk.result import Artifact
 
 
 class TestCache(unittest.TestCase):
@@ -60,5 +62,15 @@ class TestCache(unittest.TestCase):
         pass
 
     def test_roundtrip(self):
+        # Create artifact and cache
+        art = Artifact.import_data(IntSequence1, [0, 1, 2])
+        cache = Cache(os.path.join(self.test_dir.name, 'new_cache'))
 
-        pass
+        # Save artifact to cache
+        cache.save(art, 'foo')
+
+        # Load artifact from cache
+        art2 = cache.load('foo')
+
+        # Ensure our data is correct
+        self.assertEqual(art.view(list), art2.view(list))
