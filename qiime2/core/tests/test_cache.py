@@ -31,21 +31,23 @@ class TestCache(unittest.TestCase):
         # Remove our cache and all that from last test
         self.test_dir.cleanup()
 
-    def test_existing_cache(self):
-        # Assert path exists
-        # self.assertTrue()
+    # Verifies that is_cache is identifying a cache
+    def test_is_cache(self):
         # Assert path is cache
+        self.assertTrue(Cache.is_cache(self.cache.path))
+
+    # Verifies that is_cache is identifying things aren't caches
+    def test_is_not_cache(self):
         pass
 
-    # This test was written for version 1 of the cache
-    def test_create_cache(self):
+    # This test manually asserts the cache created by the constructor looks as
+    # expected.
+    def test_cache_manually_V1(self):
         # Assert cache looks how we expect
         self.assertTrue(os.path.exists(self.cache.path))
-        contents = os.listdir(self.cache.path)
-        dedup = set(contents)
+        contents = set(os.listdir(self.cache.path))
 
-        self.assertEqual(len(contents), len(dedup))
-        self.assertEqual(self.base_cache_contents, dedup)
+        self.assertEqual(self.base_cache_contents, contents)
 
         # Assert version file looks how we want
         with open(self.cache.version) as fh:
@@ -55,11 +57,6 @@ class TestCache(unittest.TestCase):
             self.assertEqual(lines[1],
                              f'cache: {self.cache.CURRENT_FORMAT_VERSION}\n')
             self.assertEqual(lines[2], f'framework: {qiime2.__version__}\n')
-
-    def test_not_a_cache(self):
-        # Assert path exists
-        # Assert path is not cache
-        pass
 
     def test_roundtrip(self):
         # Save artifact to cache

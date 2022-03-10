@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import re
 import os
 import yaml
 import pathlib
@@ -86,8 +87,20 @@ class Cache:
                                  qiime2.__version__))
 
     # Tell us if the path is a cache or not
-    def is_cache(self):
-        pass
+    @classmethod
+    def is_cache(cls, path):
+        base_cache_contents = set(('data', 'keys', 'pools', 'VERSION'))
+
+        contents = set(os.listdir(path))
+        if not contents.issubset(base_cache_contents):
+            return False
+
+        regex = \
+            re.compile(
+                r"QIIME 2\ncache: \d+\nframework: 20\d\d\.")
+        with open(path / 'VERSION') as fh:
+            version_file = fh.read()
+            return regex.match(version_file) is not None
 
     # Run the garbage collection algorithm
     def garbage_collection(self):
