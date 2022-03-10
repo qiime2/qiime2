@@ -88,5 +88,6 @@ class TestCache(unittest.TestCase):
         self.cache.delete('foo')
 
         # Show that we can no longer load our artifact
-        with self.assertRaisesRegex(FileNotFoundError, 'No such file or directory'):
+        with self.assertRaisesRegex(FileNotFoundError,
+                                    'No such file or directory'):
             self.cache.load('foo')
