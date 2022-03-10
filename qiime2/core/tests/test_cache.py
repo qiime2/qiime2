@@ -40,10 +40,9 @@ class TestCache(unittest.TestCase):
     def test_is_not_cache(self):
         pass
 
-    # This test manually asserts the cache created by the constructor looks as
-    # expected.
+    # This test manually asserts the cache created by the constructor looks
+    # exactly as expected.
     def test_cache_manually_V1(self):
-        # Assert cache looks how we expect
         self.assertTrue(os.path.exists(self.cache.path))
         contents = set(os.listdir(self.cache.path))
 
