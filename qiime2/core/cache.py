@@ -120,7 +120,8 @@ class Cache:
 
     # Remove key from cache
     def delete(self, key):
-        pass
+        os.remove(self.keys / key)
+        self.garbage_collection()
 
     # Not entirely clear how this will work yet. We are assuming multiple
     # processes from multiple systems will be interacting with the cache. This

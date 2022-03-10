@@ -18,9 +18,15 @@ from qiime2.sdk.result import Artifact
 
 class TestCache(unittest.TestCase):
     def setUp(self):
+        # Create temp test dir
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
 
+        # Create artifact and cache
+        self.art = Artifact.import_data(IntSequence1, [0, 1, 2])
+        self.cache = Cache(os.path.join(self.test_dir.name, 'new_cache'))
+
     def tearDown(self):
+        # Remove our cache and all that from last test
         self.test_dir.cleanup()
 
     def test_existing_cache(self):
@@ -62,15 +68,25 @@ class TestCache(unittest.TestCase):
         pass
 
     def test_roundtrip(self):
-        # Create artifact and cache
-        art = Artifact.import_data(IntSequence1, [0, 1, 2])
-        cache = Cache(os.path.join(self.test_dir.name, 'new_cache'))
-
         # Save artifact to cache
-        cache.save(art, 'foo')
+        self.cache.save(self.art, 'foo')
 
         # Load artifact from cache
-        art2 = cache.load('foo')
+        art2 = self.cache.load('foo')
 
         # Ensure our data is correct
-        self.assertEqual(art.view(list), art2.view(list))
+        self.assertEqual(self.art.view(list), art2.view(list))
+
+    def test_delete(self):
+        # Save our artifact
+        self.cache.save(self.art, 'foo')
+
+        # Show that we can load our artifact
+        self.cache.load('foo')
+
+        # delete our artifact
+        self.cache.delete('foo')
+
+        # Show that we can no longer load our artifact
+        with self.assertRaisesRegex(FileNotFoundError, 'No such file or directory'):
+            self.cache.load('foo')
