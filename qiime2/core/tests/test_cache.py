@@ -17,6 +17,8 @@ from qiime2.sdk.result import Artifact
 
 
 class TestCache(unittest.TestCase):
+    base_cache_contents = set(('data', 'keys', 'pools', 'VERSION'))
+
     def setUp(self):
         # Create temp test dir
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
@@ -37,29 +39,21 @@ class TestCache(unittest.TestCase):
 
     # This test was written for version 1 of the cache
     def test_create_cache(self):
-        cache_contents = set(('data', 'keys', 'pools', 'VERSION'))
-        path = os.path.join(self.test_dir.name, 'new_cache')
-
-        # Assert path does not exist
-        self.assertFalse(os.path.exists(path))
-        # Create cache at path
-        cache = Cache(path)
-
         # Assert cache looks how we expect
-        self.assertTrue(os.path.exists(path))
-        contents = os.listdir(path)
+        self.assertTrue(os.path.exists(self.cache.path))
+        contents = os.listdir(self.cache.path)
         dedup = set(contents)
 
         self.assertEqual(len(contents), len(dedup))
-        self.assertEqual(cache_contents, dedup)
+        self.assertEqual(self.base_cache_contents, dedup)
 
         # Assert version file looks how we want
-        with open(cache.version) as fh:
+        with open(self.cache.version) as fh:
             lines = fh.readlines()
 
             self.assertEqual(lines[0], 'QIIME 2\n')
             self.assertEqual(lines[1],
-                             f'cache: {cache.CURRENT_FORMAT_VERSION}\n')
+                             f'cache: {self.cache.CURRENT_FORMAT_VERSION}\n')
             self.assertEqual(lines[2], f'framework: {qiime2.__version__}\n')
 
     def test_not_a_cache(self):
