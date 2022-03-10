@@ -92,7 +92,7 @@ class Cache:
         base_cache_contents = set(('data', 'keys', 'pools', 'VERSION'))
 
         contents = set(os.listdir(path))
-        if not contents.issubset(base_cache_contents):
+        if not contents.issuperset(base_cache_contents):
             return False
 
         regex = \
