@@ -93,7 +93,7 @@ class TestPlugin(unittest.TestCase):
                           'double_bound_variable_method',
                           'bool_flag_swaps_output_method',
                           'predicates_preserved_method',
-                          'deprecated_method',
+                          'deprecated_method', 'union_inputs',
                           'unioned_primitives',
                           'type_match_list_and_set',
                           })
@@ -125,7 +125,7 @@ class TestPlugin(unittest.TestCase):
                           'double_bound_variable_method',
                           'bool_flag_swaps_output_method',
                           'predicates_preserved_method',
-                          'deprecated_method',
+                          'deprecated_method', 'union_inputs',
                           'unioned_primitives',
                           'type_match_list_and_set',
                           })
