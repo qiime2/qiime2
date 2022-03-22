@@ -87,6 +87,8 @@ class Cache:
                                  qiime2.__version__))
 
     # Tell us if the path is a cache or not
+    # NOTE: maybe we want this to be raising errors and whatnot instead of just
+    # returning false?
     @classmethod
     def is_cache(cls, path):
         base_cache_contents = set(('data', 'keys', 'pools', 'VERSION'))
