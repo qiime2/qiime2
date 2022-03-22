@@ -119,14 +119,22 @@ class Cache:
         pass
 
     # Save artifact to key in cache
-    def save(self, artifact, key):
+    # NOTE: Going to require some reworking to properly support pools
+    def save(self, artifact, key, complete=True):
         data_fp = str(self.data / str(artifact.uuid))
         artifact.save(data_fp)
 
-        # Right now we aren't worrying about pools at all
         key_fp = self.keys / key
-        key_fp.write_text(
-            _KEY_TEMPLATE % (key, data_fp + artifact.extension, ''))
+        if complete:
+            key_fp.write_text(
+                _KEY_TEMPLATE % (key, data_fp + artifact.extension, ''))
+        else:
+            pool_fp = str(self.pool / str(artifact.uuid))
+            os.mkdir(pool_fp)
+            os.symlink(pool_fp / str(artifact.uuid), data_fp)
+
+            key_fp.write_text(
+                _KEY_TEMPLATE % (key, '', data_fp + artifact.extenstion))
 
     # Artifact the load the data pointed to by the key. Does not work on pools.
     # Only works if you have data
