@@ -129,12 +129,12 @@ class Cache:
             key_fp.write_text(
                 _KEY_TEMPLATE % (key, data_fp + artifact.extension, ''))
         else:
-            pool_fp = str(self.pool / str(artifact.uuid))
+            pool_fp = self.pools / str(artifact.uuid)
             os.mkdir(pool_fp)
             os.symlink(pool_fp / str(artifact.uuid), data_fp)
 
             key_fp.write_text(
-                _KEY_TEMPLATE % (key, '', data_fp + artifact.extenstion))
+                _KEY_TEMPLATE % (key, '', data_fp + artifact.extension))
 
     # Artifact the load the data pointed to by the key. Does not work on pools.
     # Only works if you have data
