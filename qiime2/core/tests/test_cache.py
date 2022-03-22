@@ -24,7 +24,10 @@ class TestCache(unittest.TestCase):
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
 
         # Create artifact and cache
-        self.art = Artifact.import_data(IntSequence1, [0, 1, 2])
+        self.art1 = Artifact.import_data(IntSequence1, [0, 1, 2])
+        self.art2 = Artifact.import_data(IntSequence1, [3, 4, 5])
+        self.art3 = Artifact.import_data(IntSequence1, [6, 7, 8])
+        self.art4 = Artifact.import_data(IntSequence1, [9, 10, 11])
         self.cache = Cache(os.path.join(self.test_dir.name, 'new_cache'))
 
         self.not_cache_path = os.path.join(self.test_dir.name, 'not_cache')
@@ -62,17 +65,17 @@ class TestCache(unittest.TestCase):
 
     def test_roundtrip(self):
         # Save artifact to cache
-        self.cache.save(self.art, 'foo')
+        self.cache.save(self.art1, 'foo')
 
         # Load artifact from cache
         art2 = self.cache.load('foo')
 
         # Ensure our data is correct
-        self.assertEqual(self.art.view(list), art2.view(list))
+        self.assertEqual(self.art1.view(list), art2.view(list))
 
     def test_delete(self):
         # Save our artifact
-        self.cache.save(self.art, 'foo')
+        self.cache.save(self.art1, 'foo')
 
         # Show that we can load our artifact
         self.cache.load('foo')
@@ -84,3 +87,28 @@ class TestCache(unittest.TestCase):
         with self.assertRaisesRegex(FileNotFoundError,
                                     'No such file or directory'):
             self.cache.load('foo')
+
+    def test_garbage_collection(self):
+        # Data referenced directly by key
+        self.cache.save(self.art1, 'foo')
+        # Data referenced by pool that is referenced by key
+        self.cache.save(self.art2, 'bar', complete=False)
+        # We will be manually deleting the keys that back these two
+        self.cache.save(self.art3, 'baz')
+        self.cache.save(self.art4, 'qux', complete=False)
+
+        # Assert cache looks how we want
+        pre_gc_contents = set()
+        for dir, _, files in os.walk(self.cache.path):
+            for file in files:
+                rel_dir = os.path.relpath(dir, self.cache.path)
+                rel_file = os.path.join(rel_dir, file)
+                pre_gc_contents.add(rel_file)
+
+        # Delete keys
+        os.remove(self.cache.keys / 'baz')
+        os.remove(self.cache.keys / 'qux')
+
+        # Run GC
+
+        # Assert the correct items have been removed from the cache by GC
