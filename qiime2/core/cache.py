@@ -131,7 +131,7 @@ class Cache:
         else:
             pool_fp = self.pools / str(artifact.uuid)
             os.mkdir(pool_fp)
-            os.symlink(pool_fp / str(artifact.uuid), data_fp)
+            os.symlink(data_fp, pool_fp / str(artifact.uuid))
 
             key_fp.write_text(
                 _KEY_TEMPLATE % (key, '', data_fp + artifact.extension))
