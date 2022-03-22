@@ -27,6 +27,9 @@ class TestCache(unittest.TestCase):
         self.art = Artifact.import_data(IntSequence1, [0, 1, 2])
         self.cache = Cache(os.path.join(self.test_dir.name, 'new_cache'))
 
+        self.not_cache_path = os.path.join(self.test_dir.name, 'not_cache')
+        os.mkdir(self.not_cache_path)
+
     def tearDown(self):
         # Remove our cache and all that from last test
         self.test_dir.cleanup()
@@ -38,7 +41,7 @@ class TestCache(unittest.TestCase):
 
     # Verifies that is_cache is identifying things aren't caches
     def test_is_not_cache(self):
-        pass
+        self.assertFalse(Cache.is_cache(self.not_cache_path))
 
     # This test manually asserts the cache created by the constructor looks
     # exactly as expected.
