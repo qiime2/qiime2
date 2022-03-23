@@ -65,13 +65,19 @@ class TestCache(unittest.TestCase):
 
     def test_roundtrip(self):
         # Save artifact to cache
-        self.cache.save(self.art1, 'foo')
+        art1 = Artifact.import_data(IntSequence1, [0, 1, 2])
+        expected = art1.view(list)
+        self.cache.save(art1, 'foo')
+
+        # Delete artifact
+        art1._archiver.path._destructor()
+        del art1
 
         # Load artifact from cache
         art2 = self.cache.load('foo')
 
         # Ensure our data is correct
-        self.assertEqual(self.art1.view(list), art2.view(list))
+        self.assertEqual(expected, art2.view(list))
 
     def test_delete(self):
         # Save our artifact
@@ -88,6 +94,8 @@ class TestCache(unittest.TestCase):
                                     'No such file or directory'):
             self.cache.load('foo')
 
+    # Might create another class for garbage collection tests to test more
+    # cases with shared boilerplate
     def test_garbage_collection(self):
         # Data referenced directly by key
         self.cache.save(self.art1, 'foo')
