@@ -198,7 +198,7 @@ class Cache:
     # server in 565, and Dr. Otte told us to write a lock manager that exists
     # entirely to manage locks and nothing else. Surely we have to wait in a
     # queue until unlock or something right? We can't just drop what we're
-    # doing because we have a lock. Could we conceivably used built in Python
+    # doing because we have a lock. Could we conceivably use built in Python
     # locking?
     def check_lock(self):
         pass
