@@ -97,18 +97,42 @@ class TestCache(unittest.TestCase):
         self.cache.save(self.art3, 'baz')
         self.cache.save(self.art4, 'qux', complete=False)
 
-        # Assert cache looks how we want
-        pre_gc_contents = set()
-        for dir, _, files in os.walk(self.cache.path):
-            for file in files:
-                rel_dir = os.path.relpath(dir, self.cache.path)
-                rel_file = os.path.join(rel_dir, file)
-                pre_gc_contents.add(rel_file)
+        # What we expect to see before and after gc
+        expected_pre_gc_contents = \
+            set(('./VERSION', 'keys/foo', 'keys/bar',
+                 'keys/baz', 'keys/qux',
+                 f'pools/{self.art2.uuid}/{self.art2.uuid}',
+                 f'pools/{self.art4.uuid}/{self.art4.uuid}',
+                 f'data/{self.art1.uuid}.qza', f'data/{self.art2.uuid}.qza',
+                 f'data/{self.art3.uuid}.qza', f'data/{self.art4.uuid}.qza'))
+
+        expected_post_gc_contents = \
+            set(('./VERSION', 'keys/foo', 'keys/bar',
+                 f'pools/{self.art2.uuid}/{self.art2.uuid}',
+                 f'data/{self.art1.uuid}.qza', f'data/{self.art2.uuid}.qza'))
+
+        # Assert cache looks how we want pre gc
+        pre_gc_contents = self.get_cache_contents()
+        self.assertEqual(expected_pre_gc_contents, pre_gc_contents)
 
         # Delete keys
         os.remove(self.cache.keys / 'baz')
         os.remove(self.cache.keys / 'qux')
 
-        # Run GC
+        # Run gc
+        self.cache.garbage_collection()
 
-        # Assert the correct items have been removed from the cache by GC
+        # Assert cache looks how we want post gc
+        post_gc_contents = self.get_cache_contents()
+        self.assertEqual(expected_post_gc_contents, post_gc_contents)
+
+    def get_cache_contents(self):
+        cache_contents = set()
+
+        for dir, _, files in os.walk(self.cache.path):
+            for file in files:
+                rel_dir = os.path.relpath(dir, self.cache.path)
+                rel_file = os.path.join(rel_dir, file)
+                cache_contents.add(rel_file)
+
+        return cache_contents
