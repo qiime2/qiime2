@@ -101,14 +101,14 @@ class TestCache(unittest.TestCase):
         expected_pre_gc_contents = \
             set(('./VERSION', 'keys/foo', 'keys/bar',
                  'keys/baz', 'keys/qux',
-                 f'pools/{self.art2.uuid}/{self.art2.uuid}',
-                 f'pools/{self.art4.uuid}/{self.art4.uuid}',
+                 f'pools/{self.art2.uuid}/{self.art2.uuid}.qza',
+                 f'pools/{self.art4.uuid}/{self.art4.uuid}.qza',
                  f'data/{self.art1.uuid}.qza', f'data/{self.art2.uuid}.qza',
                  f'data/{self.art3.uuid}.qza', f'data/{self.art4.uuid}.qza'))
 
         expected_post_gc_contents = \
             set(('./VERSION', 'keys/foo', 'keys/bar',
-                 f'pools/{self.art2.uuid}/{self.art2.uuid}',
+                 f'pools/{self.art2.uuid}/{self.art2.uuid}.qza',
                  f'data/{self.art1.uuid}.qza', f'data/{self.art2.uuid}.qza'))
 
         # Assert cache looks how we want pre gc
