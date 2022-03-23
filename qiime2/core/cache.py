@@ -9,6 +9,7 @@
 import re
 import os
 import yaml
+import shutil
 import pathlib
 
 import qiime2
@@ -48,6 +49,14 @@ class Cache:
     │       └── uuid3 -> ../../data/uuid3/
     ├── tmp
     └── VERSION
+
+    Process folder contains pid-created_at@host some kinda reference to
+    anonymous pools
+
+    Create anonymous pools backing all final outputs. We have a named pool that
+    tracks all intermediate and final results. We have an anonymous pool that
+    tracks only final results (pid pool). Ensures that we don't gc the final
+    results if we gc the named pool because they didn't pre register all keys
     """
     CURRENT_FORMAT_VERSION = '1'
 
@@ -106,13 +115,33 @@ class Cache:
 
     # Run the garbage collection algorithm
     def garbage_collection(self):
+        referenced_pools = set()
+        referenced_data = set()
+
         # Walk over keys and track all pools and data referenced
-        #
+        for key in os.listdir(self.keys):
+            loaded_key = yaml.safe_load(open(self.keys / key))
+            referenced_pools.add(loaded_key['pool'])
+            referenced_data.add(loaded_key['data'])
+
+        # Since each key has at most a pool or data, we will end up with a None
+        # in at least one of these sets. We don't want it
+        referenced_pools.discard(None)
+        referenced_data.discard(None)
+
         # Walk over pools and remove any that were not refered to by keys while
         # tracking all data within those that were referenced
-        #
+        for pool in os.listdir(self.pools):
+            if pool not in referenced_pools:
+                shutil.rmtree(self.pools / pool)
+            else:
+                for data in os.listdir(self.pools / pool):
+                    referenced_data.add(data)
+
         # Walk over all data and remove any that was not referenced
-        pass
+        for data in os.listdir(self.data):
+            if data not in referenced_data:
+                os.remove(self.data / data)
 
     # Export artifact to zip
     def export(self, key):
