@@ -136,8 +136,8 @@ class Cache:
             key_fp.write_text(
                 _KEY_TEMPLATE % (key, '', data_fp + artifact.extension))
 
-    # Artifact the load the data pointed to by the key. Does not work on pools.
-    # Only works if you have data
+    # Load the data pointed to by the key. Does not work on pools. Only works
+    # if you have data
     def load(self, key):
         return Artifact.load(yaml.safe_load(open(self.keys / key))['data'])
 
