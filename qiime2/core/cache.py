@@ -150,26 +150,30 @@ class Cache:
     # Save artifact to key in cache
     # NOTE: Going to require some reworking to properly support pools
     def save(self, artifact, key, complete=True):
-        data_fp = str(self.data / str(artifact.uuid))
+        data_name = str(artifact.uuid)
+        data_fp = str(self.data / data_name)
         artifact.save(data_fp)
 
         key_fp = self.keys / key
         if complete:
             key_fp.write_text(
-                _KEY_TEMPLATE % (key, data_fp + artifact.extension, ''))
+                _KEY_TEMPLATE % (key, data_name + artifact.extension, ''))
+        # This does not handle pools properly, they will be handled seperately
+        # mostly by the context
         else:
-            pool_fp = self.pools / str(artifact.uuid)
+            pool_name = str(artifact.uuid)
+            pool_fp = self.pools / pool_name
             os.mkdir(pool_fp)
             os.symlink(data_fp,
                        pool_fp / (str(artifact.uuid) + artifact.extension))
 
-            key_fp.write_text(
-                _KEY_TEMPLATE % (key, '', data_fp + artifact.extension))
+            key_fp.write_text(_KEY_TEMPLATE % (key, '', pool_name))
 
     # Load the data pointed to by the key. Does not work on pools. Only works
     # if you have data
     def load(self, key):
-        return Artifact.load(yaml.safe_load(open(self.keys / key))['data'])
+        return Artifact.load(
+            self.data / yaml.safe_load(open(self.keys / key))['data'])
 
     # Remove key from cache
     def delete(self, key):
