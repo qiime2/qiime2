@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -14,6 +14,7 @@ import enum
 import qiime2.core.type
 from qiime2.core.format import FormatBase
 from qiime2.plugin.model import SingleFileDirectoryFormatBase
+from qiime2.core.validate import ValidationObject
 from qiime2.sdk.util import parse_type
 from qiime2.core.type import is_semantic_type
 
@@ -21,6 +22,10 @@ from qiime2.core.type import is_semantic_type
 class GetFormatFilters(enum.Flag):
     EXPORTABLE = enum.auto()
     IMPORTABLE = enum.auto()
+
+
+class UninitializedPluginManagerError(Exception):
+    pass
 
 
 class PluginManager:
@@ -46,19 +51,37 @@ class PluginManager:
                 if entry_point.name != 'dummy-plugin':
                     yield entry_point
 
+    @classmethod
+    def reuse_existing(cls):
+        if cls.__instance is not None:
+            return cls.__instance
+        raise UninitializedPluginManagerError
+
     # This class is a singleton as it is slow to create, represents the
     # state of a qiime2 installation, and is needed *everywhere*
     def __new__(cls, add_plugins=True):
         if cls.__instance is None:
             self = super().__new__(cls)
-            self._init(add_plugins=add_plugins)
             cls.__instance = self
+            try:
+                self._init(add_plugins=add_plugins)
+            except Exception:
+                cls.__instance = None
+                raise
         else:
             if add_plugins is False:
                 raise ValueError(
                     'PluginManager singleton already exists, cannot change '
-                    'default value for `add_plugins`.')
+                    'current value for `add_plugins`.')
         return cls.__instance
+
+    def forget_singleton(self):
+        """Allows later instatiation of PluginManager to produce new object
+
+        This is done by clearing class member which saves the instance. This
+        will NOT invalidate or remove the object this method is called on.
+        """
+        self.__class__.__instance = None
 
     def _init(self, add_plugins):
         self.plugins = {}
@@ -71,6 +94,7 @@ class PluginManager:
         self.views = {}
         self.type_formats = []
         self._ff_to_sfdf = {}
+        self.validators = {}
 
         if add_plugins:
             # These are all dependent loops, each requires the loop above it to
@@ -80,9 +104,18 @@ class PluginManager:
                 package = entry_point.module_name.split('.')[0]
                 plugin = entry_point.load()
 
-                self.add_plugin(plugin, package, project_name)
+                self.add_plugin(plugin, package, project_name,
+                                consistency_check=False)
 
-    def add_plugin(self, plugin, package=None, project_name=None):
+            self._consistency_check()
+
+    def _consistency_check(self):
+        for semantic_type, validator_obj in self.validators.items():
+            validator_obj.assert_transformation_available(
+                self.get_directory_format(semantic_type))
+
+    def add_plugin(self, plugin, package=None, project_name=None,
+                   consistency_check=True):
         self.plugins[plugin.name] = plugin
         self._plugin_by_id[plugin.id] = plugin
         if plugin.package is None:
@@ -102,6 +135,8 @@ class PluginManager:
 
         self._integrate_plugin(plugin)
         plugin.freeze()
+        if consistency_check is True:
+            return self._consistency_check()
 
     def get_plugin(self, *, id=None, name=None):
         if id is None and name is None:
@@ -167,6 +202,14 @@ class PluginManager:
 
             self.formats[name] = record
         self.type_formats.extend(plugin.type_formats)
+
+        for semantic_type, validation_object in plugin.validators.items():
+            if semantic_type not in self.validators:
+                self.validators[semantic_type] = \
+                    ValidationObject(semantic_type)
+
+            self.validators[semantic_type].add_validation_object(
+                validation_object)
 
     def get_semantic_types(self):
         types = {}

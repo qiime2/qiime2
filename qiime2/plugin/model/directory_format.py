@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import re
+import shutil
 import sys
 import pathlib
 
@@ -185,6 +186,14 @@ class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
                     "%s is not a(n) %s:\n\n%s"
                     % (self.path, self.__class__.__name__, str(e))
                     ) from e
+
+    def save(self, path, ext=None):
+        path = str(path)  # in case of pathlib.Path
+        path = path.rstrip('.')
+
+        # ignore the extension when saving a directory
+        shutil.copytree(self.path, path)
+        return path
 
 
 class SingleFileDirectoryFormatBase(DirectoryFormat):

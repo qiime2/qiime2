@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -183,6 +183,14 @@ def select_variables(expr):
     fragment replaced with the value of `swap`.
 
     e.g.
+    >>> from qiime2.core.type.tests.test_grammar import (MockTemplate,
+    ...                                                  MockPredicate)
+    >>> Example = MockTemplate('Example', fields=('x',))
+    >>> Foo = MockTemplate('Foo')
+    >>> Bar = MockPredicate('Bar')
+    >>> T = TypeMatch([Foo])
+    >>> U = TypeMatch([Bar])
+
     >>> select_u, select_t = select_variables(Example[T] % U)
     >>> t = select_t(Example[T] % U)
     >>> assert T is t

@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -12,6 +12,7 @@ import qiime2.plugin as plugin
 IntSequence1 = plugin.SemanticType('IntSequence1')
 IntSequence2 = plugin.SemanticType('IntSequence2')
 IntSequence3 = plugin.SemanticType('IntSequence3')
+AscIntSequence = plugin.SemanticType('AscIntSequence')
 Mapping = plugin.SemanticType('Mapping')
 FourInts = plugin.SemanticType('FourInts')
 SingleInt = plugin.SemanticType('SingleInt')
@@ -36,7 +37,11 @@ _variants = [
     C2.field['second'], C3.field['second'],
     C3.field['third']
 ]
+# C1[C2[C3[Foo, Bar, Baz], C1[Foo]]] ... etc
 Foo = plugin.SemanticType('Foo', variant_of=_variants)
 Bar = plugin.SemanticType('Bar', variant_of=_variants)
 Baz = plugin.SemanticType('Baz', variant_of=_variants)
-# C1[C2[C3[Foo, Bar, Baz], C1[Foo]]] ... etc
+
+Squid = plugin.SemanticType('Squid')
+Octopus = plugin.SemanticType('Octopus')
+Cuttlefish = plugin.SemanticType('Cuttlefish')

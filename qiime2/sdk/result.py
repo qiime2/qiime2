@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -11,6 +11,7 @@ import shutil
 import collections
 import distutils.dir_util
 import pathlib
+from typing import Union, get_args, get_origin
 
 import qiime2.metadata
 import qiime2.plugin
@@ -280,6 +281,7 @@ class Artifact(Result):
     @classmethod
     def _from_view(cls, type, view, view_type, provenance_capture,
                    validate_level='min'):
+        type_raw = type
         if isinstance(type, str):
             type = qiime2.sdk.parse_type(type)
 
@@ -303,6 +305,10 @@ class Artifact(Result):
                                                        recorder=recorder)
         result = transformation(view, validate_level)
 
+        if type_raw in pm.validators:
+            validation_object = pm.validators[type]
+            validation_object(data=result, level=validate_level)
+
         artifact = cls.__new__(cls)
         artifact._archiver = archive.Archiver.from_data(
             type, output_dir_fmt,
@@ -319,10 +325,30 @@ class Artifact(Result):
                 "Artifact %r cannot be viewed as QIIME 2 Metadata." % self)
 
         from_type = transform.ModelType.from_view_type(self.format)
-        to_type = transform.ModelType.from_view_type(view_type)
 
-        transformation = from_type.make_transformation(to_type,
-                                                       recorder=recorder)
+        if isinstance(get_origin(view_type), type(Union)):
+            transformation = None
+            for arg in get_args(view_type):
+                to_type = transform.ModelType.from_view_type(arg)
+                try:
+                    transformation = from_type.make_transformation(
+                        to_type, recorder=recorder)
+                    if transformation:
+                        break
+                except Exception as e:
+                    if str(e).startswith("No transformation from"):
+                        continue
+                    else:
+                        raise e
+            if not transformation:
+                raise Exception(
+                    "No transformation into either of %s was found" %
+                    ", ".join([str(x) for x in view_type.__args__])
+                )
+        else:
+            to_type = transform.ModelType.from_view_type(view_type)
+            transformation = from_type.make_transformation(to_type,
+                                                           recorder=recorder)
         result = transformation(self._archiver.data_dir)
 
         if view_type is qiime2.Metadata:

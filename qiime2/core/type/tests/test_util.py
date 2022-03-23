@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -30,8 +30,9 @@ class TestParsePrimitiveNonCollectionsSimple(unittest.TestCase):
 
     def test_float_type_int_value(self):
         obs = parse_primitive(Float, '42')
-        self.assertEqual(obs, 42.0)
-        self.assertIsInstance(obs, float)
+        self.assertEqual(obs, 42)
+        # ints are a subtype of float, so if it can be parsed as an int, fine.
+        self.assertIsInstance(obs, int)
 
     def test_bool_type_int_value(self):
         with self.assertRaisesRegex(ValueError, 'Could not coerce'):
@@ -137,13 +138,13 @@ class TestParsePrimitiveNonCollectionsSimpleUnions(unittest.TestCase):
     def test_int_union_float_expr_int_value(self):
         # Int | Float == Float
         obs = parse_primitive(Int | Float, '42')
-        self.assertEqual(obs, 42.0)
-        self.assertIsInstance(obs, float)
+        self.assertEqual(obs, 42)
+        self.assertIsInstance(obs, int)
 
     def test_int_union_float_expr_float_value(self):
         # Int | Float == Float
-        obs = parse_primitive(Int | Float, '42.0')
-        self.assertEqual(obs, 42.0)
+        obs = parse_primitive(Int | Float, '42.1')
+        self.assertEqual(obs, 42.1)
         self.assertIsInstance(obs, float)
 
     def test_int_union_float_expr_bool_value(self):
@@ -246,15 +247,15 @@ class TestParsePrimitiveCollectionsSimple(unittest.TestCase):
     # always yield a Float (List[Int] | List[Float] == List[Float]).
     def test_list_int_or_float_with_int_value(self):
         obs = parse_primitive(List[Int] | List[Float], ('1', '2', '3'))
-        self.assertEqual(obs, [1.0, 2.0, 3.0])
+        self.assertEqual(obs, [1, 2, 3])
         self.assertIsInstance(obs, list)
-        self.assertIsInstance(obs[0], float)
+        self.assertIsInstance(obs[0], int)
 
     def test_set_int_or_float_with_int_value(self):
         obs = parse_primitive(Set[Int] | Set[Float], ('1', '2', '3'))
-        self.assertEqual(obs, {1.0, 2.0, 3.0})
+        self.assertEqual(obs, {1, 2, 3})
         self.assertIsInstance(obs, set)
-        self.assertIsInstance(obs.pop(), float)
+        self.assertIsInstance(obs.pop(), int)
 
     def test_list_int_or_float_with_float_value(self):
         obs = parse_primitive(List[Int] | List[Float], ('1.1', '2.2', '3.3'))
@@ -270,15 +271,15 @@ class TestParsePrimitiveCollectionsSimple(unittest.TestCase):
 
     def test_list_int_or_float_int_value(self):
         obs = parse_primitive(List[Int | Float], ('1', '2', '3'))
-        self.assertEqual(obs, [1.0, 2.0, 3.0])
+        self.assertEqual(obs, [1, 2, 3])
         self.assertIsInstance(obs, list)
-        self.assertIsInstance(obs[0], float)
+        self.assertIsInstance(obs[0], int)
 
     def test_set_int_or_float_int_value(self):
         obs = parse_primitive(Set[Int | Float], ('1', '2', '3'))
-        self.assertEqual(obs, {1.0, 2.0, 3.0})
+        self.assertEqual(obs, {1, 2, 3})
         self.assertIsInstance(obs, set)
-        self.assertIsInstance(obs.pop(), float)
+        self.assertIsInstance(obs.pop(), int)
 
 
 class TestParsePrimitiveCollectionsMonomorphic(unittest.TestCase):
