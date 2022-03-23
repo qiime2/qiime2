@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -107,3 +107,6 @@ class Results(tuple):
         lines[1] = '-' * max_len
 
         return '\n'.join(lines)
+
+    def _asdict(self):
+        return dict(zip(self._fields, self))

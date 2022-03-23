@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -25,6 +25,7 @@ setup(
     package_data={
         'qiime2.metadata.tests': ['data/*/*'],
         'qiime2.core.testing': ['citations.bib'],
+        'qiime2.core.tests': ['data/*'],
         'qiime2.sdk.tests': ['data/*'],
         'qiime2': ['citations.bib']
     },

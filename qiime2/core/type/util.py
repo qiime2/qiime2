@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -37,12 +37,23 @@ def val_to_bool(value):
 
 
 def val_to_int(v):
-    if type(v) is int:
+    type_ = type(v)
+    if type_ is int:
         return v
-    elif type(v) is str:
+    elif type_ is str:
         return int(v)
     else:
         raise ValueError('Could not cast to int')
+
+
+def val_to_float(v):
+    type_ = type(v)
+    if type_ is float:
+        return v
+    elif type_ is str:
+        return float(v)
+    else:
+        raise ValueError('Could not cast to float')
 
 
 VariadicRecord = collections.namedtuple('VariadicRecord', ['pytype', 'q2type'])
@@ -55,7 +66,7 @@ CoercionRecord = collections.namedtuple('CoercionRecord', ['func', 'pytype'])
 # Beware visitor, order matters in this here mapper
 _COERCION_MAPPER = {
     Int: CoercionRecord(pytype=int, func=val_to_int),
-    Float: CoercionRecord(pytype=float, func=float),
+    Float: CoercionRecord(pytype=float, func=val_to_float),
     Bool: CoercionRecord(pytype=bool, func=val_to_bool),
     Str: CoercionRecord(pytype=str, func=str),
 }
@@ -193,7 +204,7 @@ def parse_primitive(t, value):
     collection_style = interrogate_collection_type(expr)
 
     if collection_style.style in ('simple', 'monomorphic', 'composite'):
-        allowed = collection_style.members
+        allowed = list(collection_style.members)
 
     if collection_style.style == 'composite':
         homogeneous = False
@@ -211,13 +222,17 @@ def parse_primitive(t, value):
         if expr in (Int, Float, Bool, Str):
             # No sense in walking over all options when we know
             # what it should be
-            allowed = expr
+            allowed = [expr]
         else:
-            allowed = _COERCION_MAPPER.keys()
+            allowed = list(_COERCION_MAPPER.keys())
     else:
         pass
 
     assert allowed is not None
+
+    # Int <= Float, make sure its added in
+    if Float in allowed and Int not in allowed:
+        allowed.append(Int)
 
     for v in value:
         result.append(_interrogate_types(allowed, v))
