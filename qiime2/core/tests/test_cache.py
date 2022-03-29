@@ -17,7 +17,7 @@ from qiime2.sdk.result import Artifact
 
 
 class TestCache(unittest.TestCase):
-    base_cache_contents = set(('data', 'keys', 'pools', 'VERSION'))
+    base_cache_contents = set(('data', 'keys', 'pools', 'process', 'VERSION'))
 
     def setUp(self):
         # Create temp test dir

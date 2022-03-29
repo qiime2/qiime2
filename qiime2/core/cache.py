@@ -47,6 +47,7 @@ class Cache:
     │   └── puuid1
     │       ├── uuid2 -> ../../data/uuid2/
     │       └── uuid3 -> ../../data/uuid3/
+    ├── process
     ├── tmp
     └── VERSION
 
@@ -80,6 +81,7 @@ class Cache:
         os.mkdir(self.path / 'data')
         os.mkdir(self.path / 'keys')
         os.mkdir(self.path / 'pools')
+        os.mkdir(self.path / 'process')
         # Do we want this right off the bat? How exactly is setting tmp in the
         # cache going to work? tmp is never going to be managed by the cache,
         # it's just so they're both on the same disk, so they'll probably just
@@ -107,7 +109,8 @@ class Cache:
     # returning false?
     @classmethod
     def is_cache(cls, path):
-        base_cache_contents = set(('data', 'keys', 'pools', 'VERSION'))
+        base_cache_contents = set(('data', 'keys', 'pools', 'process',
+                                   'VERSION'))
 
         contents = set(os.listdir(path))
         if not contents.issuperset(base_cache_contents):
@@ -221,6 +224,10 @@ class Cache:
     @property
     def pools(self):
         return self.path / 'pools'
+
+    @property
+    def process(self):
+        return self.path / 'process'
 
     @property
     def version(self):
