@@ -77,6 +77,7 @@ class Context:
                     self._parent._scope.add_reference(ref)
 
 
+# We need to start managing pools in here
 class Scope:
     def __init__(self, ctx):
         self.ctx = ctx

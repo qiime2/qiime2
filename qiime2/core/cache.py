@@ -95,6 +95,13 @@ class Cache:
             _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
                                  qiime2.__version__))
 
+    def create_pool(self, keys=[], reuse=False):
+        # if reuse, look for an existing pool that matches keys
+        # otherwise create a new pool matching keys and overwrite if one exists
+        # Always create an anonymous pool keyed on pid-created_at@host in the
+        # process folder
+        pass
+
     # Tell us if the path is a cache or not
     # NOTE: maybe we want this to be raising errors and whatnot instead of just
     # returning false?
@@ -218,3 +225,21 @@ class Cache:
     @property
     def version(self):
         return self.path / 'VERSION'
+
+
+# Assume we will make this its own class for now
+class Pool:
+
+    def __init__(self):
+        pass
+
+    def save(self):
+        pass
+
+    def __enter__(self):
+        # When we enter we need to set things up to write data to the pool
+        pass
+
+    def __exit__(self):
+        # What clean up is this actually going to need to do?
+        pass
