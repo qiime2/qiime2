@@ -47,6 +47,7 @@ class Cache:
     │   └── puuid1
     │       ├── uuid2 -> ../../data/uuid2/
     │       └── uuid3 -> ../../data/uuid3/
+    ├── process
     ├── tmp
     └── VERSION
 
@@ -80,6 +81,7 @@ class Cache:
         os.mkdir(self.path / 'data')
         os.mkdir(self.path / 'keys')
         os.mkdir(self.path / 'pools')
+        os.mkdir(self.path / 'process')
         # Do we want this right off the bat? How exactly is setting tmp in the
         # cache going to work? tmp is never going to be managed by the cache,
         # it's just so they're both on the same disk, so they'll probably just
@@ -95,12 +97,20 @@ class Cache:
             _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
                                  qiime2.__version__))
 
+    def create_pool(self, keys=[], reuse=False):
+        # if reuse, look for an existing pool that matches keys
+        # otherwise create a new pool matching keys and overwrite if one exists
+        # Always create an anonymous pool keyed on pid-created_at@host in the
+        # process folder
+        pass
+
     # Tell us if the path is a cache or not
     # NOTE: maybe we want this to be raising errors and whatnot instead of just
     # returning false?
     @classmethod
     def is_cache(cls, path):
-        base_cache_contents = set(('data', 'keys', 'pools', 'VERSION'))
+        base_cache_contents = set(('data', 'keys', 'pools', 'process',
+                                   'VERSION'))
 
         contents = set(os.listdir(path))
         if not contents.issuperset(base_cache_contents):
@@ -216,5 +226,27 @@ class Cache:
         return self.path / 'pools'
 
     @property
+    def process(self):
+        return self.path / 'process'
+
+    @property
     def version(self):
         return self.path / 'VERSION'
+
+
+# Assume we will make this its own class for now
+class Pool:
+
+    def __init__(self):
+        pass
+
+    def save(self):
+        pass
+
+    def __enter__(self):
+        # When we enter we need to set things up to write data to the pool
+        pass
+
+    def __exit__(self):
+        # What clean up is this actually going to need to do?
+        pass
