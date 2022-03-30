@@ -14,6 +14,7 @@ import pathlib
 
 import qiime2
 from qiime2.sdk.result import Artifact
+from qiime2.sdk.cache_config import CACHE_CONFIG
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -102,7 +103,9 @@ class Cache:
         # otherwise create a new pool matching keys and overwrite if one exists
         # Always create an anonymous pool keyed on pid-created_at@host in the
         # process folder
-        pass
+        # Need some kinda default name
+        name = '_'.join(keys)
+        return Pool(self.pools / name)
 
     # Tell us if the path is a cache or not
     # NOTE: maybe we want this to be raising errors and whatnot instead of just
@@ -237,10 +240,14 @@ class Cache:
 # Assume we will make this its own class for now
 class Pool:
 
-    def __init__(self):
+    def __init__(self, path):
+        self.path = path
+        os.mkdir(path)
+
+    def save(self, key):
         pass
 
-    def save(self):
+    def remove(self, key):
         pass
 
     def __enter__(self):

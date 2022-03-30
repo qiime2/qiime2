@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import qiime2.sdk
+from qiime2.sdk.cache_config import CACHE_CONFIG
 
 
 class Context:
@@ -90,6 +91,11 @@ class Scope:
         """
         # The pool is probably going to be referred to by the thread local
         # config, we should be able to access that here
+        CACHE_CONFIG.process_pool.save(ref)
+
+        if CACHE_CONFIG.named_pool is not None:
+            CACHE_CONFIG.named_pool.save(ref)
+
         self._locals.append(ref)
 
     def add_parent_reference(self, ref):
@@ -123,6 +129,7 @@ class Scope:
         del self.ctx
 
         for ref in local_refs:
+            CACHE_CONFIG.process_pool.remove(ref)
             ref._destructor()
 
         if local_references_only:
