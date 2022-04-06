@@ -91,7 +91,10 @@ class Scope:
         """
         # The pool is probably going to be referred to by the thread local
         # config, we should be able to access that here
-        CACHE_CONFIG.process_pool.save(ref)
+        # TODO: We might want to just check if we're using a cache here. If we
+        # are using a cache we need to have a process pool
+        if CACHE_CONFIG.process_pool is not None:
+            CACHE_CONFIG.process_pool.save(ref)
 
         if CACHE_CONFIG.named_pool is not None:
             CACHE_CONFIG.named_pool.save(ref)
@@ -129,7 +132,10 @@ class Scope:
         del self.ctx
 
         for ref in local_refs:
-            CACHE_CONFIG.process_pool.remove(ref)
+            # TODO: Again, maybe we want to just make sure we're using a cache
+            # here
+            if CACHE_CONFIG.process_pool is not None:
+                CACHE_CONFIG.process_pool.remove(ref)
             ref._destructor()
 
         if local_references_only:

@@ -9,6 +9,7 @@
 import re
 import os
 import yaml
+import psutil
 import shutil
 import pathlib
 
@@ -69,9 +70,13 @@ class Cache:
         # pointed at an existing cache?
         if not os.path.exists(self.path):
             self.create_cache()
-        elif not self.is_cache():
+        elif not self.is_cache(self.path):
             raise ValueError(f"Path: \'{path}\' already exists and is not a"
                              " cache")
+
+        CACHE_CONFIG.cache = self
+        # Make our process pool
+        CACHE_CONFIG.process_pool = Pool(self.process)
 
     # Surely this needs to be a thing? I suppose if they hand us a path that
     # doesn't exist we just create a cache there? do we want to create it at
@@ -98,7 +103,9 @@ class Cache:
             _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
                                  qiime2.__version__))
 
-    def create_pool(self, keys=[], reuse=False):
+    # Maybe this is create named pool specifically and we just auto create a
+    # process pool
+    def create_named_pool(self, keys=[], reuse=False):
         # if reuse, look for an existing pool that matches keys
         # otherwise create a new pool matching keys and overwrite if one exists
         # Always create an anonymous pool keyed on pid-created_at@host in the
@@ -127,6 +134,7 @@ class Cache:
             return regex.match(version_file) is not None
 
     # Run the garbage collection algorithm
+    # TODO: Needs to account for process pools
     def garbage_collection(self):
         referenced_pools = set()
         referenced_data = set()
@@ -240,11 +248,22 @@ class Cache:
 # Assume we will make this its own class for now
 class Pool:
 
-    def __init__(self, path):
-        self.path = path
-        os.mkdir(path)
+    def __init__(self, path, named=False):
+        if named:
+            self.path = path
+        else:
+            pid = os.getpid()
+            user = os.getlogin()
+
+            process = psutil.Process(pid)
+            time = process.create_time()
+            self.path = path / f'{pid}-{time}@{user}'
+
+        print(self.path)
+        os.mkdir(self.path)
 
     def save(self, key):
+        print(key)
         pass
 
     def remove(self, key):
