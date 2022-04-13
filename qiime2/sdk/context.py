@@ -8,6 +8,7 @@
 
 import qiime2.sdk
 from qiime2.sdk.cache_config import CACHE_CONFIG
+from qiime2.sdk.result import Artifact
 
 
 class Context:
@@ -50,6 +51,15 @@ class Context:
         # a scope before deferring to plugin code. (Otherwise cleanup wouldn't
         # happen)
         self._scope.add_reference(artifact)
+
+        # TODO: We might want to just check if we're using a cache here. If we
+        # are using a cache we need to have a process pool
+        if CACHE_CONFIG.process_pool is not None:
+            CACHE_CONFIG.process_pool.save(artifact)
+
+        if CACHE_CONFIG.named_pool is not None:
+            CACHE_CONFIG.named_pool.save(artifact)
+
         return artifact
 
     def __enter__(self):
@@ -89,15 +99,6 @@ class Scope:
         """Add a reference to something destructable that is owned by this
            scope.
         """
-        # The pool is probably going to be referred to by the thread local
-        # config, we should be able to access that here
-        # TODO: We might want to just check if we're using a cache here. If we
-        # are using a cache we need to have a process pool
-        if CACHE_CONFIG.process_pool is not None:
-            CACHE_CONFIG.process_pool.save(ref)
-
-        if CACHE_CONFIG.named_pool is not None:
-            CACHE_CONFIG.named_pool.save(ref)
 
         self._locals.append(ref)
 
@@ -132,10 +133,6 @@ class Scope:
         del self.ctx
 
         for ref in local_refs:
-            # TODO: Again, maybe we want to just make sure we're using a cache
-            # here
-            if CACHE_CONFIG.process_pool is not None:
-                CACHE_CONFIG.process_pool.remove(ref)
             ref._destructor()
 
         if local_references_only:

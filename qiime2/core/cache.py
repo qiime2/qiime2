@@ -76,7 +76,7 @@ class Cache:
 
         CACHE_CONFIG.cache = self
         # Make our process pool
-        CACHE_CONFIG.process_pool = Pool(self.process)
+        CACHE_CONFIG.process_pool = self.create_pool(process_pool=True)
 
     # Surely this needs to be a thing? I suppose if they hand us a path that
     # doesn't exist we just create a cache there? do we want to create it at
@@ -93,7 +93,7 @@ class Cache:
         # it's just so they're both on the same disk, so they'll probably just
         # set the tmp location in the config or something. I feel like if we're
         # going to manage the cache, we should manage the cache which means if
-        # they're going to put tmp in the cache it should have to be in a set
+        # they're going to create_poolput tmp in the cache it should have to be in a set
         # directory within the cache like tmp not just whatever they want it to
         # be in the cache. Not sure how we would really enforce that, but we
         # can just... Heavily encourage it I guess
@@ -105,14 +105,17 @@ class Cache:
 
     # Maybe this is create named pool specifically and we just auto create a
     # process pool
-    def create_named_pool(self, keys=[], reuse=False):
+    def create_pool(self, keys=[], reuse=False, process_pool=False):
         # if reuse, look for an existing pool that matches keys
         # otherwise create a new pool matching keys and overwrite if one exists
         # Always create an anonymous pool keyed on pid-created_at@host in the
         # process folder
         # Need some kinda default name
+        if process_pool:
+            return Pool(self.process)
+
         name = '_'.join(keys)
-        return Pool(self.pools / name)
+        return Pool(self.pools / name, named=True)
 
     # Tell us if the path is a cache or not
     # NOTE: maybe we want this to be raising errors and whatnot instead of just
@@ -170,13 +173,13 @@ class Cache:
 
     # Save artifact to key in cache
     # NOTE: Going to require some reworking to properly support pools
-    def save(self, artifact, key, complete=True):
+    def save(self, artifact, key, pool=None):
         data_name = str(artifact.uuid)
         data_fp = str(self.data / data_name)
         artifact.save(data_fp)
 
         key_fp = self.keys / key
-        if complete:
+        if pool is None:
             key_fp.write_text(
                 _KEY_TEMPLATE % (key, data_name + artifact.extension, ''))
         # This does not handle pools properly, they will be handled seperately
@@ -262,8 +265,9 @@ class Pool:
         print(self.path)
         os.mkdir(self.path)
 
-    def save(self, key):
-        print(key)
+    def save(self, ref):
+        print(ref)
+
         pass
 
     def remove(self, key):
