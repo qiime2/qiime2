@@ -7,8 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import qiime2.sdk
-from qiime2.sdk.cache_config import CACHE_CONFIG
-from qiime2.sdk.result import Artifact
 
 
 class Context:
@@ -51,14 +49,6 @@ class Context:
         # a scope before deferring to plugin code. (Otherwise cleanup wouldn't
         # happen)
         self._scope.add_reference(artifact)
-
-        # TODO: We might want to just check if we're using a cache here. If we
-        # are using a cache we need to have a process pool
-        if CACHE_CONFIG.process_pool is not None:
-            CACHE_CONFIG.process_pool.save(artifact)
-
-        if CACHE_CONFIG.named_pool is not None:
-            CACHE_CONFIG.named_pool.save(artifact)
 
         return artifact
 

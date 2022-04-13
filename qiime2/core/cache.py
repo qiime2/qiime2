@@ -115,7 +115,7 @@ class Cache:
             return Pool(self.process)
 
         name = '_'.join(keys)
-        return Pool(self.pools / name, named=True)
+        return Pool(self.pools / name, name=name)
 
     # Tell us if the path is a cache or not
     # NOTE: maybe we want this to be raising errors and whatnot instead of just
@@ -173,21 +173,21 @@ class Cache:
 
     # Save artifact to key in cache
     # NOTE: Going to require some reworking to properly support pools
-    def save(self, artifact, key, pool=None):
+    def save(self, artifact, key, pool_fp=None):
         data_name = str(artifact.uuid)
         data_fp = str(self.data / data_name)
         artifact.save(data_fp)
 
         key_fp = self.keys / key
-        if pool is None:
+        if pool_fp is None:
             key_fp.write_text(
                 _KEY_TEMPLATE % (key, data_name + artifact.extension, ''))
         # This does not handle pools properly, they will be handled seperately
         # mostly by the context
         else:
-            pool_name = str(artifact.uuid)
-            pool_fp = self.pools / pool_name
-            os.mkdir(pool_fp)
+            pool_name = os.path.basename(pool_fp)
+            # pool_fp = self.pools / pool_name
+            # os.mkdir(pool_fp)
             os.symlink(data_fp,
                        pool_fp / (str(artifact.uuid) + artifact.extension))
 
@@ -251,24 +251,25 @@ class Cache:
 # Assume we will make this its own class for now
 class Pool:
 
-    def __init__(self, path, named=False):
-        if named:
+    def __init__(self, path, name=None):
+        if name:
             self.path = path
+            self.name = name
         else:
             pid = os.getpid()
             user = os.getlogin()
 
             process = psutil.Process(pid)
             time = process.create_time()
-            self.path = path / f'{pid}-{time}@{user}'
+            self.name = f'{pid}-{time}@{user}'
+            self.path = path / self.name
 
         print(self.path)
         os.mkdir(self.path)
 
     def save(self, ref):
         print(ref)
-
-        pass
+        CACHE_CONFIG.cache.save(ref, self.name, pool_fp=self.path)
 
     def remove(self, key):
         pass
