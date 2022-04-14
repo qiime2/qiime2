@@ -116,13 +116,13 @@ class Cache:
 
         pool_name = '_'.join(keys)
         pool = Pool(self.pools / pool_name, name=pool_name)
-        self.create_pool_keys(pool, keys)
+        self.create_pool_keys(pool.name, keys)
 
         return pool
 
-    def create_pool_keys(self, pool, keys):
+    def create_pool_keys(self, pool_name, keys):
         for key in keys:
-            self._register_key(key, pool, pool=True)
+            self._register_key(key, pool_name, pool=True)
 
     # Tell us if the path is a cache or not
     # NOTE: maybe we want this to be raising errors and whatnot instead of just
