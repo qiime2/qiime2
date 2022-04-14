@@ -9,11 +9,13 @@
 import re
 import os
 import yaml
+import psutil
 import shutil
 import pathlib
 
 import qiime2
 from qiime2.sdk.result import Artifact
+from qiime2.sdk.cache_config import CACHE_CONFIG
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -68,9 +70,13 @@ class Cache:
         # pointed at an existing cache?
         if not os.path.exists(self.path):
             self.create_cache()
-        elif not self.is_cache():
+        elif not self.is_cache(self.path):
             raise ValueError(f"Path: \'{path}\' already exists and is not a"
                              " cache")
+
+        CACHE_CONFIG.cache = self
+        # Make our process pool, we probably want this to happen somewhere else
+        CACHE_CONFIG.process_pool = self.create_pool(process_pool=True)
 
     # Surely this needs to be a thing? I suppose if they hand us a path that
     # doesn't exist we just create a cache there? do we want to create it at
@@ -87,7 +93,7 @@ class Cache:
         # it's just so they're both on the same disk, so they'll probably just
         # set the tmp location in the config or something. I feel like if we're
         # going to manage the cache, we should manage the cache which means if
-        # they're going to put tmp in the cache it should have to be in a set
+        # they're going to create_poolput tmp in the cache it should have to be in a set
         # directory within the cache like tmp not just whatever they want it to
         # be in the cache. Not sure how we would really enforce that, but we
         # can just... Heavily encourage it I guess
@@ -97,12 +103,26 @@ class Cache:
             _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
                                  qiime2.__version__))
 
-    def create_pool(self, keys=[], reuse=False):
+    # Maybe this is create named pool specifically and we just auto create a
+    # process pool
+    def create_pool(self, keys=[], reuse=False, process_pool=False):
         # if reuse, look for an existing pool that matches keys
         # otherwise create a new pool matching keys and overwrite if one exists
         # Always create an anonymous pool keyed on pid-created_at@host in the
         # process folder
-        pass
+        # Need some kinda default name
+        if process_pool:
+            return Pool(self.process)
+
+        pool_name = '_'.join(keys)
+        pool = Pool(self.pools / pool_name, name=pool_name)
+        self.create_pool_keys(pool, keys)
+
+        return pool
+
+    def create_pool_keys(self, pool, keys):
+        for key in keys:
+            self._register_key(key, pool, pool=True)
 
     # Tell us if the path is a cache or not
     # NOTE: maybe we want this to be raising errors and whatnot instead of just
@@ -124,6 +144,7 @@ class Cache:
             return regex.match(version_file) is not None
 
     # Run the garbage collection algorithm
+    # TODO: Needs to account for process pools
     def garbage_collection(self):
         referenced_pools = set()
         referenced_data = set()
@@ -159,25 +180,24 @@ class Cache:
 
     # Save artifact to key in cache
     # NOTE: Going to require some reworking to properly support pools
-    def save(self, artifact, key, complete=True):
+    def save(self, artifact, key, pool=None):
         data_name = str(artifact.uuid)
         data_fp = str(self.data / data_name)
         artifact.save(data_fp)
 
-        key_fp = self.keys / key
-        if complete:
-            key_fp.write_text(
-                _KEY_TEMPLATE % (key, data_name + artifact.extension, ''))
-        # This does not handle pools properly, they will be handled seperately
-        # mostly by the context
+        if pool:
+            os.symlink(data_fp, pool.path / (str(artifact.uuid) + artifact.extension))
         else:
-            pool_name = str(artifact.uuid)
-            pool_fp = self.pools / pool_name
-            os.mkdir(pool_fp)
-            os.symlink(data_fp,
-                       pool_fp / (str(artifact.uuid) + artifact.extension))
+            self._register_key(key, data_name + artifact.extension)
 
-            key_fp.write_text(_KEY_TEMPLATE % (key, '', pool_name))
+    # Create a new key pointing at data or a pool
+    def _register_key(self, key, value, pool=False):
+        key_fp = self.keys / key
+
+        if pool:
+            key_fp.write_text(_KEY_TEMPLATE % (key, '', value))
+        else:
+            key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
 
     # Load the data pointed to by the key. Does not work on pools. Only works
     # if you have data
@@ -237,16 +257,33 @@ class Cache:
 # Assume we will make this its own class for now
 class Pool:
 
-    def __init__(self):
+    def __init__(self, path, name=None):
+        if name:
+            self.path = path
+            self.name = name
+        else:
+            pid = os.getpid()
+            user = os.getlogin()
+
+            process = psutil.Process(pid)
+            time = process.create_time()
+            self.name = f'{pid}-{time}@{user}'
+            self.path = path / self.name
+
+        print(self.path)
+        os.mkdir(self.path)
+
+    def save(self, artifact):
+        print(artifact)
+        CACHE_CONFIG.cache.save(artifact, self.name, self)
+
+    def remove(self, key):
         pass
 
-    def save(self):
-        pass
-
+    # If you with a pool you are using it as your named pool
     def __enter__(self):
-        # When we enter we need to set things up to write data to the pool
-        pass
+        self.old_pool = CACHE_CONFIG.named_pool
+        CACHE_CONFIG.named_pool = self
 
-    def __exit__(self):
-        # What clean up is this actually going to need to do?
-        pass
+    def __exit__(self, type, value, tb):
+        CACHE_CONFIG.named_pool = self.old_pool
