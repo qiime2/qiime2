@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+from multiprocessing import Pool
 import os
 import tempfile
 import unittest
@@ -100,23 +101,29 @@ class TestCache(unittest.TestCase):
         # Data referenced directly by key
         self.cache.save(self.art1, 'foo')
         # Data referenced by pool that is referenced by key
-        self.cache.save(self.art2, 'bar', complete=False)
+        pool = self.cache.create_pool(['bar'])
+        pool.save(self.art2)
         # We will be manually deleting the keys that back these two
         self.cache.save(self.art3, 'baz')
-        self.cache.save(self.art4, 'qux', complete=False)
+        pool = self.cache.create_pool(['qux'])
+        pool.save(self.art4)
+
+        with open(self.cache.keys / 'bar') as fh:
+            for line in fh:
+                print(line)
 
         # What we expect to see before and after gc
         expected_pre_gc_contents = \
             set(('./VERSION', 'keys/foo', 'keys/bar',
                  'keys/baz', 'keys/qux',
-                 f'pools/{self.art2.uuid}/{self.art2.uuid}.qza',
-                 f'pools/{self.art4.uuid}/{self.art4.uuid}.qza',
+                 f'pools/bar/{self.art2.uuid}.qza',
+                 f'pools/qux/{self.art4.uuid}.qza',
                  f'data/{self.art1.uuid}.qza', f'data/{self.art2.uuid}.qza',
                  f'data/{self.art3.uuid}.qza', f'data/{self.art4.uuid}.qza'))
 
         expected_post_gc_contents = \
             set(('./VERSION', 'keys/foo', 'keys/bar',
-                 f'pools/{self.art2.uuid}/{self.art2.uuid}.qza',
+                 f'pools/bar/{self.art2.uuid}.qza',
                  f'data/{self.art1.uuid}.qza', f'data/{self.art2.uuid}.qza'))
 
         # Assert cache looks how we want pre gc
