@@ -274,10 +274,10 @@ class Pool:
     def remove(self, key):
         pass
 
+    # If you with a pool you are using it as your named pool
     def __enter__(self):
-        # When we enter we need to set things up to write data to the pool
-        pass
+        self.old_pool = CACHE_CONFIG.named_pool
+        CACHE_CONFIG.named_pool = self
 
     def __exit__(self):
-        # What clean up is this actually going to need to do?
-        pass
+        CACHE_CONFIG.named_pool = self.old_pool
