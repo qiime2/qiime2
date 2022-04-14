@@ -75,7 +75,7 @@ class Cache:
                              " cache")
 
         CACHE_CONFIG.cache = self
-        # Make our process pool
+        # Make our process pool, we probably want this to happen somewhere else
         CACHE_CONFIG.process_pool = self.create_pool(process_pool=True)
 
     # Surely this needs to be a thing? I suppose if they hand us a path that
@@ -114,8 +114,15 @@ class Cache:
         if process_pool:
             return Pool(self.process)
 
-        name = '_'.join(keys)
-        return Pool(self.pools / name, name=name)
+        pool_name = '_'.join(keys)
+        pool = Pool(self.pools / pool_name, name=pool_name)
+        self.create_pool_keys(pool, keys)
+
+        return pool
+
+    def create_pool_keys(self, pool, keys):
+        for key in keys:
+            self._register_key(key, pool, pool=True)
 
     # Tell us if the path is a cache or not
     # NOTE: maybe we want this to be raising errors and whatnot instead of just
@@ -173,25 +180,24 @@ class Cache:
 
     # Save artifact to key in cache
     # NOTE: Going to require some reworking to properly support pools
-    def save(self, artifact, key, pool_fp=None):
+    def save(self, artifact, key, pool=None):
         data_name = str(artifact.uuid)
         data_fp = str(self.data / data_name)
         artifact.save(data_fp)
 
-        key_fp = self.keys / key
-        if pool_fp is None:
-            key_fp.write_text(
-                _KEY_TEMPLATE % (key, data_name + artifact.extension, ''))
-        # This does not handle pools properly, they will be handled seperately
-        # mostly by the context
+        if pool:
+            os.symlink(data_fp, pool.path / (str(artifact.uuid) + artifact.extension))
         else:
-            pool_name = os.path.basename(pool_fp)
-            # pool_fp = self.pools / pool_name
-            # os.mkdir(pool_fp)
-            os.symlink(data_fp,
-                       pool_fp / (str(artifact.uuid) + artifact.extension))
+            self._register_key(key, data_name + artifact.extension)
 
-            key_fp.write_text(_KEY_TEMPLATE % (key, '', pool_name))
+    # Create a new key pointing at data or a pool
+    def _register_key(self, key, value, pool=False):
+        key_fp = self.keys / key
+
+        if pool:
+            key_fp.write_text(_KEY_TEMPLATE % (key, '', value))
+        else:
+            key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
 
     # Load the data pointed to by the key. Does not work on pools. Only works
     # if you have data
@@ -267,9 +273,9 @@ class Pool:
         print(self.path)
         os.mkdir(self.path)
 
-    def save(self, ref):
-        print(ref)
-        CACHE_CONFIG.cache.save(ref, self.name, pool_fp=self.path)
+    def save(self, artifact):
+        print(artifact)
+        CACHE_CONFIG.cache.save(artifact, self.name, self)
 
     def remove(self, key):
         pass
@@ -279,5 +285,5 @@ class Pool:
         self.old_pool = CACHE_CONFIG.named_pool
         CACHE_CONFIG.named_pool = self
 
-    def __exit__(self):
+    def __exit__(self, type, value, tb):
         CACHE_CONFIG.named_pool = self.old_pool
