@@ -118,14 +118,8 @@ class Cache:
         else:
             pool_name = '_'.join(keys)
             pool_fp = self.pools / pool_name
+            pool = Pool(pool_fp, name=pool_name, reuse=reuse)
 
-            if not reuse and os.path.exists(pool_fp):
-                # TODO: Do we want an error here? Tell em to go get rid of the
-                # pool?
-                pass
-
-            # Create our pool and keys
-            pool = Pool(pool_fp, name=pool_name)
             self.create_pool_keys(pool_name, keys)
 
         return pool
@@ -270,7 +264,14 @@ class Cache:
 # Assume we will make this its own class for now
 class Pool:
 
-    def __init__(self, path, name=None):
+    def __init__(self, path, name=None, reuse=False):
+        if reuse and not os.path.exists(path):
+            raise ValueError("Cannot reuse a pool that does not exist")
+        elif not reuse and os.path.exists(path):
+            raise ValueError("Pool already exists, please use reuse=True to "
+                             "reuse existing pool, or remove all keys "
+                             "indicating this pool to remove the pool")
+
         if name:
             self.path = path
             self.name = name
@@ -283,8 +284,7 @@ class Pool:
             self.name = f'{pid}-{time}@{user}'
             self.path = path / self.name
 
-        if not os.path.exists(self.path):
-            os.mkdir(self.path)
+        os.mkdir(self.path)
 
     def save(self, artifact):
         print(artifact)
