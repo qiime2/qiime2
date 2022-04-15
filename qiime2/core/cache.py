@@ -93,10 +93,10 @@ class Cache:
         # it's just so they're both on the same disk, so they'll probably just
         # set the tmp location in the config or something. I feel like if we're
         # going to manage the cache, we should manage the cache which means if
-        # they're going to create_poolput tmp in the cache it should have to be in a set
-        # directory within the cache like tmp not just whatever they want it to
-        # be in the cache. Not sure how we would really enforce that, but we
-        # can just... Heavily encourage it I guess
+        # they're going to create_poolput tmp in the cache it should have to be
+        # in a set directory within the cache like tmp not just whatever they
+        # want it to be in the cache. Not sure how we would really enforce
+        # that, but we can just... Heavily encourage it I guess
         # os.mkdir('tmp')
 
         self.version.write_text(
@@ -190,7 +190,8 @@ class Cache:
         artifact.save(data_fp)
 
         if pool:
-            os.symlink(data_fp, pool.path / (str(artifact.uuid) + artifact.extension))
+            os.symlink(
+                data_fp, pool.path / (str(artifact.uuid) + artifact.extension))
         else:
             self._register_key(key, data_name + artifact.extension)
 
