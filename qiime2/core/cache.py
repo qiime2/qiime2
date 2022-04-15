@@ -265,13 +265,6 @@ class Cache:
 class Pool:
 
     def __init__(self, path, name=None, reuse=False):
-        if reuse and not os.path.exists(path):
-            raise ValueError("Cannot reuse a pool that does not exist")
-        elif not reuse and os.path.exists(path):
-            raise ValueError("Pool already exists, please use reuse=True to "
-                             "reuse existing pool, or remove all keys "
-                             "indicating this pool to remove the pool")
-
         if name:
             self.path = path
             self.name = name
@@ -284,10 +277,16 @@ class Pool:
             self.name = f'{pid}-{time}@{user}'
             self.path = path / self.name
 
+        if reuse and not os.path.exists(self.path):
+            raise ValueError("Cannot reuse a pool that does not exist")
+        elif not reuse and os.path.exists(self.path):
+            raise ValueError("Pool already exists, please use reuse=True to "
+                             "reuse existing pool, or remove all keys "
+                             "indicating this pool to remove the pool")
+
         os.mkdir(self.path)
 
     def save(self, artifact):
-        print(artifact)
         CACHE_CONFIG.cache.save(artifact, self.name, self)
 
     def remove(self, key):
