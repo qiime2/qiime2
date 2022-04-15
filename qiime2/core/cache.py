@@ -111,12 +111,22 @@ class Cache:
         # Always create an anonymous pool keyed on pid-created_at@host in the
         # process folder
         # Need some kinda default name
-        if process_pool:
-            return Pool(self.process)
 
-        pool_name = '_'.join(keys)
-        pool = Pool(self.pools / pool_name, name=pool_name)
-        self.create_pool_keys(pool.name, keys)
+        # If we are making a process pool just do it
+        if process_pool:
+            pool = Pool(self.process)
+        else:
+            pool_name = '_'.join(keys)
+            pool_fp = self.pools / pool_name
+
+            if not reuse and os.path.exists(pool_fp):
+                # TODO: Do we want an error here? Tell em to go get rid of the
+                # pool?
+                pass
+
+            # Create our pool and keys
+            pool = Pool(pool_fp, name=pool_name)
+            self.create_pool_keys(pool_name, keys)
 
         return pool
 
@@ -189,6 +199,9 @@ class Cache:
             os.symlink(data_fp, pool.path / (str(artifact.uuid) + artifact.extension))
         else:
             self._register_key(key, data_name + artifact.extension)
+
+        # Collect garbage after a save
+        self.garbage_collection()
 
     # Create a new key pointing at data or a pool
     def _register_key(self, key, value, pool=False):
@@ -270,8 +283,8 @@ class Pool:
             self.name = f'{pid}-{time}@{user}'
             self.path = path / self.name
 
-        print(self.path)
-        os.mkdir(self.path)
+        if not os.path.exists(self.path):
+            os.mkdir(self.path)
 
     def save(self, artifact):
         print(artifact)
