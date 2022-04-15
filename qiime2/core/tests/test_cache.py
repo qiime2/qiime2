@@ -108,10 +108,6 @@ class TestCache(unittest.TestCase):
         pool = self.cache.create_pool(['qux'])
         pool.save(self.art4)
 
-        with open(self.cache.keys / 'bar') as fh:
-            for line in fh:
-                print(line)
-
         # What we expect to see before and after gc
         expected_pre_gc_contents = \
             set(('./VERSION', 'keys/foo', 'keys/bar',
