@@ -64,7 +64,6 @@ class Context:
         # a scope before deferring to plugin code. (Otherwise cleanup wouldn't
         # happen)
         self._scope.add_reference(artifact)
-
         return artifact
 
     def __enter__(self):
@@ -93,7 +92,6 @@ class Context:
                     self._parent._scope.add_reference(ref)
 
 
-# We need to start managing pools in here
 class Scope:
     def __init__(self, ctx):
         self.ctx = ctx
@@ -104,7 +102,6 @@ class Scope:
         """Add a reference to something destructable that is owned by this
            scope.
         """
-
         self._locals.append(ref)
 
     def add_parent_reference(self, ref):

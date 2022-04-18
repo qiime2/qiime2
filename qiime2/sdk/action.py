@@ -29,7 +29,6 @@ from qiime2.sdk.util import ProxyArtifact
 from qiime2.sdk.cache_config import CACHE_CONFIG
 
 
-
 def _subprocess_apply(action, args, kwargs):
     # Preprocess input artifacts as we've got pickled clones which shouldn't
     # self-destruct.
@@ -504,8 +503,8 @@ class Method(Action):
             artifact = qiime2.sdk.Artifact._from_view(
                 spec.qiime_type, output_view, spec.view_type, prov)
 
-            # TODO: We might want to just check if we're using a cache here. If we
-            # are using a cache we need to have a process pool
+            # TODO: We might want to just check if we're using a cache here.
+            # If we are using a cache we need to have a process pool
             if CACHE_CONFIG.process_pool is not None:
                 CACHE_CONFIG.process_pool.save(artifact)
 
@@ -561,8 +560,8 @@ class Visualizer(Action):
             provenance.output_name = 'visualization'
             viz = qiime2.sdk.Visualization._from_data_dir(temp_dir,
                                                           provenance)
-            # TODO: We might want to just check if we're using a cache here. If we
-            # are using a cache we need to have a process pool
+            # TODO: We might want to just check if we're using a cache here.
+            # If we are using a cache we need to have a process pool
             if CACHE_CONFIG.process_pool is not None:
                 CACHE_CONFIG.process_pool.save(viz)
 

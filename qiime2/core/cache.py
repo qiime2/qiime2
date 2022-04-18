@@ -93,10 +93,10 @@ class Cache:
         # it's just so they're both on the same disk, so they'll probably just
         # set the tmp location in the config or something. I feel like if we're
         # going to manage the cache, we should manage the cache which means if
-        # they're going to create_poolput tmp in the cache it should have to be in a set
-        # directory within the cache like tmp not just whatever they want it to
-        # be in the cache. Not sure how we would really enforce that, but we
-        # can just... Heavily encourage it I guess
+        # they're going to create_poolput tmp in the cache it should have to be
+        # in a set directory within the cache like tmp not just whatever they
+        # want it to be in the cache. Not sure how we would really enforce
+        # that, but we can just... Heavily encourage it I guess
         # os.mkdir('tmp')
 
         self.version.write_text(
@@ -111,18 +111,22 @@ class Cache:
         # Always create an anonymous pool keyed on pid-created_at@host in the
         # process folder
         # Need some kinda default name
-        if process_pool:
-            return Pool(self.process)
 
-        pool_name = '_'.join(keys)
-        pool = Pool(self.pools / pool_name, name=pool_name)
-        self.create_pool_keys(pool, keys)
+        # If we are making a process pool just do it
+        if process_pool:
+            pool = Pool(self.process)
+        else:
+            pool_name = '_'.join(keys)
+            pool_fp = self.pools / pool_name
+            pool = Pool(pool_fp, name=pool_name, reuse=reuse)
+
+            self.create_pool_keys(pool_name, keys)
 
         return pool
 
-    def create_pool_keys(self, pool, keys):
+    def create_pool_keys(self, pool_name, keys):
         for key in keys:
-            self._register_key(key, pool, pool=True)
+            self._register_key(key, pool_name, pool=True)
 
     # Tell us if the path is a cache or not
     # NOTE: maybe we want this to be raising errors and whatnot instead of just
@@ -186,9 +190,13 @@ class Cache:
         artifact.save(data_fp)
 
         if pool:
-            os.symlink(data_fp, pool.path / (str(artifact.uuid) + artifact.extension))
+            os.symlink(
+                data_fp, pool.path / (str(artifact.uuid) + artifact.extension))
         else:
             self._register_key(key, data_name + artifact.extension)
+
+        # Collect garbage after a save
+        self.garbage_collection()
 
     # Create a new key pointing at data or a pool
     def _register_key(self, key, value, pool=False):
@@ -257,7 +265,7 @@ class Cache:
 # Assume we will make this its own class for now
 class Pool:
 
-    def __init__(self, path, name=None):
+    def __init__(self, path, name=None, reuse=False):
         if name:
             self.path = path
             self.name = name
@@ -270,11 +278,17 @@ class Pool:
             self.name = f'{pid}-{time}@{user}'
             self.path = path / self.name
 
-        print(self.path)
-        os.mkdir(self.path)
+        if reuse and not os.path.exists(self.path):
+            raise ValueError("Cannot reuse a pool that does not exist")
+        elif not reuse and os.path.exists(self.path):
+            raise ValueError("Pool already exists, please use reuse=True to "
+                             "reuse existing pool, or remove all keys "
+                             "indicating this pool to remove the pool")
+
+        if not reuse:
+            os.mkdir(self.path)
 
     def save(self, artifact):
-        print(artifact)
         CACHE_CONFIG.cache.save(artifact, self.name, self)
 
     def remove(self, key):
