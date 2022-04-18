@@ -285,7 +285,8 @@ class Pool:
                              "reuse existing pool, or remove all keys "
                              "indicating this pool to remove the pool")
 
-        os.mkdir(self.path)
+        if not reuse:
+            os.mkdir(self.path)
 
     def save(self, artifact):
         CACHE_CONFIG.cache.save(artifact, self.name, self)
