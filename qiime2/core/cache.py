@@ -16,6 +16,7 @@ import pathlib
 import qiime2
 from qiime2.sdk.result import Artifact
 from qiime2.sdk.cache_config import CACHE_CONFIG
+from qiime2.core.archive.archiver import _NoOpArchive, _ZipArchive
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -76,7 +77,8 @@ class Cache:
 
         CACHE_CONFIG.cache = self
         # Make our process pool, we probably want this to happen somewhere else
-        CACHE_CONFIG.process_pool = self.create_pool(process_pool=True)
+        CACHE_CONFIG.process_pool = self.create_pool(process_pool=True,
+                                                     reuse=True)
 
     # Surely this needs to be a thing? I suppose if they hand us a path that
     # doesn't exist we just create a cache there? do we want to create it at
@@ -176,24 +178,30 @@ class Cache:
         # Walk over all data and remove any that was not referenced
         for data in os.listdir(self.data):
             if data not in referenced_data:
-                os.remove(self.data / data)
+                shutil.rmtree(self.data / data)
+
+        # TODO: Walk over process pools and remove all that are older than some
+        # configured amount of time
 
     # Export artifact to zip
     def export(self, key):
         pass
 
-    # Save artifact to key in cache
-    # NOTE: Going to require some reworking to properly support pools
-    def save(self, artifact, key, pool=None):
-        data_name = str(artifact.uuid)
-        data_fp = str(self.data / data_name)
-        artifact.save(data_fp)
+    # Save data and create key or pool entry
+    def save(self, ref, key, pool=None):
+        data_name, data_fp = self.get_name_and_fp(ref)
+
+        # We hijack this machinery to avoid zipping the artifacts
+        ref._archiver.CURRENT_ARCHIVE = _NoOpArchive
+        ref.save(data_fp)
+        # Should probably set this back just in case
+        ref._archiver.CURRENT_ARCHIVE = _ZipArchive
 
         if pool:
             os.symlink(
-                data_fp, pool.path / (str(artifact.uuid) + artifact.extension))
+                data_fp, pool.path / data_name)
         else:
-            self._register_key(key, data_name + artifact.extension)
+            self._register_key(key, data_name)
 
         # Collect garbage after a save
         self.garbage_collection()
@@ -206,6 +214,12 @@ class Cache:
             key_fp.write_text(_KEY_TEMPLATE % (key, '', value))
         else:
             key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
+
+    def get_name_and_fp(self, ref):
+        data_name = str(ref.uuid)
+        data_fp = str(self.data / data_name)
+
+        return data_name, data_fp
 
     # Load the data pointed to by the key. Does not work on pools. Only works
     # if you have data
@@ -278,21 +292,20 @@ class Pool:
             self.name = f'{pid}-{time}@{user}'
             self.path = path / self.name
 
-        if reuse and not os.path.exists(self.path):
-            raise ValueError("Cannot reuse a pool that does not exist")
-        elif not reuse and os.path.exists(self.path):
+        if not reuse and os.path.exists(self.path):
             raise ValueError("Pool already exists, please use reuse=True to "
                              "reuse existing pool, or remove all keys "
                              "indicating this pool to remove the pool")
 
-        if not reuse:
+        if not os.path.exists(self.path):
             os.mkdir(self.path)
 
-    def save(self, artifact):
-        CACHE_CONFIG.cache.save(artifact, self.name, self)
+    def save(self, ref):
+        CACHE_CONFIG.cache.save(ref, self.name, self)
 
-    def remove(self, key):
-        pass
+    def remove(self, ref):
+        data_name, _ = CACHE_CONFIG.cache.get_name_and_fp(ref)
+        os.remove(self.path / data_name)
 
     # If you with a pool you are using it as your named pool
     def __enter__(self):

@@ -502,15 +502,6 @@ class Method(Action):
 
             artifact = qiime2.sdk.Artifact._from_view(
                 spec.qiime_type, output_view, spec.view_type, prov)
-
-            # TODO: We might want to just check if we're using a cache here.
-            # If we are using a cache we need to have a process pool
-            if CACHE_CONFIG.process_pool is not None:
-                CACHE_CONFIG.process_pool.save(artifact)
-
-            if CACHE_CONFIG.named_pool is not None:
-                CACHE_CONFIG.named_pool.save(artifact)
-
             scope.add_parent_reference(artifact)
 
             output_artifacts.append(artifact)
@@ -560,14 +551,6 @@ class Visualizer(Action):
             provenance.output_name = 'visualization'
             viz = qiime2.sdk.Visualization._from_data_dir(temp_dir,
                                                           provenance)
-            # TODO: We might want to just check if we're using a cache here.
-            # If we are using a cache we need to have a process pool
-            if CACHE_CONFIG.process_pool is not None:
-                CACHE_CONFIG.process_pool.save(viz)
-
-            if CACHE_CONFIG.named_pool is not None:
-                CACHE_CONFIG.named_pool.save(viz)
-
             scope.add_parent_reference(viz)
 
             results = Results(self.signature.outputs.keys(), (viz,))
