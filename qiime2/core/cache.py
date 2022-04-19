@@ -183,10 +183,9 @@ class Cache:
     def export(self, key):
         pass
 
-    # Save artifact to key in cache
+    # Save data and create key or pool entry
     def save(self, ref, key, pool=None):
-        data_name = str(ref.uuid)
-        data_fp = str(self.data / data_name)
+        data_name, data_fp = self._get_name_and_fp(ref)
         ref.save(data_fp)
 
         if pool:
@@ -206,6 +205,12 @@ class Cache:
             key_fp.write_text(_KEY_TEMPLATE % (key, '', value))
         else:
             key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
+
+    def _get_name_and_fp(self, ref):
+        data_name = str(ref.uuid)
+        data_fp = str(self.data / data_name)
+
+        return data_name, data_fp
 
     # Load the data pointed to by the key. Does not work on pools. Only works
     # if you have data
