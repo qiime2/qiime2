@@ -286,9 +286,7 @@ class Pool:
             self.name = f'{pid}-{time}@{user}'
             self.path = path / self.name
 
-        if reuse and not os.path.exists(self.path):
-            raise ValueError("Cannot reuse a pool that does not exist")
-        elif not reuse and os.path.exists(self.path):
+        if not reuse and os.path.exists(self.path):
             raise ValueError("Pool already exists, please use reuse=True to "
                              "reuse existing pool, or remove all keys "
                              "indicating this pool to remove the pool")
