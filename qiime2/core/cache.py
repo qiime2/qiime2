@@ -185,14 +185,14 @@ class Cache:
 
     # Save data and create key or pool entry
     def save(self, ref, key, pool=None):
-        data_name, data_fp = self._get_name_and_fp(ref)
+        data_name, data_fp = self.get_name_and_fp(ref)
         ref.save(data_fp)
 
         if pool:
             os.symlink(
-                data_fp, pool.path / (str(ref.uuid) + ref.extension))
+                data_fp, pool.path / data_name)
         else:
-            self._register_key(key, data_name + ref.extension)
+            self._register_key(key, data_name)
 
         # Collect garbage after a save
         self.garbage_collection()
@@ -206,9 +206,12 @@ class Cache:
         else:
             key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
 
-    def _get_name_and_fp(self, ref):
+    def get_name_and_fp(self, ref):
         data_name = str(ref.uuid)
         data_fp = str(self.data / data_name)
+
+        # May end up being uneccessary
+        data_name += ref.extension
 
         return data_name, data_fp
 
