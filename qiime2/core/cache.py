@@ -180,6 +180,9 @@ class Cache:
             if data not in referenced_data:
                 shutil.rmtree(self.data / data)
 
+        # TODO: Walk over process pools and remove all that are older than some
+        # configured amount of time
+
     # Export artifact to zip
     def export(self, key):
         pass
