@@ -76,7 +76,8 @@ class Cache:
 
         CACHE_CONFIG.cache = self
         # Make our process pool, we probably want this to happen somewhere else
-        CACHE_CONFIG.process_pool = self.create_pool(process_pool=True)
+        CACHE_CONFIG.process_pool = self.create_pool(process_pool=True,
+                                                     reuse=True)
 
     # Surely this needs to be a thing? I suppose if they hand us a path that
     # doesn't exist we just create a cache there? do we want to create it at
@@ -288,8 +289,8 @@ class Pool:
         if not reuse:
             os.mkdir(self.path)
 
-    def save(self, artifact):
-        CACHE_CONFIG.cache.save(artifact, self.name, self)
+    def save(self, ref):
+        CACHE_CONFIG.cache.save(ref, self.name, self)
 
     def remove(self, key):
         pass
