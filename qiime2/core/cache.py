@@ -184,17 +184,16 @@ class Cache:
         pass
 
     # Save artifact to key in cache
-    # NOTE: Going to require some reworking to properly support pools
-    def save(self, artifact, key, pool=None):
-        data_name = str(artifact.uuid)
+    def save(self, ref, key, pool=None):
+        data_name = str(ref.uuid)
         data_fp = str(self.data / data_name)
-        artifact.save(data_fp)
+        ref.save(data_fp)
 
         if pool:
             os.symlink(
-                data_fp, pool.path / (str(artifact.uuid) + artifact.extension))
+                data_fp, pool.path / (str(ref.uuid) + ref.extension))
         else:
-            self._register_key(key, data_name + artifact.extension)
+            self._register_key(key, data_name + ref.extension)
 
         # Collect garbage after a save
         self.garbage_collection()
@@ -292,7 +291,7 @@ class Pool:
     def save(self, ref):
         CACHE_CONFIG.cache.save(ref, self.name, self)
 
-    def remove(self, key):
+    def remove(self, ref):
         pass
 
     # If you with a pool you are using it as your named pool
