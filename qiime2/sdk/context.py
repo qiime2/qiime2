@@ -7,6 +7,8 @@
 # ----------------------------------------------------------------------------
 
 import qiime2.sdk
+from qiime2.sdk.cache_config import CACHE_CONFIG
+from qiime2.sdk.result import Artifact, Visualization
 
 
 class Context:
@@ -87,6 +89,12 @@ class Scope:
         """Add a reference to something destructable that is owned by this
            scope.
         """
+        if isinstance(ref, Artifact) or isinstance(ref, Visualization):
+            CACHE_CONFIG.process_pool.save(ref)
+
+            if CACHE_CONFIG.named_pool is not None:
+                CACHE_CONFIG.named_pool.save(ref)
+
         self._locals.append(ref)
 
     def add_parent_reference(self, ref):
@@ -120,6 +128,8 @@ class Scope:
         del self.ctx
 
         for ref in local_refs:
+            if isinstance(ref, Artifact) or isinstance(ref, Visualization):
+                CACHE_CONFIG.process_pool.remove(ref)
             ref._destructor()
 
         if local_references_only:
