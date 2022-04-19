@@ -20,7 +20,6 @@ import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
-from qiime2.sdk.cache_config import CACHE_CONFIG
 
 
 def _subprocess_apply(action, args, kwargs):
