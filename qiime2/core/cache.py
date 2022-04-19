@@ -291,7 +291,7 @@ class Pool:
                              "reuse existing pool, or remove all keys "
                              "indicating this pool to remove the pool")
 
-        if not reuse:
+        if not os.path.exists(self.path):
             os.mkdir(self.path)
 
     def save(self, ref):
