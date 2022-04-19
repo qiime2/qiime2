@@ -16,6 +16,7 @@ import pathlib
 import qiime2
 from qiime2.sdk.result import Artifact
 from qiime2.sdk.cache_config import CACHE_CONFIG
+from qiime2.core.archive.archiver import _NoOpArchive
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -177,7 +178,7 @@ class Cache:
         # Walk over all data and remove any that was not referenced
         for data in os.listdir(self.data):
             if data not in referenced_data:
-                os.remove(self.data / data)
+                shutil.rmtree(self.data / data)
 
     # Export artifact to zip
     def export(self, key):
@@ -186,6 +187,9 @@ class Cache:
     # Save data and create key or pool entry
     def save(self, ref, key, pool=None):
         data_name, data_fp = self.get_name_and_fp(ref)
+
+        # We hijack this machinery to avoid zipping the artifacts
+        ref._archiver.CURRENT_ARCHIVE = _NoOpArchive
         ref.save(data_fp)
 
         if pool:
@@ -209,9 +213,6 @@ class Cache:
     def get_name_and_fp(self, ref):
         data_name = str(ref.uuid)
         data_fp = str(self.data / data_name)
-
-        # May end up being uneccessary
-        data_name += ref.extension
 
         return data_name, data_fp
 

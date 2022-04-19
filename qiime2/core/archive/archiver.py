@@ -235,6 +235,14 @@ class _NoOpArchive(_Archive):
     def is_archive_type(cls, path):
         return os.path.isdir(str(path))
 
+    @classmethod
+    def save(cls, source, destination):
+        # NOTE: Probably a better way to handle this
+        destination = destination.rstrip('.qza')
+        destination = destination.rstrip('.qzv')
+
+        shutil.copytree(source, destination)
+
     def relative_iterdir(self, relpath=''):
         seen = set()
         for name in os.listdir(str(self.path)):
