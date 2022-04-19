@@ -16,7 +16,7 @@ import pathlib
 import qiime2
 from qiime2.sdk.result import Artifact
 from qiime2.sdk.cache_config import CACHE_CONFIG
-from qiime2.core.archive.archiver import _NoOpArchive
+from qiime2.core.archive.archiver import _NoOpArchive, _ZipArchive
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -191,6 +191,8 @@ class Cache:
         # We hijack this machinery to avoid zipping the artifacts
         ref._archiver.CURRENT_ARCHIVE = _NoOpArchive
         ref.save(data_fp)
+        # Should probably set this back just in case
+        ref._archiver.CURRENT_ARCHIVE = _ZipArchive
 
         if pool:
             os.symlink(
