@@ -300,7 +300,8 @@ class Pool:
         CACHE_CONFIG.cache.save(ref, self.name, self)
 
     def remove(self, ref):
-        pass
+        data_name, _ = CACHE_CONFIG.cache.get_name_and_fp(ref)
+        os.remove(self.path / data_name)
 
     # If you with a pool you are using it as your named pool
     def __enter__(self):
