@@ -89,11 +89,9 @@ class Scope:
         """Add a reference to something destructable that is owned by this
            scope.
         """
-        if isinstance(ref, Artifact) or isinstance(ref, Visualization):
-            CACHE_CONFIG.process_pool.save(ref)
-
-            if CACHE_CONFIG.named_pool is not None:
-                CACHE_CONFIG.named_pool.save(ref)
+        if CACHE_CONFIG.named_pool is not None and \
+                (isinstance(ref, Artifact) or isinstance(ref, Visualization)):
+            CACHE_CONFIG.named_pool.save(ref)
 
         self._locals.append(ref)
 
@@ -103,7 +101,11 @@ class Scope:
            failure, a context can still identify what will (no longer) be
            returned.
         """
+        CACHE_CONFIG.process_pool.save(ref)
         self._parent_locals.append(ref)
+
+        # Return an artifact backed by the data in the cache
+        return CACHE_CONFIG.process_pool.load(ref)
 
     def destroy(self, local_references_only=False):
         """Destroy all references and clear state.
