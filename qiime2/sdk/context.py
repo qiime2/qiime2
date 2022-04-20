@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+from qiime2.core.cache import Cache
 import qiime2.sdk
 from qiime2.sdk.cache_config import CACHE_CONFIG
 from qiime2.sdk.result import Artifact, Visualization
@@ -93,10 +94,6 @@ class Scope:
         """Add a reference to something destructable that is owned by this
            scope.
         """
-        if CACHE_CONFIG.named_pool is not None and \
-                (isinstance(ref, Artifact) or isinstance(ref, Visualization)):
-            CACHE_CONFIG.named_pool.save(ref)
-
         self._locals.append(ref)
 
     def add_parent_reference(self, ref):
@@ -106,6 +103,9 @@ class Scope:
            returned.
         """
         CACHE_CONFIG.process_pool.save(ref)
+        if CACHE_CONFIG.named_pool is not None:
+            CACHE_CONFIG.named_pool.save(ref)
+
         self._parent_locals.append(ref)
 
         # Return an artifact backed by the data in the cache
