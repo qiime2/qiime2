@@ -81,7 +81,7 @@ class Cache:
         #                                              reuse=True)
 
     def __enter__(self):
-        """If you with a cache you ar using it as a named cache
+        """If you with a cache you are using it as a named cache
         """
         self.backup = CACHE_CONFIG.cache
         CACHE_CONFIG.cache = self
