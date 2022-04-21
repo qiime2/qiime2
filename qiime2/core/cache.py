@@ -101,7 +101,6 @@ class Cache:
         """
         if CACHE_CONFIG.cache is None:
             CACHE_CONFIG.cache = cls.create_temp_cache()
-            return CACHE_CONFIG.cache
 
         return CACHE_CONFIG.cache
 
