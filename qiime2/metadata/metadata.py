@@ -18,6 +18,7 @@ import numpy as np
 
 import qiime2
 from qiime2.core.util import find_duplicates
+import qiime2.core.missing as _missing
 from .base import SUPPORTED_COLUMN_TYPES, FORMATTED_ID_HEADERS, is_id_header
 
 
@@ -253,7 +254,8 @@ class _MetadataBase:
 
 
 # Other properties such as units can be included here in the future!
-ColumnProperties = collections.namedtuple('ColumnProperties', ['type'])
+ColumnProperties = collections.namedtuple('ColumnProperties',
+                                          ['type', 'missing'])
 
 
 class Metadata(_MetadataBase):
@@ -320,7 +322,8 @@ class Metadata(_MetadataBase):
     """
 
     @classmethod
-    def load(cls, filepath, column_types=None):
+    def load(cls, filepath, column_types=None, column_missing=None,
+             default_missing=None):
         """Load a TSV metadata file.
 
         The TSV metadata file format is described at https://docs.qiime2.org in
@@ -355,7 +358,9 @@ class Metadata(_MetadataBase):
         """
         from .io import MetadataReader
         return MetadataReader(filepath).read(into=cls,
-                                             column_types=column_types)
+                                             column_types=column_types,
+                                             column_missing=column_missing,
+                                             default_missing=default_missing)
 
     @property
     def columns(self):
@@ -396,7 +401,7 @@ class Metadata(_MetadataBase):
         """
         return len(self._columns)
 
-    def __init__(self, dataframe):
+    def __init__(self, dataframe, column_missing=None, default_missing=None):
         if not isinstance(dataframe, pd.DataFrame):
             raise TypeError(
                 "%s constructor requires a pandas.DataFrame object, not "
@@ -404,10 +409,16 @@ class Metadata(_MetadataBase):
 
         super().__init__(dataframe.index)
 
-        self._dataframe, self._columns = self._normalize_dataframe(dataframe)
+        if column_missing is None:
+            column_missing = {}
+        if default_missing is None:
+            default_missing = 'q2:omitted'
+
+        self._dataframe, self._columns = self._normalize_dataframe(
+            dataframe, column_missing, default_missing)
         self._validate_index(self._dataframe.columns, axis='column')
 
-    def _normalize_dataframe(self, dataframe):
+    def _normalize_dataframe(self, dataframe, column_missing, default_missing):
         norm_df = dataframe.copy()
 
         # Do not attempt to strip empty metadata
@@ -418,19 +429,21 @@ class Metadata(_MetadataBase):
 
         columns = collections.OrderedDict()
         for column_name, series in norm_df.items():
-            metadata_column = self._metadata_column_factory(series)
+            missing = column_missing.get(column_name, default_missing)
+            metadata_column = self._metadata_column_factory(series, missing)
             norm_df[column_name] = metadata_column.to_series()
-            properties = ColumnProperties(type=metadata_column.type)
+            properties = ColumnProperties(type=metadata_column.type,
+                                          missing=missing)
             columns[column_name] = properties
 
         return norm_df, columns
 
-    def _metadata_column_factory(self, series):
+    def _metadata_column_factory(self, series, missing):
         dtype = series.dtype
         if NumericMetadataColumn._is_supported_dtype(dtype):
-            column = NumericMetadataColumn(series)
+            column = NumericMetadataColumn(series, missing)
         elif CategoricalMetadataColumn._is_supported_dtype(dtype):
-            column = CategoricalMetadataColumn(series)
+            column = CategoricalMetadataColumn(series, missing)
         else:
             raise TypeError(
                 "Metadata column %r has an unsupported pandas dtype of %s. "
@@ -521,7 +534,7 @@ class Metadata(_MetadataBase):
         """
         return not (self == other)
 
-    def to_dataframe(self):
+    def to_dataframe(self, encode_missing=False):
         """Create a pandas dataframe from the metadata.
 
         The dataframe's index name (``Index.name``) will match this metadata
@@ -537,7 +550,16 @@ class Metadata(_MetadataBase):
             Dataframe constructed from the metadata.
 
         """
-        return self._dataframe.copy()
+        df = self._dataframe.copy()
+        if encode_missing:
+            def replace_nan(series):
+                missing = _missing.series_extract_missing(series)
+                series[missing.index] = missing
+                return series
+
+            df = df.apply(replace_nan)
+
+        return df
 
     def get_column(self, name):
         """Retrieve metadata column based on column name.
@@ -560,12 +582,13 @@ class Metadata(_MetadataBase):
         """
         try:
             series = self._dataframe[name]
+            missing = self._columns[name].missing
         except KeyError:
             raise ValueError(
                 '%r is not a column in the metadata. Available columns: '
                 '%s' % (name, ', '.join(repr(c) for c in self.columns)))
 
-        return self._metadata_column_factory(series)
+        return self._metadata_column_factory(series, missing)
 
     def get_ids(self, where=None):
         """Retrieve IDs matching search criteria.
@@ -889,7 +912,11 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         """
         return self._series.name
 
-    def __init__(self, series):
+    @property
+    def missing(self):
+        return self._missing
+
+    def __init__(self, series, missing=None):
         if not isinstance(series, pd.Series):
             raise TypeError(
                 "%s constructor requires a pandas.Series object, not %r" %
@@ -902,6 +929,12 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
                 "%s %r does not support a pandas.Series object with dtype %s" %
                 (self.__class__.__name__, series.name, series.dtype))
 
+        if missing is None:
+            missing = 'q2:omitted'
+
+        self._missing = missing
+
+        series = _missing.series_encode_missing(series, missing)
         self._series = self._normalize_(series)
 
         self._validate_index([self._series.name], axis='column')
@@ -964,7 +997,7 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         """
         return not (self == other)
 
-    def to_series(self):
+    def to_series(self, encode_missing=False):
         """Create a pandas series from the metadata column.
 
         The series index name (``Index.name``) will match this metadata
@@ -981,9 +1014,14 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         to_dataframe
 
         """
-        return self._series.copy()
+        series = self._series.copy()
+        if encode_missing:
+            missing = self.get_missing()
+            series[missing.index] = missing
 
-    def to_dataframe(self):
+        return series
+
+    def to_dataframe(self, encode_missing=False):
         """Create a pandas dataframe from the metadata column.
 
         The dataframe will contain exactly one column. The dataframe's index
@@ -1001,7 +1039,10 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         to_series
 
         """
-        return self._series.to_frame()
+        return self.to_series(encode_missing=encode_missing).to_frame()
+
+    def get_missing(self):
+        return _missing.series_extract_missing(self._series)
 
     def get_value(self, id):
         """Retrieve metadata column value associated with an ID.

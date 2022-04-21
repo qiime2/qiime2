@@ -232,7 +232,7 @@ class TestLoadErrors(unittest.TestCase):
 
         with self.assertRaisesRegex(MetadataFileError,
                                     'Unrecognized directive.*#q2:foo.*'
-                                    '#q2:types directive is supported'):
+                                    '#q2:types.*#q2:missing.*directive'):
             Metadata.load(fp)
 
     def test_duplicate_directives(self):
