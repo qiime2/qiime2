@@ -270,7 +270,6 @@ class Cache:
 
 # Assume we will make this its own class for now
 class Pool:
-
     def __init__(self, path, cache, name=None, reuse=False):
         self.cache = cache
 
@@ -320,5 +319,3 @@ class Pool:
     # Remove an element from the pool
     def remove(self, ref):
         os.remove(self.path / str(ref.uuid))
-
-
