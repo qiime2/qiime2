@@ -86,16 +86,16 @@ class Scope:
         self._locals = []
         self._parent_locals = []
 
-    # NOTE: If we add everything in add parent reference we end up with two
-    # different artifacts with different uuids representing the same piece of data
-    # in the named pool. If we do it this way, we end up with each data in each
-    # pool once, but they are different artifacts with different uuids in each pool
+
     def add_reference(self, ref):
         """Add a reference to something destructable that is owned by this
            scope.
         """
         self._locals.append(ref)
 
+    # NOTE: We end up with both the artifact and the pipeline alias of artifact
+    # in the named cache in the end. We only have the pipeline alias in the
+    # process cache
     def add_parent_reference(self, ref):
         """Add a reference to something destructable that will be owned by the
            parent scope. The reason it needs to be tracked is so that on
