@@ -11,7 +11,6 @@ import tempfile
 import unittest
 
 import qiime2
-from qiime2.core import cache
 from qiime2.core.cache import Cache
 from qiime2.core.testing.type import IntSequence1
 from qiime2.sdk.result import Artifact
