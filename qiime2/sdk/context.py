@@ -102,14 +102,17 @@ class Scope:
            failure, a context can still identify what will (no longer) be
            returned.
         """
-        CACHE_CONFIG.process_pool.save(ref)
+        cache = Cache.get_cache()
+        process_pool = cache.create_pool(process_pool=True, reuse=True)
+        process_pool.save(ref)
+
         if CACHE_CONFIG.named_pool is not None:
             CACHE_CONFIG.named_pool.save(ref)
 
         self._parent_locals.append(ref)
 
         # Return an artifact backed by the data in the cache
-        return CACHE_CONFIG.process_pool.load(ref)
+        return process_pool.load(ref)
 
     def destroy(self, local_references_only=False):
         """Destroy all references and clear state.
@@ -135,7 +138,7 @@ class Scope:
 
         for ref in local_refs:
             if isinstance(ref, Artifact) or isinstance(ref, Visualization):
-                CACHE_CONFIG.process_pool.remove(ref)
+                CACHE_CONFIG.cache.create_pool(process_pool=True, reuse=True).remove(ref)
             ref._destructor()
 
         if local_references_only:
