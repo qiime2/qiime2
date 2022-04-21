@@ -137,6 +137,12 @@ class Scope:
         del self.ctx
 
         for ref in local_refs:
+            # NOTE: This is getting a little weird. We're creating an instance
+            # of a pool object, but we are not creating the pool itself, the
+            # pool is on disk. We create a pool object referring to the
+            # existing pool on disk then remove an item from it. If there is no
+            # applicable pool to remove it from at this point, we want to
+            # explode. There should always be one if everything worked out
             if isinstance(ref, Artifact) or isinstance(ref, Visualization):
                 CACHE_CONFIG.cache.create_pool(process_pool=True, reuse=True).remove(ref)
             ref._destructor()
