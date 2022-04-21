@@ -235,6 +235,12 @@ class _NoOpArchive(_Archive):
     def is_archive_type(cls, path):
         return os.path.isdir(str(path))
 
+    def _get_uuid(self):
+        """If we are using a _NoOpArchive we are a data element in a pool
+        meaning we are unzipped and our name is our uuid
+        """
+        return os.path.basename(self.path)
+
     @classmethod
     def save(cls, source, destination):
         # NOTE: Probably a better way to handle this
@@ -251,10 +257,10 @@ class _NoOpArchive(_Archive):
                 yield name
 
     def open(self, relpath):
-        return open(os.path.join(self.path, self.uuid, relpath))
+        return open(os.path.join(self.path, relpath))
 
     def mount(self, filepath):
-        shutil.copytree(self.path, filepath, dirs_exist_ok=True)
+        shutil.copytree(self.path, filepath / str(self.uuid), dirs_exist_ok=True)
         root = pathlib.Path(os.path.join(filepath, str(self.uuid)))
         return ArchiveRecord(root, root / self.VERSION_FILE,
                              self.uuid, self.version, self.framework_version)
@@ -286,15 +292,14 @@ class Archiver:
         return getattr(importlib.import_module(imp), fmt_cls)
 
     @classmethod
-    # TODO: Talk about the allow_no_op flag
-    def get_archive(cls, filepath):
+    def get_archive(cls, filepath, allow_no_op=False):
         filepath = pathlib.Path(filepath)
         if not filepath.exists():
             raise ValueError("%s does not exist." % filepath)
 
         if _ZipArchive.is_archive_type(filepath):
             archive = _ZipArchive(filepath)
-        elif _NoOpArchive.is_archive_type(filepath):
+        elif _NoOpArchive.is_archive_type(filepath) and allow_no_op:
             archive = _NoOpArchive(filepath)
         else:
             raise ValueError("%s is not a QIIME archive." % filepath)
@@ -331,8 +336,8 @@ class Archiver:
         return str(archive.extract(dest))
 
     @classmethod
-    def load(cls, filepath):
-        archive = cls.get_archive(filepath)
+    def load(cls, filepath, allow_no_op=False):
+        archive = cls.get_archive(filepath, allow_no_op)
         Format = cls.get_format_class(archive.version)
         if Format is None:
             cls._futuristic_archive_error(filepath, archive)

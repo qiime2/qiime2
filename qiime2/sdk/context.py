@@ -5,6 +5,8 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
+
+from qiime2.core.cache import Cache
 import qiime2.sdk
 from qiime2.sdk.config import LOCAL_CONFIG
 from qiime2.sdk.cache_config import CACHE_CONFIG
@@ -100,25 +102,30 @@ class Scope:
         self._locals = []
         self._parent_locals = []
 
+
     def add_reference(self, ref):
         """Add a reference to something destructable that is owned by this
            scope.
         """
-        if isinstance(ref, Artifact) or isinstance(ref, Visualization):
-            CACHE_CONFIG.process_pool.save(ref)
-
-            if CACHE_CONFIG.named_pool is not None:
-                CACHE_CONFIG.named_pool.save(ref)
-
         self._locals.append(ref)
 
+    # NOTE: We end up with both the artifact and the pipeline alias of artifact
+    # in the named cache in the end. We only have the pipeline alias in the
+    # process cache
     def add_parent_reference(self, ref):
         """Add a reference to something destructable that will be owned by the
            parent scope. The reason it needs to be tracked is so that on
            failure, a context can still identify what will (no longer) be
            returned.
         """
+        CACHE_CONFIG.process_pool.save(ref)
+        if CACHE_CONFIG.named_pool is not None:
+            CACHE_CONFIG.named_pool.save(ref)
+
         self._parent_locals.append(ref)
+
+        # Return an artifact backed by the data in the cache
+        return CACHE_CONFIG.process_pool.load(ref)
 
     def destroy(self, local_references_only=False):
         """Destroy all references and clear state.

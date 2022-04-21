@@ -11,12 +11,13 @@ import os
 import yaml
 import psutil
 import shutil
+import distutils
 import pathlib
 
 import qiime2
-from qiime2.sdk.result import Artifact
+from qiime2.sdk.result import Artifact, Result
 from qiime2.sdk.cache_config import CACHE_CONFIG
-from qiime2.core.archive.archiver import _NoOpArchive, _ZipArchive
+from qiime2.core.archive.archiver import _NoOpArchive, _ZipArchive, Archiver
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -116,11 +117,11 @@ class Cache:
 
         # If we are making a process pool just do it
         if process_pool:
-            pool = Pool(self.process)
+            pool = Pool(self.process, self)
         else:
             pool_name = '_'.join(keys)
             pool_fp = self.pools / pool_name
-            pool = Pool(pool_fp, name=pool_name, reuse=reuse)
+            pool = Pool(pool_fp, self, name=pool_name, reuse=reuse)
 
             self.create_pool_keys(pool_name, keys)
 
@@ -175,35 +176,38 @@ class Cache:
                 for data in os.listdir(self.pools / pool):
                     referenced_data.add(data)
 
+        # Add references to data in process pools
+        # TODO: Remove all process pools that are older than some configured
+        # amount of time
+        for process_pool in os.listdir(self.process):
+            for data in os.listdir(self.process / process_pool):
+                referenced_data.add(data)
+
         # Walk over all data and remove any that was not referenced
         for data in os.listdir(self.data):
             if data not in referenced_data:
                 shutil.rmtree(self.data / data)
 
-        # TODO: Walk over process pools and remove all that are older than some
-        # configured amount of time
-
-    # Export artifact to zip
-    def export(self, key):
-        pass
-
     # Save data and create key or pool entry
-    def save(self, ref, key, pool=None):
-        data_name, data_fp = self.get_name_and_fp(ref)
-
-        # We hijack this machinery to avoid zipping the artifacts
-        ref._archiver.CURRENT_ARCHIVE = _NoOpArchive
-        ref.save(data_fp)
-        # Should probably set this back just in case
-        ref._archiver.CURRENT_ARCHIVE = _ZipArchive
-
-        if pool:
-            os.symlink(
-                data_fp, pool.path / data_name)
-        else:
-            self._register_key(key, data_name)
+    def save(self, ref, key):
+        # Move the data into cache under key
+        shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
+        self._register_key(key, str(ref.uuid))
 
         # Collect garbage after a save
+        self.garbage_collection()
+        # Give back an instance of the Artifact they can use if they want
+        return self.load(key)
+
+    # Load the data pointed to by the key. Does not work on pools. Only works
+    # if you have data
+    def load(self, key):
+        archiver = Archiver.load(self.data / yaml.safe_load(open(self.keys / key))['data'], allow_no_op=True)
+        return Result._from_archiver(archiver)
+
+    # Remove key from cache
+    def delete(self, key):
+        os.remove(self.keys / key)
         self.garbage_collection()
 
     # Create a new key pointing at data or a pool
@@ -214,23 +218,6 @@ class Cache:
             key_fp.write_text(_KEY_TEMPLATE % (key, '', value))
         else:
             key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
-
-    def get_name_and_fp(self, ref):
-        data_name = str(ref.uuid)
-        data_fp = str(self.data / data_name)
-
-        return data_name, data_fp
-
-    # Load the data pointed to by the key. Does not work on pools. Only works
-    # if you have data
-    def load(self, key):
-        return Artifact.load(
-            self.data / yaml.safe_load(open(self.keys / key))['data'])
-
-    # Remove key from cache
-    def delete(self, key):
-        os.remove(self.keys / key)
-        self.garbage_collection()
 
     # Not entirely clear how this will work yet. We are assuming multiple
     # processes from multiple systems will be interacting with the cache. This
@@ -279,7 +266,9 @@ class Cache:
 # Assume we will make this its own class for now
 class Pool:
 
-    def __init__(self, path, name=None, reuse=False):
+    def __init__(self, path, cache, name=None, reuse=False):
+        self.cache = cache
+
         if name:
             self.path = path
             self.name = name
@@ -300,12 +289,24 @@ class Pool:
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
+    # Save an element into the pool
     def save(self, ref):
-        CACHE_CONFIG.cache.save(ref, self.name, self)
+        shutil.copytree(ref._archiver.path, self.cache.data,
+                        dirs_exist_ok=True)
+        os.symlink(self.cache.data / str(ref.uuid), self.path / str(ref.uuid))
+        self.cache.garbage_collection()
 
+        return self.load(ref)
+
+    # Load a reference to an element in the pool
+    def load(self, ref):
+        archiver = Archiver.load(self.cache.data / str(ref.uuid),
+                                 allow_no_op=True)
+        return Result._from_archiver(archiver)
+
+    # Remove an element from the pool
     def remove(self, ref):
-        data_name, _ = CACHE_CONFIG.cache.get_name_and_fp(ref)
-        os.remove(self.path / data_name)
+        os.remove(self.path / str(ref.uuid))
 
     # If you with a pool you are using it as your named pool
     def __enter__(self):

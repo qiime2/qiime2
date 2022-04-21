@@ -502,7 +502,7 @@ class Method(Action):
 
             artifact = qiime2.sdk.Artifact._from_view(
                 spec.qiime_type, output_view, spec.view_type, prov)
-            scope.add_parent_reference(artifact)
+            artifact = scope.add_parent_reference(artifact)
 
             output_artifacts.append(artifact)
 
@@ -551,7 +551,7 @@ class Visualizer(Action):
             provenance.output_name = 'visualization'
             viz = qiime2.sdk.Visualization._from_data_dir(temp_dir,
                                                           provenance)
-            scope.add_parent_reference(viz)
+            viz = scope.add_parent_reference(viz)
 
             results = Results(self.signature.outputs.keys(), (viz,))
 
@@ -657,7 +657,7 @@ class Pipeline(Action):
             scope.add_reference(prov)
 
             aliased_result = output._alias(prov)
-            scope.add_parent_reference(aliased_result)
+            aliased_result = scope.add_parent_reference(aliased_result)
 
             results.append(aliased_result)
 
