@@ -55,8 +55,8 @@ class MetadataReader:
         # protocol is the only guaranteed API on this object.
         self._reader = None
 
-    def read(self, into, column_types=None, column_missing=None,
-             default_missing=None):
+    def read(self, into, column_types=None, column_missing_schemes=None,
+             default_missing_scheme=_missing.DEFAULT_MISSING):
         if column_types is None:
             column_types = {}
 
@@ -90,7 +90,6 @@ class MetadataReader:
         index = pd.Index(ids, name=header[0], dtype=object)
         df = pd.DataFrame(data, columns=header[1:], index=index, dtype=object)
 
-
         # TODO: move these checks over to Metadata.__init__() so that you can
         # pass column_types with an untyped dataframe. This would require a bit
         # of a refactor and doesn't buy a whole lot at the moment, hence the
@@ -111,11 +110,11 @@ class MetadataReader:
         resolved_column_types = directives.get('types', {})
         resolved_column_types.update(column_types)
 
-        if column_missing is None:
-            column_missing = {}
+        if column_missing_schemes is None:
+            column_missing_schemes = {}
 
         resolved_missing = directives.get('missing', {})
-        resolved_missing.update(column_missing)
+        resolved_missing.update(column_missing_schemes)
 
         try:
             # Cast each column to the appropriate dtype based on column type.
@@ -133,8 +132,8 @@ class MetadataReader:
             raise MetadataFileError(msg, include_suffix=False)
 
         try:
-            return into(df, column_missing=resolved_missing,
-                        default_missing=default_missing)
+            return into(df, column_missing_schemes=resolved_missing,
+                        default_missing_scheme=default_missing_scheme)
         except Exception as e:
             raise MetadataFileError(
                 "There was an issue with loading the metadata file:\n\n%s" % e)
@@ -391,18 +390,18 @@ class MetadataWriter:
                 for name, props in md.columns.items():
                     header.append(name)
                     types_directive.append(props.type)
-                    missing_directive.append(props.missing)
+                    missing_directive.append(props.missing_scheme)
             elif isinstance(md, MetadataColumn):
                 header.append(md.name)
                 types_directive.append(md.type)
-                missing_directive.append(md.missing)
+                missing_directive.append(md.missing_scheme)
             else:
                 raise NotImplementedError
 
             tsv_writer.writerow(header)
             tsv_writer.writerow(types_directive)
             if self._non_default_missing(missing_directive):
-                tsv_writter.writerow(missing_directive)
+                tsv_writer.writerow(missing_directive)
 
             df = md.to_dataframe(encode_missing=True)
             df.fillna('', inplace=True)
@@ -413,7 +412,7 @@ class MetadataWriter:
         missing = missing_directive[1:]
         result = False
         for m in missing:
-            if m != 'q2:omitted':
+            if m != _missing.DEFAULT_MISSING:
                 result = True
                 break
 

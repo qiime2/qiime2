@@ -1,6 +1,6 @@
 import struct
 import pandas as pd
-import numpy as np
+
 
 def _float_to_int(number: float) -> int:
     # convert float to a native-endian 8-byte sequence (a double):
@@ -37,8 +37,7 @@ _DEFAULT_NAN_INT = _float_to_int(float('nan'))
 # long as XOR is used instead of AND
 
 
-
-def make_nan_with_payload(payload: int, namespace: int=255) -> float:
+def make_nan_with_payload(payload: int, namespace: int = 255) -> float:
     """Construct a NaN with a namespace and payload.
 
     The payload must be in the range [-1953, 2141]
@@ -59,7 +58,6 @@ def make_nan_with_payload(payload: int, namespace: int=255) -> float:
     unsigned byte. The enumeration values are then stored in the payload which
     uses an offset of 1954 to distinguish between default +qNaN and an
     enumeration scheme. This also permits small negative values in the payload.
-
 
     """
     # To be safe, we will XOR our payload (instead of AND) so that we can take

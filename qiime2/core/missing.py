@@ -6,19 +6,25 @@ from .enan import get_payload_from_nan as _get_payload_from_nan
 
 
 def _encode_terms(namespace, enum):
+    namespace = _NAMESPACE_LOOKUP.index(namespace)
+
     def encode(x):
         try:
             code = enum.index(x)
         except ValueError:
             return x
         return _make_nan_with_payload(code, namespace=namespace)
+
     return encode
 
 
 def _insdc_missing(series):
     return series.apply(
-        _encode_terms(0, ('not applicable', 'missing', 'not collected',
-                          'not provided', 'restricted access')))
+        _encode_terms('INSDC:missing', (
+            'not applicable', 'missing', 'not collected', 'not provided',
+            'restricted access'))
+    )
+
 
 def _q2_omitted(series):
     return series
@@ -26,7 +32,7 @@ def _q2_omitted(series):
 
 def _q2_error(series):
     if series.isna().any():
-        raise ValueError()
+        raise ValueError("NOT ALLOWED")
     return series
 
 
@@ -40,6 +46,7 @@ BUILTIN_MISSING = {
 # list index reflects the term used, the "q2:" enums don't apply here, since
 # they aren't actually encoded in the NaNs
 _NAMESPACE_LOOKUP = ['INSDC:missing']
+DEFAULT_MISSING = 'q2:omitted'
 
 
 def series_encode_missing(series: pd.Series, enumeration: str) -> pd.Series:

@@ -465,7 +465,7 @@ class TestRepr(unittest.TestCase):
         self.assertIn('Metadata', obs)
         self.assertIn('1 ID x 1 column', obs)
         self.assertIn("col1: ColumnProperties(type='numeric',"
-                      " missing='q2:omitted')", obs)
+                      " missing_scheme='q2:omitted')", obs)
 
     def test_plural(self):
         md = Metadata(pd.DataFrame({'col1': [42, 42], 'col2': ['foo', 'bar']},
@@ -476,9 +476,9 @@ class TestRepr(unittest.TestCase):
         self.assertIn('Metadata', obs)
         self.assertIn('2 IDs x 2 columns', obs)
         self.assertIn("col1: ColumnProperties(type='numeric',"
-                      " missing='q2:omitted')", obs)
+                      " missing_scheme='q2:omitted')", obs)
         self.assertIn("col2: ColumnProperties(type='categorical',"
-                      " missing='q2:omitted')", obs)
+                      " missing_scheme='q2:omitted')", obs)
 
     def test_column_name_padding(self):
         data = [[0, 42, 'foo']]
@@ -492,13 +492,13 @@ class TestRepr(unittest.TestCase):
         self.assertIn('1 ID x 3 columns', obs)
         self.assertIn(
             "col1:               ColumnProperties(type='numeric',"
-            " missing='q2:omitted')", obs)
+            " missing_scheme='q2:omitted')", obs)
         self.assertIn(
             "longer-column-name: ColumnProperties(type='numeric',"
-            " missing='q2:omitted')", obs)
+            " missing_scheme='q2:omitted')", obs)
         self.assertIn(
             "c:                  ColumnProperties(type='categorical',"
-            " missing='q2:omitted')", obs)
+            " missing_scheme='q2:omitted')", obs)
 
 
 class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):

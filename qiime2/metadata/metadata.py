@@ -22,6 +22,9 @@ import qiime2.core.missing as _missing
 from .base import SUPPORTED_COLUMN_TYPES, FORMATTED_ID_HEADERS, is_id_header
 
 
+DEFAULT_MISSING = _missing.DEFAULT_MISSING
+
+
 class _MetadataBase:
     """Base class for functionality shared between Metadata and MetadataColumn.
 
@@ -255,7 +258,7 @@ class _MetadataBase:
 
 # Other properties such as units can be included here in the future!
 ColumnProperties = collections.namedtuple('ColumnProperties',
-                                          ['type', 'missing'])
+                                          ['type', 'missing_scheme'])
 
 
 class Metadata(_MetadataBase):
@@ -318,12 +321,20 @@ class Metadata(_MetadataBase):
         cast to ``dtype=float``. To obtain a dataframe from the ``Metadata``
         object containing these normalized data types and values, use
         ``Metadata.to_dataframe()``.
+    column_missing_schemes : dict, optional
+        Override the metadata column handling for missing values described
+        in the file. This is a dict mapping column names (str) to
+        missing-value schemes (str).  Valid values are 'q2:omitted',
+        'q2:error', and 'INSDC:missing'. Column names may be omitted.
+    default_missing_scheme : str, optional
+        The missing scheme to use when none has been provided in the file
+        or in `column_missing_schemes`.
 
     """
 
     @classmethod
-    def load(cls, filepath, column_types=None, column_missing=None,
-             default_missing=None):
+    def load(cls, filepath, column_types=None, column_missing_schemes=None,
+             default_missing_scheme=DEFAULT_MISSING):
         """Load a TSV metadata file.
 
         The TSV metadata file format is described at https://docs.qiime2.org in
@@ -339,6 +350,14 @@ class Metadata(_MetadataBase):
             Valid column types are 'categorical' and 'numeric'. Column names
             may be omitted from this dict to use the column types read from the
             file.
+        column_missing_schemes : dict, optional
+            Override the metadata column handling for missing values described
+            in the file. This is a dict mapping column names (str) to
+            missing-value schemes (str).  Valid values are 'q2:omitted',
+            'q2:error', and 'INSDC:missing'. Column names may be omitted.
+        default_missing_scheme : str, optional
+            The missing scheme to use when none has been provided in the file
+            or in `column_missing_schemes`.
 
         Returns
         -------
@@ -357,10 +376,11 @@ class Metadata(_MetadataBase):
 
         """
         from .io import MetadataReader
-        return MetadataReader(filepath).read(into=cls,
-                                             column_types=column_types,
-                                             column_missing=column_missing,
-                                             default_missing=default_missing)
+        return MetadataReader(filepath).read(
+            into=cls,
+            column_types=column_types,
+            column_missing_schemes=column_missing_schemes,
+            default_missing_scheme=default_missing_scheme)
 
     @property
     def columns(self):
@@ -401,7 +421,8 @@ class Metadata(_MetadataBase):
         """
         return len(self._columns)
 
-    def __init__(self, dataframe, column_missing=None, default_missing=None):
+    def __init__(self, dataframe, column_missing_schemes=None,
+                 default_missing_scheme=DEFAULT_MISSING):
         if not isinstance(dataframe, pd.DataFrame):
             raise TypeError(
                 "%s constructor requires a pandas.DataFrame object, not "
@@ -409,16 +430,15 @@ class Metadata(_MetadataBase):
 
         super().__init__(dataframe.index)
 
-        if column_missing is None:
-            column_missing = {}
-        if default_missing is None:
-            default_missing = 'q2:omitted'
+        if column_missing_schemes is None:
+            column_missing_schemes = {}
 
         self._dataframe, self._columns = self._normalize_dataframe(
-            dataframe, column_missing, default_missing)
+            dataframe, column_missing_schemes, default_missing_scheme)
         self._validate_index(self._dataframe.columns, axis='column')
 
-    def _normalize_dataframe(self, dataframe, column_missing, default_missing):
+    def _normalize_dataframe(self, dataframe, column_missing_schemes,
+                             default_missing_scheme):
         norm_df = dataframe.copy()
 
         # Do not attempt to strip empty metadata
@@ -429,21 +449,23 @@ class Metadata(_MetadataBase):
 
         columns = collections.OrderedDict()
         for column_name, series in norm_df.items():
-            missing = column_missing.get(column_name, default_missing)
-            metadata_column = self._metadata_column_factory(series, missing)
+            missing_scheme = column_missing_schemes.get(column_name,
+                                                        default_missing_scheme)
+            metadata_column = self._metadata_column_factory(series,
+                                                            missing_scheme)
             norm_df[column_name] = metadata_column.to_series()
             properties = ColumnProperties(type=metadata_column.type,
-                                          missing=missing)
+                                          missing_scheme=missing_scheme)
             columns[column_name] = properties
 
         return norm_df, columns
 
-    def _metadata_column_factory(self, series, missing):
+    def _metadata_column_factory(self, series, missing_scheme):
         dtype = series.dtype
         if NumericMetadataColumn._is_supported_dtype(dtype):
-            column = NumericMetadataColumn(series, missing)
+            column = NumericMetadataColumn(series, missing_scheme)
         elif CategoricalMetadataColumn._is_supported_dtype(dtype):
-            column = CategoricalMetadataColumn(series, missing)
+            column = CategoricalMetadataColumn(series, missing_scheme)
         else:
             raise TypeError(
                 "Metadata column %r has an unsupported pandas dtype of %s. "
@@ -544,6 +566,12 @@ class Metadata(_MetadataBase):
         ``dtype=object`` (containing strings), and numeric columns will be
         stored as ``dtype=float``.
 
+        Parameters
+        ----------
+        encode_missing : bool, optional
+            Whether to convert missing values (NaNs) back into their original
+            vocabulary (strings) if a missing scheme was used.
+
         Returns
         -------
         pandas.DataFrame
@@ -582,13 +610,13 @@ class Metadata(_MetadataBase):
         """
         try:
             series = self._dataframe[name]
-            missing = self._columns[name].missing
+            missing_scheme = self._columns[name].missing_scheme
         except KeyError:
             raise ValueError(
                 '%r is not a column in the metadata. Available columns: '
                 '%s' % (name, ', '.join(repr(c) for c in self.columns)))
 
-        return self._metadata_column_factory(series, missing)
+        return self._metadata_column_factory(series, missing_scheme)
 
     def get_ids(self, where=None):
         """Retrieve IDs matching search criteria.
@@ -842,7 +870,7 @@ class Metadata(_MetadataBase):
                     columns_to_drop.add(column)
                     continue
 
-            if drop_all_missing and series.isnull().all():
+            if drop_all_missing and series.isna().all():
                 columns_to_drop.add(column)
                 continue
 
@@ -867,6 +895,14 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
     ``pandas.Series`` object instead of a ``pandas.DataFrame``. Otherwise, the
     same restrictions, considerations, and data normalization are applied as
     with ``Metadata`` objects.
+
+    Parameters
+    ----------
+    series : pd.Series
+        The series to construct a column from.
+    missing_scheme : "q2:omitted", "q2:error", "INSDC:missing"
+        How to interpret terms for missing values. These will be converted
+        to NaN. The default treatment is to take no action.
 
     """
     # Abstract, must be defined by subclasses.
@@ -913,10 +949,20 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         return self._series.name
 
     @property
-    def missing(self):
-        return self._missing
+    def missing_scheme(self):
+        """The vocabulary used to encode missing values
 
-    def __init__(self, series, missing=None):
+        This property is read-only.
+
+        Returns
+        -------
+        str
+           "q2:omitted", "q2:error", or "INSDC:missing"
+
+        """
+        return self._missing_scheme
+
+    def __init__(self, series, missing_scheme=DEFAULT_MISSING):
         if not isinstance(series, pd.Series):
             raise TypeError(
                 "%s constructor requires a pandas.Series object, not %r" %
@@ -929,12 +975,9 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
                 "%s %r does not support a pandas.Series object with dtype %s" %
                 (self.__class__.__name__, series.name, series.dtype))
 
-        if missing is None:
-            missing = 'q2:omitted'
+        self._missing_scheme = missing_scheme
 
-        self._missing = missing
-
-        series = _missing.series_encode_missing(series, missing)
+        series = _missing.series_encode_missing(series, missing_scheme)
         self._series = self._normalize_(series)
 
         self._validate_index([self._series.name], axis='column')
@@ -1004,6 +1047,12 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         column's ``id_header``, and the index will contain this metadata
         column's IDs. The series name will match this metadata column's name.
 
+        Parameters
+        ----------
+        encode_missing : bool, optional
+            Whether to convert missing values (NaNs) back into their original
+            vocabulary (strings) if a missing scheme was used.
+
         Returns
         -------
         pandas.Series
@@ -1029,6 +1078,12 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         and the index will contain this metadata column's IDs. The dataframe's
         column name will match this metadata column's name.
 
+        Parameters
+        ----------
+        encode_missing : bool, optional
+            Whether to convert missing values (NaNs) back into their original
+            vocabulary (strings) if a missing scheme was used.
+
         Returns
         -------
         pandas.DataFrame
@@ -1042,6 +1097,12 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         return self.to_series(encode_missing=encode_missing).to_frame()
 
     def get_missing(self):
+        """Return a series containing only missing values (with an index).
+
+        If the column was constructed with a missing scheme, then the values
+        of the series will be the original terms instead of NaN.
+
+        """
         return _missing.series_extract_missing(self._series)
 
     def get_value(self, id):
@@ -1121,7 +1182,7 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
         """
         if where_values_missing:
-            ids = self._series[self._series.isnull()].index
+            ids = self._series.index[self._series.isna()]
         else:
             ids = self._ids
         return set(ids)
@@ -1185,7 +1246,7 @@ class CategoricalMetadataColumn(MetadataColumn):
                         (cls.__name__, series.name))
                 else:
                     return value
-            elif pd.isnull(value):  # permits np.nan, Python float nan, None
+            elif pd.isna(value):  # permits np.nan, Python float nan, None
                 return np.nan
             else:
                 raise TypeError(
