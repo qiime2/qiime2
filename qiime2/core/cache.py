@@ -8,7 +8,6 @@
 
 import re
 import os
-import stat
 import yaml
 import psutil
 import shutil
@@ -260,7 +259,10 @@ class Cache:
     # Load the data pointed to by the key. Does not work on pools. Only works
     # if you have data
     def load(self, key):
-        archiver = Archiver.load(self.data / yaml.safe_load(open(self.keys / key))['data'], allow_no_op=True)
+        archiver = \
+            Archiver.load(
+                self.data / yaml.safe_load(open(self.keys / key))['data'],
+                allow_no_op=True)
         return Result._from_archiver(archiver)
 
     # Remove key from cache

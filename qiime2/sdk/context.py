@@ -86,7 +86,6 @@ class Scope:
         self._locals = []
         self._parent_locals = []
 
-
     def add_reference(self, ref):
         """Add a reference to something destructable that is owned by this
            scope.
@@ -144,7 +143,8 @@ class Scope:
             # applicable pool to remove it from at this point, we want to
             # explode. There should always be one if everything worked out
             if isinstance(ref, Artifact) or isinstance(ref, Visualization):
-                CACHE_CONFIG.cache.create_pool(process_pool=True, reuse=True).remove(ref)
+                CACHE_CONFIG.cache.create_pool(process_pool=True,
+                                               reuse=True).remove(ref)
             ref._destructor()
 
         if local_references_only:
