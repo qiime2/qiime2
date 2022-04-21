@@ -96,6 +96,7 @@ class TestCache(unittest.TestCase):
 
     # Might create another class for garbage collection tests to test more
     # cases with shared boilerplate
+    # TODO: This needs rewritten to account for changes to cache contents
     def test_garbage_collection(self):
         # Data referenced directly by key
         self.cache.save(self.art1, 'foo')
