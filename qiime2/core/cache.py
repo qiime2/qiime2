@@ -11,13 +11,12 @@ import os
 import yaml
 import psutil
 import shutil
-import distutils
 import pathlib
 
 import qiime2
-from qiime2.sdk.result import Artifact, Result
+from qiime2.sdk.result import Result
 from qiime2.sdk.cache_config import CACHE_CONFIG
-from qiime2.core.archive.archiver import _NoOpArchive, _ZipArchive, Archiver
+from qiime2.core.archive.archiver import Archiver
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -76,10 +75,16 @@ class Cache:
             raise ValueError(f"Path: \'{path}\' already exists and is not a"
                              " cache")
 
-        CACHE_CONFIG.cache = self
         # Make our process pool, we probably want this to happen somewhere else
-        CACHE_CONFIG.process_pool = self.create_pool(process_pool=True,
-                                                     reuse=True)
+        # CACHE_CONFIG.process_pool = self.create_pool(process_pool=True,
+        #                                              reuse=True)
+
+    def __enter__(self):
+        self.backup = CACHE_CONFIG.cache
+        CACHE_CONFIG.cache = self
+
+    def __exit__(self, *args):
+        CACHE_CONFIG.cache = self.backup
 
     # Surely this needs to be a thing? I suppose if they hand us a path that
     # doesn't exist we just create a cache there? do we want to create it at
@@ -289,6 +294,14 @@ class Pool:
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
+    # If you with a pool you are using it as your named pool
+    def __enter__(self):
+        self.old_pool = CACHE_CONFIG.named_pool
+        CACHE_CONFIG.named_pool = self
+
+    def __exit__(self, type, value, tb):
+        CACHE_CONFIG.named_pool = self.old_pool
+
     # Save an element into the pool
     def save(self, ref):
         shutil.copytree(ref._archiver.path, self.cache.data,
@@ -308,10 +321,4 @@ class Pool:
     def remove(self, ref):
         os.remove(self.path / str(ref.uuid))
 
-    # If you with a pool you are using it as your named pool
-    def __enter__(self):
-        self.old_pool = CACHE_CONFIG.named_pool
-        CACHE_CONFIG.named_pool = self
 
-    def __exit__(self, type, value, tb):
-        CACHE_CONFIG.named_pool = self.old_pool
