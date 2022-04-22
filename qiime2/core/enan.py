@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import struct
-import pandas as pd
 
 
 def _float_to_int(number: float) -> int:
@@ -45,7 +44,7 @@ _DEFAULT_NAN_INT = _float_to_int(float('nan'))
 # long as XOR is used instead of AND
 
 
-def make_nan_with_payload(payload: int, namespace: int = 255) -> float:
+def make_nan_with_payload(payload: int, namespace: int = 255):
     """Construct a NaN with a namespace and payload.
 
     The payload must be in the range [-1953, 2141]
@@ -77,7 +76,7 @@ def make_nan_with_payload(payload: int, namespace: int = 255) -> float:
     return _int_to_float(nan_int)
 
 
-def get_payload_from_nan(nan: float) -> int:
+def get_payload_from_nan(nan: float):
     nan_int = _float_to_int(nan)
     namespaced_payload = nan_int ^ _DEFAULT_NAN_INT
     if namespaced_payload == 0:
@@ -86,17 +85,3 @@ def get_payload_from_nan(nan: float) -> int:
     payload = namespaced_payload - (namespace << 12)
 
     return (payload - _R_OFFSET, namespace)
-
-
-# While these NaN's should just be going to memory without any consideration
-# by the hardware, it's concievable that some hardware optimizer someday gets
-# in the middle of this and as a result, normalizes the NaNs because it makes
-# for a simpler circuit later (see ARM and RISC-V for NaN payload
-# and "cannonical NaN" discussions to this effect)
-
-# To keep things from going off the rails, expose a no-op version of the API
-# which will lose information if we cannot get a consistent payload back.
-# Do this through the Pandas API in case there's some discrepancy there
-__q2_paper = 2019
-__s = pd.Series([make_nan_with_payload(__q2_paper)])
-CAN_NAN_PAYLOAD = (__s.apply(get_payload_from_nan)[0][0] == __q2_paper)

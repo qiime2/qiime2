@@ -13,7 +13,8 @@ from .enan import make_nan_with_payload as _make_nan_with_payload
 from .enan import get_payload_from_nan as _get_payload_from_nan
 
 
-def _encode_terms(namespace, enum):
+def _encode_terms(namespace):
+    enum = _MISSING_ENUMS[namespace]
     namespace = _NAMESPACE_LOOKUP.index(namespace)
 
     def encode(x):
@@ -27,11 +28,7 @@ def _encode_terms(namespace, enum):
 
 
 def _insdc_missing(series):
-    return series.apply(
-        _encode_terms('INSDC:missing', (
-            'not applicable', 'missing', 'not collected', 'not provided',
-            'restricted access'))
-    )
+    return series.apply(_encode_terms('INSDC:missing'))
 
 
 def _q2_omitted(series):
@@ -40,7 +37,8 @@ def _q2_omitted(series):
 
 def _q2_error(series):
     if series.isna().any():
-        raise ValueError("NOT ALLOWED")
+        raise ValueError("Missing values are not allowed in series/column"
+                         " (name=%r)" % series.name)
     return series
 
 
@@ -49,10 +47,14 @@ BUILTIN_MISSING = {
     'q2:omitted': _q2_omitted,
     'q2:error': _q2_error
 }
+_MISSING_ENUMS = {
+    'INSDC:missing': (
+        'not applicable', 'missing', 'not collected', 'not provided',
+        'restricted access')
+}
 
-
-# list index reflects the term used, the "q2:" enums don't apply here, since
-# they aren't actually encoded in the NaNs
+# list index reflects the nan namespace, the "q2:" enums don't apply here,
+# since they aren't actually encoded in the NaNs
 _NAMESPACE_LOOKUP = ['INSDC:missing']
 DEFAULT_MISSING = 'q2:omitted'
 
@@ -83,7 +85,7 @@ def series_extract_missing(series: pd.Series) -> pd.Series:
                 raise ValueError("Custom enumerations are not yet supported")
             else:
                 try:
-                    _, enum = BUILTIN_MISSING[_NAMESPACE_LOOKUP[namespace]]
+                    enum = _MISSING_ENUMS[_NAMESPACE_LOOKUP[namespace]]
                 except (IndexError, KeyError):
                     return x
 
@@ -95,4 +97,5 @@ def series_extract_missing(series: pd.Series) -> pd.Series:
         return x
 
     missing = series[series.isna()]
-    return missing.apply(_decode)
+    missing = missing.apply(_decode)
+    return missing.astype(object)
