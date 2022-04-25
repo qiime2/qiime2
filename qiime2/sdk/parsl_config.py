@@ -18,12 +18,12 @@ from parsl.executors.threads import ThreadPoolExecutor
 from parsl.executors import HighThroughputExecutor
 
 
-LOCAL_CONFIG = threading.local()
-LOCAL_CONFIG.config = None
-LOCAL_CONFIG.action_executor_mapping = {}
+PARSL_CONFIG = threading.local()
+PARSL_CONFIG.config = None
+PARSL_CONFIG.action_executor_mapping = {}
 
 
-def get_config():
+def get_parsl_config():
     # Try to load custom config (exact order maybe subject to change)
     # Check envvar
     if os.environ.get('QIIME_PARSL_CONF'):
@@ -48,7 +48,7 @@ def get_config():
     # Load vendored default
     # If no custom config do this. This will probably end up in a vendored file
     else:
-        LOCAL_CONFIG.config = Config(
+        PARSL_CONFIG.config = Config(
             executors=[
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
@@ -76,16 +76,16 @@ def get_config():
             strategy=None,
         )
 
-    return LOCAL_CONFIG.config
+    return PARSL_CONFIG.config
 
 
 class ParallelConfig():
     def __init__(self, action_executor_mapping):
-        self.backup = LOCAL_CONFIG.action_executor_mapping
-        LOCAL_CONFIG.action_executor_mapping = action_executor_mapping
+        self.backup = PARSL_CONFIG.action_executor_mapping
+        PARSL_CONFIG.action_executor_mapping = action_executor_mapping
 
     def __enter__(self):
         pass
 
     def __exit__(self, *args):
-        LOCAL_CONFIG.action_executor_mapping = self.backup
+        PARSL_CONFIG.action_executor_mapping = self.backup

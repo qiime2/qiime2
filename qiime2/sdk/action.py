@@ -22,7 +22,7 @@ import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
-from qiime2.sdk.config import get_config
+from qiime2.sdk.parsl_config import get_parsl_config
 from qiime2.sdk.context import Context
 from qiime2.sdk.results import Results
 from qiime2.sdk.util import ProxyArtifact
@@ -330,7 +330,7 @@ class Action(metaclass=abc.ABCMeta):
         # If you find a good way to determine if a parsl config is loaded.
         # Use it here
         try:
-            parsl.load(get_config())
+            parsl.load(get_parsl_config())
         except RuntimeError:
             pass
 

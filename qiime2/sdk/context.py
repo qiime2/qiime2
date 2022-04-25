@@ -8,7 +8,7 @@
 
 from qiime2.core.cache import Cache
 import qiime2.sdk
-from qiime2.sdk.config import LOCAL_CONFIG
+from qiime2.sdk.parsl_config import PARSL_CONFIG
 from qiime2.sdk.cache_config import CACHE_CONFIG
 from qiime2.sdk.result import Artifact, Visualization
 
@@ -19,7 +19,7 @@ class Context:
             self.action_executor_mapping = parent.action_executor_mapping
             self.parsl = parent.parsl
         else:
-            self.action_executor_mapping = LOCAL_CONFIG.action_executor_mapping
+            self.action_executor_mapping = PARSL_CONFIG.action_executor_mapping
             self.parsl = parsl
 
         self._parent = parent
