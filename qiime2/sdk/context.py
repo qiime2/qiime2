@@ -102,7 +102,6 @@ class Scope:
         self._locals = []
         self._parent_locals = []
 
-
     def add_reference(self, ref):
         """Add a reference to something destructable that is owned by this
            scope.
@@ -118,14 +117,17 @@ class Scope:
            failure, a context can still identify what will (no longer) be
            returned.
         """
-        CACHE_CONFIG.process_pool.save(ref)
+        cache = Cache.get_cache()
+        process_pool = cache.create_pool(process_pool=True, reuse=True)
+        process_pool.save(ref)
+
         if CACHE_CONFIG.named_pool is not None:
             CACHE_CONFIG.named_pool.save(ref)
 
         self._parent_locals.append(ref)
 
         # Return an artifact backed by the data in the cache
-        return CACHE_CONFIG.process_pool.load(ref)
+        return process_pool.load(ref)
 
     def destroy(self, local_references_only=False):
         """Destroy all references and clear state.
@@ -150,8 +152,15 @@ class Scope:
         del self.ctx
 
         for ref in local_refs:
+            # NOTE: This is getting a little weird. We're creating an instance
+            # of a pool object, but we are not creating the pool itself, the
+            # pool is on disk. We create a pool object referring to the
+            # existing pool on disk then remove an item from it. If there is no
+            # applicable pool to remove it from at this point, we want to
+            # explode. There should always be one if everything worked out
             if isinstance(ref, Artifact) or isinstance(ref, Visualization):
-                CACHE_CONFIG.process_pool.remove(ref)
+                CACHE_CONFIG.cache.create_pool(process_pool=True,
+                                               reuse=True).remove(ref)
             ref._destructor()
 
         if local_references_only:

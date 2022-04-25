@@ -96,6 +96,7 @@ class TestCache(unittest.TestCase):
 
     # Might create another class for garbage collection tests to test more
     # cases with shared boilerplate
+    # TODO: This needs rewritten to account for changes to cache contents
     def test_garbage_collection(self):
         # Data referenced directly by key
         self.cache.save(self.art1, 'foo')
@@ -111,15 +112,15 @@ class TestCache(unittest.TestCase):
         expected_pre_gc_contents = \
             set(('./VERSION', 'keys/foo', 'keys/bar',
                  'keys/baz', 'keys/qux',
-                 f'pools/bar/{self.art2.uuid}.qza',
-                 f'pools/qux/{self.art4.uuid}.qza',
-                 f'data/{self.art1.uuid}.qza', f'data/{self.art2.uuid}.qza',
-                 f'data/{self.art3.uuid}.qza', f'data/{self.art4.uuid}.qza'))
+                 f'pools/bar/{self.art2.uuid}',
+                 f'pools/qux/{self.art4.uuid}',
+                 f'data/{self.art1.uuid}', f'data/{self.art2.uuid}',
+                 f'data/{self.art3.uuid}', f'data/{self.art4.uuid}'))
 
         expected_post_gc_contents = \
             set(('./VERSION', 'keys/foo', 'keys/bar',
-                 f'pools/bar/{self.art2.uuid}.qza',
-                 f'data/{self.art1.uuid}.qza', f'data/{self.art2.uuid}.qza'))
+                 f'pools/bar/{self.art2.uuid}',
+                 f'data/{self.art1.uuid}', f'data/{self.art2.uuid}'))
 
         # Assert cache looks how we want pre gc
         pre_gc_contents = self.get_cache_contents()
@@ -137,12 +138,28 @@ class TestCache(unittest.TestCase):
         self.assertEqual(expected_post_gc_contents, post_gc_contents)
 
     def get_cache_contents(self):
+        """ Gets contents of cache not including contents of the artifacts
+            themselves relative to the root of the cache
+        """
         cache_contents = set()
 
-        for dir, _, files in os.walk(self.cache.path):
-            for file in files:
-                rel_dir = os.path.relpath(dir, self.cache.path)
-                rel_file = os.path.join(rel_dir, file)
-                cache_contents.add(rel_file)
+        rel_keys = os.path.relpath(self.cache.keys, self.cache.path)
+        rel_data = os.path.relpath(self.cache.data, self.cache.path)
+        rel_pools = os.path.relpath(self.cache.pools, self.cache.path)
+        rel_cache = os.path.relpath(self.cache.path, self.cache.path)
+
+        for key in os.listdir(self.cache.keys):
+            cache_contents.add(os.path.join(rel_keys, key))
+
+        for art in os.listdir(self.cache.data):
+            cache_contents.add(os.path.join(rel_data, art))
+
+        for pool in os.listdir(self.cache.pools):
+            for link in os.listdir(os.path.join(self.cache.pools, pool)):
+                cache_contents.add(os.path.join(rel_pools, pool, link))
+
+        for elem in os.listdir(self.cache.path):
+            if os.path.isfile(os.path.join(self.cache.path, elem)):
+                cache_contents.add(os.path.join(rel_cache, elem))
 
         return cache_contents

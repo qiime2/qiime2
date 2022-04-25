@@ -11,13 +11,12 @@ import os
 import yaml
 import psutil
 import shutil
-import distutils
 import pathlib
 
 import qiime2
-from qiime2.sdk.result import Artifact, Result
+from qiime2.sdk.result import Result
 from qiime2.sdk.cache_config import CACHE_CONFIG
-from qiime2.core.archive.archiver import _NoOpArchive, _ZipArchive, Archiver
+from qiime2.core.archive.archiver import Archiver
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -65,8 +64,9 @@ class Cache:
     """
     CURRENT_FORMAT_VERSION = '1'
 
-    def __init__(self, path):
+    def __init__(self, path, named=True):
         self.path = pathlib.Path(path)
+        self.named = named
 
         # Do we want a more rigorous check for whether or not we've been
         # pointed at an existing cache?
@@ -76,17 +76,73 @@ class Cache:
             raise ValueError(f"Path: \'{path}\' already exists and is not a"
                              " cache")
 
-        CACHE_CONFIG.cache = self
         # Make our process pool, we probably want this to happen somewhere else
-        CACHE_CONFIG.process_pool = self.create_pool(process_pool=True,
-                                                     reuse=True)
+        # CACHE_CONFIG.process_pool = self.create_pool(process_pool=True,
+        #                                              reuse=True)
+
+    def __enter__(self):
+        """If you with a cache you are using it as a named cache
+        """
+        self.backup = CACHE_CONFIG.cache
+        CACHE_CONFIG.cache = self
+
+    def __exit__(self, *args):
+        CACHE_CONFIG.cache = self.backup
+
+    @classmethod
+    def get_cache(cls):
+        """Determine if we already have a cache or need to create a temp cache.
+        If we have a name cache or already created a temp cache we will return
+        it. If the user did not name a cache, and we have yet to create a temp
+        cache, we will create a temp cache.
+
+        Note that if the user is using parsl a named cache must exist in a
+        location that is visible to the entirety of the system they are using.
+        """
+        if CACHE_CONFIG.cache is None:
+            CACHE_CONFIG.cache = cls.create_temp_cache()
+
+        return CACHE_CONFIG.cache
+
+    @classmethod
+    def create_temp_cache(cls):
+        """ Create a temp cache if the user did not specify a named cache.
+        """
+        # Get location of tmp
+        TMPDIR = os.getenv("TMPDIR")
+        # Get current username
+        USER = os.getenv("USER")
+
+        # If not set default to root tmp
+        if TMPDIR is None:
+            TMPDIR = '/tmp'
+
+        # Get overall qiime path and user path to caches in tmp
+        q2_path = os.path.join(TMPDIR, 'qiime2')
+        user_path = os.path.join(q2_path, USER)
+
+        # if not os.path.exists(q2_path):
+        #     os.mkdir(q2_path)
+
+        # # Set sticky bit on the qiime path in case it isn't
+        # os.chmod(q2_path, stat.S_ISVTX)
+
+        # Create and return our cache at the user path
+        return Cache(user_path, False)
+
+    def get_process_pool(self):
+        """ Before we save things into a process pool, we want to make sure
+        we actually have a pool for the process and use it
+        """
+        pass
 
     # Surely this needs to be a thing? I suppose if they hand us a path that
     # doesn't exist we just create a cache there? do we want to create it at
     # that exact path do we slap a 'cache' sub-directory at that location and
     # use that?
     def create_cache(self):
-        os.mkdir(self.path)
+        # Construct the cache root recursively
+        os.makedirs(self.path)
         os.mkdir(self.path / 'data')
         os.mkdir(self.path / 'keys')
         os.mkdir(self.path / 'pools')
@@ -117,7 +173,7 @@ class Cache:
 
         # If we are making a process pool just do it
         if process_pool:
-            pool = Pool(self.process, self)
+            pool = Pool(self.process, self, reuse=reuse)
         else:
             pool_name = '_'.join(keys)
             pool_fp = self.pools / pool_name
@@ -202,7 +258,10 @@ class Cache:
     # Load the data pointed to by the key. Does not work on pools. Only works
     # if you have data
     def load(self, key):
-        archiver = Archiver.load(self.data / yaml.safe_load(open(self.keys / key))['data'], allow_no_op=True)
+        archiver = \
+            Archiver.load(
+                self.data / yaml.safe_load(open(self.keys / key))['data'],
+                allow_no_op=True)
         return Result._from_archiver(archiver)
 
     # Remove key from cache
@@ -265,7 +324,6 @@ class Cache:
 
 # Assume we will make this its own class for now
 class Pool:
-
     def __init__(self, path, cache, name=None, reuse=False):
         self.cache = cache
 
@@ -289,7 +347,15 @@ class Pool:
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
-    # Save an element into the pool
+    def __enter__(self):
+        """If you with a pool you are using it as your named pool
+        """
+        self.old_pool = CACHE_CONFIG.named_pool
+        CACHE_CONFIG.named_pool = self
+
+    def __exit__(self, type, value, tb):
+        CACHE_CONFIG.named_pool = self.old_pool
+
     def save(self, ref):
         shutil.copytree(ref._archiver.path, self.cache.data,
                         dirs_exist_ok=True)
@@ -307,11 +373,3 @@ class Pool:
     # Remove an element from the pool
     def remove(self, ref):
         os.remove(self.path / str(ref.uuid))
-
-    # If you with a pool you are using it as your named pool
-    def __enter__(self):
-        self.old_pool = CACHE_CONFIG.named_pool
-        CACHE_CONFIG.named_pool = self
-
-    def __exit__(self, type, value, tb):
-        CACHE_CONFIG.named_pool = self.old_pool
