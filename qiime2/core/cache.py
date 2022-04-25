@@ -65,7 +65,11 @@ class Cache:
     CURRENT_FORMAT_VERSION = '1'
 
     def __init__(self, path, named=True):
-        self.path = pathlib.Path(path)
+        if path is not None:
+            self.path = pathlib.Path(path)
+        else:
+            self.path = pathlib.Path(self.get_temp_path())
+
         self.named = named
 
         # Do we want a more rigorous check for whether or not we've been
@@ -88,47 +92,6 @@ class Cache:
 
     def __exit__(self, *args):
         CACHE_CONFIG.cache = self.backup
-
-    @classmethod
-    def get_cache(cls):
-        """Determine if we already have a cache or need to create a temp cache.
-        If we have a name cache or already created a temp cache we will return
-        it. If the user did not name a cache, and we have yet to create a temp
-        cache, we will create a temp cache.
-
-        Note that if the user is using parsl a named cache must exist in a
-        location that is visible to the entirety of the system they are using.
-        """
-        if CACHE_CONFIG.cache is None:
-            CACHE_CONFIG.cache = cls.create_temp_cache()
-
-        return CACHE_CONFIG.cache
-
-    @classmethod
-    def create_temp_cache(cls):
-        """ Create a temp cache if the user did not specify a named cache.
-        """
-        # Get location of tmp
-        TMPDIR = os.getenv("TMPDIR")
-        # Get current username
-        USER = os.getenv("USER")
-
-        # If not set default to root tmp
-        if TMPDIR is None:
-            TMPDIR = '/tmp'
-
-        # Get overall qiime path and user path to caches in tmp
-        q2_path = os.path.join(TMPDIR, 'qiime2')
-        user_path = os.path.join(q2_path, USER)
-
-        # if not os.path.exists(q2_path):
-        #     os.mkdir(q2_path)
-
-        # # Set sticky bit on the qiime path in case it isn't
-        # os.chmod(q2_path, stat.S_ISVTX)
-
-        # Create and return our cache at the user path
-        return Cache(user_path, False)
 
     def get_process_pool(self):
         """ Before we save things into a process pool, we want to make sure
@@ -161,6 +124,25 @@ class Cache:
         self.version.write_text(
             _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
                                  qiime2.__version__))
+
+    def get_temp_path(self):
+        """ Create a temp cache if the user did not specify a named cache.
+        """
+        # Get location of tmp
+        TMPDIR = os.getenv("TMPDIR")
+        # Get current username
+        USER = os.getenv("USER")
+
+        # If not set default to root tmp
+        if TMPDIR is None:
+            TMPDIR = '/tmp'
+
+        # TODO: Gonna need to figure out setting our sticky bit, doing so seems
+        # to make things explode
+        user_path = os.path.join(TMPDIR, 'qiime2', USER)
+
+        # return our path
+        return user_path
 
     # Maybe this is create named pool specifically and we just auto create a
     # process pool
