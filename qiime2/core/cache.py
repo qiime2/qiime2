@@ -12,10 +12,10 @@ import yaml
 import psutil
 import shutil
 import pathlib
+import threading
 
 import qiime2
 from qiime2.sdk.result import Result
-from qiime2.sdk.cache_config import CACHE_CONFIG
 from qiime2.core.archive.archiver import Archiver
 
 _VERSION_TEMPLATE = """\
@@ -32,6 +32,20 @@ data:
 pool:
  %s
 """
+
+__CACHE__ = threading.local()
+# Cache might be named or default
+__CACHE__.cache = None
+
+def get_cache():
+    """ Gets our cache if we have one and creates one if we don't
+    """
+    # If we are on a new thread we may in fact not have a cache attribute here
+    # at all
+    if not hasattr(__CACHE__, 'cache') or __CACHE__.cache is None:
+        __CACHE__.cache = Cache(None)
+
+    return __CACHE__.cache
 
 
 class Cache:
@@ -64,9 +78,11 @@ class Cache:
     """
     CURRENT_FORMAT_VERSION = '1'
 
-    def __init__(self, path, named=True):
-        self.path = pathlib.Path(path)
-        self.named = named
+    def __init__(self, path):
+        if path is not None:
+            self.path = pathlib.Path(path)
+        else:
+            self.path = pathlib.Path(self.get_temp_path())
 
         # Do we want a more rigorous check for whether or not we've been
         # pointed at an existing cache?
@@ -77,58 +93,18 @@ class Cache:
                              " cache")
 
         # Make our process pool, we probably want this to happen somewhere else
-        # CACHE_CONFIG.process_pool = self.create_pool(process_pool=True,
-        #                                              reuse=True)
+        self.process_pool = self.create_pool(process_pool=True)
+        # This is set if a named pool is created on this cache and withed in
+        self.named_pool = None
 
     def __enter__(self):
         """If you with a cache you are using it as a named cache
         """
-        self.backup = CACHE_CONFIG.cache
-        CACHE_CONFIG.cache = self
+        self.backup = __CACHE__.cache
+        __CACHE__.cache = self
 
     def __exit__(self, *args):
-        CACHE_CONFIG.cache = self.backup
-
-    @classmethod
-    def get_cache(cls):
-        """Determine if we already have a cache or need to create a temp cache.
-        If we have a name cache or already created a temp cache we will return
-        it. If the user did not name a cache, and we have yet to create a temp
-        cache, we will create a temp cache.
-
-        Note that if the user is using parsl a named cache must exist in a
-        location that is visible to the entirety of the system they are using.
-        """
-        if CACHE_CONFIG.cache is None:
-            CACHE_CONFIG.cache = cls.create_temp_cache()
-
-        return CACHE_CONFIG.cache
-
-    @classmethod
-    def create_temp_cache(cls):
-        """ Create a temp cache if the user did not specify a named cache.
-        """
-        # Get location of tmp
-        TMPDIR = os.getenv("TMPDIR")
-        # Get current username
-        USER = os.getenv("USER")
-
-        # If not set default to root tmp
-        if TMPDIR is None:
-            TMPDIR = '/tmp'
-
-        # Get overall qiime path and user path to caches in tmp
-        q2_path = os.path.join(TMPDIR, 'qiime2')
-        user_path = os.path.join(q2_path, USER)
-
-        # if not os.path.exists(q2_path):
-        #     os.mkdir(q2_path)
-
-        # # Set sticky bit on the qiime path in case it isn't
-        # os.chmod(q2_path, stat.S_ISVTX)
-
-        # Create and return our cache at the user path
-        return Cache(user_path, False)
+        __CACHE__.cache = self.backup
 
     def get_process_pool(self):
         """ Before we save things into a process pool, we want to make sure
@@ -162,6 +138,25 @@ class Cache:
             _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
                                  qiime2.__version__))
 
+    def get_temp_path(self):
+        """ Get path to temp cache if the user did not specify a named cache.
+        """
+        # Get location of tmp
+        TMPDIR = os.getenv("TMPDIR")
+        # Get current username
+        USER = os.getenv("USER")
+
+        # If not set default to root tmp
+        if TMPDIR is None:
+            TMPDIR = '/tmp'
+
+        # TODO: Gonna need to figure out setting our sticky bit, doing so seems
+        # to make things explode
+        user_path = os.path.join(TMPDIR, 'qiime2', USER)
+
+        # return our path
+        return user_path
+
     # Maybe this is create named pool specifically and we just auto create a
     # process pool
     def create_pool(self, keys=[], reuse=False, process_pool=False):
@@ -173,11 +168,10 @@ class Cache:
 
         # If we are making a process pool just do it
         if process_pool:
-            pool = Pool(self.process, self, reuse=reuse)
+            pool = Pool(self, reuse=True)
         else:
             pool_name = '_'.join(keys)
-            pool_fp = self.pools / pool_name
-            pool = Pool(pool_fp, self, name=pool_name, reuse=reuse)
+            pool = Pool(self, name=pool_name, reuse=reuse)
 
             self.create_pool_keys(pool_name, keys)
 
@@ -324,12 +318,12 @@ class Cache:
 
 # Assume we will make this its own class for now
 class Pool:
-    def __init__(self, path, cache, name=None, reuse=False):
+    def __init__(self, cache, name=None, reuse=False):
         self.cache = cache
 
         if name:
-            self.path = path
             self.name = name
+            self.path = cache.pools / name
         else:
             pid = os.getpid()
             user = os.getlogin()
@@ -337,7 +331,7 @@ class Pool:
             process = psutil.Process(pid)
             time = process.create_time()
             self.name = f'{pid}-{time}@{user}'
-            self.path = path / self.name
+            self.path = cache.process / self.name
 
         if not reuse and os.path.exists(self.path):
             raise ValueError("Pool already exists, please use reuse=True to "
@@ -350,17 +344,20 @@ class Pool:
     def __enter__(self):
         """If you with a pool you are using it as your named pool
         """
-        self.old_pool = CACHE_CONFIG.named_pool
-        CACHE_CONFIG.named_pool = self
+        self.old_pool = self.cache.named_pool
+        self.cache.named_pool = self
 
-    def __exit__(self, type, value, tb):
-        CACHE_CONFIG.named_pool = self.old_pool
+    def __exit__(self, *args):
+        self.cache.named_pool = self.old_pool
 
     def save(self, ref):
-        shutil.copytree(ref._archiver.path, self.cache.data,
-                        dirs_exist_ok=True)
-        os.symlink(self.cache.data / str(ref.uuid), self.path / str(ref.uuid))
-        self.cache.garbage_collection()
+        # TODO: This guard should probably be removed when we rework the logic
+        # I feel less bad about this one than the remove one though
+        if not (self.path / str(ref.uuid)).exists():
+            shutil.copytree(ref._archiver.path, self.cache.data,
+                            dirs_exist_ok=True)
+            os.symlink(self.cache.data / str(ref.uuid), self.path / str(ref.uuid))
+            self.cache.garbage_collection()
 
         return self.load(ref)
 
@@ -372,4 +369,7 @@ class Pool:
 
     # Remove an element from the pool
     def remove(self, ref):
-        os.remove(self.path / str(ref.uuid))
+        # TODO: This guard should be removed when we rework the logic
+        if (self.path / str(ref.uuid)).exists():
+            os.remove(self.path / str(ref.uuid))
+            self.cache.garbage_collection()
