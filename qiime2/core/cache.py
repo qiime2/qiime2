@@ -126,7 +126,7 @@ class Cache:
                                  qiime2.__version__))
 
     def get_temp_path(self):
-        """ Create a temp cache if the user did not specify a named cache.
+        """ Get path to temp cache if the user did not specify a named cache.
         """
         # Get location of tmp
         TMPDIR = os.getenv("TMPDIR")
