@@ -9,8 +9,6 @@
 from qiime2.core.cache import Cache
 import qiime2.sdk
 from qiime2.sdk.parsl_config import PARSL_CONFIG
-from qiime2.sdk.cache_config import CACHE_CONFIG
-from qiime2.sdk.result import Artifact, Visualization
 
 
 class Context:

@@ -81,11 +81,11 @@ def get_parsl_config():
 
 class ParallelConfig():
     def __init__(self, action_executor_mapping):
-        self.backup = PARSL_CONFIG.action_executor_mapping
-        PARSL_CONFIG.action_executor_mapping = action_executor_mapping
+        self.action_executor_mapping = action_executor_mapping
 
     def __enter__(self):
-        pass
+        self.backup = PARSL_CONFIG.action_executor_mapping
+        PARSL_CONFIG.action_executor_mapping = self.action_executor_mapping
 
     def __exit__(self, *args):
         PARSL_CONFIG.action_executor_mapping = self.backup
