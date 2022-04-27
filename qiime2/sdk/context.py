@@ -6,7 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 import qiime2.sdk
-from qiime2.sdk.PARSL_CONFIGimport PARSL_CONFIG
+from qiime2.sdk.parsl_config import PARSL_CONFIG
 
 
 class Context:
