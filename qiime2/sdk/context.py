@@ -143,7 +143,7 @@ class Scope:
         for ref in local_refs:
             ref._destructor()
 
-            if isinstance(ref, Artifact) or isinstance(ref, Visualization):
+            if isinstance(ref, (Artifact, Visualization)):
                 ctx.cache.process_pool.remove(ref)
 
         if local_references_only:
@@ -152,7 +152,7 @@ class Scope:
         for ref in parent_refs:
             ref._destructor()
 
-            if isinstance(ref, Artifact) or isinstance(ref, Visualization):
+            if isinstance(ref, (Artifact, Visualization)):
                 ctx.cache.process_pool.remove(ref)
 
         return []

@@ -37,6 +37,7 @@ __CACHE__ = threading.local()
 # Cache might be named or default
 __CACHE__.cache = None
 
+
 def get_cache():
     """ Gets our cache if we have one and creates one if we don't
     """
@@ -356,7 +357,8 @@ class Pool:
         if not (self.path / str(ref.uuid)).exists():
             shutil.copytree(ref._archiver.path, self.cache.data,
                             dirs_exist_ok=True)
-            os.symlink(self.cache.data / str(ref.uuid), self.path / str(ref.uuid))
+            os.symlink(self.cache.data / str(ref.uuid),
+                       self.path / str(ref.uuid))
             self.cache.garbage_collection()
 
         return self.load(ref)
