@@ -6,7 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 import qiime2.sdk
-from qiime2.sdk.config import LOCAL_CONFIG
+from qiime2.sdk.PARSL_CONFIGimport PARSL_CONFIG
 
 
 class Context:
@@ -15,7 +15,7 @@ class Context:
             self.action_executor_mapping = parent.action_executor_mapping
             self.parsl = parent.parsl
         else:
-            self.action_executor_mapping = LOCAL_CONFIG.action_executor_mapping
+            self.action_executor_mapping = PARSL_CONFIG.action_executor_mapping
             self.parsl = parsl
 
         self._parent = parent
