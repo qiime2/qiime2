@@ -10,7 +10,11 @@ lint:
 	flake8
 
 test: all
-	QIIMETEST= nosetests
+	QIIMETEST= pytest --doctest-modules
+
+# for parallel, pip install pytest-xdist
+mystery-stew: all
+	MYSTERY_STEW= pytest qiime2/tests/mystery_stew.py -n auto
 
 install: all
 	$(PYTHON) setup.py install && \

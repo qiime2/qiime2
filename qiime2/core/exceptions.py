@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -8,4 +8,8 @@
 
 
 class ValidationError(Exception):
+    pass
+
+
+class ImplementationError(Exception):
     pass

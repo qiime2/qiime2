@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -50,12 +50,12 @@ def single_int2_factory():
 
 
 def concatenate_ints_simple(use):
-    ints_a = use.init_data('ints_a', ints1_factory)
-    ints_b = use.init_data('ints_b', ints2_factory)
-    ints_c = use.init_data('ints_c', ints3_factory)
+    ints_a = use.init_artifact('ints_a', ints1_factory)
+    ints_b = use.init_artifact('ints_b', ints2_factory)
+    ints_c = use.init_artifact('ints_c', ints3_factory)
 
     use.comment('This example demonstrates basic usage.')
-    use.action(
+    ints_d, = use.action(
         use.UsageAction(plugin_id='dummy_plugin',
                         action_id='concatenate_ints'),
         use.UsageInputs(ints1=ints_a, ints2=ints_b, ints3=ints_c, int1=4,
@@ -65,12 +65,12 @@ def concatenate_ints_simple(use):
 
 
 def concatenate_ints_complex(use):
-    ints_a = use.init_data('ints_a', ints1_factory)
-    ints_b = use.init_data('ints_b', ints2_factory)
-    ints_c = use.init_data('ints_c', ints3_factory)
+    ints_a = use.init_artifact('ints_a', ints1_factory)
+    ints_b = use.init_artifact('ints_b', ints2_factory)
+    ints_c = use.init_artifact('ints_c', ints3_factory)
 
     use.comment('This example demonstrates chained usage (pt 1).')
-    use.action(
+    ints_d, = use.action(
         use.UsageAction(plugin_id='dummy_plugin',
                         action_id='concatenate_ints'),
         use.UsageInputs(ints1=ints_a, ints2=ints_b, ints3=ints_c, int1=4,
@@ -78,9 +78,8 @@ def concatenate_ints_complex(use):
         use.UsageOutputNames(concatenated_ints='ints_d'),
     )
 
-    ints_d = use.get_result('ints_d')
     use.comment('This example demonstrates chained usage (pt 2).')
-    use.action(
+    concatenated_ints, = use.action(
         use.UsageAction(plugin_id='dummy_plugin',
                         action_id='concatenate_ints'),
         use.UsageInputs(ints1=ints_d, ints2=ints_b, ints3=ints_c, int1=41,
@@ -90,8 +89,8 @@ def concatenate_ints_complex(use):
 
 
 def typical_pipeline_simple(use):
-    ints = use.init_data('ints', ints1_factory)
-    mapper = use.init_data('mapper', mapping1_factory)
+    ints = use.init_artifact('ints', ints1_factory)
+    mapper = use.init_artifact('mapper', mapping1_factory)
 
     use.action(
         use.UsageAction(plugin_id='dummy_plugin',
@@ -104,10 +103,10 @@ def typical_pipeline_simple(use):
 
 
 def typical_pipeline_complex(use):
-    ints1 = use.init_data('ints1', ints1_factory)
-    mapper1 = use.init_data('mapper1', mapping1_factory)
+    ints1 = use.init_artifact('ints1', ints1_factory)
+    mapper1 = use.init_artifact('mapper1', mapping1_factory)
 
-    use.action(
+    mapper2, ints2, *_ = use.action(
         use.UsageAction(plugin_id='dummy_plugin',
                         action_id='typical_pipeline'),
         use.UsageInputs(int_sequence=ints1, mapping=mapper1,
@@ -116,10 +115,7 @@ def typical_pipeline_complex(use):
                              left_viz='left_viz1', right_viz='right_viz1')
     )
 
-    ints2 = use.get_result('left1')
-    mapper2 = use.get_result('out_map1')
-
-    use.action(
+    _, _, right2, *_ = use.action(
         use.UsageAction(plugin_id='dummy_plugin',
                         action_id='typical_pipeline'),
         use.UsageInputs(int_sequence=ints2, mapping=mapper2,
@@ -128,12 +124,15 @@ def typical_pipeline_complex(use):
                              left_viz='left_viz2', right_viz='right_viz2')
     )
 
-    right2 = use.get_result('right2')
     right2.assert_has_line_matching(
-        label='a nice label about this assertion',
         path='ints.txt',
         expression='1',
     )
+
+    # test that the non-string type works
+    right2.assert_output_type(semantic_type=IntSequence1)
+    # test that the string type works
+    mapper2.assert_output_type(semantic_type='Mapping')
 
 
 def comments_only(use):
@@ -150,7 +149,7 @@ def comments_only_factory():
 
 
 def identity_with_metadata_simple(use):
-    ints = use.init_data('ints', ints1_factory)
+    ints = use.init_artifact('ints', ints1_factory)
     md = use.init_metadata('md', md1_factory)
 
     use.action(
@@ -162,7 +161,7 @@ def identity_with_metadata_simple(use):
 
 
 def identity_with_metadata_merging(use):
-    ints = use.init_data('ints', ints1_factory)
+    ints = use.init_artifact('ints', ints1_factory)
     md1 = use.init_metadata('md1', md1_factory)
     md2 = use.init_metadata('md2', md2_factory)
 
@@ -177,11 +176,11 @@ def identity_with_metadata_merging(use):
 
 
 def identity_with_metadata_column_get_mdc(use):
-    ints = use.init_data('ints', ints1_factory)
+    ints = use.init_artifact('ints', ints1_factory)
     md = use.init_metadata('md', md1_factory)
-    mdc = use.get_metadata_column('a', md)
+    mdc = use.get_metadata_column('mdc', 'a', md)
 
-    use.action(
+    out, = use.action(
         use.UsageAction(plugin_id='dummy_plugin',
                         action_id='identity_with_metadata_column'),
         use.UsageInputs(ints=ints, metadata=mdc),
@@ -190,52 +189,49 @@ def identity_with_metadata_column_get_mdc(use):
 
 
 def variadic_input_simple(use):
-    ints_a = use.init_data('ints_a', ints1_factory)
-    ints_b = use.init_data('ints_b', ints2_factory)
-    ints = use.init_data_collection('ints', list, ints_a, ints_b)
+    ints_a = use.init_artifact('ints_a', ints1_factory)
+    ints_b = use.init_artifact('ints_b', ints2_factory)
 
-    single_int1 = use.init_data('single_int1', single_int1_factory)
-    single_int2 = use.init_data('single_int2', single_int2_factory)
-    int_set = use.init_data_collection('int_set', set, single_int1,
-                                       single_int2)
+    single_int1 = use.init_artifact('single_int1', single_int1_factory)
+    single_int2 = use.init_artifact('single_int2', single_int2_factory)
 
     use.action(
         use.UsageAction(plugin_id='dummy_plugin',
                         action_id='variadic_input_method'),
-        use.UsageInputs(ints=ints, int_set=int_set, nums={7, 8, 9}),
+        use.UsageInputs(ints=[ints_a, ints_b],
+                        int_set={single_int1, single_int2},
+                        nums={7, 8, 9}),
         use.UsageOutputNames(output='out'),
     )
 
 
 def optional_inputs(use):
-    ints_a = use.init_data('ints', ints1_factory)
+    ints = use.init_artifact('ints', ints1_factory)
 
-    use.action(
+    output1, = use.action(
         use.UsageAction(plugin_id='dummy_plugin',
                         action_id='optional_artifacts_method'),
-        use.UsageInputs(ints=ints_a, num1=1),
-        use.UsageOutputNames(output='output'),
+        use.UsageInputs(ints=ints, num1=1),
+        use.UsageOutputNames(output='output1'),
     )
 
-    use.action(
+    output2, = use.action(
         use.UsageAction(plugin_id='dummy_plugin',
                         action_id='optional_artifacts_method'),
-        use.UsageInputs(ints=ints_a, num1=1, num2=2),
-        use.UsageOutputNames(output='output'),
+        use.UsageInputs(ints=ints, num1=1, num2=2),
+        use.UsageOutputNames(output='output2'),
     )
 
-    use.action(
+    output3, = use.action(
         use.UsageAction(plugin_id='dummy_plugin',
                         action_id='optional_artifacts_method'),
-        use.UsageInputs(ints=ints_a, num1=1, num2=None),
-        use.UsageOutputNames(output='ints_b'),
+        use.UsageInputs(ints=ints, num1=1, num2=None),
+        use.UsageOutputNames(output='output3'),
     )
 
-    ints_b = use.get_result('ints_b')
-
-    use.action(
+    output4, = use.action(
         use.UsageAction(plugin_id='dummy_plugin',
                         action_id='optional_artifacts_method'),
-        use.UsageInputs(ints=ints_a, optional1=ints_b, num1=3, num2=4),
-        use.UsageOutputNames(output='output'),
+        use.UsageInputs(ints=ints, optional1=output3, num1=3, num2=4),
+        use.UsageOutputNames(output='output4'),
     )

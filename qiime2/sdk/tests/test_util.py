@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -37,7 +37,7 @@ class TestUtil(unittest.TestCase):
             'A typical pipeline with the potential to raise an error',
             'Concatenate integers', 'Identity', 'Identity', 'Identity',
             'Do a great many things', 'Identity', 'Identity', 'Identity',
-            'Visualize most common integers',
+            'Visualize most common integers', 'Inputs with typing.Union',
             'Split sequence of integers in half',
             'Test different ways of failing', 'Optional artifacts method',
             'Do stuff normally, but override this one step sometimes',

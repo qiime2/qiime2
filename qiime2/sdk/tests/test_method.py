@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -533,6 +533,24 @@ class TestMethod(unittest.TestCase):
         self.assertIsInstance(result, Results)
         self.assertEqual(result.left.view(list), [0, 42])
         self.assertEqual(result.right.view(list), [-2, 43, 6])
+
+    def test_async_with_typing_unions(self):
+        union_inputs = self.plugin.methods['union_inputs']
+
+        artifact1 = Artifact.import_data(IntSequence1, [0, 42, 43])
+        artifact2 = Artifact.import_data(IntSequence2, [99, -22])
+
+        future = union_inputs.asynchronous(artifact1, artifact2)
+
+        self.assertIsInstance(future, concurrent.futures.Future)
+        result = future.result()
+
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 1)
+
+        # Test the `Results` object.
+        self.assertIsInstance(result, Results)
+        self.assertEqual(result[0].view(list), [0])
 
     def test_docstring(self):
         merge_mappings = self.plugin.methods['merge_mappings']
