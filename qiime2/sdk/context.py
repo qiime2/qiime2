@@ -90,11 +90,19 @@ class Scope:
         """Add a reference to something destructable that is owned by this
            scope.
         """
+        if isinstance(ref, (Artifact, Visualization)):
+            cache = Cache.get_cache()
+            process_pool = cache.create_pool(process_pool=True, reuse=True)
+            process_pool.save(ref)
+
+            if CACHE_CONFIG.named_pool is not None:
+                CACHE_CONFIG.named_pool.save(ref)
+
         self._locals.append(ref)
 
     # NOTE: We end up with both the artifact and the pipeline alias of artifact
     # in the named cache in the end. We only have the pipeline alias in the
-    # process cache
+    # process pool
     def add_parent_reference(self, ref):
         """Add a reference to something destructable that will be owned by the
            parent scope. The reason it needs to be tracked is so that on
@@ -113,6 +121,8 @@ class Scope:
         # Return an artifact backed by the data in the cache
         return process_pool.load(ref)
 
+    # TODO: Demote refs when they are aliased and remove those demoted refs
+    # from the pool
     def destroy(self, local_references_only=False):
         """Destroy all references and clear state.
 
@@ -136,21 +146,18 @@ class Scope:
         del self.ctx
 
         for ref in local_refs:
-            # NOTE: This is getting a little weird. We're creating an instance
-            # of a pool object, but we are not creating the pool itself, the
-            # pool is on disk. We create a pool object referring to the
-            # existing pool on disk then remove an item from it. If there is no
-            # applicable pool to remove it from at this point, we want to
-            # explode. There should always be one if everything worked out
+            ref._destructor()
+
             if isinstance(ref, Artifact) or isinstance(ref, Visualization):
                 CACHE_CONFIG.cache.create_pool(process_pool=True,
                                                reuse=True).remove(ref)
-            ref._destructor()
-
         if local_references_only:
             return parent_refs
 
         for ref in parent_refs:
             ref._destructor()
 
+            if isinstance(ref, Artifact) or isinstance(ref, Visualization):
+                CACHE_CONFIG.cache.create_pool(process_pool=True,
+                                               reuse=True).remove(ref)
         return []

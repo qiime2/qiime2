@@ -339,10 +339,11 @@ class Pool:
         CACHE_CONFIG.named_pool = self.old_pool
 
     def save(self, ref):
-        shutil.copytree(ref._archiver.path, self.cache.data,
-                        dirs_exist_ok=True)
-        os.symlink(self.cache.data / str(ref.uuid), self.path / str(ref.uuid))
-        self.cache.garbage_collection()
+        if not (self.path / str(ref.uuid)).exists():
+            shutil.copytree(ref._archiver.path, self.cache.data,
+                            dirs_exist_ok=True)
+            os.symlink(self.cache.data / str(ref.uuid), self.path / str(ref.uuid))
+            self.cache.garbage_collection()
 
         return self.load(ref)
 
@@ -355,3 +356,4 @@ class Pool:
     # Remove an element from the pool
     def remove(self, ref):
         os.remove(self.path / str(ref.uuid))
+        self.cache.garbage_collection()
