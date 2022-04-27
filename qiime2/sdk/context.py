@@ -6,14 +6,18 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from qiime2.core.cache import Cache
+from qiime2.core.cache import get_cache
 import qiime2.sdk
-from qiime2.sdk.cache_config import CACHE_CONFIG
 from qiime2.sdk.result import Artifact, Visualization
 
 
 class Context:
     def __init__(self, parent=None):
+        if parent is not None:
+            self.cache = parent.cache
+        else:
+            self.cache = get_cache()
+
         self._parent = parent
         self._scope = None
 
@@ -90,14 +94,6 @@ class Scope:
         """Add a reference to something destructable that is owned by this
            scope.
         """
-        if isinstance(ref, (Artifact, Visualization)):
-            cache = Cache.get_cache()
-            process_pool = cache.create_pool(process_pool=True, reuse=True)
-            process_pool.save(ref)
-
-            if CACHE_CONFIG.named_pool is not None:
-                CACHE_CONFIG.named_pool.save(ref)
-
         self._locals.append(ref)
 
     # NOTE: We end up with both the artifact and the pipeline alias of artifact
@@ -109,17 +105,15 @@ class Scope:
            failure, a context can still identify what will (no longer) be
            returned.
         """
-        cache = Cache.get_cache()
-        process_pool = cache.create_pool(process_pool=True, reuse=True)
-        process_pool.save(ref)
+        self.ctx.cache.process_pool.save(ref)
 
-        if CACHE_CONFIG.named_pool is not None:
-            CACHE_CONFIG.named_pool.save(ref)
+        if self.ctx.cache.named_pool is not None:
+            self.ctx.cache.named_pool.save(ref)
 
         self._parent_locals.append(ref)
 
         # Return an artifact backed by the data in the cache
-        return process_pool.load(ref)
+        return self.ctx.cache.process_pool.load(ref)
 
     # TODO: Demote refs when they are aliased and remove those demoted refs
     # from the pool
@@ -136,6 +130,7 @@ class Scope:
             The list of references that were not destroyed.
 
         """
+        ctx = self.ctx
         local_refs = self._locals
         parent_refs = self._parent_locals
 
@@ -149,8 +144,8 @@ class Scope:
             ref._destructor()
 
             if isinstance(ref, Artifact) or isinstance(ref, Visualization):
-                CACHE_CONFIG.cache.create_pool(process_pool=True,
-                                               reuse=True).remove(ref)
+                ctx.cache.process_pool.remove(ref)
+
         if local_references_only:
             return parent_refs
 
@@ -158,6 +153,6 @@ class Scope:
             ref._destructor()
 
             if isinstance(ref, Artifact) or isinstance(ref, Visualization):
-                CACHE_CONFIG.cache.create_pool(process_pool=True,
-                                               reuse=True).remove(ref)
+                ctx.cache.process_pool.remove(ref)
+
         return []
