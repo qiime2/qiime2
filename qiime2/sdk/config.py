@@ -81,11 +81,11 @@ def get_config():
 
 class ParallelConfig():
     def __init__(self, action_executor_mapping):
-        self.backup = LOCAL_CONFIG.action_executor_mapping
-        LOCAL_CONFIG.action_executor_mapping = action_executor_mapping
+        self.action_executor_mapping = action_executor_mapping
 
     def __enter__(self):
-        pass
+        self.backup = LOCAL_CONFIG.action_executor_mapping
+        LOCAL_CONFIG.action_executor_mapping = self.action_executor_mapping
 
     def __exit__(self, *args):
         LOCAL_CONFIG.action_executor_mapping = self.backup
