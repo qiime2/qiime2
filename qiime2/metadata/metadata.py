@@ -461,6 +461,12 @@ class Metadata(_MetadataBase):
         return norm_df, columns
 
     def _metadata_column_factory(self, series, missing_scheme):
+        series = _missing.series_encode_missing(series, missing_scheme)
+        # Collapse dtypes except for all NaN columns so that we can preserve
+        # empty categorical columns. Empty numeric columns will already have
+        # the expected dtype and values
+        if not series.isna().all():
+            series = series.infer_objects()
         dtype = series.dtype
         if NumericMetadataColumn._is_supported_dtype(dtype):
             column = NumericMetadataColumn(series, missing_scheme)
@@ -970,14 +976,18 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
         super().__init__(series.index)
 
+        series = _missing.series_encode_missing(series, missing_scheme)
+        # if the series has values with a consistent dtype, make the series
+        # that dtype. Don't change the dtype if there is a column of all NaN
+        if not series.isna().all():
+            series = series.infer_objects()
+
         if not self._is_supported_dtype(series.dtype):
             raise TypeError(
                 "%s %r does not support a pandas.Series object with dtype %s" %
                 (self.__class__.__name__, series.name, series.dtype))
 
         self._missing_scheme = missing_scheme
-
-        series = _missing.series_encode_missing(series, missing_scheme)
         self._series = self._normalize_(series)
 
         self._validate_index([self._series.name], axis='column')
@@ -1247,6 +1257,8 @@ class CategoricalMetadataColumn(MetadataColumn):
                 else:
                     return value
             elif pd.isna(value):  # permits np.nan, Python float nan, None
+                if type(value) is float and np.isnan(value):
+                    return value
                 return np.nan
             else:
                 raise TypeError(

@@ -312,6 +312,34 @@ class TestMetadataConstructionAndProperties(unittest.TestCase):
                                              ('col3', 'categorical'),
                                              ('col4', 'categorical')])
 
+    def test_missing_data_insdc(self):
+        index = pd.Index(['None', 'nan', 'NA', 'foo'], name='id')
+        df = pd.DataFrame(collections.OrderedDict([
+            ('col1', [1.0, np.nan, 'missing', np.nan]),
+            # TODO: it is not currently possible to have an ENTIRELY numeric
+            # column from missing terms, as the dtype of the series is object
+            # and there is not way to indicate the dtype beyond that.
+            # ('NA', [np.nan, np.nan, 'not applicable', np.nan]),
+            ('col3', ['null', 'N/A', 'not collected', 'NA']),
+            ('col4', np.array([np.nan, np.nan, 'restricted access', np.nan],
+                              dtype=object))]),
+            index=index)
+        md = Metadata(df, default_missing_scheme='INSDC:missing')
+
+        self.assertEqual(md.id_count, 4)
+        self.assertEqual(md.column_count, 3)
+        self.assertEqual(md.id_header, 'id')
+        self.assertEqual(md.ids, ('None', 'nan', 'NA', 'foo'))
+        self.assertEqualColumns(md.columns, [('col1', 'numeric'),
+                                             ('col3', 'categorical'),
+                                             ('col4', 'categorical')])
+
+        pd.testing.assert_frame_equal(md.to_dataframe(), pd.DataFrame(
+            {'col1': [1.0, np.nan, np.nan, np.nan],
+             'col3': ['null', 'N/A', np.nan, 'NA'],
+             'col4': np.array([np.nan, np.nan, np.nan, np.nan], dtype=object)},
+            index=index))
+
     def test_does_not_cast_ids_or_column_names(self):
         index = pd.Index(['0.000001', '0.004000', '0.000000'], dtype=object,
                          name='id')
@@ -716,6 +744,17 @@ class TestToDataframe(unittest.TestCase):
         self.assertEqual(obs.dtypes.to_dict(),
                          {'col1': np.float64, 'col2': np.float64,
                           'col3': np.float64})
+
+    def test_insdc_missing_encode_missing_false(self):
+        df = pd.DataFrame({'col1': [42, 'missing'],
+                           'col2': ['foo', 'not applicable']},
+                          index=pd.Index(['id1', 'id2'], name='id'))
+        md = Metadata(df, default_missing_scheme='INSDC:missing')
+
+        obs = md.to_dataframe(encode_missing=True)
+
+        pd.testing.assert_frame_equal(obs, df)
+        self.assertIsNot(obs, df)
 
 
 class TestGetColumn(unittest.TestCase):

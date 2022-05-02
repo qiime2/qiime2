@@ -119,7 +119,8 @@ class MetadataReader:
         try:
             # Cast each column to the appropriate dtype based on column type.
             df = df.apply(self._cast_column, axis='index',
-                          column_types=resolved_column_types)
+                          column_types=resolved_column_types,
+                          missing_schemes=resolved_missing)
         except MetadataFileError as e:
             # HACK: If an exception is raised within `DataFrame.apply`, pandas
             # adds an extra tuple element to `e.args`, making the original
@@ -325,7 +326,10 @@ class MetadataReader:
         # directive is: `#q2:missing`
         return len(row) > 0 and row[0].split(' ')[0] == '#q2:missing'
 
-    def _cast_column(self, series, column_types):
+    def _cast_column(self, series, column_types, missing_schemes):
+        if series.name in missing_schemes:
+            scheme = missing_schemes[series.name]
+            series = _missing.series_encode_missing(series, scheme)
         if series.name in column_types:
             if column_types[series.name] == 'numeric':
                 return self._to_numeric(series)

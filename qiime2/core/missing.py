@@ -18,6 +18,8 @@ def _encode_terms(namespace):
     namespace = _NAMESPACE_LOOKUP.index(namespace)
 
     def encode(x):
+        if type(x) is not str:
+            return x
         try:
             code = enum.index(x)
         except ValueError:
@@ -38,7 +40,8 @@ def _q2_omitted(series):
 def _q2_error(series):
     if series.isna().any():
         raise ValueError("Missing values are not allowed in series/column"
-                         " (name=%r)" % series.name)
+                         " (name=%r) when using scheme 'q2:error'"
+                         % series.name)
     return series
 
 
