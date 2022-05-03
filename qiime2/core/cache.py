@@ -206,6 +206,7 @@ class Cache:
     def garbage_collection(self):
         referenced_pools = set()
         referenced_data = set()
+        cleaned = []
 
         # Walk over keys and track all pools and data referenced
         for key in os.listdir(self.keys):
@@ -223,6 +224,7 @@ class Cache:
         for pool in os.listdir(self.pools):
             if pool not in referenced_pools:
                 shutil.rmtree(self.pools / pool)
+                cleaned.append(self.pools / pool)
             else:
                 for data in os.listdir(self.pools / pool):
                     referenced_data.add(data)
@@ -237,16 +239,23 @@ class Cache:
         # Walk over all data and remove any that was not referenced
         for data in os.listdir(self.data):
             if data not in referenced_data:
-                shutil.rmtree(self.data / data)
+                shutil.rmtree(self.data / data, ignore_errors=True)
+                cleaned.append(self.data / data)
+
+        print("\nGARBAGE COLLECTION:")
+        for elem in cleaned:
+            print(elem)
+        print()
 
     # Save data and create key or pool entry
     def save(self, ref, key):
+        # Create the key before the data, this is so that if another thread or
+        # process is running garbage collection it doesn't see our unkeyed data
+        # and remove it leaving us with a dangling reference and no data
+        self._register_key(key, str(ref.uuid))
         # Move the data into cache under key
         shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
-        self._register_key(key, str(ref.uuid))
 
-        # Collect garbage after a save
-        self.garbage_collection()
         # Give back an instance of the Artifact they can use if they want
         return self.load(key)
 
@@ -279,6 +288,8 @@ class Cache:
     # some kind of lock file to lock the entire cache or to list locked
     # elements of the cache or something
     def lock(self):
+        # https://flufllock.readthedocs.io/en/stable/index.html
+        # https://gitlab.com/warsaw/flufl.lock
         pass
 
     def unlock(self):
@@ -352,14 +363,20 @@ class Pool:
         self.cache.named_pool = self.old_pool
 
     def save(self, ref):
+        """Save the data into the pool then load a new ref backed by the data
+        in the pool
+        """
         # TODO: This guard should probably be removed when we rework the logic
         # I feel less bad about this one than the remove one though
         if not (self.path / str(ref.uuid)).exists():
-            shutil.copytree(ref._archiver.path, self.cache.data,
-                            dirs_exist_ok=True)
+            # The symlink needs to be created first because if another thread
+            # or process is running garbage collection and we create the data
+            # before the reference we could garbage collect the data then
+            # create a dangling symlink. We kinda want our data
             os.symlink(self.cache.data / str(ref.uuid),
                        self.path / str(ref.uuid))
-            self.cache.garbage_collection()
+            shutil.copytree(ref._archiver.path, self.cache.data,
+                            dirs_exist_ok=True)
 
         return self.load(ref)
 
@@ -367,6 +384,7 @@ class Pool:
     def load(self, ref):
         archiver = Archiver.load(self.cache.data / str(ref.uuid),
                                  allow_no_op=True)
+        print(f'POOL ARCHIVER PATH: {archiver.path}')
         return Result._from_archiver(archiver)
 
     # Remove an element from the pool

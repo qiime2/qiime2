@@ -22,11 +22,10 @@ import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
-from qiime2.sdk.parsl_config import PARSL_CONFIG, get_config
+from qiime2.sdk.parsl_config import get_parsl_config
 from qiime2.sdk.context import Context
 from qiime2.sdk.results import Results
 from qiime2.sdk.util import ProxyArtifact
-from qiime2.sdk.cache_config import CACHE_CONFIG
 
 
 def _subprocess_apply(action, args, kwargs):
@@ -589,6 +588,7 @@ class Pipeline(Action):
                         for output in tuplize(outputs))
 
         for output in outputs:
+            print(f'OUTPUT ARCHIVER PATH: {output._archiver.path}')
             if not isinstance(output, qiime2.sdk.Result):
                 raise TypeError("Pipelines must return `Result` objects, "
                                 "not %s" % (type(output), ))
@@ -614,7 +614,7 @@ class Pipeline(Action):
             scope.add_reference(prov)
 
             aliased_result = output._alias(prov)
-            scope.add_parent_reference(aliased_result)
+            aliased_result = scope.add_parent_reference(aliased_result)
 
             results.append(aliased_result)
 

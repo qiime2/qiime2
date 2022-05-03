@@ -260,9 +260,9 @@ class _NoOpArchive(_Archive):
         return open(os.path.join(self.path, relpath))
 
     def mount(self, filepath):
-        shutil.copytree(self.path, filepath / str(self.uuid),
-                        dirs_exist_ok=True)
-        root = pathlib.Path(os.path.join(filepath, str(self.uuid)))
+        # shutil.copytree(self.path, filepath / str(self.uuid),
+        #                 dirs_exist_ok=True)
+        root = self.path#= pathlib.Path(os.path.join(filepath, str(self.uuid)))
         return ArchiveRecord(root, root / self.VERSION_FILE,
                              self.uuid, self.version, self.framework_version)
 
@@ -343,8 +343,16 @@ class Archiver:
         if Format is None:
             cls._futuristic_archive_error(filepath, archive)
 
-        path = cls._make_temp_path()
-        rec = archive.mount(path)
+        if not isinstance(archive, _NoOpArchive):
+            path = cls._make_temp_path()
+            rec = archive.mount(path)
+        else:
+            path = filepath
+            rec = archive.mount(None)
+        # else:
+        #     path = filepath
+        #     rec = ArchiveRecord(root, root / self.VERSION_FILE,
+        #                      self.uuid, self.version, self.framework_version)
 
         return cls(path, Format(rec))
 

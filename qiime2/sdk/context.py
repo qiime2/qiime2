@@ -118,15 +118,21 @@ class Scope:
            failure, a context can still identify what will (no longer) be
            returned.
         """
-        self.ctx.cache.process_pool.save(ref)
+        # Add the ref to the process pool and get back a new ref backed by the
+        # cache and the pool
+        pool_ref = self.ctx.cache.process_pool.save(ref)
+        # Get rid of the old ref that was just sitting in tmp
+        ref._destructor()
 
+        # Add the ref to the named pool if one exists
         if self.ctx.cache.named_pool is not None:
-            self.ctx.cache.named_pool.save(ref)
+            self.ctx.cache.named_pool.save(pool_ref)
 
-        self._parent_locals.append(ref)
+        self._parent_locals.append(pool_ref)
 
         # Return an artifact backed by the data in the cache
-        return self.ctx.cache.process_pool.load(ref)
+        return pool_ref
+        # return self.ctx.cache.process_pool.load(ref)
 
     # TODO: Demote refs when they are aliased and remove those demoted refs
     # from the pool
@@ -154,6 +160,7 @@ class Scope:
         del self.ctx
 
         for ref in local_refs:
+            print(f'DELETING LOCAL: {ref.uuid}')
             ref._destructor()
 
             if isinstance(ref, (Artifact, Visualization)):
@@ -163,6 +170,7 @@ class Scope:
             return parent_refs
 
         for ref in parent_refs:
+            print(f'DELETING PARENT: {ref.uuid}')
             ref._destructor()
 
             if isinstance(ref, (Artifact, Visualization)):

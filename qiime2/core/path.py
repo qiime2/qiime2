@@ -6,7 +6,11 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+from concurrent.futures import thread
 import os
+import sys
+import time
+import threading
 import pathlib
 import shutil
 import distutils
@@ -25,6 +29,7 @@ class OwnedPath(_ConcretePath):
     def __new__(cls, *args, **kwargs):
         self = super().__new__(cls, *args, **kwargs)
         self._user_owned = True
+        print(f'CREATED: {self}')
         return self
 
     def _copy_dir_or_file(self, other):
@@ -38,6 +43,7 @@ class OwnedPath(_ConcretePath):
             distutils.dir_util.remove_tree(str(self))
         else:
             self.unlink()
+        print(f'DESTROYED OWNED: {self}')
 
     def _move_or_copy(self, other):
         if self._user_owned:
@@ -82,6 +88,7 @@ class OutPath(OwnedPath):
             shutil.rmtree(path)
         else:
             os.unlink(path)
+        print(f'DESTROYED OUT: {path}')
 
     def __new__(cls, dir=False, **kwargs):
         """
@@ -102,7 +109,6 @@ class OutPath(OwnedPath):
 
     def __exit__(self, t, v, tb):
         self._destructor()
-        super().__exit__(t, v, tb)
 
 
 class InternalDirectory(_ConcretePath):
@@ -111,13 +117,15 @@ class InternalDirectory(_ConcretePath):
     @classmethod
     def _destruct(cls, path):
         """DO NOT USE DIRECTLY, use `_destructor()` instead"""
-        if os.path.exists(path):
-            shutil.rmtree(path)
+        # if os.path.exists(path):
+        #     shutil.rmtree(path)
+        print(f'DESTROYED INTERNAL: {path}, {os.getpid()}, {threading.get_ident()}')
 
     @classmethod
     def __new(cls, *args):
         self = super().__new__(cls, *args)
         self._destructor = weakref.finalize(self, self._destruct, str(self))
+        print(f'CREATED INTERNAL: {self}, {os.getpid()}, {threading.get_ident()}')
         return self
 
     def __new__(cls, *args, prefix=None):
