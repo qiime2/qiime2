@@ -587,7 +587,6 @@ class Metadata(_MetadataBase):
         df = self._dataframe.copy()
         if encode_missing:
             def replace_nan(series):
-                print(series.dtype)
                 missing = _missing.series_extract_missing(series)
                 # avoid dtype changing if there's no missing values
                 if not missing.empty:
