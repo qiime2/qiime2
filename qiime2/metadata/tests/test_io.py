@@ -290,6 +290,13 @@ class TestLoadErrors(unittest.TestCase):
                                     'cells'):
             Metadata.load(fp)
 
+    def test_unknown_missing_scheme(self):
+        fp = get_data_path('invalid/missing-unknown-scheme.tsv')
+
+        with self.assertRaisesRegex(MetadataFileError,
+                                    'col1.*BAD:SCHEME.*#q2:missing'):
+            Metadata.load(fp)
+
 
 class TestLoadSuccess(unittest.TestCase):
     def setUp(self):
@@ -1080,6 +1087,32 @@ class TestSave(unittest.TestCase):
                                    'restricted access']},
                          index=pd.Index(['id1', 'id2', 'id3'], name='id')),
             default_missing_scheme='INSDC:missing')
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcol1\tcol2\n"
+            "#q2:types\tnumeric\tcategorical\n"
+            "#q2:missing\tINSDC:missing\tINSDC:missing\n"
+            "id1\t42\ta\n"
+            "id2\t\tnot applicable\n"
+            "id3\t-3.5\trestricted access\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_default_missing_scheme_override(self):
+        md = Metadata(
+            pd.DataFrame({'col1': [42.0, np.nan, -3.5],
+                          'col2': ['a', 'not applicable',
+                                   'restricted access']},
+                         index=pd.Index(['id1', 'id2', 'id3'], name='id')),
+            default_missing_scheme='q2:error',
+            column_missing_schemes=dict(col1='INSDC:missing',
+                                        col2='INSDC:missing'))
 
         md.save(self.filepath)
 

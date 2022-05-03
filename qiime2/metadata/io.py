@@ -250,7 +250,13 @@ class MetadataReader:
         if 'missing' in directives:
             for column_name, column_missing in directives['missing'].items():
                 if column_missing not in _missing.BUILTIN_MISSING:
-                    raise MetadataFileError()
+                    raise MetadataFileError(
+                        "Column %r has an unrecognized missing value scheme %r"
+                        " specified in its #q2:missing directive."
+                        " Supported missing value schemes (case-sensitive): %s"
+                        % (column_name, column_missing,
+                           list(_missing.BUILTIN_MISSING))
+                        )
 
         return directives
 
