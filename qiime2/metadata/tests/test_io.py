@@ -1054,7 +1054,7 @@ class TestSave(unittest.TestCase):
 
         self.assertEqual(obs, exp)
 
-    def test_mising_schemes(self):
+    def test_missing_schemes(self):
         md = Metadata(
             pd.DataFrame({'col1': [42.0, np.nan, -3.5],
                           'col2': ['a', 'not applicable',
