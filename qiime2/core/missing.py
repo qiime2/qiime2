@@ -29,26 +29,26 @@ def _encode_terms(namespace):
     return encode
 
 
-def _insdc_missing(series):
+def _handle_insdc_missing(series):
     return series.apply(_encode_terms('INSDC:missing'))
 
 
-def _q2_omitted(series):
+def _handle_blank(series):
     return series
 
 
-def _q2_error(series):
+def _handle_no_missing(series):
     if series.isna().any():
         raise ValueError("Missing values are not allowed in series/column"
-                         " (name=%r) when using scheme 'q2:error'"
+                         " (name=%r) when using scheme 'no-missing'."
                          % series.name)
     return series
 
 
 BUILTIN_MISSING = {
-    'INSDC:missing': _insdc_missing,
-    'q2:omitted': _q2_omitted,
-    'q2:error': _q2_error
+    'INSDC:missing': _handle_insdc_missing,
+    'blank': _handle_blank,
+    'no-missing': _handle_no_missing
 }
 _MISSING_ENUMS = {
     'INSDC:missing': (
@@ -56,10 +56,10 @@ _MISSING_ENUMS = {
         'restricted access')
 }
 
-# list index reflects the nan namespace, the "q2:" enums don't apply here,
-# since they aren't actually encoded in the NaNs
+# list index reflects the nan namespace, the "blank"/"no-missing" enums don't
+# apply here, since they aren't actually encoded in the NaNs
 _NAMESPACE_LOOKUP = ['INSDC:missing']
-DEFAULT_MISSING = 'q2:omitted'
+DEFAULT_MISSING = 'blank'
 
 
 def series_encode_missing(series: pd.Series, enumeration: str) -> pd.Series:

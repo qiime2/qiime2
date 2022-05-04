@@ -301,6 +301,23 @@ class Metadata(_MetadataBase):
     objects can be retrieved to gain access to APIs applicable to a single
     metadata column.
 
+    Missing values may be encoded in one of the following schemes:
+
+    'blank'
+      The default, which treats `None`/`NaN` as the only valid missing values.
+
+    'no-missing'
+      Indicates there are no missing values in a column, any `None`/`NaN`
+      values should be considered an error. If a scheme other than 'blank' is
+      used by default, this scheme can be provided to preserve strings as
+      categorical terms.
+
+    'INSDC:missing'
+      The INSDC vocabulary for missing values. The current implementation
+      supports only lower-case terms which match exactly:
+      'not applicable', 'missing', 'not provided', 'not collected', and
+      'restricted access'.
+
     Parameters
     ----------
     dataframe : pandas.DataFrame
@@ -322,10 +339,10 @@ class Metadata(_MetadataBase):
         object containing these normalized data types and values, use
         ``Metadata.to_dataframe()``.
     column_missing_schemes : dict, optional
-        Override the metadata column handling for missing values described
-        in the file. This is a dict mapping column names (str) to
-        missing-value schemes (str).  Valid values are 'q2:omitted',
-        'q2:error', and 'INSDC:missing'. Column names may be omitted.
+        Describe the metadata column handling for missing values described
+        in the dataframe. This is a dict mapping column names (str) to
+        missing-value schemes (str).  Valid values are 'blank',
+        'no-missing', and 'INSDC:missing'. Column names may be omitted.
     default_missing_scheme : str, optional
         The missing scheme to use when none has been provided in the file
         or in `column_missing_schemes`.
@@ -353,8 +370,8 @@ class Metadata(_MetadataBase):
         column_missing_schemes : dict, optional
             Override the metadata column handling for missing values described
             in the file. This is a dict mapping column names (str) to
-            missing-value schemes (str).  Valid values are 'q2:omitted',
-            'q2:error', and 'INSDC:missing'. Column names may be omitted.
+            missing-value schemes (str).  Valid values are 'blank',
+            'no-missing', and 'INSDC:missing'. Column names may be omitted.
         default_missing_scheme : str, optional
             The missing scheme to use when none has been provided in the file
             or in `column_missing_schemes`.
@@ -908,7 +925,7 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
     ----------
     series : pd.Series
         The series to construct a column from.
-    missing_scheme : "q2:omitted", "q2:error", "INSDC:missing"
+    missing_scheme : "blank", "no-missing", "INSDC:missing"
         How to interpret terms for missing values. These will be converted
         to NaN. The default treatment is to take no action.
 
@@ -965,7 +982,7 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         Returns
         -------
         str
-           "q2:omitted", "q2:error", or "INSDC:missing"
+           "blank", "no-missing", or "INSDC:missing"
 
         """
         return self._missing_scheme

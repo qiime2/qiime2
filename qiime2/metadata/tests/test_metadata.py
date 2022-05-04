@@ -167,8 +167,8 @@ class TestInvalidMetadataConstruction(unittest.TestCase):
                               dtype=object))]),
             index=index)
 
-        with self.assertRaisesRegex(ValueError, 'col1.*q2:error'):
-            Metadata(df, default_missing_scheme='q2:error')
+        with self.assertRaisesRegex(ValueError, 'col1.*no-missing'):
+            Metadata(df, default_missing_scheme='no-missing')
 
 
 class TestMetadataConstructionAndProperties(unittest.TestCase):
@@ -409,7 +409,7 @@ class TestMetadataConstructionAndProperties(unittest.TestCase):
                               'col1': 'INSDC:missing',
                               'col3': 'INSDC:missing',
                               'col4': 'INSDC:missing'
-                          }, default_missing_scheme='q2:error')
+                          }, default_missing_scheme='no-missing')
 
         self.assertEqual(md.id_count, 4)
         self.assertEqual(md.column_count, 3)
@@ -578,7 +578,7 @@ class TestRepr(unittest.TestCase):
         self.assertIn('Metadata', obs)
         self.assertIn('1 ID x 1 column', obs)
         self.assertIn("col1: ColumnProperties(type='numeric',"
-                      " missing_scheme='q2:omitted')", obs)
+                      " missing_scheme='blank')", obs)
 
     def test_plural(self):
         md = Metadata(pd.DataFrame({'col1': [42, 42], 'col2': ['foo', 'bar']},
@@ -589,9 +589,9 @@ class TestRepr(unittest.TestCase):
         self.assertIn('Metadata', obs)
         self.assertIn('2 IDs x 2 columns', obs)
         self.assertIn("col1: ColumnProperties(type='numeric',"
-                      " missing_scheme='q2:omitted')", obs)
+                      " missing_scheme='blank')", obs)
         self.assertIn("col2: ColumnProperties(type='categorical',"
-                      " missing_scheme='q2:omitted')", obs)
+                      " missing_scheme='blank')", obs)
 
     def test_column_name_padding(self):
         data = [[0, 42, 'foo']]
@@ -605,13 +605,13 @@ class TestRepr(unittest.TestCase):
         self.assertIn('1 ID x 3 columns', obs)
         self.assertIn(
             "col1:               ColumnProperties(type='numeric',"
-            " missing_scheme='q2:omitted')", obs)
+            " missing_scheme='blank')", obs)
         self.assertIn(
             "longer-column-name: ColumnProperties(type='numeric',"
-            " missing_scheme='q2:omitted')", obs)
+            " missing_scheme='blank')", obs)
         self.assertIn(
             "c:                  ColumnProperties(type='categorical',"
-            " missing_scheme='q2:omitted')", obs)
+            " missing_scheme='blank')", obs)
 
 
 class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):

@@ -142,11 +142,11 @@ class TestInvalidMetadataColumnConstruction(unittest.TestCase):
                 missing_scheme='BAD:SCHEME')
 
     def test_missing_q2_error(self):
-        with self.assertRaisesRegex(ValueError, "col1.*q2:error"):
+        with self.assertRaisesRegex(ValueError, "col1.*no-missing"):
             DummyMetadataColumn(pd.Series(
                     [1, np.nan, 3], name='col1',
                     index=pd.Index(['a', 'b', 'c'], name='id')),
-                missing_scheme='q2:error')
+                missing_scheme='no-missing')
 
 
 class TestMetadataColumnConstructionAndProperties(unittest.TestCase):

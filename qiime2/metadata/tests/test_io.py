@@ -616,7 +616,28 @@ class TestLoadSuccess(unittest.TestCase):
         exp_columns = [
             ('col1', 'numeric', 'INSDC:missing'),
             ('col2', 'categorical', 'INSDC:missing'),
-            ('col3', 'categorical', 'q2:error')
+            ('col3', 'categorical', 'no-missing')
+        ]
+        self.assertEqual(obs_columns, exp_columns)
+
+    def test_insdc_override(self):
+        fp = get_data_path('valid/override-insdc.tsv')
+
+        # This file has INSDC terms, but they aren't missing values.
+        obs_md = Metadata.load(fp, default_missing_scheme='INSDC:missing')
+
+        exp_index = pd.Index(['id1', 'id2', 'id3', 'id4'],
+                             name='id')
+        exp_df = pd.DataFrame({'col1': ['collected', 'not collected',
+                                        'not collected', 'collected']},
+                              index=exp_index)
+
+        pd.testing.assert_frame_equal(obs_md.to_dataframe(), exp_df)
+
+        obs_columns = [(name, props.type, props.missing_scheme)
+                       for name, props in obs_md.columns.items()]
+        exp_columns = [
+            ('col1', 'categorical', 'no-missing'),
         ]
         self.assertEqual(obs_columns, exp_columns)
 
@@ -1061,7 +1082,7 @@ class TestSave(unittest.TestCase):
                                    'restricted access']},
                          index=pd.Index(['id1', 'id2', 'id3'], name='id')),
             column_missing_schemes={
-                'col1': 'q2:omitted', 'col2': 'INSDC:missing'}
+                'col1': 'blank', 'col2': 'INSDC:missing'}
         )
 
         md.save(self.filepath)
@@ -1072,7 +1093,7 @@ class TestSave(unittest.TestCase):
         exp = (
             "id\tcol1\tcol2\n"
             "#q2:types\tnumeric\tcategorical\n"
-            "#q2:missing\tq2:omitted\tINSDC:missing\n"
+            "#q2:missing\tblank\tINSDC:missing\n"
             "id1\t42\ta\n"
             "id2\t\tnot applicable\n"
             "id3\t-3.5\trestricted access\n"

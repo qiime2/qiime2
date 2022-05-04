@@ -61,7 +61,7 @@ class TestISNDC(RoundTripMixin, unittest.TestCase):
 
 class TestOmitted(RoundTripMixin, unittest.TestCase):
     def setUp(self):
-        self.enum = 'q2:omitted'
+        self.enum = 'blank'
         self.missing_terms = [None, float('nan')]
 
     # test_roundtrip_all_missing_float is not possible with other schemes
@@ -78,7 +78,7 @@ class TestOmitted(RoundTripMixin, unittest.TestCase):
 
 class TestError(RoundTripMixin, unittest.TestCase):
     def setUp(self):
-        self.enum = 'q2:error'
+        self.enum = 'no-missing'
         self.missing_terms = []
 
     # no missing values, so bool and int are not object and float

@@ -329,7 +329,6 @@ class MetadataReader:
         return len(row) > 0 and row[0].split(' ')[0] == '#q2:types'
 
     def _is_missing_directive(self, row):
-        # directive is: `#q2:missing`
         return len(row) > 0 and row[0].split(' ')[0] == '#q2:missing'
 
     def _cast_column(self, series, column_types, missing_schemes):
