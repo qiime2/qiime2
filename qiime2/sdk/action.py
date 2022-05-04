@@ -326,12 +326,6 @@ class Action(metaclass=abc.ABCMeta):
         return async_wrapper
 
     def _bind_parsl(self, ctx, *args, **kwargs):
-        # If you find a good way to determine if a parsl config is loaded.
-        # Use it here
-        try:
-            parsl.load(get_parsl_config())
-        except RuntimeError:
-            pass
 
         futures = []
         remapped_args = []
@@ -375,6 +369,12 @@ class Action(metaclass=abc.ABCMeta):
 
     def _get_parsl_wrapper(self):
         def parsl_wrapper(*args, **kwargs):
+            # If you find a good way to determine if a parsl config is loaded.
+            # Use it here
+            try:
+                parsl.load(get_parsl_config())
+            except RuntimeError:
+                pass
             return self._bind_parsl(qiime2.sdk.Context(parsl=True), *args,
                                     **kwargs)
 
@@ -611,6 +611,7 @@ class Pipeline(Action):
                     "Expected output type %r, received %r" %
                     (spec.qiime_type, output.type))
             prov = provenance.fork(name, output)
+            # scope.add_reference(output)
             scope.add_reference(prov)
 
             aliased_result = output._alias(prov)
@@ -654,6 +655,7 @@ class Pipeline(Action):
                     "Expected output type %r, received %r" %
                     (spec.qiime_type, output.type))
             prov = provenance.fork(name, output)
+            # scope.add_reference(output)
             scope.add_reference(prov)
 
             aliased_result = output._alias(prov)
