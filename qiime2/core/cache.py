@@ -208,6 +208,8 @@ class Cache:
         referenced_data = set()
         cleaned = []
 
+        print("\nGARBAGE COLLECTION:")
+        print(os.listdir(self.data))
         # Walk over keys and track all pools and data referenced
         for key in os.listdir(self.keys):
             loaded_key = yaml.safe_load(open(self.keys / key))
@@ -242,7 +244,6 @@ class Cache:
                 shutil.rmtree(self.data / data, ignore_errors=True)
                 cleaned.append(self.data / data)
 
-        print("\nGARBAGE COLLECTION:")
         for elem in cleaned:
             print(elem)
         print()
@@ -375,8 +376,10 @@ class Pool:
             # create a dangling symlink. We kinda want our data
             os.symlink(self.cache.data / str(ref.uuid),
                        self.path / str(ref.uuid))
+            print(f'\nBEFORE: {os.listdir(self.cache.data)} {ref._archiver.path}')
             shutil.copytree(ref._archiver.path, self.cache.data,
                             dirs_exist_ok=True)
+            print(f'AFTER: {os.listdir(self.cache.data)} {ref._archiver.path}\n')
 
         return self.load(ref)
 
@@ -384,7 +387,6 @@ class Pool:
     def load(self, ref):
         archiver = Archiver.load(self.cache.data / str(ref.uuid),
                                  allow_no_op=True)
-        print(f'POOL ARCHIVER PATH: {archiver.path}')
         return Result._from_archiver(archiver)
 
     # Remove an element from the pool
@@ -393,3 +395,4 @@ class Pool:
         if (self.path / str(ref.uuid)).exists():
             os.remove(self.path / str(ref.uuid))
             self.cache.garbage_collection()
+        print(f'POOL REMOVE:\nPATH: {self.path}\nUUID: {ref.uuid}\n')
