@@ -109,9 +109,6 @@ class Scope:
         """
         self._locals.append(ref)
 
-    # NOTE: We end up with both the artifact and the pipeline alias of artifact
-    # in the named cache in the end. We only have the pipeline alias in the
-    # process pool
     def add_parent_reference(self, ref):
         """Add a reference to something destructable that will be owned by the
            parent scope. The reason it needs to be tracked is so that on
@@ -120,19 +117,25 @@ class Scope:
         """
         # Add the ref to the process pool and get back a new ref backed by the
         # cache and the pool
+        # NOTE: There are some problems with how we create this reference right
+        # now. With a normal archive the archiver path looks something like
+        # /qiime2-archive-<random_stuff>/uuid/the data and all that
+        # With these pool refs it's just
+        # /uuid/the data and all that
+        # This discrepency is likely causing issues. For example, uf we pass
+        # pool_ref to named_pool.save we end up with the guts of the artifact
+        # in the data directory (VERSION and metadata.yaml etc. in the top
+        # level of the data directory)
         pool_ref = self.ctx.cache.process_pool.save(ref)
-        # Get rid of the old ref that was just sitting in tmp
-        ref._destructor()
 
         # Add the ref to the named pool if one exists
         if self.ctx.cache.named_pool is not None:
-            self.ctx.cache.named_pool.save(pool_ref)
+            self.ctx.cache.named_pool.save(ref)
 
-        self._parent_locals.append(pool_ref)
+        self._parent_locals.append(ref)
 
         # Return an artifact backed by the data in the cache
         return pool_ref
-        # return self.ctx.cache.process_pool.load(ref)
 
     # TODO: Demote refs when they are aliased and remove those demoted refs
     # from the pool
@@ -159,12 +162,15 @@ class Scope:
         del self._parent_locals
         del self.ctx
 
+        print('\nLOCAL REFS:')
+        print(local_refs)
         for ref in local_refs:
             print(f'DELETING LOCAL: {ref.uuid}')
             ref._destructor()
 
             if isinstance(ref, (Artifact, Visualization)):
                 ctx.cache.process_pool.remove(ref)
+        print('END\n')
 
         if local_references_only:
             return parent_refs
