@@ -630,7 +630,6 @@ class Pipeline(Action):
                     "Expected output type %r, received %r" %
                     (spec.qiime_type, output.type))
             prov = provenance.fork(name, output)
-            # scope.add_reference(output)
             scope.add_reference(prov)
 
             aliased_result = output._alias(prov)
@@ -674,7 +673,6 @@ class Pipeline(Action):
                     "Expected output type %r, received %r" %
                     (spec.qiime_type, output.type))
             prov = provenance.fork(name, output)
-            # scope.add_reference(output)
             scope.add_reference(prov)
 
             aliased_result = output._alias(prov)
