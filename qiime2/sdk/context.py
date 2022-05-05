@@ -122,7 +122,7 @@ class Scope:
         # /qiime2-archive-<random_stuff>/uuid/the data and all that
         # With these pool refs it's just
         # /uuid/the data and all that
-        # This discrepency is likely causing issues. For example, uf we pass
+        # This discrepency is likely causing issues. For example, if we pass
         # pool_ref to named_pool.save we end up with the guts of the artifact
         # in the data directory (VERSION and metadata.yaml etc. in the top
         # level of the data directory)
@@ -152,9 +152,9 @@ class Scope:
             The list of references that were not destroyed.
 
         """
-        ctx = self.ctx
         local_refs = self._locals
         parent_refs = self._parent_locals
+        ctx = self.ctx
 
         # Unset instance state, handy to prevent cycles in GC, and also causes
         # catastrophic failure if some invariant is violated.
@@ -162,21 +162,16 @@ class Scope:
         del self._parent_locals
         del self.ctx
 
-        print('\nLOCAL REFS:')
-        print(local_refs)
         for ref in local_refs:
-            print(f'DELETING LOCAL: {ref.uuid}')
             ref._destructor()
 
             if isinstance(ref, (Artifact, Visualization)):
                 ctx.cache.process_pool.remove(ref)
-        print('END\n')
 
         if local_references_only:
             return parent_refs
 
         for ref in parent_refs:
-            print(f'DELETING PARENT: {ref.uuid}')
             ref._destructor()
 
             if isinstance(ref, (Artifact, Visualization)):

@@ -588,7 +588,6 @@ class Pipeline(Action):
                         for output in tuplize(outputs))
 
         for output in outputs:
-            print(f'OUTPUT ARCHIVER PATH: {output._archiver.path}')
             if not isinstance(output, qiime2.sdk.Result):
                 raise TypeError("Pipelines must return `Result` objects, "
                                 "not %s" % (type(output), ))

@@ -145,6 +145,7 @@ class Result:
 
     @property
     def _destructor(self):
+        print(f'SELF: {self}\nARCHIVER: {self._archiver._destructor}\n')
         return self._archiver._destructor
 
     def save(self, filepath, ext=None):
