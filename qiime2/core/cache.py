@@ -396,12 +396,15 @@ class Pool:
             os.mkdir(self.path)
 
     def __enter__(self):
-        """If you with a pool you are using it as your named pool
+        """Set this pool to be our named pool on the current cache
         """
         self.old_pool = self.cache.named_pool
         self.cache.named_pool = self
 
     def __exit__(self, *args):
+        """Set the named pool on the current cache back to whatever it was
+        before this one
+        """
         self.cache.named_pool = self.old_pool
 
     def save(self, ref):

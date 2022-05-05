@@ -84,10 +84,23 @@ def get_parsl_config():
 
 class ParallelConfig():
     def __init__(self, action_executor_mapping={}, parsl_config=None):
+        """Tell QIIME 2 how to parsl
+
+        action_executor_mapping: maps actions to executors. All unmapped
+        actions will be run on the default executor. We check which executor a
+        given action is supposed to use when we get ready to run the action, so
+        errors will only occur if an action that is being run in a given
+        QIIME 2 invocation has been mapped to an executor that does not exist
+
+        parsl_config: Specifies which executors should be created and how they
+        should be created
+        """
         self.action_executor_mapping = action_executor_mapping
         self.parsl_config = parsl_config
 
     def __enter__(self):
+        """Set this to be our Parsl config on the current thread local
+        """
         self.backup_map = PARSL_CONFIG.action_executor_mapping
         PARSL_CONFIG.action_executor_mapping = self.action_executor_mapping
 
@@ -95,5 +108,7 @@ class ParallelConfig():
         PARSL_CONFIG.parsl_config = self.parsl_config
 
     def __exit__(self, *args):
+        """Set our Parsl config back to whatever it was before this one
+        """
         PARSL_CONFIG.action_executor_mapping = self.backup_map
         PARSL_CONFIG.parsl_config = self.backup_config
