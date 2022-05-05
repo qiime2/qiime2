@@ -123,25 +123,43 @@ def actions_by_input_type(string):
 # NOTE: Can put all artifact API methods on this class because we know what
 # type it will be (maybe not uuid)
 class ProxyArtifact:
+    """This represents a future artifact that is being returned by a Parsl app
+    """
     def __init__(self, future, selector):
+        """We have a future that represents the results of some QIIME 2 action,
+        and we have a selector indicating specifically which result we want
+        """
         self.future = future
         self.selector = selector
 
     def get_element(self, results):
+        """Get the result we want off of the future we have
+        """
         return getattr(results, self.selector)
 
     def view(self, type):
+        """If we want to view the result we need the future to be resolved
+        """
         return self.get_element(self.future.result()).view(type)
 
 
 class ProxyResults:
+    """This represents future results that are being returned by a Parsl apps
+    """
     def __init__(self, future, signature):
+        """We have the future results and the outputs portion of the signature
+        of the action creating the results
+        """
         self.future = future
         self.signature = signature
 
     def __iter__(self):
+        """Give us a ProxyArtifact for each result in the future
+        """
         for s in self.signature:
             yield ProxyArtifact(self.future, s)
 
     def __getattr__(self, attr):
+        """Get a particular ProxyArtifact out of the future
+        """
         return ProxyArtifact(self.future, attr)

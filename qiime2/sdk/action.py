@@ -49,6 +49,9 @@ def _subprocess_apply(action, args, kwargs):
 
 
 def run_parsl_action(action, ctx, args, kwargs, inputs=[]):
+    """This is what the parsl app itself actually runs. It's basically just a
+    wrapper around our QIIME 2 action
+    """
     import qiime2.sdk.context
 
     remapped_kwargs = {}
@@ -326,9 +329,21 @@ class Action(metaclass=abc.ABCMeta):
         return async_wrapper
 
     def _bind_parsl(self, ctx, *args, **kwargs):
-
         futures = []
         remapped_args = []
+        remapped_kwargs = {}
+
+        # Parsl will queue up apps with futures as their arguments then not
+        # execute the apps until the futures are resolved. This is an extremely
+        # handy feature, but QIIME 2 does not play nice with it out of the box.
+        # You can look at ProxyArtifact and ProxyResults in qiime2/sdk/util.py
+        # for some more details on how this is working, but we are basically
+        # taking future QIIME 2 results and mapping them to the correct inputs
+        # in the action we are trying to call. This is necessary if we are
+        # running a pipeline in particular because the inputs to the next
+        # action could contain outputs from the last action that might not
+        # be resolved yet because Parsl may be queueing the next action before
+        # the last one has completed.
         for arg in args[1:]:
             if isinstance(arg, ProxyArtifact):
                 futures.append(arg.future)
@@ -337,7 +352,6 @@ class Action(metaclass=abc.ABCMeta):
             else:
                 remapped_args.append(arg)
 
-        remapped_kwargs = {}
         for key, value in kwargs.items():
             if isinstance(value, ProxyArtifact):
                 futures.append(value.future)
@@ -346,13 +360,17 @@ class Action(metaclass=abc.ABCMeta):
             else:
                 remapped_kwargs[key] = value
 
+        # If the user specified a particular executor for a this action
+        # determine that here
         if self.id in ctx.action_executor_mapping:
             executor = ctx.action_executor_mapping[self.id]
         else:
             executor = 'default'
 
-        # TODO: CREATE ISSUE IN PARSL ABOUT PYTHON_APP(JOIN=TRUE) SELECTING
-        # EXECUTOR THAT IS NOT LOCAL TO THE MAIN PROCESS (EX: HTEX) BLOWING UP
+        # Pipelines run in join apps and are a sort of synchronization point
+        # right now. Unfortunatley it is not currently possible to make say a
+        # pipeline that calls two other pipelines within it and execute both of
+        # those internal pipelines simultaneously.
         if isinstance(self, qiime2.sdk.action.Pipeline):
             # NOTE: Do not make this a python_app(join=True). We need it to run
             # in the parsl main thread
@@ -365,6 +383,7 @@ class Action(metaclass=abc.ABCMeta):
                     run_parsl_action)(self, ctx, remapped_args,
                                       remapped_kwargs, inputs=futures)
 
+        # Again, we return a set of futures not a set of real results
         return qiime2.sdk.util.ProxyResults(future, self.signature.outputs)
 
     def _get_parsl_wrapper(self):
@@ -375,6 +394,7 @@ class Action(metaclass=abc.ABCMeta):
                 parsl.load(get_parsl_config())
             except RuntimeError:
                 pass
+
             return self._bind_parsl(qiime2.sdk.Context(parsl=True), *args,
                                     **kwargs)
 
@@ -685,6 +705,10 @@ class Pipeline(Action):
 
 @python_app
 def _create_future(results):
+    """ This is a bit of a dumb hack. It's just a way for us to make pipelines
+    return a future which is what Parsl wants a join_app to return even though
+    we will have real results at this point.
+    """
     return results
 
 
