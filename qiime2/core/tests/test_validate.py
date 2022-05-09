@@ -133,6 +133,7 @@ class TestValidationObject(unittest.TestCase):
         validator_object = ValidationObject(IntSequence1)
 
         has_run = False
+        has_also_run = False
 
         def test_validator_method(data: list, level):
             nonlocal has_run
@@ -140,15 +141,26 @@ class TestValidationObject(unittest.TestCase):
             self.assertEqual(data, [0, 1, 2])
             self.assertEqual(level, 'max')
 
-        test_record = ValidatorRecord(validator=test_validator_method,
-                                      view=list, plugin='this_plugin',
-                                      context=IntSequence1)
+        def test_another_validator(data: IntSequenceFormat, level):
+            nonlocal has_also_run
+            has_also_run = True
+            self.assertEqual(level, 'max')
 
-        validator_object.add_validator(test_record)
+        test_record1 = ValidatorRecord(validator=test_validator_method,
+                                       view=list, plugin='this_plugin',
+                                       context=IntSequence1 | AscIntSequence)
+        test_record2 = ValidatorRecord(validator=test_another_validator,
+                                       view=IntSequenceFormat,
+                                       plugin='this_plugin',
+                                       context=IntSequence1)
+
+        validator_object.add_validator(test_record1)
+        validator_object.add_validator(test_record2)
 
         validator_object(self.simple_int_seq, level='max')
 
         self.assertTrue(has_run)
+        self.assertTrue(has_also_run)
 
     def test_run_validators_validation_exception(self):
         validator_object = ValidationObject(AscIntSequence)
