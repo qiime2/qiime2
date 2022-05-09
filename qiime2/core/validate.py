@@ -148,9 +148,9 @@ class ValidationObject:
         for record in self.validators:
             to_mt = ModelType.from_view_type(record.view)
             transformation = from_mt.make_transformation(to_mt)
-            data = transformation(data)
+            new_data = transformation(data)
             try:
-                record.validator(data=data, level=level)
+                record.validator(data=new_data, level=level)
             except ValidationError:
                 raise
             except Exception as e:
@@ -158,7 +158,7 @@ class ValidationObject:
                                           " from %r attempted to validate %r"
                                           % (record.validator.__name__,
                                              record.plugin,
-                                             data)) from e
+                                             new_data)) from e
 
     def assert_transformation_available(self, data):
         r"""
