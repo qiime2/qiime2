@@ -134,6 +134,20 @@ class TestInvalidMetadataColumnConstruction(unittest.TestCase):
                 [True, False, True], name='col1',
                 index=pd.Index(['a', 'b', 'c'], name='id')))
 
+    def test_unknown_missing_scheme(self):
+        with self.assertRaisesRegex(ValueError, "BAD:SCHEME"):
+            DummyMetadataColumn(pd.Series(
+                    [1, 2, 3], name='col1',
+                    index=pd.Index(['a', 'b', 'c'], name='id')),
+                missing_scheme='BAD:SCHEME')
+
+    def test_missing_q2_error(self):
+        with self.assertRaisesRegex(ValueError, "col1.*no-missing"):
+            DummyMetadataColumn(pd.Series(
+                    [1, np.nan, 3], name='col1',
+                    index=pd.Index(['a', 'b', 'c'], name='id')),
+                missing_scheme='no-missing')
+
 
 class TestMetadataColumnConstructionAndProperties(unittest.TestCase):
     def test_single_id(self):
@@ -222,6 +236,23 @@ class TestMetadataColumnConstructionAndProperties(unittest.TestCase):
         self.assertEqual(mdc.id_header, 'id')
         self.assertEqual(mdc.ids, ('None', 'nan', 'NA'))
         self.assertEqual(mdc.name, 'NA')
+
+    def test_missing_insdc(self):
+        index = pd.Index(['None', 'nan', 'NA'], name='id')
+        # TODO: note we cannot make a numeric style column of entirely encoded
+        # nans, as there's no way to indicate the true type of the column
+        series = pd.Series(['missing', 'not applicable', 5.0], name='NA',
+                           index=index)
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        self.assertEqual(mdc.id_count, 3)
+        self.assertEqual(mdc.id_header, 'id')
+        self.assertEqual(mdc.ids, ('None', 'nan', 'NA'))
+        self.assertEqual(mdc.name, 'NA')
+
+        pd.testing.assert_series_equal(
+            mdc.to_series(), pd.Series(
+                [np.nan, np.nan, 5.0], name='NA', index=index))
 
     def test_does_not_cast_ids_or_column_name(self):
         index = pd.Index(['0.000001', '0.004000', '0.000000'], dtype=object,
@@ -491,6 +522,39 @@ class TestToSeries(unittest.TestCase):
         pd.testing.assert_series_equal(obs, series)
         self.assertIsNot(obs, series)
 
+    def test_encode_missing_no_missing(self):
+        series = pd.Series([1, 2.5, 3], name='col',
+                           index=pd.Index(['id1', 'id2', 'id3'], name='id'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        obs = mdc.to_series(encode_missing=True)
+
+        pd.testing.assert_series_equal(obs, series)
+        self.assertIsNot(obs, series)
+
+    def test_encode_missing_true(self):
+        series = pd.Series([1, 2.5, 'missing'], name='col',
+                           index=pd.Index(['id1', 'id2', 'id3'], name='id'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        obs = mdc.to_series(encode_missing=True)
+
+        pd.testing.assert_series_equal(obs, series)
+        self.assertIsNot(obs, series)
+
+    def test_encode_missing_false(self):
+        series = pd.Series([1, 2.5, 'missing'], name='col',
+                           index=pd.Index(['id1', 'id2', 'id3'], name='id'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        obs = mdc.to_series()
+
+        exp = pd.Series([1, 2.5, np.nan], name='col',
+                        index=pd.Index(['id1', 'id2', 'id3'], name='id'))
+
+        pd.testing.assert_series_equal(obs, exp)
+        self.assertIsNot(obs, series)
+
 
 class TestToDataframe(unittest.TestCase):
     def test_single_id(self):
@@ -528,6 +592,39 @@ class TestToDataframe(unittest.TestCase):
 
         pd.testing.assert_frame_equal(obs, exp)
         self.assertEqual(obs.index.name, '#Sample ID')
+
+    def test_encode_missing_no_missing(self):
+        series = pd.Series([1, 2.5, 3], name='col',
+                           index=pd.Index(['id1', 'id2', 'id3'], name='id'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        obs = mdc.to_dataframe(encode_missing=True)
+
+        exp = pd.DataFrame({'col': series}, index=series.index)
+
+        pd.testing.assert_frame_equal(obs, exp)
+
+    def test_encode_missing_true(self):
+        series = pd.Series([1, 2.5, 'missing'], name='col',
+                           index=pd.Index(['id1', 'id2', 'id3'], name='id'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        obs = mdc.to_dataframe(encode_missing=True)
+
+        exp = pd.DataFrame({'col': series}, index=series.index)
+
+        pd.testing.assert_frame_equal(obs, exp)
+
+    def test_encode_missing_false(self):
+        series = pd.Series([1, 2.5, 'missing'], name='col',
+                           index=pd.Index(['id1', 'id2', 'id3'], name='id'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        obs = mdc.to_dataframe()
+
+        exp = pd.DataFrame({'col': [1, 2.5, np.nan]}, index=series.index)
+
+        pd.testing.assert_frame_equal(obs, exp)
 
 
 class TestGetValue(unittest.TestCase):
@@ -594,6 +691,20 @@ class TestDropMissingValues(unittest.TestCase):
             [0.0, np.nan, 3.3, np.nan, np.nan, 4.4], name='col1',
             index=pd.Index(['a', 'b', 'c', 'd', 'e', 'f'], name='sampleid'))
         mdc = DummyMetadataColumn(series)
+
+        obs = mdc.drop_missing_values()
+
+        exp = DummyMetadataColumn(pd.Series(
+            [0.0, 3.3, 4.4], name='col1',
+            index=pd.Index(['a', 'c', 'f'], name='sampleid')))
+
+        self.assertEqual(obs, exp)
+
+    def test_with_missing_scheme(self):
+        series = pd.Series(
+            [0.0, np.nan, 3.3, 'missing', 'not applicable', 4.4], name='col1',
+            index=pd.Index(['a', 'b', 'c', 'd', 'e', 'f'], name='sampleid'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
 
         obs = mdc.drop_missing_values()
 
@@ -784,6 +895,47 @@ class TestFilterIDs(unittest.TestCase):
             mdc.filter_ids({'b', 'id1', 'c', 'd'})
 
 
+class TestGetMissing(unittest.TestCase):
+    def test_missing_mixed(self):
+        series = pd.Series(
+            [0.0, np.nan, 3.3, 'missing', 'not applicable', 4.4], name='col1',
+            index=pd.Index(['a', 'b', 'c', 'd', 'e', 'f'], name='sampleid'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        missing = mdc.get_missing()
+
+        exp = pd.Series([np.nan, 'missing', 'not applicable'], name='col1',
+                        index=pd.Index(['b', 'd', 'e'], name='sampleid'))
+
+        pd.testing.assert_series_equal(missing, exp)
+
+    def test_missing_blanks(self):
+        series = pd.Series(
+            [0.0, np.nan, 3.3, np.nan, np.nan, 4.4], name='col1',
+            index=pd.Index(['a', 'b', 'c', 'd', 'e', 'f'], name='sampleid'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        missing = mdc.get_missing()
+
+        exp = pd.Series([np.nan, np.nan, np.nan], name='col1', dtype=object,
+                        index=pd.Index(['b', 'd', 'e'], name='sampleid'))
+
+        pd.testing.assert_series_equal(missing, exp)
+
+    def test_no_missing(self):
+        series = pd.Series(
+            [0.0, 1.1, 3.3, 3.5, 4.0, 4.4], name='col1',
+            index=pd.Index(['a', 'b', 'c', 'd', 'e', 'f'], name='sampleid'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        missing = mdc.get_missing()
+
+        exp = pd.Series([], name='col1', dtype=object,
+                        index=pd.Index([], name='sampleid'))
+
+        pd.testing.assert_series_equal(missing, exp)
+
+
 # The tests for CategoricalMetadataColumn and NumericMetadataColumn only test
 # behavior specific to these subclasses. More extensive tests of these objects
 # are performed above by testing the MetadataColumn ABC in a generic way.
@@ -907,6 +1059,24 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
 
         self.assertEqual(col1, col2)
 
+    def test_missing_insdc(self):
+        mdc = CategoricalMetadataColumn(pd.Series(
+                ['missing', 'foo', float('nan'), None], name='col1',
+                index=pd.Index(['a', 'b', 'c', 'd'], name='id')),
+            missing_scheme='INSDC:missing')
+
+        obs = mdc.to_series()
+
+        exp = pd.Series(
+            [np.nan, 'foo', np.nan, np.nan], name='col1',
+            index=pd.Index(['a', 'b', 'c', 'd'], name='id'))
+
+        pd.testing.assert_series_equal(obs, exp)
+        self.assertEqual(obs.dtype, object)
+        self.assertTrue(np.isnan(obs['a']))
+        self.assertTrue(np.isnan(obs['c']))
+        self.assertTrue(np.isnan(obs['d']))
+
 
 class TestNumericMetadataColumn(unittest.TestCase):
     def test_unsupported_dtype(self):
@@ -993,6 +1163,23 @@ class TestNumericMetadataColumn(unittest.TestCase):
 
         pd.testing.assert_series_equal(obs, exp)
         self.assertEqual(obs.dtype, np.float64)
+
+    def test_missing_insdc(self):
+        mdc = NumericMetadataColumn(pd.Series(
+                ['missing', 4.2, float('nan'), -5.678], name='col1',
+                index=pd.Index(['a', 'b', 'c', 'd'], name='id')),
+            missing_scheme='INSDC:missing')
+
+        obs = mdc.to_series()
+
+        exp = pd.Series(
+            [np.nan, 4.2, np.nan, -5.678], name='col1',
+            index=pd.Index(['a', 'b', 'c', 'd'], name='id'))
+
+        pd.testing.assert_series_equal(obs, exp)
+        self.assertEqual(obs.dtype, np.float64)
+        self.assertTrue(np.isnan(obs['a']))
+        self.assertTrue(np.isnan(obs['c']))
 
 
 if __name__ == '__main__':

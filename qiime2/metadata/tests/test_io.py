@@ -232,7 +232,7 @@ class TestLoadErrors(unittest.TestCase):
 
         with self.assertRaisesRegex(MetadataFileError,
                                     'Unrecognized directive.*#q2:foo.*'
-                                    '#q2:types directive is supported'):
+                                    '#q2:types.*#q2:missing.*directive'):
             Metadata.load(fp)
 
     def test_duplicate_directives(self):
@@ -288,6 +288,13 @@ class TestLoadErrors(unittest.TestCase):
         with self.assertRaisesRegex(MetadataFileError,
                                     'row has 5 cells.*header declares 4 '
                                     'cells'):
+            Metadata.load(fp)
+
+    def test_unknown_missing_scheme(self):
+        fp = get_data_path('invalid/missing-unknown-scheme.tsv')
+
+        with self.assertRaisesRegex(MetadataFileError,
+                                    'col1.*BAD:SCHEME.*#q2:missing'):
             Metadata.load(fp)
 
 
@@ -584,6 +591,54 @@ class TestLoadSuccess(unittest.TestCase):
                        for name, props in obs_md.columns.items()]
         exp_columns = [('col1', 'numeric'), ('NA', 'numeric'),
                        ('col3', 'categorical'), ('col4', 'categorical')]
+        self.assertEqual(obs_columns, exp_columns)
+
+    def test_missing_insdc(self):
+        fp = get_data_path('valid/missing-insdc.tsv')
+
+        obs_md = Metadata.load(fp)
+
+        exp_index = pd.Index(['id1', 'id2', 'id3', 'id4', 'id5', 'id6'],
+                             name='id')
+        exp_df = pd.DataFrame({'col1': [1, 2, 3] + ([float('nan')] * 3),
+                               'col2': ['a', 'b', 'c'] + ([float('nan')] * 3),
+                               'col3': ['foo', 'bar', '42', 'anything',
+                                        'whatever', '10']}, index=exp_index)
+
+        # not testing column_missing_schemes here on purpose, externally the
+        # nan's shouldn't be meaningfully different
+        exp_md = Metadata(exp_df)
+        pd.testing.assert_frame_equal(obs_md.to_dataframe(),
+                                      exp_md.to_dataframe())
+
+        obs_columns = [(name, props.type, props.missing_scheme)
+                       for name, props in obs_md.columns.items()]
+        exp_columns = [
+            ('col1', 'numeric', 'INSDC:missing'),
+            ('col2', 'categorical', 'INSDC:missing'),
+            ('col3', 'categorical', 'no-missing')
+        ]
+        self.assertEqual(obs_columns, exp_columns)
+
+    def test_insdc_override(self):
+        fp = get_data_path('valid/override-insdc.tsv')
+
+        # This file has INSDC terms, but they aren't missing values.
+        obs_md = Metadata.load(fp, default_missing_scheme='INSDC:missing')
+
+        exp_index = pd.Index(['id1', 'id2', 'id3', 'id4'],
+                             name='id')
+        exp_df = pd.DataFrame({'col1': ['collected', 'not collected',
+                                        'not collected', 'collected']},
+                              index=exp_index)
+
+        pd.testing.assert_frame_equal(obs_md.to_dataframe(), exp_df)
+
+        obs_columns = [(name, props.type, props.missing_scheme)
+                       for name, props in obs_md.columns.items()]
+        exp_columns = [
+            ('col1', 'categorical', 'no-missing'),
+        ]
         self.assertEqual(obs_columns, exp_columns)
 
     def test_minimal_file(self):
@@ -1020,6 +1075,82 @@ class TestSave(unittest.TestCase):
 
         self.assertEqual(obs, exp)
 
+    def test_missing_schemes(self):
+        md = Metadata(
+            pd.DataFrame({'col1': [42.0, np.nan, -3.5],
+                          'col2': ['a', 'not applicable',
+                                   'restricted access']},
+                         index=pd.Index(['id1', 'id2', 'id3'], name='id')),
+            column_missing_schemes={
+                'col1': 'blank', 'col2': 'INSDC:missing'}
+        )
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcol1\tcol2\n"
+            "#q2:types\tnumeric\tcategorical\n"
+            "#q2:missing\tblank\tINSDC:missing\n"
+            "id1\t42\ta\n"
+            "id2\t\tnot applicable\n"
+            "id3\t-3.5\trestricted access\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_default_missing_scheme(self):
+        md = Metadata(
+            pd.DataFrame({'col1': [42.0, np.nan, -3.5],
+                          'col2': ['a', 'not applicable',
+                                   'restricted access']},
+                         index=pd.Index(['id1', 'id2', 'id3'], name='id')),
+            default_missing_scheme='INSDC:missing')
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcol1\tcol2\n"
+            "#q2:types\tnumeric\tcategorical\n"
+            "#q2:missing\tINSDC:missing\tINSDC:missing\n"
+            "id1\t42\ta\n"
+            "id2\t\tnot applicable\n"
+            "id3\t-3.5\trestricted access\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_default_missing_scheme_override(self):
+        md = Metadata(
+            pd.DataFrame({'col1': [42.0, np.nan, -3.5],
+                          'col2': ['a', 'not applicable',
+                                   'restricted access']},
+                         index=pd.Index(['id1', 'id2', 'id3'], name='id')),
+            default_missing_scheme='q2:error',
+            column_missing_schemes=dict(col1='INSDC:missing',
+                                        col2='INSDC:missing'))
+
+        md.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcol1\tcol2\n"
+            "#q2:types\tnumeric\tcategorical\n"
+            "#q2:missing\tINSDC:missing\tINSDC:missing\n"
+            "id1\t42\ta\n"
+            "id2\t\tnot applicable\n"
+            "id3\t-3.5\trestricted access\n"
+        )
+
+        self.assertEqual(obs, exp)
+
     def test_unsorted_column_order(self):
         index = pd.Index(['id1', 'id2', 'id3'], name='id')
         columns = ['z', 'b', 'y']
@@ -1226,6 +1357,50 @@ class TestSave(unittest.TestCase):
 
         self.assertEqual(obs, exp)
 
+    def test_categorical_metadata_column_insdc_no_missing(self):
+        mdc = CategoricalMetadataColumn(pd.Series(
+            ['foo', 'bar', '42.50'], name='categorical-column',
+            index=pd.Index(['id1', 'id2', 'id3'], name='id')),
+            missing_scheme='INSDC:missing')
+
+        mdc.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcategorical-column\n"
+            "#q2:types\tcategorical\n"
+            "#q2:missing\tINSDC:missing\n"
+            "id1\tfoo\n"
+            "id2\tbar\n"
+            "id3\t42.50\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_categorical_metadata_column_insdc_missing(self):
+        mdc = CategoricalMetadataColumn(pd.Series(
+            ['foo', 'missing', '42.50'], name='categorical-column',
+            index=pd.Index(['id1', 'id2', 'id3'], name='id')),
+            missing_scheme='INSDC:missing')
+
+        mdc.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "id\tcategorical-column\n"
+            "#q2:types\tcategorical\n"
+            "#q2:missing\tINSDC:missing\n"
+            "id1\tfoo\n"
+            "id2\tmissing\n"
+            "id3\t42.50\n"
+        )
+
+        self.assertEqual(obs, exp)
+
     def test_numeric_metadata_column(self):
         mdc = NumericMetadataColumn(pd.Series(
             [1e-15, 42.50, -999.0], name='numeric-column',
@@ -1241,6 +1416,50 @@ class TestSave(unittest.TestCase):
             "#q2:types\tnumeric\n"
             "id1\t1e-15\n"
             "id2\t42.5\n"
+            "id3\t-999\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_numeric_metadata_column_insdc_no_missing(self):
+        mdc = NumericMetadataColumn(pd.Series(
+            [1e-15, 42.50, -999.0], name='numeric-column',
+            index=pd.Index(['id1', 'id2', 'id3'], name='#OTU ID')),
+            missing_scheme='INSDC:missing')
+
+        mdc.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "#OTU ID\tnumeric-column\n"
+            "#q2:types\tnumeric\n"
+            "#q2:missing\tINSDC:missing\n"
+            "id1\t1e-15\n"
+            "id2\t42.5\n"
+            "id3\t-999\n"
+        )
+
+        self.assertEqual(obs, exp)
+
+    def test_numeric_metadata_column_insdc_missing(self):
+        mdc = NumericMetadataColumn(pd.Series(
+            [1e-15, 'missing', -999.0], name='numeric-column',
+            index=pd.Index(['id1', 'id2', 'id3'], name='#OTU ID')),
+            missing_scheme='INSDC:missing')
+
+        mdc.save(self.filepath)
+
+        with open(self.filepath, 'r') as fh:
+            obs = fh.read()
+
+        exp = (
+            "#OTU ID\tnumeric-column\n"
+            "#q2:types\tnumeric\n"
+            "#q2:missing\tINSDC:missing\n"
+            "id1\t1e-15\n"
+            "id2\tmissing\n"
             "id3\t-999\n"
         )
 
@@ -1283,6 +1502,15 @@ class TestRoundtrip(unittest.TestCase):
 
     def test_missing_data(self):
         fp = get_data_path('valid/missing-data.tsv')
+        md1 = Metadata.load(fp)
+
+        md1.save(self.filepath)
+        md2 = Metadata.load(self.filepath)
+
+        self.assertEqual(md1, md2)
+
+    def test_missing_insdc(self):
+        fp = get_data_path('valid/missing-insdc.tsv')
         md1 = Metadata.load(fp)
 
         md1.save(self.filepath)
