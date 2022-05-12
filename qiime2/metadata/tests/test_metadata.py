@@ -149,6 +149,27 @@ class TestInvalidMetadataConstruction(unittest.TestCase):
                  'col2': [42, float('+inf'), 4.3]},
                 index=pd.Index(['a', 'b', 'c'], name='id')))
 
+    def test_unknown_missing_scheme(self):
+        with self.assertRaisesRegex(ValueError, "BAD:SCHEME"):
+            Metadata(pd.DataFrame(
+                {'col1': [1, 2, 3],
+                 'col2': ['foo', 'bar', 'bar']},
+                index=pd.Index(['a', 'b', 'c'], name='id')),
+                default_missing_scheme='BAD:SCHEME')
+
+    def test_missing_q2_error(self):
+        index = pd.Index(['None', 'nan', 'NA', 'foo'], name='id')
+        df = pd.DataFrame(collections.OrderedDict([
+            ('col1', [1.0, np.nan, np.nan, np.nan]),
+            ('NA', [np.nan, np.nan, np.nan, np.nan]),
+            ('col3', ['null', 'N/A', np.nan, 'NA']),
+            ('col4', np.array([np.nan, np.nan, np.nan, np.nan],
+                              dtype=object))]),
+            index=index)
+
+        with self.assertRaisesRegex(ValueError, 'col1.*no-missing'):
+            Metadata(df, default_missing_scheme='no-missing')
+
 
 class TestMetadataConstructionAndProperties(unittest.TestCase):
     def assertEqualColumns(self, obs_columns, exp):
@@ -312,6 +333,98 @@ class TestMetadataConstructionAndProperties(unittest.TestCase):
                                              ('col3', 'categorical'),
                                              ('col4', 'categorical')])
 
+    def test_missing_data_insdc(self):
+        index = pd.Index(['None', 'nan', 'NA', 'foo'], name='id')
+        df = pd.DataFrame(collections.OrderedDict([
+            ('col1', [1.0, np.nan, 'missing', np.nan]),
+            # TODO: it is not currently possible to have an ENTIRELY numeric
+            # column from missing terms, as the dtype of the series is object
+            # and there is not way to indicate the dtype beyond that.
+            # ('NA', [np.nan, np.nan, 'not applicable', np.nan]),
+            ('col3', ['null', 'N/A', 'not collected', 'NA']),
+            ('col4', np.array([np.nan, np.nan, 'restricted access', np.nan],
+                              dtype=object))]),
+            index=index)
+        md = Metadata(df, default_missing_scheme='INSDC:missing')
+
+        self.assertEqual(md.id_count, 4)
+        self.assertEqual(md.column_count, 3)
+        self.assertEqual(md.id_header, 'id')
+        self.assertEqual(md.ids, ('None', 'nan', 'NA', 'foo'))
+        self.assertEqualColumns(md.columns, [('col1', 'numeric'),
+                                             ('col3', 'categorical'),
+                                             ('col4', 'categorical')])
+
+        pd.testing.assert_frame_equal(md.to_dataframe(), pd.DataFrame(
+            {'col1': [1.0, np.nan, np.nan, np.nan],
+             'col3': ['null', 'N/A', np.nan, 'NA'],
+             'col4': np.array([np.nan, np.nan, np.nan, np.nan], dtype=object)},
+            index=index))
+
+    def test_missing_data_insdc_column_missing(self):
+        index = pd.Index(['None', 'nan', 'NA', 'foo'], name='id')
+        df = pd.DataFrame(collections.OrderedDict([
+            ('col1', [1.0, np.nan, 'missing', np.nan]),
+            # TODO: it is not currently possible to have an ENTIRELY numeric
+            # column from missing terms, as the dtype of the series is object
+            # and there is not way to indicate the dtype beyond that.
+            # ('NA', [np.nan, np.nan, 'not applicable', np.nan]),
+            ('col3', ['null', 'N/A', 'not collected', 'NA']),
+            ('col4', np.array([np.nan, np.nan, 'restricted access', np.nan],
+                              dtype=object))]),
+            index=index)
+        md = Metadata(df, column_missing_schemes={
+                              'col1': 'INSDC:missing',
+                              'col3': 'INSDC:missing',
+                              'col4': 'INSDC:missing'
+                          })
+
+        self.assertEqual(md.id_count, 4)
+        self.assertEqual(md.column_count, 3)
+        self.assertEqual(md.id_header, 'id')
+        self.assertEqual(md.ids, ('None', 'nan', 'NA', 'foo'))
+        self.assertEqualColumns(md.columns, [('col1', 'numeric'),
+                                             ('col3', 'categorical'),
+                                             ('col4', 'categorical')])
+
+        pd.testing.assert_frame_equal(md.to_dataframe(), pd.DataFrame(
+            {'col1': [1.0, np.nan, np.nan, np.nan],
+             'col3': ['null', 'N/A', np.nan, 'NA'],
+             'col4': np.array([np.nan, np.nan, np.nan, np.nan], dtype=object)},
+            index=index))
+
+    def test_missing_data_default_override(self):
+        index = pd.Index(['None', 'nan', 'NA', 'foo'], name='id')
+        df = pd.DataFrame(collections.OrderedDict([
+            ('col1', [1.0, np.nan, 'missing', np.nan]),
+            # TODO: it is not currently possible to have an ENTIRELY numeric
+            # column from missing terms, as the dtype of the series is object
+            # and there is not way to indicate the dtype beyond that.
+            # ('NA', [np.nan, np.nan, 'not applicable', np.nan]),
+            ('col3', ['null', 'N/A', 'not collected', 'NA']),
+            ('col4', np.array([np.nan, np.nan, 'restricted access', np.nan],
+                              dtype=object))]),
+            index=index)
+        md = Metadata(df, column_missing_schemes={
+                              'col1': 'INSDC:missing',
+                              'col3': 'INSDC:missing',
+                              'col4': 'INSDC:missing'
+                          }, default_missing_scheme='no-missing')
+
+        self.assertEqual(md.id_count, 4)
+        self.assertEqual(md.column_count, 3)
+        self.assertEqual(md.id_header, 'id')
+        self.assertEqual(md.ids, ('None', 'nan', 'NA', 'foo'))
+        self.assertEqualColumns(md.columns, [('col1', 'numeric'),
+                                             ('col3', 'categorical'),
+                                             ('col4', 'categorical')])
+
+        pd.testing.assert_frame_equal(md.to_dataframe(), pd.DataFrame(
+            {'col1': [1.0, np.nan, np.nan, np.nan],
+             'col3': ['null', 'N/A', np.nan, 'NA'],
+             'col4': np.array([np.nan, np.nan, np.nan, np.nan], dtype=object)},
+            index=index))
+
     def test_does_not_cast_ids_or_column_names(self):
         index = pd.Index(['0.000001', '0.004000', '0.000000'], dtype=object,
                          name='id')
@@ -464,7 +577,8 @@ class TestRepr(unittest.TestCase):
 
         self.assertIn('Metadata', obs)
         self.assertIn('1 ID x 1 column', obs)
-        self.assertIn("col1: ColumnProperties(type='numeric')", obs)
+        self.assertIn("col1: ColumnProperties(type='numeric',"
+                      " missing_scheme='blank')", obs)
 
     def test_plural(self):
         md = Metadata(pd.DataFrame({'col1': [42, 42], 'col2': ['foo', 'bar']},
@@ -474,8 +588,10 @@ class TestRepr(unittest.TestCase):
 
         self.assertIn('Metadata', obs)
         self.assertIn('2 IDs x 2 columns', obs)
-        self.assertIn("col1: ColumnProperties(type='numeric')", obs)
-        self.assertIn("col2: ColumnProperties(type='categorical')", obs)
+        self.assertIn("col1: ColumnProperties(type='numeric',"
+                      " missing_scheme='blank')", obs)
+        self.assertIn("col2: ColumnProperties(type='categorical',"
+                      " missing_scheme='blank')", obs)
 
     def test_column_name_padding(self):
         data = [[0, 42, 'foo']]
@@ -488,11 +604,14 @@ class TestRepr(unittest.TestCase):
         self.assertIn('Metadata', obs)
         self.assertIn('1 ID x 3 columns', obs)
         self.assertIn(
-            "col1:               ColumnProperties(type='numeric')", obs)
+            "col1:               ColumnProperties(type='numeric',"
+            " missing_scheme='blank')", obs)
         self.assertIn(
-            "longer-column-name: ColumnProperties(type='numeric')", obs)
+            "longer-column-name: ColumnProperties(type='numeric',"
+            " missing_scheme='blank')", obs)
         self.assertIn(
-            "c:                  ColumnProperties(type='categorical')", obs)
+            "c:                  ColumnProperties(type='categorical',"
+            " missing_scheme='blank')", obs)
 
 
 class TestEqualityOperators(unittest.TestCase, ReallyEqualMixin):
@@ -710,6 +829,43 @@ class TestToDataframe(unittest.TestCase):
         self.assertEqual(obs.dtypes.to_dict(),
                          {'col1': np.float64, 'col2': np.float64,
                           'col3': np.float64})
+
+    def test_encode_missing_no_missing(self):
+        df = pd.DataFrame({'col1': [42.0, 50.0],
+                           'col2': ['foo', 'bar']},
+                          index=pd.Index(['id1', 'id2'], name='id'))
+        md = Metadata(df, default_missing_scheme='INSDC:missing')
+
+        obs = md.to_dataframe(encode_missing=True)
+
+        pd.testing.assert_frame_equal(obs, df)
+        self.assertIsNot(obs, df)
+
+    def test_insdc_missing_encode_missing_true(self):
+        df = pd.DataFrame({'col1': [42, 'missing'],
+                           'col2': ['foo', 'not applicable']},
+                          index=pd.Index(['id1', 'id2'], name='id'))
+        md = Metadata(df, default_missing_scheme='INSDC:missing')
+
+        obs = md.to_dataframe(encode_missing=True)
+
+        pd.testing.assert_frame_equal(obs, df)
+        self.assertIsNot(obs, df)
+
+    def test_insdc_missing_encode_missing_false(self):
+        df = pd.DataFrame({'col1': [42, 'missing'],
+                           'col2': ['foo', 'not applicable']},
+                          index=pd.Index(['id1', 'id2'], name='id'))
+        md = Metadata(df, default_missing_scheme='INSDC:missing')
+
+        obs = md.to_dataframe()
+
+        exp = pd.DataFrame({'col1': [42, np.nan],
+                            'col2': ['foo', np.nan]},
+                           index=pd.Index(['id1', 'id2'], name='id'))
+
+        pd.testing.assert_frame_equal(obs, exp)
+        self.assertIsNot(obs, df)
 
 
 class TestGetColumn(unittest.TestCase):
