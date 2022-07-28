@@ -9,6 +9,7 @@
 import re
 import os
 import yaml
+import time
 import psutil
 import shutil
 import pathlib
@@ -83,8 +84,7 @@ class Cache:
     base_cache_contents = set(('data', 'keys', 'pools', 'process',
                                'VERSION'))
 
-    def __init__(self, path):
-
+    def __init__(self, path, process_timeout=30):
         """Creates a cache object backed by the directory specified by path. If
         no path is provided it gets a path to a temp cache.
         """
@@ -106,6 +106,7 @@ class Cache:
         # process that originally launched QIIME 2 (not seperate ones for
         # parsl workers). We might want to change this in the future
         self.process_pool = self._create_process_pool()
+        self.process_timeout = process_timeout
         # This is set if a named pool is created on this cache and withed in
         self.named_pool = None
 
@@ -259,11 +260,16 @@ class Cache:
                     referenced_data.add(data)
 
         # Add references to data in process pools
-        # TODO: Remove all process pools that are older than some configured
-        # amount of time
         for process_pool in os.listdir(self.process):
-            for data in os.listdir(self.process / process_pool):
-                referenced_data.add(data)
+            # Pick the creation time out of the pool name of format
+            # {pid}-time@user
+            create_time = float(process_pool.split('-')[1].split('@')[0])
+
+            if time.time() - create_time >= self.process_timeout:
+                shutil.rmtree(self.process / process_pool)
+            else:
+                for data in os.listdir(self.process / process_pool):
+                    referenced_data.add(data)
 
         # Walk over all data and remove any that was not referenced
         for data in os.listdir(self.data):
