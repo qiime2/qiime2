@@ -84,7 +84,7 @@ class Cache:
     base_cache_contents = set(('data', 'keys', 'pools', 'process',
                                'VERSION'))
 
-    def __init__(self, path, process_timeout=30):
+    def __init__(self, path, process_timeout=3600):
         """Creates a cache object backed by the directory specified by path. If
         no path is provided it gets a path to a temp cache.
         """
