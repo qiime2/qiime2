@@ -166,6 +166,8 @@ class Cache:
         USER = getpass.getuser()
 
         cache_dir = os.path.join(TMPDIR, 'qiime2')
+        if not os.path.exists(cache_dir):
+            os.mkdir(cache_dir)
 
         # Make sure the sticky bit is set on the cache directory. Documentation
         # on what a sitcky bit is found here
