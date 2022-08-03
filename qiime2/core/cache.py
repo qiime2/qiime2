@@ -8,12 +8,14 @@
 
 import re
 import os
+import stat
 import yaml
 import time
 import psutil
 import shutil
 import getpass
 import pathlib
+import tempfile
 import threading
 
 import qiime2
@@ -160,23 +162,19 @@ class Cache:
     def get_temp_path(self):
         """ Get path to temp cache if the user did not specify a named cache.
         """
-        # Get location of tmp
-        TMPDIR = os.getenv("TMPDIR")
-        # Get current username
-        USER = os.getenv("USER")
+        TMPDIR = tempfile.gettempdir()
+        USER = getpass.getuser()
 
-        # If not set default to root tmp
-        if TMPDIR is None:
-            TMPDIR = '/tmp'
+        cache_dir = os.path.join(TMPDIR, 'qiime2')
 
-        # TODO: Gonna need to figure out setting our sticky bit, doing so seems
-        # to make things explode due to lack of permissions for our own process
-        # to access it after the bit is set
-        # NOTE: Make sure to set sticky bit on /tmp/qiime2 folder probably by
-        # or-ing it don't just replace all permissions that's bad
+        # Make sure the sticky bit is set on the cache directory. Documentation
+        # on what a sitcky bit is found here
+        # https://docs.python.org/3/library/stat.html#stat.S_ISVTX
+        permissions = os.stat(cache_dir).st_mode
+        sticky_permissions = permissions | stat.S_ISVTX
+        os.chmod(cache_dir, sticky_permissions)
+
         user_path = os.path.join(TMPDIR, 'qiime2', USER)
-
-        # return our path
         return user_path
 
     def _create_process_pool(self):
@@ -383,16 +381,6 @@ class Pool:
         else:
             pid = os.getpid()
             user = getpass.getuser()
-            # It is possible that we have no user (this happens in the github
-            # ci testing) in which case we get this error and use a default
-            # value
-            # try:
-            #     user = os.getlogin()
-            # except OSError as e:
-            #     if 'No such device or address' in str(e):
-            #         user = '__headless__'
-            #     else:
-            #         raise e
 
             process = psutil.Process(pid)
             time = process.create_time()
