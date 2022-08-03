@@ -44,9 +44,7 @@ def _subprocess_apply(action, args, kwargs):
         # main process. Something about the context-manager from ctx seems to
         # cause a GC of the artifacts before the process actually ends, so we
         # do need to detach these. The specifics are not understood.
-        # TODO: May not be relevant anymore
         r._destructor.detach()
-        # pass
     return results
 
 
