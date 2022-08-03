@@ -12,6 +12,7 @@ import yaml
 import time
 import psutil
 import shutil
+import getpass
 import pathlib
 import threading
 
@@ -381,16 +382,17 @@ class Pool:
         # pid-process_start_time@user
         else:
             pid = os.getpid()
+            user = getpass.getuser()
             # It is possible that we have no user (this happens in the github
             # ci testing) in which case we get this error and use a default
             # value
-            try:
-                user = os.getlogin()
-            except OSError as e:
-                if 'No such device or address' in str(e):
-                    user = '__headless__'
-                else:
-                    raise e
+            # try:
+            #     user = os.getlogin()
+            # except OSError as e:
+            #     if 'No such device or address' in str(e):
+            #         user = '__headless__'
+            #     else:
+            #         raise e
 
             process = psutil.Process(pid)
             time = process.create_time()
