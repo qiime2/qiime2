@@ -18,6 +18,8 @@ import pathlib
 import tempfile
 import threading
 
+from flufl.lock import Lock, LockState
+
 import qiime2
 from qiime2.sdk.result import Result
 from qiime2.core.archive.archiver import Archiver
@@ -82,8 +84,7 @@ class Cache:
     CURRENT_FORMAT_VERSION = '1'
 
     # The files and folders you expect to see at the top level of a cache
-    base_cache_contents = set(('data', 'keys', 'pools', 'process',
-                               'VERSION'))
+    base_cache_contents = set(('data', 'keys', 'pools', 'process', 'VERSION'))
 
     def __init__(self, path, process_pool_lifespan=1):
         """Creates a cache object backed by the directory specified by path. If
@@ -102,6 +103,7 @@ class Cache:
             raise ValueError(f"Path: \'{path}\' already exists and is not a"
                              " cache")
 
+        self.lock = Lock(str(self.path / 'LOCK'))
         # Make our process pool.
         # TODO: We currently will only end up with a process pool for the
         # process that originally launched QIIME 2 (not seperate ones for
@@ -236,6 +238,7 @@ class Cache:
         future, it should also remove process pools as specified below. It will
         never remove keys.
         """
+        self.acquire_lock()
         referenced_pools = set()
         referenced_data = set()
 
@@ -276,10 +279,13 @@ class Cache:
             if data not in referenced_data:
                 shutil.rmtree(self.data / data, ignore_errors=True)
 
+        self.release_lock()
+
     def save(self, ref, key):
         """Create our key then create our data. Returns a version of the data
         backed by the key in the cache
         """
+        self.acquire_lock()
         # Create the key before the data, this is so that if another thread or
         # process is running garbage collection it doesn't see our unkeyed data
         # and remove it leaving us with a dangling reference and no data
@@ -287,6 +293,7 @@ class Cache:
         # Move the data into cache under key
         shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
 
+        self.release_lock()
         # Give back an instance of the Artifact they can use if they want
         return self.load(key)
 
@@ -306,8 +313,11 @@ class Cache:
         """Remove a key from the cache then run garbage collection to remove
         anything it was referencing and any other loose data
         """
+        self.acquire_lock()
         os.remove(self.keys / key)
         self.garbage_collection()
+        # We do not need to release the lock here because garbage collection
+        # will release it
 
     def _register_key(self, key, value, pool=False):
         """Create a new key pointing at data or a named pool
@@ -324,13 +334,20 @@ class Cache:
     # means we can't even safely assume unique PIDs. We will probably create
     # some kind of lock file to lock the entire cache or to list locked
     # elements of the cache or something
-    def lock(self):
+    def acquire_lock(self):
+        """Acquire the lock if it isn't already ours. Should be done before any
+        operation that writes to the cache.
+        """
         # https://flufllock.readthedocs.io/en/stable/index.html
         # https://gitlab.com/warsaw/flufl.lock
-        pass
+        if not self.lock.state == LockState.ours:
+            self.lock.lock()
 
-    def unlock(self):
-        pass
+    def release_lock(self):
+        """Release the lock, will error if we are not holding the lock. Should
+        be done after any operation that writes to the cache.
+        """
+        self.lock.unlock()
 
     # Let's think about this a bit more than not at all. What do we do to check
     # for a lock, and if there is one, then what do we do? We need to in some
