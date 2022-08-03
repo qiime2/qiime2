@@ -390,6 +390,8 @@ class Pool:
             except OSError as e:
                 if 'No such device or address' in str(e):
                     user = '__headless__'
+                else:
+                    raise e
 
             process = psutil.Process(pid)
             time = process.create_time()
