@@ -223,7 +223,6 @@ class Cache:
             return regex.match(version_file) is not None
 
     # Run the garbage collection algorithm
-    # TODO: Needs to account for process pools
     def garbage_collection(self):
         """Runs garbage collection on the cache. We log all data and pools
         pointed to by keys. Then we go through all pools and delete any that
