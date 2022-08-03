@@ -17,8 +17,6 @@ from qiime2.sdk.result import Artifact
 
 
 class TestCache(unittest.TestCase):
-    base_cache_contents = set(('data', 'keys', 'pools', 'process', 'VERSION'))
-
     def setUp(self):
         # Create temp test dir
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
@@ -52,7 +50,7 @@ class TestCache(unittest.TestCase):
         self.assertTrue(os.path.exists(self.cache.path))
         contents = set(os.listdir(self.cache.path))
 
-        self.assertEqual(self.base_cache_contents, contents)
+        self.assertEqual(Cache.base_cache_contents, contents)
 
         # Assert version file looks how we want
         with open(self.cache.version) as fh:
