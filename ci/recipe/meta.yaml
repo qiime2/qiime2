@@ -27,6 +27,7 @@ requirements:
     - bibtexparser
     - networkx
     - dill
+    - psutil
 
 test:
   requires:
