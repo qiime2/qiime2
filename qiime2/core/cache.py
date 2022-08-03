@@ -85,7 +85,7 @@ class Cache:
     base_cache_contents = set(('data', 'keys', 'pools', 'process',
                                'VERSION'))
 
-    def __init__(self, path, process_timeout=3600):
+    def __init__(self, path, process_pool_lifespan=1):
         """Creates a cache object backed by the directory specified by path. If
         no path is provided it gets a path to a temp cache.
         """
@@ -107,7 +107,9 @@ class Cache:
         # process that originally launched QIIME 2 (not seperate ones for
         # parsl workers). We might want to change this in the future
         self.process_pool = self._create_process_pool()
-        self.process_timeout = process_timeout
+        # Lifespan is supplied in days and converted to seconds for internal
+        # use
+        self.process_pool_lifespan = process_pool_lifespan * 3600 * 24
         # This is set if a named pool is created on this cache and withed in
         self.named_pool = None
 
@@ -263,7 +265,7 @@ class Cache:
             # {pid}-time@user
             create_time = float(process_pool.split('-')[1].split('@')[0])
 
-            if time.time() - create_time >= self.process_timeout:
+            if time.time() - create_time >= self.process_pool_lifespan:
                 shutil.rmtree(self.process / process_pool)
             else:
                 for data in os.listdir(self.process / process_pool):
