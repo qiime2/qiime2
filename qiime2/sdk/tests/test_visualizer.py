@@ -258,7 +258,8 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid
         }
 
-        self.assertArchiveMembers(filepath, root_dir, expected)
+        self.assertArchiveMembers(filepath, root_dir, expected,
+                                  prepend_root=False)
 
     def test_call_with_no_parameters(self):
         most_common_viz = self.plugin.visualizers['most_common_viz']
@@ -303,7 +304,8 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/artifacts/%s/action/action.yaml' % artifact.uuid
         }
 
-        self.assertArchiveMembers(filepath, root_dir, expected)
+        self.assertArchiveMembers(filepath, root_dir, expected,
+                                  prepend_root=False)
 
     def test_call_with_parameters_only(self):
         params_only_viz = self.plugin.visualizers['params_only_viz']
@@ -330,7 +332,8 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/action/action.yaml'
         }
 
-        self.assertArchiveMembers(filepath, root_dir, expected)
+        self.assertArchiveMembers(filepath, root_dir, expected,
+                                  prepend_root=False)
 
     def test_call_without_inputs_or_parameters(self):
         no_input_viz = self.plugin.visualizers['no_input_viz']
@@ -356,7 +359,8 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/action/action.yaml'
         }
 
-        self.assertArchiveMembers(filepath, root_dir, expected)
+        self.assertArchiveMembers(filepath, root_dir, expected,
+                                  prepend_root=False)
 
     def test_asynchronous(self):
         mapping_viz = self.plugin.visualizers['mapping_viz']
@@ -409,7 +413,8 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid
         }
 
-        self.assertArchiveMembers(filepath, root_dir, expected)
+        self.assertArchiveMembers(filepath, root_dir, expected,
+                                  prepend_root=False)
 
     def test_visualizer_callable_output(self):
         artifact = Artifact.import_data(Mapping, {'foo': 'abc', 'bar': 'def'})
