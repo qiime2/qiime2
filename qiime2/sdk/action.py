@@ -45,8 +45,8 @@ def _subprocess_apply(action, args, kwargs):
         # cause a GC of the artifacts before the process actually ends, so we
         # do need to detach these. The specifics are not understood.
         # TODO: May not be relevant anymore
-        # r._destructor.detach()
-        pass
+        r._destructor.detach()
+        # pass
     return results
 
 

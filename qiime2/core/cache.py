@@ -173,6 +173,8 @@ class Cache:
         # TODO: Gonna need to figure out setting our sticky bit, doing so seems
         # to make things explode due to lack of permissions for our own process
         # to access it after the bit is set
+        # NOTE: Make sure to set sticky bit on /tmp/qiime2 folder probably by
+        # or-ing it don't just replace all permissions that's bad
         user_path = os.path.join(TMPDIR, 'qiime2', USER)
 
         # return our path
