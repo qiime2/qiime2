@@ -259,10 +259,8 @@ class _NoOpArchive(_Archive):
     def open(self, relpath):
         return open(os.path.join(self.path, relpath))
 
-    def mount(self, filepath):
-        shutil.copytree(self.path, filepath / str(self.uuid),
-                        dirs_exist_ok=True)
-        root = pathlib.Path(os.path.join(filepath, str(self.uuid)))
+    def mount(self, path):
+        root = path
         return ArchiveRecord(root, root / self.VERSION_FILE,
                              self.uuid, self.version, self.framework_version)
 
@@ -343,7 +341,12 @@ class Archiver:
         if Format is None:
             cls._futuristic_archive_error(filepath, archive)
 
-        path = cls._make_temp_path()
+        if isinstance(archive, _NoOpArchive):
+            path = qiime2.core.path.ArchivePath(filepath)
+            path._destructor.detach()
+        else:
+            path = cls._make_temp_path()
+
         rec = archive.mount(path)
 
         return cls(path, Format(rec))

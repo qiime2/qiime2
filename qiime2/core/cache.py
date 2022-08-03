@@ -9,6 +9,7 @@
 import re
 import os
 import yaml
+import time
 import psutil
 import shutil
 import pathlib
@@ -33,13 +34,13 @@ pool:
  %s
 """
 
+# Thread local indicating the cache to use
 __CACHE__ = threading.local()
-# Cache might be named or default
 __CACHE__.cache = None
 
 
 def get_cache():
-    """ Gets our cache if we have one and creates one if we don't
+    """ Gets our cache if we have one and creates one in temp if we don't
     """
     # If we are on a new thread we may in fact not have a cache attribute here
     # at all
@@ -68,10 +69,8 @@ class Cache:
     ├── process
     ├── tmp
     └── VERSION
-
     Process folder contains pid-created_at@host some kinda reference to
     anonymous pools
-
     Create anonymous pools backing all final outputs. We have a named pool that
     tracks all intermediate and final results. We have an anonymous pool that
     tracks only final results (pid pool). Ensures that we don't gc the final
@@ -79,7 +78,14 @@ class Cache:
     """
     CURRENT_FORMAT_VERSION = '1'
 
-    def __init__(self, path):
+    # The files and folders you expect to see at the top level of a cache
+    base_cache_contents = set(('data', 'keys', 'pools', 'process',
+                               'VERSION'))
+
+    def __init__(self, path, process_timeout=3600):
+        """Creates a cache object backed by the directory specified by path. If
+        no path is provided it gets a path to a temp cache.
+        """
         if path is not None:
             self.path = pathlib.Path(path)
         else:
@@ -93,31 +99,42 @@ class Cache:
             raise ValueError(f"Path: \'{path}\' already exists and is not a"
                              " cache")
 
-        # Make our process pool, we probably want this to happen somewhere else
-        self.process_pool = self.create_pool(process_pool=True)
+        # Make our process pool.
+        # TODO: We currently will only end up with a process pool for the
+        # process that originally launched QIIME 2 (not seperate ones for
+        # parsl workers). We might want to change this in the future
+        self.process_pool = self._create_process_pool()
+        self.process_timeout = process_timeout
         # This is set if a named pool is created on this cache and withed in
         self.named_pool = None
 
     def __enter__(self):
-        """If you with a cache you are using it as a named cache
+        """Set this cache on the thread local
         """
         self.backup = __CACHE__.cache
         __CACHE__.cache = self
 
     def __exit__(self, *args):
+        """Set the thread local back to whatever cache it was using before this
+        one
+        """
         __CACHE__.cache = self.backup
 
+    # TODO: This is only going to need to be a thing if we want worker
+    # processes to have their own process pools. I'm leaving it here as a
+    # skeleton for now, but if we decide we're cool with just having a process
+    # pool for the process that started QIIME 2 then we probably don't need
+    # anything like this
     def get_process_pool(self):
-        """ Before we save things into a process pool, we want to make sure
-        we actually have a pool for the process and use it
+        """Before we save things into a process pool, we want to make sure we
+        actually have a pool for the process and use it
         """
         pass
 
-    # Surely this needs to be a thing? I suppose if they hand us a path that
-    # doesn't exist we just create a cache there? do we want to create it at
-    # that exact path do we slap a 'cache' sub-directory at that location and
-    # use that?
     def create_cache(self):
+        """Create the cache directory, all sub directories, and the version
+        file
+        """
         # Construct the cache root recursively
         os.makedirs(self.path)
         os.mkdir(self.path / 'data')
@@ -152,46 +169,50 @@ class Cache:
             TMPDIR = '/tmp'
 
         # TODO: Gonna need to figure out setting our sticky bit, doing so seems
-        # to make things explode
+        # to make things explode due to lack of permissions for our own process
+        # to access it after the bit is set
+        # NOTE: Make sure to set sticky bit on /tmp/qiime2 folder probably by
+        # or-ing it don't just replace all permissions that's bad
         user_path = os.path.join(TMPDIR, 'qiime2', USER)
 
         # return our path
         return user_path
 
-    # Maybe this is create named pool specifically and we just auto create a
-    # process pool
-    def create_pool(self, keys=[], reuse=False, process_pool=False):
-        # if reuse, look for an existing pool that matches keys
-        # otherwise create a new pool matching keys and overwrite if one exists
-        # Always create an anonymous pool keyed on pid-created_at@host in the
-        # process folder
-        # Need some kinda default name
+    def _create_process_pool(self):
+        """Creates a process pool which is identical in function to a named
+        pool, but it lives in the process subdirectory not the pools
+        subdirectory, and is handled differently by garbage collection due to
+        being unkeyed
+        """
+        return Pool(self, reuse=True)
 
-        # If we are making a process pool just do it
-        if process_pool:
-            pool = Pool(self, reuse=True)
-        else:
-            pool_name = '_'.join(keys)
-            pool = Pool(self, name=pool_name, reuse=reuse)
+    def create_pool(self, keys=[], reuse=False):
+        """ Used internally to create the process pool and externally to create
+        named pools.
+        keys: A list of keys to point to a named pool. The pool name will be a
+        concatenation of all the keys
+        reuse: If False, we will error if the pool we are trying to create
+        already exists (if the path to it already exists)
+        """
+        pool_name = '_'.join(keys)
+        pool = Pool(self, name=pool_name, reuse=reuse)
 
-            self.create_pool_keys(pool_name, keys)
+        self.create_pool_keys(pool_name, keys)
 
         return pool
 
     def create_pool_keys(self, pool_name, keys):
+        """A pool can have many keys refering to it.
+        """
         for key in keys:
             self._register_key(key, pool_name, pool=True)
 
-    # Tell us if the path is a cache or not
-    # NOTE: maybe we want this to be raising errors and whatnot instead of just
-    # returning false?
     @classmethod
     def is_cache(cls, path):
-        base_cache_contents = set(('data', 'keys', 'pools', 'process',
-                                   'VERSION'))
-
+        """Tells us if the path we were given is a cache
+        """
         contents = set(os.listdir(path))
-        if not contents.issuperset(base_cache_contents):
+        if not contents.issuperset(cls.base_cache_contents):
             return False
 
         regex = \
@@ -204,6 +225,15 @@ class Cache:
     # Run the garbage collection algorithm
     # TODO: Needs to account for process pools
     def garbage_collection(self):
+        """Runs garbage collection on the cache. We log all data and pools
+        pointed to by keys. Then we go through all pools and delete any that
+        were not referred to by a key while logging all data in pools that are
+        refered to by keys. Then we go through all process pools and log all
+        data they point to. Then we go through the data and remove any that was
+        not logged. This only destroys data and named pools. TODO: In the
+        future, it should also remove process pools as specified below. It will
+        never remove keys.
+        """
         referenced_pools = set()
         referenced_data = set()
 
@@ -228,44 +258,58 @@ class Cache:
                     referenced_data.add(data)
 
         # Add references to data in process pools
-        # TODO: Remove all process pools that are older than some configured
-        # amount of time
         for process_pool in os.listdir(self.process):
-            for data in os.listdir(self.process / process_pool):
-                referenced_data.add(data)
+            # Pick the creation time out of the pool name of format
+            # {pid}-time@user
+            create_time = float(process_pool.split('-')[1].split('@')[0])
+
+            if time.time() - create_time >= self.process_timeout:
+                shutil.rmtree(self.process / process_pool)
+            else:
+                for data in os.listdir(self.process / process_pool):
+                    referenced_data.add(data)
 
         # Walk over all data and remove any that was not referenced
         for data in os.listdir(self.data):
             if data not in referenced_data:
-                shutil.rmtree(self.data / data)
+                shutil.rmtree(self.data / data, ignore_errors=True)
 
-    # Save data and create key or pool entry
     def save(self, ref, key):
+        """Create our key then create our data. Returns a version of the data
+        backed by the key in the cache
+        """
+        # Create the key before the data, this is so that if another thread or
+        # process is running garbage collection it doesn't see our unkeyed data
+        # and remove it leaving us with a dangling reference and no data
+        self._register_key(key, str(ref.uuid))
         # Move the data into cache under key
         shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
-        self._register_key(key, str(ref.uuid))
 
-        # Collect garbage after a save
-        self.garbage_collection()
         # Give back an instance of the Artifact they can use if they want
         return self.load(key)
 
     # Load the data pointed to by the key. Does not work on pools. Only works
     # if you have data
     def load(self, key):
+        """Load the data pointed to by a key. Only works on a key that refers
+        to a data item will error on a key that points to a pool
+        """
         archiver = \
             Archiver.load(
                 self.data / yaml.safe_load(open(self.keys / key))['data'],
                 allow_no_op=True)
         return Result._from_archiver(archiver)
 
-    # Remove key from cache
     def delete(self, key):
+        """Remove a key from the cache then run garbage collection to remove
+        anything it was referencing and any other loose data
+        """
         os.remove(self.keys / key)
         self.garbage_collection()
 
-    # Create a new key pointing at data or a pool
     def _register_key(self, key, value, pool=False):
+        """Create a new key pointing at data or a named pool
+        """
         key_fp = self.keys / key
 
         if pool:
@@ -279,6 +323,8 @@ class Cache:
     # some kind of lock file to lock the entire cache or to list locked
     # elements of the cache or something
     def lock(self):
+        # https://flufllock.readthedocs.io/en/stable/index.html
+        # https://gitlab.com/warsaw/flufl.lock
         pass
 
     def unlock(self):
@@ -320,11 +366,20 @@ class Cache:
 # Assume we will make this its own class for now
 class Pool:
     def __init__(self, cache, name=None, reuse=False):
+        """ Used with name=None and reuse=True to create a process pool. Used
+        with a name to create named pools
+        """
+        # The pool keeps track of the cache it belongs to
         self.cache = cache
 
+        # If they are creating a named pool, we already have this info
         if name:
             self.name = name
             self.path = cache.pools / name
+        # The alternative is that we have a process pool. We want this pool to
+        # exist in the process directory under the cache not the pools
+        # directory. The name follows the scheme
+        # pid-process_start_time@user
         else:
             pid = os.getpid()
             user = os.getlogin()
@@ -334,6 +389,8 @@ class Pool:
             self.name = f'{pid}-{time}@{user}'
             self.path = cache.process / self.name
 
+        # Raise a value error if we thought we were making a new pool but
+        # actually are not
         if not reuse and os.path.exists(self.path):
             raise ValueError("Pool already exists, please use reuse=True to "
                              "reuse existing pool, or remove all keys "
@@ -343,23 +400,32 @@ class Pool:
             os.mkdir(self.path)
 
     def __enter__(self):
-        """If you with a pool you are using it as your named pool
+        """Set this pool to be our named pool on the current cache
         """
         self.old_pool = self.cache.named_pool
         self.cache.named_pool = self
 
     def __exit__(self, *args):
+        """Set the named pool on the current cache back to whatever it was
+        before this one
+        """
         self.cache.named_pool = self.old_pool
 
     def save(self, ref):
+        """Save the data into the pool then load a new ref backed by the data
+        in the pool
+        """
         # TODO: This guard should probably be removed when we rework the logic
         # I feel less bad about this one than the remove one though
         if not (self.path / str(ref.uuid)).exists():
-            shutil.copytree(ref._archiver.path, self.cache.data,
-                            dirs_exist_ok=True)
+            # The symlink needs to be created first because if another thread
+            # or process is running garbage collection and we create the data
+            # before the reference we could garbage collect the data then
+            # create a dangling symlink. We kinda want our data
             os.symlink(self.cache.data / str(ref.uuid),
                        self.path / str(ref.uuid))
-            self.cache.garbage_collection()
+            shutil.copytree(ref._archiver.path, self.cache.data,
+                            dirs_exist_ok=True)
 
         return self.load(ref)
 
