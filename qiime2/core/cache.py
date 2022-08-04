@@ -341,6 +341,9 @@ class Cache:
         """
         # https://flufllock.readthedocs.io/en/stable/index.html
         # https://gitlab.com/warsaw/flufl.lock
+        # We get an error if we try to acquire a lock we already hold. This
+        # scenario could come up legitimately, so I think it is best to avoid
+        # raising that error
         if not self.lock.state == LockState.ours:
             self.lock.lock()
 
