@@ -17,6 +17,7 @@ import getpass
 import pathlib
 import tempfile
 import threading
+from datetime import timedelta
 
 from flufl.lock import Lock, LockState
 
@@ -103,7 +104,7 @@ class Cache:
             raise ValueError(f"Path: \'{path}\' already exists and is not a"
                              " cache")
 
-        self.lock = Lock(str(self.path / 'LOCK'))
+        self.lock = Lock(str(self.path / 'LOCK'), lifetime=timedelta(hours=1))
         # Make our process pool.
         # TODO: We currently will only end up with a process pool for the
         # process that originally launched QIIME 2 (not seperate ones for
