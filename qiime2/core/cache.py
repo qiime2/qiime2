@@ -93,12 +93,12 @@ class Cache:
         if path is not None:
             self.path = pathlib.Path(path)
         else:
-            self.path = pathlib.Path(self.get_temp_path())
+            self.path = pathlib.Path(self._get_temp_path())
 
         # Do we want a more rigorous check for whether or not we've been
         # pointed at an existing cache?
         if not os.path.exists(self.path):
-            self.create_cache()
+            self._create_cache()
         elif not self.is_cache(self.path):
             raise ValueError(f"Path: \'{path}\' already exists and is not a"
                              " cache")
@@ -138,7 +138,7 @@ class Cache:
         """
         pass
 
-    def create_cache(self):
+    def _create_cache(self):
         """Create the cache directory, all sub directories, and the version
         file
         """
@@ -163,7 +163,7 @@ class Cache:
             _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
                                  qiime2.__version__))
 
-    def get_temp_path(self):
+    def _get_temp_path(self):
         """ Get path to temp cache if the user did not specify a named cache.
         """
         TMPDIR = tempfile.gettempdir()
@@ -202,11 +202,11 @@ class Cache:
         pool_name = '_'.join(keys)
         pool = Pool(self, name=pool_name, reuse=reuse)
 
-        self.create_pool_keys(pool_name, keys)
+        self._create_pool_keys(pool_name, keys)
 
         return pool
 
-    def create_pool_keys(self, pool_name, keys):
+    def _create_pool_keys(self, pool_name, keys):
         """A pool can have many keys refering to it.
         """
         for key in keys:
@@ -238,7 +238,7 @@ class Cache:
         future, it should also remove process pools as specified below. It will
         never remove keys.
         """
-        self.acquire_lock()
+        self._acquire_lock()
         referenced_pools = set()
         referenced_data = set()
 
@@ -279,13 +279,13 @@ class Cache:
             if data not in referenced_data:
                 shutil.rmtree(self.data / data, ignore_errors=True)
 
-        self.release_lock()
+        self._release_lock()
 
     def save(self, ref, key):
         """Create our key then create our data. Returns a version of the data
         backed by the key in the cache
         """
-        self.acquire_lock()
+        self._acquire_lock()
         # Create the key before the data, this is so that if another thread or
         # process is running garbage collection it doesn't see our unkeyed data
         # and remove it leaving us with a dangling reference and no data
@@ -293,9 +293,19 @@ class Cache:
         # Move the data into cache under key
         shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
 
-        self.release_lock()
+        self._release_lock()
         # Give back an instance of the Artifact they can use if they want
         return self.load(key)
+
+    def _register_key(self, key, value, pool=False):
+        """Create a new key pointing at data or a named pool
+        """
+        key_fp = self.keys / key
+
+        if pool:
+            key_fp.write_text(_KEY_TEMPLATE % (key, '', value))
+        else:
+            key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
 
     # Load the data pointed to by the key. Does not work on pools. Only works
     # if you have data
@@ -313,28 +323,18 @@ class Cache:
         """Remove a key from the cache then run garbage collection to remove
         anything it was referencing and any other loose data
         """
-        self.acquire_lock()
+        self._acquire_lock()
         os.remove(self.keys / key)
         self.garbage_collection()
         # We do not need to release the lock here because garbage collection
         # will release it
-
-    def _register_key(self, key, value, pool=False):
-        """Create a new key pointing at data or a named pool
-        """
-        key_fp = self.keys / key
-
-        if pool:
-            key_fp.write_text(_KEY_TEMPLATE % (key, '', value))
-        else:
-            key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
 
     # Not entirely clear how this will work yet. We are assuming multiple
     # processes from multiple systems will be interacting with the cache. This
     # means we can't even safely assume unique PIDs. We will probably create
     # some kind of lock file to lock the entire cache or to list locked
     # elements of the cache or something
-    def acquire_lock(self):
+    def _acquire_lock(self):
         """Acquire the lock if it isn't already ours. Should be done before any
         operation that writes to the cache.
         """
@@ -343,7 +343,7 @@ class Cache:
         if not self.lock.state == LockState.ours:
             self.lock.lock()
 
-    def release_lock(self):
+    def _release_lock(self):
         """Release the lock, will error if we are not holding the lock. Should
         be done after any operation that writes to the cache.
         """
