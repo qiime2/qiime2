@@ -77,15 +77,15 @@ class TestCache(unittest.TestCase):
         # Ensure our data is correct
         self.assertEqual(expected, art2.view(list))
 
-    def test_delete(self):
+    def test_remove(self):
         # Save our artifact
         self.cache.save(self.art1, 'foo')
 
         # Show that we can load our artifact
         self.cache.load('foo')
 
-        # delete our artifact
-        self.cache.delete('foo')
+        # remove our artifact
+        self.cache.remove('foo')
 
         # Show that we can no longer load our artifact
         with self.assertRaisesRegex(FileNotFoundError,

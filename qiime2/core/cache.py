@@ -345,7 +345,7 @@ class Cache:
                 allow_no_op=True)
         return Result._from_archiver(archiver)
 
-    def delete(self, key):
+    def remove(self, key):
         """Remove a key from the cache then run garbage collection to remove
         anything it was referencing and any other loose data
         """
