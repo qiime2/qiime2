@@ -56,6 +56,15 @@ def get_cache():
     return __CACHE__.cache
 
 
+# TODO: Make a clear_locks function that removes the lock file on cache and
+# all pools
+
+# TODO: We only need to lock while we are creating keys/refs not while we are
+# writing the data. Maybe can change timeout to 10 minutes after this refactor
+
+# TODO: At exit hook that deletes the process pool for the currently running
+# process then runs garbage collection
+
 # Not entirely clear how this will work yet. We are assuming multiple
 # processes from multiple systems will be interacting with the cache. This
 # means we can't even safely assume unique PIDs. We will probably create
@@ -266,6 +275,7 @@ class Cache:
         """Public interface for garbage collection that locks
         """
         _acquire_lock(self.lock)
+        # with self.lock.lock():
         self._garbage_collection()
         _release_lock(self.lock)
 
@@ -316,6 +326,10 @@ class Cache:
 
         # Walk over all data and remove any that was not referenced
         for data in os.listdir(self.data):
+            # TODO: Turn this method into a public util. If this assert is ever
+            # tripped something real bad happened
+            # assert _Archive._is_uuid4(data)
+
             if data not in referenced_data:
                 shutil.rmtree(self.data / data, ignore_errors=True)
 
@@ -329,12 +343,15 @@ class Cache:
         # and remove it leaving us with a dangling reference and no data
         self._register_key(key, str(ref.uuid))
         # Move the data into cache under key
+        # TODO: Don't need to copy if thing already in data
         shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
 
         _release_lock(self.lock)
         # Give back an instance of the Artifact they can use if they want
         return self.load(key)
 
+    # TODO: Ensure that keys follow Python identifier rules. Can use
+    # str.isidentifier
     def _register_key(self, key, value, pool=False):
         """Create a new key pointing at data or a named pool
         """
