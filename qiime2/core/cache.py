@@ -19,7 +19,7 @@ import tempfile
 import threading
 from datetime import timedelta
 
-from flufl.lock import Lock, LockState
+from flufl.lock import Lock
 
 import qiime2
 from qiime2.sdk.result import Result
@@ -66,12 +66,8 @@ def _acquire_lock(lock):
     operation that writes to the cache.
     """
     # https://flufllock.readthedocs.io/en/stable/index.html
-    # https://gitlab.com/warsaw/flufl.lock
-    # We get an error if we try to acquire a lock we already hold. This
-    # scenario could come up legitimately, so I think it is best to avoid
-    # raising that error
-    if not lock.state == LockState.ours:
-        lock.lock()
+    # https://gitlab.com/warsaw/flufl.lockr
+    lock.lock()
 
 
 def _release_lock(lock):
@@ -266,8 +262,14 @@ class Cache:
             version_file = fh.read()
             return regex.match(version_file) is not None
 
-    # Run the garbage collection algorithm
     def garbage_collection(self):
+        """Public interface for garbage collection that locks
+        """
+        _acquire_lock(self.lock)
+        self._garbage_collection()
+        _release_lock(self.lock)
+
+    def _garbage_collection(self):
         """Runs garbage collection on the cache. We log all data and pools
         pointed to by keys. Then we go through all pools and delete any that
         were not referred to by a key while logging all data in pools that are
@@ -277,7 +279,6 @@ class Cache:
         future, it should also remove process pools as specified below. It will
         never remove keys.
         """
-        _acquire_lock(self.lock)
         referenced_pools = set()
         referenced_data = set()
 
@@ -317,8 +318,6 @@ class Cache:
         for data in os.listdir(self.data):
             if data not in referenced_data:
                 shutil.rmtree(self.data / data, ignore_errors=True)
-
-        _release_lock(self.lock)
 
     def save(self, ref, key):
         """Create our key then create our data. Returns a version of the data
@@ -363,10 +362,11 @@ class Cache:
         anything it was referencing and any other loose data
         """
         _acquire_lock(self.lock)
+
         os.remove(self.keys / key)
-        self.garbage_collection()
-        # We do not need to release the lock here because garbage collection
-        # will release it
+        self._garbage_collection()
+
+        _release_lock(self.lock)
 
     @property
     def data(self):
@@ -444,6 +444,7 @@ class Pool:
         in the pool
         """
         _acquire_lock(self.lock)
+
         # TODO: This guard should probably be removed when we rework the logic
         # I feel less bad about this one than the remove one though
         if not (self.path / str(ref.uuid)).exists():
@@ -468,12 +469,10 @@ class Pool:
     # Remove an element from the pool
     def remove(self, ref):
         _acquire_lock(self.lock)
+
         # TODO: This guard should be removed when we rework the logic
         if (self.path / str(ref.uuid)).exists():
             os.remove(self.path / str(ref.uuid))
             self.cache.garbage_collection()
 
-        # Here we do need to release the lock post garbage collection because
-        # garbage collection itself will only acquire and release the cache
-        # lock not the pool lock
         _release_lock(self.lock)
