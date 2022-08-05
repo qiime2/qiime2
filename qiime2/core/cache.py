@@ -81,6 +81,19 @@ def _release_lock(lock):
     lock.unlock()
 
 
+# Let's think about this a bit more than not at all. What do we do to check
+# for a lock, and if there is one, then what do we do? We need to in some
+# way wait for it to unlock, which suggests we need some way of managing
+# locks across multiple processes. We're working on a locking transactional
+# server in 565, and Dr. Otte told us to write a lock manager that exists
+# entirely to manage locks and nothing else. Surely we have to wait in a
+# queue until unlock or something right? We can't just drop what we're
+# doing because we have a lock. Could we conceivably use built in Python
+# locking?
+def _check_lock(self):
+    pass
+
+
 class Cache:
     """General structure of the cache (tmp optional)
     artifact_cache/
@@ -354,41 +367,6 @@ class Cache:
         self.garbage_collection()
         # We do not need to release the lock here because garbage collection
         # will release it
-
-    # Not entirely clear how this will work yet. We are assuming multiple
-    # processes from multiple systems will be interacting with the cache. This
-    # means we can't even safely assume unique PIDs. We will probably create
-    # some kind of lock file to lock the entire cache or to list locked
-    # elements of the cache or something
-    def _acquire_lock(self):
-        """Acquire the lock if it isn't already ours. Should be done before any
-        operation that writes to the cache.
-        """
-        # https://flufllock.readthedocs.io/en/stable/index.html
-        # https://gitlab.com/warsaw/flufl.lock
-        # We get an error if we try to acquire a lock we already hold. This
-        # scenario could come up legitimately, so I think it is best to avoid
-        # raising that error
-        if not self.lock.state == LockState.ours:
-            self.lock.lock()
-
-    def _release_lock(self):
-        """Release the lock, will error if we are not holding the lock. Should
-        be done after any operation that writes to the cache.
-        """
-        self.lock.unlock()
-
-    # Let's think about this a bit more than not at all. What do we do to check
-    # for a lock, and if there is one, then what do we do? We need to in some
-    # way wait for it to unlock, which suggests we need some way of managing
-    # locks across multiple processes. We're working on a locking transactional
-    # server in 565, and Dr. Otte told us to write a lock manager that exists
-    # entirely to manage locks and nothing else. Surely we have to wait in a
-    # queue until unlock or something right? We can't just drop what we're
-    # doing because we have a lock. Could we conceivably use built in Python
-    # locking?
-    def check_lock(self):
-        pass
 
     @property
     def data(self):
