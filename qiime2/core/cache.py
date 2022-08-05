@@ -86,7 +86,7 @@ def _release_lock(lock):
 # queue until unlock or something right? We can't just drop what we're
 # doing because we have a lock. Could we conceivably use built in Python
 # locking?
-def _check_lock(self):
+def _check_lock(lock):
     pass
 
 
