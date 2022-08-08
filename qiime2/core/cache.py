@@ -344,6 +344,27 @@ class Cache:
         os.remove(self.keys / key)
         self.garbage_collection()
 
+    def clear_locks(self):
+        """Clears all locks in this cache and in pools under this cache
+        """
+        if os.path.exists(self.lockfile):
+            os.remove(self.lockfile)
+
+        self._clear_pool_locks('pools')
+        self._clear_pool_locks('process')
+
+    def _clear_pool_locks(self, pool_type):
+        """Iterates over a type of pool and removes all locks in all pools of
+        that type
+        """
+        pools = getattr(self, pool_type)
+
+        for pool in os.listdir(pools):
+            full_path = pools / pool / 'LOCK'
+
+            if os.path.exists(full_path):
+                os.remove(full_path)
+
     @property
     def data(self):
         return self.path / 'data'
@@ -351,6 +372,10 @@ class Cache:
     @property
     def keys(self):
         return self.path / 'keys'
+
+    @property
+    def lockfile(self):
+        return self.path / 'LOCK'
 
     @property
     def pools(self):

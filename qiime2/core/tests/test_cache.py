@@ -10,6 +10,8 @@ import os
 import tempfile
 import unittest
 
+from flufl.lock import LockState
+
 import qiime2
 from qiime2.core.cache import Cache
 from qiime2.core.testing.type import IntSequence1
@@ -95,6 +97,22 @@ class TestCache(unittest.TestCase):
     def test_invalid_key(self):
         with self.assertRaisesRegex(ValueError, 'valid Python identifier'):
             self.cache.save(self.art1, '1')
+
+    def test_remove_locks(self):
+        """Create some locks then see if we can remove them
+        """
+        test_pool = self.cache.create_pool('test')
+
+        self.cache.lock.lock()
+        test_pool.lock.lock()
+
+        self.assertEqual(self.cache.lock.state, LockState.ours)
+        self.assertEqual(test_pool.lock.state, LockState.ours)
+
+        self.cache.clear_locks()
+
+        self.assertEqual(self.cache.lock.state, LockState.unlocked)
+        self.assertEqual(test_pool.lock.state, LockState.unlocked)
 
     # Might create another class for garbage collection tests to test more
     # cases with shared boilerplate
