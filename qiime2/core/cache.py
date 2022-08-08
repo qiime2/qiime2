@@ -70,9 +70,6 @@ def _get_process_pool_name():
 
     return f'{pid}-{time}@{user}'
 
-# TODO: At exit hook that deletes the process pool for the currently running
-# process then runs garbage collection
-
 
 class Cache:
     """General structure of the cache (tmp optional)
