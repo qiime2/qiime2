@@ -112,8 +112,7 @@ class Cache:
             raise ValueError(f"Path: \'{path}\' already exists and is not a"
                              " cache")
 
-        self.lock = Lock(str(self.path / 'LOCK'),
-                         lifetime=timedelta(minutes=10))
+        self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
         # Make our process pool.
         # TODO: We currently will only end up with a process pool for the
         # process that originally launched QIIME 2 (not seperate ones for
@@ -346,6 +345,7 @@ class Cache:
 
     def clear_locks(self):
         """Clears all locks in this cache and in pools under this cache
+        NOTE: Forcibly removes the locks outside of the locking library's API
         """
         if os.path.exists(self.lockfile):
             os.remove(self.lockfile)
@@ -426,8 +426,7 @@ class Pool:
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
-        self.lock = Lock(str(self.path / 'LOCK'),
-                         lifetime=timedelta(minutes=10))
+        self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
 
     def __enter__(self):
         """Set this pool to be our named pool on the current cache
@@ -473,3 +472,7 @@ class Pool:
         if (self.path / str(ref.uuid)).exists():
             os.remove(self.path / str(ref.uuid))
             self.cache.garbage_collection()
+
+    @property
+    def lockfile(self):
+        return self.path / 'LOCK'
