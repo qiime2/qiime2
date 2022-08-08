@@ -57,9 +57,6 @@ def get_cache():
     return __CACHE__.cache
 
 
-# TODO: Make a clear_locks function that removes the lock file on cache and
-# all pools
-
 # TODO: At exit hook that deletes the process pool for the currently running
 # process then runs garbage collection
 
