@@ -57,6 +57,18 @@ def get_cache():
     return __CACHE__.cache
 
 
+def _get_process_pool_name():
+    """Gets the necessary info to create/identify a process pool for this
+    process
+    """
+    pid = os.getpid()
+    user = getpass.getuser()
+
+    process = psutil.Process(pid)
+    time = process.create_time()
+
+    return f'{pid}-{time}@{user}'
+
 # TODO: At exit hook that deletes the process pool for the currently running
 # process then runs garbage collection
 
@@ -405,12 +417,7 @@ class Pool:
         # directory. The name follows the scheme
         # pid-process_start_time@user
         else:
-            pid = os.getpid()
-            user = getpass.getuser()
-
-            process = psutil.Process(pid)
-            time = process.create_time()
-            self.name = f'{pid}-{time}@{user}'
+            self.name = _get_process_pool_name()
             self.path = cache.process / self.name
 
         # Raise a value error if we thought we were making a new pool but
