@@ -11,6 +11,7 @@ import os
 import stat
 import yaml
 import time
+import atexit
 import psutil
 import shutil
 import getpass
@@ -132,6 +133,7 @@ class Cache:
         self.process_pool_lifespan = process_pool_lifespan * 3600 * 24
         # This is set if a named pool is created on this cache and withed in
         self.named_pool = None
+        atexit.register(self._exit_cleanup)
 
     def __enter__(self):
         """Set this cache on the thread local
@@ -373,6 +375,20 @@ class Cache:
 
             if os.path.exists(full_path):
                 os.remove(full_path)
+
+    def _exit_cleanup(self):
+        """This funtion removes the process pool for this process and runs
+        garbage collection. It is registered in __init__ to run on exit. Using
+        atexit.register as a decorator didn't work
+        """
+        process_pool = _get_process_pool_name()
+        target = self.process / process_pool
+
+        # When running tests this hook was executed multiple times, so I am
+        # guarding it because it errors if the path does not exist
+        if os.path.exists(target):
+            shutil.rmtree(target)
+            self.garbage_collection()
 
     @property
     def data(self):
