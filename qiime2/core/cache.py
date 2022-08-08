@@ -309,8 +309,7 @@ class Cache:
         with self.lock:
             self._register_key(key, str(ref.uuid))
 
-        # Move the data into cache under key if we don't already have the data
-        if not str(ref.uuid) in set(os.listdir(self.data)):
+        if not os.path.exists(self.data / str(ref.uuid)):
             shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
 
         # Give back an instance of the Artifact they can use if they want
@@ -461,17 +460,14 @@ class Pool:
         """Save the data into the pool then load a new ref backed by the data
         in the pool
         """
-        # TODO: This guard should probably be removed when we rework the logic
-        # I feel less bad about this one than the remove one though
-        if not (self.path / str(ref.uuid)).exists():
-            # The symlink needs to be created first because if another thread
-            # or process is running garbage collection and we create the data
-            # before the reference we could garbage collect the data then
-            # create a dangling symlink. We kinda want our data
-            with self.lock:
-                os.symlink(self.cache.data / str(ref.uuid),
-                           self.path / str(ref.uuid))
+        # Create the key before the data, this is so that if another thread or
+        # process is running garbage collection it doesn't see our unkeyed data
+        # and remove it leaving us with a dangling reference and no data
+        with self.lock:
+            os.symlink(self.cache.data / str(ref.uuid),
+                       self.path / str(ref.uuid))
 
+        if not (self.cache.data / str(ref.uuid)).exists():
             shutil.copytree(ref._archiver.path, self.cache.data,
                             dirs_exist_ok=True)
 
