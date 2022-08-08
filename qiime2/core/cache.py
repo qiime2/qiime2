@@ -11,7 +11,6 @@ import os
 import stat
 import yaml
 import time
-import atexit
 import psutil
 import shutil
 import getpass
@@ -130,7 +129,7 @@ class Cache:
         self.process_pool_lifespan = process_pool_lifespan * 3600 * 24
         # This is set if a named pool is created on this cache and withed in
         self.named_pool = None
-        atexit.register(self._exit_cleanup)
+        # atexit.register(self._exit_cleanup)
 
     def __enter__(self):
         """Set this cache on the thread local
