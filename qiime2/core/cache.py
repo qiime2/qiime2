@@ -245,9 +245,7 @@ class Cache:
         were not referred to by a key while logging all data in pools that are
         refered to by keys. Then we go through all process pools and log all
         data they point to. Then we go through the data and remove any that was
-        not logged. This only destroys data and named pools. TODO: In the
-        future, it should also remove process pools as specified below. It will
-        never remove keys.
+        not logged. This only destroys data and named pools.
         """
         referenced_pools = set()
         referenced_data = set()
