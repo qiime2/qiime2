@@ -92,6 +92,10 @@ class TestCache(unittest.TestCase):
                                     'No such file or directory'):
             self.cache.load('foo')
 
+    def test_invalid_key(self):
+        with self.assertRaisesRegex(ValueError, 'valid Python identifier'):
+            self.cache.save(self.art1, '1')
+
     # Might create another class for garbage collection tests to test more
     # cases with shared boilerplate
     # TODO: This needs rewritten to account for changes to cache contents

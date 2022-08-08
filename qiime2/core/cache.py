@@ -314,6 +314,12 @@ class Cache:
     def _register_key(self, key, value, pool=False):
         """Create a new key pointing at data or a named pool
         """
+        if not key.isidentifier():
+            raise ValueError('Key must be a valid Python identifier. Python '
+                             'identifier rules may be found here '
+                             'https://www.askpython.com/python/'
+                             'python-identifiers-rules-best-practices')
+
         key_fp = self.keys / key
 
         if pool:
