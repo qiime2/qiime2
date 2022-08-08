@@ -24,6 +24,7 @@ from flufl.lock import Lock
 import qiime2
 from qiime2.sdk.result import Result
 from qiime2.core.archive.archiver import Archiver
+from qiime2.core.util import is_uuid4
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -289,9 +290,8 @@ class Cache:
 
             # Walk over all data and remove any that was not referenced
             for data in os.listdir(self.data):
-                # TODO: Turn this method into a public util.
                 # If this assert is ever tripped something real bad happened
-                # assert _Archive._is_uuid4(data)
+                assert is_uuid4(data)
 
                 if data not in referenced_data:
                     shutil.rmtree(self.data / data, ignore_errors=True)

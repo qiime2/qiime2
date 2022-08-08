@@ -20,6 +20,7 @@ from qiime2.core.archive.format.util import artifact_version
 from qiime2.core.testing.format import IntSequenceDirectoryFormat
 from qiime2.core.testing.type import IntSequence1
 from qiime2.core.testing.util import ArchiveTestingMixin
+from qiime2.core.util import is_uuid4
 
 
 class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
@@ -321,22 +322,22 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
     def test_is_uuid4_valid(self):
         uuid_str = str(uuid.uuid4())
 
-        self.assertTrue(_ZipArchive._is_uuid4(uuid_str))
+        self.assertTrue(is_uuid4(uuid_str))
 
     def test_parse_uuid_invalid(self):
         # Invalid uuid4 taken from https://gist.github.com/ShawnMilo/7777304
         uuid_str = '89eb3586-8a82-47a4-c911-758a62601cf7'
-        self.assertFalse(_ZipArchive._is_uuid4(uuid_str))
+        self.assertFalse(is_uuid4(uuid_str))
 
         # Not a UUID.
         uuid_str = 'abc123'
-        self.assertFalse(_ZipArchive._is_uuid4(uuid_str))
+        self.assertFalse(is_uuid4(uuid_str))
 
         # Other UUID versions.
         for uuid_ in (uuid.uuid1(), uuid.uuid3(uuid.NAMESPACE_DNS, 'foo'),
                       uuid.uuid5(uuid.NAMESPACE_DNS, 'bar')):
             uuid_str = str(uuid_)
-            self.assertFalse(_ZipArchive._is_uuid4(uuid_str))
+            self.assertFalse(is_uuid4(uuid_str))
 
     def test_checksums_match(self):
         diff = self.archiver.validate_checksums()

@@ -18,7 +18,7 @@ import shutil
 import qiime2
 import qiime2.core.cite as cite
 
-from qiime2.core.util import md5sum_directory, from_checksum_format
+from qiime2.core.util import md5sum_directory, from_checksum_format, is_uuid4
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -72,19 +72,6 @@ class _Archive:
         raise NotImplementedError
 
     @classmethod
-    def _is_uuid4(cls, uuid_str):
-        # Adapted from https://gist.github.com/ShawnMilo/7777304
-        try:
-            uuid = _uuid.UUID(hex=uuid_str, version=4)
-        except ValueError:
-            # The string is not a valid hex code for a UUID.
-            return False
-
-        # If uuid_str is a valid hex code, but an invalid uuid4, UUID.__init__
-        # will convert it to a valid uuid4.
-        return str(uuid) == uuid_str
-
-    @classmethod
     def setup(cls, path, version, framework_version):
         uuid = _uuid.uuid4()
 
@@ -123,7 +110,7 @@ class _Archive:
             raise ValueError("Archive has multiple root directories: %r"
                              % roots)
         uuid = roots.pop()
-        if not self._is_uuid4(uuid):
+        if not is_uuid4(uuid):
             raise ValueError(
                 "Archive root directory name %r is not a valid version 4 "
                 "UUID." % uuid)

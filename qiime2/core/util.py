@@ -12,6 +12,7 @@ import hashlib
 import os
 import io
 import collections
+import uuid as _uuid
 
 import decorator
 
@@ -257,3 +258,16 @@ def sorted_poset(iterable, *, key=None, reverse=False):
     if reverse:
         result = list(reversed(result))
     return result
+
+
+def is_uuid4(uuid_str):
+    # Adapted from https://gist.github.com/ShawnMilo/7777304
+    try:
+        uuid = _uuid.UUID(hex=uuid_str, version=4)
+    except ValueError:
+        # The string is not a valid hex code for a UUID.
+        return False
+
+    # If uuid_str is a valid hex code, but an invalid uuid4, UUID.__init__
+    # will convert it to a valid uuid4.
+    return str(uuid) == uuid_str
