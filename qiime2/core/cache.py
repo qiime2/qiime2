@@ -302,9 +302,9 @@ class Cache:
         with self.lock:
             self._register_key(key, str(ref.uuid))
 
-        # Move the data into cache under key
-        # TODO: Don't need to copy if thing already in data
-        shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
+        # Move the data into cache under key if we don't already have the data
+        if not str(ref.uuid) in set(os.listdir(self.data)):
+            shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
 
         # Give back an instance of the Artifact they can use if they want
         return self.load(key)
