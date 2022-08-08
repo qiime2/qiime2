@@ -160,9 +160,9 @@ dummy_plugin.methods.register_function(
         'int1': Int,
         'int2': Int
     },
-    outputs=[
-        ('concatenated_ints', IntSequence1)
-    ],
+    outputs={
+        'concatenated_ints': IntSequence1
+    },
     name='Concatenate integers',
     description='This method concatenates integers into'
                 ' a single sequence in the order they are provided.',
@@ -182,10 +182,10 @@ dummy_plugin.methods.register_function(
         'ints': T
     },
     parameters={},
-    outputs=[
-        ('left', T),
-        ('right', T)
-    ],
+    outputs={
+        'left': T,
+        'right': T
+    },
     name='Split sequence of integers in half',
     description='This method splits a sequence of integers in half, returning '
                 'the two halves (left and right). If the input sequence\'s '

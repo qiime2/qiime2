@@ -50,6 +50,50 @@ class TestIntersectTwoRanges(unittest.TestCase):
         self.assertIntersectEqual(a, b, grammar.UnionExp())
 
 
+class TestChoices(unittest.TestCase):
+    def test_list_constructor(self):
+        choices = primitive.Choices(['a', 'b', 'c'])
+
+        self.assertEqual(choices.template.choices, ('a', 'b', 'c'))
+        self.assertIn('a', choices)
+        self.assertNotIn('x', choices)
+
+    def test_set_constructor(self):
+        choices = primitive.Choices({'a', 'b', 'c'})
+
+        self.assertEqual(choices.template.choices, ('a', 'b', 'c'))
+        self.assertIn('a', choices)
+        self.assertNotIn('x', choices)
+
+    def test_varargs_constructor(self):
+        choices = primitive.Choices('a', 'b', 'c')
+
+        self.assertEqual(choices.template.choices, ('a', 'b', 'c'))
+        self.assertIn('a', choices)
+        self.assertNotIn('x', choices)
+
+    def test_union(self):
+        a = primitive.Choices('a', 'b', 'c')
+        b = primitive.Choices('x', 'y', 'z')
+
+        r = a | b
+
+        self.assertIn('a', r)
+        self.assertIn('x', r)
+        self.assertNotIn('foo', r)
+
+    def test_intersection(self):
+        a = primitive.Choices('a', 'b', 'c')
+        b = primitive.Choices('a', 'c', 'z')
+
+        r = a & b
+
+        self.assertIn('a', r)
+        self.assertIn('c', r)
+        self.assertNotIn('b', r)
+        self.assertNotIn('z', r)
+
+
 class TestMetadataColumn(unittest.TestCase):
 
     def test_decode_categorical_value(self):

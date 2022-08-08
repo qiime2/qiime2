@@ -98,8 +98,8 @@ class PipelineSignature:
             Parameter name to semantic type.
         parameters : dict
             Parameter name to primitive type.
-        outputs : list of tuple
-            Each tuple contains the name of the output (str) and its QIIME
+        outputs : dict or list of tuples
+            Each pair/tuple contains the name of the output (str) and its QIIME
             type.
         input_descriptions : dict, optional
             Input name to description string.
@@ -109,6 +109,14 @@ class PipelineSignature:
             Output name to description string.
 
         """
+        # update type of outputs if needed
+        if type(outputs) is list:
+            outputs = dict(outputs)
+        elif type(outputs) is set:
+            raise ValueError("Plugin registration for %r cannot use a set()"
+                             " to define the outputs, as the order is random."
+                             % callable.__name__)
+
         inputs, parameters, outputs, signature_order = \
             self._parse_signature(callable, inputs, parameters, outputs,
                                   input_descriptions, parameter_descriptions,
@@ -201,14 +209,15 @@ class PipelineSignature:
                                 " match annotation (%r)" %
                                 (len(outputs), len(output_views)))
 
-            for (name, qiime_type), view_type in zip(outputs, output_views):
+            for (name, qiime_type), view_type in zip(outputs.items(),
+                                                     output_views):
                 description = output_descriptions.pop(name,
                                                       ParameterSpec.NOVALUE)
                 annotated_outputs[name] = ParameterSpec(
                     qiime_type=qiime_type, view_type=view_type,
                     description=description)
         else:
-            for name, qiime_type in outputs:
+            for name, qiime_type in outputs.items():
                 description = output_descriptions.pop(name,
                                                       ParameterSpec.NOVALUE)
                 annotated_outputs[name] = ParameterSpec(
@@ -450,7 +459,7 @@ class VisualizerSignature(PipelineSignature):
 
     def __init__(self, callable, inputs, parameters, input_descriptions=None,
                  parameter_descriptions=None):
-        outputs = [('visualization', Visualization)]
+        outputs = {'visualization': Visualization}
         output_descriptions = None
         super().__init__(callable, inputs, parameters, outputs,
                          input_descriptions, parameter_descriptions,
