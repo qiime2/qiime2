@@ -94,9 +94,14 @@ class TestCache(unittest.TestCase):
                                     'No such file or directory'):
             self.cache.load('foo')
 
-    def test_invalid_key(self):
+    def test_invalid_keys(self):
+        # Invalid data key
         with self.assertRaisesRegex(ValueError, 'valid Python identifier'):
             self.cache.save(self.art1, '1')
+
+        # Invalid pool key
+        with self.assertRaisesRegex(ValueError, 'valid Python identifier'):
+            self.cache.create_pool('1')
 
     def test_remove_locks(self):
         """Create some locks then see if we can remove them
