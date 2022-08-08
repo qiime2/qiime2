@@ -331,8 +331,6 @@ class Cache:
         else:
             key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
 
-    # Load the data pointed to by the key. Does not work on pools. Only works
-    # if you have data
     def load(self, key):
         """Load the data pointed to by a key. Only works on a key that refers
         to a data item will error on a key that points to a pool
@@ -473,14 +471,16 @@ class Pool:
 
         return self.load(ref)
 
-    # Load a reference to an element in the pool
     def load(self, ref):
+        """Load a reference to an element in the pool
+        """
         archiver = Archiver.load(self.cache.data / str(ref.uuid),
                                  allow_no_op=True)
         return Result._from_archiver(archiver)
 
-    # Remove an element from the pool
     def remove(self, ref):
+        """Remove an element from the pool
+        """
         # TODO: This guard should be removed when we rework the logic
         if (self.path / str(ref.uuid)).exists():
             os.remove(self.path / str(ref.uuid))
