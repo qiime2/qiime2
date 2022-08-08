@@ -309,8 +309,6 @@ class Cache:
         # Give back an instance of the Artifact they can use if they want
         return self.load(key)
 
-    # TODO: Ensure that keys follow Python identifier rules. Can use
-    # str.isidentifier
     def _register_key(self, key, value, pool=False):
         """Create a new key pointing at data or a named pool
         """
