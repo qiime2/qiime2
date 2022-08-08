@@ -34,21 +34,24 @@ class TestCache(unittest.TestCase):
         os.mkdir(self.not_cache_path)
 
     def tearDown(self):
-        # Remove our cache and all that from last test
+        """Remove our cache and all that from last test
+        """
         self.test_dir.cleanup()
 
-    # Verifies that is_cache is identifying a cache
     def test_is_cache(self):
-        # Assert path is cache
+        """Verifies that is_cache is identifying a cache
+        """
         self.assertTrue(Cache.is_cache(self.cache.path))
 
-    # Verifies that is_cache is identifying things aren't caches
     def test_is_not_cache(self):
+        """Verifies that is_cache is identifying when things aren't caches
+        """
         self.assertFalse(Cache.is_cache(self.not_cache_path))
 
-    # This test manually asserts the cache created by the constructor looks
-    # exactly as expected.
     def test_cache_manually_V1(self):
+        """This test manually asserts the cache created by the constructor
+        looks exactly as expected.
+        """
         self.assertTrue(os.path.exists(self.cache.path))
         contents = set(os.listdir(self.cache.path))
 
@@ -162,8 +165,8 @@ class TestCache(unittest.TestCase):
         self.assertEqual(expected_post_gc_contents, post_gc_contents)
 
     def get_cache_contents(self):
-        """ Gets contents of cache not including contents of the artifacts
-            themselves relative to the root of the cache
+        """Gets contents of cache not including contents of the artifacts
+        themselves relative to the root of the cache
         """
         cache_contents = set()
 
