@@ -60,9 +60,6 @@ def get_cache():
 # TODO: Make a clear_locks function that removes the lock file on cache and
 # all pools
 
-# TODO: We only need to lock while we are creating keys/refs not while we are
-# writing the data. Maybe can change timeout to 10 minutes after this refactor
-
 # TODO: At exit hook that deletes the process pool for the currently running
 # process then runs garbage collection
 
@@ -115,7 +112,8 @@ class Cache:
             raise ValueError(f"Path: \'{path}\' already exists and is not a"
                              " cache")
 
-        self.lock = Lock(str(self.path / 'LOCK'), lifetime=timedelta(hours=1))
+        self.lock = Lock(str(self.path / 'LOCK'),
+                         lifetime=timedelta(minutes=10))
         # Make our process pool.
         # TODO: We currently will only end up with a process pool for the
         # process that originally launched QIIME 2 (not seperate ones for
@@ -399,7 +397,8 @@ class Pool:
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
-        self.lock = Lock(str(self.path / 'LOCK'), lifetime=timedelta(hours=1))
+        self.lock = Lock(str(self.path / 'LOCK'),
+                         lifetime=timedelta(minutes=10))
 
     def __enter__(self):
         """Set this pool to be our named pool on the current cache
