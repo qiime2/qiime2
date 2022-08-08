@@ -65,39 +65,6 @@ def get_cache():
 # TODO: At exit hook that deletes the process pool for the currently running
 # process then runs garbage collection
 
-# Not entirely clear how this will work yet. We are assuming multiple
-# processes from multiple systems will be interacting with the cache. This
-# means we can't even safely assume unique PIDs. We will probably create
-# some kind of lock file to lock the entire cache or to list locked
-# elements of the cache or something
-def _acquire_lock(lock):
-    """Acquire the lock if it isn't already ours. Should be done before any
-    operation that writes to the cache.
-    """
-    # https://flufllock.readthedocs.io/en/stable/index.html
-    # https://gitlab.com/warsaw/flufl.lockr
-    lock.lock()
-
-
-def _release_lock(lock):
-    """Release the lock, will error if we are not holding the lock. Should
-    be done after any operation that writes to the cache.
-    """
-    lock.unlock()
-
-
-# Let's think about this a bit more than not at all. What do we do to check
-# for a lock, and if there is one, then what do we do? We need to in some
-# way wait for it to unlock, which suggests we need some way of managing
-# locks across multiple processes. We're working on a locking transactional
-# server in 565, and Dr. Otte told us to write a lock manager that exists
-# entirely to manage locks and nothing else. Surely we have to wait in a
-# queue until unlock or something right? We can't just drop what we're
-# doing because we have a lock. Could we conceivably use built in Python
-# locking?
-def _check_lock(lock):
-    pass
-
 
 class Cache:
     """General structure of the cache (tmp optional)
@@ -272,14 +239,6 @@ class Cache:
             return regex.match(version_file) is not None
 
     def garbage_collection(self):
-        """Public interface for garbage collection that locks
-        """
-        _acquire_lock(self.lock)
-        # with self.lock.lock():
-        self._garbage_collection()
-        _release_lock(self.lock)
-
-    def _garbage_collection(self):
         """Runs garbage collection on the cache. We log all data and pools
         pointed to by keys. Then we go through all pools and delete any that
         were not referred to by a key while logging all data in pools that are
@@ -293,60 +252,64 @@ class Cache:
         referenced_data = set()
 
         # Walk over keys and track all pools and data referenced
-        for key in os.listdir(self.keys):
-            loaded_key = yaml.safe_load(open(self.keys / key))
-            referenced_pools.add(loaded_key['pool'])
-            referenced_data.add(loaded_key['data'])
+        # This needs to be locked so we ensure that we don't have other threads
+        # or processes writing refs that we don't see leading to us deleting
+        # their data
+        with self.lock:
+            for key in os.listdir(self.keys):
+                loaded_key = yaml.safe_load(open(self.keys / key))
+                referenced_pools.add(loaded_key['pool'])
+                referenced_data.add(loaded_key['data'])
 
-        # Since each key has at most a pool or data, we will end up with a None
-        # in at least one of these sets. We don't want it
-        referenced_pools.discard(None)
-        referenced_data.discard(None)
+            # Since each key has at most a pool or data, we will end up with a
+            # None in at least one of these sets. We don't want it
+            referenced_pools.discard(None)
+            referenced_data.discard(None)
 
-        # Walk over pools and remove any that were not refered to by keys while
-        # tracking all data within those that were referenced
-        for pool in os.listdir(self.pools):
-            if pool not in referenced_pools:
-                shutil.rmtree(self.pools / pool)
-            else:
-                for data in os.listdir(self.pools / pool):
-                    referenced_data.add(data)
+            # Walk over pools and remove any that were not refered to by keys
+            # while tracking all data within those that were referenced
+            for pool in os.listdir(self.pools):
+                if pool not in referenced_pools:
+                    shutil.rmtree(self.pools / pool)
+                else:
+                    for data in os.listdir(self.pools / pool):
+                        referenced_data.add(data)
 
-        # Add references to data in process pools
-        for process_pool in os.listdir(self.process):
-            # Pick the creation time out of the pool name of format
-            # {pid}-time@user
-            create_time = float(process_pool.split('-')[1].split('@')[0])
+            # Add references to data in process pools
+            for process_pool in os.listdir(self.process):
+                # Pick the creation time out of the pool name of format
+                # {pid}-time@user
+                create_time = float(process_pool.split('-')[1].split('@')[0])
 
-            if time.time() - create_time >= self.process_pool_lifespan:
-                shutil.rmtree(self.process / process_pool)
-            else:
-                for data in os.listdir(self.process / process_pool):
-                    referenced_data.add(data)
+                if time.time() - create_time >= self.process_pool_lifespan:
+                    shutil.rmtree(self.process / process_pool)
+                else:
+                    for data in os.listdir(self.process / process_pool):
+                        referenced_data.add(data)
 
-        # Walk over all data and remove any that was not referenced
-        for data in os.listdir(self.data):
-            # TODO: Turn this method into a public util. If this assert is ever
-            # tripped something real bad happened
-            # assert _Archive._is_uuid4(data)
+            # Walk over all data and remove any that was not referenced
+            for data in os.listdir(self.data):
+                # TODO: Turn this method into a public util.
+                # If this assert is ever tripped something real bad happened
+                # assert _Archive._is_uuid4(data)
 
-            if data not in referenced_data:
-                shutil.rmtree(self.data / data, ignore_errors=True)
+                if data not in referenced_data:
+                    shutil.rmtree(self.data / data, ignore_errors=True)
 
     def save(self, ref, key):
         """Create our key then create our data. Returns a version of the data
         backed by the key in the cache
         """
-        _acquire_lock(self.lock)
         # Create the key before the data, this is so that if another thread or
         # process is running garbage collection it doesn't see our unkeyed data
         # and remove it leaving us with a dangling reference and no data
-        self._register_key(key, str(ref.uuid))
+        with self.lock:
+            self._register_key(key, str(ref.uuid))
+
         # Move the data into cache under key
         # TODO: Don't need to copy if thing already in data
         shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
 
-        _release_lock(self.lock)
         # Give back an instance of the Artifact they can use if they want
         return self.load(key)
 
@@ -378,12 +341,8 @@ class Cache:
         """Remove a key from the cache then run garbage collection to remove
         anything it was referencing and any other loose data
         """
-        _acquire_lock(self.lock)
-
         os.remove(self.keys / key)
-        self._garbage_collection()
-
-        _release_lock(self.lock)
+        self.garbage_collection()
 
     @property
     def data(self):
@@ -460,8 +419,6 @@ class Pool:
         """Save the data into the pool then load a new ref backed by the data
         in the pool
         """
-        _acquire_lock(self.lock)
-
         # TODO: This guard should probably be removed when we rework the logic
         # I feel less bad about this one than the remove one though
         if not (self.path / str(ref.uuid)).exists():
@@ -469,12 +426,13 @@ class Pool:
             # or process is running garbage collection and we create the data
             # before the reference we could garbage collect the data then
             # create a dangling symlink. We kinda want our data
-            os.symlink(self.cache.data / str(ref.uuid),
-                       self.path / str(ref.uuid))
+            with self.lock:
+                os.symlink(self.cache.data / str(ref.uuid),
+                           self.path / str(ref.uuid))
+
             shutil.copytree(ref._archiver.path, self.cache.data,
                             dirs_exist_ok=True)
 
-        _release_lock(self.lock)
         return self.load(ref)
 
     # Load a reference to an element in the pool
@@ -485,11 +443,7 @@ class Pool:
 
     # Remove an element from the pool
     def remove(self, ref):
-        _acquire_lock(self.lock)
-
         # TODO: This guard should be removed when we rework the logic
         if (self.path / str(ref.uuid)).exists():
             os.remove(self.path / str(ref.uuid))
             self.cache.garbage_collection()
-
-        _release_lock(self.lock)
