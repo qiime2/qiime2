@@ -46,7 +46,7 @@ pool:
 __CACHE__ = threading.local()
 __CACHE__.cache = None
 
-
+# TODO: Do we want this on the threadlocal? I feel like maybe we do
 # Keep track of every cache used by this process for cleanup later
 USED_CACHES = set()
 
@@ -77,8 +77,8 @@ def _get_process_pool_name():
 
 @atexit.register
 def _exit_cleanup():
-    """This funtion removes the process pool for this process and runs
-    garbage collection on the cache.
+    """For each cache used by this process we remove the process pool created
+    by this process then run garbage collection
     """
     for cache in USED_CACHES:
         process_pool = _get_process_pool_name()
