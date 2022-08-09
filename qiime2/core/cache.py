@@ -471,7 +471,7 @@ class Pool:
         # Create the key before the data, this is so that if another thread or
         # process is running garbage collection it doesn't see our unkeyed data
         # and remove it leaving us with a dangling reference and no data
-        with self.lock:
+        with self.lock, self.cache.lock:
             os.symlink(self.cache.data / str(ref.uuid),
                        self.path / str(ref.uuid))
 
