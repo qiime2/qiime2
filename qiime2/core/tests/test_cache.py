@@ -109,18 +109,13 @@ class TestCache(unittest.TestCase):
     def test_remove_locks(self):
         """Create some locks then see if we can remove them
         """
-        test_pool = self.cache.create_pool('test')
-
         self.cache.lock.lock()
-        test_pool.lock.lock()
 
         self.assertEqual(self.cache.lock.state, LockState.ours)
-        self.assertEqual(test_pool.lock.state, LockState.ours)
 
         self.cache.clear_locks()
 
         self.assertEqual(self.cache.lock.state, LockState.unlocked)
-        self.assertEqual(test_pool.lock.state, LockState.unlocked)
 
     # Might create another class for garbage collection tests to test more
     # cases with shared boilerplate

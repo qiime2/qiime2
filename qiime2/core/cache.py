@@ -379,21 +379,6 @@ class Cache:
         if os.path.exists(self.lockfile):
             os.remove(self.lockfile)
 
-        self._clear_pool_locks('pools')
-        self._clear_pool_locks('process')
-
-    def _clear_pool_locks(self, pool_type):
-        """Iterates over a type of pool and removes all locks in all pools of
-        that type
-        """
-        pools = getattr(self, pool_type)
-
-        for pool in os.listdir(pools):
-            full_path = pools / pool / 'LOCK'
-
-            if os.path.exists(full_path):
-                os.remove(full_path)
-
     @property
     def data(self):
         return self.path / 'data'
@@ -450,8 +435,6 @@ class Pool:
         if not os.path.exists(self.path):
             os.mkdir(self.path)
 
-        self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
-
     def __enter__(self):
         """Set this pool to be our named pool on the current cache
         """
@@ -471,7 +454,7 @@ class Pool:
         # Create the key before the data, this is so that if another thread or
         # process is running garbage collection it doesn't see our unkeyed data
         # and remove it leaving us with a dangling reference and no data
-        with self.lock, self.cache.lock:
+        with self.cache.lock:
             os.symlink(self.cache.data / str(ref.uuid),
                        self.path / str(ref.uuid))
 
@@ -495,7 +478,3 @@ class Pool:
         if (self.path / str(ref.uuid)).exists():
             os.remove(self.path / str(ref.uuid))
             self.cache.garbage_collection()
-
-    @property
-    def lockfile(self):
-        return self.path / 'LOCK'
