@@ -145,7 +145,7 @@ class TestCache(unittest.TestCase):
                  f'data/{self.art1.uuid}', f'data/{self.art2.uuid}'))
 
         # Assert cache looks how we want pre gc
-        pre_gc_contents = self.get_cache_contents()
+        pre_gc_contents = self._get_cache_contents()
         self.assertEqual(expected_pre_gc_contents, pre_gc_contents)
 
         # Delete keys
@@ -156,10 +156,10 @@ class TestCache(unittest.TestCase):
         self.cache.garbage_collection()
 
         # Assert cache looks how we want post gc
-        post_gc_contents = self.get_cache_contents()
+        post_gc_contents = self._get_cache_contents()
         self.assertEqual(expected_post_gc_contents, post_gc_contents)
 
-    def get_cache_contents(self):
+    def _get_cache_contents(self):
         """Gets contents of cache not including contents of the artifacts
         themselves relative to the root of the cache
         """
