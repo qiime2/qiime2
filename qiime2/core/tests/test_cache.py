@@ -14,7 +14,8 @@ from flufl.lock import LockState
 
 import qiime2
 from qiime2.core.cache import Cache
-from qiime2.core.testing.type import IntSequence1
+from qiime2.core.testing.type import IntSequence1, IntSequence2
+from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
 
 
@@ -27,7 +28,7 @@ class TestCache(unittest.TestCase):
         self.art1 = Artifact.import_data(IntSequence1, [0, 1, 2])
         self.art2 = Artifact.import_data(IntSequence1, [3, 4, 5])
         self.art3 = Artifact.import_data(IntSequence1, [6, 7, 8])
-        self.art4 = Artifact.import_data(IntSequence1, [9, 10, 11])
+        self.art4 = Artifact.import_data(IntSequence2, [9, 10, 11])
         self.cache = Cache(os.path.join(self.test_dir.name, 'new_cache'))
 
         self.not_cache_path = os.path.join(self.test_dir.name, 'not_cache')
@@ -158,6 +159,20 @@ class TestCache(unittest.TestCase):
         # Assert cache looks how we want post gc
         post_gc_contents = self._get_cache_contents()
         self.assertEqual(expected_post_gc_contents, post_gc_contents)
+
+    def test_asynchronous(self):
+        plugin = get_dummy_plugin()
+        concatenate_ints = plugin.methods['concatenate_ints']
+
+        future = concatenate_ints.asynchronous(self.art1, self.art2, self.art4,
+                                               4, 5)
+        result = future.result()
+        result = result[0]
+
+        expected = set(('./VERSION', f'data/{result._archiver.uuid}'))
+
+        observed = self._get_cache_contents()
+        self.assertEqual(expected, observed)
 
     def _get_cache_contents(self):
         """Gets contents of cache not including contents of the artifacts
