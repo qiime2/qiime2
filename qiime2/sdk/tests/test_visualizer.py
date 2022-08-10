@@ -11,7 +11,6 @@ import inspect
 import os.path
 import tempfile
 import unittest
-import time
 import uuid
 
 import qiime2.plugin
@@ -370,13 +369,10 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         artifact2 = Artifact.import_data(
             Mapping, {'baz': 'abc', 'bazz': 'ghi'})
 
-        print('pre async')
         future = mapping_viz.asynchronous(artifact1, artifact2, 'Key', 'Value')
 
         self.assertIsInstance(future, concurrent.futures.Future)
         result = future.result()
-        print('post async')
-        time.sleep(10)
 
         # Test properties of the `Results` object.
         self.assertIsInstance(result, tuple)
@@ -394,9 +390,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         # TODO qiime2.sdk.Visualization doesn't have an API to access its
         # contents yet. For now, save and assert the correct files are present.
         filepath = os.path.join(self.test_dir.name, 'visualization.qzv')
-        print('pre save')
         result.save(filepath)
-        print('post save')
 
         root_dir = str(result.uuid)
         expected = {
