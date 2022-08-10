@@ -84,10 +84,12 @@ def _exit_cleanup():
         process_pool = _get_process_pool_name()
         target = cache.process / process_pool
 
-        # The path could no longer exist if they manually deleted the cache
-        # before this process exists or something. It also doesn't exist in the
-        # case of our cache tests where teardown nukes the entire directory
-        # after every test
+        # There are several legitimate reasons the path could not exist. It
+        # happens during our cache tests when the entire cache is nuked in the
+        # end. It also happens in asycnhronous runs where the worker process
+        # does not create a process pool (on mac this atexit is invoked on
+        # workers). It could also happen if someone deleted the process pool
+        # but... They probably shouldn't do that
         if os.path.exists(target):
             shutil.rmtree(target)
             cache.garbage_collection()
