@@ -288,6 +288,7 @@ class Action(metaclass=abc.ABCMeta):
             # function's signature.
             args = args[1:]
 
+            # Build context here pass to subprocess_apply and bind in subprocess_apply
             pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)
             future = pool.submit(_subprocess_apply, self, args, kwargs)
             # TODO: pool.shutdown(wait=False) caused the child process to

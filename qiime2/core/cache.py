@@ -82,6 +82,7 @@ def _exit_cleanup():
     """
     for cache in USED_CACHES:
         process_pool = _get_process_pool_name()
+        print(f'POOL: {process_pool}\nPID: {os.getpid()}')
         target = cache.process / process_pool
 
         # The path could no longer exist if they manually deleted the cache
@@ -90,6 +91,7 @@ def _exit_cleanup():
         # after every test
         if os.path.exists(target):
             shutil.rmtree(target)
+            print('EXIT GC')
             cache.garbage_collection()
 
 
@@ -141,6 +143,7 @@ class Cache:
             raise ValueError(f"Path: \'{path}\' already exists and is not a"
                              " cache")
 
+        print(f"CACHE PATH: {self.path}\nPID: {os.getpid()}")
         self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
         # Make our process pool.
         # TODO: We currently will only end up with a process pool for the
@@ -321,6 +324,7 @@ class Cache:
                 assert is_uuid4(data)
 
                 if data not in referenced_data:
+                    print(data)
                     shutil.rmtree(self.data / data, ignore_errors=True)
 
     def save(self, ref, key):
