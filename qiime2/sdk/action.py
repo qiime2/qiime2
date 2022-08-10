@@ -22,7 +22,7 @@ import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 
 
-def _subprocess_apply(action, args, kwargs):
+def _subprocess_apply(action, ctx, args, kwargs):
     # Preprocess input artifacts as we've got pickled clones which shouldn't
     # self-destruct.
     for arg in itertools.chain(args, kwargs.values()):
@@ -32,7 +32,8 @@ def _subprocess_apply(action, args, kwargs):
             # (which happens).
             arg._destructor.detach()
 
-    results = action(*args, **kwargs)
+    exe = action._bind(lambda: qiime2.sdk.Context(parent=ctx))
+    results = exe(*args, **kwargs)
     for r in results:
         # The destructor doesn't keep its detatched state when sent back to the
         # main process. Something about the context-manager from ctx seems to
@@ -288,9 +289,9 @@ class Action(metaclass=abc.ABCMeta):
             # function's signature.
             args = args[1:]
 
-            # Build context here pass to subprocess_apply and bind in subprocess_apply
             pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)
-            future = pool.submit(_subprocess_apply, self, args, kwargs)
+            future = pool.submit(_subprocess_apply, self, qiime2.sdk.Context(),
+                                 args, kwargs)
             # TODO: pool.shutdown(wait=False) caused the child process to
             # hang unrecoverably. This seems to be a bug in Python 3.7
             # It's probably best to gut concurrent.futures entirely, so we're
