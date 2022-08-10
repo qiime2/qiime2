@@ -375,7 +375,7 @@ class Cache:
         self.garbage_collection()
 
     def clear_locks(self):
-        """Clears all locks in this cache and in pools under this cache
+        """Clears the lock on the cache
         NOTE: Forcibly removes the locks outside of the locking library's API
         """
         if os.path.exists(self.lockfile):
