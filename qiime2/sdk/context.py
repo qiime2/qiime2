@@ -79,7 +79,7 @@ class Context:
             # Everything is fine, just cleanup internal references and pass
             # ownership off to the parent context.
             parent_refs = self._scope.destroy(local_references_only=True)
-            if self._parent is not None:
+            if self._parent is not None and self._parent._scope is not None:
                 for ref in parent_refs:
                     self._parent._scope.add_reference(ref)
 
