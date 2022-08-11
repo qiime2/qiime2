@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import os
-from pickle import FALSE
 import shutil
 import collections
 import distutils.dir_util

@@ -7,8 +7,8 @@
 # ----------------------------------------------------------------------------
 
 import os
+import shutil
 import atexit
-from select import epoll
 import tempfile
 import unittest
 
@@ -19,6 +19,8 @@ from qiime2.core.cache import Cache, _exit_cleanup, get_cache
 from qiime2.core.testing.type import IntSequence1, IntSequence2
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
+
+TEST_POOL = '__TEST_POOL__'
 
 
 # TODO: Check process contents too
@@ -52,6 +54,7 @@ def _get_cache_contents(cache):
 
 def _on_exit_validate(cache, expected):
     observed = _get_cache_contents(cache)
+    shutil.rmtree(cache.pools / TEST_POOL)
     assert observed == expected
 
 
@@ -215,7 +218,7 @@ class TestCache(unittest.TestCase):
     def test_asynchronous_pool(self):
         plugin = get_dummy_plugin()
         concatenate_ints = plugin.methods['concatenate_ints']
-        test_pool = self.cache.create_pool(keys=['test_pool'])
+        test_pool = self.cache.create_pool(keys=[TEST_POOL])
 
         with self.cache:
             with test_pool:
@@ -226,8 +229,8 @@ class TestCache(unittest.TestCase):
         result = result[0]
 
         expected = set((
-            './VERSION', f'data/{result._archiver.uuid}', 'keys/test_pool',
-            f'pools/test_pool/{result._archiver.uuid}'
+            './VERSION', f'data/{result._archiver.uuid}', 'keys/__TEST_POOL__',
+            f'pools/__TEST_POOL__/{result._archiver.uuid}'
         ))
 
         observed = _get_cache_contents(self.cache)
@@ -243,7 +246,7 @@ class TestCache(unittest.TestCase):
         plugin = get_dummy_plugin()
         concatenate_ints = plugin.methods['concatenate_ints']
         cache = get_cache()
-        test_pool = cache.create_pool(keys=['test_pool'])
+        test_pool = cache.create_pool(keys=[TEST_POOL])
 
         with test_pool:
             future = concatenate_ints.asynchronous(self.art1, self.art2,
@@ -253,8 +256,8 @@ class TestCache(unittest.TestCase):
         result = result[0]
 
         expected = set((
-            './VERSION', f'data/{result._archiver.uuid}', 'keys/test_pool',
-            f'pools/test_pool/{result._archiver.uuid}'
+            './VERSION', f'data/{result._archiver.uuid}', 'keys/__TEST_POOL__',
+            f'pools/__TEST_POOL__/{result._archiver.uuid}'
         ))
 
         atexit.unregister(_exit_cleanup)
