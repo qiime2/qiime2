@@ -24,7 +24,6 @@ from flufl.lock import Lock
 
 import qiime2
 from qiime2.sdk.result import Result
-from qiime2.core.archive.archiver import Archiver
 from qiime2.core.util import is_uuid4
 
 _VERSION_TEMPLATE = """\
@@ -361,11 +360,9 @@ class Cache:
         """Load the data pointed to by a key. Only works on a key that refers
         to a data item will error on a key that points to a pool
         """
-        archiver = \
-            Archiver.load(
+        return Result.load(
                 self.data / yaml.safe_load(open(self.keys / key))['data'],
                 allow_no_op=True)
-        return Result._from_archiver(archiver)
 
     def remove(self, key):
         """Remove a key from the cache then run garbage collection to remove
@@ -469,9 +466,7 @@ class Pool:
     def load(self, ref):
         """Load a reference to an element in the pool
         """
-        archiver = Archiver.load(self.cache.data / str(ref.uuid),
-                                 allow_no_op=True)
-        return Result._from_archiver(archiver)
+        return Result.load(self.cache.data / str(ref.uuid), allow_no_op=True)
 
     def remove(self, ref):
         """Remove an element from the pool

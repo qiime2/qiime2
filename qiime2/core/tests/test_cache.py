@@ -164,12 +164,35 @@ class TestCache(unittest.TestCase):
         plugin = get_dummy_plugin()
         concatenate_ints = plugin.methods['concatenate_ints']
 
-        future = concatenate_ints.asynchronous(self.art1, self.art2, self.art4,
-                                               4, 5)
-        result = future.result()
+        with self.cache:
+            future = concatenate_ints.asynchronous(self.art1, self.art2,
+                                                   self.art4, 4, 5)
+            result = future.result()
+
         result = result[0]
 
         expected = set(('./VERSION', f'data/{result._archiver.uuid}'))
+
+        observed = self._get_cache_contents()
+        self.assertEqual(expected, observed)
+
+    def test_asynchronous_pool(self):
+        plugin = get_dummy_plugin()
+        concatenate_ints = plugin.methods['concatenate_ints']
+        test_pool = self.cache.create_pool(keys=['test_pool'])
+
+        with self.cache:
+            with test_pool:
+                future = concatenate_ints.asynchronous(self.art1, self.art2,
+                                                       self.art4, 4, 5)
+                result = future.result()
+
+        result = result[0]
+
+        expected = set((
+            './VERSION', f'data/{result._archiver.uuid}', 'keys/test_pool',
+            f'pools/test_pool/{result._archiver.uuid}'
+        ))
 
         observed = self._get_cache_contents()
         self.assertEqual(expected, observed)

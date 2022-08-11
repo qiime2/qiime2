@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import os
+from pickle import FALSE
 import shutil
 import collections
 import distutils.dir_util
@@ -61,9 +62,9 @@ class Result:
         return archive.Archiver.extract(filepath, output_dir)
 
     @classmethod
-    def load(cls, filepath):
+    def load(cls, filepath, allow_no_op=False):
         """Factory for loading Artifacts and Visualizations."""
-        archiver = archive.Archiver.load(filepath)
+        archiver = archive.Archiver.load(filepath, allow_no_op=allow_no_op)
         return cls._from_archiver(archiver)
 
     @classmethod
