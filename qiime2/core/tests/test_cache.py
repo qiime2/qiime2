@@ -245,6 +245,9 @@ class TestCache(unittest.TestCase):
         """
         plugin = get_dummy_plugin()
         concatenate_ints = plugin.methods['concatenate_ints']
+
+        # This test needs to use a cache that exists past the lifespan of the
+        # function
         cache = get_cache()
         test_pool = cache.create_pool(keys=[TEST_POOL])
 
