@@ -7,16 +7,52 @@
 # ----------------------------------------------------------------------------
 
 import os
+import atexit
+from select import epoll
 import tempfile
 import unittest
 
 from flufl.lock import LockState
 
 import qiime2
-from qiime2.core.cache import Cache
+from qiime2.core.cache import Cache, _exit_cleanup, get_cache
 from qiime2.core.testing.type import IntSequence1, IntSequence2
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
+
+
+# TODO: Check process contents too
+def _get_cache_contents(cache):
+    """Gets contents of cache not including contents of the artifacts
+    themselves relative to the root of the cache
+    """
+    cache_contents = set()
+
+    rel_keys = os.path.relpath(cache.keys, cache.path)
+    rel_data = os.path.relpath(cache.data, cache.path)
+    rel_pools = os.path.relpath(cache.pools, cache.path)
+    rel_cache = os.path.relpath(cache.path, cache.path)
+
+    for key in os.listdir(cache.keys):
+        cache_contents.add(os.path.join(rel_keys, key))
+
+    for art in os.listdir(cache.data):
+        cache_contents.add(os.path.join(rel_data, art))
+
+    for pool in os.listdir(cache.pools):
+        for link in os.listdir(os.path.join(cache.pools, pool)):
+            cache_contents.add(os.path.join(rel_pools, pool, link))
+
+    for elem in os.listdir(cache.path):
+        if os.path.isfile(os.path.join(cache.path, elem)):
+            cache_contents.add(os.path.join(rel_cache, elem))
+
+    return cache_contents
+
+
+def _on_exit_validate(cache, expected):
+    observed = _get_cache_contents(cache)
+    assert observed == expected
 
 
 class TestCache(unittest.TestCase):
@@ -146,7 +182,7 @@ class TestCache(unittest.TestCase):
                  f'data/{self.art1.uuid}', f'data/{self.art2.uuid}'))
 
         # Assert cache looks how we want pre gc
-        pre_gc_contents = self._get_cache_contents()
+        pre_gc_contents = _get_cache_contents(self.cache)
         self.assertEqual(expected_pre_gc_contents, pre_gc_contents)
 
         # Delete keys
@@ -157,7 +193,7 @@ class TestCache(unittest.TestCase):
         self.cache.garbage_collection()
 
         # Assert cache looks how we want post gc
-        post_gc_contents = self._get_cache_contents()
+        post_gc_contents = _get_cache_contents(self.cache)
         self.assertEqual(expected_post_gc_contents, post_gc_contents)
 
     def test_asynchronous(self):
@@ -173,7 +209,7 @@ class TestCache(unittest.TestCase):
 
         expected = set(('./VERSION', f'data/{result._archiver.uuid}'))
 
-        observed = self._get_cache_contents()
+        observed = _get_cache_contents(self.cache)
         self.assertEqual(expected, observed)
 
     def test_asynchronous_pool(self):
@@ -194,32 +230,33 @@ class TestCache(unittest.TestCase):
             f'pools/test_pool/{result._archiver.uuid}'
         ))
 
-        observed = self._get_cache_contents()
+        observed = _get_cache_contents(self.cache)
         self.assertEqual(expected, observed)
 
-    def _get_cache_contents(self):
-        """Gets contents of cache not including contents of the artifacts
-        themselves relative to the root of the cache
+    # TODO: This test may need to go at some point
+    def test_asynchronous_pool_post_exit(self):
+        """This test determines if all of the data is still in the cache when
+        we are getting ready to exit. This was put here when ensuring we do not
+        destroy our data when running asynchronous actions, and it can probably
+        be removed once Archiver is reworked
         """
-        cache_contents = set()
+        plugin = get_dummy_plugin()
+        concatenate_ints = plugin.methods['concatenate_ints']
+        cache = get_cache()
+        test_pool = cache.create_pool(keys=['test_pool'])
 
-        rel_keys = os.path.relpath(self.cache.keys, self.cache.path)
-        rel_data = os.path.relpath(self.cache.data, self.cache.path)
-        rel_pools = os.path.relpath(self.cache.pools, self.cache.path)
-        rel_cache = os.path.relpath(self.cache.path, self.cache.path)
+        with test_pool:
+            future = concatenate_ints.asynchronous(self.art1, self.art2,
+                                                   self.art4, 4, 5)
+            result = future.result()
 
-        for key in os.listdir(self.cache.keys):
-            cache_contents.add(os.path.join(rel_keys, key))
+        result = result[0]
 
-        for art in os.listdir(self.cache.data):
-            cache_contents.add(os.path.join(rel_data, art))
+        expected = set((
+            './VERSION', f'data/{result._archiver.uuid}', 'keys/test_pool',
+            f'pools/test_pool/{result._archiver.uuid}'
+        ))
 
-        for pool in os.listdir(self.cache.pools):
-            for link in os.listdir(os.path.join(self.cache.pools, pool)):
-                cache_contents.add(os.path.join(rel_pools, pool, link))
-
-        for elem in os.listdir(self.cache.path):
-            if os.path.isfile(os.path.join(self.cache.path, elem)):
-                cache_contents.add(os.path.join(rel_cache, elem))
-
-        return cache_contents
+        atexit.unregister(_exit_cleanup)
+        atexit.register(_on_exit_validate, cache, expected)
+        atexit.register(_exit_cleanup)
