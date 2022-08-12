@@ -54,7 +54,7 @@ def _get_cache_contents(cache):
 
 def _on_exit_validate(cache, expected):
     observed = _get_cache_contents(cache)
-    shutil.rmtree(cache.pools / TEST_POOL)
+    cache.remove(TEST_POOL)
     assert observed == expected
 
 
@@ -249,7 +249,7 @@ class TestCache(unittest.TestCase):
         # This test needs to use a cache that exists past the lifespan of the
         # function
         cache = get_cache()
-        test_pool = cache.create_pool(keys=[TEST_POOL])
+        test_pool = cache.create_pool(keys=[TEST_POOL], reuse=True)
 
         with test_pool:
             future = concatenate_ints.asynchronous(self.art1, self.art2,
