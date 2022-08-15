@@ -230,11 +230,13 @@ class _NoOpArchive(_Archive):
 
     @classmethod
     def save(cls, source, destination):
-        # NOTE: Probably a better way to handle this
-        destination = destination.rstrip('.qza')
-        destination = destination.rstrip('.qzv')
+        # print(f'SOURCE: {os.listdir(source)}\nDEST: {destination}')
+        # path = Archiver._make_temp_path()
+        # path = path / os.path.basename(source)
+        # os.mkdir(path)
 
-        shutil.copytree(source, destination)
+        # shutil.copytree(source, destination)
+        _ZipArchive.save(source, destination)
 
     def relative_iterdir(self, relpath=''):
         seen = set()
@@ -278,7 +280,7 @@ class Archiver:
         return getattr(importlib.import_module(imp), fmt_cls)
 
     @classmethod
-    def get_archive(cls, filepath, allow_no_op=False):
+    def get_archive(cls, filepath, allow_no_op=True):
         filepath = pathlib.Path(filepath)
         if not filepath.exists():
             raise ValueError("%s does not exist." % filepath)
@@ -291,6 +293,21 @@ class Archiver:
             raise ValueError("%s is not a QIIME archive." % filepath)
 
         return archive
+
+    @classmethod
+    def get_archive_type(cls, filepath, allow_no_op=True):
+        filepath = pathlib.Path(filepath)
+        if not filepath.exists():
+            raise ValueError("%s does not exist." % filepath)
+
+        if _ZipArchive.is_archive_type(filepath):
+            Archive = _ZipArchive
+        elif _NoOpArchive.is_archive_type(filepath) and allow_no_op:
+            Archive = _NoOpArchive
+        else:
+            raise ValueError("%s is not a QIIME archive." % filepath)
+
+        return Archive
 
     @classmethod
     def _futuristic_archive_error(cls, filepath, archive):
@@ -322,20 +339,33 @@ class Archiver:
         return str(archive.extract(dest))
 
     @classmethod
-    def load(cls, filepath, allow_no_op=False):
-        archive = cls.get_archive(filepath, allow_no_op)
+    def load(cls, filepath):
+        archive = cls.get_archive(filepath)
         Format = cls.get_format_class(archive.version)
         if Format is None:
             cls._futuristic_archive_error(filepath, archive)
 
-        if isinstance(archive, _NoOpArchive):
-            path = qiime2.core.path.ArchivePath(filepath)
-            path._destructor.detach()
-        else:
-            path = cls._make_temp_path()
-
+        path = cls._make_temp_path()
         rec = archive.mount(path)
 
+        return cls(path, Format(rec))
+
+    @classmethod
+    def load_cache(cls, filepath):
+        # TODO: We always want _NoOpArchive, so we may want to rework this.
+        # What I'm less certain of is whether this will be the only time we
+        # want no op. I suspect not given things like peek also use get_archive
+        # I suppose maybe you could peek on a thing in the cache and want a
+        # no op for that? Really not too sure, and rn the other methods don't
+        # even allow no op when they call this
+        archive = cls.get_archive(filepath, allow_no_op=True)
+        Format = cls.get_format_class(archive.version)
+        if Format is None:
+            cls._futuristic_archive_error(filepath, archive)
+
+        path = pathlib.Path(filepath)
+
+        rec = archive.mount(path)
         return cls(path, Format(rec))
 
     @classmethod
@@ -383,6 +413,8 @@ class Archiver:
 
     def save(self, filepath):
         self.CURRENT_ARCHIVE.save(self.path, filepath)
+        # Archive = Archiver.get_archive_type(self.path)
+        # Archive.save(self.path, filepath)
 
     def validate_checksums(self):
         if not isinstance(self._fmt, self.get_format_class('5')):

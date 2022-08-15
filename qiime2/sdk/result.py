@@ -63,7 +63,7 @@ class Result:
     @classmethod
     def load(cls, filepath, allow_no_op=False):
         """Factory for loading Artifacts and Visualizations."""
-        archiver = archive.Archiver.load(filepath, allow_no_op=allow_no_op)
+        archiver = archive.Archiver.load(filepath)
         return cls._from_archiver(archiver)
 
     @classmethod
