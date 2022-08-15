@@ -113,7 +113,6 @@ class TestCache(unittest.TestCase):
         self.cache.save(art1, 'foo')
 
         # Delete artifact
-        art1._archiver.path._destructor()
         del art1
 
         # Load artifact from cache
