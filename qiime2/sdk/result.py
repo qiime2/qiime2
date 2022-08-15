@@ -61,10 +61,12 @@ class Result:
         return archive.Archiver.extract(filepath, output_dir)
 
     @classmethod
-    def load(cls, filepath, allow_no_op=False):
+    def load(cls, filepath):
         """Factory for loading Artifacts and Visualizations."""
         archiver = archive.Archiver.load(filepath)
-        return cls._from_archiver(archiver)
+        art =  cls._from_archiver(archiver)
+
+        return cls.save_cache(art)
 
     @classmethod
     def _from_archiver(cls, archiver):
@@ -86,6 +88,22 @@ class Result:
 
         result._archiver = archiver
         return result
+
+    @classmethod
+    def save_cache(cls, result):
+        # Import here to prevent circular imports
+        from qiime2.core.cache import get_cache
+
+        cache = get_cache()
+        if cache.named_pool is not None:
+            cache.named_pool.save(result)
+
+        return cache.process_pool.save(result)
+
+    @classmethod
+    def load_cache(cls, filepath):
+        archiver = archive.Archiver.load_cache(filepath)
+        return cls._from_archiver(archiver)
 
     @property
     def type(self):
@@ -277,8 +295,9 @@ class Artifact(Result):
             format_ = view_type
 
         provenance_capture = archive.ImportProvenanceCapture(format_, md5sums)
-        return cls._from_view(type_, view, view_type, provenance_capture,
-                              validate_level='max')
+        art = cls._from_view(type_, view, view_type, provenance_capture,
+                             validate_level='max')
+        return Result.save_cache(art)
 
     @classmethod
     def _from_view(cls, type, view, view_type, provenance_capture,

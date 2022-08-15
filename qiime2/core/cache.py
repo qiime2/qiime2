@@ -23,6 +23,7 @@ from datetime import timedelta
 from flufl.lock import Lock
 
 import qiime2
+from .path import ArchivePath
 from qiime2.sdk.result import Result
 from qiime2.core.util import is_uuid4
 
@@ -72,6 +73,22 @@ def _get_process_pool_name():
     time = process.create_time()
 
     return f'{pid}-{time}@{user}'
+
+
+def _copy_to_data(cache, ref, destination):
+    """Since copying the data was basically the same on cache.save and
+    pool.save, I made this helper
+    """
+    if not os.path.exists(cache.data / str(ref.uuid)):
+        # We will have an ArchivePath if this data does not live in the
+        # cache yet, but if this data lives in the cache's data dir under
+        if not isinstance(ref._archiver.path, ArchivePath):
+            os.mkdir(destination / str(ref.uuid))
+            shutil.copytree(ref._archiver.path, destination / str(ref.uuid),
+                            dirs_exist_ok=True)
+        else:
+            shutil.copytree(ref._archiver.path, destination,
+                            dirs_exist_ok=True)
 
 
 @atexit.register
@@ -334,10 +351,7 @@ class Cache:
         with self.lock:
             self._register_key(key, str(ref.uuid))
 
-        if not os.path.exists(self.data / str(ref.uuid)):
-            shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
-
-        # Give back an instance of the Artifact they can use if they want
+        _copy_to_data(self, ref, self.data)
         return self.load(key)
 
     def _register_key(self, key, value, pool=False):
@@ -360,9 +374,8 @@ class Cache:
         """Load the data pointed to by a key. Only works on a key that refers
         to a data item will error on a key that points to a pool
         """
-        return Result.load(
-                self.data / yaml.safe_load(open(self.keys / key))['data'],
-                allow_no_op=True)
+        return Result.load_cache(
+                self.data / yaml.safe_load(open(self.keys / key))['data'])
 
     def remove(self, key):
         """Remove a key from the cache then run garbage collection to remove
@@ -457,16 +470,13 @@ class Pool:
             os.symlink(self.cache.data / str(ref.uuid),
                        self.path / str(ref.uuid))
 
-        if not (self.cache.data / str(ref.uuid)).exists():
-            shutil.copytree(ref._archiver.path, self.cache.data,
-                            dirs_exist_ok=True)
-
+        _copy_to_data(self.cache, ref, self.cache.data)
         return self.load(ref)
 
     def load(self, ref):
         """Load a reference to an element in the pool
         """
-        return Result.load(self.cache.data / str(ref.uuid), allow_no_op=True)
+        return Result.load_cache(self.cache.data / str(ref.uuid))
 
     def remove(self, ref):
         """Remove an element from the pool

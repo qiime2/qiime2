@@ -25,21 +25,21 @@ from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 def _subprocess_apply(action, ctx, args, kwargs):
     # Preprocess input artifacts as we've got pickled clones which shouldn't
     # self-destruct.
-    for arg in itertools.chain(args, kwargs.values()):
-        if isinstance(arg, qiime2.sdk.Artifact):
-            # We can't rely on the subprocess preventing atexit hooks as the
-            # destructor is also called when the artifact goes out of scope
-            # (which happens).
-            arg._destructor.detach()
+    # for arg in itertools.chain(args, kwargs.values()):
+    #     if isinstance(arg, qiime2.sdk.Artifact):
+    #         # We can't rely on the subprocess preventing atexit hooks as the
+    #         # destructor is also called when the artifact goes out of scope
+    #         # (which happens).
+    #         arg._destructor.detach()
 
     exe = action._bind(lambda: qiime2.sdk.Context(parent=ctx))
     results = exe(*args, **kwargs)
-    for r in results:
-        # The destructor doesn't keep its detatched state when sent back to the
-        # main process. Something about the context-manager from ctx seems to
-        # cause a GC of the artifacts before the process actually ends, so we
-        # do need to detach these. The specifics are not understood.
-        r._destructor.detach()
+    # for r in results:
+    #     # The destructor doesn't keep its detatched state when sent back to the
+    #     # main process. Something about the context-manager from ctx seems to
+    #     # cause a GC of the artifacts before the process actually ends, so we
+    #     # do need to detach these. The specifics are not understood.
+    #     r._destructor.detach()
     return results
 
 

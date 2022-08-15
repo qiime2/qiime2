@@ -150,6 +150,7 @@ class _ZipArchive(_Archive):
 
     @classmethod
     def save(cls, source, destination):
+        print(f'SOURCE: {source}\nDEST: {destination}')
         with zipfile.ZipFile(str(destination), mode='w',
                              compression=zipfile.ZIP_DEFLATED,
                              allowZip64=True) as zf:
@@ -230,10 +231,10 @@ class _NoOpArchive(_Archive):
 
     @classmethod
     def save(cls, source, destination):
-        # print(f'SOURCE: {os.listdir(source)}\nDEST: {destination}')
-        # path = Archiver._make_temp_path()
-        # path = path / os.path.basename(source)
-        # os.mkdir(path)
+        raise ValueError("UHHHHH DO WE EVER CALL THIS RN?")
+        # NOTE: Probably a better way to handle this
+        destination = destination.rstrip('.qza')
+        destination = destination.rstrip('.qzv')
 
         # shutil.copytree(source, destination)
         _ZipArchive.save(source, destination)
@@ -347,7 +348,6 @@ class Archiver:
 
         path = cls._make_temp_path()
         rec = archive.mount(path)
-
         return cls(path, Format(rec))
 
     @classmethod
@@ -412,6 +412,8 @@ class Archiver:
         return getattr(self._fmt, 'citations', cite.Citations())
 
     def save(self, filepath):
+        # Archive = Archiver.get_archive(self.path)
+        # Archive.save(self.path, filepath)
         self.CURRENT_ARCHIVE.save(self.path, filepath)
         # Archive = Archiver.get_archive_type(self.path)
         # Archive.save(self.path, filepath)
