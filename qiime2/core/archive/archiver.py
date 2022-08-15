@@ -376,7 +376,7 @@ class Archiver:
         # I suppose maybe you could peek on a thing in the cache and want a
         # no op for that? Really not too sure, and rn the other methods don't
         # even allow no op when they call this
-        archive = cls.get_archive(filepath, allow_no_op=True)
+        archive = cls.get_archive(filepath)
         Format = cls.get_format_class(archive.version)
         if Format is None:
             cls._futuristic_archive_error(filepath, archive)
