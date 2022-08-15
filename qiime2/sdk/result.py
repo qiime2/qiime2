@@ -64,7 +64,7 @@ class Result:
     def load(cls, filepath):
         """Factory for loading Artifacts and Visualizations."""
         archiver = archive.Archiver.load(filepath)
-        art =  cls._from_archiver(archiver)
+        art = cls._from_archiver(archiver)
 
         return cls.save_cache(art)
 

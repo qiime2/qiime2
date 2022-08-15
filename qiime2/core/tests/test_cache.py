@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import os
-import shutil
 import atexit
 import tempfile
 import unittest

@@ -13,7 +13,6 @@ import zipfile
 import importlib
 import os
 import io
-import shutil
 
 import qiime2
 import qiime2.core.cite as cite
@@ -347,24 +346,6 @@ class Archiver:
             cls._futuristic_archive_error(filepath, archive)
 
         path = cls._make_temp_path()
-        rec = archive.mount(path)
-        return cls(path, Format(rec))
-
-    @classmethod
-    def load_cache(cls, filepath):
-        # TODO: We always want _NoOpArchive, so we may want to rework this.
-        # What I'm less certain of is whether this will be the only time we
-        # want no op. I suspect not given things like peek also use get_archive
-        # I suppose maybe you could peek on a thing in the cache and want a
-        # no op for that? Really not too sure, and rn the other methods don't
-        # even allow no op when they call this
-        archive = cls.get_archive(filepath)
-        Format = cls.get_format_class(archive.version)
-        if Format is None:
-            cls._futuristic_archive_error(filepath, archive)
-
-        path = pathlib.Path(filepath)
-
         rec = archive.mount(path)
         return cls(path, Format(rec))
 
