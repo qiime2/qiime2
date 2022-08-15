@@ -281,14 +281,14 @@ class Archiver:
         return getattr(importlib.import_module(imp), fmt_cls)
 
     @classmethod
-    def get_archive(cls, filepath, allow_no_op=True):
+    def get_archive(cls, filepath):
         filepath = pathlib.Path(filepath)
         if not filepath.exists():
             raise ValueError("%s does not exist." % filepath)
 
         if _ZipArchive.is_archive_type(filepath):
             archive = _ZipArchive(filepath)
-        elif _NoOpArchive.is_archive_type(filepath) and allow_no_op:
+        elif _NoOpArchive.is_archive_type(filepath):
             archive = _NoOpArchive(filepath)
         else:
             raise ValueError("%s is not a QIIME archive." % filepath)
@@ -296,14 +296,14 @@ class Archiver:
         return archive
 
     @classmethod
-    def get_archive_type(cls, filepath, allow_no_op=True):
+    def get_archive_type(cls, filepath):
         filepath = pathlib.Path(filepath)
         if not filepath.exists():
             raise ValueError("%s does not exist." % filepath)
 
         if _ZipArchive.is_archive_type(filepath):
             Archive = _ZipArchive
-        elif _NoOpArchive.is_archive_type(filepath) and allow_no_op:
+        elif _NoOpArchive.is_archive_type(filepath):
             Archive = _NoOpArchive
         else:
             raise ValueError("%s is not a QIIME archive." % filepath)
@@ -347,6 +347,24 @@ class Archiver:
             cls._futuristic_archive_error(filepath, archive)
 
         path = cls._make_temp_path()
+        rec = archive.mount(path)
+        return cls(path, Format(rec))
+
+    @classmethod
+    def load_cache(cls, filepath):
+        # TODO: We always want _NoOpArchive, so we may want to rework this.
+        # What I'm less certain of is whether this will be the only time we
+        # want no op. I suspect not given things like peek also use get_archive
+        # I suppose maybe you could peek on a thing in the cache and want a
+        # no op for that? Really not too sure, and rn the other methods don't
+        # even allow no op when they call this
+        archive = cls.get_archive(filepath)
+        Format = cls.get_format_class(archive.version)
+        if Format is None:
+            cls._futuristic_archive_error(filepath, archive)
+
+        path = pathlib.Path(filepath)
+
         rec = archive.mount(path)
         return cls(path, Format(rec))
 
@@ -415,8 +433,6 @@ class Archiver:
         # Archive = Archiver.get_archive(self.path)
         # Archive.save(self.path, filepath)
         self.CURRENT_ARCHIVE.save(self.path, filepath)
-        # Archive = Archiver.get_archive_type(self.path)
-        # Archive.save(self.path, filepath)
 
     def validate_checksums(self):
         if not isinstance(self._fmt, self.get_format_class('5')):
