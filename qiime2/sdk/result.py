@@ -295,9 +295,8 @@ class Artifact(Result):
             format_ = view_type
 
         provenance_capture = archive.ImportProvenanceCapture(format_, md5sums)
-        art = cls._from_view(type_, view, view_type, provenance_capture,
-                             validate_level='max')
-        return Result.save_cache(art)
+        return cls._from_view(type_, view, view_type, provenance_capture,
+                              validate_level='max')
 
     @classmethod
     def _from_view(cls, type, view, view_type, provenance_capture,
@@ -335,7 +334,7 @@ class Artifact(Result):
             type, output_dir_fmt,
             data_initializer=result.path._move_or_copy,
             provenance_capture=provenance_capture)
-        return artifact
+        return Result.save_cache(artifact)
 
     def view(self, view_type):
         return self._view(view_type)
