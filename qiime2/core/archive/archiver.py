@@ -7,8 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import collections
-from multiprocessing.dummy import Array
-import shutil
 import uuid as _uuid
 import pathlib
 import zipfile
@@ -73,11 +71,8 @@ class _Archive:
         raise NotImplementedError
 
     @classmethod
-    def setup(cls, path, version, framework_version):
-        uuid = _uuid.uuid4()
-
-        root_dir = path / str(uuid)
-        root_dir.mkdir()
+    def setup(cls, uuid, path, version, framework_version):
+        root_dir = path
         version_fp = root_dir / cls.VERSION_FILE
 
         version_fp.write_text(_VERSION_TEMPLATE % (version, framework_version))
@@ -151,7 +146,7 @@ class _ZipArchive(_Archive):
 
     @classmethod
     def save(cls, source, destination):
-        print(f'SOURCE: {source}\nDEST: {destination}')
+        parent_dir = os.path.split(source)[0]
         with zipfile.ZipFile(str(destination), mode='w',
                              compression=zipfile.ZIP_DEFLATED,
                              allowZip64=True) as zf:
@@ -165,7 +160,7 @@ class _ZipArchive(_Archive):
                         continue
 
                     abspath = pathlib.Path(root) / file
-                    relpath = abspath.relative_to(source)
+                    relpath = abspath.relative_to(parent_dir)
 
                     zf.write(str(abspath), arcname=cls._as_zip_path(relpath))
 
@@ -197,14 +192,16 @@ class _ZipArchive(_Archive):
 
     def extract(self, filepath):
         filepath = pathlib.Path(filepath)
+        assert os.path.basename(filepath) == str(self.uuid)
         with zipfile.ZipFile(str(self.path), mode='r') as zf:
             for name in zf.namelist():
                 if name.startswith(str(self.uuid)):
                     # extract removes `..` components, so as long as we extract
                     # into `filepath`, the path won't go backwards.
-                    zf.extract(name, path=str(filepath))
+                    # destination = '/'.join(name.split('/')[1:])
+                    zf.extract(name, path=str(filepath.parent))
 
-        return filepath / str(self.uuid)
+        return filepath
 
     @classmethod
     def _as_zip_path(self, path):
@@ -230,22 +227,6 @@ class _NoOpArchive(_Archive):
         """
         return os.path.basename(self.path)
 
-    @classmethod
-    def save(cls, source, destination):
-        path = Archiver._make_temp_path()
-        uuid = os.path.basename(source)
-
-        if not is_uuid4(uuid):
-            with open('/home/anthony/test.txt', mode='a') as fh:
-                fh.write(f'SOURCE: {source}\nDEST: {destination}\n')
-            print(f'SOURCE: {source}\nDEST: {destination}')
-            raise ValueError(f'NOT UUID4: {uuid}')
-
-        target = path / uuid
-        shutil.copytree(source, target)
-        _ZipArchive.save(path, destination)
-        # raise ValueError("UHHHHH DO WE EVER CALL THIS RN?")
-
     def relative_iterdir(self, relpath=''):
         seen = set()
         for name in os.listdir(str(self.path)):
@@ -264,7 +245,6 @@ class _NoOpArchive(_Archive):
 
 class Archiver:
     CURRENT_FORMAT_VERSION = '5'
-    CURRENT_ARCHIVE = _ZipArchive
     _FORMAT_REGISTRY = {
         # NOTE: add more archive formats as things change
         '0': 'qiime2.core.archive.format.v0:ArchiveFormat',
@@ -276,8 +256,18 @@ class Archiver:
     }
 
     @classmethod
-    def _make_temp_path(cls):
-        return qiime2.core.path.ArchivePath()
+    def _make_temp_path(cls, uuid):
+        from qiime2.core.cache import get_cache
+
+        cache = get_cache()
+        return cache._allocate(str(uuid))
+
+    @classmethod
+    def _destroy_temp_path(cls, uuid):
+        from qiime2.core.cache import get_cache
+
+        cache = get_cache()
+        cache.process_pool.remove(uuid)
 
     @classmethod
     def get_format_class(cls, version):
@@ -341,24 +331,38 @@ class Archiver:
     @classmethod
     def extract(cls, filepath, dest):
         archive = cls.get_archive(filepath)
+        dest = os.path.join(dest, str(archive.uuid))
+        os.makedirs(dest)
         # Format really doesn't matter, the archive knows how to extract so
         # that is sufficient, furthermore it would suck if something was wrong
         # with an archive's format and extract failed to actually extract.
         return str(archive.extract(dest))
 
+    # TODO: Change these to basically add themselves to the cache process pool
+    # to remove the methods from result. Add private method to cache that gets
+    # called with archiver and instantiates a result from that archiver which
+    # then saves to its process pool and call it in each of these three methods
+    # with the archiver they've built
     @classmethod
     def load(cls, filepath):
         archive = cls.get_archive(filepath)
-        Format = cls.get_format_class(archive.version)
-        if Format is None:
-            cls._futuristic_archive_error(filepath, archive)
+        path = cls._make_temp_path(archive.uuid)
 
-        path = cls._make_temp_path()
-        rec = archive.mount(path)
-        return cls(path, Format(rec))
+        try:
+            Format = cls.get_format_class(archive.version)
+            if Format is None:
+                cls._futuristic_archive_error(filepath, archive)
+
+            rec = archive.mount(path)
+            return cls(path, Format(rec))
+        # We really just want to kill this path if anything at all goes wrong
+        # Exceptions including keyboard interrupts are reraised
+        except:  # noqa: E722
+            cls._destroy_temp_path(archive.uuid)
+            raise
 
     @classmethod
-    def load_cache(cls, filepath):
+    def load_raw(cls, filepath):
         # TODO: We always want _NoOpArchive, so we may want to rework this.
         # What I'm less certain of is whether this will be the only time we
         # want no op. I suspect not given things like peek also use get_archive
@@ -377,14 +381,23 @@ class Archiver:
 
     @classmethod
     def from_data(cls, type, format, data_initializer, provenance_capture):
-        path = cls._make_temp_path()
-        rec = cls.CURRENT_ARCHIVE.setup(path, cls.CURRENT_FORMAT_VERSION,
-                                        qiime2.__version__)
+        uuid = _uuid.uuid4()
+        path = cls._make_temp_path(uuid)
 
-        Format = cls.get_format_class(cls.CURRENT_FORMAT_VERSION)
-        Format.write(rec, type, format, data_initializer, provenance_capture)
+        try:
+            rec = _Archive.setup(uuid, path, cls.CURRENT_FORMAT_VERSION,
+                                 qiime2.__version__)
 
-        return cls(path, Format(rec))
+            Format = cls.get_format_class(cls.CURRENT_FORMAT_VERSION)
+            Format.write(rec, type, format, data_initializer,
+                         provenance_capture)
+            format = Format(rec)
+            return cls(path, format)
+        # We really just want to kill this path if anything at all goes wrong
+        # Exceptions including keyboard interrupts are reraised
+        except:  # noqa: E722
+            cls._destroy_temp_path(uuid)
+            raise
 
     def __init__(self, path, fmt):
         self.path = path
@@ -419,9 +432,7 @@ class Archiver:
         return getattr(self._fmt, 'citations', cite.Citations())
 
     def save(self, filepath):
-        Archive = Archiver.get_archive_type(self.path)
-        Archive.save(self.path, filepath)
-        # self.CURRENT_ARCHIVE.save(self.path, filepath)
+        _ZipArchive.save(self.path, filepath)
 
     def validate_checksums(self):
         if not isinstance(self._fmt, self.get_format_class('5')):
@@ -441,7 +452,3 @@ class Archiver:
                    if exp[x] != obs[x]}
 
         return ChecksumDiff(added=added, removed=removed, changed=changed)
-
-    @property
-    def _destructor(self):
-        return self.path._destructor

@@ -121,6 +121,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
     def test_load_archive(self):
         fp = os.path.join(self.temp_dir.name, 'archive.zip')
         self.archiver.save(fp)
+        self.archiver.save('/home/anthony/Documents/work/qiime2/test.qza')
 
         archiver = Archiver.load(fp)
 
@@ -305,13 +306,14 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             Archiver.load(fp)
 
     def test_load_invalid_uuid4_root_dir(self):
+        _uuid = uuid.uuid4()
         fp = pathlib.Path(self.temp_dir.name) / 'invalid-uuid4'
         zp = pathlib.Path(self.temp_dir.name) / 'bad.zip'
-        fp.mkdir()
+        (fp / str(_uuid)).mkdir(parents=True)
         # Invalid uuid4 taken from https://gist.github.com/ShawnMilo/7777304
         root_dir = '89eb3586-8a82-47a4-c911-758a62601cf7'
 
-        record = _ZipArchive.setup(fp, 'foo', 'bar')
+        record = _ZipArchive.setup(_uuid, fp / str(_uuid), 'foo', 'bar')
         (fp / str(record.uuid)).rename(fp / root_dir)
         _ZipArchive.save(fp, zp)
 

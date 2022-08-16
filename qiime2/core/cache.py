@@ -26,6 +26,7 @@ import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
 from qiime2.core.util import is_uuid4
+from qiime2.core.archive.archiver import Archiver
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -75,6 +76,7 @@ def _get_process_pool_name():
     return f'{pid}-{time}@{user}'
 
 
+# TODO: maybe hand shutil.copytree qiime2.util.duplicate
 def _copy_to_data(cache, ref, destination):
     """Since copying the data was basically the same on cache.save and
     pool.save, I made this helper
@@ -374,8 +376,10 @@ class Cache:
         """Load the data pointed to by a key. Only works on a key that refers
         to a data item will error on a key that points to a pool
         """
-        return Result.load_cache(
-                self.data / yaml.safe_load(open(self.keys / key))['data'])
+        path = self.data / yaml.safe_load(open(self.keys / key))['data']
+
+        archiver = Archiver.load_raw(path)
+        return Result._from_archiver(archiver)
 
     def remove(self, key):
         """Remove a key from the cache then run garbage collection to remove
@@ -390,6 +394,14 @@ class Cache:
         """
         if os.path.exists(self.lockfile):
             os.remove(self.lockfile)
+
+    def _allocate(self, uuid):
+        self.process_pool._make_symlink(uuid)
+
+        path = self.data / uuid
+        if not os.path.exists(path):
+            os.mkdir(path)
+        return path
 
     @property
     def data(self):
@@ -466,23 +478,39 @@ class Pool:
         # Create the key before the data, this is so that if another thread or
         # process is running garbage collection it doesn't see our unkeyed data
         # and remove it leaving us with a dangling reference and no data
-        with self.cache.lock:
-            if not os.path.exists(self.path / str(ref.uuid)):
-                os.symlink(self.cache.data / str(ref.uuid),
-                           self.path / str(ref.uuid))
+        # with self.cache.lock:
+        #     if not os.path.exists(self.path / str(ref.uuid)):
+        #         os.symlink(self.cache.data / str(ref.uuid),
+        #                    self.path / str(ref.uuid))
+        self._make_symlink(str(ref.uuid))
 
         _copy_to_data(self.cache, ref, self.cache.data)
         return self.load(ref)
 
+    def _make_symlink(self, uuid):
+        with self.cache.lock:
+            if not os.path.exists(self.path / uuid):
+                os.symlink(self.cache.data / uuid, self.path / uuid)
+
     def load(self, ref):
         """Load a reference to an element in the pool
         """
-        return Result.load_cache(self.cache.data / str(ref.uuid))
+        path = self.cache.data / str(ref.uuid)
+
+        archiver = Archiver.load_raw(path)
+        return Result._from_archiver(archiver)
 
     def remove(self, ref):
         """Remove an element from the pool
         """
+        # Could receive an artifact or just a uuid
+        if is_uuid4(str(ref)):
+            uuid = str(ref)
+        else:
+            uuid = str(ref.uuid)
+
         # TODO: This guard should be removed when we rework the logic
-        if (self.path / str(ref.uuid)).exists():
-            os.remove(self.path / str(ref.uuid))
+        target = self.path / uuid
+        if target.exists():
+            os.remove(target)
             self.cache.garbage_collection()

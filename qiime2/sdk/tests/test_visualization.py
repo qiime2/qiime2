@@ -150,6 +150,7 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         visualization = Visualization._from_data_dir(
             self.data_dir, self.make_provenance_capture())
         visualization.save(fp1)
+        visualization.save('/home/anthony/Documents/work/qiime2/testviz.qzv')
 
         visualization1 = Visualization.load(fp1)
         visualization1.save(fp2)

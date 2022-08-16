@@ -64,9 +64,25 @@ class Result:
     def load(cls, filepath):
         """Factory for loading Artifacts and Visualizations."""
         archiver = archive.Archiver.load(filepath)
-        art = cls._from_archiver(archiver)
 
-        return cls.save_cache(art)
+        if Artifact._is_valid_type(archiver.type):
+            result = Artifact.__new__(Artifact)
+        elif Visualization._is_valid_type(archiver.type):
+            result = Visualization.__new__(Visualization)
+        else:
+            raise TypeError(
+                "Cannot load filepath %r into an Artifact or Visualization "
+                "because type %r is not supported."
+                % (filepath, archiver.type))
+
+        if type(result) is not cls and cls is not Result:
+            raise TypeError(
+                "Attempting to load %s with `%s.load`. Use `%s.load` instead."
+                % (type(result).__name__, cls.__name__,
+                   type(result).__name__))
+
+        result._archiver = archiver
+        return result
 
     @classmethod
     def _from_archiver(cls, archiver):
@@ -88,22 +104,6 @@ class Result:
 
         result._archiver = archiver
         return result
-
-    @classmethod
-    def save_cache(cls, result):
-        # Import here to prevent circular imports
-        from qiime2.core.cache import get_cache
-
-        cache = get_cache()
-        if cache.named_pool is not None:
-            cache.named_pool.save(result)
-
-        return cache.process_pool.save(result)
-
-    @classmethod
-    def load_cache(cls, filepath):
-        archiver = archive.Archiver.load_cache(filepath)
-        return cls._from_archiver(archiver)
 
     @property
     def type(self):
@@ -334,7 +334,7 @@ class Artifact(Result):
             type, output_dir_fmt,
             data_initializer=result.path._move_or_copy,
             provenance_capture=provenance_capture)
-        return Result.save_cache(artifact)
+        return artifact
 
     def view(self, view_type):
         return self._view(view_type)
@@ -403,7 +403,7 @@ class Visualization(Result):
             qiime2.core.type.Visualization, None,
             data_initializer=data_initializer,
             provenance_capture=provenance_capture)
-        return Result.save_cache(viz)
+        return viz
 
     def get_index_paths(self, relative=True):
         result = {}
