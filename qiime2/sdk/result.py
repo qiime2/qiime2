@@ -404,7 +404,7 @@ class Visualization(Result):
             qiime2.core.type.Visualization, None,
             data_initializer=data_initializer,
             provenance_capture=provenance_capture)
-        return viz
+        return Result.save_cache(viz)
 
     def get_index_paths(self, relative=True):
         result = {}
