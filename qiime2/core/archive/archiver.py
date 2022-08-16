@@ -198,7 +198,6 @@ class _ZipArchive(_Archive):
                 if name.startswith(str(self.uuid)):
                     # extract removes `..` components, so as long as we extract
                     # into `filepath`, the path won't go backwards.
-                    # destination = '/'.join(name.split('/')[1:])
                     zf.extract(name, path=str(filepath.parent))
 
         return filepath
@@ -291,21 +290,6 @@ class Archiver:
             raise ValueError("%s is not a QIIME archive." % filepath)
 
         return archive
-
-    @classmethod
-    def get_archive_type(cls, filepath):
-        filepath = pathlib.Path(filepath)
-        if not filepath.exists():
-            raise ValueError("%s does not exist." % filepath)
-
-        if _ZipArchive.is_archive_type(filepath):
-            Archive = _ZipArchive
-        elif _NoOpArchive.is_archive_type(filepath):
-            Archive = _NoOpArchive
-        else:
-            raise ValueError("%s is not a QIIME archive." % filepath)
-
-        return Archive
 
     @classmethod
     def _futuristic_archive_error(cls, filepath, archive):

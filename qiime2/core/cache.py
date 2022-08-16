@@ -188,16 +188,20 @@ class Cache:
         """
         __CACHE__.cache = self.backup
 
-    # TODO: This is only going to need to be a thing if we want worker
-    # processes to have their own process pools. I'm leaving it here as a
-    # skeleton for now, but if we decide we're cool with just having a process
-    # pool for the process that started QIIME 2 then we probably don't need
-    # anything like this
-    def get_process_pool(self):
-        """Before we save things into a process pool, we want to make sure we
-        actually have a pool for the process and use it
+    @classmethod
+    def is_cache(cls, path):
+        """Tells us if the path we were given is a cache
         """
-        pass
+        contents = set(os.listdir(path))
+        if not contents.issuperset(cls.base_cache_contents):
+            return False
+
+        regex = \
+            re.compile(
+                r"QIIME 2\ncache: \d+\nframework: 20\d\d\.")
+        with open(path / 'VERSION') as fh:
+            version_file = fh.read()
+            return regex.match(version_file) is not None
 
     def _create_cache(self):
         """Create the cache directory, all sub directories, and the version
@@ -272,21 +276,6 @@ class Cache:
         """
         for key in keys:
             self._register_key(key, pool_name, pool=True)
-
-    @classmethod
-    def is_cache(cls, path):
-        """Tells us if the path we were given is a cache
-        """
-        contents = set(os.listdir(path))
-        if not contents.issuperset(cls.base_cache_contents):
-            return False
-
-        regex = \
-            re.compile(
-                r"QIIME 2\ncache: \d+\nframework: 20\d\d\.")
-        with open(path / 'VERSION') as fh:
-            version_file = fh.read()
-            return regex.match(version_file) is not None
 
     def garbage_collection(self):
         """Runs garbage collection on the cache. We log all data and pools
@@ -388,9 +377,9 @@ class Cache:
         os.remove(self.keys / key)
         self.garbage_collection()
 
-    def clear_locks(self):
+    def clear_lock(self):
         """Clears the lock on the cache
-        NOTE: Forcibly removes the locks outside of the locking library's API
+        NOTE: Forcibly removes the lock outside of the locking library's API
         """
         if os.path.exists(self.lockfile):
             os.remove(self.lockfile)
@@ -475,13 +464,6 @@ class Pool:
         """Save the data into the pool then load a new ref backed by the data
         in the pool
         """
-        # Create the key before the data, this is so that if another thread or
-        # process is running garbage collection it doesn't see our unkeyed data
-        # and remove it leaving us with a dangling reference and no data
-        # with self.cache.lock:
-        #     if not os.path.exists(self.path / str(ref.uuid)):
-        #         os.symlink(self.cache.data / str(ref.uuid),
-        #                    self.path / str(ref.uuid))
         self._make_symlink(str(ref.uuid))
 
         _copy_to_data(self.cache, ref, self.cache.data)

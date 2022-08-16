@@ -151,7 +151,7 @@ class TestCache(unittest.TestCase):
 
         self.assertEqual(self.cache.lock.state, LockState.ours)
 
-        self.cache.clear_locks()
+        self.cache.clear_lock()
 
         self.assertEqual(self.cache.lock.state, LockState.unlocked)
 
