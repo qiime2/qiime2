@@ -467,8 +467,9 @@ class Pool:
         # process is running garbage collection it doesn't see our unkeyed data
         # and remove it leaving us with a dangling reference and no data
         with self.cache.lock:
-            os.symlink(self.cache.data / str(ref.uuid),
-                       self.path / str(ref.uuid))
+            if not os.path.exists(self.path / str(ref.uuid)):
+                os.symlink(self.cache.data / str(ref.uuid),
+                           self.path / str(ref.uuid))
 
         _copy_to_data(self.cache, ref, self.cache.data)
         return self.load(ref)
