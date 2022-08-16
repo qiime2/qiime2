@@ -121,7 +121,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
     def test_load_archive(self):
         fp = os.path.join(self.temp_dir.name, 'archive.zip')
         self.archiver.save(fp)
-        self.archiver.save('/home/anthony/Documents/work/qiime2/test.qza')
 
         archiver = Archiver.load(fp)
 
