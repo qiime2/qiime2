@@ -27,8 +27,7 @@ def get_dummy_plugin():
 class ArchiveTestingMixin:
     """Mixin for testing properties of archives created by Archiver."""
 
-    def assertArchiveMembers(self, archive_filepath, root_dir, expected,
-                             prepend_root=True):
+    def assertArchiveMembers(self, archive_filepath, root_dir, expected):
         """Assert members are in an archive.
         Parameters
         ----------
@@ -51,8 +50,7 @@ class ArchiveTestingMixin:
 
         # Path separator '/' is hardcoded because paths in the zipfile will
         # always use this separator.
-        if prepend_root:
-            expected = {root_dir + '/' + member for member in expected}
+        expected = {root_dir + '/' + member for member in expected}
 
         self.assertEqual(observed, expected)
 
