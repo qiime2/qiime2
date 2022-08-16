@@ -7,6 +7,8 @@
 # ----------------------------------------------------------------------------
 
 import collections
+from multiprocessing.dummy import Array
+import shutil
 import uuid as _uuid
 import pathlib
 import zipfile
@@ -230,7 +232,19 @@ class _NoOpArchive(_Archive):
 
     @classmethod
     def save(cls, source, destination):
-        raise ValueError("UHHHHH DO WE EVER CALL THIS RN?")
+        path = Archiver._make_temp_path()
+        uuid = os.path.basename(source)
+
+        if not is_uuid4(uuid):
+            with open('/home/anthony/test.txt', mode='a') as fh:
+                fh.write(f'SOURCE: {source}\nDEST: {destination}\n')
+            print(f'SOURCE: {source}\nDEST: {destination}')
+            raise ValueError(f'NOT UUID4: {uuid}')
+
+        target = path / uuid
+        shutil.copytree(source, target)
+        _ZipArchive.save(path, destination)
+        # raise ValueError("UHHHHH DO WE EVER CALL THIS RN?")
 
     def relative_iterdir(self, relpath=''):
         seen = set()
