@@ -9,7 +9,6 @@
 import re
 import os
 import stat
-from typing import Type
 import yaml
 import time
 import atexit
@@ -375,7 +374,8 @@ class Cache:
         except TypeError as e:
             raise ValueError(f"The key file '{key}' does not point to any "
                              "data. This most likely occured because you "
-                             "tried to load a pool which is not supported.")
+                             "tried to load a pool which is not supported.") \
+                from e
 
         archiver = Archiver.load_raw(path)
         ref = Result._from_archiver(archiver)

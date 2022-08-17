@@ -306,10 +306,10 @@ class TestCache(unittest.TestCase):
                     pass
 
     def test_loading_pool(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        self.cache.create_pool(keys=['pool'])
 
         with self.assertRaisesRegex(ValueError,
-                                    f"'pool' does not point to any data"):
+                                    "'pool' does not point to any data"):
             self.cache.load('pool')
 
     def test_access_data_with_deleted_key(self):
