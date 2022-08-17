@@ -232,6 +232,25 @@ class TestCache(unittest.TestCase):
         observed = _get_cache_contents(self.cache)
         self.assertEqual(expected, observed)
 
+    def test_no_dangling_ref(self):
+        ref = self.cache.save(self.art1, 'foo')
+        ref.validate()
+
+        # This would create a dangling ref if we were not properly saving
+        # things to the process pool when we save them with a cache key
+        self.cache.remove('foo')
+        ref.validate()
+
+    def test_no_dangling_ref_pool(self):
+        pool = self.cache.create_pool(keys=['pool'])
+        ref = pool.save(self.art1)
+        ref.validate()
+
+        # This would create a dangling ref if we were not properly saving
+        # things to the process pool when we save them to a named pool
+        self.cache.remove('pool')
+        ref.validate()
+
     # TODO: This test may need to go at some point
     def test_asynchronous_pool_post_exit(self):
         """This test determines if all of the data is still in the cache when
