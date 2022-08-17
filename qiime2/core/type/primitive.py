@@ -211,6 +211,10 @@ class Choices(_PrimitivePredicateBase):
         if len(choices) == 1:
             if not isinstance(choices[0], (bool, str)):
                 choices = choices[0]
+                if type(choices) is set:
+                    # Choices should sort the provided set so interfaces which
+                    # cache the type have a predictable order
+                    choices = sorted(choices)
 
         self.choices = choices = tuple(choices)
         if len(choices) != len(set(choices)):
