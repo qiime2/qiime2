@@ -58,7 +58,7 @@ def get_cache():
     # If we are on a new thread we may in fact not have a cache attribute here
     # at all
     if not hasattr(_CACHE, 'cache') or _CACHE.cache is None:
-        _CACHE.cache = Cache(None)
+        _CACHE.cache = Cache()
 
     return _CACHE.cache
 
