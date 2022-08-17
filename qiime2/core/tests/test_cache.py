@@ -283,6 +283,25 @@ class TestCache(unittest.TestCase):
                 with pool:
                     Artifact.import_data(IntSequence1, [0, 1, 2])
 
+    def test_enter_multiple_caches(self):
+        cache = Cache(os.path.join(self.test_dir.name, 'cache'))
+
+        with self.cache:
+            with self.assertRaisesRegex(ValueError,
+                                        'cannot enter multiple caches'):
+                with cache:
+                    pass
+
+    def test_enter_multiple_pools(self):
+        pool1 = self.cache.create_pool(keys=['pool1'])
+        pool2 = self.cache.create_pool(keys=['pool2'])
+
+        with pool1:
+            with self.assertRaisesRegex(ValueError,
+                                        'cannot enter multiple pools'):
+                with pool2:
+                    pass
+
     # TODO: This test may need to go at some point
     def test_asynchronous_pool_post_exit(self):
         """This test determines if all of the data is still in the cache when
