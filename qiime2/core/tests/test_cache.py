@@ -279,7 +279,8 @@ class TestCache(unittest.TestCase):
 
         with cache:
             with self.assertRaisesRegex(ValueError,
-                                        'pool that is not on cache'):
+                                        'pool that is not on the currently '
+                                        f'set cache.*{cache.path}'):
                 with pool:
                     Artifact.import_data(IntSequence1, [0, 1, 2])
 
