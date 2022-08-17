@@ -312,6 +312,29 @@ class TestCache(unittest.TestCase):
                                     f"'pool' does not point to any data"):
             self.cache.load('pool')
 
+    def test_access_data_with_deleted_key(self):
+        pool = self.cache.create_pool(keys=['pool'])
+
+        with self.cache:
+            with pool:
+                art = Artifact.import_data(IntSequence1, [0, 1, 2])
+                uuid = str(art.uuid)
+
+        art = self.cache.save(art, 'a')
+        art.validate()
+        self.assertIn(uuid, os.listdir(self.cache.data))
+        self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
+
+        art = self.cache.load('a')
+        art.validate()
+        self.assertIn(uuid, os.listdir(self.cache.data))
+        self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
+
+        self.cache.remove('a')
+        art.validate()
+        self.assertIn(uuid, os.listdir(self.cache.data))
+        self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
+
     # TODO: This test may need to go at some point
     def test_asynchronous_pool_post_exit(self):
         """This test determines if all of the data is still in the cache when

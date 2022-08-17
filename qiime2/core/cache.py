@@ -348,11 +348,6 @@ class Cache:
             self._register_key(key, str(ref.uuid))
 
         _copy_to_data(self, ref, self.data)
-
-        # We want this ref to also be backed by the proces pool so for the
-        # duration of this process we still have access to it even if we delete
-        # the key
-        self.process_pool.save(ref)
         return self.load(key)
 
     def _register_key(self, key, value, pool=False):
@@ -383,7 +378,15 @@ class Cache:
                              "tried to load a pool which is not supported.")
 
         archiver = Archiver.load_raw(path)
-        return Result._from_archiver(archiver)
+        ref = Result._from_archiver(archiver)
+
+        # We want this ref to also be backed by the proces pool and named pool
+        # if we have one so for the duration of this process we still have
+        # access to it even if we delete the key
+        if self.named_pool:
+            self.named_pool.save(ref)
+
+        return self.process_pool.save(ref)
 
     def remove(self, key):
         """Remove a key from the cache then run garbage collection to remove
@@ -496,14 +499,6 @@ class Pool:
         self._make_symlink(str(ref.uuid))
 
         _copy_to_data(self.cache, ref, self.cache.data)
-
-        # If we are saving something to a named pool, we also want to make sure
-        # it goes into the process pool. If we are the process pool we should
-        # be the same object that is stored on the cache, but to be 100% safe I
-        # am comparing paths not objects
-        if not self.path == self.cache.process_pool.path:
-            self.cache.process_pool.save(ref)
-
         return self.load(ref)
 
     def _make_symlink(self, uuid):
@@ -517,7 +512,16 @@ class Pool:
         path = self.cache.data / str(ref.uuid)
 
         archiver = Archiver.load_raw(path)
-        return Result._from_archiver(archiver)
+        ref = Result._from_archiver(archiver)
+
+        # If we are saving something to a named pool, we also want to make sure
+        # it goes into the process pool. If we are the process pool we should
+        # be the same object that is stored on the cache, but to be 100% safe I
+        # am comparing paths not objects
+        if not self.path == self.cache.process_pool.path:
+            self.cache.process_pool.save(ref)
+
+        return ref
 
     def remove(self, ref):
         """Remove an element from the pool
