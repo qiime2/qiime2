@@ -58,7 +58,7 @@ def get_cache():
     # If we are on a new thread we may in fact not have a cache attribute here
     # at all
     if not hasattr(_CACHE, 'cache') or _CACHE.cache is None:
-        _CACHE.cache = Cache()
+        return Cache()
 
     return _CACHE.cache
 
@@ -179,14 +179,18 @@ class Cache:
     def __enter__(self):
         """Set this cache on the thread local
         """
-        self.backup = _CACHE.cache
+        if _CACHE.cache is not None:
+            raise ValueError("You cannot enter multiple caches at once, "
+                             "currently entered cache is located at: "
+                             f"'{_CACHE.cache.path}'")
+
         _CACHE.cache = self
 
     def __exit__(self, *args):
         """Set the thread local back to whatever cache it was using before this
         one
         """
-        _CACHE.cache = self.backup
+        _CACHE.cache = None
 
     @classmethod
     def is_cache(cls, path):
@@ -458,14 +462,26 @@ class Pool:
     def __enter__(self):
         """Set this pool to be our named pool on the current cache
         """
-        self.old_pool = self.cache.named_pool
+        if _CACHE.cache is not None and _CACHE.cache.path != self.cache.path:
+            raise ValueError('Cannot enter a pool that is not on the '
+                             'currently set cache. The current cache is '
+                             f'located at: {_CACHE.cache.path}')
+        else:
+            _CACHE.cache = self.cache
+
+        if self.cache.named_pool is not None:
+            raise ValueError("You cannot enter multiple pools at once, "
+                             "currently entered pool is located at: "
+                             f"'{self.cache.named_pool.path}'")
+
         self.cache.named_pool = self
 
     def __exit__(self, *args):
         """Set the named pool on the current cache back to whatever it was
         before this one
         """
-        self.cache.named_pool = self.old_pool
+        _CACHE.cache = None
+        self.cache.named_pool = None
 
     def save(self, ref):
         """Save the data into the pool then load a new ref backed by the data
