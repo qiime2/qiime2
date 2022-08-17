@@ -343,6 +343,11 @@ class Cache:
             self._register_key(key, str(ref.uuid))
 
         _copy_to_data(self, ref, self.data)
+
+        # We want this ref to also be backed by the proces pool so for the
+        # duration of this process we still have access to it even if we delete
+        # the key
+        self.process_pool.save(ref)
         return self.load(key)
 
     def _register_key(self, key, value, pool=False):
@@ -467,6 +472,14 @@ class Pool:
         self._make_symlink(str(ref.uuid))
 
         _copy_to_data(self.cache, ref, self.cache.data)
+
+        # If we are saving something to a named pool, we also want to make sure
+        # it goes into the process pool. If we are the process pool we should
+        # be the same object that is stored on the cache, but to be 100% safe I
+        # # am comparing paths not objects
+        if not self.path == self.cache.process_pool.path:
+            self.cache.process_pool.save(ref)
+
         return self.load(ref)
 
     def _make_symlink(self, uuid):

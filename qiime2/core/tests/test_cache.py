@@ -180,7 +180,8 @@ class TestCache(unittest.TestCase):
         expected_post_gc_contents = \
             set(('./VERSION', 'keys/foo', 'keys/bar',
                  f'pools/bar/{self.art2.uuid}',
-                 f'data/{self.art1.uuid}', f'data/{self.art2.uuid}'))
+                 f'data/{self.art1.uuid}', f'data/{self.art2.uuid}',
+                 f'data/{self.art3.uuid}', f'data/{self.art4.uuid}'))
 
         # Assert cache looks how we want pre gc
         pre_gc_contents = _get_cache_contents(self.cache)
