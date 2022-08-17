@@ -187,11 +187,8 @@ class TestCache(unittest.TestCase):
         self.assertEqual(expected_pre_gc_contents, pre_gc_contents)
 
         # Delete keys
-        os.remove(self.cache.keys / 'baz')
-        os.remove(self.cache.keys / 'qux')
-
-        # Run gc
-        self.cache.garbage_collection()
+        self.cache.remove(self.cache.keys / 'baz')
+        self.cache.remove(self.cache.keys / 'qux')
 
         # Assert cache looks how we want post gc
         post_gc_contents = _get_cache_contents(self.cache)
