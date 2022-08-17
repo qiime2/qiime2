@@ -305,6 +305,13 @@ class TestCache(unittest.TestCase):
                 with pool2:
                     pass
 
+    def test_loading_pool(self):
+        pool = self.cache.create_pool(keys=['pool'])
+
+        with self.assertRaisesRegex(ValueError,
+                                    f"'pool' does not point to any data"):
+            self.cache.load('pool')
+
     # TODO: This test may need to go at some point
     def test_asynchronous_pool_post_exit(self):
         """This test determines if all of the data is still in the cache when

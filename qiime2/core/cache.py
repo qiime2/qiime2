@@ -9,6 +9,7 @@
 import re
 import os
 import stat
+from typing import Type
 import yaml
 import time
 import atexit
@@ -374,7 +375,12 @@ class Cache:
         """Load the data pointed to by a key. Only works on a key that refers
         to a data item will error on a key that points to a pool
         """
-        path = self.data / yaml.safe_load(open(self.keys / key))['data']
+        try:
+            path = self.data / yaml.safe_load(open(self.keys / key))['data']
+        except TypeError as e:
+            raise ValueError(f"The key file '{key}' does not point to any "
+                             "data. This most likely occured because you "
+                             "tried to load a pool which is not supported.")
 
         archiver = Archiver.load_raw(path)
         return Result._from_archiver(archiver)
