@@ -144,7 +144,7 @@ class Cache:
     # The files and folders you expect to see at the top level of a cache
     base_cache_contents = set(('data', 'keys', 'pools', 'process', 'VERSION'))
 
-    def __init__(self, path, process_pool_lifespan=1):
+    def __init__(self, path=None, process_pool_lifespan=1):
         """Creates a cache object backed by the directory specified by path. If
         no path is provided it gets a path to a temp cache.
         """
