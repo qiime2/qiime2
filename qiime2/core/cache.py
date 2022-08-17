@@ -44,8 +44,8 @@ pool:
 """
 
 # Thread local indicating the cache to use
-__CACHE__ = threading.local()
-__CACHE__.cache = None
+_CACHE = threading.local()
+_CACHE.cache = None
 
 # TODO: Do we want this on the threadlocal? I feel like maybe we do
 # Keep track of every cache used by this process for cleanup later
@@ -57,10 +57,10 @@ def get_cache():
     """
     # If we are on a new thread we may in fact not have a cache attribute here
     # at all
-    if not hasattr(__CACHE__, 'cache') or __CACHE__.cache is None:
-        __CACHE__.cache = Cache(None)
+    if not hasattr(_CACHE, 'cache') or _CACHE.cache is None:
+        _CACHE.cache = Cache(None)
 
-    return __CACHE__.cache
+    return _CACHE.cache
 
 
 def _get_process_pool_name():
@@ -179,14 +179,14 @@ class Cache:
     def __enter__(self):
         """Set this cache on the thread local
         """
-        self.backup = __CACHE__.cache
-        __CACHE__.cache = self
+        self.backup = _CACHE.cache
+        _CACHE.cache = self
 
     def __exit__(self, *args):
         """Set the thread local back to whatever cache it was using before this
         one
         """
-        __CACHE__.cache = self.backup
+        _CACHE.cache = self.backup
 
     @classmethod
     def is_cache(cls, path):
