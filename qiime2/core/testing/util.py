@@ -29,6 +29,7 @@ class ArchiveTestingMixin:
 
     def assertArchiveMembers(self, archive_filepath, root_dir, expected):
         """Assert members are in an archive.
+
         Parameters
         ----------
         archive_filepath : str or Path
@@ -42,6 +43,7 @@ class ArchiveTestingMixin:
         expected : set of str
             Set of expected archive members stored as paths relative to
             `root_dir`.
+
         """
         archive_filepath = str(archive_filepath)
         root_dir = str(root_dir)
@@ -56,6 +58,7 @@ class ArchiveTestingMixin:
 
     def assertExtractedArchiveMembers(self, extract_dir, root_dir, expected):
         """Assert an archive's members are extracted to a directory.
+
         Parameters
         ----------
         extract_dir : str or Path
@@ -68,6 +71,7 @@ class ArchiveTestingMixin:
         expected : set of str
             Set of expected archive members extracted to `extract_dir`. Stored
             as paths relative to `root_dir`.
+
         """
         extract_dir = str(extract_dir)
         root_dir = str(root_dir)
@@ -84,8 +88,11 @@ class ArchiveTestingMixin:
 
 class ReallyEqualMixin:
     """Mixin for testing implementations of __eq__/__ne__.
+
     Based on this public domain code (also explains why the mixin is useful):
+
     https://ludios.org/testing-your-eq-ne-cmp/
+
     """
 
     def assertReallyEqual(self, a, b):
