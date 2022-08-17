@@ -391,6 +391,8 @@ class Cache:
 
     def _allocate(self, uuid):
         self.process_pool._make_symlink(uuid)
+        if self.named_pool:
+            self.named_pool._make_symlink(uuid)
 
         path = self.data / uuid
         if not os.path.exists(path):
