@@ -251,6 +251,38 @@ class TestCache(unittest.TestCase):
         self.cache.remove('pool')
         ref.validate()
 
+    def test_pool(self):
+        pool = self.cache.create_pool(keys=['pool'])
+
+        # Create an artifact in the cache and the pool
+        with self.cache:
+            with pool:
+                ref = Artifact.import_data(IntSequence1, [0, 1, 2])
+
+        uuid = str(ref.uuid)
+        self.assertIn(uuid, os.listdir(self.cache.data))
+        self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
+
+    def test_pool_no_cache_set(self):
+        pool = self.cache.create_pool(keys=['pool'])
+
+        with pool:
+            ref = Artifact.import_data(IntSequence1, [0, 1, 2])
+
+        uuid = str(ref.uuid)
+        self.assertIn(uuid, os.listdir(self.cache.data))
+        self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
+
+    def test_pool_wrong_cache_set(self):
+        cache = Cache(os.path.join(self.test_dir.name, 'cache'))
+        pool = self.cache.create_pool(keys=['pool'])
+
+        with cache:
+            with self.assertRaisesRegex(ValueError,
+                                        'pool that is not on cache'):
+                with pool:
+                    Artifact.import_data(IntSequence1, [0, 1, 2])
+
     # TODO: This test may need to go at some point
     def test_asynchronous_pool_post_exit(self):
         """This test determines if all of the data is still in the cache when
