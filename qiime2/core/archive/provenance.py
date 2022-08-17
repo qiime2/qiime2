@@ -323,7 +323,7 @@ class ProvenanceCapture:
         # condition on `rename`, so fall back to copying.
         try:
             os.rename(self.path, final_path)
-        except FileExistsError:
+        except (FileExistsError, OSError[18]):
             distutils.dir_util.copy_tree(str(self.path), str(final_path))
             distutils.dir_util.remove_tree(str(self.path))
 
