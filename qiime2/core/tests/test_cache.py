@@ -288,7 +288,8 @@ class TestCache(unittest.TestCase):
 
         with self.cache:
             with self.assertRaisesRegex(ValueError,
-                                        'cannot enter multiple caches'):
+                                        'cannot enter multiple caches.*'
+                                        f'{self.cache.path}'):
                 with cache:
                     pass
 
@@ -298,7 +299,8 @@ class TestCache(unittest.TestCase):
 
         with pool1:
             with self.assertRaisesRegex(ValueError,
-                                        'cannot enter multiple pools'):
+                                        'cannot enter multiple pools.*'
+                                        f'{pool1.path}'):
                 with pool2:
                     pass
 
