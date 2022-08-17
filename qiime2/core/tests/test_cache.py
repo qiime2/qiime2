@@ -54,7 +54,7 @@ def _get_cache_contents(cache):
 def _on_exit_validate(cache, expected):
     observed = _get_cache_contents(cache)
     cache.remove(TEST_POOL)
-    assert observed == expected
+    assert expected.issubset(observed)
 
 
 class TestCache(unittest.TestCase):
