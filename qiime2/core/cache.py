@@ -245,8 +245,11 @@ class Cache:
         # Make sure the sticky bit is set on the cache directory. Documentation
         # on what a sitcky bit is found here
         # https://docs.python.org/3/library/stat.html#stat.S_ISVTX
+        # We also set read/write/execute permissions for everyone on this
+        # directory
         permissions = os.stat(cache_dir).st_mode
-        sticky_permissions = permissions | stat.S_ISVTX
+        sticky_permissions = permissions | stat.S_ISVTX | stat.S_IRWXU | \
+            stat.S_IRGRP | stat.S_IRWXO
         os.chmod(cache_dir, sticky_permissions)
 
         user_path = os.path.join(TMPDIR, 'qiime2', USER)
