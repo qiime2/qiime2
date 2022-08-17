@@ -476,7 +476,7 @@ class Pool:
         # If we are saving something to a named pool, we also want to make sure
         # it goes into the process pool. If we are the process pool we should
         # be the same object that is stored on the cache, but to be 100% safe I
-        # # am comparing paths not objects
+        # am comparing paths not objects
         if not self.path == self.cache.process_pool.path:
             self.cache.process_pool.save(ref)
 
