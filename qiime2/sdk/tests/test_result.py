@@ -20,6 +20,7 @@ import qiime2.core.exceptions as exceptions
 from qiime2.core.testing.type import FourInts
 from qiime2.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 from qiime2.core.testing.visualizer import mapping_viz
+from qiime2.core.util import set_permissions
 
 
 class TestResult(unittest.TestCase, ArchiveTestingMixin):
@@ -457,6 +458,11 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
     def test_validate_artifact_bad(self):
         artifact = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
+        # We set everything in the artifact to be read-only. This test needs to
+        # mimic if the user were to somehow write it anyway, so we set write
+        # for self and group
+        set_permissions(artifact._archiver.root_dir, 0o775, 0o775)
+
         with (artifact._archiver.root_dir / 'extra.file').open('w') as fh:
             fh.write('uh oh')
 
@@ -474,6 +480,11 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
     def test_validate_vizualization_bad(self):
         visualization = Visualization._from_data_dir(
              self.data_dir, self.make_provenance_capture())
+
+        # We set everything in the artifact to be read-only. This test needs to
+        # mimic if the user were to somehow write it anyway, so we set write
+        # for self and group
+        set_permissions(visualization._archiver.root_dir, 0o775, 0o775)
 
         with (visualization._archiver.root_dir / 'extra.file').open('w') as fh:
             fh.write('uh oh')

@@ -95,7 +95,7 @@ def _copy_to_data(cache, ref):
         else:
             shutil.copytree(ref._archiver.path, cache.data, dirs_exist_ok=True)
 
-    set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
+        set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
 
 
 @atexit.register
@@ -342,7 +342,10 @@ class Cache:
                 assert is_uuid4(data)
 
                 if data not in referenced_data:
-                    shutil.rmtree(self.data / data, ignore_errors=True)
+                    target = self.data / data
+
+                    set_permissions(target, 0o777, 0o777)
+                    shutil.rmtree(target)
 
     def save(self, ref, key):
         """Create our key then create our data. Returns a version of the data

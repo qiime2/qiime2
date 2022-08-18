@@ -188,7 +188,17 @@ class _ZipArchive(_Archive):
     def mount(self, filepath):
         # TODO: use FUSE/MacFUSE/Dokany bindings (many Python bindings are
         # outdated, we may need to take up maintenance/fork)
-        root = self.extract(filepath)
+
+        # We will have already allocated filepath at this point, we check if
+        # the VERSION file exists to determine whether or not we have alredy
+        # written to the allocated directory. This is relevant when you try to
+        # load an artifact that is already in the cache because data/<uuid>
+        # will be read only, so attempting to extract there will error. We also
+        # just don't need to put the data there again if it is already there
+        if not os.path.exists(filepath / 'VERSION'):
+            self.extract(filepath)
+
+        root = filepath
         return ArchiveRecord(root, root / self.VERSION_FILE,
                              self.uuid, self.version, self.framework_version)
 

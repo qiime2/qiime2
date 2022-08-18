@@ -335,6 +335,11 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.data))
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
+    def test_two_caches_same_name(self):
+        dup_cache = Cache(os.path.join(self.test_dir.name, 'new_cache'))
+
+        
+
     # TODO: This test may need to go at some point
     def test_asynchronous_pool_post_exit(self):
         """This test determines if all of the data is still in the cache when
@@ -374,3 +379,12 @@ class TestCache(unittest.TestCase):
                                     f"Permission denied: '{target}'"):
             with open(target, mode='a') as fh:
                 fh.write('gonna mess up ur metadata')
+
+    def test_surreptitiously_add_file(self):
+        self.cache.save(self.art1, 'a')
+        target = self.cache.data / str(self.art1.uuid) / 'extra.file'
+
+        with self.assertRaisesRegex(PermissionError,
+                            f"Permission denied: '{target}'"):
+            with open(target, mode='w') as fh:
+                fh.write('extra file')

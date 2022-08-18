@@ -9,6 +9,7 @@
 import os
 import tempfile
 import unittest
+import shutil
 import uuid
 import zipfile
 import pathlib
@@ -20,7 +21,7 @@ from qiime2.core.archive.format.util import artifact_version
 from qiime2.core.testing.format import IntSequenceDirectoryFormat
 from qiime2.core.testing.type import IntSequence1
 from qiime2.core.testing.util import ArchiveTestingMixin
-from qiime2.core.util import is_uuid4
+from qiime2.core.util import is_uuid4, set_permissions
 
 
 class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
@@ -177,63 +178,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                           for p in archiver.data_dir.iterdir()},
                          {'ints.txt'})
 
-    def test_load_ignores_directory_members(self):
-        # Directory members aren't created by Python's zipfile module but can
-        # be present if the archive is unzipped and then rezipped, for example,
-        # using a command-line zip program.
-        fp = os.path.join(self.temp_dir.name, 'archive.zip')
-        self.archiver.save(fp)
-
-        # Add directory entries to the archive.
-        root_dir = str(self.archiver.uuid)
-        with zipfile.ZipFile(fp, mode='a') as zf:
-            zf.writestr('%s/' % root_dir, "")
-            zf.writestr('%s/data/' % root_dir, "")
-            zf.writestr('%s/data/nested/' % root_dir, "")
-            zf.writestr('%s/data/nested/foo.txt' % root_dir, "bar")
-
-        # Assert the expected files exist in the archive to verify this test
-        # case is testing what we want it to.
-        expected = {
-            '',  # Expected path: `root_dir`/
-            'data/',
-            'data/nested/',
-            'VERSION',
-            'checksums.md5',
-            'metadata.yaml',
-            'data/ints.txt',
-            'data/nested/foo.txt',
-            'provenance/metadata.yaml',
-            'provenance/VERSION',
-            'provenance/citations.bib',
-            'provenance/action/action.yaml'
-        }
-
-        self.assertArchiveMembers(fp, root_dir, expected)
-
-        archiver = Archiver.load(fp)
-
-        self.assertEqual(archiver.uuid, self.archiver.uuid)
-        self.assertEqual(archiver.type, IntSequence1)
-        self.assertEqual(archiver.format, IntSequenceDirectoryFormat)
-
-        archiver.save(fp)
-
-        root_dir = str(archiver.uuid)
-        expected = {
-            # Directory entries should not be present.
-            'VERSION',
-            'checksums.md5',
-            'metadata.yaml',
-            'data/ints.txt',
-            'data/nested/foo.txt',
-            'provenance/metadata.yaml',
-            'provenance/VERSION',
-            'provenance/citations.bib',
-            'provenance/action/action.yaml'
-        }
-
-        self.assertArchiveMembers(fp, root_dir, expected)
 
     def test_load_empty_archive(self):
         fp = os.path.join(self.temp_dir.name, 'empty.zip')
@@ -348,6 +292,10 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(diff.changed, {})
 
     def test_checksums_mismatch(self):
+        # We set everything in the artifact to be read-only. This test needs to
+        # mimic if the user were to somehow write it anyway, so we set write
+        # for self and group
+        set_permissions(self.archiver.root_dir, 0o775, 0o775)
         with (self.archiver.root_dir / 'data' / 'ints.txt').open('w') as fh:
             fh.write('999\n')
         with (self.archiver.root_dir / 'tamper.txt').open('w') as fh:

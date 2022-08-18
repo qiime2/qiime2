@@ -278,11 +278,13 @@ def is_uuid4(uuid_str):
     return str(uuid) == uuid_str
 
 
-def set_permissions(path, file_permissions, dir_permissions):
+def set_permissions(path, file_permissions=None, dir_permissions=None):
     """Set permissions on all directories and files under and including path
     """
     for directory, _, files in os.walk(path):
-        os.chmod(directory, dir_permissions)
+        if dir_permissions:
+            os.chmod(directory, dir_permissions)
 
         for file in files:
-            os.chmod(os.path.join(directory, file), file_permissions)
+            if file_permissions:
+                os.chmod(os.path.join(directory, file), file_permissions)
