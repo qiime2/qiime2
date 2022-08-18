@@ -104,7 +104,7 @@ def _exit_cleanup():
     by this process then run garbage collection
     """
     for cache in USED_CACHES:
-        target = cache.process / os.path.basename(cache.process_pool.path)
+        target = cache.processes / os.path.basename(cache.process_pool.path)
 
         # There are several legitimate reasons the path could not exist. It
         # happens during our cache tests when the entire cache is nuked in the
@@ -141,7 +141,7 @@ class Cache:
     │   └── puuid1
     │       ├── uuid2 -> ../../data/uuid2/
     │       └── uuid3 -> ../../data/uuid3/
-    ├── process
+    ├── processes
     ├── tmp
     └── VERSION
     Process folder contains pid-created_at@host some kinda reference to
@@ -154,7 +154,8 @@ class Cache:
     CURRENT_FORMAT_VERSION = '1'
 
     # The files and folders you expect to see at the top level of a cache
-    base_cache_contents = set(('data', 'keys', 'pools', 'process', 'VERSION'))
+    base_cache_contents = \
+        set(('data', 'keys', 'pools', 'processes', 'VERSION'))
 
     def __init__(self, path=None, process_pool_lifespan=45):
         """Creates a cache object backed by the directory specified by path. If
@@ -225,10 +226,10 @@ class Cache:
         """
         # Construct the cache root recursively
         os.makedirs(self.path)
-        os.mkdir(self.path / 'data')
-        os.mkdir(self.path / 'keys')
-        os.mkdir(self.path / 'pools')
-        os.mkdir(self.path / 'process')
+        os.mkdir(self.data)
+        os.mkdir(self.keys)
+        os.mkdir(self.pools)
+        os.mkdir(self.processes)
         # Do we want this right off the bat? How exactly is setting tmp in the
         # cache going to work? tmp is never going to be managed by the cache,
         # it's just so they're both on the same disk, so they'll probably just
@@ -332,15 +333,15 @@ class Cache:
                         referenced_data.add(data)
 
             # Add references to data in process pools
-            for process_pool in os.listdir(self.process):
+            for process_pool in os.listdir(self.processes):
                 # Pick the creation time out of the pool name of format
                 # {pid}-time@user
                 create_time = float(process_pool.split('-')[1].split('@')[0])
 
                 if time.time() - create_time >= self.process_pool_lifespan:
-                    shutil.rmtree(self.process / process_pool)
+                    shutil.rmtree(self.processes / process_pool)
                 else:
-                    for data in os.listdir(self.process / process_pool):
+                    for data in os.listdir(self.processes / process_pool):
                         referenced_data.add(data)
 
             # Walk over all data and remove any that was not referenced
@@ -447,8 +448,8 @@ class Cache:
         return self.path / 'pools'
 
     @property
-    def process(self):
-        return self.path / 'process'
+    def processes(self):
+        return self.path / 'processes'
 
     @property
     def version(self):
@@ -474,7 +475,7 @@ class Pool:
         # pid-process_start_time@user
         else:
             self.name = _get_process_pool_name()
-            self.path = cache.process / self.name
+            self.path = cache.processes / self.name
 
         # Raise a value error if we thought we were making a new pool but
         # actually are not
