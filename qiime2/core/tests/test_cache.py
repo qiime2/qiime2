@@ -19,7 +19,7 @@ from qiime2.core.testing.type import IntSequence1, IntSequence2
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
 
-TEST_POOL = '__TEST_POOL__'
+TEST_POOL = '__TEST_FAILURE__'
 
 
 # TODO: Check process contents too
@@ -225,8 +225,8 @@ class TestCache(unittest.TestCase):
         result = result[0]
 
         expected = set((
-            './VERSION', f'data/{result._archiver.uuid}', 'keys/__TEST_POOL__',
-            f'pools/__TEST_POOL__/{result._archiver.uuid}'
+            './VERSION', f'data/{result._archiver.uuid}', f'keys/{TEST_POOL}',
+            f'pools/{TEST_POOL}/{result._archiver.uuid}'
         ))
 
         observed = _get_cache_contents(self.cache)
@@ -338,7 +338,7 @@ class TestCache(unittest.TestCase):
     def test_two_caches_same_name(self):
         dup_cache = Cache(os.path.join(self.test_dir.name, 'new_cache'))
 
-        
+
 
     # TODO: This test may need to go at some point
     def test_asynchronous_pool_post_exit(self):
@@ -363,8 +363,8 @@ class TestCache(unittest.TestCase):
         result = result[0]
 
         expected = set((
-            './VERSION', f'data/{result._archiver.uuid}', 'keys/__TEST_POOL__',
-            f'pools/__TEST_POOL__/{result._archiver.uuid}'
+            './VERSION', f'data/{result._archiver.uuid}', f'keys/{TEST_POOL}',
+            f'pools/{TEST_POOL}/{result._archiver.uuid}'
         ))
 
         atexit.unregister(_exit_cleanup)
