@@ -352,7 +352,7 @@ class Cache:
                 if data not in referenced_data:
                     target = self.data / data
 
-                    set_permissions(target, ALL_PERMISSIONS, ALL_PERMISSIONS)
+                    set_permissions(target, None, ALL_PERMISSIONS)
                     shutil.rmtree(target)
 
     def save(self, ref, key):
