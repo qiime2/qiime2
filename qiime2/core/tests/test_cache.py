@@ -11,6 +11,7 @@ import atexit
 import tempfile
 import unittest
 
+import pytest
 from flufl.lock import LockState
 
 import qiime2
@@ -366,6 +367,7 @@ class TestCache(unittest.TestCase):
         atexit.register(_on_exit_validate, cache, expected)
         atexit.register(_exit_cleanup)
 
+    @pytest.mark.skipif(os.geteuid() == 0, reason="super user always wins")
     def test_surreptitiously_write_artifact(self):
         self.cache.save(self.art1, 'a')
         target = self.cache.data / str(self.art1.uuid) / 'metadata.yaml'
@@ -375,6 +377,7 @@ class TestCache(unittest.TestCase):
             with open(target, mode='a') as fh:
                 fh.write('gonna mess up ur metadata')
 
+    @pytest.mark.skipif(os.geteuid() == 0, reason="super user always wins")
     def test_surreptitiously_add_file(self):
         self.cache.save(self.art1, 'a')
         target = self.cache.data / str(self.art1.uuid) / 'extra.file'
