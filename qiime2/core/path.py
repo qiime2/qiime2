@@ -113,8 +113,7 @@ class InternalDirectory(_ConcretePath):
     def _destruct(cls, path):
         """DO NOT USE DIRECTLY, use `_destructor()` instead"""
         if os.path.exists(path):
-            set_permissions(path, file_permissions=None,
-                            dir_permissions=ALL_PERMISSIONS)
+            set_permissions(path, None, ALL_PERMISSIONS)
             shutil.rmtree(path)
 
     @classmethod
