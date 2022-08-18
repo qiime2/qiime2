@@ -104,8 +104,7 @@ def _exit_cleanup():
     by this process then run garbage collection
     """
     for cache in USED_CACHES:
-        process_pool = _get_process_pool_name()
-        target = cache.process / process_pool
+        target = cache.process / os.path.basename(cache.process_pool.path)
 
         # There are several legitimate reasons the path could not exist. It
         # happens during our cache tests when the entire cache is nuked in the
@@ -184,7 +183,7 @@ class Cache:
     def __enter__(self):
         """Set this cache on the thread local
         """
-        if _CACHE.cache is not None:
+        if _CACHE.cache is not None and _CACHE.cache.path != self.path:
             raise ValueError("You cannot enter multiple caches at once, "
                              "currently entered cache is located at: "
                              f"'{_CACHE.cache.path}'")
@@ -487,6 +486,7 @@ class Pool:
                              'currently set cache. The current cache is '
                              f'located at: {_CACHE.cache.path}')
         else:
+            self.previously_entered_cache = _CACHE.cache
             _CACHE.cache = self.cache
 
         if self.cache.named_pool is not None:
@@ -500,7 +500,7 @@ class Pool:
         """Set the named pool on the current cache back to whatever it was
         before this one
         """
-        _CACHE.cache = None
+        _CACHE.cache = self.previously_entered_cache
         self.cache.named_pool = None
 
     def save(self, ref):
