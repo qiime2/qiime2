@@ -9,7 +9,6 @@
 import os
 import tempfile
 import unittest
-import shutil
 import uuid
 import zipfile
 import pathlib
@@ -177,7 +176,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual({str(p.relative_to(archiver.data_dir))
                           for p in archiver.data_dir.iterdir()},
                          {'ints.txt'})
-
 
     def test_load_empty_archive(self):
         fp = os.path.join(self.temp_dir.name, 'empty.zip')
