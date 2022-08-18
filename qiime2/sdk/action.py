@@ -23,7 +23,7 @@ from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 
 def _subprocess_apply(action, ctx, args, kwargs):
     # We with in the cache here to make sure archiver.load* puts things in the
-    # right cache and to transfer the cache to the new process on Mac correctly
+    # right cache
     with ctx.cache:
         exe = action._bind(lambda: qiime2.sdk.Context(parent=ctx))
         results = exe(*args, **kwargs)
