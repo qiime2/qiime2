@@ -25,7 +25,8 @@ from flufl.lock import Lock
 import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
-from qiime2.core.util import is_uuid4
+from qiime2.core.util import (is_uuid4, set_permissions, READ_ONLY_FILE,
+                              READ_ONLY_DIR)
 from qiime2.core.archive.archiver import Archiver
 
 _VERSION_TEMPLATE = """\
@@ -80,20 +81,21 @@ def _get_process_pool_name():
 
 
 # TODO: maybe hand shutil.copytree qiime2.util.duplicate
-def _copy_to_data(cache, ref, destination):
+def _copy_to_data(cache, ref):
     """Since copying the data was basically the same on cache.save and
-    pool.save, I made this helper
+    pool.save, I made this helper to copt data and set permissions
     """
-    if not os.path.exists(cache.data / str(ref.uuid)):
-        # We will have an ArchivePath if this data does not live in the
-        # cache yet, but if this data lives in the cache's data dir under
+    destination = cache.data / str(ref.uuid)
+
+    if not os.path.exists(destination):
         if not isinstance(ref._archiver.path, ArchivePath):
-            os.mkdir(destination / str(ref.uuid))
-            shutil.copytree(ref._archiver.path, destination / str(ref.uuid),
-                            dirs_exist_ok=True)
-        else:
+            os.mkdir(destination)
             shutil.copytree(ref._archiver.path, destination,
                             dirs_exist_ok=True)
+        else:
+            shutil.copytree(ref._archiver.path, cache.data, dirs_exist_ok=True)
+
+    set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
 
 
 @atexit.register
@@ -352,7 +354,7 @@ class Cache:
         with self.lock:
             self._register_key(key, str(ref.uuid))
 
-        _copy_to_data(self, ref, self.data)
+        _copy_to_data(self, ref)
         return self.load(key)
 
     def _register_key(self, key, value, pool=False):
@@ -504,7 +506,7 @@ class Pool:
         """
         self._make_symlink(str(ref.uuid))
 
-        _copy_to_data(self.cache, ref, self.cache.data)
+        _copy_to_data(self.cache, ref)
         return self.load(ref)
 
     def _make_symlink(self, uuid):

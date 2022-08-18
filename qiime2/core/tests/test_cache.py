@@ -365,3 +365,12 @@ class TestCache(unittest.TestCase):
         atexit.unregister(_exit_cleanup)
         atexit.register(_on_exit_validate, cache, expected)
         atexit.register(_exit_cleanup)
+
+    def test_surreptitiously_write_artifact(self):
+        self.cache.save(self.art1, 'a')
+        target = self.cache.data / str(self.art1.uuid) / 'metadata.yaml'
+
+        with self.assertRaisesRegex(PermissionError,
+                                    f"Permission denied: '{target}'"):
+            with open(target, mode='a') as fh:
+                fh.write('gonna mess up ur metadata')

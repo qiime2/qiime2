@@ -17,7 +17,9 @@ import io
 import qiime2
 import qiime2.core.cite as cite
 
-from qiime2.core.util import md5sum_directory, from_checksum_format, is_uuid4
+from qiime2.core.util import (md5sum_directory, from_checksum_format,
+                              is_uuid4, set_permissions, READ_ONLY_FILE,
+                              READ_ONLY_DIR)
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -338,7 +340,9 @@ class Archiver:
                 cls._futuristic_archive_error(filepath, archive)
 
             rec = archive.mount(path)
-            return cls(path, Format(rec))
+            ref = cls(path, Format(rec))
+            set_permissions(path, READ_ONLY_FILE, READ_ONLY_DIR)
+            return ref
         # We really just want to kill this path if anything at all goes wrong
         # Exceptions including keyboard interrupts are reraised
         except:  # noqa: E722
@@ -361,7 +365,9 @@ class Archiver:
         path = pathlib.Path(filepath)
 
         rec = archive.mount(path)
-        return cls(path, Format(rec))
+        ref = cls(path, Format(rec))
+        set_permissions(path, READ_ONLY_FILE, READ_ONLY_DIR)
+        return ref
 
     @classmethod
     def from_data(cls, type, format, data_initializer, provenance_capture):
@@ -376,7 +382,9 @@ class Archiver:
             Format.write(rec, type, format, data_initializer,
                          provenance_capture)
             format = Format(rec)
-            return cls(path, format)
+            ref = cls(path, format)
+            set_permissions(path, READ_ONLY_FILE, READ_ONLY_DIR)
+            return ref
         # We really just want to kill this path if anything at all goes wrong
         # Exceptions including keyboard interrupts are reraised
         except:  # noqa: E722
