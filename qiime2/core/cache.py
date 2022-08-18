@@ -26,7 +26,7 @@ import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
 from qiime2.core.util import (is_uuid4, set_permissions, READ_ONLY_FILE,
-                              READ_ONLY_DIR)
+                              READ_ONLY_DIR, ALL_PERMISSIONS)
 from qiime2.core.archive.archiver import Archiver
 
 _VERSION_TEMPLATE = """\
@@ -352,7 +352,7 @@ class Cache:
                 if data not in referenced_data:
                     target = self.data / data
 
-                    set_permissions(target, 0o777, 0o777)
+                    set_permissions(target, ALL_PERMISSIONS, ALL_PERMISSIONS)
                     shutil.rmtree(target)
 
     def save(self, ref, key):

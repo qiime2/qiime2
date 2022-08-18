@@ -20,6 +20,8 @@ import decorator
 READ_ONLY_FILE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
 READ_ONLY_DIR = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH | stat.S_IRUSR \
     | stat.S_IRGRP | stat.S_IROTH
+ALL_PERMISSIONS = stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+OTHER_NO_WRITE = stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH
 
 
 def get_view_name(view):

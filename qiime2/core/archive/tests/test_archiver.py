@@ -20,7 +20,7 @@ from qiime2.core.archive.format.util import artifact_version
 from qiime2.core.testing.format import IntSequenceDirectoryFormat
 from qiime2.core.testing.type import IntSequence1
 from qiime2.core.testing.util import ArchiveTestingMixin
-from qiime2.core.util import is_uuid4, set_permissions
+from qiime2.core.util import is_uuid4, set_permissions, OTHER_NO_WRITE
 
 
 class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
@@ -293,7 +293,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         # We set everything in the artifact to be read-only. This test needs to
         # mimic if the user were to somehow write it anyway, so we set write
         # for self and group
-        set_permissions(self.archiver.root_dir, 0o775, 0o775)
+        set_permissions(self.archiver.root_dir, OTHER_NO_WRITE, OTHER_NO_WRITE)
         with (self.archiver.root_dir / 'data' / 'ints.txt').open('w') as fh:
             fh.write('999\n')
         with (self.archiver.root_dir / 'tamper.txt').open('w') as fh:

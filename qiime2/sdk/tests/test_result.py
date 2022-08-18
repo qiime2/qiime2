@@ -20,7 +20,7 @@ import qiime2.core.exceptions as exceptions
 from qiime2.core.testing.type import FourInts
 from qiime2.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 from qiime2.core.testing.visualizer import mapping_viz
-from qiime2.core.util import set_permissions
+from qiime2.core.util import set_permissions, OTHER_NO_WRITE
 
 
 class TestResult(unittest.TestCase, ArchiveTestingMixin):
@@ -461,7 +461,8 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         # We set everything in the artifact to be read-only. This test needs to
         # mimic if the user were to somehow write it anyway, so we set write
         # for self and group
-        set_permissions(artifact._archiver.root_dir, 0o775, 0o775)
+        set_permissions(artifact._archiver.root_dir, OTHER_NO_WRITE,
+                        OTHER_NO_WRITE)
 
         with (artifact._archiver.root_dir / 'extra.file').open('w') as fh:
             fh.write('uh oh')
@@ -484,7 +485,8 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         # We set everything in the artifact to be read-only. This test needs to
         # mimic if the user were to somehow write it anyway, so we set write
         # for self and group
-        set_permissions(visualization._archiver.root_dir, 0o775, 0o775)
+        set_permissions(visualization._archiver.root_dir, OTHER_NO_WRITE,
+                        OTHER_NO_WRITE)
 
         with (visualization._archiver.root_dir / 'extra.file').open('w') as fh:
             fh.write('uh oh')
