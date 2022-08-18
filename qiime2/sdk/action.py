@@ -22,10 +22,11 @@ from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 
 
 def _subprocess_apply(action, ctx, args, kwargs):
-    exe = action._bind(lambda: qiime2.sdk.Context(parent=ctx))
-    results = exe(*args, **kwargs)
+    with ctx.cache:
+        exe = action._bind(lambda: qiime2.sdk.Context(parent=ctx))
+        results = exe(*args, **kwargs)
 
-    return results
+        return results
 
 
 class Action(metaclass=abc.ABCMeta):
