@@ -46,6 +46,7 @@ pool:
 # Thread local indicating the cache to use
 _CACHE = threading.local()
 _CACHE.cache = None
+_CACHE.temp_cache = None
 
 # TODO: Do we want this on the threadlocal? I feel like maybe we do
 # Keep track of every cache used by this process for cleanup later
@@ -58,7 +59,9 @@ def get_cache():
     # If we are on a new thread we may in fact not have a cache attribute here
     # at all
     if not hasattr(_CACHE, 'cache') or _CACHE.cache is None:
-        return Cache()
+        if not hasattr(_CACHE, 'temp_cache') or _CACHE.temp_cache is None:
+            _CACHE.temp_cache = Cache()
+        return _CACHE.temp_cache
 
     return _CACHE.cache
 
