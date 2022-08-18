@@ -117,6 +117,14 @@ def _exit_cleanup():
             cache.garbage_collection()
 
 
+class Nothing:
+    def __enter__(self):
+        pass
+
+    def __exit__(self, *args):
+        pass
+
+
 class Cache:
     """General structure of the cache (tmp optional)
     artifact_cache/
