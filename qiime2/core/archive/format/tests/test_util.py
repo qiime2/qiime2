@@ -23,6 +23,9 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
         self.temp_dir = tempfile.TemporaryDirectory(prefix=prefix)
         self.provenance_capture = archive.ImportProvenanceCapture()
 
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
     def test_nonexistent_archive_format(self):
         with self.assertRaisesRegex(ValueError, 'Version foo not supported'):
             with artifact_version('foo'):
