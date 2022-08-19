@@ -8,7 +8,6 @@
 
 from qiime2.core.cache import get_cache
 import qiime2.sdk
-from qiime2.sdk.result import Artifact, Visualization
 
 
 class Context:
@@ -105,15 +104,16 @@ class Scope:
            failure, a context can still identify what will (no longer) be
            returned.
         """
-        self.ctx.cache.process_pool.save(ref)
+        new_ref = self.ctx.cache.process_pool.save(ref)
 
         if self.ctx.cache.named_pool is not None:
-            self.ctx.cache.named_pool.save(ref)
+            self.ctx.cache.named_pool.save(new_ref)
 
+        self._parent_locals.append(new_ref)
         self._parent_locals.append(ref)
 
         # Return an artifact backed by the data in the cache
-        return self.ctx.cache.process_pool.load(ref)
+        return new_ref
 
     # TODO: Demote refs when they are aliased and remove those demoted refs
     # from the pool
@@ -141,18 +141,13 @@ class Scope:
         del self.ctx
 
         for ref in local_refs:
-            if isinstance(ref, (Artifact, Visualization)):
-                ctx.cache.process_pool.remove(ref)
-            else:
-                ref._destructor()
+            ref._destructor()
 
         if local_references_only:
             return parent_refs
 
         for ref in parent_refs:
-            if isinstance(ref, (Artifact, Visualization)):
-                ctx.cache.process_pool.remove(ref)
-            else:
-                ref._destructor()
+            ref._destructor()
 
+        ctx.cache.garbage_collection()
         return []

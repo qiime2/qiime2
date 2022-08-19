@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import os
+import gc
 import atexit
 import tempfile
 import unittest
@@ -187,8 +188,7 @@ class TestCache(unittest.TestCase):
         expected_post_gc_contents = \
             set(('./VERSION', 'keys/foo', 'keys/bar',
                  f'pools/bar/{self.art2.uuid}',
-                 f'data/{self.art1.uuid}', f'data/{self.art2.uuid}',
-                 f'data/{self.art3.uuid}', f'data/{self.art4.uuid}'))
+                 f'data/{self.art1.uuid}', f'data/{self.art2.uuid}'))
 
         # Assert cache looks how we want pre gc
         pre_gc_contents = _get_cache_contents(self.cache)
@@ -197,6 +197,11 @@ class TestCache(unittest.TestCase):
         # Delete keys
         self.cache.remove(self.cache.keys / 'baz')
         self.cache.remove(self.cache.keys / 'qux')
+
+        # Make sure Python's garbage collector gets the process pool symlinks
+        # to the artifact that was keyed on baz and the one in the qux pool
+        gc.collect()
+        self.cache.garbage_collection()
 
         # Assert cache looks how we want post gc
         post_gc_contents = _get_cache_contents(self.cache)

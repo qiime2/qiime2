@@ -9,6 +9,7 @@
 import collections
 import uuid as _uuid
 import pathlib
+import weakref
 import zipfile
 import importlib
 import os
@@ -271,14 +272,15 @@ class Archiver:
         from qiime2.core.cache import get_cache
 
         cache = get_cache()
-        return cache._allocate(str(uuid))
+        path, process_alias = cache._allocate(str(uuid))
+        return path, process_alias, cache
 
     @classmethod
-    def _destroy_temp_path(cls, uuid):
+    def _destroy_temp_path(cls, process_alias):
         from qiime2.core.cache import get_cache
 
         cache = get_cache()
-        cache.process_pool.remove(uuid)
+        cache.process_pool.remove(str(process_alias))
 
     @classmethod
     def get_format_class(cls, version):
@@ -342,7 +344,7 @@ class Archiver:
     @classmethod
     def load(cls, filepath):
         archive = cls.get_archive(filepath)
-        path = cls._make_temp_path(archive.uuid)
+        path, process_alias, cache = cls._make_temp_path(archive.uuid)
 
         try:
             Format = cls.get_format_class(archive.version)
@@ -350,17 +352,17 @@ class Archiver:
                 cls._futuristic_archive_error(filepath, archive)
 
             rec = archive.mount(path)
-            ref = cls(path, Format(rec))
+            ref = cls(path, process_alias, Format(rec), cache)
             set_permissions(path, READ_ONLY_FILE, READ_ONLY_DIR)
             return ref
         # We really just want to kill this path if anything at all goes wrong
         # Exceptions including keyboard interrupts are reraised
         except:  # noqa: E722
-            cls._destroy_temp_path(archive.uuid)
+            cls._destroy_temp_path(process_alias)
             raise
 
     @classmethod
-    def load_raw(cls, filepath):
+    def load_raw(cls, filepath, cache):
         # TODO: We always want _NoOpArchive, so we may want to rework this.
         # What I'm less certain of is whether this will be the only time we
         # want no op. I suspect not given things like peek also use get_archive
@@ -368,6 +370,8 @@ class Archiver:
         # no op for that? Really not too sure, and rn the other methods don't
         # even allow no op when they call this
         archive = cls.get_archive(filepath)
+        process_alias = cache._alias(str(archive.uuid))
+
         Format = cls.get_format_class(archive.version)
         if Format is None:
             cls._futuristic_archive_error(filepath, archive)
@@ -375,14 +379,15 @@ class Archiver:
         path = pathlib.Path(filepath)
 
         rec = archive.mount(path)
-        ref = cls(path, Format(rec))
+        ref = cls(path, process_alias, Format(rec), cache)
+
         set_permissions(path, READ_ONLY_FILE, READ_ONLY_DIR)
         return ref
 
     @classmethod
     def from_data(cls, type, format, data_initializer, provenance_capture):
         uuid = _uuid.uuid4()
-        path = cls._make_temp_path(uuid)
+        path, process_alias, cache = cls._make_temp_path(uuid)
 
         try:
             rec = _Archive.setup(uuid, path, cls.CURRENT_FORMAT_VERSION,
@@ -392,18 +397,21 @@ class Archiver:
             Format.write(rec, type, format, data_initializer,
                          provenance_capture)
             format = Format(rec)
-            ref = cls(path, format)
+            ref = cls(path, process_alias, format, cache)
             set_permissions(path, READ_ONLY_FILE, READ_ONLY_DIR)
             return ref
         # We really just want to kill this path if anything at all goes wrong
         # Exceptions including keyboard interrupts are reraised
         except:  # noqa: E722
-            cls._destroy_temp_path(uuid)
+            cls._destroy_temp_path(process_alias)
             raise
 
-    def __init__(self, path, fmt):
+    def __init__(self, path, process_alias, fmt, cache):
         self.path = path
+        self.process_alias = process_alias
         self._fmt = fmt
+        self._destructor = weakref.finalize(self, cache._deallocate,
+                                            str(self.process_alias))
 
     @property
     def uuid(self):
@@ -442,9 +450,9 @@ class Archiver:
 
         obs = dict(x for x in md5sum_directory(str(self.root_dir)).items()
                    if x[0] != self._fmt.CHECKSUM_FILE)
-        exp = dict(from_checksum_format(line) for line in
-                   (self.root_dir / self._fmt.CHECKSUM_FILE).open().readlines()
-                   )
+        with open(self.root_dir / self._fmt.CHECKSUM_FILE) as fh:
+            exp = dict(from_checksum_format(line) for line in
+                       fh.readlines())
         obs_keys = set(obs)
         exp_keys = set(exp)
 

@@ -18,7 +18,10 @@ import getpass
 import pathlib
 import tempfile
 import threading
+from sys import maxsize
+from random import randint
 from datetime import timedelta
+
 
 from flufl.lock import Lock
 
@@ -115,14 +118,6 @@ def _exit_cleanup():
         if os.path.exists(target):
             shutil.rmtree(target)
             cache.garbage_collection()
-
-
-class Nothing:
-    def __enter__(self):
-        pass
-
-    def __exit__(self, *args):
-        pass
 
 
 class Cache:
@@ -343,7 +338,7 @@ class Cache:
                     shutil.rmtree(self.processes / process_pool)
                 else:
                     for data in os.listdir(self.processes / process_pool):
-                        referenced_data.add(data)
+                        referenced_data.add(data.split('.')[0])
 
             # Walk over all data and remove any that was not referenced
             for data in os.listdir(self.data):
@@ -398,16 +393,8 @@ class Cache:
                              "tried to load a pool which is not supported.") \
                 from e
 
-        archiver = Archiver.load_raw(path)
-        ref = Result._from_archiver(archiver)
-
-        # We want this ref to also be backed by the proces pool and named pool
-        # if we have one so for the duration of this process we still have
-        # access to it even if we delete the key
-        if self.named_pool:
-            self.named_pool.save(ref)
-
-        return self.process_pool.save(ref)
+        archiver = Archiver.load_raw(path, self)
+        return Result._from_archiver(archiver)
 
     def remove(self, key):
         """Remove a key from the cache then run garbage collection to remove
@@ -424,14 +411,36 @@ class Cache:
             os.remove(self.lockfile)
 
     def _allocate(self, uuid):
-        self.process_pool._make_symlink(uuid)
-        if self.named_pool:
-            self.named_pool._make_symlink(uuid)
-
+        """Creates a space in the cache for the archiver to put its data. Also
+        creates symlinks in the process pool and named pool (if there is one)
+        to keep track of the data
+        """
+        process_alias = self._alias(uuid)
         path = self.data / uuid
+
         if not os.path.exists(path):
             os.mkdir(path)
-        return path
+
+        return path, process_alias
+
+    def _alias(self, uuid):
+        process_alias = self.process_pool._make_symlink(uuid)
+
+        if self.named_pool is not None:
+            self.named_pool._make_symlink(uuid)
+
+        return process_alias
+
+    def _deallocate(self, symlink):
+        """Removes a specific symlink from the process pool. This happens when
+        an archiver goes out of scope. We remove that archiver's reference to
+        the data from the process pool. We do this to prevent the cache from
+        growing wildly during long running processes
+        """
+        target = self.process_pool.path / symlink
+
+        if target.exists():
+            os.remove(target)
 
     @property
     def data(self):
@@ -524,33 +533,51 @@ class Pool:
         return self.load(ref)
 
     def _make_symlink(self, uuid):
+        MAX_RETRIES = 5
+
+        src = self.cache.data / uuid
+        dest = self.path / uuid
+
         with self.cache.lock:
-            if not os.path.exists(self.path / uuid):
-                os.symlink(self.cache.data / uuid, self.path / uuid)
+            if self._guarded_symlink(src, dest):
+                pass
+            elif self.path == self.cache.process_pool.path:
+                for _ in range(MAX_RETRIES):
+                    new_uuid = uuid + '.' + str(randint(0, maxsize))
+                    dest = self.path / new_uuid
+
+                    if self._guarded_symlink(src, dest):
+                        break
+                else:
+                    raise ValueError(f'Too many collisions ({MAX_RETRIES}) '
+                                     'occured while trying to save artifact '
+                                     f'<{uuid}> to process pool {self.path}.'
+                                     'It is likely you have attempted to load '
+                                     'the same artifact a very large number '
+                                     'of times.')
+        return dest
+
+    def _guarded_symlink(self, src, dest):
+        if not os.path.exists(dest):
+            os.symlink(src, dest)
+            return True
+
+        return False
 
     def load(self, ref):
         """Load a reference to an element in the pool
         """
         path = self.cache.data / str(ref.uuid)
 
-        archiver = Archiver.load_raw(path)
-        ref = Result._from_archiver(archiver)
-
-        # If we are saving something to a named pool, we also want to make sure
-        # it goes into the process pool. If we are the process pool we should
-        # be the same object that is stored on the cache, but to be 100% safe I
-        # am comparing paths not objects
-        if not self.path == self.cache.process_pool.path:
-            self.cache.process_pool.save(ref)
-
-        return ref
+        archiver = Archiver.load_raw(path, self.cache)
+        return Result._from_archiver(archiver)
 
     def remove(self, ref):
         """Remove an element from the pool
         """
         # Could receive an artifact or just a uuid
-        if is_uuid4(str(ref)):
-            uuid = str(ref)
+        if isinstance(ref, str):
+            uuid = ref
         else:
             uuid = str(ref.uuid)
 
