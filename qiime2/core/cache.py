@@ -314,7 +314,8 @@ class Cache:
         # their data
         with self.lock:
             for key in os.listdir(self.keys):
-                loaded_key = yaml.safe_load(open(self.keys / key))
+                with open(self.keys / key) as fh:
+                    loaded_key = yaml.safe_load(fh)
                 referenced_pools.add(loaded_key['pool'])
                 referenced_data.add(loaded_key['data'])
 
@@ -389,7 +390,8 @@ class Cache:
         to a data item will error on a key that points to a pool
         """
         try:
-            path = self.data / yaml.safe_load(open(self.keys / key))['data']
+            with open(self.keys / key) as fh:
+                path = self.data / yaml.safe_load(fh)['data']
         except TypeError as e:
             raise ValueError(f"The key file '{key}' does not point to any "
                              "data. This most likely occured because you "
