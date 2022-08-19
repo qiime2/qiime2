@@ -115,8 +115,6 @@ class Scope:
         # Return an artifact backed by the data in the cache
         return new_ref
 
-    # TODO: Demote refs when they are aliased and remove those demoted refs
-    # from the pool
     def destroy(self, local_references_only=False):
         """Destroy all references and clear state.
 

@@ -347,7 +347,6 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.data))
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
-    # TODO: This test may need to go at some point
     def test_asynchronous_pool_post_exit(self):
         """This test determines if all of the data is still in the cache when
         we are getting ready to exit. This was put here when ensuring we do not

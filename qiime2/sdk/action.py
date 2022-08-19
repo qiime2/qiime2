@@ -240,8 +240,6 @@ class Action(metaclass=abc.ABCMeta):
                         "outputs defined in signature: %d != %d" %
                         (len(outputs), len(self.signature.outputs)))
 
-                # TODO: Pool stuff right here?
-
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position.
                 return qiime2.sdk.Results(self.signature.outputs.keys(),

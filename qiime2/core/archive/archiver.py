@@ -336,11 +336,6 @@ class Archiver:
         # with an archive's format and extract failed to actually extract.
         return str(archive.extract(dest))
 
-    # TODO: Change these to basically add themselves to the cache process pool
-    # to remove the methods from result. Add private method to cache that gets
-    # called with archiver and instantiates a result from that archiver which
-    # then saves to its process pool and call it in each of these three methods
-    # with the archiver they've built
     @classmethod
     def load(cls, filepath):
         archive = cls.get_archive(filepath)
@@ -363,12 +358,6 @@ class Archiver:
 
     @classmethod
     def load_raw(cls, filepath, cache):
-        # TODO: We always want _NoOpArchive, so we may want to rework this.
-        # What I'm less certain of is whether this will be the only time we
-        # want no op. I suspect not given things like peek also use get_archive
-        # I suppose maybe you could peek on a thing in the cache and want a
-        # no op for that? Really not too sure, and rn the other methods don't
-        # even allow no op when they call this
         archive = cls.get_archive(filepath)
         process_alias = cache._alias(str(archive.uuid))
 

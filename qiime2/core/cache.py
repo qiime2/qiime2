@@ -171,9 +171,6 @@ class Cache:
 
         self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
         # Make our process pool.
-        # TODO: We currently will only end up with a process pool for the
-        # process that originally launched QIIME 2 (not seperate ones for
-        # parsl workers). We might want to change this in the future
         self.process_pool = self._create_process_pool()
         # Lifespan is supplied in days and converted to seconds for internal
         # use
