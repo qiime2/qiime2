@@ -20,6 +20,12 @@ from qiime2.core.testing.type import IntSequence1, IntSequence2
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
 
+# NOTE: If you see an error after all of your tests have ran saying that a pool
+# called __TEST_FAILURE__ doesn't exist and you were running tests in multiple
+# processes concurrently that is normal. The process that finished first would
+# have killed the pool so the ones that finished later wouldn't have it. If you
+# see that when you are only running tests in one process there is likely a
+# problem
 TEST_POOL = '__TEST_FAILURE__'
 
 
