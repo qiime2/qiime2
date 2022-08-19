@@ -22,6 +22,9 @@ class TestArchiveFormat(unittest.TestCase):
         prefix = "qiime2-test-temp-"
         self.temp_dir = tempfile.TemporaryDirectory(prefix=prefix)
 
+    def tearDown(self):
+        self.temp_dir.cleanup()
+
     def test_format_metadata(self):
         uuid = _uuid.uuid4()
         with io.StringIO() as fh:
@@ -46,7 +49,7 @@ class TestArchiveFormat(unittest.TestCase):
         fp = pathlib.Path(self.temp_dir.name) / 'root-dir-metadata-mismatch'
         fp.mkdir()
 
-        r = _ZipArchive.setup(fp, 'foo', 'bar')
+        r = _ZipArchive.setup(_uuid.uuid4(), fp, 'foo', 'bar')
         fake = ArchiveRecord(r.root, r.version_fp,
                              _uuid.uuid4(),  # This will trick the format
                              r.version, r.framework_version)

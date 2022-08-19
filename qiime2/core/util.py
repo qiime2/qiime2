@@ -9,11 +9,19 @@
 import contextlib
 import warnings
 import hashlib
+import stat
 import os
 import io
 import collections
+import uuid as _uuid
 
 import decorator
+
+READ_ONLY_FILE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+READ_ONLY_DIR = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH | stat.S_IRUSR \
+    | stat.S_IRGRP | stat.S_IROTH
+ALL_PERMISSIONS = stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+OTHER_NO_WRITE = stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH
 
 
 def get_view_name(view):
@@ -257,3 +265,28 @@ def sorted_poset(iterable, *, key=None, reverse=False):
     if reverse:
         result = list(reversed(result))
     return result
+
+
+def is_uuid4(uuid_str):
+    # Adapted from https://gist.github.com/ShawnMilo/7777304
+    try:
+        uuid = _uuid.UUID(hex=uuid_str, version=4)
+    except ValueError:
+        # The string is not a valid hex code for a UUID.
+        return False
+
+    # If uuid_str is a valid hex code, but an invalid uuid4, UUID.__init__
+    # will convert it to a valid uuid4.
+    return str(uuid) == uuid_str
+
+
+def set_permissions(path, file_permissions=None, dir_permissions=None):
+    """Set permissions on all directories and files under and including path
+    """
+    for directory, _, files in os.walk(path):
+        if dir_permissions:
+            os.chmod(directory, dir_permissions)
+
+        for file in files:
+            if file_permissions:
+                os.chmod(os.path.join(directory, file), file_permissions)

@@ -27,6 +27,8 @@ requirements:
     - bibtexparser
     - networkx
     - dill
+    - psutil
+    - flufl.lock
 
 test:
   requires:

@@ -85,6 +85,27 @@ class Result:
         result._archiver = archiver
         return result
 
+    @classmethod
+    def _from_archiver(cls, archiver):
+        if Artifact._is_valid_type(archiver.type):
+            result = Artifact.__new__(Artifact)
+        elif Visualization._is_valid_type(archiver.type):
+            result = Visualization.__new__(Visualization)
+        else:
+            raise TypeError(
+                "Cannot load filepath %r into an Artifact or Visualization "
+                "because type %r is not supported."
+                % (archiver.path, archiver.type))
+
+        if type(result) is not cls and cls is not Result:
+            raise TypeError(
+                "Attempting to load %s with `%s.load`. Use `%s.load` instead."
+                % (type(result).__name__, cls.__name__,
+                   type(result).__name__))
+
+        result._archiver = archiver
+        return result
+
     @property
     def type(self):
         return self._archiver.type

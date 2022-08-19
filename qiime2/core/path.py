@@ -13,6 +13,7 @@ import distutils
 import tempfile
 import weakref
 
+from qiime2.core.util import set_permissions, ALL_PERMISSIONS
 
 _ConcretePath = type(pathlib.Path())
 
@@ -112,6 +113,7 @@ class InternalDirectory(_ConcretePath):
     def _destruct(cls, path):
         """DO NOT USE DIRECTLY, use `_destructor()` instead"""
         if os.path.exists(path):
+            set_permissions(path, None, ALL_PERMISSIONS)
             shutil.rmtree(path)
 
     @classmethod
