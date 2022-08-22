@@ -8,13 +8,18 @@
 
 from qiime2.core.cache import get_cache
 import qiime2.sdk
+from qiime2.sdk.parsl_config import PARSL_CONFIG
 
 
 class Context:
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, parsl=False):
         if parent is not None:
+            self.action_executor_mapping = parent.action_executor_mapping
+            self.parsl = parent.parsl
             self.cache = parent.cache
         else:
+            self.action_executor_mapping = PARSL_CONFIG.action_executor_mapping
+            self.parsl = parsl
             self.cache = get_cache()
 
         self._parent = parent
@@ -22,7 +27,6 @@ class Context:
 
     def get_action(self, plugin: str, action: str):
         """Return a function matching the callable API of an action.
-
         This function is aware of the pipeline context and manages its own
         cleanup as appropriate.
         """
@@ -38,10 +42,19 @@ class Context:
         except KeyError:
             raise ValueError("An action named %r was not found for plugin %r"
                              % (action, plugin))
+
         # This factory will create new Contexts with this context as their
         # parent. This allows scope cleanup to happen recursively.
         # A factory is necessary so that independent applications of the
         # returned callable recieve their own Context objects.
+        def _bind_parsl_context(ctx):
+            def _bind_parsl_args(*args, **kwargs):
+                return action_obj._bind_parsl(ctx, *args, **kwargs)
+            return _bind_parsl_args
+
+        if self.parsl:
+            return _bind_parsl_context(self)
+
         return action_obj._bind(lambda: Context(parent=self))
 
     def make_artifact(self, type, view, view_type=None):
@@ -134,9 +147,9 @@ class Scope:
 
         # Unset instance state, handy to prevent cycles in GC, and also causes
         # catastrophic failure if some invariant is violated.
+        del self.ctx
         del self._locals
         del self._parent_locals
-        del self.ctx
 
         for ref in local_refs:
             ref._destructor()

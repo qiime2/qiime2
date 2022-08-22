@@ -22,7 +22,6 @@ from sys import maxsize
 from random import randint
 from datetime import timedelta
 
-
 from flufl.lock import Lock
 
 import qiime2
@@ -139,8 +138,9 @@ class Cache:
     ├── processes
     ├── tmp
     └── VERSION
-    Process folder contains pid-created_at@host some kinda reference to
+    Processes folder contains pid-created_at@host some kinda reference to
     anonymous pools
+
     Create anonymous pools backing all final outputs. We have a named pool that
     tracks all intermediate and final results. We have an anonymous pool that
     tracks only final results (pid pool). Ensures that we don't gc the final
