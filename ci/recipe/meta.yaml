@@ -29,6 +29,7 @@ requirements:
     - dill
     - psutil
     - flufl.lock
+    - parsl
 
 test:
   requires:
