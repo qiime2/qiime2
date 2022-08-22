@@ -360,6 +360,7 @@ class Archiver:
     def load_raw(cls, filepath, cache):
         archive = cls.get_archive(filepath)
         process_alias = cache._alias(str(archive.uuid))
+
         Format = cls.get_format_class(archive.version)
         if Format is None:
             cls._futuristic_archive_error(filepath, archive)
