@@ -57,8 +57,11 @@ def run_parsl_action(action, ctx, args, kwargs, inputs=[]):
         else:
             remapped_args.append(arg)
 
-    exe = action._bind(lambda: Context(parent=ctx))
-    return exe(*remapped_args, **remapped_kwargs)
+    # We with in the cache here to make sure archiver.load* puts things in the
+    # right cache
+    with ctx.cache:
+        exe = action._bind(lambda: Context(parent=ctx))
+        return exe(*remapped_args, **remapped_kwargs)
 
 
 class Action(metaclass=abc.ABCMeta):
