@@ -70,19 +70,6 @@ def get_cache():
     return _CACHE.cache
 
 
-def _get_process_pool_name():
-    """Gets the necessary info to create/identify a process pool for this
-    process
-    """
-    pid = os.getpid()
-    user = getpass.getuser()
-
-    process = psutil.Process(pid)
-    time = process.create_time()
-
-    return f'{pid}-{time}@{user}'
-
-
 # TODO: maybe hand shutil.copytree qiime2.util.duplicate
 def _copy_to_data(cache, ref):
     """Since copying the data was basically the same on cache.save and
@@ -508,7 +495,7 @@ class Pool:
         # directory. The name follows the scheme
         # pid-process_start_time@user
         else:
-            self.name = _get_process_pool_name()
+            self.name = self._get_process_pool_name()
             self.path = cache.processes / self.name
 
         # Raise a value error if we thought we were making a new pool but
@@ -545,6 +532,18 @@ class Pool:
         """
         _CACHE.cache = self.previously_entered_cache
         self.cache.named_pool = None
+
+    def _get_process_pool_name(self):
+        """Gets the necessary info to create/identify a process pool for this
+        process
+        """
+        pid = os.getpid()
+        user = getpass.getuser()
+
+        process = psutil.Process(pid)
+        time = process.create_time()
+
+        return f'{pid}-{time}@{user}'
 
     def save(self, ref):
         """Save the data into the pool then load a new ref backed by the data
