@@ -241,7 +241,6 @@ class Cache:
         """ Get path to temp cache if the user did not specify a named cache.
         """
         TMPDIR = tempfile.gettempdir()
-        USER = getpass.getuser()
 
         cache_dir = os.path.join(TMPDIR, 'qiime2')
         if not os.path.exists(cache_dir):
@@ -257,8 +256,35 @@ class Cache:
             stat.S_IRGRP | stat.S_IRWXO
         os.chmod(cache_dir, sticky_permissions)
 
-        user_path = os.path.join(TMPDIR, 'qiime2', USER)
-        return user_path
+        try:
+            USER = getpass.getuser()
+        # Internally getpass.getuser is getting the uid then looking up the
+        # username associated with it. This could fail it we are running inside
+        # a container because the container is looking for its owparent's uid
+        # in its own /etc/passwd which is unlikely to contain a user associated
+        # with that uid
+        except KeyError:
+            USER = self._get_uid_cache_name()
+
+        user_dir = os.path.join(cache_dir, USER)
+
+        # It is conceivable that we already have a path matching this username
+        # that belong to another uid, if we do then we want to create a garbage
+        # name for the temp cache that will be used by this user
+        if os.path.exists(user_dir) and \
+                os.stat(user_dir).st_uid != os.getuid():
+            uid_name = self._get_uid_cache_name()
+            # This really shoulnd't happen
+            if USER == uid_name:
+                raise ValueError(f'Temp cache for uid path {USER} already '
+                                 'exists but does not belong to us.')
+
+            user_dir = os.path.join(cache_dir, uid_name)
+
+        return user_dir
+
+    def _get_uid_cache_name(self):
+        return f'uid=#{os.getuid()}'
 
     def _create_process_pool(self):
         """Creates a process pool which is identical in function to a named
