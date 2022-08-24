@@ -247,8 +247,8 @@ class Cache:
             USER = getpass.getuser()
         # Internally getpass.getuser is getting the uid then looking up the
         # username associated with it. This could fail it we are running inside
-        # a container because the container is looking for its owparent's uid
-        # in its own /etc/passwd which is unlikely to contain a user associated
+        # a container because the container is looking for its parent's uid in
+        # its own /etc/passwd which is unlikely to contain a user associated
         # with that uid
         except KeyError:
             USER = self._get_uid_cache_name()
