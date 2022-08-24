@@ -88,6 +88,26 @@ def _copy_to_data(cache, ref):
         set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
 
 
+def _get_user():
+    """getpass.getuser could fail for reasons explained below, so we use this
+    """
+    try:
+        return getpass.getuser()
+    # Internally getpass.getuser is getting the uid then looking up the
+    # username associated with it. This could fail it we are running inside a
+    # container because the container is looking for its parent's uid in its
+    # own /etc/passwd which is unlikely to contain a user associated with that
+    # uid
+    except KeyError:
+        return _get_uid_cache_name()
+
+
+def _get_uid_cache_name():
+    """Create an esoteric name that is unlikely to be the name of a real user
+    """
+    return f'uid=#{os.getuid()}'
+
+
 @atexit.register
 def _exit_cleanup():
     """For each cache used by this process we remove the process pool created
@@ -227,9 +247,9 @@ class Cache:
     def _get_temp_path(self):
         """ Get path to temp cache if the user did not specify a named cache.
         """
-        TMPDIR = tempfile.gettempdir()
+        tmpdir = tempfile.gettempdir()
 
-        cache_dir = os.path.join(TMPDIR, 'qiime2')
+        cache_dir = os.path.join(tmpdir, 'qiime2')
         if not os.path.exists(cache_dir):
             os.mkdir(cache_dir)
 
@@ -243,35 +263,23 @@ class Cache:
             stat.S_IRGRP | stat.S_IRWXO
         os.chmod(cache_dir, sticky_permissions)
 
-        try:
-            USER = getpass.getuser()
-        # Internally getpass.getuser is getting the uid then looking up the
-        # username associated with it. This could fail it we are running inside
-        # a container because the container is looking for its parent's uid in
-        # its own /etc/passwd which is unlikely to contain a user associated
-        # with that uid
-        except KeyError:
-            USER = self._get_uid_cache_name()
-
-        user_dir = os.path.join(cache_dir, USER)
+        user = _get_user()
+        user_dir = os.path.join(cache_dir, user)
 
         # It is conceivable that we already have a path matching this username
         # that belongs to another uid, if we do then we want to create a
         # garbage name for the temp cache that will be used by this user
         if os.path.exists(user_dir) and \
                 os.stat(user_dir).st_uid != os.getuid():
-            uid_name = self._get_uid_cache_name()
+            uid_name = _get_uid_cache_name()
             # This really shouldn't happen
-            if USER == uid_name:
-                raise ValueError(f'Temp cache for uid path {USER} already '
+            if user == uid_name:
+                raise ValueError(f'Temp cache for uid path {user} already '
                                  'exists but does not belong to us.')
 
             user_dir = os.path.join(cache_dir, uid_name)
 
         return user_dir
-
-    def _get_uid_cache_name(self):
-        return f'uid=#{os.getuid()}'
 
     def _create_process_pool(self):
         """Creates a process pool which is identical in function to a named
@@ -538,7 +546,7 @@ class Pool:
         process
         """
         pid = os.getpid()
-        user = getpass.getuser()
+        user = _get_user()
 
         process = psutil.Process(pid)
         time = process.create_time()
