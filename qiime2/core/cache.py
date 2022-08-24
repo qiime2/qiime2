@@ -256,12 +256,12 @@ class Cache:
         user_dir = os.path.join(cache_dir, USER)
 
         # It is conceivable that we already have a path matching this username
-        # that belong to another uid, if we do then we want to create a garbage
-        # name for the temp cache that will be used by this user
+        # that belongs to another uid, if we do then we want to create a
+        # garbage name for the temp cache that will be used by this user
         if os.path.exists(user_dir) and \
                 os.stat(user_dir).st_uid != os.getuid():
             uid_name = self._get_uid_cache_name()
-            # This really shoulnd't happen
+            # This really shouldn't happen
             if USER == uid_name:
                 raise ValueError(f'Temp cache for uid path {USER} already '
                                  'exists but does not belong to us.')
