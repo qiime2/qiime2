@@ -65,6 +65,7 @@ def get_parsl_config():
                     label='default',
                     max_workers=6,
                     worker_logdir_root=os.getcwd(),
+                    address='127.0.0.1',
 
                     provider=AdHocProvider(
                         # Command to be run before starting a worker, such as:
