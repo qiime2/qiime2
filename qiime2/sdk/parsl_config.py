@@ -55,17 +55,16 @@ def get_parsl_config():
             executors=[
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
-                    label='default'
+                    label='not_htex'
                 ),
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
                     label='not_default'
                 ),
                 HighThroughputExecutor(
-                    label='htex',
+                    label='default',
                     max_workers=6,
                     worker_logdir_root=os.getcwd(),
-                    address='127.0.0.1',
 
                     provider=AdHocProvider(
                         # Command to be run before starting a worker, such as:
