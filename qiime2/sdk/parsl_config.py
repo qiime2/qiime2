@@ -55,14 +55,14 @@ def get_parsl_config():
             executors=[
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
-                    label='not_htex'
+                    label='default'
                 ),
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
                     label='not_default'
                 ),
                 HighThroughputExecutor(
-                    label='default',
+                    label='htex',
                     max_workers=6,
                     worker_logdir_root=os.getcwd(),
                     address='127.0.0.1',
