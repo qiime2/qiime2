@@ -184,7 +184,8 @@ class Cache:
     def __enter__(self):
         """Set this cache on the thread local
         """
-        if _CACHE.cache is not None and _CACHE.cache.path != self.path:
+        if hasattr(_CACHE, 'cache') and _CACHE.cache is not None \
+                and _CACHE.cache.path != self.path:
             raise ValueError("You cannot enter multiple caches at once, "
                              "currently entered cache is located at: "
                              f"'{_CACHE.cache.path}'")
@@ -498,12 +499,16 @@ class Pool:
     def __enter__(self):
         """Set this pool to be our named pool on the current cache
         """
-        if _CACHE.cache is not None and _CACHE.cache.path != self.cache.path:
+        # This threadlocal may not even have a cache attribute
+        has_cache = hasattr(_CACHE, 'cache')
+
+        if has_cache and _CACHE.cache is not None \
+                and _CACHE.cache.path != self.cache.path:
             raise ValueError('Cannot enter a pool that is not on the '
                              'currently set cache. The current cache is '
                              f'located at: {_CACHE.cache.path}')
         else:
-            self.previously_entered_cache = _CACHE.cache
+            self.previously_entered_cache = _CACHE.cache if has_cache else None
             _CACHE.cache = self.cache
 
         if self.cache.named_pool is not None:
