@@ -11,9 +11,8 @@ import threading
 import os
 
 # Do a parsl?
-import parsl
 from parsl.config import Config
-from parsl.providers import AdHocProvider
+from parsl.providers import LocalProvider
 from parsl.executors.threads import ThreadPoolExecutor
 from parsl.executors import HighThroughputExecutor
 
@@ -65,15 +64,8 @@ def get_parsl_config():
                     label='default',
                     max_workers=6,
                     worker_logdir_root=os.getcwd(),
-                    address='127.0.0.1',
 
-                    provider=AdHocProvider(
-                        # Command to be run before starting a worker, such as:
-                        # 'module load Anaconda; source activate parsl_env'.
-                        worker_init='',
-                        channels=[parsl.channels.LocalChannel(
-                            script_dir=os.getcwd())]
-                    )
+                    provider=LocalProvider()
                 )
             ],
             #  AdHoc Clusters should not be setup with scaling strategy.
