@@ -15,7 +15,7 @@ import pathlib
 
 from qiime2.core.archive import Archiver
 from qiime2.core.archive import ImportProvenanceCapture
-from qiime2.core.archive.archiver import _ZipArchive
+from qiime2.core.archive.archiver import _ZipArchive, ArchiveCheck
 from qiime2.core.archive.format.util import artifact_version
 from qiime2.core.testing.format import IntSequenceDirectoryFormat
 from qiime2.core.testing.type import IntSequence1
@@ -323,6 +323,26 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(diff.added, {})
         self.assertEqual(diff.removed, {})
         self.assertEqual(diff.changed, {})
+
+    def test_archive_check(self):
+        """Rough test of our machinery to support showing visualizations in
+        Jupyter notebooks without actually spoofing the notebook
+        """
+        archive = ArchiveCheck(self.archiver.path)
+
+        # Make sure this _get_uuid actually works
+        self.assertEqual(archive._get_uuid(), archive.uuid)
+
+        expected = [
+            'metadata.yaml',
+            'data',
+            'checksums.md5',
+            'provenance',
+            'VERSION'
+        ]
+
+        observed = [file for file in archive.relative_iterdir()]
+        self.assertEqual(observed, expected)
 
 
 if __name__ == '__main__':
