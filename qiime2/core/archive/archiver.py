@@ -255,6 +255,22 @@ class _NoOpArchive(_Archive):
                              self.uuid, self.version, self.framework_version)
 
 
+class ArchiveCheck(_Archive):
+    """Used by the Jupyter handlers"""
+
+    # TODO: make this part of the archiver API at some point
+    def open(self, relpath):
+        abspath = os.path.join(str(self.path), relpath)
+        return open(abspath, 'r')
+
+    def relative_iterdir(self, relpath='.'):
+        for p in pathlib.Path(self.path).iterdir():
+            yield str(p.relative_to(self.path))
+
+    def _get_uuid(self):
+        return os.path.basename(self.path)
+
+
 class Archiver:
     CURRENT_FORMAT_VERSION = '5'
     _FORMAT_REGISTRY = {
