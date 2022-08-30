@@ -333,15 +333,15 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         # Make sure this _get_uuid actually works
         self.assertEqual(archive._get_uuid(), archive.uuid)
 
-        expected = [
+        expected = set([
             'metadata.yaml',
             'data',
             'checksums.md5',
             'provenance',
             'VERSION'
-        ]
+        ])
 
-        observed = [file for file in archive.relative_iterdir()]
+        observed = set(file for file in archive.relative_iterdir())
         self.assertEqual(observed, expected)
 
 
