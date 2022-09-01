@@ -396,3 +396,6 @@ class TestCache(unittest.TestCase):
                                     f"Permission denied: '{target}'"):
             with open(target, mode='w') as fh:
                 fh.write('extra file')
+
+    def test_multi_user(self):
+        pass
