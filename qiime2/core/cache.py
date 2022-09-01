@@ -267,14 +267,16 @@ class Cache:
             sticky_permissions = permissions | stat.S_ISVTX | stat.S_IRWXU | \
                 stat.S_IRGRP | stat.S_IRWXO
             os.chmod(cache_dir, sticky_permissions)
-        elif oct(os.stat(cache_dir).st_mode) != EXPECTED_PERMISSIONS:
+        elif os.stat(cache_dir).st_mode != EXPECTED_PERMISSIONS:
             raise ValueError(f"Directory '{cache_dir}' already exists without "
                              f"proper permissions "
-                             f"{oct(EXPECTED_PERMISSIONS)}' set. This most "
+                             f"'{oct(EXPECTED_PERMISSIONS)}' set. Current "
+                             "permissions are "
+                             f"'{oct(os.stat(cache_dir).st_mode)}' This most "
                              "likely means something other than QIIME 2 "
                              f"created the directory '{cache_dir}' or QIIME 2 "
-                             "failed between creating '{cache_dir}' and "
-                             "setting permissions on it")
+                             f"failed between creating '{cache_dir}' and "
+                             "setting permissions on it.")
 
         user = _get_user()
         user_dir = os.path.join(cache_dir, user)
