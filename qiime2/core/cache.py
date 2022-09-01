@@ -265,7 +265,7 @@ class Cache:
             os.mkdir(cache_dir)
             permissions = os.stat(cache_dir).st_mode
             sticky_permissions = permissions | stat.S_ISVTX | stat.S_IRWXU | \
-                                 stat.S_IRGRP | stat.S_IRWXO
+                stat.S_IRGRP | stat.S_IRWXO
             os.chmod(cache_dir, sticky_permissions)
         elif oct(os.stat(cache_dir)) != EXPECTED_PERMISSIONS:
             raise ValueError(f"Directory '{cache_dir}' already exists without "
@@ -275,7 +275,6 @@ class Cache:
                              f"'{cache_dir}' or QIIME 2 failed between "
                              f"creating '{cache_dir}' and setting permissions "
                              "on it")
-
 
         user = _get_user()
         user_dir = os.path.join(cache_dir, user)
