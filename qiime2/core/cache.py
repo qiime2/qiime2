@@ -267,7 +267,7 @@ class Cache:
             sticky_permissions = permissions | stat.S_ISVTX | stat.S_IRWXU | \
                 stat.S_IRGRP | stat.S_IRWXO
             os.chmod(cache_dir, sticky_permissions)
-        elif oct(os.stat(cache_dir)) != EXPECTED_PERMISSIONS:
+        elif oct(os.stat(cache_dir.st_mode)) != EXPECTED_PERMISSIONS:
             raise ValueError(f"Directory '{cache_dir}' already exists without "
                              f"proper permissions '{EXPECTED_PERMISSIONS}' "
                              f"set. This most likely means something other "
