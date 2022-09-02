@@ -437,7 +437,7 @@ class TestCache(unittest.TestCase):
         # This should ensure that the /tmp/qiime2/root cache exists and has
         # things in it
         with root_cache:
-            result = concatenate_ints(self.art1, self.art2, self.art4, 4, 5)
+            result = concatenate_ints(self.art1, self.art2, self.art4, 4, 5)[0]
 
         root_expected = set((
             './VERSION', f'data/{result._archiver.uuid}', f'keys/{TEST_POOL}',
@@ -476,7 +476,7 @@ class TestCache(unittest.TestCase):
 
         # This should create a /tmp/qiime2/uname cache and write to it
         with user_cache:
-            result = concatenate_ints(self.art1, self.art2, self.art4, 4, 5)
+            result = concatenate_ints(self.art1, self.art2, self.art4, 4, 5)[0]
 
         user_expected = set((
             './VERSION', f'data/{result._archiver.uuid}', f'keys/{TEST_POOL}',
