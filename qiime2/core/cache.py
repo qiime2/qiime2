@@ -263,16 +263,15 @@ class Cache:
         # /tmp since the /tmp was wiped
         if not os.path.exists(cache_dir):
             os.mkdir(cache_dir)
-            permissions = os.stat(cache_dir).st_mode
-            sticky_permissions = permissions | stat.S_ISVTX | stat.S_IRWXU | \
-                stat.S_IRGRP | stat.S_IRWXO
+            sticky_permissions = stat.S_ISVTX | stat.S_IRWXU | stat.S_IRGRP \
+                | stat.S_IRWXO
             os.chmod(cache_dir, sticky_permissions)
         elif os.stat(cache_dir).st_mode != EXPECTED_PERMISSIONS:
             raise ValueError(f"Directory '{cache_dir}' already exists without "
                              f"proper permissions "
                              f"'{oct(EXPECTED_PERMISSIONS)}' set. Current "
                              "permissions are "
-                             f"'{oct(os.stat(cache_dir).st_mode)}' This most "
+                             f"'{oct(os.stat(cache_dir).st_mode)}.' This most "
                              "likely means something other than QIIME 2 "
                              f"created the directory '{cache_dir}' or QIIME 2 "
                              f"failed between creating '{cache_dir}' and "
