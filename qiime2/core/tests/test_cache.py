@@ -431,7 +431,7 @@ class TestCache(unittest.TestCase):
         plugin = get_dummy_plugin()
         concatenate_ints = plugin.methods['concatenate_ints']
 
-        root_cache = get_cache()
+        root_cache = Cache()
         root_user = _get_user()
 
         # This should ensure that the /tmp/qiime2/root cache exists and has
@@ -463,7 +463,7 @@ class TestCache(unittest.TestCase):
         try:
             os.seteuid(pwd.getpwnam(uname).pw_uid)
 
-            user_cache = get_cache()
+            user_cache = Cache()
             uname_user = _get_user()
 
             # This should create a /tmp/qiime2/uname cache and write to it
