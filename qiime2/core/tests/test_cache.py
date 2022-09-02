@@ -431,7 +431,7 @@ class TestCache(unittest.TestCase):
         plugin = get_dummy_plugin()
         concatenate_ints = plugin.methods['concatenate_ints']
 
-        root_cache = Cache()
+        root_cache = get_cache()
         root_user = _get_user()
 
         # This should ensure that the /tmp/qiime2/root cache exists and has
