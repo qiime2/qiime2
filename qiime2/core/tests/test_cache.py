@@ -10,6 +10,7 @@ import os
 import gc
 import pwd
 import crypt
+import shutil
 import string
 import atexit
 import psutil
@@ -22,7 +23,7 @@ import pytest
 from flufl.lock import LockState
 
 import qiime2
-from qiime2.core.cache import Cache, _exit_cleanup, get_cache
+from qiime2.core.cache import Cache, _exit_cleanup, get_cache, _get_user
 from qiime2.core.testing.type import IntSequence1, IntSequence2
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
@@ -77,7 +78,10 @@ def _remove_user(uname):
     """
     # Give ourselves back root in case we hadn't already
     os.seteuid(0)
-    os.system(f'userdel {uname}')
+
+    # If we failed before the test could remove the user then remove it here
+    if uname in psutil.users():
+        os.system(f'userdel {uname}')
 
 
 class TestCache(unittest.TestCase):
@@ -418,6 +422,28 @@ class TestCache(unittest.TestCase):
         platform.system() == "Darwin",
         reason="Mac clusters not really a thing")
     def test_multi_user(self):
+        """This test determines if we can have multiple users successfully
+        accessing the cache under the /tmp/qiime2 directory. This test came
+        from this issue https://github.com/qiime2/qiime2/issues/639. It should
+        only run as root because only root can create and delete users, and for
+        now at least it won't run on Mac
+        """
+        plugin = get_dummy_plugin()
+        concatenate_ints = plugin.methods['concatenate_ints']
+
+        root_cache = get_cache()
+        root_user = _get_user()
+
+        # This should ensure that the /tmp/qiime2/root cache exists and has
+        # things in it
+        with root_cache:
+            result = concatenate_ints(self.art1, self.art2, self.art4, 4, 5)
+
+        root_expected = set((
+            './VERSION', f'data/{result._archiver.uuid}', f'keys/{TEST_POOL}',
+            f'pools/{TEST_POOL}/{result._archiver.uuid}'
+        ))
+
         user_list = psutil.users()
         uname = ''.join(
             random.choices(string.ascii_letters + string.digits, k=8))
@@ -436,9 +462,39 @@ class TestCache(unittest.TestCase):
         # Temporarily set our euid to the new user
         os.seteuid(pwd.getpwnam(uname).pw_uid)
 
-        # Do a something with the cache
+        user_cache = get_cache()
+        uname_user = _get_user()
+
+        # Make sure we have actually switched users.
+        try:
+            self.assertEqual(uname_user, uname)
+        except AssertionError as e:
+            raise ValueError(
+                f'Expected {uname} but got {uname_user}. Are you running '
+                'tests in a container? Because that can mess up username '
+                'resolution.') from e
+
+        # This should create a /tmp/qiime2/uname cache and write to it
+        with user_cache:
+            result = concatenate_ints(self.art1, self.art2, self.art4, 4, 5)
+
+        user_expected = set((
+            './VERSION', f'data/{result._archiver.uuid}', f'keys/{TEST_POOL}',
+            f'pools/{TEST_POOL}/{result._archiver.uuid}'
+        ))
+
+        self.assertEqual(os.path.basename(root_cache), root_user)
+        self.assertEqual(os.path.basename(user_cache), uname_user)
+
+        root_observed = _get_cache_contents(root_cache)
+        user_observed = _get_cache_contents(user_cache)
+
+        self.assertIn(root_expected, root_observed)
+        self.assertIn(user_expected, user_observed)
 
         # Back to root before we end this test
         os.seteuid(0)
-        # Gonna run this here and atexit for now. May create an error
+
+        # Clean up as root when we end the test
         os.system(f'userdel {uname}')
+        shutil.rmtree(user_cache.path)
