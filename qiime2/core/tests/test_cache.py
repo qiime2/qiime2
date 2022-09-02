@@ -466,15 +466,6 @@ class TestCache(unittest.TestCase):
             user_cache = get_cache()
             uname_user = _get_user()
 
-            # Make sure we have actually switched users.
-            try:
-                self.assertEqual(uname_user, uname)
-            except AssertionError as e:
-                raise ValueError(
-                    f'Expected {uname} but got {uname_user}. Are you running '
-                    'tests in a container? Because that can mess up username '
-                    'resolution.') from e
-
             # This should create a /tmp/qiime2/uname cache and write to it
             with user_cache:
                 result = concatenate_ints(
