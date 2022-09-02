@@ -440,7 +440,9 @@ class TestCache(unittest.TestCase):
             root_result = \
                 concatenate_ints(self.art1, self.art2, self.art4, 4, 5)[0]
 
-        root_expected = set(('./VERSION', f'data/{root_result._archiver.uuid}'))
+        root_expected = set((
+            './VERSION', f'data/{root_result._archiver.uuid}'
+        ))
 
         user_list = psutil.users()
         uname = ''.join(
@@ -461,6 +463,12 @@ class TestCache(unittest.TestCase):
         try:
             os.seteuid(pwd.getpwnam(uname).pw_uid)
 
+            # seteuid does not convice getpass.getuser we are not root because
+            # it uses getuid not geteuid. I cannot use setuid because then I
+            # would not be able to get root permissions back, so I give it the
+            # cache path manually under tmp. This should be functionally no
+            # different as far as permissions on /tmp/qiime2 are concerned. It
+            # still thinks we are not root as far as file system operations go
             user_cache = \
                 Cache(os.path.join(os.path.split(root_cache.path)[0], uname))
 
