@@ -460,39 +460,47 @@ class TestCache(unittest.TestCase):
         os.system(f'useradd -p {password} {uname}')
 
         # Temporarily set our euid to the new user
-        os.seteuid(pwd.getpwnam(uname).pw_uid)
-
-        user_cache = get_cache()
-        uname_user = _get_user()
-
-        # Make sure we have actually switched users.
         try:
-            self.assertEqual(uname_user, uname)
-        except AssertionError as e:
-            raise ValueError(
-                f'Expected {uname} but got {uname_user}. Are you running '
-                'tests in a container? Because that can mess up username '
-                'resolution.') from e
+            os.seteuid(pwd.getpwnam(uname).pw_uid)
 
-        # This should create a /tmp/qiime2/uname cache and write to it
-        with user_cache:
-            result = concatenate_ints(self.art1, self.art2, self.art4, 4, 5)[0]
+            user_cache = get_cache()
+            uname_user = _get_user()
 
-        user_expected = set((
-            './VERSION', f'data/{result._archiver.uuid}', f'keys/{TEST_POOL}',
-            f'pools/{TEST_POOL}/{result._archiver.uuid}'
-        ))
+            # Make sure we have actually switched users.
+            try:
+                self.assertEqual(uname_user, uname)
+            except AssertionError as e:
+                raise ValueError(
+                    f'Expected {uname} but got {uname_user}. Are you running '
+                    'tests in a container? Because that can mess up username '
+                    'resolution.') from e
 
-        self.assertEqual(os.path.basename(root_cache), root_user)
-        self.assertEqual(os.path.basename(user_cache), uname_user)
+            # This should create a /tmp/qiime2/uname cache and write to it
+            with user_cache:
+                result = concatenate_ints(
+                    self.art1, self.art2, self.art4, 4, 5)[0]
 
-        root_observed = _get_cache_contents(root_cache)
-        user_observed = _get_cache_contents(user_cache)
+            user_expected = set((
+                './VERSION', f'data/{result._archiver.uuid}',
+                f'keys/{TEST_POOL}',
+                f'pools/{TEST_POOL}/{result._archiver.uuid}'
+            ))
 
-        self.assertIn(root_expected, root_observed)
-        self.assertIn(user_expected, user_observed)
+            self.assertEqual(os.path.basename(root_cache), root_user)
+            self.assertEqual(os.path.basename(user_cache), uname_user)
 
-        # Back to root before we end this test
+            root_observed = _get_cache_contents(root_cache)
+            user_observed = _get_cache_contents(user_cache)
+
+            self.assertIn(root_expected, root_observed)
+            self.assertIn(user_expected, user_observed)
+        # If any exception is raised here we want to get our root permissions
+        # back
+        except Exception as e:  # noqa: E722
+            # Back to root before we end this test
+            os.seteuid(0)
+            raise e
+
         os.seteuid(0)
 
         # Clean up as root when we end the test
