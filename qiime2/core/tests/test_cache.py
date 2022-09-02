@@ -68,6 +68,7 @@ def _on_exit_validate(cache, expected):
     cache.remove(TEST_POOL)
     assert expected.issubset(observed)
 
+
 def _remove_user(uname):
     """This will be run if we are root and we ran the multi user test. It will
     delete the user we created for the test
