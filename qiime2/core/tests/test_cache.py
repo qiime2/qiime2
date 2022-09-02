@@ -437,12 +437,10 @@ class TestCache(unittest.TestCase):
         # This should ensure that the /tmp/qiime2/root cache exists and has
         # things in it
         with root_cache:
-            result = concatenate_ints(self.art1, self.art2, self.art4, 4, 5)[0]
+            root_result = \
+                concatenate_ints(self.art1, self.art2, self.art4, 4, 5)[0]
 
-        root_expected = set((
-            './VERSION', f'data/{result._archiver.uuid}', f'keys/{TEST_POOL}',
-            f'pools/{TEST_POOL}/{result._archiver.uuid}'
-        ))
+        root_expected = set(('./VERSION', f'data/{root_result._archiver.uuid}'))
 
         user_list = psutil.users()
         uname = ''.join(
@@ -463,36 +461,34 @@ class TestCache(unittest.TestCase):
         try:
             os.seteuid(pwd.getpwnam(uname).pw_uid)
 
-            user_cache = Cache()
-            uname_user = _get_user()
+            user_cache = \
+                Cache(os.path.join(os.path.split(root_cache.path)[0], uname))
 
             # This should create a /tmp/qiime2/uname cache and write to it
             with user_cache:
-                result = concatenate_ints(
+                user_result = concatenate_ints(
                     self.art1, self.art2, self.art4, 4, 5)[0]
 
             user_expected = set((
-                './VERSION', f'data/{result._archiver.uuid}',
-                f'keys/{TEST_POOL}',
-                f'pools/{TEST_POOL}/{result._archiver.uuid}'
+                './VERSION', f'data/{user_result._archiver.uuid}',
             ))
 
-            self.assertEqual(os.path.basename(root_cache), root_user)
-            self.assertEqual(os.path.basename(user_cache), uname_user)
+            os.seteuid(0)
+
+            self.assertEqual(os.path.basename(root_cache.path), root_user)
+            self.assertEqual(os.path.basename(user_cache.path), uname)
 
             root_observed = _get_cache_contents(root_cache)
             user_observed = _get_cache_contents(user_cache)
 
-            self.assertIn(root_expected, root_observed)
-            self.assertIn(user_expected, user_observed)
+            self.assertTrue(root_expected.issubset(root_observed))
+            self.assertTrue(user_expected.issubset(user_observed))
         # If any exception is raised here we want to get our root permissions
         # back
         except Exception as e:  # noqa: E722
             # Back to root before we end this test
             os.seteuid(0)
             raise e
-
-        os.seteuid(0)
 
         # Clean up as root when we end the test
         os.system(f'userdel {uname}')
