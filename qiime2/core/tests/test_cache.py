@@ -14,6 +14,7 @@ import string
 import atexit
 import psutil
 import random
+import platform
 import tempfile
 import unittest
 
@@ -413,6 +414,9 @@ class TestCache(unittest.TestCase):
 
     @pytest.mark.skipif(
         os.geteuid() != 0, reason="only sudo can mess with users")
+    @pytest.mark.skipif(
+        platform.system() == "Darwin",
+        reason="Mac clusters not really a thing")
     def test_multi_user(self):
         user_list = psutil.users()
         uname = ''.join(
