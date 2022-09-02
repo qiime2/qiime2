@@ -10,11 +10,12 @@ import os
 import gc
 import pwd
 import crypt
+import string
 import atexit
 import psutil
+import random
 import tempfile
 import unittest
-import uuid as _uuid
 
 import pytest
 from flufl.lock import LockState
@@ -414,12 +415,14 @@ class TestCache(unittest.TestCase):
         os.geteuid() != 0, reason="only sudo can mess with users")
     def test_multi_user(self):
         user_list = psutil.users()
-        uname = str(_uuid.uuid4())
+        uname = ''.join(
+            random.choices(string.ascii_letters + string.digits, k=8))
 
         # Highly unlikely this will ever happen, but we really don't want to
         # have collisions here
         while uname in user_list:
-            uname = str(_uuid.uuid4())
+            uname = ''.join(
+                random.choices(string.ascii_letters + string.digits, k=8))
 
         atexit.register(_remove_user, uname)
 
