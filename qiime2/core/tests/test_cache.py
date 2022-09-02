@@ -8,9 +8,13 @@
 
 import os
 import gc
+import pwd
+import crypt
 import atexit
+import psutil
 import tempfile
 import unittest
+import uuid as _uuid
 
 import pytest
 from flufl.lock import LockState
@@ -63,6 +67,14 @@ def _on_exit_validate(cache, expected):
     observed = _get_cache_contents(cache)
     cache.remove(TEST_POOL)
     assert expected.issubset(observed)
+
+def _remove_user(uname):
+    """This will be run if we are root and we ran the multi user test. It will
+    delete the user we created for the test
+    """
+    # Give ourselves back root in case we hadn't already
+    os.seteuid(0)
+    os.system(f'userdel {uname}')
 
 
 class TestCache(unittest.TestCase):
@@ -397,5 +409,28 @@ class TestCache(unittest.TestCase):
             with open(target, mode='w') as fh:
                 fh.write('extra file')
 
+    @pytest.mark.skipif(
+        os.geteuid() != 0, reason="only sudo can mess with users")
     def test_multi_user(self):
-        pass
+        user_list = psutil.users()
+        uname = str(_uuid.uuid4())
+
+        # Highly unlikely this will ever happen, but we really don't want to
+        # have collisions here
+        while uname in user_list:
+            uname = str(_uuid.uuid4())
+
+        atexit.register(_remove_user, uname)
+
+        password = crypt.crypt('test', '22')
+        os.system(f'useradd -p {password} {uname}')
+
+        # Temporarily set our euid to the new user
+        os.seteuid(pwd.getpwnam(uname).pw_uid)
+
+        # Do a something with the cache
+
+        # Back to root before we end this test
+        os.seteuid(0)
+        # Gonna run this here and atexit for now. May create an error
+        os.system(f'userdel {uname}')
