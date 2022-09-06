@@ -173,11 +173,12 @@ class Cache:
 
         # Do we want a more rigorous check for whether or not we've been
         # pointed at an existing cache?
+        # raise ValueError(self.path)
         if not os.path.exists(self.path):
             self._create_cache()
         elif not self.is_cache(self.path):
-            raise ValueError(f"Path: \'{path}\' already exists and is not a"
-                             " cache")
+            raise ValueError(f"Path: \'{self.path}\' already exists and is "
+                             "not a cache.")
 
         self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
         # Make our process pool.
