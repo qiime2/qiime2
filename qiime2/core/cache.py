@@ -56,6 +56,9 @@ _CACHE.temp_cache = None
 # Keep track of every cache used by this process for cleanup later
 USED_CACHES = set()
 
+# These permissions are directory with sticky bit and rwx for all set
+EXPECTED_PERMISSIONS = 0o41777
+
 
 def get_cache():
     """ Gets our cache if we have one and creates one in temp if we don't
@@ -173,8 +176,8 @@ class Cache:
         if not os.path.exists(self.path):
             self._create_cache()
         elif not self.is_cache(self.path):
-            raise ValueError(f"Path: \'{path}\' already exists and is not a"
-                             " cache")
+            raise ValueError(f"Path: \'{self.path}\' already exists and is "
+                             "not a cache.")
 
         self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
         # Make our process pool.
@@ -250,18 +253,29 @@ class Cache:
         tmpdir = tempfile.gettempdir()
 
         cache_dir = os.path.join(tmpdir, 'qiime2')
-        if not os.path.exists(cache_dir):
-            os.mkdir(cache_dir)
 
         # Make sure the sticky bit is set on the cache directory. Documentation
         # on what a sitcky bit is found here
         # https://docs.python.org/3/library/stat.html#stat.S_ISVTX
         # We also set read/write/execute permissions for everyone on this
-        # directory
-        permissions = os.stat(cache_dir).st_mode
-        sticky_permissions = permissions | stat.S_ISVTX | stat.S_IRWXU | \
-            stat.S_IRGRP | stat.S_IRWXO
-        os.chmod(cache_dir, sticky_permissions)
+        # directory. We only do this if we are the owner of the /tmp/qiime2
+        # directory or in other words the first person to run QIIME 2 with this
+        # /tmp since the /tmp was wiped
+        if not os.path.exists(cache_dir):
+            os.mkdir(cache_dir)
+            sticky_permissions = stat.S_ISVTX | stat.S_IRWXU | stat.S_IRWXG \
+                | stat.S_IRWXO
+            os.chmod(cache_dir, sticky_permissions)
+        elif os.stat(cache_dir).st_mode != EXPECTED_PERMISSIONS:
+            raise ValueError(f"Directory '{cache_dir}' already exists without "
+                             f"proper permissions "
+                             f"'{oct(EXPECTED_PERMISSIONS)}' set. Current "
+                             "permissions are "
+                             f"'{oct(os.stat(cache_dir).st_mode)}.' This most "
+                             "likely means something other than QIIME 2 "
+                             f"created the directory '{cache_dir}' or QIIME 2 "
+                             f"failed between creating '{cache_dir}' and "
+                             "setting permissions on it.")
 
         user = _get_user()
         user_dir = os.path.join(cache_dir, user)
