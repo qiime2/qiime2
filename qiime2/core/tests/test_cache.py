@@ -8,15 +8,23 @@
 
 import os
 import gc
+import pwd
+import crypt
+import shutil
+import string
 import atexit
+import psutil
+import random
+import platform
 import tempfile
 import unittest
+from contextlib import contextmanager
 
 import pytest
 from flufl.lock import LockState
 
 import qiime2
-from qiime2.core.cache import Cache, _exit_cleanup, get_cache
+from qiime2.core.cache import Cache, _exit_cleanup, get_cache, _get_user
 from qiime2.core.testing.type import IntSequence1, IntSequence2
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
@@ -63,6 +71,49 @@ def _on_exit_validate(cache, expected):
     observed = _get_cache_contents(cache)
     cache.remove(TEST_POOL)
     assert expected.issubset(observed)
+
+
+@contextmanager
+def _fake_user_for_cache(cache_prefix, i_acknowledge_this_is_dangerous=False):
+    """Creates a fake user with a uname that is 8 random alphanumeric
+       characters that we ensure does not collide with an existing uname and
+       create a cache for said user under cache_prefix
+    """
+    if not i_acknowledge_this_is_dangerous:
+        raise ValueError('YOU MUST ACCEPT THE DANGER OF LETTING THIS SCRIPT '
+                         'MAKE AND REMOVE A USER')
+
+    if not os.getegid() == 0:
+        raise ValueError('This action requires super user permissions which '
+                         'you do not have')
+
+    user_list = psutil.users()
+    uname = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+
+    # Highly unlikely this will ever happen, but we really don't want to
+    # have collisions here
+    while uname in user_list:
+        uname = ''.join(
+            random.choices(string.ascii_letters + string.digits, k=8))
+
+    password = crypt.crypt('test', '22')
+    os.system(f'useradd -p {password} {uname}')
+
+    os.seteuid(pwd.getpwnam(uname).pw_uid)
+    # seteuid does not convice getpass.getuser we are not root because it uses
+    # getuid not geteuid. I cannot use setuid because then I would not be able
+    # to get root permissions back, so I give it the cache path manually under
+    # tmp. This should be functionally no different as far as permissions on
+    # /tmp/qiime2 are concerned. It still thinks we are not root as far as
+    # file system operations go
+    user_cache = Cache(os.path.join(cache_prefix, uname))
+
+    try:
+        yield (uname, user_cache)
+    finally:
+        os.seteuid(0)
+        os.system(f'userdel {uname}')
+        shutil.rmtree(user_cache.path)
 
 
 class TestCache(unittest.TestCase):
@@ -396,3 +447,56 @@ class TestCache(unittest.TestCase):
                                     f"Permission denied: '{target}'"):
             with open(target, mode='w') as fh:
                 fh.write('extra file')
+
+    @pytest.mark.skipif(
+        os.geteuid() != 0, reason="only sudo can mess with users")
+    @pytest.mark.skipif(
+        platform.system() == "Darwin",
+        reason="Mac clusters not really a thing")
+    def test_multi_user(self):
+        """This test determines if we can have multiple users successfully
+        accessing the cache under the /tmp/qiime2 directory. This test came
+        from this issue https://github.com/qiime2/qiime2/issues/639. It should
+        only run as root because only root can create and delete users, and for
+        now at least it won't run on Mac
+        """
+        plugin = get_dummy_plugin()
+        concatenate_ints = plugin.methods['concatenate_ints']
+
+        root_cache = get_cache()
+        root_user = _get_user()
+
+        # This should ensure that the /tmp/qiime2/root cache exists and has
+        # things in it
+        with root_cache:
+            root_result = \
+                concatenate_ints(self.art1, self.art2, self.art4, 4, 5)[0]
+
+        root_expected = set((
+            './VERSION', f'data/{root_result._archiver.uuid}'
+        ))
+
+        # The location we put the root cache in is also where we want the fake
+        # user cache
+        cache_prefix = os.path.split(root_cache.path)[0]
+        # Temporarily create a new user and user cache for multi-user testing
+        # purposes
+        with _fake_user_for_cache(
+                cache_prefix,
+                i_acknowledge_this_is_dangerous=True) as (uname, user_cache):
+            with user_cache:
+                user_result = concatenate_ints(
+                    self.art1, self.art2, self.art4, 4, 5)[0]
+
+            user_expected = set((
+                './VERSION', f'data/{user_result._archiver.uuid}',
+            ))
+
+            self.assertEqual(os.path.basename(root_cache.path), root_user)
+            self.assertEqual(os.path.basename(user_cache.path), uname)
+
+            root_observed = _get_cache_contents(root_cache)
+            user_observed = _get_cache_contents(user_cache)
+
+            self.assertTrue(root_expected.issubset(root_observed))
+            self.assertTrue(user_expected.issubset(user_observed))
