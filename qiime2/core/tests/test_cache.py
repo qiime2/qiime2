@@ -18,6 +18,7 @@ import random
 import platform
 import tempfile
 import unittest
+from contextlib import contextmanager
 
 import pytest
 from flufl.lock import LockState
@@ -72,15 +73,45 @@ def _on_exit_validate(cache, expected):
     assert expected.issubset(observed)
 
 
-def _remove_user(uname):
-    """This will be run if we are root and we ran the multi user test. It will
-    delete the user we created for the test
+@contextmanager
+def _fake_user_for_cache(cache_prefix, i_acknowledge_this_is_dangerous=False):
+    """Creates a fake username with a uname that is 8 random alphanumeric
+        characters that we ensure does not collide with an existing uname
     """
-    # Give ourselves back root in case we hadn't already
-    os.seteuid(0)
+    if not i_acknowledge_this_is_dangerous:
+        raise ValueError('YOU MUST ACCEPT THE DANGER OF LETTING THIS SCRIPT '
+                         'MAKE AND REMOVE A USER')
 
-    # If we failed before the test could remove the user then remove it here
-    if uname in psutil.users():
+    if not os.getegid() == 0:
+        raise ValueError('This action requires super user permissions which '
+                         'you do not have')
+
+    try:
+        user_list = psutil.users()
+        uname = ''.join(
+            random.choices(string.ascii_letters + string.digits, k=8))
+
+        # Highly unlikely this will ever happen, but we really don't want to
+        # have collisions here
+        while uname in user_list:
+            uname = ''.join(
+                random.choices(string.ascii_letters + string.digits, k=8))
+
+        password = crypt.crypt('test', '22')
+        os.system(f'useradd -p {password} {uname}')
+
+        os.seteuid(pwd.getpwnam(uname).pw_uid)
+        # seteuid does not convice getpass.getuser we are not root because it
+        # uses getuid not geteuid. I cannot use setuid because then I would not
+        # be able to get root permissions back, so I give it the cache path
+        # manually under tmp. This should be functionally no different as far
+        # as permissions on /tmp/qiime2 are concerned. It still thinks we are
+        # not root as far as file system operations go
+        user_cache = Cache(os.path.join(cache_prefix, uname))
+
+        yield (uname, user_cache)
+    finally:
+        os.seteuid(0)
         os.system(f'userdel {uname}')
 
 
@@ -444,34 +475,13 @@ class TestCache(unittest.TestCase):
             './VERSION', f'data/{root_result._archiver.uuid}'
         ))
 
-        user_list = psutil.users()
-        uname = ''.join(
-            random.choices(string.ascii_letters + string.digits, k=8))
-
-        # Highly unlikely this will ever happen, but we really don't want to
-        # have collisions here
-        while uname in user_list:
-            uname = ''.join(
-                random.choices(string.ascii_letters + string.digits, k=8))
-
-        atexit.register(_remove_user, uname)
-
-        password = crypt.crypt('test', '22')
-        os.system(f'useradd -p {password} {uname}')
-
+        # The location we put the root cache in is also where we want the fake
+        # user cache
+        cache_prefix = os.path.split(root_cache.path)[0]
         # Temporarily set our euid to the new user
-        try:
-            os.seteuid(pwd.getpwnam(uname).pw_uid)
-
-            # seteuid does not convice getpass.getuser we are not root because
-            # it uses getuid not geteuid. I cannot use setuid because then I
-            # would not be able to get root permissions back, so I give it the
-            # cache path manually under tmp. This should be functionally no
-            # different as far as permissions on /tmp/qiime2 are concerned. It
-            # still thinks we are not root as far as file system operations go
-            user_cache = \
-                Cache(os.path.join(os.path.split(root_cache.path)[0], uname))
-
+        with _fake_user_for_cache(
+                cache_prefix,
+                i_acknowledge_this_is_dangerous=True) as (uname, user_cache):
             # This should create a /tmp/qiime2/uname cache and write to it
             with user_cache:
                 user_result = concatenate_ints(
@@ -481,8 +491,6 @@ class TestCache(unittest.TestCase):
                 './VERSION', f'data/{user_result._archiver.uuid}',
             ))
 
-            os.seteuid(0)
-
             self.assertEqual(os.path.basename(root_cache.path), root_user)
             self.assertEqual(os.path.basename(user_cache.path), uname)
 
@@ -491,13 +499,6 @@ class TestCache(unittest.TestCase):
 
             self.assertTrue(root_expected.issubset(root_observed))
             self.assertTrue(user_expected.issubset(user_observed))
-        # If any exception is raised here we want to get our root permissions
-        # back
-        except Exception as e:  # noqa: E722
-            # Back to root before we end this test
-            os.seteuid(0)
-            raise e
 
         # Clean up as root when we end the test
-        os.system(f'userdel {uname}')
         shutil.rmtree(user_cache.path)
