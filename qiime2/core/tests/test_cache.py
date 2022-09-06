@@ -114,6 +114,7 @@ def _fake_user_for_cache(cache_prefix, i_acknowledge_this_is_dangerous=False):
     finally:
         os.seteuid(0)
         os.system(f'userdel {uname}')
+        shutil.rmtree(user_cache.path)
 
 
 class TestCache(unittest.TestCase):
@@ -479,7 +480,8 @@ class TestCache(unittest.TestCase):
         # The location we put the root cache in is also where we want the fake
         # user cache
         cache_prefix = os.path.split(root_cache.path)[0]
-        # Temporarily set our euid to the new user
+        # Temporarily create a new user and user cache for multi-user testing
+        # purposes
         with _fake_user_for_cache(
                 cache_prefix,
                 i_acknowledge_this_is_dangerous=True) as (uname, user_cache):
@@ -500,6 +502,3 @@ class TestCache(unittest.TestCase):
 
             self.assertTrue(root_expected.issubset(root_observed))
             self.assertTrue(user_expected.issubset(user_observed))
-
-        # Clean up as root when we end the test
-        shutil.rmtree(user_cache.path)
