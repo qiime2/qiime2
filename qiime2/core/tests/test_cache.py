@@ -87,29 +87,28 @@ def _fake_user_for_cache(cache_prefix, i_acknowledge_this_is_dangerous=False):
         raise ValueError('This action requires super user permissions which '
                          'you do not have')
 
-    try:
-        user_list = psutil.users()
+    user_list = psutil.users()
+    uname = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+
+    # Highly unlikely this will ever happen, but we really don't want to
+    # have collisions here
+    while uname in user_list:
         uname = ''.join(
             random.choices(string.ascii_letters + string.digits, k=8))
 
-        # Highly unlikely this will ever happen, but we really don't want to
-        # have collisions here
-        while uname in user_list:
-            uname = ''.join(
-                random.choices(string.ascii_letters + string.digits, k=8))
+    password = crypt.crypt('test', '22')
+    os.system(f'useradd -p {password} {uname}')
 
-        password = crypt.crypt('test', '22')
-        os.system(f'useradd -p {password} {uname}')
+    os.seteuid(pwd.getpwnam(uname).pw_uid)
+    # seteuid does not convice getpass.getuser we are not root because it uses
+    # getuid not geteuid. I cannot use setuid because then I would not be able
+    # to get root permissions back, so I give it the cache path manually under
+    # tmp. This should be functionally no different as far as permissions on
+    # /tmp/qiime2 are concerned. It still thinks we are not root as far as
+    # file system operations go
+    user_cache = Cache(os.path.join(cache_prefix, uname))
 
-        os.seteuid(pwd.getpwnam(uname).pw_uid)
-        # seteuid does not convice getpass.getuser we are not root because it
-        # uses getuid not geteuid. I cannot use setuid because then I would not
-        # be able to get root permissions back, so I give it the cache path
-        # manually under tmp. This should be functionally no different as far
-        # as permissions on /tmp/qiime2 are concerned. It still thinks we are
-        # not root as far as file system operations go
-        user_cache = Cache(os.path.join(cache_prefix, uname))
-
+    try:
         yield (uname, user_cache)
     finally:
         os.seteuid(0)
