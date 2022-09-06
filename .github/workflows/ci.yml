@@ -8,7 +8,7 @@ on:
   pull_request:
   push:
     branches:
-      - master
+      - 2022.8-patches
 
 jobs:
   lint:
@@ -50,6 +50,6 @@ jobs:
     - uses: qiime2/action-library-packaging@alpha1
       with:
         package-name: qiime2
-        build-target: dev
+        build-target: release
         additional-tests: QIIMETEST= py.test --pyargs qiime2
-        library-token: ${{ secrets.LIBRARY_TOKEN }}
+        #library-token: ${{ secrets.LIBRARY_TOKEN }}
