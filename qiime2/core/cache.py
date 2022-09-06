@@ -173,7 +173,6 @@ class Cache:
 
         # Do we want a more rigorous check for whether or not we've been
         # pointed at an existing cache?
-        # raise ValueError(self.path)
         if not os.path.exists(self.path):
             self._create_cache()
         elif not self.is_cache(self.path):
