@@ -75,8 +75,9 @@ def _on_exit_validate(cache, expected):
 
 @contextmanager
 def _fake_user_for_cache(cache_prefix, i_acknowledge_this_is_dangerous=False):
-    """Creates a fake username with a uname that is 8 random alphanumeric
-        characters that we ensure does not collide with an existing uname
+    """Creates a fake user with a uname that is 8 random alphanumeric
+       characters that we ensure does not collide with an existing uname and
+       create a cache for said user under cache_prefix
     """
     if not i_acknowledge_this_is_dangerous:
         raise ValueError('YOU MUST ACCEPT THE DANGER OF LETTING THIS SCRIPT '
