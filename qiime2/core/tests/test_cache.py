@@ -484,7 +484,6 @@ class TestCache(unittest.TestCase):
         with _fake_user_for_cache(
                 cache_prefix,
                 i_acknowledge_this_is_dangerous=True) as (uname, user_cache):
-            # This should create a /tmp/qiime2/uname cache and write to it
             with user_cache:
                 user_result = concatenate_ints(
                     self.art1, self.art2, self.art4, 4, 5)[0]
