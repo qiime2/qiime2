@@ -17,11 +17,11 @@ import shutil
 import getpass
 import pathlib
 import tempfile
+import warnings
 import threading
 from sys import maxsize
 from random import randint
 from datetime import timedelta
-
 
 from flufl.lock import Lock
 
@@ -176,8 +176,22 @@ class Cache:
         if not os.path.exists(self.path):
             self._create_cache()
         elif not self.is_cache(self.path):
-            raise ValueError(f"Path: \'{self.path}\' already exists and is "
-                             "not a cache.")
+            # MacOS culls files in the temp dir that haven't been used for a
+            # few days. This can lead to the VERSION file being deleted while
+            # we still have a cache dir, so we see the directory but don't
+            # think it's a cache. Our solution is to just kill this directory
+            # and recreate it. We only do this on the temp cache which is not
+            # storing anything long term anyway
+            if path is None:
+                warnings.warn("Your temporary cache was found to be in an "
+                              "inconsistent state. It has been recreated.")
+                set_permissions(self.path, ALL_PERMISSIONS, ALL_PERMISSIONS)
+                shutil.rmtree(self.path)
+                self._create_cache()
+            else:
+                raise ValueError(
+                    f"Path: \'{self.path}\' already exists and is not a "
+                    "cache.")
 
         self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
         # Make our process pool.
