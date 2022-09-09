@@ -398,7 +398,9 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.data))
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
-    def test_asynchronous_pool_post_exit(self):
+    # This test has zzz in front of it because unittest.Testcase runs the tests
+    # in alphabetical order, and we want this test to run last
+    def test_zzz_asynchronous_pool_post_exit(self):
         """This test determines if all of the data is still in the cache when
         we are getting ready to exit. This was put here when ensuring we do not
         destroy our data when running asynchronous actions, and it can probably
@@ -500,3 +502,12 @@ class TestCache(unittest.TestCase):
 
             self.assertTrue(root_expected.issubset(root_observed))
             self.assertTrue(user_expected.issubset(user_observed))
+
+    def test_inconsistent_cache(self):
+        cache = Cache()
+        (cache.path / 'VERSION').unlink()
+
+        del cache
+
+        with self.assertWarnsRegex(UserWarning, "in an inconsistent state"):
+            Cache()
