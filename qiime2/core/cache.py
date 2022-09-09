@@ -215,17 +215,18 @@ class Cache:
         # We were used by this process
         USED_CACHES.add(self)
 
-        # Start thread that pokes things in the cache to ensre they aren't
-        # culled for being too old
-        self._thread_is_done = threading.Event()
-        self._thread_destructor = \
-            weakref.finalize(self, self._thread_is_done.set)
+        # Start thread that pokes things in the cache to ensure they aren't
+        # culled for being too old (only if we are in a temp cache)
+        if path is None:
+            self._thread_is_done = threading.Event()
+            self._thread_destructor = \
+                weakref.finalize(self, self._thread_is_done.set)
 
-        self._thread = threading.Thread(
-            target=monitor_thread, args=(self.path, self._thread_is_done),
-            daemon=True)
+            self._thread = threading.Thread(
+                target=monitor_thread, args=(self.path, self._thread_is_done),
+                daemon=True)
 
-        self._thread.start()
+            self._thread.start()
 
     def __enter__(self):
         """Set this cache on the thread local
@@ -249,9 +250,12 @@ class Cache:
         """
         threadless_dict = self.__dict__.copy()
 
-        del threadless_dict['_thread_is_done']
-        del threadless_dict['_thread_destructor']
-        del threadless_dict['_thread']
+        # This will only even exist if we are a temp cache not a named cache.
+        # If _thread exists the others should as well
+        if '_thread' in threadless_dict:
+            del threadless_dict['_thread_is_done']
+            del threadless_dict['_thread_destructor']
+            del threadless_dict['_thread']
 
         return threadless_dict
 
