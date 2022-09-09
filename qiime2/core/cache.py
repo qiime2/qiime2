@@ -16,6 +16,7 @@ import psutil
 import shutil
 import getpass
 import pathlib
+import weakref
 import tempfile
 import warnings
 import threading
@@ -28,8 +29,8 @@ from flufl.lock import Lock
 import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
-from qiime2.core.util import (is_uuid4, set_permissions, READ_ONLY_FILE,
-                              READ_ONLY_DIR, ALL_PERMISSIONS)
+from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
+                              READ_ONLY_FILE, READ_ONLY_DIR, ALL_PERMISSIONS)
 from qiime2.core.archive.archiver import Archiver
 
 _VERSION_TEMPLATE = """\
@@ -130,6 +131,15 @@ def _exit_cleanup():
             cache.garbage_collection()
 
 
+def monitor_thread(cache_dir, is_done):
+    """This function will be running in a seperate thread and making sure Mac
+    doesn't cull our stuff by updating its access and modified times
+    """
+    while not is_done.is_set():
+        touch_under_path(cache_dir)
+        time.sleep(60 * 60 * 6)
+
+
 class Cache:
     """General structure of the cache (tmp optional)
     artifact_cache/
@@ -205,6 +215,18 @@ class Cache:
         # We were used by this process
         USED_CACHES.add(self)
 
+        # Start thread that pokes things in the cache to ensre they aren't
+        # culled for being too old
+        self._thread_is_done = threading.Event()
+        self._thread_destructor = \
+            weakref.finalize(self, self._thread_is_done.set)
+
+        self._thread = threading.Thread(
+            target=monitor_thread, args=(self.path, self._thread_is_done),
+            daemon=True)
+
+        self._thread.start()
+
     def __enter__(self):
         """Set this cache on the thread local
         """
@@ -220,6 +242,18 @@ class Cache:
         one
         """
         _CACHE.cache = None
+
+    def __getstate__(self):
+        """We don't want to pickle any of the thread stuff because it won't
+        rehydrate, and we don't care about it
+        """
+        threadless_dict = self.__dict__.copy()
+
+        del threadless_dict['_thread_is_done']
+        del threadless_dict['_thread_destructor']
+        del threadless_dict['_thread']
+
+        return threadless_dict
 
     @classmethod
     def is_cache(cls, path):
