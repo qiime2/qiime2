@@ -16,20 +16,21 @@ import psutil
 import shutil
 import getpass
 import pathlib
+import weakref
 import tempfile
+import warnings
 import threading
 from sys import maxsize
 from random import randint
 from datetime import timedelta
-
 
 from flufl.lock import Lock
 
 import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
-from qiime2.core.util import (is_uuid4, set_permissions, READ_ONLY_FILE,
-                              READ_ONLY_DIR, ALL_PERMISSIONS)
+from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
+                              READ_ONLY_FILE, READ_ONLY_DIR, ALL_PERMISSIONS)
 from qiime2.core.archive.archiver import Archiver
 
 _VERSION_TEMPLATE = """\
@@ -130,6 +131,15 @@ def _exit_cleanup():
             cache.garbage_collection()
 
 
+def monitor_thread(cache_dir, is_done):
+    """This function will be running in a seperate thread and making sure Mac
+    doesn't cull our stuff by updating its access and modified times
+    """
+    while not is_done.is_set():
+        touch_under_path(cache_dir)
+        time.sleep(60 * 60 * 6)
+
+
 class Cache:
     """General structure of the cache (tmp optional)
     artifact_cache/
@@ -176,8 +186,22 @@ class Cache:
         if not os.path.exists(self.path):
             self._create_cache()
         elif not self.is_cache(self.path):
-            raise ValueError(f"Path: \'{self.path}\' already exists and is "
-                             "not a cache.")
+            # MacOS culls files in the temp dir that haven't been used for a
+            # few days. This can lead to the VERSION file being deleted while
+            # we still have a cache dir, so we see the directory but don't
+            # think it's a cache. Our solution is to just kill this directory
+            # and recreate it. We only do this on the temp cache which is not
+            # storing anything long term anyway
+            if path is None:
+                warnings.warn("Your temporary cache was found to be in an "
+                              "inconsistent state. It has been recreated.")
+                set_permissions(self.path, ALL_PERMISSIONS, ALL_PERMISSIONS)
+                shutil.rmtree(self.path)
+                self._create_cache()
+            else:
+                raise ValueError(
+                    f"Path: \'{self.path}\' already exists and is not a "
+                    "cache.")
 
         self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
         # Make our process pool.
@@ -190,6 +214,19 @@ class Cache:
 
         # We were used by this process
         USED_CACHES.add(self)
+
+        # Start thread that pokes things in the cache to ensure they aren't
+        # culled for being too old (only if we are in a temp cache)
+        if path is None:
+            self._thread_is_done = threading.Event()
+            self._thread_destructor = \
+                weakref.finalize(self, self._thread_is_done.set)
+
+            self._thread = threading.Thread(
+                target=monitor_thread, args=(self.path, self._thread_is_done),
+                daemon=True)
+
+            self._thread.start()
 
     def __enter__(self):
         """Set this cache on the thread local
@@ -206,6 +243,21 @@ class Cache:
         one
         """
         _CACHE.cache = None
+
+    def __getstate__(self):
+        """We don't want to pickle any of the thread stuff because it won't
+        rehydrate, and we don't care about it
+        """
+        threadless_dict = self.__dict__.copy()
+
+        # This will only even exist if we are a temp cache not a named cache.
+        # If _thread exists the others should as well
+        if '_thread' in threadless_dict:
+            del threadless_dict['_thread_is_done']
+            del threadless_dict['_thread_destructor']
+            del threadless_dict['_thread']
+
+        return threadless_dict
 
     @classmethod
     def is_cache(cls, path):
