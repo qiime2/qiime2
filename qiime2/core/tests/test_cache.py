@@ -190,8 +190,9 @@ class TestCache(unittest.TestCase):
         self.cache.remove('foo')
 
         # Show that we can no longer load our artifact
-        with self.assertRaisesRegex(FileNotFoundError,
-                                    'No such file or directory'):
+        with self.assertRaisesRegex(ValueError,
+                                    f"'{self.cache.path}' does not contain "
+                                    "the key 'foo'"):
             self.cache.load('foo')
 
     def test_invalid_keys(self):
