@@ -476,6 +476,9 @@ class Cache:
                              "data. This most likely occured because you "
                              "tried to load a pool which is not supported.") \
                 from e
+        except FileNotFoundError as e:
+            raise ValueError(f"The cache '{self.path}' does not contain the "
+                             f"key '{key}'") from e
 
         archiver = Archiver.load_raw(path, self)
         return Result._from_archiver(archiver)
