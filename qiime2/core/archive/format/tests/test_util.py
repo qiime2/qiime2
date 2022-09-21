@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -22,6 +22,9 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
         prefix = "qiime2-test-temp-"
         self.temp_dir = tempfile.TemporaryDirectory(prefix=prefix)
         self.provenance_capture = archive.ImportProvenanceCapture()
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
 
     def test_nonexistent_archive_format(self):
         with self.assertRaisesRegex(ValueError, 'Version foo not supported'):

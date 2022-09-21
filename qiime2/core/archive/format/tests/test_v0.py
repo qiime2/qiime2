@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -21,6 +21,9 @@ class TestArchiveFormat(unittest.TestCase):
     def setUp(self):
         prefix = "qiime2-test-temp-"
         self.temp_dir = tempfile.TemporaryDirectory(prefix=prefix)
+
+    def tearDown(self):
+        self.temp_dir.cleanup()
 
     def test_format_metadata(self):
         uuid = _uuid.uuid4()
@@ -46,7 +49,7 @@ class TestArchiveFormat(unittest.TestCase):
         fp = pathlib.Path(self.temp_dir.name) / 'root-dir-metadata-mismatch'
         fp.mkdir()
 
-        r = _ZipArchive.setup(fp, 'foo', 'bar')
+        r = _ZipArchive.setup(_uuid.uuid4(), fp, 'foo', 'bar')
         fake = ArchiveRecord(r.root, r.version_fp,
                              _uuid.uuid4(),  # This will trick the format
                              r.version, r.framework_version)

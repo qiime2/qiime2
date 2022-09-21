@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -10,6 +10,7 @@ from qiime2.sdk import Artifact, Visualization
 from qiime2.metadata import (Metadata, MetadataColumn,
                              CategoricalMetadataColumn, NumericMetadataColumn)
 from qiime2.plugin import Citations
+from qiime2.core.cache import Cache, Pool
 from ._version import get_versions
 
 __version__ = get_versions()['version']
@@ -23,7 +24,8 @@ __citations__ = tuple(Citations.load('citations.bib', package='qiime2'))
 __website__ = 'https://qiime2.org'
 
 __all__ = ['Artifact', 'Visualization', 'Metadata', 'MetadataColumn',
-           'CategoricalMetadataColumn', 'NumericMetadataColumn']
+           'CategoricalMetadataColumn', 'NumericMetadataColumn', 'Cache',
+           'Pool']
 
 
 # Used by `jupyter serverextension enable`

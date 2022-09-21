@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import abc
+import shutil
 
 from qiime2.core import transform
 from .base import FormatBase, ValidationError, _check_validation_level
@@ -46,6 +47,18 @@ class _FileFormat(FormatBase, metaclass=abc.ABCMeta):
 
         transformation = from_type.make_transformation(to_type)
         return transformation(self)
+
+    def save(self, path, ext=None):
+        path = str(path)  # in case of pathlib.Path
+        path = path.rstrip('.')
+
+        if ext is not None:
+            ext = '.' + ext.lstrip('.')
+            if not path.endswith(ext):
+                path += ext
+
+        shutil.copyfile(self.path, path)
+        return path
 
 
 class TextFileFormat(_FileFormat):

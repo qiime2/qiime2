@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -15,11 +15,12 @@ import pathlib
 
 from qiime2.core.archive import Archiver
 from qiime2.core.archive import ImportProvenanceCapture
-from qiime2.core.archive.archiver import _ZipArchive
+from qiime2.core.archive.archiver import _ZipArchive, ArchiveCheck
 from qiime2.core.archive.format.util import artifact_version
 from qiime2.core.testing.format import IntSequenceDirectoryFormat
 from qiime2.core.testing.type import IntSequence1
 from qiime2.core.testing.util import ArchiveTestingMixin
+from qiime2.core.util import is_uuid4, set_permissions, OTHER_NO_WRITE
 
 
 class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
@@ -176,64 +177,6 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                           for p in archiver.data_dir.iterdir()},
                          {'ints.txt'})
 
-    def test_load_ignores_directory_members(self):
-        # Directory members aren't created by Python's zipfile module but can
-        # be present if the archive is unzipped and then rezipped, for example,
-        # using a command-line zip program.
-        fp = os.path.join(self.temp_dir.name, 'archive.zip')
-        self.archiver.save(fp)
-
-        # Add directory entries to the archive.
-        root_dir = str(self.archiver.uuid)
-        with zipfile.ZipFile(fp, mode='a') as zf:
-            zf.writestr('%s/' % root_dir, "")
-            zf.writestr('%s/data/' % root_dir, "")
-            zf.writestr('%s/data/nested/' % root_dir, "")
-            zf.writestr('%s/data/nested/foo.txt' % root_dir, "bar")
-
-        # Assert the expected files exist in the archive to verify this test
-        # case is testing what we want it to.
-        expected = {
-            '',  # Expected path: `root_dir`/
-            'data/',
-            'data/nested/',
-            'VERSION',
-            'checksums.md5',
-            'metadata.yaml',
-            'data/ints.txt',
-            'data/nested/foo.txt',
-            'provenance/metadata.yaml',
-            'provenance/VERSION',
-            'provenance/citations.bib',
-            'provenance/action/action.yaml'
-        }
-
-        self.assertArchiveMembers(fp, root_dir, expected)
-
-        archiver = Archiver.load(fp)
-
-        self.assertEqual(archiver.uuid, self.archiver.uuid)
-        self.assertEqual(archiver.type, IntSequence1)
-        self.assertEqual(archiver.format, IntSequenceDirectoryFormat)
-
-        archiver.save(fp)
-
-        root_dir = str(archiver.uuid)
-        expected = {
-            # Directory entries should not be present.
-            'VERSION',
-            'checksums.md5',
-            'metadata.yaml',
-            'data/ints.txt',
-            'data/nested/foo.txt',
-            'provenance/metadata.yaml',
-            'provenance/VERSION',
-            'provenance/citations.bib',
-            'provenance/action/action.yaml'
-        }
-
-        self.assertArchiveMembers(fp, root_dir, expected)
-
     def test_load_empty_archive(self):
         fp = os.path.join(self.temp_dir.name, 'empty.zip')
 
@@ -304,13 +247,14 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             Archiver.load(fp)
 
     def test_load_invalid_uuid4_root_dir(self):
+        _uuid = uuid.uuid4()
         fp = pathlib.Path(self.temp_dir.name) / 'invalid-uuid4'
         zp = pathlib.Path(self.temp_dir.name) / 'bad.zip'
-        fp.mkdir()
+        (fp / str(_uuid)).mkdir(parents=True)
         # Invalid uuid4 taken from https://gist.github.com/ShawnMilo/7777304
         root_dir = '89eb3586-8a82-47a4-c911-758a62601cf7'
 
-        record = _ZipArchive.setup(fp, 'foo', 'bar')
+        record = _ZipArchive.setup(_uuid, fp / str(_uuid), 'foo', 'bar')
         (fp / str(record.uuid)).rename(fp / root_dir)
         _ZipArchive.save(fp, zp)
 
@@ -321,22 +265,22 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
     def test_is_uuid4_valid(self):
         uuid_str = str(uuid.uuid4())
 
-        self.assertTrue(_ZipArchive._is_uuid4(uuid_str))
+        self.assertTrue(is_uuid4(uuid_str))
 
     def test_parse_uuid_invalid(self):
         # Invalid uuid4 taken from https://gist.github.com/ShawnMilo/7777304
         uuid_str = '89eb3586-8a82-47a4-c911-758a62601cf7'
-        self.assertFalse(_ZipArchive._is_uuid4(uuid_str))
+        self.assertFalse(is_uuid4(uuid_str))
 
         # Not a UUID.
         uuid_str = 'abc123'
-        self.assertFalse(_ZipArchive._is_uuid4(uuid_str))
+        self.assertFalse(is_uuid4(uuid_str))
 
         # Other UUID versions.
         for uuid_ in (uuid.uuid1(), uuid.uuid3(uuid.NAMESPACE_DNS, 'foo'),
                       uuid.uuid5(uuid.NAMESPACE_DNS, 'bar')):
             uuid_str = str(uuid_)
-            self.assertFalse(_ZipArchive._is_uuid4(uuid_str))
+            self.assertFalse(is_uuid4(uuid_str))
 
     def test_checksums_match(self):
         diff = self.archiver.validate_checksums()
@@ -346,6 +290,10 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(diff.changed, {})
 
     def test_checksums_mismatch(self):
+        # We set everything in the artifact to be read-only. This test needs to
+        # mimic if the user were to somehow write it anyway, so we set write
+        # for self and group
+        set_permissions(self.archiver.root_dir, OTHER_NO_WRITE, OTHER_NO_WRITE)
         with (self.archiver.root_dir / 'data' / 'ints.txt').open('w') as fh:
             fh.write('999\n')
         with (self.archiver.root_dir / 'tamper.txt').open('w') as fh:
@@ -375,6 +323,26 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(diff.added, {})
         self.assertEqual(diff.removed, {})
         self.assertEqual(diff.changed, {})
+
+    def test_archive_check(self):
+        """Rough test of our machinery to support showing visualizations in
+        Jupyter notebooks without actually spoofing the notebook
+        """
+        archive = ArchiveCheck(self.archiver.path)
+
+        # Make sure this _get_uuid actually works
+        self.assertEqual(archive._get_uuid(), archive.uuid)
+
+        expected = set([
+            'metadata.yaml',
+            'data',
+            'checksums.md5',
+            'provenance',
+            'VERSION'
+        ])
+
+        observed = set(file for file in archive.relative_iterdir())
+        self.assertEqual(observed, expected)
 
 
 if __name__ == '__main__':

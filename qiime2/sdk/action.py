@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -11,7 +11,6 @@ import concurrent.futures
 import inspect
 import tempfile
 import textwrap
-import itertools
 
 import decorator
 import dill
@@ -22,24 +21,14 @@ import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 
 
-def _subprocess_apply(action, args, kwargs):
-    # Preprocess input artifacts as we've got pickled clones which shouldn't
-    # self-destruct.
-    for arg in itertools.chain(args, kwargs.values()):
-        if isinstance(arg, qiime2.sdk.Artifact):
-            # We can't rely on the subprocess preventing atexit hooks as the
-            # destructor is also called when the artifact goes out of scope
-            # (which happens).
-            arg._destructor.detach()
+def _subprocess_apply(action, ctx, args, kwargs):
+    # We with in the cache here to make sure archiver.load* puts things in the
+    # right cache
+    with ctx.cache:
+        exe = action._bind(lambda: qiime2.sdk.Context(parent=ctx))
+        results = exe(*args, **kwargs)
 
-    results = action(*args, **kwargs)
-    for r in results:
-        # The destructor doesn't keep its detatched state when sent back to the
-        # main process. Something about the context-manager from ctx seems to
-        # cause a GC of the artifacts before the process actually ends, so we
-        # do need to detach these. The specifics are not understood.
-        r._destructor.detach()
-    return results
+        return results
 
 
 class Action(metaclass=abc.ABCMeta):
@@ -287,7 +276,8 @@ class Action(metaclass=abc.ABCMeta):
             args = args[1:]
 
             pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)
-            future = pool.submit(_subprocess_apply, self, args, kwargs)
+            future = pool.submit(_subprocess_apply, self, qiime2.sdk.Context(),
+                                 args, kwargs)
             # TODO: pool.shutdown(wait=False) caused the child process to
             # hang unrecoverably. This seems to be a bug in Python 3.7
             # It's probably best to gut concurrent.futures entirely, so we're
@@ -417,7 +407,7 @@ class Method(Action):
 
             artifact = qiime2.sdk.Artifact._from_view(
                 spec.qiime_type, output_view, spec.view_type, prov)
-            scope.add_parent_reference(artifact)
+            artifact = scope.add_parent_reference(artifact)
 
             output_artifacts.append(artifact)
 
@@ -458,7 +448,7 @@ class Visualizer(Action):
             provenance.output_name = 'visualization'
             viz = qiime2.sdk.Visualization._from_data_dir(temp_dir,
                                                           provenance)
-            scope.add_parent_reference(viz)
+            viz = scope.add_parent_reference(viz)
 
             return (viz,)
 
@@ -511,7 +501,7 @@ class Pipeline(Action):
             scope.add_reference(prov)
 
             aliased_result = output._alias(prov)
-            scope.add_parent_reference(aliased_result)
+            aliased_result = scope.add_parent_reference(aliased_result)
 
             results.append(aliased_result)
 

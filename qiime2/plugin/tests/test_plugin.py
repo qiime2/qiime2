@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -93,7 +93,7 @@ class TestPlugin(unittest.TestCase):
                           'double_bound_variable_method',
                           'bool_flag_swaps_output_method',
                           'predicates_preserved_method',
-                          'deprecated_method',
+                          'deprecated_method', 'union_inputs',
                           'unioned_primitives',
                           'type_match_list_and_set',
                           })
@@ -125,7 +125,7 @@ class TestPlugin(unittest.TestCase):
                           'double_bound_variable_method',
                           'bool_flag_swaps_output_method',
                           'predicates_preserved_method',
-                          'deprecated_method',
+                          'deprecated_method', 'union_inputs',
                           'unioned_primitives',
                           'type_match_list_and_set',
                           })
@@ -161,7 +161,8 @@ class TestPlugin(unittest.TestCase):
             set(types),
             set(['IntSequence1', 'IntSequence2', 'IntSequence3', 'Mapping',
                  'FourInts', 'Kennel', 'Dog', 'Cat', 'SingleInt', 'C1', 'C2',
-                 'C3', 'Foo', 'Bar', 'Baz']))
+                 'C3', 'Foo', 'Bar', 'Baz', 'AscIntSequence', 'Squid',
+                 'Octopus', 'Cuttlefish']))
 
     def test_types(self):
         types = self.plugin.types

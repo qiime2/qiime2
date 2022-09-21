@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -14,6 +14,7 @@ import datetime
 import dateutil.relativedelta as relativedelta
 
 import qiime2.core.util as util
+from qiime2.core.testing.type import Foo, Bar, Baz
 
 
 class TestFindDuplicates(unittest.TestCase):
@@ -286,6 +287,36 @@ class TestChecksumFormat(unittest.TestCase):
         self.assertEqual(fp, 'filepath/\n/with/\\newline')
         self.assertEqual(chks, '939aaaae6098ebdab049b0f3abe7b68c')
 
+    def test_filepath_with_leading_backslash(self):
+        line = r'\d41d8cd98f00b204e9800998ecf8427e  \\.qza'
+        fp, chks = util.from_checksum_format(line)
+
+        self.assertEqual(chks, 'd41d8cd98f00b204e9800998ecf8427e')
+        self.assertEqual(fp, r'\.qza')
+
+    def test_filepath_with_leading_backslashes(self):
+        line = r'\d41d8cd98f00b204e9800998ecf8427e  \\\\\\.qza'
+        fp, chks = util.from_checksum_format(line)
+
+        self.assertEqual(fp, r'\\\.qza')
+        self.assertEqual(chks, 'd41d8cd98f00b204e9800998ecf8427e')
+
+    def test_impossible_backslash(self):
+        # It may be impossible to generate a single '\' in the md5sum digest,
+        # because each '\' is escaped (as '\\') in the digest. We'll
+        # test for it anyway, for full coverage.
+
+        fp, _ = util.from_checksum_format(
+            r'fake_checksum  \.qza'
+        )
+
+        fp2, _ = util.from_checksum_format(
+            r'\fake_checksum  \.qza'
+        )
+
+        self.assertEqual(fp, r'\.qza')
+        self.assertEqual(fp2, r'\.qza')
+
     def test_from_legacy_format(self):
         fp, chks = util.from_checksum_format(
             r'0ed29022ace300b4d96847882daaf0ef *this/means/binary/mode')
@@ -312,6 +343,80 @@ class TestChecksumFormat(unittest.TestCase):
         self.check_roundtrip(
             r'FZ\rywG:7Q%"J@}Rk>\&zbWdS0nhEl_k1y1cMU#Lk_"*#*/uGi>Evl7M1suNNVE',
             '9c7753f252116473994e8bffba2c620b')
+
+
+class TestSortedPoset(unittest.TestCase):
+    def test_already_sorted_incomparable(self):
+        a = [Foo, Bar, Baz]
+
+        r = util.sorted_poset(a)
+
+        # Incomparable elements, so as long as they
+        # are present, any order is valid.
+        self.assertEqual(len(r), 3)
+        self.assertIn(Foo, r)
+        self.assertIn(Bar, r)
+        self.assertIn(Baz, r)
+
+    def test_already_sorted_all_comparable(self):
+        a = [Foo, Foo | Bar, Foo | Bar | Baz]
+
+        r = util.sorted_poset(a)
+
+        self.assertEqual(a, r)
+
+    def test_already_sorted_all_comparable_reverse(self):
+        a = [Foo, Foo | Bar, Foo | Bar | Baz]
+
+        r = util.sorted_poset(a, reverse=True)
+
+        self.assertEqual(list(reversed(a)), r)
+
+    def test_mixed_elements(self):
+        a = [Foo | Bar, Foo | Baz, Foo]
+
+        r = util.sorted_poset(a)
+
+        self.assertEqual(r[0], Foo)
+        # Order of others won't matter
+
+    def test_mxed_elements_diamond(self):
+        a = [Foo | Bar, Foo, Bar | Baz | Foo, Baz | Foo]
+
+        r = util.sorted_poset(a)
+
+        self.assertEqual(r[0], Foo)
+        self.assertEqual(r[-1], Bar | Baz | Foo)
+
+    def test_multiple_minimums(self):
+        a = [Foo | Bar, Foo, Bar | Baz | Foo, Bar, Baz]
+
+        r = util.sorted_poset(a)
+
+        idx_foo = r.index(Foo)
+        idx_bar = r.index(Bar)
+        idx_foobar = r.index(Foo | Bar)
+
+        self.assertLess(idx_foo, idx_foobar)
+        self.assertLess(idx_bar, idx_foobar)
+        self.assertEqual(r[-1], Bar | Baz | Foo)
+
+    def test_multiple_equivalents(self):
+        a = [Baz, Foo | Bar, Foo, Bar | Foo, Bar]
+
+        r = util.sorted_poset(a)
+
+        idx_foo = r.index(Foo)
+        idx_bar = r.index(Bar)
+        idx_barfoo = r.index(Bar | Foo)
+        idx_foobar = r.index(Foo | Bar)
+
+        adjacent = -1 <= idx_barfoo - idx_foobar <= 1
+        self.assertTrue(adjacent)
+        self.assertLess(idx_foo, idx_barfoo)
+        self.assertLess(idx_foo, idx_foobar)
+        self.assertLess(idx_bar, idx_barfoo)
+        self.assertLess(idx_bar, idx_foobar)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from qiime2.core.util import find_duplicates
+import qiime2.core.missing as _missing
 from .base import SUPPORTED_COLUMN_TYPES, FORMATTED_ID_HEADERS, is_id_header
 from .metadata import Metadata, MetadataColumn
 
@@ -54,7 +55,8 @@ class MetadataReader:
         # protocol is the only guaranteed API on this object.
         self._reader = None
 
-    def read(self, into, column_types=None):
+    def read(self, into, column_types=None, column_missing_schemes=None,
+             default_missing_scheme=_missing.DEFAULT_MISSING):
         if column_types is None:
             column_types = {}
 
@@ -88,6 +90,10 @@ class MetadataReader:
         index = pd.Index(ids, name=header[0], dtype=object)
         df = pd.DataFrame(data, columns=header[1:], index=index, dtype=object)
 
+        # TODO: move these checks over to Metadata.__init__() so that you can
+        # pass column_types with an untyped dataframe. This would require a bit
+        # of a refactor and doesn't buy a whole lot at the moment, hence the
+        # TODO.
         for name, type in column_types.items():
             if name not in df.columns:
                 raise MetadataFileError(
@@ -104,10 +110,17 @@ class MetadataReader:
         resolved_column_types = directives.get('types', {})
         resolved_column_types.update(column_types)
 
+        if column_missing_schemes is None:
+            column_missing_schemes = {}
+
+        resolved_missing = directives.get('missing', {})
+        resolved_missing.update(column_missing_schemes)
+
         try:
             # Cast each column to the appropriate dtype based on column type.
             df = df.apply(self._cast_column, axis='index',
-                          column_types=resolved_column_types)
+                          column_types=resolved_column_types,
+                          missing_schemes=resolved_missing)
         except MetadataFileError as e:
             # HACK: If an exception is raised within `DataFrame.apply`, pandas
             # adds an extra tuple element to `e.args`, making the original
@@ -120,7 +133,8 @@ class MetadataReader:
             raise MetadataFileError(msg, include_suffix=False)
 
         try:
-            return into(df)
+            return into(df, column_missing_schemes=resolved_missing,
+                        default_missing_scheme=default_missing_scheme)
         except Exception as e:
             raise MetadataFileError(
                 "There was an issue with loading the metadata file:\n\n%s" % e)
@@ -190,36 +204,60 @@ class MetadataReader:
     def _read_directives(self, header):
         directives = {}
         for row in self._reader:
+            directive_kind = None
+
             if not self._is_directive(row):
                 self._reader = itertools.chain([row], self._reader)
                 break
 
-            if not self._is_column_types_directive(row):
+            if self._is_column_types_directive(row):
+                directive_kind = 'types'
+            elif self._is_missing_directive(row):
+                directive_kind = 'missing'
+            else:
                 raise MetadataFileError(
-                        "Unrecognized directive %r. Only the #q2:types "
-                        "directive is supported at this time." % row[0])
-            if 'types' in directives:
+                        "Unrecognized directive %r. Only the #q2:types"
+                        " and #q2:missing directives are supported at this"
+                        " time." % row[0])
+
+            if directive_kind in directives:
                 raise MetadataFileError(
                     "Found duplicate directive %r. Each directive may "
                     "only be specified a single time." % row[0])
 
             row = self._match_header_len(row, header)
 
-            column_types = {}
-            for column_name, column_type in zip(header[1:], row[1:]):
-                if column_type:
-                    type_nocase = column_type.lower()
-                    if type_nocase in SUPPORTED_COLUMN_TYPES:
-                        column_types[column_name] = type_nocase
-                    else:
-                        fmt_column_types = ', '.join(
-                            repr(e) for e in sorted(SUPPORTED_COLUMN_TYPES))
-                        raise MetadataFileError(
-                            "Column %r has an unrecognized column type %r "
-                            "specified in its #q2:types directive. "
-                            "Supported column types (case-insensitive): %s"
-                            % (column_name, column_type, fmt_column_types))
-            directives['types'] = column_types
+            collected = {name: arg for name, arg in zip(header[1:], row[1:])
+                         if arg}
+
+            directives[directive_kind] = collected
+
+        if 'types' in directives:
+            column_types = directives['types']
+            for column_name, column_type in column_types.items():
+                type_nocase = column_type.lower()
+                if type_nocase in SUPPORTED_COLUMN_TYPES:
+                    column_types[column_name] = type_nocase
+                else:
+                    fmt_column_types = ', '.join(
+                        repr(e) for e in sorted(SUPPORTED_COLUMN_TYPES))
+                    raise MetadataFileError(
+                        "Column %r has an unrecognized column type %r "
+                        "specified in its #q2:types directive. "
+                        "Supported column types (case-insensitive): %s"
+                        % (column_name, column_type, fmt_column_types))
+
+        if 'missing' in directives:
+            for column_name, column_missing in directives['missing'].items():
+                if column_missing not in _missing.BUILTIN_MISSING:
+                    raise MetadataFileError(
+                        "Column %r has an unrecognized missing value scheme %r"
+                        " specified in its #q2:missing directive."
+                        " Supported missing value schemes (case-sensitive): %s"
+                        % (column_name, column_missing,
+                           list(_missing.BUILTIN_MISSING))
+                        )
+
         return directives
 
     def _read_data(self, header):
@@ -288,9 +326,15 @@ class MetadataReader:
         return len(row) > 0 and row[0].startswith('#q2:')
 
     def _is_column_types_directive(self, row):
-        return len(row) > 0 and row[0] == '#q2:types'
+        return len(row) > 0 and row[0].split(' ')[0] == '#q2:types'
 
-    def _cast_column(self, series, column_types):
+    def _is_missing_directive(self, row):
+        return len(row) > 0 and row[0].split(' ')[0] == '#q2:missing'
+
+    def _cast_column(self, series, column_types, missing_schemes):
+        if series.name in missing_schemes:
+            scheme = missing_schemes[series.name]
+            series = _missing.series_encode_missing(series, scheme)
         if series.name in column_types:
             if column_types[series.name] == 'numeric':
                 return self._to_numeric(series)
@@ -349,24 +393,39 @@ class MetadataWriter:
             md = self._metadata
             header = [md.id_header]
             types_directive = ['#q2:types']
+            missing_directive = ['#q2:missing']
 
             if isinstance(md, Metadata):
                 for name, props in md.columns.items():
                     header.append(name)
                     types_directive.append(props.type)
+                    missing_directive.append(props.missing_scheme)
             elif isinstance(md, MetadataColumn):
                 header.append(md.name)
                 types_directive.append(md.type)
+                missing_directive.append(md.missing_scheme)
             else:
                 raise NotImplementedError
 
             tsv_writer.writerow(header)
             tsv_writer.writerow(types_directive)
+            if self._non_default_missing(missing_directive):
+                tsv_writer.writerow(missing_directive)
 
-            df = md.to_dataframe()
+            df = md.to_dataframe(encode_missing=True)
             df.fillna('', inplace=True)
             df = df.applymap(self._format)
             tsv_writer.writerows(df.itertuples(index=True))
+
+    def _non_default_missing(self, missing_directive):
+        missing = missing_directive[1:]
+        result = False
+        for m in missing:
+            if m != _missing.DEFAULT_MISSING:
+                result = True
+                break
+
+        return result
 
     def _format(self, value):
         if isinstance(value, str):

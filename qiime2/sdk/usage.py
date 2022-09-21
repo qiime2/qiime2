@@ -1,202 +1,379 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
+"""
+The Usage API provides an interface-agnostic way for QIIME 2 plugin
+developers to define examples of how to use their plugin’s actions. This
+enables the programmatic generation of examples for all QIIME 2 interfaces,
+eliminating the need to maintain specific examples for multiple interfaces.
+
+**Importantly there are two sides to the API**, the usage example side, and the
+interface driver side. A usage example must never call a method which is
+intended for a usage driver. These methods will be denoted with the following
+admonition:
+
+Warning
+-------
+  For use by interface drivers only. Do not use in a written usage example.
+
+Interface developers may want to pay special attention to these methods, as
+they will likely simplify their code.
+
+If the above warning is not present, then the method is likely intended to be
+used to describe some example and may be used by an example writer, or
+overriden by a usage driver.
+
+For the docs below, we set the following artificial global, as if we were
+always in a usage example with a ``use`` variable defined. This is only to fool
+the doctest module. This should never be done in the real world.
+
+>>> import builtins
+>>> builtins.use = ExecutionUsage()
 
 """
-The Usage module enables generating examples for multiple QIIME 2 interfaces.
-"""
-
-import abc
+from typing import Set, List, Literal, Any, Callable, Type
+import dataclasses
+import functools
 import re
-import types
-import typing
 
-from qiime2 import core, sdk, metadata
+import qiime2
+from qiime2 import sdk
+from qiime2.core.type import is_semantic_type, is_visualization_type
+
+
+def assert_usage_var_type(usage_variable, *valid_types):
+    """Testing utility to assert a usage variable has the right type.
+
+    Parameters
+    ----------
+    usage_variable : `qiime2.sdk.usage.UsageVariable`
+        The usage variable to test.
+    *valid_types : 'artifact', 'visualization', 'metadata', 'column', 'format'
+        The valid variable types to expect.
+
+    Raises
+    ------
+    AssertionError
+        If the variable is not the correct type.
+    """
+    if usage_variable.var_type not in valid_types:
+        tmpl = (
+            usage_variable.name, valid_types, usage_variable.var_type,
+        )
+        raise AssertionError('Incorrect var_type for %s, need %s got %s'
+                             % tmpl)
 
 
 class UsageAction:
-    """
-    Parameters
-    ----------
-    plugin_id : str
-        Plugin ID.
-    action_id : str
-        Action ID.
-    """
+    """An object which represents a deferred lookup for a QIIME 2 action.
 
-    def __init__(self, *, plugin_id: str, action_id: str):
+    One of three "argument objects" used by :meth:`Usage.action`. The other two
+    are :class:`UsageInputs` and :class:`UsageOutputNames`.
+
+    """
+    def __init__(self, plugin_id: str, action_id: str):
+        """Constructor for UsageAction.
+
+        The parameters should identify an existing plugin and action of that
+        plugin.
+
+        Important
+        ---------
+        There should be an existing plugin manager by the time this
+        object is created, or an error will be raised. Typically instantiation
+        happens by executing an example, so this will generally be true.
+
+        Parameters
+        ----------
+        plugin_id : str
+            The (typically under-scored) name of a plugin, e.g. "my_plugin".
+        action_id : str
+            The (typically under-scored) name of an action, e.g. "my_action".
+
+        Raises
+        ------
+        qiime2.sdk.UninitializedPluginManagerError
+            If there is not an existing plugin manager to define the available
+            plugins.
+
+        Examples
+        --------
+        >>> results = use.action(
+        ...     use.UsageAction(plugin_id='dummy_plugin',
+        ...                     action_id='params_only_method'),
+        ...     use.UsageInputs(name='foo', age=42),
+        ...     use.UsageOutputNames(out='bar1')
+        ... )
+        >>> results.out
+        <ExecutionUsageVariable name='bar1', var_type='artifact'>
+
+        See Also
+        --------
+        UsageInputs
+        UsageOutputNames
+        Usage.action
+        qiime2.sdk.PluginManager
+        """
         if plugin_id == '':
             raise ValueError('Must specify a value for plugin_id.')
 
         if action_id == '':
             raise ValueError('Must specify a value for action_id.')
 
-        self.plugin_id = plugin_id
-        self.action_id = action_id
-        self._plugin_manager = sdk.PluginManager()
+        self.plugin_id: str = plugin_id
+        """The (typically under-scored) name of a plugin, e.g. "my_plugin".
+
+        Warning
+        -------
+        For use by interface drivers only.
+        Do not use in a written usage example.
+        """
+        self.action_id: str = action_id
+        """The (typically under-scored) name of an action, e.g. "my_action".
+
+        Warning
+        -------
+        For use by interface drivers only.
+        Do not use in a written usage example.
+        """
+
+        try:
+            self._plugin_manager = sdk.PluginManager.reuse_existing()
+        except sdk.UninitializedPluginManagerError:
+            raise sdk.UninitializedPluginManagerError(
+                'Please create an instance of sdk.PluginManager'
+            )
 
     def __repr__(self):
         return 'UsageAction(plugin_id=%r, action_id=%r)' %\
             (self.plugin_id, self.action_id)
 
-    def get_action(self) -> typing.Tuple[
-            typing.Union['sdk.Method', 'sdk.Pipeline'],
-            typing.Type['core.PipelineSignature']]:
-        """
-        Get this example's action and signature.
+    def get_action(self) -> sdk.Action:
+        """Retrieve the actual SDK object (qiime2.sdk.Action)
+
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
 
         Returns
         -------
-        action_f : QIIME 2 Method, Visualizer, or Pipeline
-            The plugin action.
-        action_f.signature : QIIME 2 Method, Visualizer, or Pipeline Signature
-            The method signature for the plugin action.
-        """
+        action : instance of qiime2.sdk.Action subclass
 
+        Raises
+        ------
+        KeyError
+            If the action parameterized by this object does not exist in the
+            pre-initialized plugin manager.
+        """
         plugin = self._plugin_manager.get_plugin(id=self.plugin_id)
-        # TODO: should this validation be pushed up into
-        # plugin.py or action.py?
         try:
             action_f = plugin.actions[self.action_id]
         except KeyError:
             raise KeyError('No action currently registered with '
                            'id: "%s".' % (self.action_id,))
-        return (action_f, action_f.signature)
-
-    def validate(self, inputs: 'UsageInputs',
-                 outputs: 'UsageOutputNames') -> None:
-        """
-        Ensure that all required inputs and outputs are declared and reference
-        appropriate scope records, if necessary.
-
-        Parameters
-        ----------
-        inputs : UsageInputs
-        outputs : UsageOutputNames
-        """
-        if not isinstance(inputs, UsageInputs):
-            raise TypeError('Must provide an instance of UsageInputs.')
-        if not isinstance(outputs, UsageOutputNames):
-            raise TypeError('Must provide an instance of UsageOutputNames.')
-
-        _, sig = self.get_action()
-
-        inputs.validate(sig)
-        outputs.validate(sig)
+        return action_f
 
 
 class UsageInputs:
-    """
-    A convenience object for assisting with construction of input options
-    and performing signature validation.
+    """A dict-like mapping of parameters to arguments for invoking an action.
 
-    Parameters
-    ----------
-    kwargs : Example inputs
-        Inputs to be passed in to ``Usage.action``.
-    """
+    One of three "argument objects" used by :meth:`Usage.action`. The other two
+    are :class:`UsageAction` and :class:`UsageOutputNames`.
 
-    def __init__(self, **kwargs: typing.Any):
+    Parameters should match the signature of the associated action, and
+    arguments may be `UsageVariable` s or primitive values.
+
+    """
+    def __init__(self, **kwargs):
+        """Constructor for UsageInputs.
+
+        Parameters
+        ----------
+        **kwargs : primitive or UsageVariable
+            The keys used should match the signature of the action. The values
+            should be valid arguments of the action or variables of such
+            arguments.
+
+        Examples
+        --------
+        >>> results = use.action(
+        ...     use.UsageAction(plugin_id='dummy_plugin',
+        ...                     action_id='params_only_method'),
+        ...     use.UsageInputs(name='foo', age=42),
+        ...     use.UsageOutputNames(out='bar2')
+        ... )
+        >>> results.out
+        <ExecutionUsageVariable name='bar2', var_type='artifact'>
+
+        See Also
+        --------
+        UsageAction
+        UsageOutputNames
+        Usage.action
+        """
         self.values = kwargs
 
     def __repr__(self):
         return 'UsageInputs(**%r)' % (self.values,)
 
-    def validate(self,
-                 signature: typing.Type['core.PipelineSignature']) -> None:
+    def __getitem__(self, key):
+        """Same as a dictionary.
+
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
         """
-        Ensure that all required inputs are accounted for and that there are no
-        unnecessary or extra parameters provided.
+        return self.values[key]
+
+    def __contains__(self, key):
+        """Same as a dictionary.
+
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
+        """
+        return key in self.values
+
+    def items(self):
+        """Same as a dictionary.
+
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
+        """
+        return self.values.items()
+
+    def keys(self):
+        """Same as a dictionary.
+
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
+        """
+        return self.values.keys()
+
+    def values(self):
+        """Same as a dictionary.
+
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
+        """
+        return self.values.values()
+
+    def map_variables(self, function):
+        """Convert variables into something else, leaving primitives alone.
+
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
 
         Parameters
         ----------
-        signature : QIIME 2 Method, Visualizer, or Pipeline Signature
-            The plugin action's signature.
-
-        Raises
-        ------
-        ValueError
-            If there are missing or extra inputs or parameters.
-        """
-        provided = set(self.values.keys())
-        inputs, params = signature.inputs, signature.parameters
-
-        exp_inputs, optional_inputs = set(), set()
-        for name, sig in inputs.items():
-            if sig.has_default():
-                optional_inputs.add(name)
-            else:
-                exp_inputs.add(name)
-
-        exp_params, optional_params = set(), set()
-        for name, sig in params.items():
-            if sig.has_default():
-                optional_params.add(name)
-            else:
-                exp_params.add(name)
-
-        missing = exp_inputs - provided
-        if len(missing) > 0:
-            raise ValueError('Missing input(s): %r' % (missing, ))
-
-        missing = exp_params - provided
-        if len(missing) > 0:
-            raise ValueError('Missing parameter(s): %r' % (missing, ))
-
-        all_vals = exp_inputs | optional_inputs | exp_params | optional_params
-        extra = provided - all_vals
-        if len(extra) > 0:
-            raise ValueError('Extra input(s) or parameter(s): %r' %
-                             (extra, ))
-
-    def build_opts(self, signature: typing.Type['core.PipelineSignature'],
-                   scope: 'Scope') -> dict:
-        """
-        Build a dictionary mapping example ``ScopeRecord``s and primitives to
-        action inputs and parameters, respectively. Values are derived from
-        either an input's ``ScopeRecord`` (``ScopeRecord.value``), or the value
-        a keyword argument passed into the ``UsageInputs`` constructor.
-
-        Parameters
-        ----------
-        signature : QIIME 2 Method, Visualizer, or Pipeline Signature
-            The plugin action's signature.
-        scope : Scope
-            A Usage example's current scope.
+        function : Callable[[UsageVariable], Any]
+            The function to map over all variables. This function will not be
+            called on any primitive values.
 
         Returns
         -------
         dict
-            Input identifiers and their example values.
+            A new dictionary of key-value pairs where all variables have been
+            converted by `function`.
+
+        Examples
+        --------
+        >>> # Example situation
+        >>> var = use.usage_variable('foo', lambda: ..., 'artifact')
+        >>> inputs = UsageInputs(foo=var, bar='bar')
+
+        >>> inputs.map_variables(lambda v: v.to_interface_name())
+        {'foo': 'foo', 'bar': 'bar'}
+
+        >>> inputs.map_variables(lambda v: v.execute())
+        {'foo': ..., 'bar': 'bar'}
+
+        See Also
+        --------
+        UsageVariable.to_interface_name
+        UsageVariable.execute
         """
-        opts = {}
+        result = {}
 
-        for name, signature in signature.signature_order.items():
-            if name in self.values:
-                v = self.values[name]
-                if isinstance(v, ScopeRecord) and v.ref in scope.records:
-                    value = self.values[name].result
-                else:
-                    value = v
-                opts[name] = value
+        def mapped(v):
+            if isinstance(v, UsageVariable):
+                assert_usage_var_type(v, 'artifact', 'metadata', 'column')
+                v = function(v)
+            return v
 
-        return opts
+        for name, value in self.items():
+            if isinstance(value, (list, set)):
+                collection_type = type(value)
+                value = [mapped(v) for v in value]
+                value = collection_type(value)
+            else:
+                value = mapped(value)
+
+            result[name] = value
+
+        return result
 
 
 class UsageOutputNames:
-    """
-    Parameters
-    ----------
-    kwargs : str
-        A mapping between the Action's output name and the desired scope record
-        identifier in which to "store" the results.
-    """
+    """A dict-like mapping of action outputs to desired names.
 
-    def __init__(self, **kwargs: str):
+    One of three "argument objects" used by :meth:`Usage.action`. The other two
+    are :class:`UsageAction` and :class:`UsageInputs`.
+
+    All names must be strings.
+
+    Note
+    ----
+    The order defined by this object will dictate the order of the variables
+    returned by :meth:`Usage.action`.
+
+    """
+    def __init__(self, **kwargs):
+        """Constructor for UsageOutputNames.
+
+        Parameters
+        ----------
+        **kwargs : str
+            The name of the resulting variables to be returned by
+            :meth:`Usage.action`.
+
+        Raises
+        ------
+        TypeError
+            If the values provided are not strings.
+
+        Examples
+        --------
+        >>> results = use.action(
+        ...     use.UsageAction(plugin_id='dummy_plugin',
+        ...                     action_id='params_only_method'),
+        ...     use.UsageInputs(name='foo', age=42),
+        ...     use.UsageOutputNames(out='bar3')
+        ... )
+        >>> results.out
+        <ExecutionUsageVariable name='bar3', var_type='artifact'>
+
+        See Also
+        --------
+        UsageAction
+        UsageInputs
+        Usage.action
+        """
         for key, val in kwargs.items():
             if not isinstance(val, str):
                 raise TypeError(
@@ -208,675 +385,1027 @@ class UsageOutputNames:
     def __repr__(self):
         return 'UsageOutputNames(**%r)' % (self.values, )
 
-    def get(self, key) -> str:
-        """
-        Get an example output's identifier.
+    def __getitem__(self, key):
+        """Same as a dictionary.
 
-        Returns
+        Warning
         -------
-        str
-            The identifier for an example output.
+        For use by interface drivers only. Do not use in a written usage
+        example.
         """
         return self.values[key]
 
-    def validate(self,
-                 signature: typing.Type['core.PipelineSignature']) -> None:
-        """
-        Ensure that all required outputs are accounted for and that there are
-        no unnecessary or extra outputs provided.
+    def __contains__(self, key):
+        """Same as a dictionary.
 
-        Parameters
-        ----------
-        signature
-            Action signature.
-
-        Raises
-        ------
-        ValueError
-            If the example has missing or extra outputs as per the action
-            signature.
-        """
-        provided = set(self.values.keys())
-        exp_outputs = set(signature.outputs)
-
-        missing = exp_outputs - provided
-        if len(missing) > 0:
-            raise ValueError('Missing output(s): %r' % (missing, ))
-
-        extra = provided - exp_outputs
-        if len(extra) > 0:
-            raise ValueError('Extra output(s): %r' % (extra, ))
-
-    def validate_computed(self,
-                          computed_outputs: typing.Dict[
-                              str,
-                              typing.Union['sdk.Artifact', 'sdk.Visualization',
-                                           'metadata.Metadata']]
-                          ) -> None:
-        """
-        Check that outputs are still valid after being processed by a Usage
-        driver's ``_action_`` method.
-
-        Parameters
-        ----------
-        computed_outputs : dict of outputs
-            Outputs returned by the Usage driver's ``_action_`` method.
-
-        Raises
-        ------
-        ValueError
-            If there are missing or extra outputs as per the action signature.
-        """
-        provided = set(computed_outputs.keys())
-        exp_outputs = set(self.values.keys())
-
-        missing = exp_outputs - provided
-        if len(missing) > 0:
-            raise ValueError('SDK implementation is missing output(s): %r' %
-                             (missing, ))
-
-        extra = provided - exp_outputs
-        if len(extra) > 0:
-            raise ValueError('SDK implementation has specified extra '
-                             'output(s): %r' % (extra, ))
-
-    def build_opts(self,
-                   action_signature: typing.Type['core.PipelineSignature'],
-                   scope: 'Scope') -> dict:
-        """
-        Build a dictionary mapping action output identifiers to example output
-        value.
-
-        Parameters
-        ----------
-        action_signature : QIIME 2 Method, Visualizer, or Pipeline Signature
-            The plugin action's signature.
-        scope : Scope
-            A Usage example's current scope.
-
-        Returns
+        Warning
         -------
-        dict
-            Output identifiers and their example values.
+        For use by interface drivers only. Do not use in a written usage
+        example.
         """
-        opts = {}
+        return key in self.values
 
-        for output in action_signature.outputs.keys():
-            opts[output] = self.get(output)
+    def items(self):
+        """Same as a dictionary.
 
-        return opts
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
+        """
+        return self.values.items()
+
+    def keys(self):
+        """Same as a dictionary.
+
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
+        """
+        return self.values.keys()
+
+    def values(self):
+        """Same as a dictionary.
+
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
+        """
+        return self.values.values()
 
 
-class ScopeRecord:
+class UsageOutputs(sdk.Results):
+    """A vanity class over :class:`qiime2.sdk.Results`.
+
+    Returned by :meth:`Usage.action` with order defined by
+    :class:`UsageOutputNames`.
     """
-    Represents a discrete step in a Usage example.
+    pass
 
-    Provides information needed by Usage drivers to render Usage examples.
 
-    Parameters
-    ----------
-    ref : str
-        A unique identifier for referring to the record.
-    value : Artifact, Visualization, or Metadata
-        The value referred to by ``ref``.
-    source : str
-        The Usage method called to initialize example data.
-    assert_has_line_matching : callable
-        A function for asserting something about rendered example data.
+VAR_TYPES = ('artifact', 'visualization', 'metadata', 'column', 'format')
+T_VAR_TYPES = Literal['artifact', 'visualization', 'metadata', 'column',
+                      'format']
 
-    Notes
-    -----
-    ``ScopeRecord`` is an internal implementation and need not be
-    instantiated manually.
+
+class UsageVariable:
+    """A variable which represents some QIIME 2 generate-able value.
+
+    These should not be used to represent primitive values such as strings,
+    numbers, booleans, or lists/sets thereof.
+
     """
+    DEFERRED = object()
+    VAR_TYPES = VAR_TYPES
 
-    def __init__(self,
-                 ref: str,
-                 value: typing.Union['sdk.Artifact', 'sdk.Visualization',
-                                     'metadata.Metadata'],
-                 source: str,
-                 assert_has_line_matching: typing.Optional[
-                     typing.Callable] = None):
+    def __init__(self, name: str, factory: Callable[[], Any],
+                 var_type: T_VAR_TYPES, usage: 'Usage'):
+        """Constructor for UsageVariable. Generally initialized for you.
 
-        if assert_has_line_matching is not None and \
-                not callable(assert_has_line_matching):
-            raise TypeError('Value for `assert_has_line_matching` should be a '
-                            '`callable`.')
+        Warning
+        -------
+        For use by interface drivers only (and rarely at that).
+        Do not use in a written usage example.
 
-        self.ref = ref
-        self._result = value
-        self._source = source
-        self._assert_has_line_matching_ = assert_has_line_matching
+        Parameters
+        ----------
+        name : str
+            The name of this variable (interfaces will use this as a starting
+            point).
+        factory : Callable[[], Any]
+            A function which will return a realized value of `var_type`.
+        var_type : 'artifact', 'visualization', 'metadata', 'column', 'format'
+            The type of value which will be returned by the factory.
+            Most are self-explanatory, but "format" indicates that the factory
+            produces a QIIME 2 file format or directory format, which is used
+            for importing data.
+        use : Usage
+            The currently executing usage driver. Provided for convenience.
+        """
+        if not callable(factory):
+            raise TypeError('value for `factory` should be a `callable`, '
+                            'recieved %s' % (type(factory),))
+
+        if var_type not in self.VAR_TYPES:
+            raise ValueError('value for `var_type` should be one of %r, '
+                             'received %s' % (self.VAR_TYPES, var_type))
+
+        self.name: str = name
+        """The name of the variable, may differ from :meth:`to_interface_name`.
+
+        Warning
+        -------
+        For use by interface drivers only.
+        Do not use in a written usage example.
+        """
+        self.factory: Callable[[], Any] = factory
+        """The factory which produces the value. Generally :meth:`execute`
+        should be used as it will calculate the results once, instead of
+        generating a new object each time.
+
+        Warning
+        -------
+        For use by interface drivers only (and rarely at that).
+        Do not use in a written usage example.
+        """
+        self.var_type: Literal['artifact', 'visualization', 'metadata',
+                               'column', 'format'] = var_type
+        """The general type of this variable.
+
+        Warning
+        -------
+        For use by interface drivers only.
+        Do not use in a written usage example.
+        """
+        self.value: Any = self.DEFERRED
+        """The value of this variable, or DEFERRED. See :attr:`is_deferred`.
+
+        Warning
+        -------
+        For use by interface drivers only.
+        Do not use in a written usage example.
+        """
+        self.use: Usage = usage
+        """The current :class:`Usage` instance being used. Typically this is
+        an instance of a subclass.
+
+        Warning
+        -------
+        For use by interface drivers only.
+        It won't break anything, but it would be super-super-super weird to
+        use in a written usage example.
+        """
 
     def __repr__(self):
-        return 'ScopeRecord<ref=%s, result=%r, source=%s>' % (self.ref,
-                                                              self.result,
-                                                              self.source)
+        return '<%s name=%r, var_type=%r>' % (self.__class__.__name__,
+                                              self.name, self.var_type)
 
     @property
-    def result(self) -> typing.Union[
-            'sdk.Artifact', 'sdk.Visualization', 'metadata.Metadata']:
-        """
-        Artifact, Visualization, or Metadata value referred to by ``self.ref``.
-        """
-        return self._result
+    def is_deferred(self) -> bool:
+        """Check if the value of this variable is available.
 
-    @property
-    def source(self) -> str:
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
         """
-        The origin of a ``ScopeRecord``. Possible values for this property
-        are ``init_data``, ``init_metadata``, ``init_data_collection``,
-        ``merge_metadata``, ``get_metadata_column``, or ``action``.  This
-        information is required by some Usage drivers in order to render
-        examples properly.
+        return self.value is self.DEFERRED
+
+    def execute(self) -> Any:
+        """Execute the factory to produce a value, this is stored and returned.
+
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
+
+        Examples
+        --------
+        >>> var = UsageVariable('foo', lambda: '<pretend artifact>',
+        ...                     'artifact', use)
+        >>> var.value
+        <object object ...>
+        >>> var.execute()
+        '<pretend artifact>'
+        >>> var.value
+        '<pretend artifact>'
 
         See Also
         --------
-        Scope.push_record
-
-        q2cli.q2cli.core.usage.CLIRenderer
+        factory
+        value
         """
-        return self._source
+        if self.is_deferred:
+            self.value = self.factory()
+        return self.value
 
-    def assert_has_line_matching(self, label: str, path: str,
-                                 expression: str) -> None:
-        """
-        A proxy for a Usage driver's reference implementation for verifying
-        that the file at ``path`` contains a line matching ``expression``.
+    def save(self, filepath: str, ext: str = None) -> str:
+        """Save the value of this variable to a filepath.
+        The final path is returned.
 
-        Parameters
-        ----------
-        label : str
-            A label for describing this assertion. Interface drivers may
-            choose to omit this information in the rendered output.
-        path : str
-            Path to example data file.
-        expression : str
-            A regex pattern to be passed as the first argument to
-            ``re.search``.
-
-        Raises
-        ______
-        AssertionError
-            If ``expression`` is not found in ``path``.
-
-        See Also
-        --------
-        See ``ExecutionUsage`` for an example implementation.
-        """
-        return self._assert_has_line_matching_(self.ref, label, path,
-                                               expression)
-
-
-class Scope:
-    """
-    Sequentially track all ``ScopeRecord``s for a Usage example. The Scope
-    provides a detailed, start-to-finish accounting of all of the steps
-    necessary for translating the Usage example into an interface-specific
-    representation.
-
-    Notes
-    -----
-    ``Scope`` is an internal implementation and need not be instantiated
-    manually.
-    """
-
-    def __init__(self):
-        self._records: typing.Dict[str, 'ScopeRecord'] = dict()
-
-    def __repr__(self):
-        return '%r' % (self._records, )
-
-    @property
-    def records(self) -> types.MappingProxyType:
-        """
-        A read-only view of ``ScopeRecords`` in the current scope.
-        """
-        return types.MappingProxyType(self._records)
-
-    def push_record(self,
-                    ref: str,
-                    value: typing.Union['sdk.Artifact', 'sdk.Visualization',
-                                        'metadata.Metadata'],
-                    source: str,
-                    assert_has_line_matching: typing.Callable = None,
-                    ) -> 'ScopeRecord':
-        """
-        Appends a new ``ScopeRecord`` to the Usage Example's scope.
-
-        Parameters
-        ----------
-        ref : str
-        value : Artifact, Visualization, or Metadata
-            Data from a Usage data initialization method.
-        source : str
-            The origin of Usage example data.
-        assert_has_line_matching : callable
-            Verify that the file at ``path`` contains a line matching
-            ``expression`` within an Artifact. See
-            ``ScopeRecord.assert_has_line_matching``. This is a proxy for a
-            Usage driver's reference implementation.
-
-        Returns
+        Warning
         -------
-        record : ScopeRecord
-        """
-        record = ScopeRecord(ref=ref, value=value, source=source,
-                             assert_has_line_matching=assert_has_line_matching)
-        self._records[ref] = record
-        return record
-
-    def get_record(self, ref: str) -> ScopeRecord:
-        """
-        Look up a ``ScopeRecord`` from the current scope by identifier.
-
-        Parameters
-        ----------
-        ref : str
-            The identifier for a ``ScopeRecord``.
-
-        Raises
-        ------
-        KeyError
-            If the record identifier isn't in the scope.
-
-        Returns
-        -------
-        record : ScopeRecord
-        """
-        try:
-            return self.records[ref]
-        except KeyError:
-            raise KeyError('No record with ref id: "%s" in scope.' % (ref, ))
-
-
-class Usage(metaclass=abc.ABCMeta):
-    """
-    ``Usage`` is the base class for Usage driver implementations and should be
-    customized for the interface or implementation.
-    """
-
-    UsageAction = UsageAction
-    UsageInputs = UsageInputs
-    UsageOutputNames = UsageOutputNames
-
-    def __init__(self):
-        self._scope = Scope()
-
-    def init_data(self, ref: str,
-                  factory: typing.Callable[[], 'sdk.Artifact']) \
-            -> 'ScopeRecord':
-        """
-        Initialize example Artifact data from a factory. Whether or not the
-        example data is actually created is dependent on the driver executing
-        the example.
-
-        Parameters
-        ----------
-        ref : str
-            Unique identifier for example data.
-        factory : callable
-            A factory that returns an example Artifact.
-
-        Returns
-        -------
-        record : ScopeRecord
-            A record with information about example data.
-        """
-        value = self._init_data_(ref, factory)
-        return self._push_record(ref, value, 'init_data')
-
-    def _init_data_(self, ref, factory):
-        raise NotImplementedError
-
-    def init_metadata(self, ref: str,
-                      factory: typing.Callable[[], 'metadata.Metadata']) \
-            -> 'ScopeRecord':
-        """
-        Initialize Metadata for a Usage example. Whether or not the example
-        metadata is actually created is dependent on the driver executing the
+        For use by interface drivers only. Do not use in a written usage
         example.
 
         Parameters
         ----------
-        ref : str
-            Unique identifier for example metadata.
-        factory : callable
-            A factory that returns example Metadata.
+        filepath : path
+            The filepath to save to.
+        ext : str
+            The extension to append. May be 'ext' or '.ext'. If the extension
+            is already present on filepath, it is not added.
 
         Returns
         -------
-        record : ScopeRecord
-            A record with information about example Metadata.
+        path
+            Path saved to, including the extension if added.
         """
-        value = self._init_metadata_(ref, factory)
-        return self._push_record(ref, value, 'init_metadata')
+        value = self.execute()
+        return value.save(filepath, ext=ext)
 
-    def _init_metadata_(self, ref, factory):
-        raise NotImplementedError
+    def to_interface_name(self) -> str:
+        """Convert this variable to an interface-specific name.
 
-    def init_data_collection(self,
-                             ref: str,
-                             collection_type: typing.Union[list, set],
-                             *records: ScopeRecord) -> 'ScopeRecord':
+        Warning
+        -------
+          For use by interface drivers only. Do not use in a written usage
+          example.
+
+        This method should generally be overriden by a driver to be
+        interface-specific.
+
+        Examples
+        --------
+        >>> class MyUsageVariable(UsageVariable):
+        ...     def to_interface_name(self):
+        ...         return '<option> ' + self.name.replace('_', '-')
+        >>> var = MyUsageVariable('foo_bar', lambda: ..., 'artifact', use)
+        >>> var.to_interface_name()
+        '<option> foo-bar'
+
         """
-        Initialize a collection of data for a Usage example.
+        return self.name
+
+    def assert_has_line_matching(self, path: str, expression: str):
+        """Communicate that the result of this variable should match a regex.
+
+        The default implementation is to do nothing.
 
         Parameters
         ----------
-        ref : str
-            Unique identifier for example data collection.
-        collection_type : list or set
-            The type of collection required by an action.
-        records : ScopeRecords belonging to the collection
-            The records associated with data to be initialized in the
-            collection.
+        path : str
+            The relative path in a result's /data/ directory to check.
+        expression : str
+            The regular expression to evaluate for a line within `path`.
 
-        Returns
-        -------
-        record : ScopeRecord
-            A record with information about an example of collection data.
+        Note
+        ----
+        Should not be called on non-artifact variables.
+
+        Examples
+        --------
+        >>> bar, = use.action(
+        ...     use.UsageAction(plugin_id='dummy_plugin',
+        ...                     action_id='params_only_method'),
+        ...     use.UsageInputs(name='foo', age=42),
+        ...     use.UsageOutputNames(out='bar4')
+        ... )
+        >>> bar.assert_has_line_matching('mapping.tsv', r'foo\\s42')
         """
-        if len(records) < 1:
-            raise ValueError('Must provide at least one ScopeRecord input.')
-        for record in records:
-            if not isinstance(record, ScopeRecord):
-                raise ValueError('Record (%r) returned a %s, expected a '
-                                 'ScopeRecord.' % (record, type(record)))
+        pass
 
-        value = self._init_data_collection_(ref, collection_type, records)
-        return self._push_record(ref, value, 'init_data_collection')
+    def assert_output_type(self, semantic_type: str):
+        """Communicate that this variable should have a given semantic type.
 
-    def _init_data_collection_(self, ref, collection_type, records):
-        raise NotImplementedError
-
-    def merge_metadata(self, ref: str,
-                       *records: typing.List['ScopeRecord']) -> 'ScopeRecord':
-        """
-        Merge previously initialized example Metadata.
+        The default implementation is to do nothing.
 
         Parameters
         ----------
-        ref : str
-            Unique identifier for merged Metadata.
-        records : ScopeRecords
-            Records for the example Metadata to be merged.
+        semantic_type : QIIME 2 Semantic Type or str
+            The semantic type to match.
+
+        Note
+        ----
+        Should not be called on non-artifact variables.
+
+        Examples
+        --------
+        >>> bar, = use.action(
+        ...     use.UsageAction(plugin_id='dummy_plugin',
+        ...                     action_id='params_only_method'),
+        ...     use.UsageInputs(name='foo', age=42),
+        ...     use.UsageOutputNames(out='bar5')
+        ... )
+        >>> bar.assert_output_type('Mapping')
+        """
+        pass
+
+
+class Usage:
+    """The base implementation of a Usage diver.
+
+    Typically a usage driver will override some method. For example,
+    :meth:`action`, to perform some interesting functionality.
+
+    >>> def action(self, action, inputs, outputs):
+    ...    # First a driver should call super, to generate variables
+    ...    variables = super().action(action, inputs, output)
+    ...
+    ...    # then something can be done with them such as:
+    ...    for key, var in variables._asdict().items():
+    ...        self.some_stateful_object[key] = var.execute()
+    ...    # or perhaps the inputs are more interesting:
+    ...    self.other_state.update(
+    ...        inputs.map_variables(lambda x: x.execute()))
+    ...
+    ...    # always remember to return what the super()'ed call returns
+    ...    return variables
+
+    This is the typical "sandwich pattern" for overriding the methods which
+    communicate some action to perform.
+
+    1. Call ``super().method()`` and collect the results
+    2. Do something interesting
+    3. Return the results
+
+    There are many methods available for a driver implementation to override.
+    For examples of the above pattern, see the source code for the built-in
+    implementations of: :class:`DiagnosticUsage`, :class:`ExecutionUsage`, and
+    :class:`qiime2.plugins.ArtifactAPIUsage`
+    """
+    # these are here for namespace/import convenience
+    UsageAction: Type[UsageAction] = UsageAction
+    UsageInputs: Type[UsageInputs] = UsageInputs
+    UsageOutputNames: Type[UsageOutputNames] = UsageOutputNames
+    # NOTE: not exporting UsageOutputs here because example writers shouldn't
+    # be instantiating those on their own, anyway.
+
+    def __init__(self, asynchronous: bool = False):
+        """Constructor for Usage.
+
+        Warning
+        -------
+          For use by interface drivers only. Do not use in a written usage
+          example.
+
+        """
+
+        self.asynchronous: bool = asynchronous
+        """Whether the execution should be represented via `.asynchronous()`
+        calls. This can typically be ignored in subclasses.
+
+        Warning
+        -------
+        For use by interface drivers only.
+        Do not use in a written usage example.
+        """
+        self.namespace: Set[str] = set()
+        """A set of names which may collide in a given context.
+        A driver should add strings to this set as is needed; any variables
+        created will have their interface name compared to, and added to this
+        set.
+
+        Warning
+        -------
+        For use by interface drivers only.
+        Do not use in a written usage example.
+
+        See Also
+        --------
+        UsageVariable.to_interface_name
+        """
+
+    def _usage_variable(self, name, factory, var_type):
+        variable = self.usage_variable(name, factory, var_type)
+        var_name = variable.to_interface_name()
+        if var_name in self.namespace:
+            raise ValueError(
+                '%r namespace collision (%r)' % (variable, var_name))
+        self.namespace.add(var_name)
+        return variable
+
+    def usage_variable(self, name: str, factory: Callable[[], Any],
+                       var_type: T_VAR_TYPES) -> UsageVariable:
+        """Initialize a UsageVariable class (called by the base implementation)
+
+        Warning
+        -------
+          For use by interface drivers only. Do not use in a written usage
+          example.
+
+        This should be overriden to specialize the class used by your driver.
+
+        Examples
+        --------
+        >>> def usage_variable(self, name, factory, var_type):
+        ...     return MyUsageVariable(name, factory, var_type, self,
+        ...                            my_extra_thing='magic')
+
+        """
+        return UsageVariable(name, factory, var_type, self)
+
+    def render(self, flush: bool = False) -> Any:
+        """Return some rendering of the state up to this point.
+
+        Warning
+        -------
+          For use by interface drivers only. Do not use in a written usage
+          example.
+
+        The default implementation raises `NotImplementedError`.
+
+        Parameters
+        ----------
+        flush: bool
+            Whether to "flush" (forget) the rendered state after calling, or
+            not. This is useful if the driver is calling `render` many times.
 
         Returns
         -------
-        record : ScopeRecord
-            A new record with information about the merged example Metadata.
-        """
+        Any
+            The output is driver specific, but usually a string or list.
 
-        if len(records) < 2:
+        """
+        raise NotImplementedError
+
+    def init_artifact(self, name: str,
+                      factory: Callable[[], qiime2.Artifact]) -> UsageVariable:
+        """Communicate that an artifact will be needed.
+
+        Driver implementations may use this to intialize data for an example.
+
+        Parameters
+        ----------
+        name : str
+            The canonical name of the variable to be returned.
+        factory : Callable which returns :class:`qiime2.sdk.Artifact`
+            A function which takes no parameters, and returns an artifact.
+            This function may do anything internally to create the artifact.
+
+        Returns
+        -------
+        UsageVariable
+            This particular return class can be changed by a driver which
+            overrides :meth:`usage_variable`.
+
+        Examples
+        --------
+        >>> # A factory which will be used in the example to generate data.
+        >>> def factory():
+        ...     import qiime2
+        ...     # This type is only available during testing.
+        ...     # A real example would use a real type.
+        ...     a = qiime2.Artifact.import_data('IntSequence1', [1, 2, 3])
+        ...     return a
+        ...
+        >>> my_artifact = use.init_artifact('my_artifact', factory)
+        >>> my_artifact
+        <ExecutionUsageVariable name='my_artifact', var_type='artifact'>
+        """
+        return self._usage_variable(name, factory, 'artifact')
+
+    def init_metadata(self, name: str,
+                      factory: Callable[[], qiime2.Metadata]) -> UsageVariable:
+        """Communicate that metadata will be needed.
+
+        Driver implementations may use this to intialize data for an example.
+
+        Parameters
+        ----------
+        name : str
+            The canonical name of the variable to be returned.
+        factory : Callable which returns :class:`qiime2.Metadata`
+            A function which takes no parameters, and returns metadata.
+            This function may do anything internally to create the metadata.
+
+        Returns
+        -------
+        UsageVariable
+            Variable of type 'metadata'.
+
+        Examples
+        --------
+        >>> # A factory which will be used in the example to generate data.
+        >>> def factory():
+        ...     import qiime2
+        ...     import pandas as pd
+        ...     df = pd.DataFrame({'a':[1, 2, 3]}, index=['a', 'b', 'c'])
+        ...     df.index.name = 'id'
+        ...     md = qiime2.Metadata(df)
+        ...     return md
+        ...
+        >>> my_metadata = use.init_metadata('my_metadata', factory)
+        >>> my_metadata
+        <ExecutionUsageVariable name='my_metadata', var_type='metadata'>
+        """
+        return self._usage_variable(name, factory, 'metadata')
+
+    def init_format(self, name: str,
+                    factory: Callable[[], 'qiime2.core.format.FormatBase'],
+                    ext: str = None) -> UsageVariable:
+        """Communicate that a file/directory format will be needed.
+
+        Driver implementations may use this to intialize data for an example.
+
+        Parameters
+        ----------
+        name : str
+            The canonical name of the variable to be returned.
+        factory : Callable which returns a file or directory format.
+            A function which takes no parameters, and returns a format.
+            This function may do anything internally to create the format.
+        ext : str
+            The extension to prefer if the format is preserved on disk.
+
+        Returns
+        -------
+        UsageVariable
+            Variable of type 'format'.
+
+        Examples
+        --------
+        >>> # A factory which will be used in the example to generate data.
+        >>> def factory():
+        ...     from qiime2.core.testing.format import IntSequenceFormat
+        ...     from qiime2.plugin.util import transform
+        ...     ff = transform([1, 2, 3], to_type=IntSequenceFormat)
+        ...
+        ...     ff.validate()  # good practice
+        ...     return ff
+        ...
+        >>> my_ints = use.init_format('my_ints', factory, ext='.hello')
+        >>> my_ints
+        <ExecutionUsageVariable name='my_ints', var_type='format'>
+        """
+        return self._usage_variable(name, factory, 'format')
+
+    def import_from_format(self, name: str, semantic_type: str,
+                           variable: UsageVariable,
+                           view_type: 'qiime2.core.format.FormatBase' = None
+                           ) -> UsageVariable:
+        """Communicate that an import should be done.
+
+        Parameters
+        ----------
+        name : str
+            The name of the resulting variable.
+        semantic_type : str
+            The semantic type to import as.
+        variable : UsageVariable
+            A variable of type 'format' which possesses a factory to
+            materialize the actual data to be imported.
+        view_type : format or str
+            The view type to import as, in the event it is different from
+            the default.
+
+        Returns
+        -------
+        UsageVariable
+            Variable of type 'artifact'.
+
+        Examples
+        --------
+        >>> # A factory which will be used in the example to generate data.
+        >>> def factory():
+        ...     from qiime2.core.testing.format import IntSequenceFormat
+        ...     from qiime2.plugin.util import transform
+        ...     ff = transform([1, 2, 3], to_type=IntSequenceFormat)
+        ...
+        ...     ff.validate()  # good practice
+        ...     return ff
+        ...
+        >>> to_import = use.init_format('to_import', factory, ext='.hello')
+        >>> to_import
+        <ExecutionUsageVariable name='to_import', var_type='format'>
+        >>> ints = use.import_from_format('ints',
+        ...                               semantic_type='IntSequence1',
+        ...                               variable=to_import,
+        ...                               view_type='IntSequenceFormat')
+        >>> ints
+        <ExecutionUsageVariable name='ints', var_type='artifact'>
+
+        See Also
+        --------
+        init_format
+        """
+        assert_usage_var_type(variable, 'format')
+
+        def factory():
+            from qiime2 import Artifact
+
+            fmt = variable.execute()
+            artifact = Artifact.import_data(
+                semantic_type, str(fmt), view_type=view_type)
+
+            return artifact
+        return self._usage_variable(name, factory, 'artifact')
+
+    def merge_metadata(self, name: str,
+                       *variables: UsageVariable) -> UsageVariable:
+        """Communicate that these metadata should be merged.
+
+        Parameters
+        ----------
+        name : str
+            The name of the resulting variable.
+        *variables : UsageVariable
+            Multiple variables of type 'metadata' to merge.
+
+        Returns
+        -------
+        UsageVariable
+            Variable of type 'metadata'.
+
+        Raises
+        ------
+        AssertionError
+            If a variable is not of type 'metadata'.
+
+        Examples
+        --------
+        >>> def factory1():
+        ...     import qiime2
+        ...     import pandas as pd
+        ...     df = pd.DataFrame({'a':[0]}, index=['0'])
+        ...     df.index.name = 'id'
+        ...     md = qiime2.Metadata(df)
+        ...     return md
+        ...
+        >>> def factory2():
+        ...     import qiime2
+        ...     import pandas as pd
+        ...     df = pd.DataFrame({'b':[10]}, index=['0'])
+        ...     df.index.name = 'id'
+        ...     md = qiime2.Metadata(df)
+        ...     return md
+        ...
+        >>> some_artifact, = use.action(
+        ...     use.UsageAction('dummy_plugin', 'params_only_method'),
+        ...     use.UsageInputs(name='c', age=100),
+        ...     use.UsageOutputNames(out='some_artifact'))
+        ...
+        >>> md1 = use.init_metadata('md1', factory1)
+        >>> md2 = use.init_metadata('md2', factory2)
+        >>> md3 = use.view_as_metadata('md3', some_artifact)
+        >>> merged = use.merge_metadata('merged', md1, md2, md3)
+        >>> merged
+        <ExecutionUsageVariable name='merged', var_type='metadata'>
+
+        See Also
+        --------
+        init_metadata
+        view_as_metadata
+        """
+        if len(variables) < 2:
             raise ValueError('Must provide two or more Metadata inputs.')
 
-        value = self._merge_metadata_(ref, records)
-        return self._push_record(ref, value, 'merge_metadata')
+        for variable in variables:
+            assert_usage_var_type(variable, 'metadata')
 
-    def _merge_metadata_(self, ref, records):
-        raise NotImplementedError
+        def factory():
+            mds = [v.execute() for v in variables]
+            return mds[0].merge(*mds[1:])
+        return self._usage_variable(name, factory, 'metadata')
 
-    def get_metadata_column(self, column_name: str,
-                            record: ScopeRecord) -> 'ScopeRecord':
-        """
-        Get a Metadata column from previously initialized example Metadata.
+    def get_metadata_column(self, name: str, column_name: str,
+                            variable: UsageVariable) -> UsageVariable:
+        """Communicate that a column should be retrieved.
 
         Parameters
         ----------
+        name : str
+            The name of the resulting variable.
         column_name : str
-            The name of a column in example Metadata.
-        record : ScopeRecord
-            The record associated with example Metadata.
+            The column to retrieve.
+        variable : UsageVariable
+            The metadata to retrieve the column from. Must be a variable of
+            type 'metadata'.
 
         Returns
         -------
-        record : ScopeRecord
-            A new scope record for example Metadata column ``column_name``.
-        """
-        value = self._get_metadata_column_(column_name, record)
-        return self._push_record(column_name, value, 'get_metadata_column')
+        UsageVariable
+            Variable of type 'column'.
 
-    def _get_metadata_column_(self, column_name, record):
-        raise NotImplementedError
+        Raises
+        ------
+        AssertionError
+            If the variable is not of type 'metadata'.
+
+        Examples
+        --------
+        >>> def factory():
+        ...     import qiime2
+        ...     import pandas as pd
+        ...     df = pd.DataFrame({'column_a':[1, 2, 3]},
+        ...                       index=['a', 'b', 'c'])
+        ...     df.index.name = 'id'
+        ...     return qiime2.Metadata(df)
+        ...
+        >>> md_for_column = use.init_metadata('md_for_column', factory)
+        >>> md_for_column
+        <ExecutionUsageVariable name='md_for_column', var_type='metadata'>
+        >>> my_column = use.get_metadata_column('my_column', 'column_a',
+        ...                                     md_for_column)
+        >>> my_column
+        <ExecutionUsageVariable name='my_column', var_type='column'>
+
+        See Also
+        --------
+        init_metadata
+        """
+        assert_usage_var_type(variable, 'metadata')
+
+        def factory():
+            return variable.execute().get_column(column_name)
+        return self._usage_variable(name, factory, 'column')
+
+    def view_as_metadata(self, name: str,
+                         variable: UsageVariable) -> UsageVariable:
+        """Communicate that an artifact should be views as metadata.
+
+        Parameters
+        ----------
+        name : str
+            The name of the resulting variable.
+        variable : UsageVariable
+            The artifact to convert to metadata. Must be a variable of
+            type 'artifact'.
+
+        Returns
+        -------
+        UsageVariable
+            Variable of type 'metadata'.
+
+        Raises
+        ------
+        AssertionError
+            If the variable is not of type 'artifact'.
+
+        Examples
+        --------
+        >>> artifact_for_md, = use.action(
+        ...     use.UsageAction('dummy_plugin', 'params_only_method'),
+        ...     use.UsageInputs(name='c', age=100),
+        ...     use.UsageOutputNames(out='artifact_for_md'))
+        >>> artifact_for_md
+        <ExecutionUsageVariable name='artifact_for_md', var_type='artifact'>
+        >>> metadata = use.view_as_metadata('metadata', artifact_for_md)
+        >>> metadata
+        <ExecutionUsageVariable name='metadata', var_type='metadata'>
+
+        See Also
+        --------
+        init_artifact
+        get_metadata_column
+        """
+        assert_usage_var_type(variable, 'artifact')
+
+        def factory():
+            from qiime2 import Metadata
+            return variable.execute().view(Metadata)
+        return self._usage_variable(name, factory, 'metadata')
+
+    def peek(self, variable: UsageVariable):
+        """Communicate that an artifact should be peeked at.
+
+        Default implementation is to do nothing.
+
+        Parameters
+        ----------
+        variable : UsageVariable
+            A variable of 'artifact' type which should be peeked.
+
+        Raises
+        ------
+        AssertionError
+            If the variable is not of type 'artifact'.
+
+        Examples
+        --------
+        >>> def factory():
+        ...     import qiime2
+        ...     return qiime2.Artifact.import_data('IntSequence1', [1, 2, 3])
+        ...
+        >>> a_boo = use.init_artifact('a_boo', factory)
+        >>> use.peek(a_boo)
+        """
+        assert_usage_var_type(variable, 'artifact', 'visualization')
 
     def comment(self, text: str):
-        comment = self._comment_(text)
-        return self._push_record(str(comment), comment, 'comment')
+        """Communicate that a comment should be made.
 
-    def _comment_(self, text: str):
-        raise NotImplementedError
+        Default implementation is to do nothing.
 
-    def action(self, action: UsageAction, inputs: UsageInputs,
-               outputs: UsageOutputNames) -> None:
+        Parameters
+        ----------
+        text : str
+            The inspired commentary.
+
+        Examples
+        --------
+        >>> use.comment("The thing is, they always try to walk it in...")
         """
-        This method is a proxy for invoking a QIIME 2 Action. Whether or not
-        the Action is actually invoked is dependent on the driver executing the
-        example.
+        pass
+
+    def help(self, action: 'qiime2.sdk.usage.UsageAction'):
+        """Communicate that help text should be displayed.
+
+        Default implementation is to do nothing.
 
         Parameters
         ----------
         action : UsageAction
-            Specifies the Plugin and Action for a Usage example.
-        inputs : UsageInputs
-            Specifies the inputs to an Action for a Usage example.
-        outputs : UsageOutputNames
-            Species the outputs of an Action for a Usage example.
+            The particular action that should have help-text rendered.
 
         Examples
         --------
-        qiime2.core.testing.examples : Usage examples
+        >>> use.help(use.UsageAction('dummy_plugin', 'split_ints'))
         """
+        pass
 
-        if not isinstance(action, UsageAction):
-            raise TypeError('Must provide an instance of UsageAction.')
-        action.validate(inputs, outputs)
-
-        _, action_signature = action.get_action()
-
-        input_opts = inputs.build_opts(action_signature, self._scope)
-        output_opts = outputs.build_opts(action_signature, self._scope)
-
-        computed_outputs = self._action_(action, input_opts, output_opts)
-        self._add_outputs_to_scope(outputs, computed_outputs)
-
-    def _action_(self, action: UsageAction, input_opts: dict,
-                 output_opts: dict) -> dict:
-        raise NotImplementedError
-
-    def _assert_has_line_matching_(self, ref, label, path, expression):
-        raise NotImplementedError
-
-    def get_result(self, ref: str) -> 'ScopeRecord':
-        """
-        Get the record for a Usage example output. This is a convenience
-        method used to access records generated after running ``Usage.action``.
+    def action(self,
+               action: 'qiime2.sdk.usage.UsageAction',
+               inputs: 'qiime2.sdk.usage.UsageInputs',
+               outputs: 'qiime2.sdk.usage.UsageOutputNames'
+               ) -> 'qiime2.sdk.usage.UsageOutputs':
+        """Communicate that some action should be performed.
 
         Parameters
         ----------
-        ref : str
-            Output identifier.
+        action : UsageAction
+            The action to perform.
+        inputs : UsageInputs
+            The inputs to provide. These are a map of parameter names to
+            arguments. Arguments may be primitive literals, or variables.
+        outputs : UsageOutputNames
+            Defines what to name each output variable. The keys much match the
+            action's output signature.
 
-        Raises
-        ------
-        KeyError
-            If ``ref`` is not associated with a record generated by
-            ``Usage.action``.
+        Returns
+        -------
+        UsageOutputs
+            A wrapper around the usual :class:`qiime2.sdk.Results` object.
+            Unpacking this output can be seen in the examples below.
 
-        TypeError
-            If the source type is not an Action.
+        Examples
+        --------
+        >>> results = use.action(
+        ...     use.UsageAction(plugin_id='dummy_plugin',
+        ...                     action_id='params_only_method'),
+        ...     use.UsageInputs(name='foo', age=42),
+        ...     use.UsageOutputNames(out='bar')
+        ... )
+        >>> results
+        UsageOutputs (name = value)
+        --------------------------------------------------------------
+        out = <ExecutionUsageVariable name='bar', var_type='artifact'>
+
+        >>> # "out" happens to be the name of this output, it isn't a general
+        >>> # name for all results.
+        >>> results.out
+        <ExecutionUsageVariable name='bar', var_type='artifact'>
+
+        >>> # unpack as an iterator
+        >>> bar, = results
+        >>> bar
+        <ExecutionUsageVariable name='bar', var_type='artifact'>
+        >>> bar is results.out
+        True
+
+
         """
-        record = self._get_record(ref)
-        source = record.source
-        if source != 'action':
-            raise TypeError('source == %s but must be "action"' % source)
-        return record
+        if not isinstance(action, UsageAction):
+            raise ValueError('Invalid value for `action`: expected %r, '
+                             'received %r.' % (UsageAction, type(action)))
 
-    def _add_outputs_to_scope(self, outputs: UsageOutputNames,
-                              computed_outputs):
-        outputs.validate_computed(computed_outputs)
-        for output, result in computed_outputs.items():
-            ref = outputs.get(output)
-            self._push_record(ref, result, 'action')
+        if not isinstance(inputs, UsageInputs):
+            raise ValueError('Invalid value for `inputs`: expected %r, '
+                             'received %r.' % (UsageInputs, type(inputs)))
 
-    def _push_record(self, ref, value, source):
-        return self._scope.push_record(
-            ref=ref, value=value, source=source,
-            assert_has_line_matching=self._assert_has_line_matching_)
+        if not isinstance(outputs, UsageOutputNames):
+            raise ValueError('Invalid value for `outputs`: expected %r, '
+                             'received %r.' % (UsageOutputNames,
+                                               type(outputs)))
 
-    def _get_record(self, ref):
-        return self._scope.get_record(ref)
+        action_f = action.get_action()
 
-    def _get_records(self):
-        return self._scope.records
+        @functools.lru_cache(maxsize=None)
+        def memoized_action():
+            execed_inputs = inputs.map_variables(lambda v: v.execute())
+            if self.asynchronous:
+                return action_f.asynchronous(**execed_inputs).result()
+            return action_f(**execed_inputs)
+
+        usage_results = []
+        # outputs will be ordered by the `UsageOutputNames` order, not the
+        # signature order - this makes it so that the example writer doesn't
+        # need to be explicitly aware of the signature order
+        for param_name, var_name in outputs.items():
+            qiime_type = action_f.signature.outputs[param_name].qiime_type
+            if is_visualization_type(qiime_type):
+                var_type = 'visualization'
+            elif is_semantic_type(qiime_type):
+                var_type = 'artifact'
+            else:
+                raise ValueError('unknown output type: %r' % (qiime_type,))
+
+            def factory(name=param_name):
+                results = memoized_action()
+                result = getattr(results, name)
+                return result
+
+            variable = self._usage_variable(var_name, factory, var_type)
+            usage_results.append(variable)
+
+        results = UsageOutputs(outputs.keys(), usage_results)
+        cache_info = memoized_action.cache_info
+        cache_clear = memoized_action.cache_clear
+        # manually graft on cache operations
+        object.__setattr__(results, '_cache_info', cache_info)
+        object.__setattr__(results, '_cache_reset', cache_clear)
+        return results
 
 
 class DiagnosticUsage(Usage):
-    """
-    Reference implementation of a Usage driver.
+    @dataclasses.dataclass(frozen=True)
+    class DiagnosticUsageRecord:
+        """A dataclass storing the invoked method name and variable/param."""
+        source: str
+        variable: Any
 
-    Used to generate information for testing the Usage API.
-
-    See Also
-    --------
-    qiime2.sdk.tests.test_usage.TestUsage : Unit tests using this driver.
-    """
     def __init__(self):
+        """Constructor for DiagnosticUsage. No parameters.
+
+        Warning
+        -------
+        For SDK use only. Do not use in a written usage example.
+        """
         super().__init__()
+        self._recorder = []
 
-    def _init_data_(self, ref, factory):
-        return {
-            'source': 'init_data',
-            'ref': ref,
-        }
+    def render(self, flush: bool = False) -> List[DiagnosticUsageRecord]:
+        """Produce a list of :class:`DiagnosticUsage.DiagnosticUsageRecord`'s
+        for testing.
 
-    def _init_metadata_(self, ref, factory):
-        return {
-            'source': 'init_metadata',
-            'ref': ref,
-        }
+        Warning
+        -------
+          For SDK use only. Do not use in a written usage example.
 
-    def _init_data_collection_(self, ref, collection_type, records):
-        return {
-            'source': 'init_data_collection',
-            'ref': ref,
-        },  collection_type([i.ref for i in records])
+        Parameters
+        ----------
+        flush : bool
+            Whether to reset the current state of the records.
 
-    def _merge_metadata_(self, ref, records):
-        return {
-            'source': 'merge_metadata',
-            'ref': ref,
-            'records_refs': [r.ref for r in records],
-        }
+        """
+        records = self._recorder
+        if flush:
+            self._recorder = []
+        return records
 
-    def _get_metadata_column_(self, column_name, record):
-        return {
-            'source': 'get_metadata_column',
-            'ref': column_name,
-            'record_ref': record.ref,
-            'column_name': column_name,
-        }
+    def _append_record(self, source, variable):
+        self._recorder.append(self.DiagnosticUsageRecord(source, variable))
 
-    def _comment_(self, text):
-        return {
-            'source': 'comment',
-            'text': text,
-        }
+    def init_artifact(self, name, factory):
+        variable = super().init_artifact(name, factory)
+        self._append_record('init_artifact', variable)
+        return variable
 
-    def _action_(self, action, input_opts, output_opts):
-        results = dict()
-        for output_opt in output_opts.keys():
-            results[output_opt] = {
-                'source': 'action',
-                'plugin_id': action.plugin_id,
-                'action_id': action.action_id,
-                'input_opts': input_opts,
-                'output_opts': output_opts,
-                'output_opt': output_opt,
-            }
-        return results
+    def init_metadata(self, name, factory):
+        variable = super().init_metadata(name, factory)
+        self._append_record('init_metadata', variable)
+        return variable
 
-    def _assert_has_line_matching_(self, ref, label, path, expression):
-        return {
-            'source': 'assert_has_line_matching',
-            'ref': ref,
-            'label': label,
-            'path': path,
-            'expression': expression,
-        }
+    def init_format(self, name, factory, ext=None):
+        variable = super().init_format(name, factory, ext=ext)
+        self._append_record('init_format', variable)
+        return variable
+
+    def import_from_format(self, name, semantic_type,
+                           variable, view_type=None):
+        variable = super().import_from_format(
+            name, semantic_type, variable, view_type=view_type)
+        self._append_record('import_from_format', variable)
+        return variable
+
+    def merge_metadata(self, name, *variables):
+        variable = super().merge_metadata(name, *variables)
+        self._append_record('merge_metadata', variable)
+        return variable
+
+    def get_metadata_column(self, name, column_name, variable):
+        variable = super().get_metadata_column(name, column_name, variable)
+        self._append_record('get_metadata_column', variable)
+        return variable
+
+    def view_as_metadata(self, name, artifact_variable):
+        variable = super().view_as_metadata(name, artifact_variable)
+        self._append_record('view_as_metadata', variable)
+        return variable
+
+    def peek(self, variable):
+        self._append_record('peek', variable)
+
+    def comment(self, text):
+        self._append_record('comment', text)
+
+    def help(self, action):
+        self._append_record('help', action)
+
+    def action(self, action, input_opts, output_opts):
+        variables = super().action(action, input_opts, output_opts)
+        self._append_record('action', variables)
+        return variables
 
 
-class ExecutionUsage(Usage):
-    """
-    Execute and test rendered examples.
+class ExecutionUsageVariable(UsageVariable):
+    """A specialized implementation for :class:`ExecutionUsage`."""
+    def assert_has_line_matching(self, path, expression):
+        assert_usage_var_type(self, 'artifact', 'visualization')
 
-    See Also
-    --------
-    qiime2.sdk.tests.test_usage.TestExecutionUsage : Tests using this driver.
-    qiime2.plugin.testing.TestPluginBase.execute_examples : Executes examples.
-    """
-    def __init__(self, asynchronous=False):
-        super().__init__()
-        self.asynchronous = asynchronous
-
-    def _init_data_(self, ref, factory):
-        result = factory()
-        result_type = type(result)
-
-        if result_type not in (list, set, sdk.Artifact):
-            raise ValueError('Factory (%r) returned a %s, expected an '
-                             'Artifact.' % (factory, result_type))
-
-        if result_type in (list, set):
-            if not all([isinstance(i, sdk.Artifact) for i in result]):
-                raise ValueError('Factory (%r) returned a %s where not all '
-                                 'elements were Artifacts.' %
-                                 (factory, result_type))
-
-        return result
-
-    def _init_metadata_(self, ref, factory):
-        result = factory()
-        result_type = type(result)
-
-        if not isinstance(result, metadata.Metadata):
-            raise TypeError('Factory (%r) returned a %s, but expected '
-                            'Metadata.' % (factory, result_type))
-
-        return result
-
-    def _init_data_collection_(self, ref, collection_type, records):
-        collection = []
-        for record in records:
-            collection.append(record.result)
-
-        return collection_type(collection)
-
-    def _merge_metadata_(self, ref, records):
-        mds = [r.result for r in records]
-        return mds[0].merge(*mds[1:])
-
-    def _get_metadata_column_(self, column_name, record):
-        return record.result.get_column(column_name)
-
-    def _comment_(self, text):
-        pass
-
-    def _action_(self,
-                 action: UsageAction,
-                 input_opts: dict,
-                 output_opts: dict):
-        action_f, _ = action.get_action()
-
-        if self.asynchronous:
-            results = action_f.asynchronous(**input_opts).result()
-        else:
-            results = action_f(**input_opts)
-
-        return {k: getattr(results, k) for k in output_opts.keys()}
-
-    def _assert_has_line_matching_(self, ref, label, path, expression):
-        data = self._get_record(ref).result
+        data = self.value
 
         hits = sorted(data._archiver.data_dir.glob(path))
         if len(hits) != 1:
@@ -888,3 +1417,129 @@ class ExecutionUsage(Usage):
         if match is None:
             raise AssertionError('Expression %r not found in %s.' %
                                  (expression, path))
+
+    def assert_output_type(self, semantic_type):
+        data = self.value
+
+        if str(data.type) != str(semantic_type):
+            raise AssertionError("Output %r has type %s, which does not match"
+                                 " expected output type of %s"
+                                 % (self.name, data.type, semantic_type))
+
+
+class ExecutionUsage(Usage):
+    def __init__(self, asynchronous=False):
+        """Constructor for ExecutionUsage.
+
+        Warning
+        -------
+        For SDK use only. Do not use in a written usage example.
+
+        Parameters
+        ----------
+        asynchronous : bool
+            Whether to execute actions via
+            :meth:`qiime2.sdk.Action.asynchronous` or
+            :meth:`qiime2.sdk.Action.__call__`
+        """
+        super().__init__(asynchronous)
+        # This is here for testing-purposes
+        self._recorder = dict()
+
+    def render(self, flush: bool = False) -> dict:
+        """Produce a dict of canonically named, evaluated usage variables.
+
+        Warning
+        -------
+        For SDK use only. Do not use in a written usage example.
+
+        Parameters
+        ----------
+        flush : bool
+            Whether to reset the current state of the dict.
+
+        Returns
+        -------
+        dict
+            Evaluated variables named by their variable's canonical name.
+
+        See Also
+        --------
+        UsageVariable.execute
+        UsageVariable.name
+
+        """
+        records = self._recorder
+        if flush:
+            self._recorder = dict()
+        return records
+
+    def usage_variable(self, name, factory, var_type):
+        return ExecutionUsageVariable(name, factory, var_type, self)
+
+    def init_artifact(self, name, factory):
+        variable = super().init_artifact(name, factory)
+
+        variable.execute()
+        self._recorder[variable.name] = variable
+
+        return variable
+
+    def init_metadata(self, name, factory):
+        variable = super().init_metadata(name, factory)
+
+        variable.execute()
+        self._recorder[variable.name] = variable
+
+        return variable
+
+    def init_format(self, name, factory, ext=None):
+        variable = super().init_format(name, factory, ext=ext)
+
+        variable.execute()
+        self._recorder[variable.name] = variable
+
+        return variable
+
+    def import_from_format(self, name, semantic_type,
+                           variable, view_type=None):
+        variable = super().import_from_format(
+            name, semantic_type, variable, view_type=view_type)
+
+        variable.execute()
+        self._recorder[variable.name] = variable
+
+        return variable
+
+    def merge_metadata(self, name, *variables):
+        variable = super().merge_metadata(name, *variables)
+
+        variable.execute()
+        self._recorder[variable.name] = variable
+
+        return variable
+
+    def get_metadata_column(self, name, column_name, variable):
+        variable = super().get_metadata_column(name, column_name, variable)
+
+        variable.execute()
+        self._recorder[variable.name] = variable
+
+        return variable
+
+    def view_as_metadata(self, name, artifact_variable):
+        variable = super().view_as_metadata(name, artifact_variable)
+
+        variable.execute()
+        self._recorder[variable.name] = variable
+
+        return variable
+
+    def action(self, action, input_opts, output_opts):
+        variables = super().action(action, input_opts, output_opts)
+
+        for variable in variables:
+            variable.execute()
+            self._recorder[variable.name] = variable
+
+        return variables

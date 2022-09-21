@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -26,11 +26,14 @@ from .format import (
     UnimportableFormat,
     UnimportableDirectoryFormat,
     EchoFormat,
-    EchoDirectoryFormat
+    EchoDirectoryFormat,
+    Cephalapod,
+    CephalapodDirectoryFormat,
 )
 
 from .type import (IntSequence1, IntSequence2, IntSequence3, Mapping, FourInts,
-                   SingleInt, Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz)
+                   SingleInt, Kennel, Dog, Cat, C1, C2, C3, Foo, Bar, Baz,
+                   AscIntSequence, Squid, Octopus, Cuttlefish)
 from .method import (concatenate_ints, split_ints, merge_mappings,
                      identity_with_metadata, identity_with_metadata_column,
                      identity_with_categorical_metadata_column,
@@ -40,7 +43,7 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      params_only_method, no_input_method, deprecated_method,
                      optional_artifacts_method, long_description_method,
                      docstring_order_method, variadic_input_method,
-                     unioned_primitives, type_match_list_and_set)
+                     unioned_primitives, type_match_list_and_set, union_inputs)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -72,17 +75,21 @@ dummy_plugin = Plugin(
 )
 
 import_module('qiime2.core.testing.transformer')
+import_module('qiime2.core.testing.validator')
+
 
 # Register semantic types
 dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, IntSequence3,
                                      Mapping, FourInts, Kennel, Dog, Cat,
-                                     SingleInt, C1, C2, C3, Foo, Bar, Baz)
+                                     SingleInt, C1, C2, C3, Foo, Bar, Baz,
+                                     AscIntSequence, Squid, Octopus,
+                                     Cuttlefish)
 
 # Register formats
 dummy_plugin.register_formats(
     IntSequenceFormatV2, MappingFormat, IntSequenceV2DirectoryFormat,
     IntSequenceMultiFileDirectoryFormat, MappingDirectoryFormat,
-    EchoDirectoryFormat, EchoFormat)
+    EchoDirectoryFormat, EchoFormat, Cephalapod, CephalapodDirectoryFormat)
 
 dummy_plugin.register_formats(
     FourIntsDirectoryFormat, UnimportableDirectoryFormat, UnimportableFormat,
@@ -133,6 +140,14 @@ dummy_plugin.register_semantic_type_to_format(
     | Baz,
     artifact_format=EchoDirectoryFormat)
 
+dummy_plugin.register_semantic_type_to_format(
+    AscIntSequence,
+    artifact_format=IntSequenceDirectoryFormat)
+
+dummy_plugin.register_semantic_type_to_format(
+    Squid | Octopus | Cuttlefish,
+    artifact_format=CephalapodDirectoryFormat)
+
 # TODO add an optional parameter to this method when they are supported
 dummy_plugin.methods.register_function(
     function=concatenate_ints,
@@ -145,12 +160,12 @@ dummy_plugin.methods.register_function(
         'int1': Int,
         'int2': Int
     },
-    outputs=[
-        ('concatenated_ints', IntSequence1)
-    ],
+    outputs={
+        'concatenated_ints': IntSequence1
+    },
     name='Concatenate integers',
-    description='This method concatenates integers into a single sequence in '
-                'the order they are provided.',
+    description='This method concatenates integers into'
+                ' a single sequence in the order they are provided.',
     citations=[citations['baerheim1994effect']],
     examples={'concatenate_ints_simple': concatenate_ints_simple,
               'concatenate_ints_complex': concatenate_ints_complex,
@@ -167,10 +182,10 @@ dummy_plugin.methods.register_function(
         'ints': T
     },
     parameters={},
-    outputs=[
-        ('left', T),
-        ('right', T)
-    ],
+    outputs={
+        'left': T,
+        'right': T
+    },
     name='Split sequence of integers in half',
     description='This method splits a sequence of integers in half, returning '
                 'the two halves (left and right). If the input sequence\'s '
@@ -695,6 +710,27 @@ dummy_plugin.pipelines.register_function(
     name='Test different ways of failing',
     description=('This is useful to make sure all of the intermediate stuff is'
                  ' cleaned up the way it should be.')
+)
+
+dummy_plugin.methods.register_function(
+    function=union_inputs,
+    inputs={
+        'ints1': IntSequence1,
+        'ints2': IntSequence2,
+    },
+    parameters={},
+    outputs=[
+        ('ints', IntSequence1)
+    ],
+    name='Inputs with typing.Union',
+    input_descriptions={
+        'ints1': 'An int artifact',
+        'ints2': 'An int artifact'
+    },
+    output_descriptions={
+        'ints': '[0]',
+    },
+    description='This method accepts a list or dict as first input.'
 )
 
 import_module('qiime2.core.testing.mapped')

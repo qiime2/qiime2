@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -323,9 +323,13 @@ class ProvenanceCapture:
         # condition on `rename`, so fall back to copying.
         try:
             os.rename(self.path, final_path)
-        except FileExistsError:
-            distutils.dir_util.copy_tree(str(self.path), str(final_path))
-            distutils.dir_util.remove_tree(str(self.path))
+        except (FileExistsError, OSError) as err:
+            if isinstance(err, FileExistsError) or isinstance(err, OSError) \
+                 and err.errno == 18:
+                distutils.dir_util.copy_tree(str(self.path), str(final_path))
+                distutils.dir_util.remove_tree(str(self.path))
+            else:
+                raise err
 
     def fork(self):
         forked = copy.copy(self)

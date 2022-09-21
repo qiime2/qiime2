@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -12,19 +12,7 @@ import pathlib
 import tornado.web as web
 from notebook.base.handlers import IPythonHandler
 
-import qiime2.core.archive.archiver as archiver
-
-
-class _ArchiveCheck(archiver._Archive):
-    """This is only what is needed to verify a path is an archive"""
-    # TODO: make this part of the archiver API at some point
-    def open(self, relpath):
-        abspath = os.path.join(str(self.path), str(self.uuid), relpath)
-        return open(abspath, 'r')
-
-    def relative_iterdir(self, relpath='.'):
-        for p in pathlib.Path(self.path).iterdir():
-            yield str(p.relative_to(self.path))
+from qiime2.core.archive.archiver import ArchiveCheck
 
 
 class QIIME2RedirectHandler(IPythonHandler):
@@ -39,9 +27,8 @@ class QIIME2RedirectHandler(IPythonHandler):
             self.send_error(409)  # Conflict
             return
         # is it actually a QIIME 2 result, or a random part of the filesystem
-        archive = _ArchiveCheck(pathlib.Path(location))
-        self.result_store[archive.uuid] = os.path.join(
-            location, str(archive.uuid), 'data')
+        archive = ArchiveCheck(pathlib.Path(location))
+        self.result_store[archive.uuid] = os.path.join(location, 'data')
 
         self.redirect('view/%s/' % archive.uuid)
 

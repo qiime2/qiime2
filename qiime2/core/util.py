@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -9,11 +9,19 @@
 import contextlib
 import warnings
 import hashlib
+import stat
 import os
 import io
 import collections
+import uuid as _uuid
 
 import decorator
+
+READ_ONLY_FILE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+READ_ONLY_DIR = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH | stat.S_IRUSR \
+    | stat.S_IRGRP | stat.S_IROTH
+ALL_PERMISSIONS = stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+OTHER_NO_WRITE = stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH
 
 
 def get_view_name(view):
@@ -235,3 +243,74 @@ class ImmutableBase:
         if hasattr(self, '_frozen'):
             _immutable_error(self)
         super().__setattr__(*args)
+
+
+def sorted_poset(iterable, *, key=None, reverse=False):
+    values = list(iterable)
+    elements = values
+    if key is not None:
+        elements = [key(x) for x in values]
+
+    result = []
+    sorted_elements = []
+    for value, element in zip(values, elements):
+        idx = 0
+        for idx, placed in enumerate(sorted_elements, 1):
+            if element <= placed:
+                idx -= 1
+                break
+
+        result.insert(idx, value)
+        sorted_elements.insert(idx, element)
+    if reverse:
+        result = list(reversed(result))
+    return result
+
+
+def is_uuid4(uuid_str):
+    # Adapted from https://gist.github.com/ShawnMilo/7777304
+    try:
+        uuid = _uuid.UUID(hex=uuid_str, version=4)
+    except ValueError:
+        # The string is not a valid hex code for a UUID.
+        return False
+
+    # If uuid_str is a valid hex code, but an invalid uuid4, UUID.__init__
+    # will convert it to a valid uuid4.
+    return str(uuid) == uuid_str
+
+
+def set_permissions(path, file_permissions=None, dir_permissions=None):
+    """Set permissions on all directories and files under and including path
+    """
+    for directory, _, files in os.walk(path):
+        if dir_permissions:
+            try:
+                os.chmod(directory, dir_permissions)
+            except FileNotFoundError:
+                pass
+
+        for file in files:
+            if file_permissions:
+                try:
+                    os.chmod(os.path.join(directory, file), file_permissions)
+                except FileNotFoundError:
+                    pass
+
+
+def touch_under_path(path):
+    """Touches everything under a given path to ensure they don't get culled by
+    Mac
+    """
+    for directory, _, files in os.walk(path):
+        try:
+            os.utime(directory, None, follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+
+        for file in files:
+            try:
+                os.utime(
+                    os.path.join(directory, file), None, follow_symlinks=False)
+            except FileNotFoundError:
+                pass

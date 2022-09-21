@@ -1,16 +1,22 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+from qiime2.core.cache import get_cache
 import qiime2.sdk
 
 
 class Context:
     def __init__(self, parent=None):
+        if parent is not None:
+            self.cache = parent.cache
+        else:
+            self.cache = get_cache()
+
         self._parent = parent
         self._scope = None
 
@@ -72,7 +78,7 @@ class Context:
             # Everything is fine, just cleanup internal references and pass
             # ownership off to the parent context.
             parent_refs = self._scope.destroy(local_references_only=True)
-            if self._parent is not None:
+            if self._parent is not None and self._parent._scope is not None:
                 for ref in parent_refs:
                     self._parent._scope.add_reference(ref)
 
@@ -89,13 +95,25 @@ class Scope:
         """
         self._locals.append(ref)
 
+    # NOTE: We end up with both the artifact and the pipeline alias of artifact
+    # in the named cache in the end. We only have the pipeline alias in the
+    # process pool
     def add_parent_reference(self, ref):
         """Add a reference to something destructable that will be owned by the
            parent scope. The reason it needs to be tracked is so that on
            failure, a context can still identify what will (no longer) be
            returned.
         """
+        new_ref = self.ctx.cache.process_pool.save(ref)
+
+        if self.ctx.cache.named_pool is not None:
+            self.ctx.cache.named_pool.save(new_ref)
+
+        self._parent_locals.append(new_ref)
         self._parent_locals.append(ref)
+
+        # Return an artifact backed by the data in the cache
+        return new_ref
 
     def destroy(self, local_references_only=False):
         """Destroy all references and clear state.
@@ -110,6 +128,7 @@ class Scope:
             The list of references that were not destroyed.
 
         """
+        ctx = self.ctx
         local_refs = self._locals
         parent_refs = self._parent_locals
 
@@ -128,4 +147,5 @@ class Scope:
         for ref in parent_refs:
             ref._destructor()
 
+        ctx.cache.garbage_collection()
         return []

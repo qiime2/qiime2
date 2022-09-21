@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2021, QIIME 2 development team.
+# Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -202,6 +202,31 @@ class TestTypeMatchWithListAndSet(ActionTester):
 
         x = self.run_action(ints=a, strs1=['a'], strs2={'a'})
         self.assertEqual(x.output.type, IntSequence2)
+
+
+class TestUnionedPrimitiveDecode(ActionTester):
+    ACTION = 'unioned_primitives'
+
+    def test_decode_int(self):
+        exp = dict(foo=1, bar=1)
+
+        res = self.action.signature.decode_parameters(foo='1', bar='1')
+
+        self.assertEqual(res, exp)
+
+    def test_decode_str(self):
+        exp = dict(foo='auto_foo', bar='auto_bar')
+
+        res = self.action.signature.decode_parameters(**exp)
+
+        self.assertEqual(res, exp)
+
+    def test_decode_mix(self):
+        exp = dict(foo=1, bar='auto_bar')
+
+        res = self.action.signature.decode_parameters(foo='1', bar='auto_bar')
+
+        self.assertEqual(res, exp)
 
 
 if __name__ == '__main__':
