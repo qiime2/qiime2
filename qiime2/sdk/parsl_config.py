@@ -54,16 +54,11 @@ def get_parsl_config():
             executors=[
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
-                    label='not_htex'
-                ),
-                ThreadPoolExecutor(
-                    max_threads=max(psutil.cpu_count() - 1, 1),
-                    label='not_default'
+                    label='default'
                 ),
                 HighThroughputExecutor(
-                    label='default',
+                    label='htex',
                     max_workers=6,
-                    worker_logdir_root=None,
 
                     provider=LocalProvider()
                 )
@@ -88,11 +83,7 @@ class ParallelConfig():
         parsl_config: Specifies which executors should be created and how they
         should be created
         """
-        if parsl_config is None:
-            self.parsl_config = get_parsl_config()
-        else:
-            self.parsl_config = parsl_config
-
+        self.parsl_config = parsl_config
         self.action_executor_mapping = action_executor_mapping
 
     def __enter__(self):
