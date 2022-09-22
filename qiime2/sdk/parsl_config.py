@@ -76,7 +76,7 @@ def get_parsl_config():
 
 
 class ParallelConfig():
-    def __init__(self, action_executor_mapping={}, parsl_config=None):
+    def __init__(self, parsl_config=None, action_executor_mapping={}):
         """Tell QIIME 2 how to parsl
 
         action_executor_mapping: maps actions to executors. All unmapped
@@ -88,20 +88,24 @@ class ParallelConfig():
         parsl_config: Specifies which executors should be created and how they
         should be created
         """
+        if parsl_config is None:
+            self.parsl_config = get_parsl_config()
+        else:
+            self.parsl_config = parsl_config
+
         self.action_executor_mapping = action_executor_mapping
-        self.parsl_config = parsl_config
 
     def __enter__(self):
         """Set this to be our Parsl config on the current thread local
         """
-        self.backup_map = PARSL_CONFIG.action_executor_mapping
-        PARSL_CONFIG.action_executor_mapping = self.action_executor_mapping
-
         self.backup_config = PARSL_CONFIG.parsl_config
         PARSL_CONFIG.parsl_config = self.parsl_config
+
+        self.backup_map = PARSL_CONFIG.action_executor_mapping
+        PARSL_CONFIG.action_executor_mapping = self.action_executor_mapping
 
     def __exit__(self, *args):
         """Set our Parsl config back to whatever it was before this one
         """
-        PARSL_CONFIG.action_executor_mapping = self.backup_map
         PARSL_CONFIG.parsl_config = self.backup_config
+        PARSL_CONFIG.action_executor_mapping = self.backup_map
