@@ -16,7 +16,9 @@ import psutil
 import shutil
 import getpass
 import pathlib
+import weakref
 import tempfile
+import warnings
 import threading
 from sys import maxsize
 from random import randint
@@ -27,8 +29,8 @@ from flufl.lock import Lock
 import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
-from qiime2.core.util import (is_uuid4, set_permissions, READ_ONLY_FILE,
-                              READ_ONLY_DIR, ALL_PERMISSIONS)
+from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
+                              READ_ONLY_FILE, READ_ONLY_DIR, ALL_PERMISSIONS)
 from qiime2.core.archive.archiver import Archiver
 
 _VERSION_TEMPLATE = """\
@@ -55,6 +57,9 @@ _CACHE.temp_cache = None
 # Keep track of every cache used by this process for cleanup later
 USED_CACHES = set()
 
+# These permissions are directory with sticky bit and rwx for all set
+EXPECTED_PERMISSIONS = 0o41777
+
 
 def get_cache():
     """ Gets our cache if we have one and creates one in temp if we don't
@@ -67,19 +72,6 @@ def get_cache():
         return _CACHE.temp_cache
 
     return _CACHE.cache
-
-
-def _get_process_pool_name():
-    """Gets the necessary info to create/identify a process pool for this
-    process
-    """
-    pid = os.getpid()
-    user = getpass.getuser()
-
-    process = psutil.Process(pid)
-    time = process.create_time()
-
-    return f'{pid}-{time}@{user}'
 
 
 # TODO: maybe hand shutil.copytree qiime2.util.duplicate
@@ -100,6 +92,26 @@ def _copy_to_data(cache, ref):
         set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
 
 
+def _get_user():
+    """getpass.getuser could fail for reasons explained below, so we use this
+    """
+    try:
+        return getpass.getuser()
+    # Internally getpass.getuser is getting the uid then looking up the
+    # username associated with it. This could fail it we are running inside a
+    # container because the container is looking for its parent's uid in its
+    # own /etc/passwd which is unlikely to contain a user associated with that
+    # uid
+    except KeyError:
+        return _get_uid_cache_name()
+
+
+def _get_uid_cache_name():
+    """Create an esoteric name that is unlikely to be the name of a real user
+    """
+    return f'uid=#{os.getuid()}'
+
+
 @atexit.register
 def _exit_cleanup():
     """For each cache used by this process we remove the process pool created
@@ -117,6 +129,15 @@ def _exit_cleanup():
         if os.path.exists(target):
             shutil.rmtree(target)
             cache.garbage_collection()
+
+
+def monitor_thread(cache_dir, is_done):
+    """This function will be running in a seperate thread and making sure Mac
+    doesn't cull our stuff by updating its access and modified times
+    """
+    while not is_done.is_set():
+        touch_under_path(cache_dir)
+        time.sleep(60 * 60 * 6)
 
 
 class Cache:
@@ -166,8 +187,22 @@ class Cache:
         if not os.path.exists(self.path):
             self._create_cache()
         elif not self.is_cache(self.path):
-            raise ValueError(f"Path: \'{path}\' already exists and is not a"
-                             " cache")
+            # MacOS culls files in the temp dir that haven't been used for a
+            # few days. This can lead to the VERSION file being deleted while
+            # we still have a cache dir, so we see the directory but don't
+            # think it's a cache. Our solution is to just kill this directory
+            # and recreate it. We only do this on the temp cache which is not
+            # storing anything long term anyway
+            if path is None:
+                warnings.warn("Your temporary cache was found to be in an "
+                              "inconsistent state. It has been recreated.")
+                set_permissions(self.path, ALL_PERMISSIONS, ALL_PERMISSIONS)
+                shutil.rmtree(self.path)
+                self._create_cache()
+            else:
+                raise ValueError(
+                    f"Path: \'{self.path}\' already exists and is not a "
+                    "cache.")
 
         self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
         # Make our process pool.
@@ -180,6 +215,19 @@ class Cache:
 
         # We were used by this process
         USED_CACHES.add(self)
+
+        # Start thread that pokes things in the cache to ensure they aren't
+        # culled for being too old (only if we are in a temp cache)
+        if path is None:
+            self._thread_is_done = threading.Event()
+            self._thread_destructor = \
+                weakref.finalize(self, self._thread_is_done.set)
+
+            self._thread = threading.Thread(
+                target=monitor_thread, args=(self.path, self._thread_is_done),
+                daemon=True)
+
+            self._thread.start()
 
     def __enter__(self):
         """Set this cache on the thread local
@@ -197,6 +245,21 @@ class Cache:
         one
         """
         _CACHE.cache = None
+
+    def __getstate__(self):
+        """We don't want to pickle any of the thread stuff because it won't
+        rehydrate, and we don't care about it
+        """
+        threadless_dict = self.__dict__.copy()
+
+        # This will only even exist if we are a temp cache not a named cache.
+        # If _thread exists the others should as well
+        if '_thread' in threadless_dict:
+            del threadless_dict['_thread_is_done']
+            del threadless_dict['_thread_destructor']
+            del threadless_dict['_thread']
+
+        return threadless_dict
 
     @classmethod
     def is_cache(cls, path):
@@ -241,25 +304,50 @@ class Cache:
     def _get_temp_path(self):
         """ Get path to temp cache if the user did not specify a named cache.
         """
-        TMPDIR = tempfile.gettempdir()
-        USER = getpass.getuser()
+        tmpdir = tempfile.gettempdir()
 
-        cache_dir = os.path.join(TMPDIR, 'qiime2')
-        if not os.path.exists(cache_dir):
-            os.mkdir(cache_dir)
+        cache_dir = os.path.join(tmpdir, 'qiime2')
 
         # Make sure the sticky bit is set on the cache directory. Documentation
         # on what a sitcky bit is found here
         # https://docs.python.org/3/library/stat.html#stat.S_ISVTX
         # We also set read/write/execute permissions for everyone on this
-        # directory
-        permissions = os.stat(cache_dir).st_mode
-        sticky_permissions = permissions | stat.S_ISVTX | stat.S_IRWXU | \
-            stat.S_IRGRP | stat.S_IRWXO
-        os.chmod(cache_dir, sticky_permissions)
+        # directory. We only do this if we are the owner of the /tmp/qiime2
+        # directory or in other words the first person to run QIIME 2 with this
+        # /tmp since the /tmp was wiped
+        if not os.path.exists(cache_dir):
+            os.mkdir(cache_dir)
+            sticky_permissions = stat.S_ISVTX | stat.S_IRWXU | stat.S_IRWXG \
+                | stat.S_IRWXO
+            os.chmod(cache_dir, sticky_permissions)
+        elif os.stat(cache_dir).st_mode != EXPECTED_PERMISSIONS:
+            raise ValueError(f"Directory '{cache_dir}' already exists without "
+                             f"proper permissions "
+                             f"'{oct(EXPECTED_PERMISSIONS)}' set. Current "
+                             "permissions are "
+                             f"'{oct(os.stat(cache_dir).st_mode)}.' This most "
+                             "likely means something other than QIIME 2 "
+                             f"created the directory '{cache_dir}' or QIIME 2 "
+                             f"failed between creating '{cache_dir}' and "
+                             "setting permissions on it.")
 
-        user_path = os.path.join(TMPDIR, 'qiime2', USER)
-        return user_path
+        user = _get_user()
+        user_dir = os.path.join(cache_dir, user)
+
+        # It is conceivable that we already have a path matching this username
+        # that belongs to another uid, if we do then we want to create a
+        # garbage name for the temp cache that will be used by this user
+        if os.path.exists(user_dir) and \
+                os.stat(user_dir).st_uid != os.getuid():
+            uid_name = _get_uid_cache_name()
+            # This really shouldn't happen
+            if user == uid_name:
+                raise ValueError(f'Temp cache for uid path {user} already '
+                                 'exists but does not belong to us.')
+
+            user_dir = os.path.join(cache_dir, uid_name)
+
+        return user_dir
 
     def _create_process_pool(self):
         """Creates a process pool which is identical in function to a named
@@ -390,6 +478,9 @@ class Cache:
                              "data. This most likely occured because you "
                              "tried to load a pool which is not supported.") \
                 from e
+        except FileNotFoundError as e:
+            raise ValueError(f"The cache '{self.path}' does not contain the "
+                             f"key '{key}'") from e
 
         archiver = Archiver.load_raw(path, self)
         return Result._from_archiver(archiver)
@@ -483,7 +574,7 @@ class Pool:
         # directory. The name follows the scheme
         # pid-process_start_time@user
         else:
-            self.name = _get_process_pool_name()
+            self.name = self._get_process_pool_name()
             self.path = cache.processes / self.name
 
         # Raise a value error if we thought we were making a new pool but
@@ -524,6 +615,18 @@ class Pool:
         """
         _CACHE.cache = self.previously_entered_cache
         self.cache.named_pool = None
+
+    def _get_process_pool_name(self):
+        """Gets the necessary info to create/identify a process pool for this
+        process
+        """
+        pid = os.getpid()
+        user = _get_user()
+
+        process = psutil.Process(pid)
+        time = process.create_time()
+
+        return f'{pid}-{time}@{user}'
 
     def save(self, ref):
         """Save the data into the pool then load a new ref backed by the data

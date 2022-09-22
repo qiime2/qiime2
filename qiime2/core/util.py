@@ -285,8 +285,32 @@ def set_permissions(path, file_permissions=None, dir_permissions=None):
     """
     for directory, _, files in os.walk(path):
         if dir_permissions:
-            os.chmod(directory, dir_permissions)
+            try:
+                os.chmod(directory, dir_permissions)
+            except FileNotFoundError:
+                pass
 
         for file in files:
             if file_permissions:
-                os.chmod(os.path.join(directory, file), file_permissions)
+                try:
+                    os.chmod(os.path.join(directory, file), file_permissions)
+                except FileNotFoundError:
+                    pass
+
+
+def touch_under_path(path):
+    """Touches everything under a given path to ensure they don't get culled by
+    Mac
+    """
+    for directory, _, files in os.walk(path):
+        try:
+            os.utime(directory, None, follow_symlinks=False)
+        except FileNotFoundError:
+            pass
+
+        for file in files:
+            try:
+                os.utime(
+                    os.path.join(directory, file), None, follow_symlinks=False)
+            except FileNotFoundError:
+                pass
