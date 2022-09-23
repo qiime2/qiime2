@@ -27,6 +27,12 @@ class AllRequiredDirFmt(model.DirectoryFormat):
                        optional=False)
 
 
+class AllRequiredDefaultDirFmt(model.DirectoryFormat):
+    file1 = model.File(r'test_text1.txt', format=IntSequenceFormat)
+    file2 = model.File(r'test_text2.txt', format=IntSequenceFormat)
+    file3 = model.File(r'test_text3.txt', format=IntSequenceFormat)
+
+
 class OptionalDirFmt(model.DirectoryFormat):
     file1 = model.File(r'test_text1.txt', format=IntSequenceFormat,
                        optional=False)
@@ -73,6 +79,19 @@ class TestDirectoryFormat(unittest.TestCase):
                                 )
 
             format_object.validate()
+
+    def test_fails_missing_with_optional_default(self):
+        files_dir_fp = self.get_data_path('test_text_files/')
+
+        with self.assertRaisesRegex(
+            ValidationError, "Missing one or more files for "
+            "AllRequiredDefaultDirFmt: \'test_text3.txt\'"):
+                format_object = AllRequiredDefaultDirFmt(
+                                    files_dir_fp,
+                                    mode='r',
+                                    )
+                format_object.validate()
+
 
     def test_passes_with_missing_optional(self):
         files_dir_fp = self.get_data_path('test_text_files/')
