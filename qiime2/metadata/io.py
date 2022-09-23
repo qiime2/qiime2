@@ -113,7 +113,8 @@ class MetadataReader:
         if column_missing_schemes is None:
             column_missing_schemes = {}
 
-        resolved_missing = directives.get('missing', {})
+        resolved_missing = {c: default_missing_scheme for c in df.columns}
+        resolved_missing.update(directives.get('missing', {}))
         resolved_missing.update(column_missing_schemes)
 
         try:
