@@ -151,6 +151,9 @@ class MEGALock(tm):
     """
 
     def __init__(self, flufl_fp, lifetime):
+        self.flufl_fp = flufl_fp
+        self.lifetime = lifetime
+
         self.thread_lock = threading.Lock()
         self.flufl_lock = flufl.lock.Lock(flufl_fp, lifetime=lifetime)
 
@@ -164,6 +167,21 @@ class MEGALock(tm):
     def __exit__(self, *args):
         self.flufl_lock.unlock()
         self.thread_lock.release()
+
+    def __getstate__(self):
+        lockless_dict = self.__dict__.copy()
+
+        del lockless_dict['thread_lock']
+        del lockless_dict['flufl_lock']
+
+        return lockless_dict
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
+        self.thread_lock = threading.Lock()
+        self.flufl_lock = \
+            flufl.lock.Lock(self.flufl_fp, lifetime=self.lifetime)
 
 
 class Cache:
@@ -230,8 +248,7 @@ class Cache:
                     f"Path: \'{self.path}\' already exists and is not a "
                     "cache.")
 
-        self.lock = \
-            MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
+        self.lock = MEGALock(str(self.lockfile), timedelta(minutes=10))
         # Make our process pool.
         self.process_pool = self._create_process_pool()
         # Lifespan is supplied in days and converted to seconds for internal
@@ -287,6 +304,10 @@ class Cache:
             del threadless_dict['_thread']
 
         return threadless_dict
+
+    # def __setstate__(self, state):
+    #     self.__dict__.update(state)
+    #     self.lock = MEGALock(str(self.lockfile), timedelta(minutes=10))
 
     @classmethod
     def is_cache(cls, path):
