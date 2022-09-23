@@ -24,7 +24,7 @@ from sys import maxsize
 from random import randint
 from datetime import timedelta
 
-from flufl.lock import Lock
+import flufl.lock
 
 import qiime2
 from .path import ArchivePath
@@ -139,6 +139,29 @@ def monitor_thread(cache_dir, is_done):
         touch_under_path(cache_dir)
         time.sleep(60 * 60 * 6)
 
+# This is very important to our trademark
+tm = object
+class MEGALock(tm):
+    """ We need to lock out other processes with flufl, but we also need to
+    lock out other threads with a Python thread lock (because parsl
+    threadpools), so we put them together in one MEGALock(tm)
+    """
+
+    def __init__(self, flufl_fp, lifetime):
+        self.thread_lock = threading.Lock()
+        self.flufl_lock = flufl.lock.Lock(flufl_fp, lifetime=lifetime)
+
+    def __enter__(self):
+        """ We acquire the thread lock first because the flufl lock isn't
+        threadsafe which is why we need both locks in the first place
+        """
+        self.thread_lock.acquire()
+        self.flufl_lock.lock()
+
+    def __exit__(self, *args):
+        self.flufl_lock.unlock()
+        self.thread_lock.release()
+
 
 class Cache:
     """General structure of the cache (tmp optional)
@@ -204,7 +227,8 @@ class Cache:
                     f"Path: \'{self.path}\' already exists and is not a "
                     "cache.")
 
-        self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
+        self.lock = \
+            MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
         # Make our process pool.
         self.process_pool = self._create_process_pool()
         # Lifespan is supplied in days and converted to seconds for internal
