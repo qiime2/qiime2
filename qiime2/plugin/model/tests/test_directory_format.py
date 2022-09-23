@@ -85,8 +85,7 @@ class TestDirectoryFormat(unittest.TestCase):
 
         with self.assertRaisesRegex(ValidationError,
                                     "Missing one or more files for "
-                                    "AllRequiredDefaultDirFmt: "
-                                    "\'test_text3.txt\'"):
+                                    "AllRequiredDefaultDirFmt"):
             format_object = AllRequiredDefaultDirFmt(
                                 files_dir_fp,
                                 mode='r',
