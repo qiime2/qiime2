@@ -7,44 +7,79 @@
 # ----------------------------------------------------------------------------
 
 
-import shutil
 import unittest
 
+import pkg_resources
 from qiime2.plugin import model
+
+from qiime2.core.testing.format import IntSequenceFormat
+from qiime2.core.exceptions import ValidationError
+
 
 # Define dummy plugin formats to test with
 
-class BothRequiredDir(model.DirectoryFormat):
-    req1 = model.File(
-            'test_text1.txt',
-            format=model.TextFileFormat,
-            optional=False)
+class AllRequiredDirFmt(model.DirectoryFormat):
+    file1 = model.File(r'test_text1.txt', format=IntSequenceFormat,
+                       optional=False)
+    file2 = model.File(r'test_text2.txt', format=IntSequenceFormat,
+                       optional=False)
+    file3 = model.File(r'test_text3.txt', format=IntSequenceFormat,
+                       optional=False)
 
-    req2 = model.File(
-            'test_text2.txt',
-            format=model.TextFileFormat,
-            optional=False
-            )
+
+class OptionalDirFmt(model.DirectoryFormat):
+    file1 = model.File(r'test_text1.txt', format=IntSequenceFormat,
+                       optional=False)
+    file2 = model.File(r'test_text2.txt', format=IntSequenceFormat,
+                       optional=False)
+    file3 = model.File(r'test_text3.txt', format=IntSequenceFormat,
+                       optional=True)
 
 
 class TestDirectoryFormat(unittest.TestCase):
     package = 'qiime2.plugin.model.tests'
 
-    def setUp(self):
-        pass
+    def get_data_path(self, filename):
+        """Convenience method for getting a data asset while testing.
 
-    def testPassingWithAllSomeOptional(self):
-        pass
+        Test data stored in the ``data/`` dir local to the running test
+        can be accessed via this method.
 
-    def testPassingSomeOptional(self):
-        pass
+        Parameters
+        ----------
+        filename : str
+            The name of the file to look up.
 
-    def testPassingAllRequired(self):
-        format_object = BothRequiredDir()
+        Returns
+        -------
+        filepath : str
+            The materialized filepath to the requested test data.
 
-        file_one = self.get_data_path('test_text1.txt')
-        file_two = self.get_data_path('test_text2.txt')
+        """
 
-    def testFailsOnMissingRequired(self):
-        pass
+        return pkg_resources.resource_filename(self.package,
+                                               'data/%s' % filename)
 
+    def test_fails_missing_required(self):
+        files_dir_fp = self.get_data_path('test_text_files/')
+
+        with self.assertRaisesRegex(
+            ValidationError, "Missing one or more files for"
+                             " AllRequiredDirFmt"):
+
+            format_object = AllRequiredDirFmt(
+                                files_dir_fp,
+                                mode='r',
+                                )
+
+            format_object.validate()
+
+    def test_passes_with_missing_optional(self):
+        files_dir_fp = self.get_data_path('test_text_files/')
+
+        format_object = OptionalDirFmt(
+                            files_dir_fp,
+                            mode='r',
+                            )
+
+        format_object.validate()

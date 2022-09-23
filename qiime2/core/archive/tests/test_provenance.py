@@ -18,7 +18,6 @@ from qiime2.core.testing.type import IntSequence1, Mapping
 import qiime2.core.archive.provenance as provenance
 
 
-@unittest.skip()
 class TestProvenanceIntegration(unittest.TestCase):
     def test_chain_with_metadata(self):
         df = pd.DataFrame({'a': ['1', '2', '3']},
