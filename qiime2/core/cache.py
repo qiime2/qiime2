@@ -139,8 +139,11 @@ def monitor_thread(cache_dir, is_done):
         touch_under_path(cache_dir)
         time.sleep(60 * 60 * 6)
 
+
 # This is very important to our trademark
 tm = object
+
+
 class MEGALock(tm):
     """ We need to lock out other processes with flufl, but we also need to
     lock out other threads with a Python thread lock (because parsl
