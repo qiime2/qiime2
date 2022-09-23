@@ -54,10 +54,10 @@ def get_parsl_config():
             executors=[
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
-                    label='default'
+                    label='htex'
                 ),
                 HighThroughputExecutor(
-                    label='htex',
+                    label='default',
                     max_workers=6,
 
                     provider=LocalProvider()
