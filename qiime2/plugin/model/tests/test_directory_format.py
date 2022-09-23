@@ -83,15 +83,15 @@ class TestDirectoryFormat(unittest.TestCase):
     def test_fails_missing_with_optional_default(self):
         files_dir_fp = self.get_data_path('test_text_files/')
 
-        with self.assertRaisesRegex(
-            ValidationError, "Missing one or more files for "
-            "AllRequiredDefaultDirFmt: \'test_text3.txt\'"):
-                format_object = AllRequiredDefaultDirFmt(
-                                    files_dir_fp,
-                                    mode='r',
-                                    )
-                format_object.validate()
-
+        with self.assertRaisesRegex(ValidationError,
+                                    "Missing one or more files for "
+                                    "AllRequiredDefaultDirFmt: "
+                                    "\'test_text3.txt\'"):
+            format_object = AllRequiredDefaultDirFmt(
+                                files_dir_fp,
+                                mode='r',
+                                )
+            format_object.validate()
 
     def test_passes_with_missing_optional(self):
         files_dir_fp = self.get_data_path('test_text_files/')
