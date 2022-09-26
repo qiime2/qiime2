@@ -101,3 +101,14 @@ class TestDirectoryFormat(unittest.TestCase):
                             )
 
         format_object.validate()
+
+    def test_fails_on_unknown_file(self):
+        files_dir_fp = self.get_data_path('test_text_files_extra/')
+        with self.assertRaisesRegex(ValidationError,
+                                    ".*Unrecognized file.*"):
+
+            format_object = AllRequiredDirFmt(
+                                files_dir_fp,
+                                mode='r',
+                                )
+            format_object.validate()
