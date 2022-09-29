@@ -620,6 +620,33 @@ class TestLoadSuccess(unittest.TestCase):
         ]
         self.assertEqual(obs_columns, exp_columns)
 
+    def test_insdc_no_directives(self):
+        fp = get_data_path('valid/missing-insdc-no-directive.tsv')
+
+        obs_md = Metadata.load(fp, default_missing_scheme='INSDC:missing')
+
+        exp_index = pd.Index(['id1', 'id2', 'id3', 'id4', 'id5', 'id6'],
+                             name='id')
+        exp_df = pd.DataFrame({'col1': [1, 2, 3] + ([float('nan')] * 3),
+                               'col2': ['a', 'b', 'c'] + ([float('nan')] * 3),
+                               'col3': ['foo', 'bar', '42', 'anything',
+                                        'whatever', '10']}, index=exp_index)
+
+        # not testing column_missing_schemes here on purpose, externally the
+        # nan's shouldn't be meaningfully different
+        exp_md = Metadata(exp_df)
+        pd.testing.assert_frame_equal(obs_md.to_dataframe(),
+                                      exp_md.to_dataframe())
+
+        obs_columns = [(name, props.type, props.missing_scheme)
+                       for name, props in obs_md.columns.items()]
+        exp_columns = [
+            ('col1', 'numeric', 'INSDC:missing'),
+            ('col2', 'categorical', 'INSDC:missing'),
+            ('col3', 'categorical', 'INSDC:missing')
+        ]
+        self.assertEqual(obs_columns, exp_columns)
+
     def test_insdc_override(self):
         fp = get_data_path('valid/override-insdc.tsv')
 
