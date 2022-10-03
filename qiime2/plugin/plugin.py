@@ -29,7 +29,8 @@ FormatRecord = collections.namedtuple('FormatRecord', ['format', 'plugin'])
 ViewRecord = collections.namedtuple(
     'ViewRecord', ['name', 'view', 'plugin', 'citations'])
 TypeFormatRecord = collections.namedtuple(
-    'TypeFormatRecord', ['type_expression', 'format', 'plugin'])
+    'TypeFormatRecord', ['type_expression', 'format', 'plugin', 'description',
+                         'examples'])
 ValidatorRecord = collections.namedtuple(
     'ValidatorRecord', ['validator', 'view', 'plugin', 'context'])
 
@@ -249,21 +250,36 @@ class Plugin:
                     fragment=type_fragment, plugin=self)
 
     def register_semantic_type_to_format(self, semantic_type, artifact_format):
+        self.register_artifact_class(semantic_type=semantic_type,
+                                     artifact_format=artifact_format,
+                                     description=None, examples= None)
+
+    def register_artifact_class(self, semantic_type, artifact_format,
+                                description=None, examples=None):
         if not issubclass(artifact_format, DirectoryFormat):
             raise TypeError("%r is not a directory format." % artifact_format)
         if not is_semantic_type(semantic_type):
             raise TypeError("%r is not a semantic type." % semantic_type)
         if not is_semantic_type(semantic_type):
+            # Evan: this was coptied from register_semantic_type_to_format
+            # but is unreachable, right?
             raise ValueError("%r is not a semantic type expression."
                              % semantic_type)
+
         for t in semantic_type:
             if t.predicate is not None:
                 raise ValueError("%r has a predicate, differentiating format"
                                  " on predicate is not supported.")
 
+        if description is None:
+            description = ""
+        if examples is None:
+            examples = {}
+
         self.type_formats.append(TypeFormatRecord(
             type_expression=semantic_type, format=artifact_format,
-            plugin=self))
+            plugin=self, description=description, examples=examples))
+
 
 
 class PluginActions(dict):
