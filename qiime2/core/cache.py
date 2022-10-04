@@ -76,7 +76,7 @@ _CACHE = threading.local()
 _CACHE.cache = None
 _CACHE.temp_cache = None
 
-# TODO: Do we want this on the threadlocal? I feel like maybe we do
+# TODO: Do we want this on the thread local? I feel like maybe we do
 # Keep track of every cache used by this process for cleanup later
 USED_CACHES = set()
 
@@ -477,7 +477,7 @@ class Cache:
         """Creates a process pool which is identical in function to a named
         pool, but it lives in the processes subdirectory not the pools
         subdirectory, and is handled differently by garbage collection due to
-        being unkeyed. Process pools are used to keep track of results for
+        being un-keyed. Process pools are used to keep track of results for
         currently running processes and are removed when the process that
         created them ends.
 
@@ -553,7 +553,7 @@ class Cache:
             referenced_pools.discard(None)
             referenced_data.discard(None)
 
-            # Walk over pools and remove any that were not refered to by keys
+            # Walk over pools and remove any that were not referred to by keys
             # while tracking all data within those that were referenced
             for pool in os.listdir(self.pools):
                 if pool not in referenced_pools:
@@ -588,9 +588,9 @@ class Cache:
     def save(self, ref, key):
         """Save data into the cache by creating a key referring to the data
         then copying the data if it is not already in the cache. We create the
-        key first because if we created the data first it would be unkeyed for
+        key first because if we created the data first it would be un-keyed for
         a brief period of time and if someone else were garbage collecting the
-        cache they would remove our unkeyed data between its creation and the
+        cache they would remove our un-keyed data between its creation and the
         creation of its key.
 
         Parameters
@@ -606,8 +606,8 @@ class Cache:
             A Result backed by the data in the cache.
         """
         # Create the key before the data, this is so that if another thread or
-        # process is running garbage collection it doesn't see our unkeyed data
-        # and remove it leaving us with a dangling reference and no data
+        # process is running garbage collection it doesn't see our un-keyed
+        # data and remove it leaving us with a dangling reference and no data
         with self.lock:
             self._register_key(key, str(ref.uuid))
 
