@@ -27,6 +27,7 @@ executing on
 is specified to be used as a cache, it should not exist. QIIME 2 will create a
 cache structure on disk at that location. Any existing directory you attempt to
 use as a cache should have been created as a cache by QIIME 2.
+
 """
 import re
 import os
@@ -84,7 +85,14 @@ EXPECTED_PERMISSIONS = 0o41777
 
 
 def get_cache():
-    """Gets our cache if we have one and creates one in temp if we don't
+    """Gets the cache we have instructed QIIME 2 to use in this invocation.
+    By default this is a cache located at tmpdir/qiime2/<uname>, but if the
+    user has set a cache it is the cache they set.
+
+    Returns
+    -------
+    Cache
+        The cache QIIME 2 is using for the current invocation.
     """
     # If we are on a new thread we may in fact not have a cache attribute here
     # at all
@@ -98,8 +106,16 @@ def get_cache():
 
 # TODO: maybe hand shutil.copytree qiime2.util.duplicate
 def _copy_to_data(cache, ref):
-    """Since copying the data was basically the same on cache.save and
-    pool.save, I made this helper to copt data and set permissions
+    """If the data does not already exist in the cache, it will copy the data
+    into the cache's data directory and set the appropriate permissions on the
+    data. If the data does already exist in the cache, it will do nothing.
+
+    Parameters
+    ----------
+    cache : Cache
+        The cache whose data directory we are moving data into.
+    ref : Result
+        The data we are copying into the cache's data directory.
     """
     destination = cache.data / str(ref.uuid)
 
@@ -115,37 +131,50 @@ def _copy_to_data(cache, ref):
 
 
 def _get_user():
-    """getpass.getuser could fail for reasons explained below, so we use this
+    """Get the <uname> for our default cache. Internally getpass.getuser is
+    getting the uid then looking up the username associated with it. This could
+    fail it we are running inside a container because the container is looking
+    for its parent's uid in its own /etc/passwd which is unlikely to contain a
+    user associated with that uid. If that failure does occur, we create an
+    alternate default username.
+
+    Returns
+    -------
+    str
+        The value we will be using as <uname> for our default cache.
     """
     try:
         return getpass.getuser()
-    # Internally getpass.getuser is getting the uid then looking up the
-    # username associated with it. This could fail it we are running inside a
-    # container because the container is looking for its parent's uid in its
-    # own /etc/passwd which is unlikely to contain a user associated with that
-    # uid
     except KeyError:
         return _get_uid_cache_name()
 
 
 def _get_uid_cache_name():
     """Create an esoteric name that is unlikely to be the name of a real user
+    in cases were getpass.getuser fails. This name is of the form
+    uid=#<uid> which should be consistent across invocations of this
+    function by the same user.
+
+    Returns
+    -------
+    str
+        The aforementioned stand in name.
     """
     return f'uid=#{os.getuid()}'
 
 
 @atexit.register
 def _exit_cleanup():
-    """For each cache used by this process we remove the process pool created
-    by this process then run garbage collection
+    """When the process ends, for each cache used by this process we remove the
+    process pool created by this process then run garbage collection.
     """
     for cache in USED_CACHES:
         target = cache.processes / os.path.basename(cache.process_pool.path)
 
         # There are several legitimate reasons the path could not exist. It
         # happens during our cache tests when the entire cache is nuked in the
-        # end. It also happens in asycnhronous runs where the worker process
-        # does not create a process pool (on mac this atexit is invoked on
+        # end. It also happens in asynchronous runs where the worker process
+        # does not create a process pool (on Mac this atexit is invoked on
         # workers). It could also happen if someone deleted the process pool
         # but... They probably shouldn't do that
         if os.path.exists(target):
@@ -154,8 +183,20 @@ def _exit_cleanup():
 
 
 def monitor_thread(cache_dir, is_done):
-    """This function will be running in a seperate thread and making sure Mac
-    doesn't cull our stuff by updating its access and modified times
+    """MacOS reaps temp files that are three days old or older. This function
+    will be running in a separate daemon and making sure MacOS doesn't cull
+    anything still needed by a long running process by periodically updating
+    the last accessed times on all files in the cache by touching them every
+    six hours. The daemon running this function will be terminated when the
+    process that invoked it ends.
+
+    Parameters
+    ----------
+    cache_dir : str or PathLike object
+        The path to the cache that invoked this daemon.
+    is_done : threading.Event
+        The process that invoked this daemon sets this flag on exit to notify
+        this daemon to terminate.
     """
     while not is_done.is_set():
         touch_under_path(cache_dir)
@@ -181,6 +222,7 @@ class Cache:
     ├── processes
     ├── tmp
     └── VERSION
+
     Process folder contains pid-created_at@host some kinda reference to
     anonymous pools
     Create anonymous pools backing all final outputs. We have a named pool that
@@ -210,11 +252,12 @@ class Cache:
 
         Examples
         --------
-        >>> CACHE_PATH = 'qiime2-test-cache-'
-        >>> TEMP_DIR = tempfile.TemporaryDirectory(prefix=CACHE_PATH)
-        >>> cache = Cache(path=CACHE_PATH)
-        >>> Cache.is_cache(CACHE_PATH)
+        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        >>> cache_path = os.path.join(test_dir.name, 'cache')
+        >>> cache = Cache(cache_path)
+        >>> Cache.is_cache(cache_path)
         True
+        >>> test_dir.cleanup()
         """
         if path is not None:
             self.path = pathlib.Path(path)
@@ -269,7 +312,7 @@ class Cache:
             self._thread.start()
 
     def __enter__(self):
-        """Set this cache on the thread local
+        """Tell QIIME 2 to use this cache on its current invocation.
         """
         if _CACHE.cache is not None and _CACHE.cache.path != self.path:
             raise ValueError("You cannot enter multiple caches at once, "
@@ -279,14 +322,16 @@ class Cache:
         _CACHE.cache = self
 
     def __exit__(self, *args):
-        """Set the thread local back to whatever cache it was using before this
-        one
+        """Tell QIIME 2 to stop using this cache and go back to using whatever
+        cache it was using before.
         """
         _CACHE.cache = None
 
     def __getstate__(self):
-        """We don't want to pickle any of the thread stuff because it won't
-        rehydrate, and we don't care about it
+        """Tell the cache not to pickle anything related to the daemon that
+        keeps files around on MacOS because it can't pickle, and we don't need
+        it after pickling and rehydrating. It will already be managed by the
+        original process.
         """
         threadless_dict = self.__dict__.copy()
 
@@ -301,7 +346,17 @@ class Cache:
 
     @classmethod
     def is_cache(cls, path):
-        """Tells us if the path we were given is a cache
+        """Tells us if the path we were given is a cache.
+
+        Parameters
+        ----------
+        path : str or PathLike object
+            The path to the cache we are checking.
+
+        Returns
+        -------
+        bool
+            Whether the path we were given is a cache or not.
         """
         path = pathlib.Path(path)
         contents = set(os.listdir(path))
@@ -317,7 +372,7 @@ class Cache:
 
     def _create_cache(self):
         """Create the cache directory, all sub directories, and the version
-        file
+        file.
         """
         # Construct the cache root recursively
         os.makedirs(self.path)
@@ -342,6 +397,18 @@ class Cache:
 
     def _get_temp_path(self):
         """Get path to temp cache if the user did not specify a named cache.
+        This function will create the path if it does not exist and ensure it
+        is suitable for use as a cache if it does.
+
+        Warning
+        -------
+        If the path tmpdir/qiime2/<uname> exists but is not a valid cache, we
+        remove the directory and create a cache there.
+
+        Returns
+        -------
+        str
+            The path created for the temp cache.
         """
         tmpdir = tempfile.gettempdir()
 
@@ -390,19 +457,35 @@ class Cache:
 
     def _create_process_pool(self):
         """Creates a process pool which is identical in function to a named
-        pool, but it lives in the process subdirectory not the pools
+        pool, but it lives in the processes subdirectory not the pools
         subdirectory, and is handled differently by garbage collection due to
-        being unkeyed
+        being unkeyed. Process pools are used to keep track of results for
+        currently running processes and are removed when the process that
+        created them ends.
+
+        Returns
+        -------
+        Pool
+            The pool we created.
         """
         return Pool(self, reuse=True)
 
     def create_pool(self, keys=[], reuse=False):
-        """Used internally to create the process pool and externally to create
-        named pools.
-        keys: A list of keys to point to a named pool. The pool name will be a
-        concatenation of all the keys
-        reuse: If False, we will error if the pool we are trying to create
-        already exists (if the path to it already exists)
+        """Used to create named pools. A named pool's name is all of the keys
+        given for it separated by underscores.
+
+        Parameters
+        ----------
+        keys : List[str]
+            A list of keys to use to reference the pool.
+        reuse : bool
+            Whether to reuse a pool if a pool with the given keys already
+            exists.
+
+        Returns
+        -------
+        Pool
+            The pool we created
         """
         pool_name = '_'.join(keys)
         pool = Pool(self, name=pool_name, reuse=reuse)
@@ -412,7 +495,15 @@ class Cache:
         return pool
 
     def _create_pool_keys(self, pool_name, keys):
-        """A pool can have many keys refering to it.
+        """A pool can have many keys referring to it. This function creates all
+        of the keys referring to the pool.
+
+        Parameters
+        ----------
+        pool_name : str
+            The name of the pool we are keying
+        keys : List[str]
+            A list of all the keys to create referring to the pool
         """
         for key in keys:
             self._register_key(key, pool_name, pool=True)
@@ -421,7 +512,7 @@ class Cache:
         """Runs garbage collection on the cache. We log all data and pools
         pointed to by keys. Then we go through all pools and delete any that
         were not referred to by a key while logging all data in pools that are
-        refered to by keys. Then we go through all process pools and log all
+        referred to by keys. Then we go through all process pools and log all
         data they point to. Then we go through the data and remove any that was
         not logged. This only destroys data and named pools.
         """
@@ -477,8 +568,24 @@ class Cache:
                     shutil.rmtree(target)
 
     def save(self, ref, key):
-        """Create our key then create our data. Returns a version of the data
-        backed by the key in the cache
+        """Save data into the cache by creating a key referring to the data
+        then copying the data if it is not already in the cache. We create the
+        key first because if we created the data first it would be unkeyed for
+        a brief period of time and if someone else were garbage collecting the
+        cache they would remove our unkeyed data between its creation and the
+        creation of its key.
+
+        Parameters
+        ----------
+        ref : Result
+            The QIIME 2 result we are saving into the cache.
+        key : str
+            The key we are saving the result under.
+
+        Returns
+        -------
+        Result
+            A Result backed by the data in the cache.
         """
         # Create the key before the data, this is so that if another thread or
         # process is running garbage collection it doesn't see our unkeyed data
@@ -490,7 +597,23 @@ class Cache:
         return self.load(key)
 
     def _register_key(self, key, value, pool=False):
-        """Create a new key pointing at data or a named pool
+        """Create a key file pointing at the specified data or pool.
+
+        Parameters
+        ----------
+        key : str
+            The name of the key to create
+        value : str
+            The path to the data or pool we are keying
+        pool : bool
+            Whether we are keying a pool or not
+
+        Raises
+        ------
+        ValueError
+            If the key passed in is not a valid Python identifier. We enforce
+            this to ensure no one creates keys that cause issues when we try to
+            load them.
         """
         if not key.isidentifier():
             raise ValueError('Key must be a valid Python identifier. Python '
@@ -508,13 +631,31 @@ class Cache:
     def load(self, key):
         """Load the data pointed to by a key. Only works on a key that refers
         to a data item will error on a key that points to a pool
+
+        Parameters
+        ----------
+        key : str
+            The key to the data we are loading.
+
+        Returns
+        -------
+        Result
+            The loaded data pointed to by the key.
+
+        Raises
+        ------
+        ValueError
+            If the key does not reference any data meaning you probably tried
+            to load a pool.
+        ValueError
+            If the cache does not contain the specified key.
         """
         try:
             with open(self.keys / key) as fh:
                 path = self.data / yaml.safe_load(fh)['data']
         except TypeError as e:
             raise ValueError(f"The key file '{key}' does not point to any "
-                             "data. This most likely occured because you "
+                             "data. This most likely occurred because you "
                              "tried to load a pool which is not supported.") \
                 from e
         except FileNotFoundError as e:
@@ -526,14 +667,22 @@ class Cache:
 
     def remove(self, key):
         """Remove a key from the cache then run garbage collection to remove
-        anything it was referencing and any other loose data
+        anything it was referencing and any other loose data.
+
+        Parameters
+        ----------
+        key : str
+            The key we are removing.
         """
         os.remove(self.keys / key)
         self.garbage_collection()
 
     def clear_lock(self):
-        """Clears the lock on the cache
-        NOTE: Forcibly removes the lock outside of the locking library's API
+        """Clears the flufl lock on the cache.
+
+        Note
+        ----
+        Forcibly removes the lock outside of the locking library's API.
         """
         if os.path.exists(self.lockfile):
             os.remove(self.lockfile)
@@ -541,7 +690,21 @@ class Cache:
     def _allocate(self, uuid):
         """Creates a space in the cache for the archiver to put its data. Also
         creates symlinks in the process pool and named pool (if there is one)
-        to keep track of the data
+        to keep track of the data. These symlinks will contain the uuid of the
+        data with some random bits appended if the symlinks were already
+        present to create a new reference without a duplicate name.
+
+        Parameters
+        ----------
+        uuid : str
+            The uuid of the data we are going to be saving.
+
+        Returns
+        -------
+        pathlib.Path
+            The path to the allocated space in the data directory.
+        pathlib.Path
+            The name of the symlink to the data in the process pool.
         """
         process_alias = self._alias(uuid)
         path = self.data / uuid
@@ -552,6 +715,19 @@ class Cache:
         return path, process_alias
 
     def _alias(self, uuid):
+        """Aliases a uuid with some extra random characters at the end to allow
+        us to have multiple references to the same data in one process pool.
+
+        Parameters
+        ----------
+        uuid : str
+            The uuid of the data we are going to be saving.
+
+        Returns
+        -------
+        str
+            The aliased version of the uuid
+        """
         process_alias = self.process_pool._make_symlink(uuid)
 
         if self.named_pool is not None:
@@ -563,7 +739,13 @@ class Cache:
         """Removes a specific symlink from the process pool. This happens when
         an archiver goes out of scope. We remove that archiver's reference to
         the data from the process pool. We do this to prevent the cache from
-        growing wildly during long running processes
+        growing wildly during long running processes.
+
+        Parameters
+        ----------
+        symlink : str
+            The basename of the symlink we are going to be removing from the
+            process pool
         """
         target = self.process_pool.path / symlink
 
@@ -572,26 +754,38 @@ class Cache:
 
     @property
     def data(self):
+        """The directory in the cache that stores the data.
+        """
         return self.path / 'data'
 
     @property
     def keys(self):
+        """The directory in the cache that stores the keys.
+        """
         return self.path / 'keys'
 
     @property
     def lockfile(self):
+        """The path to the flufl lock file.
+        """
         return self.path / 'LOCK'
 
     @property
     def pools(self):
+        """The directory in the cache that stores the named pools.
+        """
         return self.path / 'pools'
 
     @property
     def processes(self):
+        """The directory in the cache that stores the process pools.
+        """
         return self.path / 'processes'
 
     @property
     def version(self):
+        """The path to the version file.
+        """
         return self.path / 'VERSION'
 
 
@@ -599,7 +793,21 @@ class Cache:
 class Pool:
     def __init__(self, cache, name=None, reuse=False):
         """Used with name=None and reuse=True to create a process pool. Used
-        with a name to create named pools
+        with a name to create named pools.
+
+        Parameters
+        ----------
+        cache : Cache
+            The cache this pool will be created under.
+        named : str
+            The name of the pool we are creating if it is a named pool.
+        reuse : bool
+            Whether we will be reusing this pool if it already exists.
+
+        Raises
+        ------
+        ValueError
+            If the pool already exists and reuse is False.
         """
         # The pool keeps track of the cache it belongs to
         self.cache = cache
@@ -627,7 +835,20 @@ class Pool:
             os.mkdir(self.path)
 
     def __enter__(self):
-        """Set this pool to be our named pool on the current cache
+        """Tell the currently set cache to use this named pool. If there is no
+        cache set then set the cache this named pool is on as well.
+
+        Note
+        ----
+        If you have already set a cache then you cannot set a named pool that
+        belongs to a different cache.
+
+        Raises
+        ------
+        ValueError
+            If you try to set a pool that is not on the currently set cache.
+        ValueError
+            If you have already set a pool and try to set another.
         """
         if _CACHE.cache is not None and _CACHE.cache.path != self.cache.path:
             raise ValueError('Cannot enter a pool that is not on the '
@@ -645,15 +866,29 @@ class Pool:
         self.cache.named_pool = self
 
     def __exit__(self, *args):
-        """Set the named pool on the current cache back to whatever it was
-        before this one
+        """Unset the named pool on the currently set cache. If there was no
+        cache set before setting this named pool then unset the cache as well.
+
+        Note
+        ----
+        self.previously_entered_cache will either be None or the cache this
+        named pool belongs to. It will be None if there was no cache set when
+        we set this named pool. It will be this named pool's cache if that
+        cache was already set when we set this named pool. If there was a
+        different cache set when we set this named pool, we would have errored
+        in __enter__
         """
         _CACHE.cache = self.previously_entered_cache
         self.cache.named_pool = None
 
     def _get_process_pool_name(self):
-        """Gets the necessary info to create/identify a process pool for this
-        process
+        """Creates a process pool name of the format <pid>-<start_time>@<user>
+        for the process that invoked this function.
+
+        Returns
+        -------
+        str
+            The name of this process pool.
         """
         pid = os.getpid()
         user = _get_user()
@@ -665,7 +900,17 @@ class Pool:
 
     def save(self, ref):
         """Save the data into the pool then load a new ref backed by the data
-        in the pool
+        in the pool.
+
+        Parameters
+        ----------
+        ref : Result
+            The QIIME 2 result we are saving into this pool.
+
+        Returns
+        -------
+        Result
+            A QIIME 2 result backed by the data in the pool.
         """
         self._make_symlink(str(ref.uuid))
 
@@ -673,6 +918,29 @@ class Pool:
         return self.load(ref)
 
     def _make_symlink(self, uuid):
+        """Creates a symlink in this pool to the data referred to by the given
+        uuid in the data path of the cache this pool belongs to. It is possible
+        (especially if this is a process pool) that we already contain a
+        symlink to the given data and therefore already contain a symlink named
+        after the given uuid. If this happens, we will create a new symlink
+        in the form of <uuid>.<random_characters>.
+
+        Parameters
+        ----------
+        uuid : str
+            The uuid of the result we are saving into the pool.
+
+        Returns
+        -------
+        pathlib.Path
+            The path to the symlink within this pool.
+
+        Raises
+        ------
+        ValueError
+            It took too many attempts to find a unique name for the symlink.
+            This should really never happen the odds are so small.
+        """
         MAX_RETRIES = 5
 
         src = self.cache.data / uuid
@@ -690,7 +958,7 @@ class Pool:
                         break
                 else:
                     raise ValueError(f'Too many collisions ({MAX_RETRIES}) '
-                                     'occured while trying to save artifact '
+                                     'occurred while trying to save artifact '
                                      f'<{uuid}> to process pool {self.path}.'
                                      'It is likely you have attempted to load '
                                      'the same artifact a very large number '
@@ -698,6 +966,21 @@ class Pool:
         return dest
 
     def _guarded_symlink(self, src, dest):
+        """Creates a symlink at dest pointing to src only if the symlink does
+        not already exist.
+
+        Parameters
+        ----------
+        src : pathlib.Path
+            The location of the data we are symlinking too.
+        dest : pathlib.Path
+            The location of the symlink we are creating.
+
+        Returns
+        -------
+        bool
+            Whether we were able to create the symlink or not.
+        """
         if not os.path.exists(dest):
             os.symlink(src, dest)
             return True
@@ -705,7 +988,17 @@ class Pool:
         return False
 
     def load(self, ref):
-        """Load a reference to an element in the pool
+        """Load a reference to an element in the pool.
+
+        Parameters
+        ----------
+        ref : Result
+            The result we are loading out of this pool.
+
+        Returns
+        -------
+        Result
+            A result backed by the data in the cache that this pool belongs to.
         """
         path = self.cache.data / str(ref.uuid)
 
@@ -713,7 +1006,14 @@ class Pool:
         return Result._from_archiver(archiver)
 
     def remove(self, ref):
-        """Remove an element from the pool
+        """Remove an element from the pool. The element can be just the uuid of
+        the data as a string, or it can be a Result object referencing the data
+        we are trying to remove.
+
+        Parameters
+        ----------
+        ref : str or Result
+            The result we are removing from this pool.
         """
         # Could receive an artifact or just a uuid
         if isinstance(ref, str):
