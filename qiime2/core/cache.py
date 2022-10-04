@@ -5,7 +5,29 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
+"""
+The cache is used to store unzipped data on disk in a predictable and user
+controlled location. This allows us to skip constantly zipping and unzipping
+large amounts of data and taking up CPU time when storage space is not an
+issue. It also allows us to to know exactly what data has been created and
+where.
 
+By default, a cache will be created under tmpdir/qiime2/<uname> and all
+intermediate data that was previously being written all over tmpdir will be
+written into that specific directory. That means QIIME 2 reserves usage of the
+tmpdir/qiime2 directory. The user may also specify a new location to be used
+in place of this default directory. This location must meet a few criteria
+
+1. It must be writable from any and all locations the QIIME 2 command intending
+to use it will be running. This means that in an HPC context, the location
+specified for the cache must be writable from the node QIIME 2 will be
+executing on
+
+2. It must either not exist or already be a cache. The first time a directory
+is specified to be used as a cache, it should not exist. QIIME 2 will create a
+cache structure on disk at that location. Any existing directory you attempt to
+use as a cache should have been created as a cache by QIIME 2.
+"""
 import re
 import os
 import stat
@@ -175,6 +197,24 @@ class Cache:
     def __init__(self, path=None, process_pool_lifespan=45):
         """Creates a cache object backed by the directory specified by path. If
         no path is provided it gets a path to a temp cache.
+
+        Parameters
+        ----------
+        path : str or PathLike object
+            Should point either to a non-existent writable directory to be
+            created as a cache or to an existing writable cache. Defaults to
+            None which creates the cache at tmpdir/qiime2/<uname>
+        process_pool_lifespan : int
+            The number of days we should allow process_pools to exist for
+            before culling them.
+
+        Examples
+        --------
+        >>> CACHE_PATH = 'qiime2-test-cache-'
+        >>> TEMP_DIR = tempfile.TemporaryDirectory(prefix=CACHE_PATH)
+        >>> cache = Cache(path=CACHE_PATH)
+        >>> Cache.is_cache(CACHE_PATH)
+        True
         """
         if path is not None:
             self.path = pathlib.Path(path)
