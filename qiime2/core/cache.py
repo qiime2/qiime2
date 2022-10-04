@@ -18,15 +18,15 @@ written into that specific directory. That means QIIME 2 reserves usage of the
 tmpdir/qiime2 directory. The user may also specify a new location to be used
 in place of this default directory. This location must meet a few criteria.
 
-**1.** It must be writable from any and all locations the QIIME 2 command intending
-to use it will be running. This means that in an HPC context, the location
-specified for the cache must be writable from the node QIIME 2 will be
+**1.** It must be writable from any and all locations the QIIME 2 command
+intending to use it will be running. This means that in an HPC context, the
+location specified for the cache must be writable from the node QIIME 2 will be
 executing on.
 
-**2.** It must either not exist or already be a cache. The first time a directory
-is specified to be used as a cache, it should not exist. QIIME 2 will create a
-cache structure on disk at that location. Any existing directory you attempt to
-use as a cache should have been created as a cache by QIIME 2.
+**2.** It must either not exist or already be a cache. The first time a
+directory is specified to be used as a cache, it should not exist. QIIME 2 will
+create a cache structure on disk at that location. Any existing directory you
+attempt to use as a cache should have been created as a cache by QIIME 2.
 
 """
 import re
