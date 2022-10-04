@@ -807,7 +807,6 @@ class Cache:
         return self.path / 'VERSION'
 
 
-# Assume we will make this its own class for now
 class Pool:
     """Pools are folders in the cache that contain many symlinks to many
     different piece of data. There are two types of pool:
@@ -1052,7 +1051,6 @@ class Pool:
         else:
             uuid = str(ref.uuid)
 
-        # TODO: This guard should be removed when we rework the logic
         target = self.path / uuid
         if target.exists():
             os.remove(target)
