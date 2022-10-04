@@ -204,23 +204,24 @@ def monitor_thread(cache_dir, is_done):
 
 
 class Cache:
-    """General structure of the cache
+    """General structure of the cache:
+
     artifact_cache/
-    ├── data
+    ├── data/
     │   ├── uuid1
     │   ├── uuid2
     │   ├── uuid3
     │   └── uuid4
-    ├── keys
+    ├── keys/
     │   ├── bar.yaml
     │   ├── baz.yaml
     │   └── foo.yaml
-    ├── pools
-    │   └── puuid1
+    ├── pools/
+    │   └── puuid1/
     │       ├── uuid1 -> ../../data/uuid1/
     │       └── uuid2 -> ../../data/uuid2/
-    ├── processes
-    │   └── <pid>-<create-time>@<uname>
+    ├── processes/
+    │   └── <pid>-<create-time>@<uname>/
     │       ├── uuid3 -> ../../data/uuid3/
     │       └── uuid4 -> ../../data/uuid4/
     └── VERSION
