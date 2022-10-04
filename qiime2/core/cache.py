@@ -433,7 +433,7 @@ class Cache:
         cache_dir = os.path.join(tmpdir, 'qiime2')
 
         # Make sure the sticky bit is set on the cache directory. Documentation
-        # on what a sitcky bit is found here
+        # on what a sticky bit is can be found here
         # https://docs.python.org/3/library/stat.html#stat.S_ISVTX
         # We also set read/write/execute permissions for everyone on this
         # directory. We only do this if we are the owner of the /tmp/qiime2
