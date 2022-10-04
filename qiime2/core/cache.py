@@ -809,6 +809,19 @@ class Cache:
 
 # Assume we will make this its own class for now
 class Pool:
+    """Pools are folders in the cache that contain many symlinks to many
+    different piece of data. There are two types of pool:
+
+    Process Pools: These pools have names of the form
+    <pid>-<create-time>@<uname> based on the process that created them. They
+    only exist for the length of the process that created them and ensure data
+    that process is using stays in the cache.
+
+    Named Pools: Named pools are keyed just like individual pieces of data.
+    They exist for as long as they have a key, and all of the data they symlink
+    to is retained in the cache for as long as the pool exists.
+    """
+
     def __init__(self, cache, name=None, reuse=False):
         """Used with name=None and reuse=True to create a process pool. Used
         with a name to create named pools.
