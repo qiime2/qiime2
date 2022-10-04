@@ -16,12 +16,12 @@ By default, a cache will be created under tmpdir/qiime2/<uname> and all
 intermediate data that was previously being written all over tmpdir will be
 written into that specific directory. That means QIIME 2 reserves usage of the
 tmpdir/qiime2 directory. The user may also specify a new location to be used
-in place of this default directory. This location must meet a few criteria
+in place of this default directory. This location must meet a few criteria.
 
 1. It must be writable from any and all locations the QIIME 2 command intending
 to use it will be running. This means that in an HPC context, the location
 specified for the cache must be writable from the node QIIME 2 will be
-executing on
+executing on.
 
 2. It must either not exist or already be a cache. The first time a directory
 is specified to be used as a cache, it should not exist. QIIME 2 will create a
@@ -204,7 +204,7 @@ def monitor_thread(cache_dir, is_done):
 
 
 class Cache:
-    """General structure of the cache (tmp optional)
+    """General structure of the cache
     artifact_cache/
     ├── data
     │   ├── uuid1
@@ -217,18 +217,35 @@ class Cache:
     │   └── foo.yaml
     ├── pools
     │   └── puuid1
-    │       ├── uuid2 -> ../../data/uuid2/
-    │       └── uuid3 -> ../../data/uuid3/
+    │       ├── uuid1 -> ../../data/uuid1/
+    │       └── uuid2 -> ../../data/uuid2/
     ├── processes
-    ├── tmp
+    │   └── <pid>-<create-time>@<uname>
+    │       ├── uuid3 -> ../../data/uuid3/
+    │       └── uuid4 -> ../../data/uuid4/
     └── VERSION
 
-    Process folder contains pid-created_at@host some kinda reference to
-    anonymous pools
-    Create anonymous pools backing all final outputs. We have a named pool that
-    tracks all intermediate and final results. We have an anonymous pool that
-    tracks only final results (pid pool). Ensures that we don't gc the final
-    results if we gc the named pool because they didn't pre register all keys
+    Data: The data directory contains all of the artifacts in the cache in
+    unzipped form.
+
+    Keys: The keys directory contains yaml files that refer to either a piece
+    of data or a pool. The data/pool referenced by the key will be kept as long
+    as the key exists.
+
+    Pools: The pools directory contains all named (keyed) pools in the cache.
+    Each pool contains symlinks to all of the data it contains.
+
+    Processes: The processes directory contains process pools of the format
+    <pid>-<create-time>@<uname> for each process that has used this cache.
+    Each pool contains symlinks to each element in the data directory the
+    process that created the pool has used in some way (created, loaded, etc.).
+    These symlinks are ephemeral and have lifetimes <= the lifetime of the
+    process that created them. More permanent storage is done using keys.
+
+    VERSION: This file contains some information QIIME 2 uses to determine what
+    version of QIIME 2 was used to create the cache and what version of cache
+    it is (if we make breaking changes in the future this version number will
+    allow for backwards compatibility).
     """
     CURRENT_FORMAT_VERSION = '1'
 
@@ -245,7 +262,7 @@ class Cache:
         path : str or PathLike object
             Should point either to a non-existent writable directory to be
             created as a cache or to an existing writable cache. Defaults to
-            None which creates the cache at tmpdir/qiime2/<uname>
+            None which creates the cache at tmpdir/qiime2/<uname>.
         process_pool_lifespan : int
             The number of days we should allow process_pools to exist for
             before culling them.
@@ -485,7 +502,7 @@ class Cache:
         Returns
         -------
         Pool
-            The pool we created
+            The pool we created.
         """
         pool_name = '_'.join(keys)
         pool = Pool(self, name=pool_name, reuse=reuse)
@@ -501,9 +518,9 @@ class Cache:
         Parameters
         ----------
         pool_name : str
-            The name of the pool we are keying
+            The name of the pool we are keying.
         keys : List[str]
-            A list of all the keys to create referring to the pool
+            A list of all the keys to create referring to the pool.
         """
         for key in keys:
             self._register_key(key, pool_name, pool=True)
@@ -602,11 +619,11 @@ class Cache:
         Parameters
         ----------
         key : str
-            The name of the key to create
+            The name of the key to create.
         value : str
-            The path to the data or pool we are keying
+            The path to the data or pool we are keying.
         pool : bool
-            Whether we are keying a pool or not
+            Whether we are keying a pool or not.
 
         Raises
         ------
@@ -630,7 +647,7 @@ class Cache:
 
     def load(self, key):
         """Load the data pointed to by a key. Only works on a key that refers
-        to a data item will error on a key that points to a pool
+        to a data item will error on a key that points to a pool.
 
         Parameters
         ----------
@@ -726,7 +743,7 @@ class Cache:
         Returns
         -------
         str
-            The aliased version of the uuid
+            The aliased version of the uuid.
         """
         process_alias = self.process_pool._make_symlink(uuid)
 
@@ -745,7 +762,7 @@ class Cache:
         ----------
         symlink : str
             The basename of the symlink we are going to be removing from the
-            process pool
+            process pool.
         """
         target = self.process_pool.path / symlink
 
@@ -876,7 +893,7 @@ class Pool:
         we set this named pool. It will be this named pool's cache if that
         cache was already set when we set this named pool. If there was a
         different cache set when we set this named pool, we would have errored
-        in __enter__
+        in __enter__.
         """
         _CACHE.cache = self.previously_entered_cache
         self.cache.named_pool = None
