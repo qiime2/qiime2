@@ -529,12 +529,21 @@ class Cache:
             self._register_key(key, pool_name, pool=True)
 
     def garbage_collection(self):
-        """Runs garbage collection on the cache. We log all data and pools
-        pointed to by keys. Then we go through all pools and delete any that
-        were not referred to by a key while logging all data in pools that are
-        referred to by keys. Then we go through all process pools and log all
-        data they point to. Then we go through the data and remove any that was
-        not logged. This only destroys data and named pools.
+        """Runs garbage collection on the cache in the following steps:
+
+        **1.** Iterate over all keys and log all data and pools referenced by
+        the keys.
+
+        **2.** Iterate over all named pools and delete any that were not
+        referred to by a key while logging all data in pools that were referred
+        to by keys.
+
+        **3.** Iterate over all process pools and log all data they refer to.
+
+        **4.** Iterate over all data and remove any that was not referenced.
+
+        This process only destroys data and named pools that do not have keys.
+        It does not remove any keys or process pools.
         """
         referenced_pools = set()
         referenced_data = set()
