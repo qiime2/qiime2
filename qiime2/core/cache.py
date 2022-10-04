@@ -210,10 +210,10 @@ class Cache:
 
         artifact_cache/
         ├── data/
-        │   ├── uuid1
-        │   ├── uuid2
-        │   ├── uuid3
-        │   └── uuid4
+        │   ├── uuid1/
+        │   ├── uuid2/
+        │   ├── uuid3/
+        │   └── uuid4/
         ├── keys/
         │   ├── bar.yaml
         │   ├── baz.yaml
