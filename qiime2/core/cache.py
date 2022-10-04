@@ -62,7 +62,7 @@ EXPECTED_PERMISSIONS = 0o41777
 
 
 def get_cache():
-    """ Gets our cache if we have one and creates one in temp if we don't
+    """Gets our cache if we have one and creates one in temp if we don't
     """
     # If we are on a new thread we may in fact not have a cache attribute here
     # at all
@@ -289,9 +289,9 @@ class Cache:
         # it's just so they're both on the same disk, so they'll probably just
         # set the tmp location in the config or something. I feel like if we're
         # going to manage the cache, we should manage the cache which means if
-        # they're going to create_poolput tmp in the cache it should have to be
-        # in a set directory within the cache like tmp not just whatever they
-        # want it to be in the cache. Not sure how we would really enforce
+        # they're going to create_pool put tmp in the cache it should have to
+        # be in a set directory within the cache like tmp not just whatever
+        # they want it to be in the cache. Not sure how we would really enforce
         # that, but we can just... Heavily encourage it I guess
         # os.mkdir('tmp')
 
@@ -300,7 +300,7 @@ class Cache:
                                  qiime2.__version__))
 
     def _get_temp_path(self):
-        """ Get path to temp cache if the user did not specify a named cache.
+        """Get path to temp cache if the user did not specify a named cache.
         """
         tmpdir = tempfile.gettempdir()
 
@@ -356,7 +356,7 @@ class Cache:
         return Pool(self, reuse=True)
 
     def create_pool(self, keys=[], reuse=False):
-        """ Used internally to create the process pool and externally to create
+        """Used internally to create the process pool and externally to create
         named pools.
         keys: A list of keys to point to a named pool. The pool name will be a
         concatenation of all the keys
@@ -557,7 +557,7 @@ class Cache:
 # Assume we will make this its own class for now
 class Pool:
     def __init__(self, cache, name=None, reuse=False):
-        """ Used with name=None and reuse=True to create a process pool. Used
+        """Used with name=None and reuse=True to create a process pool. Used
         with a name to create named pools
         """
         # The pool keeps track of the cache it belongs to
