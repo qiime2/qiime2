@@ -18,12 +18,12 @@ written into that specific directory. That means QIIME 2 reserves usage of the
 tmpdir/qiime2 directory. The user may also specify a new location to be used
 in place of this default directory. This location must meet a few criteria.
 
-1. It must be writable from any and all locations the QIIME 2 command intending
+**1.** It must be writable from any and all locations the QIIME 2 command intending
 to use it will be running. This means that in an HPC context, the location
 specified for the cache must be writable from the node QIIME 2 will be
 executing on.
 
-2. It must either not exist or already be a cache. The first time a directory
+**2.** It must either not exist or already be a cache. The first time a directory
 is specified to be used as a cache, it should not exist. QIIME 2 will create a
 cache structure on disk at that location. Any existing directory you attempt to
 use as a cache should have been created as a cache by QIIME 2.
@@ -813,12 +813,12 @@ class Pool:
     """Pools are folders in the cache that contain many symlinks to many
     different piece of data. There are two types of pool:
 
-    Process Pools: These pools have names of the form
+    **Process Pools:** These pools have names of the form
     <pid>-<create-time>@<uname> based on the process that created them. They
     only exist for the length of the process that created them and ensure data
     that process is using stays in the cache.
 
-    Named Pools: Named pools are keyed just like individual pieces of data.
+    **Named Pools:** Named pools are keyed just like individual pieces of data.
     They exist for as long as they have a key, and all of the data they symlink
     to is retained in the cache for as long as the pool exists.
     """
