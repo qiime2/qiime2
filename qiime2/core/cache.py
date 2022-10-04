@@ -303,6 +303,7 @@ class Cache:
     def is_cache(cls, path):
         """Tells us if the path we were given is a cache
         """
+        path = pathlib.Path(path)
         contents = set(os.listdir(path))
         if not contents.issuperset(cls.base_cache_contents):
             return False
