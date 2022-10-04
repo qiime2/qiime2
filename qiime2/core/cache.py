@@ -228,27 +228,27 @@ class Cache:
         │       └── uuid4 -> ../../data/uuid4/
         └── VERSION
 
-    Data: The data directory contains all of the artifacts in the cache in
+    **Data:** The data directory contains all of the artifacts in the cache in
     unzipped form.
 
-    Keys: The keys directory contains yaml files that refer to either a piece
-    of data or a pool. The data/pool referenced by the key will be kept as long
-    as the key exists.
+    **Keys:** The keys directory contains yaml files that refer to either a
+    piece of data or a pool. The data/pool referenced by the key will be kept
+    as long as the key exists.
 
-    Pools: The pools directory contains all named (keyed) pools in the cache.
-    Each pool contains symlinks to all of the data it contains.
+    **Pools:** The pools directory contains all named (keyed) pools in the
+    cache. Each pool contains symlinks to all of the data it contains.
 
-    Processes: The processes directory contains process pools of the format
+    **Processes:** The processes directory contains process pools of the format
     <pid>-<create-time>@<uname> for each process that has used this cache.
     Each pool contains symlinks to each element in the data directory the
     process that created the pool has used in some way (created, loaded, etc.).
     These symlinks are ephemeral and have lifetimes <= the lifetime of the
     process that created them. More permanent storage is done using keys.
 
-    VERSION: This file contains some information QIIME 2 uses to determine what
-    version of QIIME 2 was used to create the cache and what version of cache
-    it is (if we make breaking changes in the future this version number will
-    allow for backwards compatibility).
+    **VERSION:** This file contains some information QIIME 2 uses to determine
+    what version of QIIME 2 was used to create the cache and what version of
+    cache it is (if we make breaking changes in the future this version number
+    will allow for backwards compatibility).
     """
     CURRENT_FORMAT_VERSION = '1'
 
@@ -257,8 +257,8 @@ class Cache:
         set(('data', 'keys', 'pools', 'processes', 'VERSION'))
 
     def __init__(self, path=None, process_pool_lifespan=45):
-        """Creates a cache object backed by the directory specified by path. If
-        no path is provided it gets a path to a temp cache.
+        """Creates a Cache object backed by the directory specified by path. If
+        no path is provided, it gets a path to a temp cache.
 
         Parameters
         ----------
@@ -267,7 +267,7 @@ class Cache:
             created as a cache or to an existing writable cache. Defaults to
             None which creates the cache at tmpdir/qiime2/<uname>.
         process_pool_lifespan : int
-            The number of days we should allow process_pools to exist for
+            The number of days we should allow process pools to exist for
             before culling them.
 
         Examples
