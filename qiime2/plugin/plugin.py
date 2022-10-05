@@ -249,20 +249,15 @@ class Plugin:
                 SemanticTypeFragmentRecord(
                     fragment=type_fragment, plugin=self)
 
-    def register_semantic_type_to_format(self, semantic_type, artifact_format):
-        self.register_artifact_class(semantic_type=semantic_type,
-                                     artifact_format=artifact_format,
-                                     description=None, examples= None)
-
-    def register_artifact_class(self, semantic_type, artifact_format,
-                                description=None, examples=None):
+    def _register_artifact_class(self, semantic_type, artifact_format,
+                                 description, examples):
         if not issubclass(artifact_format, DirectoryFormat):
             raise TypeError("%r is not a directory format." % artifact_format)
         if not is_semantic_type(semantic_type):
             raise TypeError("%r is not a semantic type." % semantic_type)
         if not is_semantic_type(semantic_type):
-            # Evan: this was coptied from register_semantic_type_to_format
-            # but is unreachable, right?
+            # Evan: this was copied from register_semantic_type_to_format
+            # but is unreachable so should be deleted, right?
             raise ValueError("%r is not a semantic type expression."
                              % semantic_type)
 
@@ -279,6 +274,21 @@ class Plugin:
         self.type_formats.append(TypeFormatRecord(
             type_expression=semantic_type, format=artifact_format,
             plugin=self, description=description, examples=examples))
+
+    def register_semantic_type_to_format(self, semantic_type, artifact_format):
+        self._register_artifact_class(semantic_type=semantic_type,
+                                      artifact_format=artifact_format,
+                                      description=None, examples= None)
+
+    def register_artifact_class(self, semantic_type, artifact_format,
+                                description=None, examples=None):
+        # Evan, better way to determine number of types in the type expression?
+        if len(list(semantic_type)) > 1:
+            raise TypeError("Only a single type can be registered at a time "
+                            "with register_artifact_class. Registration "
+                            "attempted for %s." % str(semantic_type))
+        self._register_artifact_class(
+            semantic_type, artifact_format, description, examples)
 
 
 

@@ -14,6 +14,8 @@ import qiime2.sdk
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
                                       FourInts, Kennel, Dog, Cat, SingleInt)
+from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
+                                        IntSequenceV2DirectoryFormat)
 from qiime2.core.testing.util import get_dummy_plugin
 
 
@@ -176,6 +178,149 @@ class TestPlugin(unittest.TestCase):
         self.assertNotIn(Cat, types)
         self.assertNotIn(Dog, types)
         self.assertNotIn(Kennel, types)
+
+    def test_register_artifact_class(self):
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+        plugin.register_artifact_class(IntSequence1,
+                                       IntSequenceDirectoryFormat)
+
+        # the original approach for registering artifact_class still works
+        plugin.register_semantic_type_to_format(IntSequence2,
+                                                IntSequenceV2DirectoryFormat)
+
+        plugin.register_artifact_class(Kennel[Dog],
+                                       IntSequenceDirectoryFormat)
+
+        plugin.register_artifact_class(Kennel[Cat],
+                                       IntSequenceV2DirectoryFormat)
+
+        tf = plugin.type_formats
+
+        # all and only the expected artifact classes have been registered
+        self.assertEqual(len(tf), 4)
+
+        self.assertEqual(tf[0].type_expression, IntSequence1)
+        self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
+        self.assertEqual(tf[0].plugin, plugin)
+        self.assertEqual(tf[0].description, "")
+        self.assertEqual(tf[0].examples, {})
+
+        self.assertEqual(tf[1].type_expression, IntSequence2)
+        self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(tf[1].plugin, plugin)
+        self.assertEqual(tf[1].description, "")
+        self.assertEqual(tf[1].examples, {})
+
+        self.assertEqual(tf[2].type_expression, Kennel[Dog])
+        self.assertEqual(tf[2].format, IntSequenceDirectoryFormat)
+        self.assertEqual(tf[2].plugin, plugin)
+        self.assertEqual(tf[2].description, "")
+        self.assertEqual(tf[2].examples, {})
+
+        self.assertEqual(tf[3].type_expression, Kennel[Cat])
+        self.assertEqual(tf[3].format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(tf[3].plugin, plugin)
+        self.assertEqual(tf[3].description, "")
+        self.assertEqual(tf[3].examples, {})
+
+        self.assertFalse(tf[0].examples is tf[1].examples)
+
+
+    def test_duplicate_artifact_class_registration_disallowed(self):
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+        plugin.register_artifact_class(IntSequence1,
+                                       IntSequenceDirectoryFormat)
+
+        # Registration of type to the same format with both registration
+        # methods is disallowed
+        with self.assertRaisesRegex(NameError, "Type IntSequence1 .* format."):
+            plugin.register_semantic_type_to_format(
+                IntSequence1, IntSequenceDirectoryFormat)
+
+        with self.assertRaisesRegex(NameError, "Type IntSequence1 .* format."):
+            plugin.register_artifact_class(
+                IntSequence1, IntSequenceDirectoryFormat)
+
+        # Registration of type to the different format with both registration
+        # methods is disallowed
+        with self.assertRaisesRegex(NameError, "Type IntSequence1 .* format."):
+            plugin.register_semantic_type_to_format(
+                IntSequence1, IntSequenceV2DirectoryFormat)
+
+        with self.assertRaisesRegex(NameError, "Type IntSequence1 .* format."):
+            plugin.register_artifact_class(
+                IntSequence1, IntSequenceV2DirectoryFormat)
+
+    def test_register_artifact_class_w_annotations(self):
+        dummy_use1 = None # Evan, need input on creating import usage examples
+        dummy_use2 = None
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+        plugin.register_artifact_class(IntSequence1,
+                                       IntSequenceDirectoryFormat,
+                                       description="A sequence of integers.",
+                                       examples={'Import ex 1': dummy_use1})
+        plugin.register_artifact_class(IntSequence2,
+                                       IntSequenceV2DirectoryFormat,
+                                       description="Different seq of ints.",
+                                       examples={'Import ex': dummy_use2})
+
+        tf = plugin.type_formats
+
+        self.assertEqual(tf[0].type_expression, IntSequence1)
+        self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
+        self.assertEqual(tf[0].plugin, plugin)
+        self.assertEqual(tf[0].description, "A sequence of integers.")
+        self.assertEqual(tf[0].examples, {'Import ex 1': dummy_use1})
+
+        self.assertEqual(tf[1].type_expression, IntSequence2)
+        self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(tf[1].plugin, plugin)
+        self.assertEqual(tf[1].description, "Different seq of ints.")
+        self.assertEqual(tf[1].examples, {'Import ex': dummy_use2})
+
+    def test_register_artifact_class_multiple(self):
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+
+        # multiple artifact_classes can be registered using the original
+        # approach, since default descriptions and examples are used
+        plugin.register_semantic_type_to_format(Kennel[Dog | Cat],
+                                                IntSequenceDirectoryFormat)
+
+        tf = plugin.type_formats
+
+        # Evan - I was surprised by this behavior, I would have thought we'd
+        # have two type_formats here, one for Kennel[Dog] and one for
+        # Kennel[Cat]. Please confirm that I'm testing this the way I should
+        # be.
+        self.assertEqual(tf[0].type_expression, Kennel[Dog | Cat])
+        self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
+        self.assertEqual(tf[0].plugin, plugin)
+        self.assertEqual(tf[0].description, "")
+        self.assertEqual(tf[0].examples, {})
+
+        # multiple artifact_classes cannot be registered using
+        # register_artifact_class, since default descriptions and examples
+        # should be different from one another
+        with self.assertRaisesRegex(TypeError,
+                                    r'Only a single.*Kennel\[Dog \| Cat\]'):
+            plugin.register_artifact_class(
+                Kennel[Dog | Cat], IntSequenceDirectoryFormat)
 
 
 if __name__ == '__main__':
