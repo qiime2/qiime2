@@ -534,11 +534,10 @@ class Cache:
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
         >>> pool = cache.create_pool(keys=['some', 'kinda', 'keys'])
-        >>> keys = os.listdir(cache.keys)
-        >>> set(keys) == set(['some', 'kinda', 'keys'])
+        >>> cache.get_keys() == set(['some', 'kinda', 'keys'])
         True
-        >>> os.listdir(cache.pools)
-        ['some_kinda_keys']
+        >>> cache.get_pools() == set(['some_kinda_keys'])
+        True
         >>> test_dir.cleanup()
         """
         pool_name = '_'.join(keys)
@@ -649,6 +648,23 @@ class Cache:
         -------
         Result
             A Result backed by the data in the cache.
+
+        Examples
+        --------
+        >>> from qiime2.sdk.result import Artifact
+        >>> from qiime2.core.testing.type import IntSequence1
+        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        >>> cache_path = os.path.join(test_dir.name, 'cache')
+        >>> cache = Cache(cache_path)
+        >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
+        >>> saved_artifact = cache.save(artifact, 'key')
+        >>> # save returned an artifact that is backed by the data in the cache
+        >>> str(saved_artifact._archiver.path) == \
+                os.path.join(cache.data, str(artifact.uuid))
+        True
+        >>> cache.get_keys() == set(['key'])
+        True
+        >>> test_dir.cleanup()
         """
         # Create the key before the data, this is so that if another thread or
         # process is running garbage collection it doesn't see our un-keyed
@@ -712,6 +728,20 @@ class Cache:
             to load a pool.
         ValueError
             If the cache does not contain the specified key.
+
+        Examples
+        --------
+        >>> from qiime2.sdk.result import Artifact
+        >>> from qiime2.core.testing.type import IntSequence1
+        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        >>> cache_path = os.path.join(test_dir.name, 'cache')
+        >>> cache = Cache(cache_path)
+        >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
+        >>> saved_artifact = cache.save(artifact, 'key')
+        >>> loaded_artifact = cache.load('key')
+        >>> loaded_artifact == saved_artifact == artifact
+        True
+        >>> test_dir.cleanup()
         """
         try:
             with open(self.keys / key) as fh:
@@ -736,6 +766,39 @@ class Cache:
         ----------
         key : str
             The key we are removing.
+
+        Examples
+        --------
+        >>> from qiime2.sdk.result import Artifact
+        >>> from qiime2.core.testing.type import IntSequence1
+        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        >>> cache_path = os.path.join(test_dir.name, 'cache')
+        >>> cache = Cache(cache_path)
+        >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
+        >>> saved_artifact = cache.save(artifact, 'key')
+        >>> cache.get_keys() == set(['key'])
+        True
+        >>> cache.remove('key')
+        >>> cache.get_keys() == set()
+        True
+        >>> # Note that the data is still in the cache due to our
+        >>> # saved_artifact causing the process pool to keep a reference to it
+        >>> cache.get_data() == set([str(saved_artifact.uuid)])
+        True
+        >>> del saved_artifact
+        >>> # The data is still there even though the reference is gone because
+        >>> # the cache has not run its own garbage collection yet. For various
+        >>> # reasons, it is not feasible for us to safely garbage collect the
+        >>> # cache when a reference in memory is deleted. Note also that
+        >>> # "artifact" is not backed by the data in the cache, it only lives
+        >>> # in memory, but it does have the same uuid as "saved_artifact."
+        >>> cache.get_data() == set([str(artifact.uuid)])
+        True
+        >>> cache.garbage_collection()
+        >>> # Now it is gone
+        >>> cache.get_data() == set()
+        True
+        >>> test_dir.cleanup()
         """
         os.remove(self.keys / key)
         self.garbage_collection()
@@ -821,11 +884,21 @@ class Cache:
         """
         return self.path / 'data'
 
+    def get_data(self):
+        """Returns a set of all data in the cache.
+        """
+        return set(os.listdir(self.data))
+
     @property
     def keys(self):
         """The directory in the cache that stores the keys.
         """
         return self.path / 'keys'
+
+    def get_keys(self):
+        """Returns a set of all keys in the cache.
+        """
+        return set(os.listdir(self.keys))
 
     @property
     def lockfile(self):
@@ -839,11 +912,21 @@ class Cache:
         """
         return self.path / 'pools'
 
+    def get_pools(self):
+        """Returns a set of all pools in the cache.
+        """
+        return set(os.listdir(self.pools))
+
     @property
     def processes(self):
         """The directory in the cache that stores the process pools.
         """
         return self.path / 'processes'
+
+    def get_processes(self):
+        """Returns a set of all process pools in the cache.
+        """
+        return set(os.listdir(self.processes))
 
     @property
     def version(self):
