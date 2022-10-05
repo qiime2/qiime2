@@ -535,10 +535,8 @@ class Cache:
         >>> cache = Cache(cache_path)
         >>> pool = cache.create_pool(keys=['some', 'kinda', 'keys'])
         >>> keys = os.listdir(cache.keys)
-        >>> # Sort to make sure the order is actually what we want below
-        >>> keys.sort(reverse=True)
-        >>> keys
-        ['some', 'kinda', 'keys']
+        >>> set(keys) == set(['some', 'kinda', 'keys'])
+        True
         >>> os.listdir(cache.pools)
         ['some_kinda_keys']
         >>> test_dir.cleanup()
