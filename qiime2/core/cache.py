@@ -87,12 +87,32 @@ EXPECTED_PERMISSIONS = 0o41777
 def get_cache():
     """Gets the cache we have instructed QIIME 2 to use in this invocation.
     By default this is a cache located at tmpdir/qiime2/<uname>, but if the
-    user has set a cache it is the cache they set.
+    user has set a cache it is the cache they set. This is used by various
+    parts of the framework to determine what cache they should be saving
+    to/loading from.
 
     Returns
     -------
     Cache
         The cache QIIME 2 is using for the current invocation.
+
+    Examples
+    --------
+    >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+    >>> cache_path = os.path.join(test_dir.name, 'cache')
+    >>> cache = Cache(cache_path)
+    >>> # get_cache() will return the temp cache, not the one we just made.
+    >>> get_cache() == cache
+    False
+    >>> # After withing in the cache we just made, get_cache() will return it.
+    >>> with cache:
+    ...     get_cache() == cache
+    True
+    >>> # Now that we have exited our cache, we will get the temp cache again.
+    >>> get_cache() == cache
+    False
+    >>> test_dir.cleanup()
+
     """
     # If we are on a new thread we may in fact not have a cache attribute here
     # at all
@@ -269,15 +289,6 @@ class Cache:
         process_pool_lifespan : int
             The number of days we should allow process pools to exist for
             before culling them.
-
-        Examples
-        --------
-        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
-        >>> cache_path = os.path.join(test_dir.name, 'cache')
-        >>> cache = Cache(cache_path)
-        >>> Cache.is_cache(cache_path)
-        True
-        >>> test_dir.cleanup()
         """
         if path is not None:
             self.path = pathlib.Path(path)
@@ -332,7 +343,8 @@ class Cache:
             self._thread.start()
 
     def __enter__(self):
-        """Tell QIIME 2 to use this cache on its current invocation.
+        """Tell QIIME 2 to use this cache in its current invocation (see
+        get_cache).
         """
         if _CACHE.cache is not None and _CACHE.cache.path != self.path:
             raise ValueError("You cannot enter multiple caches at once, "
@@ -377,6 +389,15 @@ class Cache:
         -------
         bool
             Whether the path we were given is a cache or not.
+
+        Examples
+        --------
+        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        >>> cache_path = os.path.join(test_dir.name, 'cache')
+        >>> cache = Cache(cache_path)
+        >>> Cache.is_cache(cache_path)
+        True
+        >>> test_dir.cleanup()
         """
         path = pathlib.Path(path)
         contents = set(os.listdir(path))
@@ -506,6 +527,21 @@ class Cache:
         -------
         Pool
             The pool we created.
+
+        Examples
+        --------
+        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        >>> cache_path = os.path.join(test_dir.name, 'cache')
+        >>> cache = Cache(cache_path)
+        >>> pool = cache.create_pool(keys=['some', 'kinda', 'keys'])
+        >>> keys = os.listdir(cache.keys)
+        >>> # Sort to make sure the order is actually what we want below
+        >>> keys.sort(reverse=True)
+        >>> keys
+        ['some', 'kinda', 'keys']
+        >>> os.listdir(cache.pools)
+        ['some_kinda_keys']
+        >>> test_dir.cleanup()
         """
         pool_name = '_'.join(keys)
         pool = Pool(self, name=pool_name, reuse=reuse)
@@ -597,7 +633,7 @@ class Cache:
                     shutil.rmtree(target)
 
     def save(self, ref, key):
-        """Save data into the cache by creating a key referring to the data
+        """Saves data into the cache by creating a key referring to the data
         then copying the data if it is not already in the cache. We create the
         key first because if we created the data first it would be un-keyed for
         a brief period of time and if someone else were garbage collecting the
@@ -626,7 +662,7 @@ class Cache:
         return self.load(key)
 
     def _register_key(self, key, value, pool=False):
-        """Create a key file pointing at the specified data or pool.
+        """Creates a key file pointing at the specified data or pool.
 
         Parameters
         ----------
@@ -658,8 +694,8 @@ class Cache:
             key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
 
     def load(self, key):
-        """Load the data pointed to by a key. Only works on a key that refers
-        to a data item will error on a key that points to a pool.
+        """Loads the data pointed to by a key. Only works on keys that refer to
+        data items and will error on keys that refer to pools.
 
         Parameters
         ----------
@@ -695,8 +731,8 @@ class Cache:
         return Result._from_archiver(archiver)
 
     def remove(self, key):
-        """Remove a key from the cache then run garbage collection to remove
-        anything it was referencing and any other loose data.
+        """Removes a key from the cache then runs garbage collection to remove
+        anything the removed key was referencing and any other loose data.
 
         Parameters
         ----------
@@ -876,7 +912,7 @@ class Pool:
             os.mkdir(self.path)
 
     def __enter__(self):
-        """Tell the currently set cache to use this named pool. If there is no
+        """Tells the currently set cache to use this named pool. If there is no
         cache set then set the cache this named pool is on as well.
 
         Note
@@ -907,7 +943,7 @@ class Pool:
         self.cache.named_pool = self
 
     def __exit__(self, *args):
-        """Unset the named pool on the currently set cache. If there was no
+        """Unsets the named pool on the currently set cache. If there was no
         cache set before setting this named pool then unset the cache as well.
 
         Note
@@ -940,7 +976,7 @@ class Pool:
         return f'{pid}-{time}@{user}'
 
     def save(self, ref):
-        """Save the data into the pool then load a new ref backed by the data
+        """Saves the data into the pool then loads a new ref backed by the data
         in the pool.
 
         Parameters
@@ -1029,7 +1065,7 @@ class Pool:
         return False
 
     def load(self, ref):
-        """Load a reference to an element in the pool.
+        """Loads a reference to an element in the pool.
 
         Parameters
         ----------
@@ -1047,9 +1083,9 @@ class Pool:
         return Result._from_archiver(archiver)
 
     def remove(self, ref):
-        """Remove an element from the pool. The element can be just the uuid of
-        the data as a string, or it can be a Result object referencing the data
-        we are trying to remove.
+        """Removes an element from the pool. The element can be just the uuid
+        of the data as a string, or it can be a Result object referencing the
+        data we are trying to remove.
 
         Parameters
         ----------
