@@ -229,7 +229,9 @@ class TestPlugin(unittest.TestCase):
 
         self.assertFalse(tf[0].examples is tf[1].examples)
 
-
+    # Evan, this test is currently failing, meaning that it's possible
+    # to register an artifact_class multiple times. That should be disallowed,
+    # right?
     def test_duplicate_artifact_class_registration_disallowed(self):
         plugin = qiime2.plugin.Plugin(
             name='local-dummy-plugin',
