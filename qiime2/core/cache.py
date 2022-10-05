@@ -586,7 +586,7 @@ class Cache:
         # or processes writing refs that we don't see leading to us deleting
         # their data
         with self.lock:
-            for key in os.listdir(self.keys):
+            for key in self.get_keys():
                 with open(self.keys / key) as fh:
                     loaded_key = yaml.safe_load(fh)
                 referenced_pools.add(loaded_key['pool'])
@@ -599,7 +599,7 @@ class Cache:
 
             # Walk over pools and remove any that were not referred to by keys
             # while tracking all data within those that were referenced
-            for pool in os.listdir(self.pools):
+            for pool in self.get_pools():
                 if pool not in referenced_pools:
                     shutil.rmtree(self.pools / pool)
                 else:
@@ -607,7 +607,7 @@ class Cache:
                         referenced_data.add(data)
 
             # Add references to data in process pools
-            for process_pool in os.listdir(self.processes):
+            for process_pool in self.get_processes():
                 # Pick the creation time out of the pool name of format
                 # {pid}-time@user
                 create_time = float(process_pool.split('-')[1].split('@')[0])
@@ -619,7 +619,7 @@ class Cache:
                         referenced_data.add(data.split('.')[0])
 
             # Walk over all data and remove any that was not referenced
-            for data in os.listdir(self.data):
+            for data in self.get_data():
                 # If this assert is ever tripped something real bad happened
                 assert is_uuid4(data)
 
@@ -660,7 +660,7 @@ class Cache:
         >>> saved_artifact = cache.save(artifact, 'key')
         >>> # save returned an artifact that is backed by the data in the cache
         >>> str(saved_artifact._archiver.path) == \
-                os.path.join(cache.data, str(artifact.uuid))
+                str(cache.data / str(artifact.uuid))
         True
         >>> cache.get_keys() == set(['key'])
         True
@@ -740,6 +740,9 @@ class Cache:
         >>> saved_artifact = cache.save(artifact, 'key')
         >>> loaded_artifact = cache.load('key')
         >>> loaded_artifact == saved_artifact == artifact
+        True
+        >>> str(loaded_artifact._archiver.path) == \
+                str(cache.data / str(artifact.uuid))
         True
         >>> test_dir.cleanup()
         """
@@ -886,6 +889,12 @@ class Cache:
 
     def get_data(self):
         """Returns a set of all data in the cache.
+
+        Returns
+        -------
+        set[str]
+            All of the data in the cache in the form of the top level
+            directories which will be the uuids of the artifacts.
         """
         return set(os.listdir(self.data))
 
@@ -897,6 +906,12 @@ class Cache:
 
     def get_keys(self):
         """Returns a set of all keys in the cache.
+
+        Returns
+        -------
+        set[str]
+            All of the keys in the cache. Just the names now what they refer
+            to.
         """
         return set(os.listdir(self.keys))
 
@@ -914,6 +929,11 @@ class Cache:
 
     def get_pools(self):
         """Returns a set of all pools in the cache.
+
+        Returns
+        -------
+        set[str]
+            The names of all of the named pools in the cache.
         """
         return set(os.listdir(self.pools))
 
@@ -925,6 +945,11 @@ class Cache:
 
     def get_processes(self):
         """Returns a set of all process pools in the cache.
+
+        Returns
+        -------
+        set[str]
+            The names of all of the process pools in the cache.
         """
         return set(os.listdir(self.processes))
 
@@ -952,6 +977,12 @@ class Pool:
     def __init__(self, cache, name=None, reuse=False):
         """Used with name=None and reuse=True to create a process pool. Used
         with a name to create named pools.
+
+        Note
+        ----
+        In general, you should not invoke this constructor directly and should
+        instead use qiime2.core.cache.Cache.create_pool to create a pool
+        properly on a given cache.
 
         Parameters
         ----------
@@ -1007,6 +1038,28 @@ class Pool:
             If you try to set a pool that is not on the currently set cache.
         ValueError
             If you have already set a pool and try to set another.
+
+        Examples
+        --------
+        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        >>> cache_path = os.path.join(test_dir.name, 'cache')
+        >>> cache = Cache(cache_path)
+        >>> pool = cache.create_pool(keys=['pool'])
+        >>> # When we with in the pool the set cache will be the cache the pool
+        >>> # belongs to, and the named pool on that cache will be the pool
+        >>> # we withed in
+        >>> with pool:
+        ...     current_cache = get_cache()
+        ...     cache.named_pool == pool
+        True
+        >>> current_cache == cache
+        True
+        >>> # Now that we have exited the with, both cache and pool are unset
+        >>> get_cache() == cache
+        False
+        >>> cache.named_pool == pool
+        False
+        >>> test_dir.cleanup()
         """
         if _CACHE.cache is not None and _CACHE.cache.path != self.cache.path:
             raise ValueError('Cannot enter a pool that is not on the '
@@ -1068,7 +1121,28 @@ class Pool:
         Returns
         -------
         Result
-            A QIIME 2 result backed by the data in the pool.
+            A QIIME 2 result backed by the data in the cache the pool belongs
+            to.
+
+        Examples
+        --------
+        >>> from qiime2.sdk.result import Artifact
+        >>> from qiime2.core.testing.type import IntSequence1
+        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        >>> cache_path = os.path.join(test_dir.name, 'cache')
+        >>> cache = Cache(cache_path)
+        >>> pool = cache.create_pool(keys=['pool'])
+        >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
+        >>> pool_artifact = pool.save(artifact)
+        >>> # The data itself resides in the cache this pool belongs to
+        >>> str(pool_artifact._archiver.path) == \
+                str(cache.data / str(artifact.uuid))
+        True
+        >>> # The pool now contains a symlink to the data. The symlink is named
+        >>> # after the uuid of the data.
+        >>> pool.get_data() == set([str(artifact.uuid)])
+        True
+        >>> test_dir.cleanup()
         """
         self._make_symlink(str(ref.uuid))
 
@@ -1150,15 +1224,40 @@ class Pool:
 
         Parameters
         ----------
-        ref : Result
-            The result we are loading out of this pool.
+        ref : str or Result
+            The result we are loading out of this pool, or just its uuid as a
+            string.
 
         Returns
         -------
         Result
             A result backed by the data in the cache that this pool belongs to.
+
+        Examples
+        --------
+        >>> from qiime2.sdk.result import Artifact
+        >>> from qiime2.core.testing.type import IntSequence1
+        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        >>> cache_path = os.path.join(test_dir.name, 'cache')
+        >>> cache = Cache(cache_path)
+        >>> pool = cache.create_pool(keys=['pool'])
+        >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
+        >>> pool_artifact = pool.save(artifact)
+        >>> loaded_artifact = pool.load(str(artifact.uuid))
+        >>> artifact == pool_artifact == loaded_artifact
+        True
+        >>> str(loaded_artifact._archiver.path) == \
+                str(cache.data / str(artifact.uuid))
+        True
+        >>> test_dir.cleanup()
         """
-        path = self.cache.data / str(ref.uuid)
+        # Could receive an artifact or just a string uuid
+        if isinstance(ref, str):
+            uuid = ref
+        else:
+            uuid = str(ref.uuid)
+
+        path = self.cache.data / uuid
 
         archiver = Archiver.load_raw(path, self.cache)
         return Result._from_archiver(archiver)
@@ -1171,9 +1270,44 @@ class Pool:
         Parameters
         ----------
         ref : str or Result
-            The result we are removing from this pool.
+            The result we are removing from this pool, or just its uuid as a
+            string.
+
+        Examples
+        --------
+        >>> from qiime2.sdk.result import Artifact
+        >>> from qiime2.core.testing.type import IntSequence1
+        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        >>> cache_path = os.path.join(test_dir.name, 'cache')
+        >>> cache = Cache(cache_path)
+        >>> pool = cache.create_pool(keys=['pool'])
+        >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
+        >>> pool_artifact = pool.save(artifact)
+        >>> pool.get_data() == set([str(artifact.uuid)])
+        True
+        >>> pool.remove(str(artifact.uuid))
+        >>> pool.get_data() == set()
+        True
+        >>> # Note that the data is still in the cache due to our
+        >>> # pool_artifact causing the process pool to keep a reference to it
+        >>> cache.get_data() == set([str(pool_artifact.uuid)])
+        True
+        >>> del pool_artifact
+        >>> # The data is still there even though the reference is gone because
+        >>> # the cache has not run its own garbage collection yet. For various
+        >>> # reasons, it is not feasible for us to safely garbage collect the
+        >>> # cache when a reference in memory is deleted. Note also that
+        >>> # "artifact" is not backed by the data in the cache, it only lives
+        >>> # in memory, but it does have the same uuid as "pool_artifact."
+        >>> cache.get_data() == set([str(artifact.uuid)])
+        True
+        >>> cache.garbage_collection()
+        >>> # Now it is gone
+        >>> cache.get_data() == set()
+        True
+        >>> test_dir.cleanup()
         """
-        # Could receive an artifact or just a uuid
+        # Could receive an artifact or just a string uuid
         if isinstance(ref, str):
             uuid = ref
         else:
@@ -1183,3 +1317,13 @@ class Pool:
         if target.exists():
             os.remove(target)
             self.cache.garbage_collection()
+
+    def get_data(self):
+        """Returns a set of all data in the pool.
+
+        Returns
+        -------
+        set[str]
+            The uuids of all of the data in the pool.
+        """
+        return set(os.listdir(self.path))
