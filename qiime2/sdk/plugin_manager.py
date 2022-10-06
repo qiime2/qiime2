@@ -220,6 +220,19 @@ class PluginManager:
 
         return types
 
+    def get_artifact_classes(self):
+        artifact_classes = {}
+
+        # Evan, how can I index the type_formats by semantic_types, rather than
+        # type_expressions (i.e., FeatureTable[Frequency] and
+        # FeatureTable[RelativeFrequency]), rather than
+        # FeatureTable[Frequency | RelativeFrequency]
+        for plugin in self.plugins.values():
+            for tf in plugin.type_formats:
+                artifact_classes[str(tf.type_expression)] = tf
+
+        return artifact_classes
+
     # TODO: Should plugin loading be transactional? i.e. if there's
     # something wrong, the entire plugin fails to load any piece, like a
     # databases rollback/commit
