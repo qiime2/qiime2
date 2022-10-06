@@ -10,7 +10,8 @@ import unittest
 
 import qiime2.plugin
 import qiime2.sdk
-from qiime2.plugin.plugin import SemanticTypeRecord, FormatRecord
+from qiime2.plugin.plugin import (SemanticTypeRecord, FormatRecord,
+                                  TypeFormatRecord)
 from qiime2.sdk.plugin_manager import GetFormatFilters
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, IntSequence3,
@@ -139,6 +140,39 @@ class TestPluginManager(unittest.TestCase):
         self.assertNotIn(Cat, types)
         self.assertNotIn(Dog, types)
         self.assertNotIn(Kennel, types)
+
+    def test_get_artifact_classes(self):
+        artifact_classes = self.pm.get_artifact_classes()
+
+        is1 = TypeFormatRecord(type_expression=IntSequence1,
+                               format=IntSequenceDirectoryFormat,
+                               plugin=self.plugin,
+                               description="The first IntSequence",
+                               examples={})
+        is2 = TypeFormatRecord(type_expression=IntSequence2,
+                               format=IntSequenceV2DirectoryFormat,
+                               plugin=self.plugin,
+                               description="The second IntSequence",
+                               examples={})
+        is3 = TypeFormatRecord(type_expression=IntSequence3,
+                               format=IntSequenceMultiFileDirectoryFormat,
+                               plugin=self.plugin,
+                               description="",
+                               examples={})
+
+
+        self.assertEqual(is1, artifact_classes['IntSequence1'])
+        self.assertEqual(is2, artifact_classes['IntSequence2'])
+        self.assertEqual(is3, artifact_classes['IntSequence3'])
+
+        self.assertNotIn(Cat, artifact_classes)
+        self.assertNotIn(Dog, artifact_classes)
+        self.assertNotIn(Kennel, artifact_classes)
+
+        # The following test fails because Kennel[Dog | Cat] is in the index,
+        # not Kennel[Dog]. I think this behavior should be changed so this
+        # test passes.
+        self.assertIn(Kennel[Dog], artifact_classes)
 
     # TODO: add tests for type/directory/transformer registrations
     def test_get_formats_no_type_or_filter(self):

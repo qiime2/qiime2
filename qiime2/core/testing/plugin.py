@@ -100,13 +100,17 @@ dummy_plugin.register_views(
     SingleIntFormat, RedundantSingleIntDirectoryFormat,
     citations=[citations['mayer2012walking']])
 
-dummy_plugin.register_semantic_type_to_format(
+dummy_plugin.register_artifact_class(
     IntSequence1,
-    artifact_format=IntSequenceDirectoryFormat
+    artifact_format=IntSequenceDirectoryFormat,
+    description="The first IntSequence",
+    examples=None
 )
-dummy_plugin.register_semantic_type_to_format(
+dummy_plugin.register_artifact_class(
     IntSequence2,
-    artifact_format=IntSequenceV2DirectoryFormat
+    artifact_format=IntSequenceV2DirectoryFormat,
+    description="The second IntSequence",
+    examples=None
 )
 dummy_plugin.register_semantic_type_to_format(
     IntSequence3,
