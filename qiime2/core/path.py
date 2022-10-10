@@ -51,8 +51,11 @@ class OwnedPath(_ConcretePath):
             except (FileExistsError, OSError) as e:
                 # OSError errno 18 is cross device link, if we have this error
                 # we can solve it by copying. If we have a different OSError we
-                # still want to explode
-                if isinstance(e, OSError) and e.errno != 18:
+                # still want to explode. FileExistsErrors are apparently
+                # instances of OSError, so we also make sure we don't have one
+                # of them when we explode
+                if isinstance(e, OSError) and e.errno != 18 and \
+                        not isinstance(e, FileExistsError):
                     raise e
                 copied = self._copy_dir_or_file(other)
                 self._destruct()
