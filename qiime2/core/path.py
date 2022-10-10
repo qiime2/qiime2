@@ -48,7 +48,12 @@ class OwnedPath(_ConcretePath):
             # condition on `rename`, so fall back to copying.
             try:
                 return _ConcretePath.rename(self, other)
-            except FileExistsError:
+            except (FileExistsError, OSError) as e:
+                # OSError errno 18 is cross device link, if we have this error
+                # we can solve it by copying. If we have a different OSError we
+                # still want to explode
+                if isinstance(e, OSError) and e.errno != 18:
+                    raise e
                 copied = self._copy_dir_or_file(other)
                 self._destruct()
                 return copied
