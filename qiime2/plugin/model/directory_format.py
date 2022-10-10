@@ -26,21 +26,22 @@ class PathMakerDescriptor:
 
 
 class File:
-    def __init__(self, pathspec, *, format=None):
+    def __init__(self, pathspec, *, format=None, optional=False):
         if format is None:
             raise TypeError("Must provide a format.")
         self.pathspec = pathspec
         self.format = format
+        self.optional = optional
 
     def __get__(self, obj, cls=None):
         if obj is None:
             return self
-        return BoundFile(self.name, self.pathspec, self.format, obj)
+        return BoundFile(self, obj)
 
 
 class FileCollection(File):
-    def __init__(self, pathspec, *, format=None):
-        super().__init__(pathspec, format=format)
+    def __init__(self, pathspec, *, format=None, optional=False):
+        super().__init__(pathspec, format=format, optional=optional)
         self._path_maker = None
 
     def set_path_maker(self, function):
@@ -52,10 +53,12 @@ class FileCollection(File):
             return self
 
         if self._path_maker is None:
-            raise NotImplementedError()
+            raise NotImplementedError(
+                    "FileCollection: {} missing pathmaker"
+                    " definition. To set one add use `@{}.set_path_maker`"
+                    " decorator to assign one".format(self.name, self.name))
 
-        return BoundFileCollection(self.name, self.pathspec, self.format,
-                                   obj, path_maker=self._path_maker)
+        return BoundFileCollection(self, obj, path_maker=self._path_maker)
 
 
 class BoundFile:
@@ -63,12 +66,13 @@ class BoundFile:
     def mode(self):
         return self._directory_format._mode
 
-    def __init__(self, name, pathspec, format, directory_format):
-        self.name = name
-        self.pathspec = pathspec
-        self.format = format
+    def __init__(self, unbound_file, directory_format):
+        self.name = unbound_file.name
+        self.pathspec = unbound_file.pathspec
+        self.format = unbound_file.format
+        self.optional = unbound_file.optional
         self._directory_format = directory_format
-        self._path_maker = lambda s: pathspec
+        self._path_maker = lambda s: unbound_file.pathspec
 
     def view(self, view_type):
         from_type = transform.ModelType.from_view_type(self.format)
@@ -101,7 +105,7 @@ class BoundFile:
                 collected_paths[path] = True
                 found_members = True
                 self.format(path, mode='r').validate(level)
-        if not found_members:
+        if not found_members and not self.optional:
             raise ValidationError(
                 "Missing one or more files for %s: %r"
                 % (self._directory_format.__class__.__name__, self.pathspec))
@@ -122,8 +126,8 @@ class BoundFile:
 
 
 class BoundFileCollection(BoundFile):
-    def __init__(self, name, pathspec, format, directory_format, path_maker):
-        super().__init__(name, pathspec, format, directory_format)
+    def __init__(self, unbound_file_collection, directory_format, path_maker):
+        super().__init__(unbound_file_collection, directory_format)
         self._path_maker = path_maker
 
     def view(self, view_type):

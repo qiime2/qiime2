@@ -23,6 +23,7 @@ setup(
         ]
     },
     package_data={
+        'qiime2.plugin.model.tests': ['data/*/*'],
         'qiime2.metadata.tests': ['data/*/*'],
         'qiime2.core.testing': ['citations.bib'],
         'qiime2.sdk.tests': ['data/*'],
