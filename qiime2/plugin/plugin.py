@@ -297,8 +297,7 @@ class Plugin:
 
     def register_artifact_class(self, semantic_type, directory_format,
                                 description=None, examples=None):
-        # Evan, better way to determine number of types in the type expression?
-        if len(list(semantic_type)) > 1:
+        if not semantic_type.is_concrete():
             raise TypeError("Only a single type can be registered at a time "
                             "with register_artifact_class. Registration "
                             "attempted for %s." % str(semantic_type))
