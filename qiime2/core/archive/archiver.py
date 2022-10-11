@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import collections
+from time import process_time
 import uuid as _uuid
 import pathlib
 import weakref
@@ -363,15 +364,18 @@ class Archiver:
                 cls._futuristic_archive_error(filepath, archive)
 
             archive.mount(path)
-            process_alias, data_path = cache._alias(archive.uuid, path)
-            rec = ArchiveRecord(data_path, data_path / archive.VERSION_FILE,
-                                archive.uuid, archive.version, archive.framework_version)
+            process_alias, data_path = cache._rename(archive.uuid, path)
+            rec = ArchiveRecord(
+                data_path, data_path / archive.VERSION_FILE, archive.uuid,
+                archive.version, archive.framework_version)
             ref = cls(data_path, process_alias, Format(rec), cache)
             return ref
-        # We really just want to kill this path if anything at all goes wrong
+        # We really just want to kill these paths if anything at all goes wrong
         # Exceptions including keyboard interrupts are re-raised
         except:  # noqa: E722
-            # cls._destroy_temp_path(process_alias)
+            cls._destroy_temp_path(archive.uuid)
+            if 'process_alias' in vars():
+                cls._destroy_temp_path(process_alias)
             raise
 
     @classmethod
@@ -403,14 +407,19 @@ class Archiver:
             Format = cls.get_format_class(cls.CURRENT_FORMAT_VERSION)
             Format.write(rec, type, format, data_initializer,
                          provenance_capture)
-            format = Format(rec)
-            ref = cls(path, process_alias, format, cache)
-            set_permissions(path, READ_ONLY_FILE, READ_ONLY_DIR)
+
+            process_alias, data_path = cache._rename(uuid, path)
+            rec = ArchiveRecord(data_path, data_path / _Archive.VERSION_FILE,
+                                uuid, cls.CURRENT_FORMAT_VERSION,
+                                qiime2.__version__)
+            ref = cls(data_path, process_alias, Format(rec), cache)
             return ref
-        # We really just want to kill this path if anything at all goes wrong
-        # Exceptions including keyboard interrupts are reraised
+        # We really just want to kill these paths if anything at all goes wrong
+        # Exceptions including keyboard interrupts are re-raised
         except:  # noqa: E722
-            cls._destroy_temp_path(process_alias)
+            cls._destroy_temp_path(uuid)
+            if 'process_alias' in vars():
+                cls._destroy_temp_path(process_alias)
             raise
 
     def __init__(self, path, process_alias, fmt, cache):

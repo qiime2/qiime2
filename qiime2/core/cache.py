@@ -516,13 +516,30 @@ class Cache:
         if os.path.exists(self.lockfile):
             os.remove(self.lockfile)
 
-    def _alias(self, uuid, src):
+        self.lock.re_entries = 0
+
+    def _alias(self, uuid):
+        with self.lock:
+            process_alias = self.process_pool._make_symlink(uuid)
+
+            if self.named_pool is not None:
+                self.named_pool._make_symlink(uuid)
+
+        return process_alias
+
+    def _rename(self, uuid, src):
+        """Takes some data in src and renames it into the cache's data dir. It
+        then ensures there are symlinks for this data in the process pool and
+        the named pool if one exists
+        """
         uuid = str(uuid)
 
         dest = self.data / uuid
         with self.lock:
-            os.rename(src, dest)
-            set_permissions(dest, READ_ONLY_FILE, READ_ONLY_DIR)
+            # Rename errors if the destination already exists
+            if not os.path.exists(dest):
+                os.rename(src, dest)
+                set_permissions(dest, READ_ONLY_FILE, READ_ONLY_DIR)
 
             process_alias = self.process_pool._make_symlink(uuid)
 
@@ -664,7 +681,7 @@ class Pool:
         with self.cache.lock:
             # If this isn't the process pool then don't alias.
             if self.path != self.cache.process_pool.path:
-                os.symlink(src, dest)
+                self._guarded_symlink(src, dest)
             # Otherwise this is the process pool, and we do alias.
             else:
                 for _ in range(MAX_RETRIES):
@@ -697,7 +714,10 @@ class Pool:
         uuid = str(uuid)
 
         path = self.path / uuid
-        os.mkdir(path)
+        # If we try to load the same artifact twice in one process, this will
+        # already exist.
+        if not os.path.exists(path):
+            os.mkdir(path)
 
         return path
 
@@ -721,5 +741,8 @@ class Pool:
         # TODO: This guard should be removed when we rework the logic
         target = self.path / uuid
         if target.exists():
-            os.remove(target)
+            if os.path.islink(target):
+                os.remove(target)
+            else:
+                shutil.rmtree(target)
             self.cache.garbage_collection()
