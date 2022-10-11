@@ -255,11 +255,6 @@ class Plugin:
             raise TypeError("%r is not a directory format." % directory_format)
         if not is_semantic_type(semantic_type):
             raise TypeError("%r is not a semantic type." % semantic_type)
-        if not is_semantic_type(semantic_type):
-            # Evan: this was copied from register_semantic_type_to_format
-            # but is unreachable so should be deleted, right?
-            raise ValueError("%r is not a semantic type expression."
-                             % semantic_type)
 
         for t in semantic_type:
             if t.predicate is not None:
