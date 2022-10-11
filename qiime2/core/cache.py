@@ -24,7 +24,7 @@ from sys import maxsize
 from random import randint
 from datetime import timedelta
 
-from flufl.lock import Lock
+import flufl.lock
 
 import qiime2
 from .path import ArchivePath
@@ -140,6 +140,24 @@ def monitor_thread(cache_dir, is_done):
         time.sleep(60 * 60 * 6)
 
 
+class ReEntrantLock():
+    def __init__(self, path, lifetime):
+        self.lock = flufl.lock.Lock(path, lifetime=lifetime)
+        self.re_entries = 0
+
+    def __enter__(self):
+        try:
+            self.lock.lock()
+        except flufl.lock.AlreadyLockedError:
+            self.re_entries += 1
+
+    def __exit__(self, *args):
+        if self.re_entries == 0:
+            self.lock.unlock()
+        else:
+            self.re_entries -= 1
+
+
 class Cache:
     """General structure of the cache (tmp optional)
     artifact_cache/
@@ -203,7 +221,8 @@ class Cache:
                     f"Path: \'{self.path}\' already exists and is not a "
                     "cache.")
 
-        self.lock = Lock(str(self.lockfile), lifetime=timedelta(minutes=10))
+        self.lock = \
+            ReEntrantLock(str(self.lockfile), lifetime=timedelta(minutes=10))
         # Make our process pool.
         self.process_pool = self._create_process_pool()
         # Lifespan is supplied in days and converted to seconds for internal
@@ -497,26 +516,20 @@ class Cache:
         if os.path.exists(self.lockfile):
             os.remove(self.lockfile)
 
-    def _allocate(self, uuid):
-        """Creates a space in the cache for the archiver to put its data. Also
-        creates symlinks in the process pool and named pool (if there is one)
-        to keep track of the data
-        """
-        process_alias = self._alias(uuid)
-        path = self.data / uuid
+    def _alias(self, uuid, src):
+        uuid = str(uuid)
 
-        if not os.path.exists(path):
-            os.mkdir(path)
+        dest = self.data / uuid
+        with self.lock:
+            os.rename(src, dest)
+            set_permissions(dest, READ_ONLY_FILE, READ_ONLY_DIR)
 
-        return path, process_alias
+            process_alias = self.process_pool._make_symlink(uuid)
 
-    def _alias(self, uuid):
-        process_alias = self.process_pool._make_symlink(uuid)
+            if self.named_pool is not None:
+                self.named_pool._make_symlink(uuid)
 
-        if self.named_pool is not None:
-            self.named_pool._make_symlink(uuid)
-
-        return process_alias
+        return process_alias, dest
 
     def _deallocate(self, symlink):
         """Removes a specific symlink from the process pool. This happens when
@@ -626,21 +639,34 @@ class Pool:
         """Save the data into the pool then load a new ref backed by the data
         in the pool
         """
-        self._make_symlink(str(ref.uuid))
+        self._make_symlink(ref.uuid)
 
         _copy_to_data(self.cache, ref)
         return self.load(ref)
 
     def _make_symlink(self, uuid):
+        """Symlinks in process pools are aliased as uuid.random_number. The
+        actual uuid is reserved for temporarily writing the artifact before
+        renaming it into cache.data. In named pools, we just use the uuid
+        because we should only ever have one copy of a given artifact.
+
+        We temporarily extract the artifact here before renaming the directory
+        into cache.data to ensure that if cache/data/uuid exists then it
+        contains the full artifact. Before we did this, we had issues with
+        using the same artifact across multiple processes at once.
+        """
         MAX_RETRIES = 5
 
+        uuid = str(uuid)
         src = self.cache.data / uuid
         dest = self.path / uuid
 
         with self.cache.lock:
-            if self._guarded_symlink(src, dest):
-                pass
-            elif self.path == self.cache.process_pool.path:
+            # If this isn't the process pool then don't alias.
+            if self.path != self.cache.process_pool.path:
+                os.symlink(src, dest)
+            # Otherwise this is the process pool, and we do alias.
+            else:
                 for _ in range(MAX_RETRIES):
                     new_uuid = uuid + '.' + str(randint(0, maxsize))
                     dest = self.path / new_uuid
@@ -649,11 +675,11 @@ class Pool:
                         break
                 else:
                     raise ValueError(f'Too many collisions ({MAX_RETRIES}) '
-                                     'occured while trying to save artifact '
-                                     f'<{uuid}> to process pool {self.path}.'
-                                     'It is likely you have attempted to load '
-                                     'the same artifact a very large number '
-                                     'of times.')
+                                        'occured while trying to save artifact '
+                                        f'<{uuid}> to process pool {self.path}.'
+                                        'It is likely you have attempted to load '
+                                        'the same artifact a very large number '
+                                        'of times.')
         return dest
 
     def _guarded_symlink(self, src, dest):
@@ -662,6 +688,18 @@ class Pool:
             return True
 
         return False
+
+    def _allocate(self, uuid):
+        """Allocate an empty directory under the process pool to extract to.
+        The actual uuid of an artifact is always reserved for this directory.
+        All symlinks will be uuid.random_number.
+        """
+        uuid = str(uuid)
+
+        path = self.path / uuid
+        os.mkdir(path)
+
+        return path
 
     def load(self, ref):
         """Load a reference to an element in the pool
