@@ -165,14 +165,12 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(is2, artifact_classes['IntSequence2'])
         self.assertEqual(is3, artifact_classes['IntSequence3'])
 
-        self.assertNotIn(Cat, artifact_classes)
-        self.assertNotIn(Dog, artifact_classes)
-        self.assertNotIn(Kennel, artifact_classes)
+        self.assertNotIn('Cat', artifact_classes)
+        self.assertNotIn('Dog', artifact_classes)
+        self.assertNotIn('Kennel', artifact_classes)
 
-        # The following test fails because Kennel[Dog | Cat] is in the index,
-        # not Kennel[Dog]. I think this behavior should be changed so this
-        # test passes.
-        self.assertIn(Kennel[Dog], artifact_classes)
+        self.assertIn('Kennel[Dog]', artifact_classes)
+        self.assertIn('Kennel[Cat]', artifact_classes)
 
     # TODO: add tests for type/directory/transformer registrations
     def test_get_formats_no_type_or_filter(self):

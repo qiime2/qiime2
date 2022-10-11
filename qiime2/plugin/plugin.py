@@ -266,10 +266,14 @@ class Plugin:
         if examples is None:
             examples = {}
 
-        self.type_formats.append(TypeFormatRecord(
-            type_expression=semantic_type, format=directory_format,
-            plugin=self, description=description,
-            examples=types.MappingProxyType(examples)))
+        # register_semantic_type_to_format can accept type expressions such as
+        # Kennel[Dog | Cat]. By iterating, we will register the concrete types
+        # (e.g., Kennel[Dog] and Kennel[Cat], not the type expression)
+        for e in list(semantic_type):
+            self.type_formats.append(TypeFormatRecord(
+                type_expression=e, format=directory_format,
+                plugin=self, description=description,
+                examples=types.MappingProxyType(examples)))
 
     def register_semantic_type_to_format(self, semantic_type,
                                          artifact_format=None,
