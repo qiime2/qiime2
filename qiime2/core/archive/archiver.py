@@ -369,7 +369,7 @@ class Archiver:
             ref = cls(data_path, process_alias, Format(rec), cache)
             return ref
         # We really just want to kill this path if anything at all goes wrong
-        # Exceptions including keyboard interrupts are reraised
+        # Exceptions including keyboard interrupts are re-raised
         except:  # noqa: E722
             # cls._destroy_temp_path(process_alias)
             raise
