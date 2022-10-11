@@ -200,13 +200,13 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
         self.assertEqual(tf[0].plugin, plugin)
         self.assertEqual(tf[0].description, "")
-        self.assertEqual(tf[0].examples, {})
+        self.assertEqual(tf[0].examples, types.MappingProxyType({}))
 
         self.assertEqual(tf[1].type_expression, IntSequence2)
         self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
         self.assertEqual(tf[1].plugin, plugin)
         self.assertEqual(tf[1].description, "")
-        self.assertEqual(tf[1].examples, {})
+        self.assertEqual(tf[1].examples, types.MappingProxyType({}))
 
         # errors are raised when both or neither the new or old names for the
         # format are provided
@@ -255,25 +255,25 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
         self.assertEqual(tf[0].plugin, plugin)
         self.assertEqual(tf[0].description, "")
-        self.assertEqual(tf[0].examples, {})
+        self.assertEqual(tf[0].examples, types.MappingProxyType({}))
 
         self.assertEqual(tf[1].type_expression, IntSequence2)
         self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
         self.assertEqual(tf[1].plugin, plugin)
         self.assertEqual(tf[1].description, "")
-        self.assertEqual(tf[1].examples, {})
+        self.assertEqual(tf[1].examples, types.MappingProxyType({}))
 
         self.assertEqual(tf[2].type_expression, Kennel[Dog])
         self.assertEqual(tf[2].format, IntSequenceDirectoryFormat)
         self.assertEqual(tf[2].plugin, plugin)
         self.assertEqual(tf[2].description, "")
-        self.assertEqual(tf[2].examples, {})
+        self.assertEqual(tf[2].examples, types.MappingProxyType({}))
 
         self.assertEqual(tf[3].type_expression, Kennel[Cat])
         self.assertEqual(tf[3].format, IntSequenceV2DirectoryFormat)
         self.assertEqual(tf[3].plugin, plugin)
         self.assertEqual(tf[3].description, "")
-        self.assertEqual(tf[3].examples, {})
+        self.assertEqual(tf[3].examples, types.MappingProxyType({}))
 
         self.assertFalse(tf[0].examples is tf[1].examples)
 
@@ -317,14 +317,14 @@ class TestPlugin(unittest.TestCase):
             version='0.0.0-dev',
             website='https://github.com/qiime2/qiime2',
             package='qiime2.core.testing')
-        plugin.register_artifact_class(IntSequence1,
-                                       IntSequenceDirectoryFormat,
-                                       description="A sequence of integers.",
-                                       examples={'Import ex 1': dummy_use1})
-        plugin.register_artifact_class(IntSequence2,
-                                       IntSequenceV2DirectoryFormat,
-                                       description="Different seq of ints.",
-                                       examples={'Import ex': dummy_use2})
+        plugin.register_artifact_class(
+            IntSequence1, IntSequenceDirectoryFormat,
+            description="A sequence of integers.",
+            examples=types.MappingProxyType({'Import ex 1': dummy_use1}))
+        plugin.register_artifact_class(
+            IntSequence2, IntSequenceV2DirectoryFormat,
+            description="Different seq of ints.",
+            examples=types.MappingProxyType({'Import ex': dummy_use2}))
 
         tf = plugin.type_formats
 
@@ -332,13 +332,15 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
         self.assertEqual(tf[0].plugin, plugin)
         self.assertEqual(tf[0].description, "A sequence of integers.")
-        self.assertEqual(tf[0].examples, {'Import ex 1': dummy_use1})
+        self.assertEqual(tf[0].examples,
+                         types.MappingProxyType({'Import ex 1': dummy_use1}))
 
         self.assertEqual(tf[1].type_expression, IntSequence2)
         self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
         self.assertEqual(tf[1].plugin, plugin)
         self.assertEqual(tf[1].description, "Different seq of ints.")
-        self.assertEqual(tf[1].examples, {'Import ex': dummy_use2})
+        self.assertEqual(tf[1].examples,
+            types.MappingProxyType({'Import ex': dummy_use2}))
 
     def test_register_artifact_class_multiple(self):
         plugin = qiime2.plugin.Plugin(
@@ -362,7 +364,7 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
         self.assertEqual(tf[0].plugin, plugin)
         self.assertEqual(tf[0].description, "")
-        self.assertEqual(tf[0].examples, {})
+        self.assertEqual(tf[0].examples, types.MappingProxyType({}))
 
         # multiple artifact_classes cannot be registered using
         # register_artifact_class, since default descriptions and examples

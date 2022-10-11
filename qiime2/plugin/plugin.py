@@ -268,7 +268,8 @@ class Plugin:
 
         self.type_formats.append(TypeFormatRecord(
             type_expression=semantic_type, format=directory_format,
-            plugin=self, description=description, examples=examples))
+            plugin=self, description=description,
+            examples=types.MappingProxyType(examples)))
 
     def register_semantic_type_to_format(self, semantic_type,
                                          artifact_format=None,
