@@ -102,35 +102,35 @@ dummy_plugin.register_views(
 
 dummy_plugin.register_artifact_class(
     IntSequence1,
-    artifact_format=IntSequenceDirectoryFormat,
+    directory_format=IntSequenceDirectoryFormat,
     description="The first IntSequence",
     examples=None
 )
 dummy_plugin.register_artifact_class(
     IntSequence2,
-    artifact_format=IntSequenceV2DirectoryFormat,
+    directory_format=IntSequenceV2DirectoryFormat,
     description="The second IntSequence",
     examples=None
 )
 dummy_plugin.register_semantic_type_to_format(
     IntSequence3,
-    artifact_format=IntSequenceMultiFileDirectoryFormat
+    directory_format=IntSequenceMultiFileDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     Mapping,
-    artifact_format=MappingDirectoryFormat
+    directory_format=MappingDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     FourInts,
-    artifact_format=FourIntsDirectoryFormat
+    directory_format=FourIntsDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     SingleInt,
-    artifact_format=RedundantSingleIntDirectoryFormat
+    directory_format=RedundantSingleIntDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     Kennel[Dog | Cat],
-    artifact_format=MappingDirectoryFormat
+    directory_format=MappingDirectoryFormat
 )
 
 dummy_plugin.register_semantic_type_to_format(
@@ -142,15 +142,15 @@ dummy_plugin.register_semantic_type_to_format(
     | Foo
     | Bar
     | Baz,
-    artifact_format=EchoDirectoryFormat)
+    directory_format=EchoDirectoryFormat)
 
 dummy_plugin.register_semantic_type_to_format(
     AscIntSequence,
-    artifact_format=IntSequenceDirectoryFormat)
+    directory_format=IntSequenceDirectoryFormat)
 
 dummy_plugin.register_semantic_type_to_format(
     Squid | Octopus | Cuttlefish,
-    artifact_format=CephalapodDirectoryFormat)
+    directory_format=CephalapodDirectoryFormat)
 
 # TODO add an optional parameter to this method when they are supported
 dummy_plugin.methods.register_function(

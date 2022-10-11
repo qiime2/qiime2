@@ -249,10 +249,10 @@ class Plugin:
                 SemanticTypeFragmentRecord(
                     fragment=type_fragment, plugin=self)
 
-    def _register_artifact_class(self, semantic_type, artifact_format,
+    def _register_artifact_class(self, semantic_type, directory_format,
                                  description, examples):
-        if not issubclass(artifact_format, DirectoryFormat):
-            raise TypeError("%r is not a directory format." % artifact_format)
+        if not issubclass(directory_format, DirectoryFormat):
+            raise TypeError("%r is not a directory format." % directory_format)
         if not is_semantic_type(semantic_type):
             raise TypeError("%r is not a semantic type." % semantic_type)
         if not is_semantic_type(semantic_type):
@@ -272,15 +272,34 @@ class Plugin:
             examples = {}
 
         self.type_formats.append(TypeFormatRecord(
-            type_expression=semantic_type, format=artifact_format,
+            type_expression=semantic_type, format=directory_format,
             plugin=self, description=description, examples=examples))
 
-    def register_semantic_type_to_format(self, semantic_type, artifact_format):
+    def register_semantic_type_to_format(self, semantic_type,
+                                         artifact_format=None,
+                                         directory_format=None):
+        # Handle the deprecated parameter name, artifact_format. This is being
+        # replaced with directory_format for clarity.
+        if artifact_format is not None and directory_format is not None:
+            raise ValueError('directory_format and artifact_format were both'
+                             'provided when registering artifact class %s.'
+                             'Please provide directory_format only as '
+                             'artifact_format is deprecated.'
+                             % str(semantic_type))
+        elif artifact_format is None and directory_format is None:
+            raise ValueError('directory_format or artifact_format must be '
+                             'provided when registering artifact class %s.'
+                             'Please provide directory_format only as '
+                             'artifact_format is deprecated.'
+                             % str(semantic_type))
+        else:
+            directory_format = directory_format or artifact_format
+
         self._register_artifact_class(semantic_type=semantic_type,
-                                      artifact_format=artifact_format,
+                                      directory_format=directory_format,
                                       description=None, examples= None)
 
-    def register_artifact_class(self, semantic_type, artifact_format,
+    def register_artifact_class(self, semantic_type, directory_format,
                                 description=None, examples=None):
         # Evan, better way to determine number of types in the type expression?
         if len(list(semantic_type)) > 1:
@@ -288,7 +307,7 @@ class Plugin:
                             "with register_artifact_class. Registration "
                             "attempted for %s." % str(semantic_type))
         self._register_artifact_class(
-            semantic_type, artifact_format, description, examples)
+            semantic_type, directory_format, description, examples)
 
 
 

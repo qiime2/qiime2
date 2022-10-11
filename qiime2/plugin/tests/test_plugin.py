@@ -179,6 +179,54 @@ class TestPlugin(unittest.TestCase):
         self.assertNotIn(Dog, types)
         self.assertNotIn(Kennel, types)
 
+    def test_register_semantic_type_to_format_deprecated_parameter_name(self):
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+
+        # both the new (directory_format) and old (artifact_format) names for
+        # the format work
+        plugin.register_semantic_type_to_format(
+            IntSequence1, directory_format=IntSequenceDirectoryFormat)
+
+        plugin.register_semantic_type_to_format(
+            IntSequence2, artifact_format=IntSequenceV2DirectoryFormat)
+
+        tf = plugin.type_formats
+
+        self.assertEqual(tf[0].type_expression, IntSequence1)
+        self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
+        self.assertEqual(tf[0].plugin, plugin)
+        self.assertEqual(tf[0].description, "")
+        self.assertEqual(tf[0].examples, {})
+
+        self.assertEqual(tf[1].type_expression, IntSequence2)
+        self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(tf[1].plugin, plugin)
+        self.assertEqual(tf[1].description, "")
+        self.assertEqual(tf[1].examples, {})
+
+        # errors are raised when both or neither the new or old names for the
+        # format are provided
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+
+        regex = r'ory_format and artifact_for.*IntSequence1'
+        with self.assertRaisesRegex(ValueError, regex):
+            plugin.register_semantic_type_to_format(
+                IntSequence1, directory_format=IntSequenceDirectoryFormat,
+                artifact_format=IntSequenceDirectoryFormat)
+
+        regex = r'ory_format or artifact_for.*IntSequence1'
+        with self.assertRaisesRegex(ValueError, regex):
+            plugin.register_semantic_type_to_format(IntSequence1)
+
+
     def test_register_artifact_class(self):
         plugin = qiime2.plugin.Plugin(
             name='local-dummy-plugin',
