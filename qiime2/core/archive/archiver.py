@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import collections
-from time import process_time
 import uuid as _uuid
 import pathlib
 import weakref

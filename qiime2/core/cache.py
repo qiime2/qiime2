@@ -692,11 +692,11 @@ class Pool:
                         break
                 else:
                     raise ValueError(f'Too many collisions ({MAX_RETRIES}) '
-                                        'occured while trying to save artifact '
-                                        f'<{uuid}> to process pool {self.path}.'
-                                        'It is likely you have attempted to load '
-                                        'the same artifact a very large number '
-                                        'of times.')
+                                     'occured while trying to save artifact '
+                                     f'<{uuid}> to process pool {self.path}.'
+                                     'It is likely you have attempted to load '
+                                     'the same artifact a very large number '
+                                     'of times.')
         return dest
 
     def _guarded_symlink(self, src, dest):
