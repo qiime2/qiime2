@@ -579,6 +579,9 @@ class Cache:
                 os.rename(src, dest)
                 set_permissions(dest, READ_ONLY_FILE, READ_ONLY_DIR)
 
+            # Create a new alias whether we renamed or not because this is
+            # still loading a new reference to the data even if the data is
+            # already there
             process_alias = self._alias(uuid)
 
         # Remove the aliased directory above the one we renamed. We need to do
