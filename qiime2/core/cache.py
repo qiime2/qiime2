@@ -588,6 +588,7 @@ class Cache:
             if self.named_pool is not None:
                 self.named_pool._make_symlink(uuid)
 
+        # If we did not rename we need to manually remove our mount point
         if not renamed:
             shutil.rmtree(src)
 
