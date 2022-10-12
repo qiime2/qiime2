@@ -168,8 +168,8 @@ class TestPlugin(unittest.TestCase):
 
     def test_types(self):
         types = self.plugin.types
-        # Get just the SemanticTypeRecords out of the types dictionary, then
-        # get just the types out of the SemanticTypeRecord namedtuples
+        # Get just the ArtifactClassRecords out of the types dictionary, then
+        # get just the types out of the ArtifactClassRecords namedtuples
         types = {type_.semantic_type for type_ in types.values()}
 
         exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],

@@ -103,14 +103,7 @@ class Plugin:
 
     @property
     def types(self):
-        types = {}
-
-        for record in self.type_formats:
-            for type_ in record.type_expression:
-                types[str(type_)] = \
-                    SemanticTypeRecord(semantic_type=type_, plugin=self)
-
-        return types
+        return {str(e.semantic_type): e for e in self.type_formats}
 
     def register_formats(self, *formats, citations=None):
         for format in formats:
