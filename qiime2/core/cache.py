@@ -558,10 +558,12 @@ class Cache:
 
     def _alias(self, uuid):
         with self.lock:
-            process_alias = self.process_pool._make_symlink(uuid)
+            process_alias = self.process_pool._alias(uuid)
+            self.process_pool._make_symlink(uuid, process_alias)
 
+            # Named pool links are not aliased
             if self.named_pool is not None:
-                self.named_pool._make_symlink(uuid)
+                self.named_pool._make_symlink(uuid, uuid)
 
         return process_alias
 
@@ -704,7 +706,7 @@ class Pool:
         _copy_to_data(self.cache, ref)
         return self.load(ref)
 
-    def _make_symlink(self, uuid):
+    def _alias(self, uuid):
         """Symlinks in process pools are aliased as uuid.random_number. The
         actual uuid is reserved for temporarily writing the artifact before
         renaming it into cache.data. In named pools, we just use the uuid
@@ -714,53 +716,45 @@ class Pool:
         into cache.data to ensure that if cache/data/uuid exists then it
         contains the full artifact. Before we did this, we had issues with
         using the same artifact across multiple processes at once.
+
+        NOTE: Should only be called while holding the lock. All creation of
+        aliased symlinks and dirs should be done in the same critical section
+        as the alias generation.
         """
         MAX_RETRIES = 5
 
         uuid = str(uuid)
-        src = self.cache.data / uuid
-        dest = self.path / uuid
+        for _ in range(MAX_RETRIES):
+            alias = uuid + '.' + str(randint(0, maxsize))
+            path = self.path / alias
 
-        with self.cache.lock:
-            # If this isn't the process pool then don't alias.
-            if self.path != self.cache.process_pool.path:
-                self._guarded_symlink(src, dest)
-            # Otherwise this is the process pool, and we do alias.
-            else:
-                for _ in range(MAX_RETRIES):
-                    new_uuid = uuid + '.' + str(randint(0, maxsize))
-                    dest = self.path / new_uuid
-
-                    if self._guarded_symlink(src, dest):
-                        break
-                else:
-                    raise ValueError(f'Too many collisions ({MAX_RETRIES}) '
-                                     'occured while trying to save artifact '
-                                     f'<{uuid}> to process pool {self.path}.'
-                                     'It is likely you have attempted to load '
-                                     'the same artifact a very large number '
-                                     'of times.')
-        return dest
-
-    def _guarded_symlink(self, src, dest):
-        if not os.path.exists(dest):
-            os.symlink(src, dest)
-            return True
-
-        return False
+            # os.path.exists returns false on broken symlinks
+            if not os.path.exists(path) and not os.path.islink(path):
+                break
+        else:
+            raise ValueError(f'Too many collisions ({MAX_RETRIES}) '
+                                'occured while trying to save artifact '
+                                f'<{uuid}> to process pool {self.path}. It '
+                                'is likely you have attempted to load the '
+                                'same artifact a very large number of times.')
+        return alias
 
     def _allocate(self, dirname):
         """Allocate an empty directory under the process pool to extract to.
         The actual uuid of an artifact is always reserved for this directory.
         All symlinks will be uuid.random_number.
         """
-        path = self.path / dirname
+        # Dirname will often be a uuid, so caste it to string to be safe
+        path = self.path / str(dirname)
         # If we try to load the same artifact twice in one process, this will
         # already exist.
         if not os.path.exists(path):
             os.mkdir(path)
 
         return path
+
+    def _make_symlink(self, uuid, alias):
+        os.symlink(self.cache.data / str(uuid), self.path / alias)
 
     def load(self, ref):
         """Load a reference to an element in the pool
