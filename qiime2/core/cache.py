@@ -159,12 +159,6 @@ class MEGALock(tm):
         self.flufl_lock = flufl.lock.Lock(flufl_fp, lifetime=lifetime)
 
     def __enter__(self):
-        self.lock()
-
-    def __exit__(self, *args):
-        self.unlock()
-
-    def lock(self):
         """ We acquire the thread lock first because the flufl lock isn't
         threadsafe which is why we need both locks in the first place
         """
@@ -174,7 +168,7 @@ class MEGALock(tm):
 
         self.re_entries += 1
 
-    def unlock(self):
+    def __exit__(self, *args):
         if self.re_entries > 0:
             self.re_entries -= 1
 
@@ -583,10 +577,7 @@ class Cache:
                 set_permissions(dest, READ_ONLY_FILE, READ_ONLY_DIR)
                 renamed = True
 
-            process_alias = self.process_pool._make_symlink(uuid)
-
-            if self.named_pool is not None:
-                self.named_pool._make_symlink(uuid)
+            process_alias = self._alias(uuid)
 
         # If we did not rename we need to manually remove our mount point
         if not renamed:
@@ -702,7 +693,13 @@ class Pool:
         """Save the data into the pool then load a new ref backed by the data
         in the pool
         """
-        self._make_symlink(ref.uuid)
+        uuid = str(ref.uuid)
+        if self.path == self.cache.process_pool.path:
+            alias = self._alias(uuid)
+        else:
+            alias = uuid
+
+        self._make_symlink(uuid, alias)
 
         _copy_to_data(self.cache, ref)
         return self.load(ref)
@@ -717,27 +714,24 @@ class Pool:
         into cache.data to ensure that if cache/data/uuid exists then it
         contains the full artifact. Before we did this, we had issues with
         using the same artifact across multiple processes at once.
-
-        NOTE: Should only be called while holding the lock. All creation of
-        aliased symlinks and dirs should be done in the same critical section
-        as the alias generation.
         """
         MAX_RETRIES = 5
 
         uuid = str(uuid)
-        for _ in range(MAX_RETRIES):
-            alias = uuid + '.' + str(randint(0, maxsize))
-            path = self.path / alias
+        with self.cache.lock:
+            for _ in range(MAX_RETRIES):
+                alias = uuid + '.' + str(randint(0, maxsize))
+                path = self.path / alias
 
-            # os.path.exists returns false on broken symlinks
-            if not os.path.exists(path) and not os.path.islink(path):
-                break
-        else:
-            raise ValueError(f'Too many collisions ({MAX_RETRIES}) '
-                                'occured while trying to save artifact '
-                                f'<{uuid}> to process pool {self.path}. It '
-                                'is likely you have attempted to load the '
-                                'same artifact a very large number of times.')
+                # os.path.exists returns false on broken symlinks
+                if not os.path.exists(path) and not os.path.islink(path):
+                    break
+            else:
+                raise ValueError(f'Too many collisions ({MAX_RETRIES}) '
+                                 'occured while trying to save artifact '
+                                 f'<{uuid}> to process pool {self.path}. It '
+                                 'is likely you have attempted to load the '
+                                 'same artifact a very large number of times.')
         return alias
 
     def _allocate(self, dirname):
@@ -755,7 +749,17 @@ class Pool:
         return path
 
     def _make_symlink(self, uuid, alias):
-        os.symlink(self.cache.data / str(uuid), self.path / alias)
+        """Creates a symlink in a pool to data. Guarded against duplication.
+        """
+        uuid = str(uuid)
+        src = self.cache.data / uuid
+        dest = self.path / alias
+
+        # Symlink will error if the location we are creating the link at
+        # already exists. This could happen legitimately from trying to save
+        # the same thing to a named pool several times.
+        if not os.path.exists(dest):
+            os.symlink(src, dest)
 
     def load(self, ref):
         """Load a reference to an element in the pool
