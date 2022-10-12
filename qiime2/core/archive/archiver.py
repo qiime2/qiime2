@@ -285,6 +285,9 @@ class Archiver:
 
     @classmethod
     def _make_temp_path(cls, uuid):
+        """Allocates a place in the cache for the file to be temporarily
+        written. Returns this location and the cache in use.
+        """
         from qiime2.core.cache import get_cache
 
         cache = get_cache()
