@@ -340,6 +340,14 @@ class TestPluginManager(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "filter.*is not valid"):
             self.pm.get_formats(filter="EXPORTABLE")
 
+    def test_deprecated_type_formats(self):
+        # PluginManager.type_formats was replaced with
+        # PluginManager.artifact_classes. For backward compatibility the
+        # PluginManager.type_formats property returns the plugin manager's
+        # artifact_classes
+        self.assertEqual(self.pm.type_formats,
+                         self.pm.artifact_classes)
+
 
 if __name__ == '__main__':
     unittest.main()

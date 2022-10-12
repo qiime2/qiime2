@@ -170,9 +170,9 @@ class TestPluginBase(unittest.TestCase):
         """
 
         obs_format = None
-        for type_format_record in self.plugin.type_formats:
-            if type_format_record.type_expression == semantic_type:
-                obs_format = type_format_record.format
+        for artifact_class_record in self.plugin.artifact_classes:
+            if artifact_class_record.semantic_type == semantic_type:
+                obs_format = artifact_class_record.format
                 break
 
         self.assertIsNotNone(

@@ -83,7 +83,7 @@ class Plugin:
         self.views = {}
         self.type_fragments = {}
         self.transformers = {}
-        self.type_formats = []
+        self.artifact_classes = []
         self.validators = {}
 
     def freeze(self):
@@ -103,7 +103,13 @@ class Plugin:
 
     @property
     def types(self):
-        return {str(e.semantic_type): e for e in self.type_formats}
+        return {str(e.semantic_type): e for e in self.artifact_classes}
+
+    @property
+    def type_formats(self):
+        # self.type_formats was replaced with self.artifact_classes - this
+        # property provides backward compatibility
+        return self.artifact_classes
 
     def register_formats(self, *formats, citations=None):
         for format in formats:
@@ -263,7 +269,7 @@ class Plugin:
             examples = {}
 
         registered_artifact_classes = \
-            set(str(e.type_expression) for e in self.type_formats)
+            set(str(e.type_expression) for e in self.artifact_classes)
 
         # register_semantic_type_to_format can accept type expressions such as
         # Kennel[Dog | Cat]. By iterating, we will register the concrete types
@@ -275,7 +281,7 @@ class Plugin:
                                 "once. Artifact classes can only be "
                                 "registered once." % semantic_type_str)
 
-            self.type_formats.append(ArtifactClassRecord(
+            self.artifact_classes.append(ArtifactClassRecord(
                 semantic_type=e, format=directory_format,
                 plugin=self, description=description,
                 examples=types.MappingProxyType(examples),

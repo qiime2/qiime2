@@ -92,7 +92,7 @@ class PluginManager:
         self._reverse_transformers = collections.defaultdict(dict)
         self.formats = {}
         self.views = {}
-        self.type_formats = []
+        self.artifact_classes = []
         self._ff_to_sfdf = {}
         self.validators = {}
 
@@ -201,7 +201,7 @@ class PluginManager:
                 )
 
             self.formats[name] = record
-        self.type_formats.extend(plugin.type_formats)
+        self.artifact_classes.extend(plugin.artifact_classes)
 
         for semantic_type, validation_object in plugin.validators.items():
             if semantic_type not in self.validators:
@@ -215,7 +215,7 @@ class PluginManager:
         result = {}
 
         for plugin in self.plugins.values():
-            for tf in plugin.type_formats:
+            for tf in plugin.artifact_classes:
                 result[str(tf.semantic_type)] = tf
 
         return result
@@ -245,7 +245,7 @@ class PluginManager:
                              "valid.", (filter))
 
         if semantic_type is None:
-            formats = set(f.format for f in self.type_formats)
+            formats = set(f.format for f in self.artifact_classes)
 
         else:
             formats = set()
@@ -254,9 +254,9 @@ class PluginManager:
                 semantic_type = parse_type(semantic_type, "semantic")
 
             if is_semantic_type(semantic_type):
-                for type_format in self.type_formats:
-                    if semantic_type <= type_format.type_expression:
-                        formats.add(type_format.format)
+                for artifact_class in self.artifact_classes:
+                    if semantic_type <= artifact_class.semantic_type:
+                        formats.add(artifact_class.format)
                         break
 
                 if not formats:
@@ -323,6 +323,12 @@ class PluginManager:
         return result_formats
 
     @property
+    def type_formats(self):
+        # self.type_formats was replaced with self.artifact_classes - this
+        # property provides backward compatibility
+        return self.artifact_classes
+
+    @property
     def importable_formats(self):
         """Return formats that are importable.
         A format is importable in a QIIME 2 deployment if it can be transformed
@@ -345,9 +351,9 @@ class PluginManager:
                 semantic_type)
 
         dir_fmt = None
-        for type_format_record in self.type_formats:
-            if semantic_type <= type_format_record.type_expression:
-                dir_fmt = type_format_record.format
+        for artifact_class_record in self.artifact_classes:
+            if semantic_type <= artifact_class_record.semantic_type:
+                dir_fmt = artifact_class_record.format
                 break
 
         if dir_fmt is None:

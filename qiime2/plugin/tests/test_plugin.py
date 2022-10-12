@@ -156,6 +156,13 @@ class TestPlugin(unittest.TestCase):
 
     # TODO test registration of directory formats.
 
+    def test_deprecated_type_formats(self):
+        # Plugin.type_formats was replaced with Plugin.artifact_classes. For
+        # backward compatibility the Plugin.type_formats property returns
+        # the plugin's artifact_classes
+        self.assertEqual(self.plugin.type_formats,
+                         self.plugin.artifact_classes)
+
     def test_type_fragments(self):
         types = self.plugin.type_fragments.keys()
 
@@ -194,7 +201,7 @@ class TestPlugin(unittest.TestCase):
         plugin.register_semantic_type_to_format(
             IntSequence2, artifact_format=IntSequenceV2DirectoryFormat)
 
-        tf = plugin.type_formats
+        tf = plugin.artifact_classes
 
         self.assertEqual(tf[0].semantic_type, IntSequence1)
         self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
@@ -246,7 +253,7 @@ class TestPlugin(unittest.TestCase):
         plugin.register_artifact_class(Kennel[Cat],
                                        IntSequenceV2DirectoryFormat)
 
-        tf = plugin.type_formats
+        tf = plugin.artifact_classes
 
         # all and only the expected artifact classes have been registered
         self.assertEqual(len(tf), 4)
@@ -330,7 +337,7 @@ class TestPlugin(unittest.TestCase):
             description="Different seq of ints.",
             examples=types.MappingProxyType({'Import ex': dummy_use2}))
 
-        tf = plugin.type_formats
+        tf = plugin.artifact_classes
 
         self.assertEqual(tf[0].semantic_type, IntSequence1)
         self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
@@ -358,9 +365,9 @@ class TestPlugin(unittest.TestCase):
         plugin.register_semantic_type_to_format(Kennel[Dog | Cat],
                                                 IntSequenceDirectoryFormat)
 
-        # the order of the types in type_formats seems to be inconsistent,
+        # the order of the types in artifact_classes seems to be inconsistent,
         # so load these into a dict for testing
-        tf = {str(e.semantic_type): e for e in plugin.type_formats}
+        tf = {str(e.semantic_type): e for e in plugin.artifact_classes}
         tf_c = tf['Kennel[Cat]']
         self.assertEqual(tf_c.semantic_type, Kennel[Cat])
         self.assertEqual(tf_c.format, IntSequenceDirectoryFormat)
