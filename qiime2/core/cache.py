@@ -551,6 +551,9 @@ class Cache:
             os.remove(self.lockfile)
 
     def _alias(self, uuid):
+        """Creates an alias for an artifact and creates a symlink under that
+        alias
+        """
         with self.lock:
             process_alias = self.process_pool._alias(uuid)
             self.process_pool._make_symlink(uuid, process_alias)
@@ -569,20 +572,19 @@ class Cache:
         uuid = str(uuid)
 
         dest = self.data / uuid
-        renamed = False
+        alias = os.path.split(src)[0]
         with self.lock:
             # Rename errors if the destination already exists
             if not os.path.exists(dest):
                 os.rename(src, dest)
                 set_permissions(dest, READ_ONLY_FILE, READ_ONLY_DIR)
-                renamed = True
 
             process_alias = self._alias(uuid)
 
-        # If we did not rename we need to manually remove our mount point
-        if not renamed:
-            shutil.rmtree(src)
-
+        # Remove the aliased directory above the one we renamed. We need to do
+        # this whether we renamed or not because we aren't renaming this
+        # directory but the one beneath it
+        shutil.rmtree(alias)
         return process_alias, dest
 
     def _deallocate(self, symlink):
@@ -734,19 +736,19 @@ class Pool:
                                  'same artifact a very large number of times.')
         return alias
 
-    def _allocate(self, dirname):
+    def _allocate(self, uuid):
         """Allocate an empty directory under the process pool to extract to.
-        The actual uuid of an artifact is always reserved for this directory.
-        All symlinks will be uuid.random_number.
+        This directory is of the form alias / uuid and provides a per thread
+        mount location for artifacts.
         """
-        # Dirname will often be a uuid, so caste it to string to be safe
-        path = self.path / str(dirname)
-        # If we try to load the same artifact twice in one process, this will
-        # already exist.
-        if not os.path.exists(path):
-            os.mkdir(path)
+        uuid = str(uuid)
 
-        return path
+        with self.cache.lock:
+            alias = self._alias(uuid)
+            allocated_path = self.path / alias / uuid
+            os.makedirs(allocated_path)
+
+        return allocated_path
 
     def _make_symlink(self, uuid, alias):
         """Creates a symlink in a pool to data. Guarded against duplication.
