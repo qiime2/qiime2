@@ -28,9 +28,12 @@ SemanticTypeFragmentRecord = collections.namedtuple(
 FormatRecord = collections.namedtuple('FormatRecord', ['format', 'plugin'])
 ViewRecord = collections.namedtuple(
     'ViewRecord', ['name', 'view', 'plugin', 'citations'])
-TypeFormatRecord = collections.namedtuple(
-    'TypeFormatRecord', ['type_expression', 'format', 'plugin', 'description',
-                         'examples'])
+# semantic_type and type_expression will point to the same value in
+# ArtifactClassRecords as type_expression is deprecated in favor of
+# semantic_type
+ArtifactClassRecord = collections.namedtuple(
+    'ArtifactClassRecord', ['semantic_type', 'format', 'plugin', 'description',
+                            'examples', 'type_expression'])
 ValidatorRecord = collections.namedtuple(
     'ValidatorRecord', ['validator', 'view', 'plugin', 'context'])
 
@@ -279,10 +282,11 @@ class Plugin:
                                 "once. Artifact classes can only be "
                                 "registered once." % semantic_type_str)
 
-            self.type_formats.append(TypeFormatRecord(
-                type_expression=e, format=directory_format,
+            self.type_formats.append(ArtifactClassRecord(
+                semantic_type=e, format=directory_format,
                 plugin=self, description=description,
-                examples=types.MappingProxyType(examples)))
+                examples=types.MappingProxyType(examples),
+                type_expression=e))
 
             registered_artifact_classes.add(semantic_type_str)
 

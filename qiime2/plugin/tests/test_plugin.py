@@ -196,13 +196,13 @@ class TestPlugin(unittest.TestCase):
 
         tf = plugin.type_formats
 
-        self.assertEqual(tf[0].type_expression, IntSequence1)
+        self.assertEqual(tf[0].semantic_type, IntSequence1)
         self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
         self.assertEqual(tf[0].plugin, plugin)
         self.assertEqual(tf[0].description, "")
         self.assertEqual(tf[0].examples, types.MappingProxyType({}))
 
-        self.assertEqual(tf[1].type_expression, IntSequence2)
+        self.assertEqual(tf[1].semantic_type, IntSequence2)
         self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
         self.assertEqual(tf[1].plugin, plugin)
         self.assertEqual(tf[1].description, "")
@@ -251,24 +251,28 @@ class TestPlugin(unittest.TestCase):
         # all and only the expected artifact classes have been registered
         self.assertEqual(len(tf), 4)
 
+        self.assertEqual(tf[0].semantic_type, IntSequence1)
         self.assertEqual(tf[0].type_expression, IntSequence1)
         self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
         self.assertEqual(tf[0].plugin, plugin)
         self.assertEqual(tf[0].description, "")
         self.assertEqual(tf[0].examples, types.MappingProxyType({}))
 
+        self.assertEqual(tf[1].semantic_type, IntSequence2)
         self.assertEqual(tf[1].type_expression, IntSequence2)
         self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
         self.assertEqual(tf[1].plugin, plugin)
         self.assertEqual(tf[1].description, "")
         self.assertEqual(tf[1].examples, types.MappingProxyType({}))
 
+        self.assertEqual(tf[2].semantic_type, Kennel[Dog])
         self.assertEqual(tf[2].type_expression, Kennel[Dog])
         self.assertEqual(tf[2].format, IntSequenceDirectoryFormat)
         self.assertEqual(tf[2].plugin, plugin)
         self.assertEqual(tf[2].description, "")
         self.assertEqual(tf[2].examples, types.MappingProxyType({}))
 
+        self.assertEqual(tf[3].semantic_type, Kennel[Cat])
         self.assertEqual(tf[3].type_expression, Kennel[Cat])
         self.assertEqual(tf[3].format, IntSequenceV2DirectoryFormat)
         self.assertEqual(tf[3].plugin, plugin)
@@ -328,14 +332,14 @@ class TestPlugin(unittest.TestCase):
 
         tf = plugin.type_formats
 
-        self.assertEqual(tf[0].type_expression, IntSequence1)
+        self.assertEqual(tf[0].semantic_type, IntSequence1)
         self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
         self.assertEqual(tf[0].plugin, plugin)
         self.assertEqual(tf[0].description, "A sequence of integers.")
         self.assertEqual(tf[0].examples,
                          types.MappingProxyType({'Import ex 1': dummy_use1}))
 
-        self.assertEqual(tf[1].type_expression, IntSequence2)
+        self.assertEqual(tf[1].semantic_type, IntSequence2)
         self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
         self.assertEqual(tf[1].plugin, plugin)
         self.assertEqual(tf[1].description, "Different seq of ints.")
@@ -356,16 +360,16 @@ class TestPlugin(unittest.TestCase):
 
         # the order of the types in type_formats seems to be inconsistent,
         # so load these into a dict for testing
-        tf = {str(e.type_expression): e for e in plugin.type_formats}
+        tf = {str(e.semantic_type): e for e in plugin.type_formats}
         tf_c = tf['Kennel[Cat]']
-        self.assertEqual(tf_c.type_expression, Kennel[Cat])
+        self.assertEqual(tf_c.semantic_type, Kennel[Cat])
         self.assertEqual(tf_c.format, IntSequenceDirectoryFormat)
         self.assertEqual(tf_c.plugin, plugin)
         self.assertEqual(tf_c.description, "")
         self.assertEqual(tf_c.examples, types.MappingProxyType({}))
 
         tf_d = tf['Kennel[Dog]']
-        self.assertEqual(tf_d.type_expression, Kennel[Dog])
+        self.assertEqual(tf_d.semantic_type, Kennel[Dog])
         self.assertEqual(tf_d.format, IntSequenceDirectoryFormat)
         self.assertEqual(tf_d.plugin, plugin)
         self.assertEqual(tf_d.description, "")

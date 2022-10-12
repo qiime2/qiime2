@@ -11,7 +11,7 @@ import unittest
 import qiime2.plugin
 import qiime2.sdk
 from qiime2.plugin.plugin import (SemanticTypeRecord, FormatRecord,
-                                  TypeFormatRecord)
+                                  ArtifactClassRecord)
 from qiime2.sdk.plugin_manager import GetFormatFilters
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, IntSequence3,
@@ -117,49 +117,44 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(types, exp)
 
     def test_get_semantic_types(self):
-        types = self.pm.get_semantic_types()
+        artifact_classes = self.pm.get_semantic_types()
 
-        exp = {
-            'IntSequence1': SemanticTypeRecord(semantic_type=IntSequence1,
-                                               plugin=self.plugin),
-            'IntSequence2': SemanticTypeRecord(semantic_type=IntSequence2,
-                                               plugin=self.plugin),
-            'Mapping':      SemanticTypeRecord(semantic_type=Mapping,
-                                               plugin=self.plugin),
-            'FourInts':     SemanticTypeRecord(semantic_type=FourInts,
-                                               plugin=self.plugin),
-            'Kennel[Dog]':  SemanticTypeRecord(semantic_type=Kennel[Dog],
-                                               plugin=self.plugin),
-            'Kennel[Cat]':  SemanticTypeRecord(semantic_type=Kennel[Cat],
-                                               plugin=self.plugin),
-            'SingleInt':    SemanticTypeRecord(semantic_type=SingleInt,
-                                               plugin=self.plugin),
-        }
+        is1 = ArtifactClassRecord(semantic_type=IntSequence1,
+                                  format=IntSequenceDirectoryFormat,
+                                  plugin=self.plugin,
+                                  description="The first IntSequence",
+                                  examples={},
+                                  type_expression=IntSequence1)
+        is2 = ArtifactClassRecord(semantic_type=IntSequence2,
+                                  format=IntSequenceV2DirectoryFormat,
+                                  plugin=self.plugin,
+                                  description="The second IntSequence",
+                                  examples={},
+                                  type_expression=IntSequence2)
+        is3 = ArtifactClassRecord(semantic_type=IntSequence3,
+                                  format=IntSequenceMultiFileDirectoryFormat,
+                                  plugin=self.plugin,
+                                  description="",
+                                  examples={},
+                                  type_expression=IntSequence3)
 
-        self.assertLessEqual(exp.keys(), types.keys())
-        self.assertNotIn(Cat, types)
-        self.assertNotIn(Dog, types)
-        self.assertNotIn(Kennel, types)
+        kd = ArtifactClassRecord(semantic_type=Kennel[Dog],
+                                 format=MappingDirectoryFormat,
+                                 plugin=self.plugin,
+                                 description="",
+                                 examples={},
+                                 type_expression=Kennel[Dog])
 
-    def test_get_artifact_classes(self):
-        artifact_classes = self.pm.get_artifact_classes()
+        kc = ArtifactClassRecord(semantic_type=Kennel[Cat],
+                                 format=MappingDirectoryFormat,
+                                 plugin=self.plugin,
+                                 description="",
+                                 examples={},
+                                 type_expression=Kennel[Cat])
 
-        is1 = TypeFormatRecord(type_expression=IntSequence1,
-                               format=IntSequenceDirectoryFormat,
-                               plugin=self.plugin,
-                               description="The first IntSequence",
-                               examples={})
-        is2 = TypeFormatRecord(type_expression=IntSequence2,
-                               format=IntSequenceV2DirectoryFormat,
-                               plugin=self.plugin,
-                               description="The second IntSequence",
-                               examples={})
-        is3 = TypeFormatRecord(type_expression=IntSequence3,
-                               format=IntSequenceMultiFileDirectoryFormat,
-                               plugin=self.plugin,
-                               description="",
-                               examples={})
-
+        self.assertLessEqual(
+            {str(e.semantic_type) for e in [is1, is2, is3, kd, kc]},
+            artifact_classes.keys())
 
         self.assertEqual(is1, artifact_classes['IntSequence1'])
         self.assertEqual(is2, artifact_classes['IntSequence2'])
