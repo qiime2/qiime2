@@ -536,6 +536,17 @@ class Cache:
         archiver = Archiver.load_raw(path, self)
         return Result._from_archiver(archiver)
 
+    def _load_uuid(self, uuid):
+        """Load raw from the cache if the uuid is in the cache. Return None if
+        it isn't.
+        """
+        path = self.data / str(uuid)
+
+        if os.path.exists(path):
+            return Archiver.load_raw(path, self)
+        else:
+            return None
+
     def remove(self, key):
         """Remove a key from the cache then run garbage collection to remove
         anything it was referencing and any other loose data
