@@ -291,21 +291,21 @@ class TestPlugin(unittest.TestCase):
 
         # Registration of type to the same format with both registration
         # methods is disallowed
-        with self.assertRaisesRegex(NameError, "Type IntSequence1 .* format."):
+        with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
             plugin.register_semantic_type_to_format(
                 IntSequence1, IntSequenceDirectoryFormat)
 
-        with self.assertRaisesRegex(NameError, "Type IntSequence1 .* format."):
+        with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
             plugin.register_artifact_class(
                 IntSequence1, IntSequenceDirectoryFormat)
 
         # Registration of type to the different format with both registration
         # methods is disallowed
-        with self.assertRaisesRegex(NameError, "Type IntSequence1 .* format."):
+        with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
             plugin.register_semantic_type_to_format(
                 IntSequence1, IntSequenceV2DirectoryFormat)
 
-        with self.assertRaisesRegex(NameError, "Type IntSequence1 .* format."):
+        with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
             plugin.register_artifact_class(
                 IntSequence1, IntSequenceV2DirectoryFormat)
 

@@ -266,14 +266,26 @@ class Plugin:
         if examples is None:
             examples = {}
 
+        registered_artifact_classes = \
+            set(str(e.type_expression) for e in self.type_formats)
+
         # register_semantic_type_to_format can accept type expressions such as
         # Kennel[Dog | Cat]. By iterating, we will register the concrete types
         # (e.g., Kennel[Dog] and Kennel[Cat], not the type expression)
         for e in list(semantic_type):
+            semantic_type_str = str(e)
+            if semantic_type_str in registered_artifact_classes:
+                raise NameError("Artifact class %s was registered more than "
+                                "once. Artifact classes can only be "
+                                "registered once." % semantic_type_str)
+
             self.type_formats.append(TypeFormatRecord(
                 type_expression=e, format=directory_format,
                 plugin=self, description=description,
                 examples=types.MappingProxyType(examples)))
+
+            registered_artifact_classes.add(semantic_type_str)
+
 
     def register_semantic_type_to_format(self, semantic_type,
                                          artifact_format=None,
