@@ -763,8 +763,9 @@ class Pool:
         # Symlink will error if the location we are creating the link at
         # already exists. This could happen legitimately from trying to save
         # the same thing to a named pool several times.
-        if not os.path.exists(dest):
-            os.symlink(src, dest)
+        with self.cache.lock:
+            if not os.path.exists(dest):
+                os.symlink(src, dest)
 
     def load(self, ref):
         """Load a reference to an element in the pool
