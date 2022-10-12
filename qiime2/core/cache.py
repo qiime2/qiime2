@@ -140,22 +140,62 @@ def monitor_thread(cache_dir, is_done):
         time.sleep(60 * 60 * 6)
 
 
-class ReEntrantLock():
-    def __init__(self, path, lifetime):
-        self.lock = flufl.lock.Lock(path, lifetime=lifetime)
+# This is very important to our trademark
+tm = object
+
+
+class MEGALock(tm):
+    """ We need to lock out other processes with flufl, but we also need to
+    lock out other threads with a Python thread lock (because parsl
+    threadpools), so we put them together in one MEGALock(tm)
+    """
+
+    def __init__(self, flufl_fp, lifetime):
+        self.flufl_fp = flufl_fp
+        self.lifetime = lifetime
         self.re_entries = 0
 
+        self.thread_lock = threading.Lock()
+        self.flufl_lock = flufl.lock.Lock(flufl_fp, lifetime=lifetime)
+
     def __enter__(self):
-        try:
-            self.lock.lock()
-        except flufl.lock.AlreadyLockedError:
-            self.re_entries += 1
+        self.lock()
 
     def __exit__(self, *args):
+        self.unlock()
+
+    def lock(self):
+        """ We acquire the thread lock first because the flufl lock isn't
+        threadsafe which is why we need both locks in the first place
+        """
         if self.re_entries == 0:
-            self.lock.unlock()
-        else:
+            self.thread_lock.acquire()
+            self.flufl_lock.lock()
+
+        self.re_entries += 1
+
+    def unlock(self):
+        if self.re_entries > 0:
             self.re_entries -= 1
+
+        if self.re_entries == 0:
+            self.flufl_lock.unlock()
+            self.thread_lock.release()
+
+    def __getstate__(self):
+        lockless_dict = self.__dict__.copy()
+
+        del lockless_dict['thread_lock']
+        del lockless_dict['flufl_lock']
+
+        return lockless_dict
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
+        self.thread_lock = threading.Lock()
+        self.flufl_lock = \
+            flufl.lock.Lock(self.flufl_fp, lifetime=self.lifetime)
 
 
 class Cache:
@@ -222,7 +262,7 @@ class Cache:
                     "cache.")
 
         self.lock = \
-            ReEntrantLock(str(self.lockfile), lifetime=timedelta(minutes=10))
+            MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
         # Make our process pool.
         self.process_pool = self._create_process_pool()
         # Lifespan is supplied in days and converted to seconds for internal
@@ -516,8 +556,6 @@ class Cache:
         if os.path.exists(self.lockfile):
             os.remove(self.lockfile)
 
-        self.lock.re_entries = 0
-
     def _alias(self, uuid):
         with self.lock:
             process_alias = self.process_pool._make_symlink(uuid)
@@ -535,16 +573,21 @@ class Cache:
         uuid = str(uuid)
 
         dest = self.data / uuid
+        renamed = False
         with self.lock:
             # Rename errors if the destination already exists
             if not os.path.exists(dest):
                 os.rename(src, dest)
                 set_permissions(dest, READ_ONLY_FILE, READ_ONLY_DIR)
+                renamed = True
 
             process_alias = self.process_pool._make_symlink(uuid)
 
             if self.named_pool is not None:
                 self.named_pool._make_symlink(uuid)
+
+        if not renamed:
+            shutil.rmtree(src)
 
         return process_alias, dest
 
