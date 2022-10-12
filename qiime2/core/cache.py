@@ -538,7 +538,9 @@ class Cache:
 
     def _load_uuid(self, uuid):
         """Load raw from the cache if the uuid is in the cache. Return None if
-        it isn't.
+        it isn't. This is done so if someone already has an artifact in the
+        cache then tries to use their qza for the artifact we can use the
+        already cached version instead.
         """
         path = self.data / str(uuid)
 
