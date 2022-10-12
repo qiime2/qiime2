@@ -749,14 +749,12 @@ class Pool:
 
         return False
 
-    def _allocate(self, uuid):
+    def _allocate(self, dirname):
         """Allocate an empty directory under the process pool to extract to.
         The actual uuid of an artifact is always reserved for this directory.
         All symlinks will be uuid.random_number.
         """
-        uuid = str(uuid)
-
-        path = self.path / uuid
+        path = self.path / dirname
         # If we try to load the same artifact twice in one process, this will
         # already exist.
         if not os.path.exists(path):
