@@ -17,6 +17,7 @@ from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
 from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
                                         IntSequenceV2DirectoryFormat)
 from qiime2.core.testing.util import get_dummy_plugin
+from qiime2.core.testing.plugin import is1_use, is2_use
 
 
 class TestPlugin(unittest.TestCase):
@@ -233,7 +234,6 @@ class TestPlugin(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, regex):
             plugin.register_semantic_type_to_format(IntSequence1)
 
-
     def test_register_artifact_class(self):
         plugin = qiime2.plugin.Plugin(
             name='local-dummy-plugin',
@@ -318,41 +318,6 @@ class TestPlugin(unittest.TestCase):
                 IntSequence1, IntSequenceV2DirectoryFormat)
 
     def test_register_artifact_class_w_annotations(self):
-
-        ## Create ex1 usage example
-        def ex1_use(use):
-            def factory():
-                from qiime2.core.testing.format import IntSequenceFormat
-                from qiime2.plugin.util import transform
-                ff = transform([1, 2, 3], to_type=IntSequenceFormat)
-
-                ff.validate()
-                return ff
-
-            to_import = use.init_format('to_import', factory, ext='.hello')
-
-            ints = use.import_from_format('ints',
-                                          semantic_type='IntSequence1',
-                                          variable=to_import,
-                                          view_type='IntSequenceFormat')
-
-        ## Create ex2 usage example
-        def ex2_use(use):
-            def factory():
-                from qiime2.core.testing.format import IntSequenceFormat
-                from qiime2.plugin.util import transform
-                ff = transform([1, 2, 3], to_type=IntSequenceFormat)
-
-                ff.validate()
-                return ff
-
-            to_import = use.init_format('to_import', factory, ext='.hello')
-
-            ints = use.import_from_format('ints',
-                                          semantic_type='IntSequence2',
-                                          variable=to_import,
-                                          view_type='IntSequenceFormat')
-
         plugin = qiime2.plugin.Plugin(
             name='local-dummy-plugin',
             version='0.0.0-dev',
@@ -361,11 +326,11 @@ class TestPlugin(unittest.TestCase):
         plugin.register_artifact_class(
             IntSequence1, IntSequenceDirectoryFormat,
             description="A sequence of integers.",
-            examples=types.MappingProxyType({'Import ex 1': ex1_use}))
+            examples=types.MappingProxyType({'Import ex 1': is1_use}))
         plugin.register_artifact_class(
             IntSequence2, IntSequenceV2DirectoryFormat,
             description="Different seq of ints.",
-            examples=types.MappingProxyType({'Import ex': ex2_use}))
+            examples=types.MappingProxyType({'Import ex': is2_use}))
 
         tf = plugin.artifact_classes
 
@@ -374,14 +339,14 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(tf[0].plugin, plugin)
         self.assertEqual(tf[0].description, "A sequence of integers.")
         self.assertEqual(tf[0].examples,
-                         types.MappingProxyType({'Import ex 1': ex1_use}))
+                         types.MappingProxyType({'Import ex 1': is1_use}))
 
         self.assertEqual(tf[1].semantic_type, IntSequence2)
         self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
         self.assertEqual(tf[1].plugin, plugin)
         self.assertEqual(tf[1].description, "Different seq of ints.")
         self.assertEqual(tf[1].examples,
-            types.MappingProxyType({'Import ex': ex2_use}))
+                         types.MappingProxyType({'Import ex': is2_use}))
 
     def test_register_artifact_class_multiple(self):
         plugin = qiime2.plugin.Plugin(

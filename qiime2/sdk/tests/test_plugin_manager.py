@@ -38,6 +38,8 @@ from qiime2.core.testing.validator import (validator_example_null1,
 
 from qiime2.core.testing.util import get_dummy_plugin
 
+from qiime2.core.testing.plugin import is1_use, is2_use
+
 
 class TestPluginManager(unittest.TestCase):
     def setUp(self):
@@ -119,18 +121,20 @@ class TestPluginManager(unittest.TestCase):
     def test_get_semantic_types(self):
         artifact_classes = self.pm.get_semantic_types()
 
-        is1 = ArtifactClassRecord(semantic_type=IntSequence1,
-                                  format=IntSequenceDirectoryFormat,
-                                  plugin=self.plugin,
-                                  description="The first IntSequence",
-                                  examples={},
-                                  type_expression=IntSequence1)
-        is2 = ArtifactClassRecord(semantic_type=IntSequence2,
-                                  format=IntSequenceV2DirectoryFormat,
-                                  plugin=self.plugin,
-                                  description="The second IntSequence",
-                                  examples={},
-                                  type_expression=IntSequence2)
+        is1 = ArtifactClassRecord(
+            semantic_type=IntSequence1,
+            format=IntSequenceDirectoryFormat,
+            plugin=self.plugin,
+            description="The first IntSequence",
+            examples={'IntSequence1 import example': is1_use},
+            type_expression=IntSequence1)
+        is2 = ArtifactClassRecord(
+            semantic_type=IntSequence2,
+            format=IntSequenceV2DirectoryFormat,
+            plugin=self.plugin,
+            description="The second IntSequence",
+            examples={'IntSequence2 import example': is2_use},
+            type_expression=IntSequence2)
         is3 = ArtifactClassRecord(semantic_type=IntSequence3,
                                   format=IntSequenceMultiFileDirectoryFormat,
                                   plugin=self.plugin,

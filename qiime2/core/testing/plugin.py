@@ -100,17 +100,56 @@ dummy_plugin.register_views(
     SingleIntFormat, RedundantSingleIntDirectoryFormat,
     citations=[citations['mayer2012walking']])
 
+
+# Create IntSequence1 import example usage example
+def is1_use(use):
+    def factory():
+        from qiime2.core.testing.format import IntSequenceFormat
+        from qiime2.plugin.util import transform
+        ff = transform([1, 2, 3], to_type=IntSequenceFormat)
+
+        ff.validate()
+        return ff
+
+    to_import = use.init_format('to_import', factory, ext='.hello')
+
+    ints = use.import_from_format('ints',
+                                  semantic_type='IntSequence1',
+                                  variable=to_import,
+                                  view_type='IntSequenceFormat')
+
+
 dummy_plugin.register_artifact_class(
     IntSequence1,
     directory_format=IntSequenceDirectoryFormat,
     description="The first IntSequence",
-    examples=None
+    examples={'IntSequence1 import example': is1_use}
 )
+
+
+# Create IntSequence2 import example usage example
+def is2_use(use):
+    def factory():
+        from qiime2.core.testing.format import IntSequenceFormatV2
+        from qiime2.plugin.util import transform
+        ff = transform([1, 2, 3], to_type=IntSequenceFormatV2)
+
+        ff.validate()
+        return ff
+
+    to_import = use.init_format('to_import', factory, ext='.hello')
+
+    ints = use.import_from_format('ints',
+                                  semantic_type='IntSequence2',
+                                  variable=to_import,
+                                  view_type='IntSequenceFormatV2')
+
+
 dummy_plugin.register_artifact_class(
     IntSequence2,
     directory_format=IntSequenceV2DirectoryFormat,
     description="The second IntSequence",
-    examples=None
+    examples={'IntSequence2 import example': is2_use}
 )
 dummy_plugin.register_semantic_type_to_format(
     IntSequence3,

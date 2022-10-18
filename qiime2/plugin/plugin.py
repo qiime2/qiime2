@@ -289,7 +289,6 @@ class Plugin:
 
             registered_artifact_classes.add(semantic_type_str)
 
-
     def register_semantic_type_to_format(self, semantic_type,
                                          artifact_format=None,
                                          directory_format=None):
@@ -312,7 +311,8 @@ class Plugin:
 
         self._register_artifact_class(semantic_type=semantic_type,
                                       directory_format=directory_format,
-                                      description=None, examples= None)
+                                      description=None,
+                                      examples=None)
 
     def register_artifact_class(self, semantic_type, directory_format,
                                 description=None, examples=None):
@@ -322,7 +322,6 @@ class Plugin:
                             "attempted for %s." % str(semantic_type))
         self._register_artifact_class(
             semantic_type, directory_format, description, examples)
-
 
 
 class PluginActions(dict):

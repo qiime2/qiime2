@@ -11,6 +11,7 @@ import tempfile
 import unittest
 import shutil
 import pathlib
+import itertools
 
 import qiime2
 
@@ -254,7 +255,8 @@ class TestPluginBase(unittest.TestCase):
         if self.plugin is None:
             raise ValueError('Attempted to run `execute_examples` without '
                              'configuring test harness.')
-        for _, action in self.plugin.actions.items():
+        for _, action in itertools.chain(self.plugin.actions.items(),
+                                         self.plugin.types.items()):
             for name, example_f in action.examples.items():
                 with self.subTest(example=name):
                     use = usage.ExecutionUsage()
