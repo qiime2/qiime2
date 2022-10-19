@@ -1114,7 +1114,7 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
                 old_md = new_md
                 new_md = new_md._column_sources[name]
 
-    @property 
+    @property
     def missing_scheme(self):
         """The vocabulary used to encode missing values
 
