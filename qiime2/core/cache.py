@@ -738,10 +738,10 @@ class Cache:
 
         Raises
         ------
-        KeyError
+        ValueError
             If the key does not reference any data meaning you probably tried
             to load a pool.
-        ValueError
+        KeyError
             If the cache does not contain the specified key.
 
         Examples
@@ -765,13 +765,13 @@ class Cache:
             with open(self.keys / key) as fh:
                 path = self.data / yaml.safe_load(fh)['data']
         except TypeError as e:
-            raise KeyError(f"The key file '{key}' does not point to any data "
-                           "This most likely occurred because you tried to "
-                           "load a pool which is not supported.") \
+            raise ValueError(f"The key file '{key}' does not point to any "
+                             "data This most likely occurred because you "
+                             "tried to load a pool which is not supported.") \
                 from e
         except FileNotFoundError as e:
-            raise ValueError(f"The cache '{self.path}' does not contain the "
-                             f"key '{key}'") from e
+            raise KeyError(f"The cache '{self.path}' does not contain the key "
+                           f"'{key}'") from e
 
         archiver = Archiver.load_raw(path, self)
         return Result._from_archiver(archiver)
