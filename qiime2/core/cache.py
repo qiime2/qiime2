@@ -521,19 +521,21 @@ class Cache:
         """Load the data pointed to by a key. Only works on a key that refers
         to a data item will error on a key that points to a pool
         """
-        try:
-            with open(self.keys / key) as fh:
-                path = self.data / yaml.safe_load(fh)['data']
-        except TypeError as e:
-            raise ValueError(f"The key file '{key}' does not point to any "
-                             "data. This most likely occured because you "
-                             "tried to load a pool which is not supported.") \
-                from e
-        except FileNotFoundError as e:
-            raise ValueError(f"The cache '{self.path}' does not contain the "
-                             f"key '{key}'") from e
+        with self.lock:
+            try:
+                with open(self.keys / key) as fh:
+                    path = self.data / yaml.safe_load(fh)['data']
+            except TypeError as e:
+                raise ValueError(f"The key file '{key}' does not point to any "
+                                 "data. This most likely occured because you "
+                                 "tried to load a pool which is not "
+                                 "supported.") from e
+            except FileNotFoundError as e:
+                raise ValueError(f"The cache '{self.path}' does not contain "
+                                 f"the key '{key}'") from e
 
-        archiver = Archiver.load_raw(path, self)
+            archiver = Archiver.load_raw(path, self)
+
         return Result._from_archiver(archiver)
 
     def _load_uuid(self, uuid):
