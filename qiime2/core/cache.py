@@ -592,6 +592,9 @@ class Cache:
         This process destroys data and named pools that do not have keys along
         with process pools older than the process_pool_lifespan on the cache
         which defaults to 45 days. It never removes keys.
+
+        We lock out other processes and threads from accessing the cache while
+        garbage collecting to ensure the cache remains in a consistent state.
         """
         referenced_pools = set()
         referenced_data = set()
@@ -818,7 +821,10 @@ class Cache:
         self.garbage_collection()
 
     def clear_lock(self):
-        """Clears the flufl lock on the cache.
+        """Clears the flufl lock on the cache. This exists in case something
+        goes horribly wrong and we end up in an unrecoverable state. It's
+        easy to tell the user "Recreate the failed cache (use the same path)
+        and run this method on it."
 
         Note
         ----
