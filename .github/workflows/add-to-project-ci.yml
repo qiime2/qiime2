@@ -1,0 +1,21 @@
+name: Add new issues and PRs to triage project board
+
+on:
+  issues:
+    types:
+      - opened
+  pull_request:
+    types:
+      - opened
+
+jobs:
+  add-to-project:
+    name: Add issue to project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/add-to-project@v3
+        with:
+          project-url: https://github.com/orgs/qiime2/projects/36
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+          labeled: skip-triage
+          label-operator: NOT
