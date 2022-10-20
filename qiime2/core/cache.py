@@ -243,7 +243,7 @@ class Cache:
         │       ├── uuid1 -> ../../data/uuid1/
         │       └── uuid2 -> ../../data/uuid2/
         ├── processes/
-        │   └── <pid>-<create-time>@$USER/
+        │   └── <process-id>-<process-create-time>@<user>/
         │       ├── uuid3 -> ../../data/uuid3/
         │       └── uuid4 -> ../../data/uuid4/
         └── VERSION
@@ -259,11 +259,12 @@ class Cache:
     cache. Each pool contains symlinks to all of the data it contains.
 
     **Processes:** The processes directory contains process pools of the format
-    <pid>-<create-time>@$USER for each process that has used this cache.
-    Each pool contains symlinks to each element in the data directory the
-    process that created the pool has used in some way (created, loaded, etc.).
-    These symlinks are ephemeral and have lifetimes <= the lifetime of the
-    process that created them. More permanent storage is done using keys.
+    <process-id>-<process-create-time>@<user> for each process that has used
+    this cache. Each pool contains symlinks to each element in the data
+    directory the process that created the pool has used in some way (created,
+    loaded, etc.). These symlinks are ephemeral and have lifetimes <= the
+    lifetime of the process that created them. More permanent storage is done
+    using keys.
 
     **VERSION:** This file contains some information QIIME 2 uses to determine
     what version of QIIME 2 was used to create the cache and what version of
@@ -627,7 +628,7 @@ class Cache:
             # Add references to data in process pools
             for process_pool in self.get_processes():
                 # Pick the creation time out of the pool name of format
-                # {pid}-time@user
+                # <process-id>-<process-create-time>@<user>
                 create_time = float(process_pool.split('-')[1].split('@')[0])
 
                 if time.time() - create_time >= self.process_pool_lifespan:
@@ -982,7 +983,7 @@ class Pool:
     different piece of data. There are two types of pool:
 
     **Process Pools:** These pools have names of the form
-    <process-id>-<process-create-time>@$USER based on the process that created
+    <process-id>-<process-create-time>@<user> based on the process that created
     them. They only exist for the length of the process that created them and
     ensure data that process is using stays in the cache.
 
@@ -1025,7 +1026,7 @@ class Pool:
         # The alternative is that we have a process pool. We want this pool to
         # exist in the process directory under the cache not the pools
         # directory. The name follows the scheme
-        # pid-process_start_time@user
+        # <process-id>-<process-start-time>@<user>
         else:
             self.name = self._get_process_pool_name()
             self.path = cache.processes / self.name
@@ -1111,7 +1112,7 @@ class Pool:
 
     def _get_process_pool_name(self):
         """Creates a process pool name of the format
-        <process-id>-<process-create-time>@USER for the process that invoked
+        <process-id>-<process-create-time>@<user> for the process that invoked
         this function.
 
         Returns
