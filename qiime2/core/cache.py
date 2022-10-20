@@ -544,10 +544,11 @@ class Cache:
         """
         path = self.data / str(uuid)
 
-        if os.path.exists(path):
-            return Archiver.load_raw(path, self)
-        else:
-            return None
+        with self.lock:
+            if os.path.exists(path):
+                return Archiver.load_raw(path, self)
+            else:
+                return None
 
     def remove(self, key):
         """Remove a key from the cache then run garbage collection to remove

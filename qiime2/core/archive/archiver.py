@@ -18,9 +18,7 @@ import io
 import qiime2
 import qiime2.core.cite as cite
 
-from qiime2.core.util import (md5sum_directory, from_checksum_format,
-                              is_uuid4, set_permissions, READ_ONLY_FILE,
-                              READ_ONLY_DIR)
+from qiime2.core.util import md5sum_directory, from_checksum_format, is_uuid4
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -394,7 +392,6 @@ class Archiver:
         rec = archive.mount(path)
         ref = cls(path, process_alias, Format(rec), cache)
 
-        set_permissions(path, READ_ONLY_FILE, READ_ONLY_DIR)
         return ref
 
     @classmethod
