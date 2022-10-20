@@ -12,11 +12,11 @@ large amounts of data and taking up CPU time when storage space is not an
 issue. It also allows us to to know exactly what data has been created and
 where.
 
-By default, a cache will be created under tmpdir/qiime2/<uname> and all
-intermediate data that was previously being written all over tmpdir will be
-written into that specific directory. That means QIIME 2 reserves usage of the
-tmpdir/qiime2 directory. The user may also specify a new location to be used
-in place of this default directory. This location must meet a few criteria.
+By default, a cache will be created under $TMPDIR/qiime2/$USER and all
+intermediate data created by QIIME 2 as it executes will be written into that
+directory. This means QIIME 2 reserves usage of the $TMPDIR/qiime2 directory.
+The user may also specify a new location to be used in place of this default
+directory. This location must meet a few criteria.
 
 **1.** It must be writable from any and all locations the QIIME 2 command
 intending to use it will be running. This means that in an HPC context, the
@@ -86,7 +86,7 @@ EXPECTED_PERMISSIONS = 0o41777
 
 def get_cache():
     """Gets the cache we have instructed QIIME 2 to use in this invocation.
-    By default this is a cache located at tmpdir/qiime2/<uname>, but if the
+    By default this is a cache located at $TMPDIR/qiime2/$USER, but if the
     user has set a cache it is the cache they set. This is used by various
     parts of the framework to determine what cache they should be saving
     to/loading from.
@@ -151,7 +151,7 @@ def _copy_to_data(cache, ref):
 
 
 def _get_user():
-    """Get the <uname> for our default cache. Internally getpass.getuser is
+    """Get the uname for our default cache. Internally getpass.getuser is
     getting the uid then looking up the username associated with it. This could
     fail it we are running inside a container because the container is looking
     for its parent's uid in its own /etc/passwd which is unlikely to contain a
@@ -161,7 +161,7 @@ def _get_user():
     Returns
     -------
     str
-        The value we will be using as <uname> for our default cache.
+        The value we will be using as uname for our default cache.
     """
     try:
         return getpass.getuser()
@@ -243,7 +243,7 @@ class Cache:
         │       ├── uuid1 -> ../../data/uuid1/
         │       └── uuid2 -> ../../data/uuid2/
         ├── processes/
-        │   └── <pid>-<create-time>@<uname>/
+        │   └── <pid>-<create-time>@$USER/
         │       ├── uuid3 -> ../../data/uuid3/
         │       └── uuid4 -> ../../data/uuid4/
         └── VERSION
@@ -259,7 +259,7 @@ class Cache:
     cache. Each pool contains symlinks to all of the data it contains.
 
     **Processes:** The processes directory contains process pools of the format
-    <pid>-<create-time>@<uname> for each process that has used this cache.
+    <pid>-<create-time>@$USER for each process that has used this cache.
     Each pool contains symlinks to each element in the data directory the
     process that created the pool has used in some way (created, loaded, etc.).
     These symlinks are ephemeral and have lifetimes <= the lifetime of the
@@ -280,12 +280,17 @@ class Cache:
         """Creates a Cache object backed by the directory specified by path. If
         no path is provided, it gets a path to a temp cache.
 
+        Warning
+        -------
+        If no path is provided and the path $TMPDIR/qiime2/$USER exists but is
+        not a valid cache, we remove the directory and create a cache there.
+
         Parameters
         ----------
         path : str or PathLike object
             Should point either to a non-existent writable directory to be
             created as a cache or to an existing writable cache. Defaults to
-            None which creates the cache at tmpdir/qiime2/<uname>.
+            None which creates the cache at $TMPDIR/qiime2/$USER.
         process_pool_lifespan : int
             The number of days we should allow process pools to exist for
             before culling them.
@@ -354,8 +359,7 @@ class Cache:
         _CACHE.cache = self
 
     def __exit__(self, *args):
-        """Tell QIIME 2 to stop using this cache and go back to using whatever
-        cache it was using before.
+        """Tell QIIME 2 to go back to using the default cache.
         """
         _CACHE.cache = None
 
@@ -441,11 +445,6 @@ class Cache:
         This function will create the path if it does not exist and ensure it
         is suitable for use as a cache if it does.
 
-        Warning
-        -------
-        If the path tmpdir/qiime2/<uname> exists but is not a valid cache, we
-        remove the directory and create a cache there.
-
         Returns
         -------
         str
@@ -513,7 +512,22 @@ class Cache:
 
     def create_pool(self, keys=[], reuse=False):
         """Used to create named pools. A named pool's name is all of the keys
-        given for it separated by underscores.
+        given for it separated by underscores. All of the given keys are
+        created individually and refer to the named pool as opposed to saving a
+        single piece of data where a single key is created referring to that
+        data.
+
+        Named pools can be used by pipelines to store all intermediate results
+        created by the pipeline and prevent it from being reaped. This allows
+        us to resume failed pipelines by collecting all of the data the
+        pipeline saved to the named pool before it crashed and reusing it so we
+        don't need to run the steps that created it again and can instead rerun
+        the pipeline from where it failed.
+
+        Once the pipeline completes, all of its final results will be saved to
+        the pool as well with the idea being that the user can then reuse the
+        pool keys to refer to the final data and get rid of the pool now that
+        the pipeline that created it has completed.
 
         Parameters
         ----------
@@ -575,8 +589,9 @@ class Cache:
 
         **4.** Iterate over all data and remove any that was not referenced.
 
-        This process only destroys data and named pools that do not have keys.
-        It does not remove any keys or process pools.
+        This process destroys data and named pools that do not have keys along
+        with process pools older than the process_pool_lifespan on the cache
+        which defaults to 45 days. It never removes keys.
         """
         referenced_pools = set()
         referenced_data = set()
@@ -631,11 +646,7 @@ class Cache:
 
     def save(self, ref, key):
         """Saves data into the cache by creating a key referring to the data
-        then copying the data if it is not already in the cache. We create the
-        key first because if we created the data first it would be un-keyed for
-        a brief period of time and if someone else were garbage collecting the
-        cache they would remove our un-keyed data between its creation and the
-        creation of its key.
+        then copying the data if it is not already in the cache.
 
         Parameters
         ----------
@@ -723,7 +734,7 @@ class Cache:
 
         Raises
         ------
-        ValueError
+        KeyError
             If the key does not reference any data meaning you probably tried
             to load a pool.
         ValueError
@@ -750,9 +761,9 @@ class Cache:
             with open(self.keys / key) as fh:
                 path = self.data / yaml.safe_load(fh)['data']
         except TypeError as e:
-            raise ValueError(f"The key file '{key}' does not point to any "
-                             "data. This most likely occurred because you "
-                             "tried to load a pool which is not supported.") \
+            raise KeyError(f"The key file '{key}' does not point to any data "
+                           "This most likely occurred because you tried to "
+                           "load a pool which is not supported.") \
                 from e
         except FileNotFoundError as e:
             raise ValueError(f"The cache '{self.path}' does not contain the "
@@ -965,9 +976,9 @@ class Pool:
     different piece of data. There are two types of pool:
 
     **Process Pools:** These pools have names of the form
-    <pid>-<create-time>@<uname> based on the process that created them. They
-    only exist for the length of the process that created them and ensure data
-    that process is using stays in the cache.
+    <process-id>-<process-create-time>@$USER based on the process that created
+    them. They only exist for the length of the process that created them and
+    ensure data that process is using stays in the cache.
 
     **Named Pools:** Named pools are keyed just like individual pieces of data.
     They exist for as long as they have a key, and all of the data they symlink
@@ -1093,8 +1104,9 @@ class Pool:
         self.cache.named_pool = None
 
     def _get_process_pool_name(self):
-        """Creates a process pool name of the format <pid>-<start_time>@<user>
-        for the process that invoked this function.
+        """Creates a process pool name of the format
+        <process-id>-<process-create-time>@USER for the process that invoked
+        this function.
 
         Returns
         -------
