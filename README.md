@@ -2,7 +2,7 @@
 
 ![](https://github.com/qiime2/qiime2/workflows/ci/badge.svg)
 
-Source code repository for the QIIME 2 framework.
+Source code repository for the QIIME 2 framework. Pls don't merge me!!!!!!!
 
 QIIME 2™ is a powerful, extensible, and decentralized microbiome bioinformatics
 platform that is free, open source, and community developed. With a focus on
