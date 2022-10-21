@@ -13,7 +13,7 @@ jobs:
     name: Add issue to project
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/add-to-project@v3
+      - uses: actions/add-to-project@v0.3.0
         with:
           project-url: https://github.com/orgs/qiime2/projects/36
           github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
