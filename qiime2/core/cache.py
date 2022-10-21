@@ -243,7 +243,7 @@ class MEGALock(tm):
 
     def __enter__(self):
         """ We acquire the thread lock first because the flufl lock isn't
-        threadsafe which is why we need both locks in the first place
+        thread-safe which is why we need both locks in the first place
         """
         if self.re_entries == 0:
             self.thread_lock.acquire()
@@ -820,7 +820,7 @@ class Cache:
                     path = self.data / yaml.safe_load(fh)['data']
             except TypeError as e:
                 raise ValueError(f"The key file '{key}' does not point to any "
-                                 "data. This most likely occured because you "
+                                 "data. This most likely occurred because you "
                                  "tried to load a pool which is not "
                                  "supported.") from e
             except FileNotFoundError as e:
@@ -1259,7 +1259,7 @@ class Pool:
                     break
             else:
                 raise ValueError(f'Too many collisions ({MAX_RETRIES}) '
-                                 'occured while trying to save artifact '
+                                 'occurred while trying to save artifact '
                                  f'<{uuid}> to process pool {self.path}. It '
                                  'is likely you have attempted to load the '
                                  'same artifact a very large number of times.')
