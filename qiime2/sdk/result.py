@@ -64,7 +64,17 @@ class Result:
     @classmethod
     def load(cls, filepath):
         """Factory for loading Artifacts and Visualizations."""
-        archiver = archive.Archiver.load(filepath)
+        from qiime2.core.cache import get_cache
+
+        # Check if the data is already in the cache (if the uuid is in
+        # cache.data) and load it from the cache if it is. Avoids unzipping the
+        # qza again if we already have it.
+        cache = get_cache()
+        peek = cls.peek(filepath)
+        archiver = cache._load_uuid(peek.uuid)
+
+        if not archiver:
+            archiver = archive.Archiver.load(filepath)
 
         if Artifact._is_valid_type(archiver.type):
             result = Artifact.__new__(Artifact)
