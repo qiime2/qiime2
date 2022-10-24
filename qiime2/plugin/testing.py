@@ -169,21 +169,21 @@ class TestPluginBase(unittest.TestCase):
             The :term:`Format` to check that the Semantic Type is registed on.
 
         """
+        # For backward compatibility, support type expressions as input here
+        for t in semantic_type:
+            obs_format = None
 
-        obs_format = None
-        for artifact_class_record in self.plugin.artifact_classes:
-            if artifact_class_record.semantic_type == semantic_type:
-                obs_format = artifact_class_record.format
-                break
+            try:
+                obs_format = self.plugin.artifact_classes[str(t)].format
+            except KeyError:
+                self.assertIsNotNone(
+                    obs_format,
+                    "Semantic type %r is not registered to a format." % t)
 
-        self.assertIsNotNone(
-            obs_format,
-            "Semantic type %r is not registered to a format." % semantic_type)
-
-        self.assertEqual(
-            obs_format, exp_format,
-            "Expected semantic type %r to be registered to format %r, not %r."
-            % (semantic_type, exp_format, obs_format))
+            self.assertEqual(
+                obs_format, exp_format,
+                "Expected semantic type %r to be registered to format %r, "
+                "not %r." % (t, exp_format, obs_format))
 
     def transform_format(self, source_format, target, filename=None,
                          filenames=None):
