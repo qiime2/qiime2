@@ -909,7 +909,7 @@ class Usage:
         """
         return self._usage_variable(name, factory, 'metadata')
 
-    def init_metadata_from_url(self, name: str, url: str,
+    def init_metadata_from_url(self, name: str, url: str, column: str = None,
                                replace_url_epoch: bool = True
                                ) -> UsageVariable:
         """Communicate that metadata should be obtained from a url."""
@@ -924,7 +924,11 @@ class Usage:
             with tempfile.NamedTemporaryFile() as f:
                 f.write(data.content)
                 f.flush()
-                return qiime2.Metadata.load(f.name)
+                md = qiime2.Metadata.load(f.name)
+                if column is None:
+                    return md
+                else:
+                    return md.get_column(column)
 
         return self.init_metadata(name, factory)
 
