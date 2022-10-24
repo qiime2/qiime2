@@ -847,9 +847,16 @@ class Usage:
         """
         return self._usage_variable(name, factory, 'artifact')
 
-    def init_artifact_from_url(self, name: str, url: str) -> UsageVariable:
+    def _replace_url_epoch(self, url):
+        return url.replace('{epoch}', '2022.8')
+
+    def init_artifact_from_url(self, name: str, url: str,
+                               replace_url_epoch: bool=True) -> UsageVariable:
         """Communicate that an artifact should be obtained from a url.
         """
+        if replace_url_epoch:
+            url = self._replace_url_epoch(url)
+
         def factory():
             import tempfile
             import requests
@@ -902,9 +909,13 @@ class Usage:
         """
         return self._usage_variable(name, factory, 'metadata')
 
-    def init_metadata_from_url(self, name: str, url: str) -> UsageVariable:
+    def init_metadata_from_url(self, name: str, url: str,
+                               replace_url_epoch: bool=True) -> UsageVariable:
         """Communicate that metadata should be obtained from a url.
         """
+        if replace_url_epoch:
+            url = self._replace_url_epoch(url)
+
         def factory():
             import tempfile
             import requests
