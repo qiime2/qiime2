@@ -113,10 +113,10 @@ def is1_use(use):
 
     to_import = use.init_format('to_import', factory, ext='.hello')
 
-    ints = use.import_from_format('ints',
-                                  semantic_type='IntSequence1',
-                                  variable=to_import,
-                                  view_type='IntSequenceFormat')
+    use.import_from_format('ints',
+                           semantic_type='IntSequence1',
+                           variable=to_import,
+                           view_type='IntSequenceFormat')
 
 
 dummy_plugin.register_artifact_class(
@@ -139,10 +139,10 @@ def is2_use(use):
 
     to_import = use.init_format('to_import', factory, ext='.hello')
 
-    ints = use.import_from_format('ints',
-                                  semantic_type='IntSequence2',
-                                  variable=to_import,
-                                  view_type='IntSequenceFormatV2')
+    use.import_from_format('ints',
+                           semantic_type='IntSequence2',
+                           variable=to_import,
+                           view_type='IntSequenceFormatV2')
 
 
 dummy_plugin.register_artifact_class(

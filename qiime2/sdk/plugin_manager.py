@@ -92,7 +92,7 @@ class PluginManager:
         self._reverse_transformers = collections.defaultdict(dict)
         self.formats = {}
         self.views = {}
-        self.artifact_classes = []
+        self.artifact_classes = {}
         self._ff_to_sfdf = {}
         self.validators = {}
 
@@ -201,7 +201,17 @@ class PluginManager:
                 )
 
             self.formats[name] = record
-        self.artifact_classes.extend(plugin.artifact_classes)
+
+        for name, record in plugin.artifact_classes.items():
+            if name in self.artifact_classes:
+                raise NameError(
+                    "Duplicate artifact class registration (%r) defined in "
+                    "plugins %r and %r." %
+                    (name, record.plugin.name,
+                     self.artifact_classes[name].plugin.name)
+                )
+            else:
+                self.artifact_classes[name] = record
 
         for semantic_type, validation_object in plugin.validators.items():
             if semantic_type not in self.validators:
@@ -215,8 +225,7 @@ class PluginManager:
         result = {}
 
         for plugin in self.plugins.values():
-            for tf in plugin.artifact_classes:
-                result[str(tf.semantic_type)] = tf
+            result.update(plugin.artifact_classes)
 
         return result
 
@@ -245,7 +254,7 @@ class PluginManager:
                              "valid.", (filter))
 
         if semantic_type is None:
-            formats = set(f.format for f in self.artifact_classes)
+            formats = set(f.format for f in self.artifact_classes.values())
 
         else:
             formats = set()
@@ -254,7 +263,7 @@ class PluginManager:
                 semantic_type = parse_type(semantic_type, "semantic")
 
             if is_semantic_type(semantic_type):
-                for artifact_class in self.artifact_classes:
+                for artifact_class in self.artifact_classes.values():
                     if semantic_type <= artifact_class.semantic_type:
                         formats.add(artifact_class.format)
                         break
@@ -326,7 +335,7 @@ class PluginManager:
     def type_formats(self):
         # self.type_formats was replaced with self.artifact_classes - this
         # property provides backward compatibility
-        return self.artifact_classes
+        return list(self.artifact_classes.values())
 
     @property
     def importable_formats(self):
@@ -350,15 +359,14 @@ class PluginManager:
                 "Must provide a semantic type via `semantic_type`, not %r" %
                 semantic_type)
 
-        dir_fmt = None
-        for artifact_class_record in self.artifact_classes:
+        # Evan, ideally we could just lookup semantic_type in
+        # self.artifact_classes but properties get in the way. Is there a way
+        # to strip properties so this could be simplified to return
+        # self.artifact_classes[semantic_type] while catching a KeyError?
+        for artifact_class_record in self.artifact_classes.values():
             if semantic_type <= artifact_class_record.semantic_type:
-                dir_fmt = artifact_class_record.format
-                break
+                return artifact_class_record.format
 
-        if dir_fmt is None:
-            raise TypeError(
-                "Semantic type %r does not have a compatible directory format."
-                % semantic_type)
-
-        return dir_fmt
+        raise TypeError(
+            "Semantic type %r does not have a compatible directory format."
+            % semantic_type)

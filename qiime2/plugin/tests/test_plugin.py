@@ -162,7 +162,7 @@ class TestPlugin(unittest.TestCase):
         # backward compatibility the Plugin.type_formats property returns
         # the plugin's artifact_classes
         self.assertEqual(self.plugin.type_formats,
-                         self.plugin.artifact_classes)
+                         list(self.plugin.artifact_classes.values()))
 
     def test_type_fragments(self):
         types = self.plugin.type_fragments.keys()
@@ -202,19 +202,19 @@ class TestPlugin(unittest.TestCase):
         plugin.register_semantic_type_to_format(
             IntSequence2, artifact_format=IntSequenceV2DirectoryFormat)
 
-        tf = plugin.artifact_classes
+        ac = plugin.artifact_classes['IntSequence1']
+        self.assertEqual(ac.semantic_type, IntSequence1)
+        self.assertEqual(ac.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
 
-        self.assertEqual(tf[0].semantic_type, IntSequence1)
-        self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
-        self.assertEqual(tf[0].plugin, plugin)
-        self.assertEqual(tf[0].description, "")
-        self.assertEqual(tf[0].examples, types.MappingProxyType({}))
-
-        self.assertEqual(tf[1].semantic_type, IntSequence2)
-        self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
-        self.assertEqual(tf[1].plugin, plugin)
-        self.assertEqual(tf[1].description, "")
-        self.assertEqual(tf[1].examples, types.MappingProxyType({}))
+        ac = plugin.artifact_classes['IntSequence2']
+        self.assertEqual(ac.semantic_type, IntSequence2)
+        self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
 
         # errors are raised when both or neither the new or old names for the
         # format are provided
@@ -253,40 +253,43 @@ class TestPlugin(unittest.TestCase):
         plugin.register_artifact_class(Kennel[Cat],
                                        IntSequenceV2DirectoryFormat)
 
-        tf = plugin.artifact_classes
-
         # all and only the expected artifact classes have been registered
-        self.assertEqual(len(tf), 4)
+        self.assertEqual(len(plugin.artifact_classes), 4)
 
-        self.assertEqual(tf[0].semantic_type, IntSequence1)
-        self.assertEqual(tf[0].type_expression, IntSequence1)
-        self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
-        self.assertEqual(tf[0].plugin, plugin)
-        self.assertEqual(tf[0].description, "")
-        self.assertEqual(tf[0].examples, types.MappingProxyType({}))
+        ac = plugin.artifact_classes['IntSequence1']
+        self.assertEqual(ac.semantic_type, IntSequence1)
+        self.assertEqual(ac.type_expression, IntSequence1)
+        self.assertEqual(ac.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
 
-        self.assertEqual(tf[1].semantic_type, IntSequence2)
-        self.assertEqual(tf[1].type_expression, IntSequence2)
-        self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
-        self.assertEqual(tf[1].plugin, plugin)
-        self.assertEqual(tf[1].description, "")
-        self.assertEqual(tf[1].examples, types.MappingProxyType({}))
+        ac = plugin.artifact_classes['IntSequence2']
+        self.assertEqual(ac.semantic_type, IntSequence2)
+        self.assertEqual(ac.type_expression, IntSequence2)
+        self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
 
-        self.assertEqual(tf[2].semantic_type, Kennel[Dog])
-        self.assertEqual(tf[2].type_expression, Kennel[Dog])
-        self.assertEqual(tf[2].format, IntSequenceDirectoryFormat)
-        self.assertEqual(tf[2].plugin, plugin)
-        self.assertEqual(tf[2].description, "")
-        self.assertEqual(tf[2].examples, types.MappingProxyType({}))
+        ac = plugin.artifact_classes['Kennel[Dog]']
+        self.assertEqual(ac.semantic_type, Kennel[Dog])
+        self.assertEqual(ac.type_expression, Kennel[Dog])
+        self.assertEqual(ac.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
 
-        self.assertEqual(tf[3].semantic_type, Kennel[Cat])
-        self.assertEqual(tf[3].type_expression, Kennel[Cat])
-        self.assertEqual(tf[3].format, IntSequenceV2DirectoryFormat)
-        self.assertEqual(tf[3].plugin, plugin)
-        self.assertEqual(tf[3].description, "")
-        self.assertEqual(tf[3].examples, types.MappingProxyType({}))
+        ac = plugin.artifact_classes['Kennel[Cat]']
+        self.assertEqual(ac.semantic_type, Kennel[Cat])
+        self.assertEqual(ac.type_expression, Kennel[Cat])
+        self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
 
-        self.assertFalse(tf[0].examples is tf[1].examples)
+        self.assertFalse(plugin.artifact_classes['IntSequence1'] is
+                         plugin.artifact_classes['IntSequence2'])
 
     def test_duplicate_artifact_class_registration_disallowed(self):
         plugin = qiime2.plugin.Plugin(
@@ -332,20 +335,20 @@ class TestPlugin(unittest.TestCase):
             description="Different seq of ints.",
             examples=types.MappingProxyType({'Import ex': is2_use}))
 
-        tf = plugin.artifact_classes
-
-        self.assertEqual(tf[0].semantic_type, IntSequence1)
-        self.assertEqual(tf[0].format, IntSequenceDirectoryFormat)
-        self.assertEqual(tf[0].plugin, plugin)
-        self.assertEqual(tf[0].description, "A sequence of integers.")
-        self.assertEqual(tf[0].examples,
+        ac = plugin.artifact_classes['IntSequence1']
+        self.assertEqual(ac.semantic_type, IntSequence1)
+        self.assertEqual(ac.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "A sequence of integers.")
+        self.assertEqual(ac.examples,
                          types.MappingProxyType({'Import ex 1': is1_use}))
 
-        self.assertEqual(tf[1].semantic_type, IntSequence2)
-        self.assertEqual(tf[1].format, IntSequenceV2DirectoryFormat)
-        self.assertEqual(tf[1].plugin, plugin)
-        self.assertEqual(tf[1].description, "Different seq of ints.")
-        self.assertEqual(tf[1].examples,
+        ac = plugin.artifact_classes['IntSequence2']
+        self.assertEqual(ac.semantic_type, IntSequence2)
+        self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "Different seq of ints.")
+        self.assertEqual(ac.examples,
                          types.MappingProxyType({'Import ex': is2_use}))
 
     def test_register_artifact_class_multiple(self):
@@ -360,22 +363,19 @@ class TestPlugin(unittest.TestCase):
         plugin.register_semantic_type_to_format(Kennel[Dog | Cat],
                                                 IntSequenceDirectoryFormat)
 
-        # the order of the types in artifact_classes seems to be inconsistent,
-        # so load these into a dict for testing
-        tf = {str(e.semantic_type): e for e in plugin.artifact_classes}
-        tf_c = tf['Kennel[Cat]']
-        self.assertEqual(tf_c.semantic_type, Kennel[Cat])
-        self.assertEqual(tf_c.format, IntSequenceDirectoryFormat)
-        self.assertEqual(tf_c.plugin, plugin)
-        self.assertEqual(tf_c.description, "")
-        self.assertEqual(tf_c.examples, types.MappingProxyType({}))
+        ac_c = plugin.artifact_classes['Kennel[Cat]']
+        self.assertEqual(ac_c.semantic_type, Kennel[Cat])
+        self.assertEqual(ac_c.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac_c.plugin, plugin)
+        self.assertEqual(ac_c.description, "")
+        self.assertEqual(ac_c.examples, types.MappingProxyType({}))
 
-        tf_d = tf['Kennel[Dog]']
-        self.assertEqual(tf_d.semantic_type, Kennel[Dog])
-        self.assertEqual(tf_d.format, IntSequenceDirectoryFormat)
-        self.assertEqual(tf_d.plugin, plugin)
-        self.assertEqual(tf_d.description, "")
-        self.assertEqual(tf_d.examples, types.MappingProxyType({}))
+        ac_d = plugin.artifact_classes['Kennel[Dog]']
+        self.assertEqual(ac_d.semantic_type, Kennel[Dog])
+        self.assertEqual(ac_d.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac_d.plugin, plugin)
+        self.assertEqual(ac_d.description, "")
+        self.assertEqual(ac_d.examples, types.MappingProxyType({}))
 
         # multiple artifact_classes cannot be registered using
         # register_artifact_class, since default descriptions and examples

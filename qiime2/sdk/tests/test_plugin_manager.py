@@ -350,7 +350,7 @@ class TestPluginManager(unittest.TestCase):
         # PluginManager.type_formats property returns the plugin manager's
         # artifact_classes
         self.assertEqual(self.pm.type_formats,
-                         self.pm.artifact_classes)
+                         list(self.pm.artifact_classes.values()))
 
 
 if __name__ == '__main__':
