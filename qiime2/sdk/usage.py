@@ -847,6 +847,25 @@ class Usage:
         """
         return self._usage_variable(name, factory, 'artifact')
 
+    def init_artifact_from_url(self, name: str, url: str) -> UsageVariable:
+        """Communicate that an artifact should be obtained from a url.
+        """
+        def factory():
+            import tempfile
+            import requests
+            import qiime2
+
+            data = requests.get(url)
+
+            with tempfile.NamedTemporaryFile() as f:
+                f.write(data.content)
+                f.flush()
+                result = qiime2.Artifact.load(f.name)
+
+            return result
+
+        return self.init_artifact(name, factory)
+
     def init_metadata(self, name: str,
                       factory: Callable[[], qiime2.Metadata]) -> UsageVariable:
         """Communicate that metadata will be needed.
@@ -882,6 +901,22 @@ class Usage:
         <ExecutionUsageVariable name='my_metadata', var_type='metadata'>
         """
         return self._usage_variable(name, factory, 'metadata')
+
+    def init_metadata_from_url(self, name: str, url: str) -> UsageVariable:
+        """Communicate that metadata should be obtained from a url.
+        """
+        def factory():
+            import tempfile
+            import requests
+            import pandas as pd
+
+            data = requests.get(url)
+            with tempfile.NamedTemporaryFile() as f:
+                f.write(data.content)
+                f.flush()
+                return qiime2.Metadata.load(f.name)
+
+        return self.init_metadata(name, factory)
 
     def init_format(self, name: str,
                     factory: Callable[[], 'qiime2.core.format.FormatBase'],
