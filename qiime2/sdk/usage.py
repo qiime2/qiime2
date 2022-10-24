@@ -908,7 +908,6 @@ class Usage:
         def factory():
             import tempfile
             import requests
-            import pandas as pd
 
             data = requests.get(url)
             with tempfile.NamedTemporaryFile() as f:
