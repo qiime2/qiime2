@@ -923,8 +923,11 @@ class Usage:
         return self._usage_variable(name, factory, 'format')
 
     def _replace_url_epoch(self, url):
-        # TODO: This is intended to be updated before merge.
-        return url.replace('{epoch}', '2022.8')
+        # Obtaining epoch modeled on qiime2.metadata.io.MetadataFileError
+        import qiime2
+
+        epoch = qiime2.__release__
+        return url.replace('{epoch}', epoch)
 
     def _request_url(self, url):
         import requests

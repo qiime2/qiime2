@@ -443,7 +443,7 @@ class TestExecutionUsage(TestCaseUsage):
     def test_init_artifact_from_url_error_on_non_artifact(self):
         # TODO: is this a reliable enough url for tests?
         metadata_url = \
-            'https://data.qiime2.org/2022.8/tutorials/' \
+            'https://data.qiime2.org/2022.11/tutorials/' \
             'moving-pictures/sample_metadata.tsv'
         use = usage.ExecutionUsage()
 
@@ -460,7 +460,7 @@ class TestExecutionUsage(TestCaseUsage):
     def test_init_metadata_from_url(self):
         # TODO: is this a reliable enough url for tests?
         metadata_url = \
-            'https://data.qiime2.org/2022.8/tutorials/' \
+            'https://data.qiime2.org/2022.11/tutorials/' \
             'moving-pictures/sample_metadata.tsv'
         use = usage.ExecutionUsage()
 
@@ -471,7 +471,7 @@ class TestExecutionUsage(TestCaseUsage):
     def test_init_metadata_column_from_url(self):
         # TODO: is this a reliable enough url for tests?
         metadata_url = \
-            'https://data.qiime2.org/2022.8/tutorials/' \
+            'https://data.qiime2.org/2022.11/tutorials/' \
             'moving-pictures/sample_metadata.tsv'
         use = usage.ExecutionUsage()
 
