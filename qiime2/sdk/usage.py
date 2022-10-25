@@ -847,32 +847,6 @@ class Usage:
         """
         return self._usage_variable(name, factory, 'artifact')
 
-    def _replace_url_epoch(self, url):
-        return url.replace('{epoch}', '2022.8')
-
-    def init_artifact_from_url(self, name: str, url: str,
-                               replace_url_epoch: bool = True
-                               ) -> UsageVariable:
-        """Communicate that an artifact should be obtained from a url."""
-        if replace_url_epoch:
-            url = self._replace_url_epoch(url)
-
-        def factory():
-            import tempfile
-            import requests
-            import qiime2
-
-            data = requests.get(url)
-
-            with tempfile.NamedTemporaryFile() as f:
-                f.write(data.content)
-                f.flush()
-                result = qiime2.Artifact.load(f.name)
-
-            return result
-
-        return self.init_artifact(name, factory)
-
     def init_metadata(self, name: str,
                       factory: Callable[[], qiime2.Metadata]) -> UsageVariable:
         """Communicate that metadata will be needed.
@@ -908,29 +882,6 @@ class Usage:
         <ExecutionUsageVariable name='my_metadata', var_type='metadata'>
         """
         return self._usage_variable(name, factory, 'metadata')
-
-    def init_metadata_from_url(self, name: str, url: str, column: str = None,
-                               replace_url_epoch: bool = True
-                               ) -> UsageVariable:
-        """Communicate that metadata should be obtained from a url."""
-        if replace_url_epoch:
-            url = self._replace_url_epoch(url)
-
-        def factory():
-            import tempfile
-            import requests
-
-            data = requests.get(url)
-            with tempfile.NamedTemporaryFile() as f:
-                f.write(data.content)
-                f.flush()
-                md = qiime2.Metadata.load(f.name)
-                if column is None:
-                    return md
-                else:
-                    return md.get_column(column)
-
-        return self.init_metadata(name, factory)
 
     def init_format(self, name: str,
                     factory: Callable[[], 'qiime2.core.format.FormatBase'],
@@ -970,6 +921,81 @@ class Usage:
         <ExecutionUsageVariable name='my_ints', var_type='format'>
         """
         return self._usage_variable(name, factory, 'format')
+
+    def _replace_url_epoch(self, url):
+        # TODO: This is intended to be updated before merge.
+        return url.replace('{epoch}', '2022.8')
+
+    def _request_url(self, url):
+        import requests
+
+        try:
+            data = requests.get(url)
+            data.raise_for_status()
+        except requests.exceptions.RequestException as ex:
+            raise ValueError(
+                'Could not obtain URL: %s\n Requests exception: %s' %
+                (url, str(ex)))
+
+        return data
+
+    def init_artifact_from_url(self, name: str, url: str,
+                               replace_url_epoch: bool = True
+                               ) -> UsageVariable:
+        """Obtain an artifact from a url."""
+        if replace_url_epoch:
+            url = self._replace_url_epoch(url)
+
+        def factory():
+            import tempfile
+            import qiime2
+
+            data = self._request_url(url)
+
+            with tempfile.NamedTemporaryFile() as f:
+                f.write(data.content)
+                f.flush()
+                try:
+                    result = qiime2.Artifact.load(f.name)
+                except ValueError as ex:
+                    raise ValueError(
+                        'Could not load Artifact from URL data: %s\n'
+                        ' Original exception: %s'
+                        % (url, str(ex)))
+
+            return result
+
+        return self.init_artifact(name, factory)
+
+    def init_metadata_from_url(self, name: str, url: str, column: str = None,
+                               replace_url_epoch: bool = True
+                               ) -> UsageVariable:
+        """Obtain metadata from a url."""
+        if replace_url_epoch:
+            url = self._replace_url_epoch(url)
+
+        def factory():
+            import tempfile
+
+            data = self._request_url(url)
+
+            with tempfile.NamedTemporaryFile() as f:
+                f.write(data.content)
+                f.flush()
+                try:
+                    md = qiime2.Metadata.load(f.name)
+                except qiime2.metadata.io.MetadataFileError as ex:
+                    raise ValueError(
+                        'Could not load Metadata from URL data: %s\n'
+                        ' Original exception: %s'
+                        % (url, str(ex)))
+
+                if column is None:
+                    return md
+                else:
+                    return md.get_column(column)
+
+        return self.init_metadata(name, factory)
 
     def import_from_format(self, name: str, semantic_type: str,
                            variable: UsageVariable,
