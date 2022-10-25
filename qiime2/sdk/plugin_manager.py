@@ -359,7 +359,7 @@ class PluginManager:
                 "Must provide a semantic type via `semantic_type`, not %r" %
                 semantic_type)
 
-        # Evan, ideally we could just lookup semantic_type in
+        # TODO: ideally we could just lookup semantic_type in
         # self.artifact_classes but properties get in the way. Is there a way
         # to strip properties so this could be simplified to return
         # self.artifact_classes[semantic_type] while catching a KeyError?
