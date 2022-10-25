@@ -943,7 +943,6 @@ class Usage:
         return data
 
     def init_artifact_from_url(self, name: str, url: str,
-                               replace_url_epoch: bool = True
                                ) -> UsageVariable:
         """Obtain an artifact from a url.
 
@@ -957,10 +956,8 @@ class Usage:
             The url of the Artifact that should be downloaded for the
             example. If a QIIME 2 epoch is part of the URL, as might be the
             case if obtaining an Artifact from docs.qiime2.org, it can be
-            templated in by including `{epoch}` in the URL.
-         replace_url_epoch : bool = True
-            Replace `{epoch}` in `url` with the most relevant QIIME 2 epoch
-            string.
+            templated in by including `{qiime2.__release__}` in an F-string
+            defining the URL.
 
         Returns
         -------
@@ -972,15 +969,11 @@ class Usage:
         # plugin manager can handle.
         # Examples
         # --------
-        # >>> d = 'https://data.qiime2.org/'
-        # >>> p = '{epoch}/data/tutorials/moving-pictures/table.qza'
-        # >>> mvp_table = use.init_artifact_from_url('mvp_table', d + p)
+        # >>> import qiime2
+        # >>> url = 'https://data.qiime2.org/{qiime2.__release__}/data/tutorials/moving-pictures/table.qza' # noqa: E501
+        # >>> mvp_table = use.init_artifact_from_url('mvp_table', url)
         # >>> mvp_table
         # <ExecutionUsageVariable name='mvp_table', var_type='artifact'>
-
-        if replace_url_epoch:
-            url = self._replace_url_epoch(url)
-
         def factory():
             import tempfile
             import qiime2
@@ -1003,7 +996,6 @@ class Usage:
         return self.init_artifact(name, factory)
 
     def init_metadata_from_url(self, name: str, url: str, column: str = None,
-                               replace_url_epoch: bool = True
                                ) -> UsageVariable:
         """Obtain metadata from a url.
 
@@ -1014,13 +1006,12 @@ class Usage:
         name : str
             The canonical name of the variable to be returned.
         url : str
-            The url of the Metadata that should be downloaded for the
+            The url of the Artifact that should be downloaded for the
             example. If a QIIME 2 epoch is part of the URL, as might be the
-            case if obtaining Metadata from docs.qiime2.org, it can be
-            templated in by including `{epoch}` in the URL.
-         replace_url_epoch : bool = True
-            Replace `{epoch}` in `url` with the most relevant QIIME 2 epoch
-            string.
+            case if obtaining an Artifact from docs.qiime2.org, it can be
+            templated in by including `{qiime2.__release__}` in an F-string
+            defining the URL (see the doc string for this method for an
+            example).
 
         Returns
         -------
@@ -1030,15 +1021,16 @@ class Usage:
 
         Examples
         --------
-        >>> domain = 'https://data.qiime2.org/'
-        >>> path = '{epoch}/tutorials/moving-pictures/sample_metadata.tsv'
-        >>> md = use.init_metadata_from_url('md', domain + path)
+        >>> import qiime2
+        >>> url = f'https://data.qiime2.org/{qiime2.__release__}/tutorials/moving-pictures/sample_metadata.tsv' # noqa: E501
+        >>> print(url)
+        https://data.qiime2.org/20...
+        >>> md = use.init_metadata_from_url('md', url)
         >>> md
         <ExecutionUsageVariable name='md', var_type='metadata'>
         """
-        if replace_url_epoch:
-            url = self._replace_url_epoch(url)
-
+        # the print statement in the above doc string provides an illustration
+        # of how F-strings are interpreted
         def factory():
             import tempfile
 

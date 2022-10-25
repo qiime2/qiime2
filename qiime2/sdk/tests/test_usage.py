@@ -10,6 +10,7 @@ import unittest.mock as mock
 import unittest
 import tempfile
 
+import qiime2
 from qiime2.core.testing.util import get_dummy_plugin
 import qiime2.core.testing.examples as examples
 from qiime2.sdk import usage, action, UninitializedPluginManagerError
@@ -441,7 +442,6 @@ class TestExecutionUsage(TestCaseUsage):
     #     self.assertIsInstance(a, Artifact)
 
     def test_init_artifact_from_url_error_on_non_artifact(self):
-        # TODO: is this a reliable enough url for tests?
         metadata_url = \
             'https://data.qiime2.org/2022.11/tutorials/' \
             'moving-pictures/sample_metadata.tsv'
@@ -458,7 +458,6 @@ class TestExecutionUsage(TestCaseUsage):
             use.init_metadata_from_url('a', url)
 
     def test_init_metadata_from_url(self):
-        # TODO: is this a reliable enough url for tests?
         metadata_url = \
             'https://data.qiime2.org/2022.11/tutorials/' \
             'moving-pictures/sample_metadata.tsv'
@@ -469,7 +468,6 @@ class TestExecutionUsage(TestCaseUsage):
         self.assertIsInstance(md.value, Metadata)
 
     def test_init_metadata_column_from_url(self):
-        # TODO: is this a reliable enough url for tests?
         metadata_url = \
             'https://data.qiime2.org/2022.11/tutorials/' \
             'moving-pictures/sample_metadata.tsv'
@@ -480,18 +478,11 @@ class TestExecutionUsage(TestCaseUsage):
         self.assertIsInstance(md.value, MetadataColumn)
 
     def test_init_metadata_from_url_epoch(self):
-        # TODO: is this a reliable enough url for tests?
         metadata_url = \
-            'https://data.qiime2.org/{epoch}/tutorials/' \
+            f'https://data.qiime2.org/{qiime2.__release__}/tutorials/' \
             'moving-pictures/sample_metadata.tsv'
         use = usage.ExecutionUsage()
 
         md = use.init_metadata_from_url('md', metadata_url)
 
         self.assertIsInstance(md.value, Metadata)
-
-        with self.assertRaisesRegex(ValueError, 'Could no.*{epoch}'):
-            use.init_metadata_from_url(
-                'bad_url_metadata',
-                metadata_url,
-                replace_url_epoch=False)
