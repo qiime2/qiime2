@@ -942,7 +942,39 @@ class Usage:
     def init_artifact_from_url(self, name: str, url: str,
                                replace_url_epoch: bool = True
                                ) -> UsageVariable:
-        """Obtain an artifact from a url."""
+        """Obtain an artifact from a url.
+
+        Driver implementations may use this to intialize data for an example.
+
+        Parameters
+        ----------
+        name : str
+            The canonical name of the variable to be returned.
+        url : str
+            The url of the Artifact that should be downloaded for the
+            example. If a QIIME 2 epoch is part of the URL, as might be the
+            case if obtaining an Artifact from docs.qiime2.org, it can be
+            templated in by including `{epoch}` in the URL.
+         replace_url_epoch : bool = True
+            Replace `{epoch}` in `url` with the most relevant QIIME 2 epoch
+            string.
+
+        Returns
+        -------
+        UsageVariable
+            This particular return class can be changed by a driver which
+            overrides :meth:`usage_variable`.
+        """
+        # The following example needs to use an Artifact that the test suite's
+        # plugin manager can handle.
+        # Examples
+        # --------
+        # >>> d = 'https://data.qiime2.org/'
+        # >>> p = '{epoch}/data/tutorials/moving-pictures/table.qza'
+        # >>> mvp_table = use.init_artifact_from_url('mvp_table', d + p)
+        # >>> mvp_table
+        # <ExecutionUsageVariable name='mvp_table', var_type='artifact'>
+
         if replace_url_epoch:
             url = self._replace_url_epoch(url)
 
@@ -970,7 +1002,37 @@ class Usage:
     def init_metadata_from_url(self, name: str, url: str, column: str = None,
                                replace_url_epoch: bool = True
                                ) -> UsageVariable:
-        """Obtain metadata from a url."""
+        """Obtain metadata from a url.
+
+        Driver implementations may use this to intialize example metadata.
+
+        Parameters
+        ----------
+        name : str
+            The canonical name of the variable to be returned.
+        url : str
+            The url of the Metadata that should be downloaded for the
+            example. If a QIIME 2 epoch is part of the URL, as might be the
+            case if obtaining Metadata from docs.qiime2.org, it can be
+            templated in by including `{epoch}` in the URL.
+         replace_url_epoch : bool = True
+            Replace `{epoch}` in `url` with the most relevant QIIME 2 epoch
+            string.
+
+        Returns
+        -------
+        UsageVariable
+            This particular return class can be changed by a driver which
+            overrides :meth:`usage_variable`.
+
+        Examples
+        --------
+        >>> domain = 'https://data.qiime2.org/'
+        >>> path = '{epoch}/tutorials/moving-pictures/sample_metadata.tsv'
+        >>> md = use.init_metadata_from_url('md', domain + path)
+        >>> md
+        <ExecutionUsageVariable name='md', var_type='metadata'>
+        """
         if replace_url_epoch:
             url = self._replace_url_epoch(url)
 
