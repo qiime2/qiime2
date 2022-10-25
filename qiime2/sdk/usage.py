@@ -930,14 +930,14 @@ class Usage:
         return url.replace('{epoch}', epoch)
 
     def _request_url(self, url):
-        import requests
+        import urllib.request
+        import urllib.error
 
         try:
-            data = requests.get(url)
-            data.raise_for_status()
-        except requests.exceptions.RequestException as ex:
+            data = urllib.request.urlopen(url)
+        except urllib.error.URLError as ex:
             raise ValueError(
-                'Could not obtain URL: %s\n Requests exception: %s' %
+                'Could not obtain URL: %s\n Exception: %s' %
                 (url, str(ex)))
 
         return data
@@ -988,7 +988,7 @@ class Usage:
             data = self._request_url(url)
 
             with tempfile.NamedTemporaryFile() as f:
-                f.write(data.content)
+                f.write(data.read())
                 f.flush()
                 try:
                     result = qiime2.Artifact.load(f.name)
@@ -1045,7 +1045,7 @@ class Usage:
             data = self._request_url(url)
 
             with tempfile.NamedTemporaryFile() as f:
-                f.write(data.content)
+                f.write(data.read())
                 f.flush()
                 try:
                     md = qiime2.Metadata.load(f.name)
