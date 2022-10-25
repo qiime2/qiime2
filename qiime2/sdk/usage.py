@@ -922,13 +922,6 @@ class Usage:
         """
         return self._usage_variable(name, factory, 'format')
 
-    def _replace_url_epoch(self, url):
-        # Obtaining epoch modeled on qiime2.metadata.io.MetadataFileError
-        import qiime2
-
-        epoch = qiime2.__release__
-        return url.replace('{epoch}', epoch)
-
     def _request_url(self, url):
         import urllib.request
         import urllib.error
@@ -954,10 +947,10 @@ class Usage:
             The canonical name of the variable to be returned.
         url : str
             The url of the Artifact that should be downloaded for the
-            example. If a QIIME 2 epoch is part of the URL, as might be the
-            case if obtaining an Artifact from docs.qiime2.org, it can be
-            templated in by including `{qiime2.__release__}` in an F-string
-            defining the URL.
+            example. If a QIIME 2 epoch (e.g., 2022.11) is part of the URL, as
+            might be the case if obtaining an Artifact from docs.qiime2.org,
+            it can be templated in by including `{qiime2.__release__}` in an
+            F-string defining the URL.
 
         Returns
         -------
@@ -1007,11 +1000,11 @@ class Usage:
             The canonical name of the variable to be returned.
         url : str
             The url of the Artifact that should be downloaded for the
-            example. If a QIIME 2 epoch is part of the URL, as might be the
-            case if obtaining an Artifact from docs.qiime2.org, it can be
-            templated in by including `{qiime2.__release__}` in an F-string
-            defining the URL (see the doc string for this method for an
-            example).
+            example. If a QIIME 2 epoch (e.g., 2022.11) is part of the URL, as
+            might be the case if obtaining an Artifact from docs.qiime2.org,
+            it can be templated in by including `{qiime2.__release__}` in an
+            F-string defining the URL (see the doc string for this method for
+            an example).
 
         Returns
         -------
