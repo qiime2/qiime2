@@ -139,15 +139,17 @@ def _copy_to_data(cache, ref):
     """
     destination = cache.data / str(ref.uuid)
 
-    if not os.path.exists(destination):
-        if not isinstance(ref._archiver.path, ArchivePath):
-            os.mkdir(destination)
-            shutil.copytree(ref._archiver.path, destination,
-                            dirs_exist_ok=True)
-        else:
-            shutil.copytree(ref._archiver.path, cache.data, dirs_exist_ok=True)
+    with cache.lock:
+        if not os.path.exists(destination):
+            if not isinstance(ref._archiver.path, ArchivePath):
+                os.mkdir(destination)
+                shutil.copytree(ref._archiver.path, destination,
+                                dirs_exist_ok=True)
+            else:
+                shutil.copytree(ref._archiver.path, cache.data,
+                                dirs_exist_ok=True)
 
-        set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
+            set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
 
 
 def _get_user():
