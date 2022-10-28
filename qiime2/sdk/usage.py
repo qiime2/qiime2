@@ -963,7 +963,8 @@ class Usage:
         # Examples
         # --------
         # >>> import qiime2
-        # >>> url = 'https://data.qiime2.org/{qiime2.__release__}/data/tutorials/moving-pictures/table.qza' # noqa: E501
+        # >>> url = (f'https://data.qiime2.org/{qiime2.__release__}/data/'
+        # ...        'tutorials/moving-pictures/table.qza')
         # >>> mvp_table = use.init_artifact_from_url('mvp_table', url)
         # >>> mvp_table
         # <ExecutionUsageVariable name='mvp_table', var_type='artifact'>
@@ -988,7 +989,7 @@ class Usage:
 
         return self.init_artifact(name, factory)
 
-    def init_metadata_from_url(self, name: str, url: str, column: str = None,
+    def init_metadata_from_url(self, name: str, url: str,
                                ) -> UsageVariable:
         """Obtain metadata from a url.
 
@@ -1015,7 +1016,8 @@ class Usage:
         Examples
         --------
         >>> import qiime2
-        >>> url = f'https://data.qiime2.org/{qiime2.__release__}/tutorials/moving-pictures/sample_metadata.tsv' # noqa: E501
+        >>> url = (f'https://data.qiime2.org/{qiime2.__release__}/tutorials/'
+        ...        'moving-pictures/sample_metadata.tsv')
         >>> print(url)
         https://data.qiime2.org/20...
         >>> md = use.init_metadata_from_url('md', url)
@@ -1040,10 +1042,7 @@ class Usage:
                         ' Original exception: %s'
                         % (url, str(ex)))
 
-                if column is None:
-                    return md
-                else:
-                    return md.get_column(column)
+                return md
 
         return self.init_metadata(name, factory)
 

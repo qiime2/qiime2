@@ -14,7 +14,7 @@ import qiime2
 from qiime2.core.testing.util import get_dummy_plugin
 import qiime2.core.testing.examples as examples
 from qiime2.sdk import usage, action, UninitializedPluginManagerError
-from qiime2 import Metadata, Artifact, MetadataColumn
+from qiime2 import Metadata, Artifact
 
 
 class TestCaseUsage(unittest.TestCase):
@@ -466,16 +466,6 @@ class TestExecutionUsage(TestCaseUsage):
         md = use.init_metadata_from_url('md', metadata_url)
 
         self.assertIsInstance(md.value, Metadata)
-
-    def test_init_metadata_column_from_url(self):
-        metadata_url = \
-            'https://data.qiime2.org/2022.11/tutorials/' \
-            'moving-pictures/sample_metadata.tsv'
-        use = usage.ExecutionUsage()
-
-        md = use.init_metadata_from_url('md', metadata_url, column='body-site')
-
-        self.assertIsInstance(md.value, MetadataColumn)
 
     def test_init_metadata_from_url_epoch(self):
         metadata_url = \
