@@ -364,7 +364,8 @@ class Archiver:
                 cls._futuristic_archive_error(filepath, archive)
 
             archive.mount(path)
-            process_alias, data_path = cache._rename(archive.uuid, path)
+            process_alias, data_path = \
+                cache._rename_to_data(archive.uuid, path)
             rec = ArchiveRecord(
                 data_path, data_path / archive.VERSION_FILE, archive.uuid,
                 archive.version, archive.framework_version)
@@ -407,7 +408,7 @@ class Archiver:
             Format.write(rec, type, format, data_initializer,
                          provenance_capture)
 
-            process_alias, data_path = cache._rename(uuid, path)
+            process_alias, data_path = cache._rename_to_data(uuid, path)
             rec = ArchiveRecord(data_path, data_path / _Archive.VERSION_FILE,
                                 uuid, cls.CURRENT_FORMAT_VERSION,
                                 qiime2.__version__)

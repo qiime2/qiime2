@@ -124,34 +124,6 @@ def get_cache():
     return _CACHE.cache
 
 
-# TODO: maybe hand shutil.copytree qiime2.util.duplicate
-def _copy_to_data(cache, ref):
-    """If the data does not already exist in the cache, it will copy the data
-    into the cache's data directory and set the appropriate permissions on the
-    data. If the data does already exist in the cache, it will do nothing.
-
-    Parameters
-    ----------
-    cache : Cache
-        The cache whose data directory we are moving data into.
-    ref : Result
-        The data we are copying into the cache's data directory.
-    """
-    destination = cache.data / str(ref.uuid)
-
-    with cache.lock:
-        if not os.path.exists(destination):
-            if not isinstance(ref._archiver.path, ArchivePath):
-                os.mkdir(destination)
-                shutil.copytree(ref._archiver.path, destination,
-                                dirs_exist_ok=True)
-            else:
-                shutil.copytree(ref._archiver.path, cache.data,
-                                dirs_exist_ok=True)
-
-            set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
-
-
 def _get_user():
     """Get the uname for our default cache. Internally getpass.getuser is
     getting the uid then looking up the username associated with it. This could
@@ -742,7 +714,7 @@ class Cache:
         with self.lock:
             self._register_key(key, str(ref.uuid))
 
-        _copy_to_data(self, ref)
+        self._copy_to_data(ref)
         return self.load(key)
 
     def _register_key(self, key, value, pool=False):
@@ -905,10 +877,44 @@ class Cache:
         if os.path.exists(self.lockfile):
             os.remove(self.lockfile)
 
-    def _rename(self, uuid, src):
+    def _copy_to_data(self, ref):
+        """If the data does not already exist in the cache, it will copy the
+        data into the cache's data directory and set the appropriate
+        permissions on the data. If the data does already exist in the cache,
+        it will do nothing. This is generally used to copy data from outside
+        the cache into the cache.
+
+        Parameters
+        ----------
+        ref : Result
+            The data we are copying into the cache's data directory.
+        """
+        destination = self.data / str(ref.uuid)
+
+        with self.lock:
+            if not os.path.exists(destination):
+                # We need to actually create the cache/data/uuid directory
+                # manually because the uuid isn't a part of the ArchivePath
+                if not isinstance(ref._archiver.path, ArchivePath):
+                    os.mkdir(destination)
+                    shutil.copytree(
+                        ref._archiver.path, destination, dirs_exist_ok=True,
+                        copy_function=qiime2.util.duplicate)
+                # Otherwise, the path we are copying should already contain the
+                # uuid, so we don't need to manually create the uuid directory
+                else:
+                    shutil.copytree(
+                        ref._archiver.path, self.data, dirs_exist_ok=True,
+                        copy_function=qiime2.util.duplicate)
+
+                set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
+
+    def _rename_to_data(self, uuid, src):
         """Takes some data in src and renames it into the cache's data dir. It
         then ensures there are symlinks for this data in the process pool and
-        the named pool if one exists.
+        the named pool if one exists. This is generally used to move data from
+        temporary per thread mount points in the process pool into the cache's
+        data directory in one atomic action.
 
         Parameters
         ----------
@@ -1258,7 +1264,7 @@ class Pool:
 
         self._make_symlink(uuid, alias)
 
-        _copy_to_data(self.cache, ref)
+        self.cache._copy_to_data(ref)
         return self.load(ref)
 
     def _alias(self, uuid):
@@ -1449,12 +1455,13 @@ class Pool:
             uuid = str(ref.uuid)
 
         target = self.path / uuid
-        if target.exists():
-            if os.path.islink(target):
-                os.remove(target)
-            else:
-                shutil.rmtree(target)
-            self.cache.garbage_collection()
+        with self.cache.lock:
+            if target.exists():
+                if os.path.islink(target):
+                    os.remove(target)
+                else:
+                    shutil.rmtree(target)
+                self.cache.garbage_collection()
 
     def get_data(self):
         """Returns a set of all data in the pool.
