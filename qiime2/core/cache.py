@@ -979,8 +979,8 @@ class Cache:
             process pool.
         """
         # NOTE: Beware locking inside of this method. This method is called by
-        # Python's garbage collector which runs unpredictably in its own thread
-        # which can deadlock trying to acquire the thread lock.
+        # Python's garbage collector and that seems to cause deadlocks when
+        # acquiring the thread lock
         target = self.process_pool.path / symlink
 
         if target.exists():
