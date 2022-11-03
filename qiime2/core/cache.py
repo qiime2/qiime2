@@ -713,8 +713,8 @@ class Cache:
         # data and remove it leaving us with a dangling reference and no data
         with self.lock:
             self._register_key(key, str(ref.uuid))
+            self._copy_to_data(ref)
 
-        self._copy_to_data(ref)
         return self.load(key)
 
     def _register_key(self, key, value, pool=False):
@@ -861,8 +861,9 @@ class Cache:
         True
         >>> test_dir.cleanup()
         """
-        os.remove(self.keys / key)
-        self.garbage_collection()
+        with self.lock:
+            os.remove(self.keys / key)
+            self.garbage_collection()
 
     def clear_lock(self):
         """Clears the flufl lock on the cache. This exists in case something
@@ -987,6 +988,9 @@ class Cache:
             The basename of the symlink we are going to be removing from the
             process pool.
         """
+        # NOTE: Beware locking inside of this method. This method is called by
+        # Python's garbage collector which runs unpredictably in its own thread
+        # which can deadlock trying to acquire the thread lock.
         target = self.process_pool.path / symlink
 
         if target.exists():
