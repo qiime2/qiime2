@@ -327,30 +327,35 @@ class Cache:
         else:
             self.path = pathlib.Path(self._get_temp_path())
 
-        # Do we want a more rigorous check for whether or not we've been
-        # pointed at an existing cache?
         if not os.path.exists(self.path):
-            self._create_cache()
-        elif not self.is_cache(self.path):
-            # MacOS culls files in the temp dir that haven't been used for a
-            # few days. This can lead to the VERSION file being deleted while
-            # we still have a cache dir, so we see the directory but don't
-            # think it's a cache. Our solution is to just kill this directory
-            # and recreate it. We only do this on the temp cache which is not
-            # storing anything long term anyway
-            if path is None:
-                warnings.warn("Your temporary cache was found to be in an "
-                              "inconsistent state. It has been recreated.")
-                set_permissions(self.path, ALL_PERMISSIONS, ALL_PERMISSIONS)
-                shutil.rmtree(self.path)
-                self._create_cache()
-            else:
-                raise ValueError(
-                    f"Path: \'{self.path}\' already exists and is not a "
-                    "cache.")
+            os.makedirs(self.path)
 
         self.lock = \
             MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
+
+        # We need to lock here to ensure that if we have multiple processes
+        # trying to create the same cache one of them can actually succeed at
+        # creating the cache without interference from the other processes.
+        with self.lock:
+            if not Cache.is_cache(self.path):
+                try:
+                    self._create_cache()
+                except FileExistsError as e:
+                    if path is None:
+                        warnings.warn(
+                            "Your temporary cache was found to be in an "
+                            "inconsistent state. It has been recreated.")
+                        set_permissions(self.path, ALL_PERMISSIONS,
+                                        ALL_PERMISSIONS)
+                        # We don't want to remove the locks from the cache when
+                        # we do this, so I made a helper that doesn't
+                        self._remove_cache()
+                        self._create_cache()
+                    else:
+                        raise ValueError(
+                            f"Path: \'{self.path}\' already exists and is not "
+                            "a cache.") from e
+
         # Make our process pool.
         self.process_pool = self._create_process_pool()
         # Lifespan is supplied in days and converted to seconds for internal
@@ -447,8 +452,6 @@ class Cache:
         """Create the cache directory, all sub directories, and the version
         file.
         """
-        # Construct the cache root recursively
-        os.makedirs(self.path)
         os.mkdir(self.data)
         os.mkdir(self.keys)
         os.mkdir(self.pools)
@@ -457,6 +460,17 @@ class Cache:
         self.version.write_text(
             _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
                                  qiime2.__version__))
+
+    def _remove_cache(self):
+        """Removes everything in a cache that isn't a lock file.
+        """
+        for elem in os.listdir(self.path):
+            if 'LOCK' not in elem:
+                fp = os.path.join(self.path, elem)
+                if os.path.isdir(fp):
+                    shutil.rmtree(os.path.join(self.path, fp))
+                else:
+                    os.unlink(fp)
 
     def _get_temp_path(self):
         """Get path to temp cache if the user did not specify a named cache.
@@ -889,14 +903,12 @@ class Cache:
                 if not isinstance(ref._archiver.path, ArchivePath):
                     os.mkdir(destination)
                     shutil.copytree(
-                        ref._archiver.path, destination, dirs_exist_ok=True,
-                        copy_function=qiime2.util.duplicate)
+                        ref._archiver.path, destination, dirs_exist_ok=True)
                 # Otherwise, the path we are copying should already contain the
                 # uuid, so we don't need to manually create the uuid directory
                 else:
                     shutil.copytree(
-                        ref._archiver.path, self.data, dirs_exist_ok=True,
-                        copy_function=qiime2.util.duplicate)
+                        ref._archiver.path, self.data, dirs_exist_ok=True)
 
                 set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
 
