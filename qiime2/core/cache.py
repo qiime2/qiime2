@@ -339,18 +339,16 @@ class Cache:
         with self.lock:
             if not Cache.is_cache(self.path):
                 try:
-                    self._create_cache()
+                    self._create_cache_contents()
                 except FileExistsError as e:
                     if path is None:
                         warnings.warn(
                             "Your temporary cache was found to be in an "
                             "inconsistent state. It has been recreated.")
                         set_permissions(self.path, ALL_PERMISSIONS,
-                                        ALL_PERMISSIONS)
-                        # We don't want to remove the locks from the cache when
-                        # we do this, so I made a helper that doesn't
-                        self._remove_cache()
-                        self._create_cache()
+                                        ALL_PERMISSIONS, skip_root=True)
+                        self._remove_cache_contents()
+                        self._create_cache_contents()
                     else:
                         raise ValueError(
                             f"Path: \'{self.path}\' already exists and is not "
@@ -448,7 +446,7 @@ class Cache:
             version_file = fh.read()
             return regex.match(version_file) is not None
 
-    def _create_cache(self):
+    def _create_cache_contents(self):
         """Create the cache directory, all sub directories, and the version
         file.
         """
@@ -461,8 +459,15 @@ class Cache:
             _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
                                  qiime2.__version__))
 
-    def _remove_cache(self):
-        """Removes everything in a cache that isn't a lock file.
+    def _remove_cache_contents(self):
+        """Removes everything in a cache that isn't a lock file. If you want to
+        completely remove a cache, just use shutil.rmtree (make sure you have
+        permissions).
+
+        Note
+        ----
+        We ignore lock files because we want the process that is running this
+        method to maintain its lock on the cache.
         """
         for elem in os.listdir(self.path):
             if 'LOCK' not in elem:

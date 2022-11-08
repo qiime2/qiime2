@@ -280,11 +280,14 @@ def is_uuid4(uuid_str):
     return str(uuid) == uuid_str
 
 
-def set_permissions(path, file_permissions=None, dir_permissions=None):
+def set_permissions(path, file_permissions=None, dir_permissions=None,
+                    skip_root=False):
     """Set permissions on all directories and files under and including path
     """
     for directory, _, files in os.walk(path):
-        if dir_permissions:
+        # We may want to set permissions under a directory but not on the
+        # directory itself.
+        if dir_permissions and not (skip_root and directory == str(path)):
             try:
                 os.chmod(directory, dir_permissions)
             except FileNotFoundError:
