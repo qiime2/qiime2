@@ -469,6 +469,38 @@ class Cache:
             version_file = fh.read()
             return regex.match(version_file) is not None
 
+    @classmethod
+    def remove_cache(cls, path):
+        """Removes a cache entirely.
+
+        Parameters
+        ----------
+        path : str or PathLike object
+            The path to the cache to be removed.
+
+        Raises
+        ------
+        ValueError
+            If the path given does not point to a valid cache.
+
+        Examples
+        --------
+        >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        >>> cache_path = os.path.join(test_dir.name, 'cache')
+        >>> cache = Cache(cache_path)
+        >>> Cache.is_cache(cache_path)
+        True
+        >>> Cache.remove_cache(cache_path)
+        >>> os.path.exists(cache_path)
+        False
+        >>> test_dir.cleanup()
+        """
+        if cls.is_cache(path):
+            set_permissions(path, ALL_PERMISSIONS, ALL_PERMISSIONS)
+            shutil.rmtree(path)
+        else:
+            raise ValueError(f"The path '{path}' is not a valid cache.")
+
     def _create_cache(self):
         """Create the cache directory, all sub directories, and the version
         file.
