@@ -125,12 +125,13 @@ def actions_by_input_type(string):
 class ProxyArtifact:
     """This represents a future artifact that is being returned by a Parsl app
     """
-    def __init__(self, future, selector):
+    def __init__(self, future, selector, signature=None):
         """We have a future that represents the results of some QIIME 2 action,
         and we have a selector indicating specifically which result we want
         """
         self.future = future
         self.selector = selector
+        self.signature = signature
 
     def get_element(self, results):
         """Get the result we want off of the future we have
@@ -141,6 +142,12 @@ class ProxyArtifact:
         """If we want to view the result we need the future to be resolved
         """
         return self.get_element(self.future.result()).view(type)
+
+    def __repr__(self):
+        if self.signature is None:
+            return f'Unknown Type: {object.__repr__(self)}'
+        else:
+            return f'<artifact: {self.signature[self.selector].qiime_type}>'
 
 
 class ProxyResults:
@@ -157,9 +164,13 @@ class ProxyResults:
         """Give us a ProxyArtifact for each result in the future
         """
         for s in self.signature:
-            yield ProxyArtifact(self.future, s)
+            yield ProxyArtifact(self.future, s, self.signature)
 
     def __getattr__(self, attr):
         """Get a particular ProxyArtifact out of the future
         """
-        return ProxyArtifact(self.future, attr)
+        return ProxyArtifact(self.future, attr, self.signature)
+
+    def __getitem__(self, index):
+        return ProxyArtifact(
+            self.future, list(self.signature.keys())[index], None)
