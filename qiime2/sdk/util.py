@@ -149,6 +149,9 @@ class ProxyArtifact:
         """
         return self.get_element(self.future.result()).view(type)
 
+    def result(self):
+        return self.get_element(self.future.result())
+
 
 class ProxyResults:
     """This represents future results that are being returned by a Parsl app
