@@ -174,3 +174,6 @@ class ProxyResults:
     def __getitem__(self, index):
         return ProxyArtifact(
             self.future, list(self.signature.keys())[index], None)
+
+    def result(self):
+        return self.future.result()
