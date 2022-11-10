@@ -135,7 +135,7 @@ class ProxyArtifact:
 
     def __repr__(self):
         if self.signature is None:
-            return f'Unknown Type: {object.__repr__(self)}'
+            return f'<artifact: Unknown Type {object.__repr__(self)}>'
         else:
             return f'<artifact: {self.signature[self.selector].qiime_type}>'
 
