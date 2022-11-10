@@ -133,6 +133,12 @@ class ProxyArtifact:
         self.selector = selector
         self.signature = signature
 
+    def __repr__(self):
+        if self.signature is None:
+            return f'Unknown Type: {object.__repr__(self)}'
+        else:
+            return f'<artifact: {self.signature[self.selector].qiime_type}>'
+
     def get_element(self, results):
         """Get the result we want off of the future we have
         """
@@ -142,12 +148,6 @@ class ProxyArtifact:
         """If we want to view the result we need the future to be resolved
         """
         return self.get_element(self.future.result()).view(type)
-
-    def __repr__(self):
-        if self.signature is None:
-            return f'Unknown Type: {object.__repr__(self)}'
-        else:
-            return f'<artifact: {self.signature[self.selector].qiime_type}>'
 
 
 class ProxyResults:
