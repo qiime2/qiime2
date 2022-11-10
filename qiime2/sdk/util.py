@@ -151,7 +151,7 @@ class ProxyArtifact:
 
 
 class ProxyResults:
-    """This represents future results that are being returned by a Parsl apps
+    """This represents future results that are being returned by a Parsl app
     """
     def __init__(self, future, signature):
         """We have the future results and the outputs portion of the signature
