@@ -1018,7 +1018,8 @@ class Cache:
             All of the data in the cache in the form of the top level
             directories which will be the uuids of the artifacts.
         """
-        return set(os.listdir(self.data))
+        with self.lock:
+            return set(os.listdir(self.data))
 
     @property
     def keys(self):
@@ -1035,7 +1036,8 @@ class Cache:
             All of the keys in the cache. Just the names now what they refer
             to.
         """
-        return set(os.listdir(self.keys))
+        with self.lock:
+            return set(os.listdir(self.keys))
 
     @property
     def lockfile(self):
@@ -1057,7 +1059,8 @@ class Cache:
         set[str]
             The names of all of the named pools in the cache.
         """
-        return set(os.listdir(self.pools))
+        with self.lock:
+            return set(os.listdir(self.pools))
 
     @property
     def processes(self):
@@ -1073,7 +1076,8 @@ class Cache:
         set[str]
             The names of all of the process pools in the cache.
         """
-        return set(os.listdir(self.processes))
+        with self.lock:
+            return set(os.listdir(self.processes))
 
     @property
     def version(self):
