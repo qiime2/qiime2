@@ -807,6 +807,34 @@ class Cache:
         else:
             key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
 
+    def read_key(self, key):
+        """Reads the contents of a given key.
+
+        Parameters
+        ----------
+        key : str
+            The name of the key to read
+
+        Returns
+        -------
+        dict
+            Maps 'data' -> the data referenced or 'pool' -> the pool
+            referenced. Only 'data' or 'pool' will have a value the other will
+            be none.
+
+        Raises
+        ------
+        KeyError
+            If the key does not exists in the cache.
+        """
+        with self.lock:
+            try:
+                with open(self.keys / key) as fh:
+                    return yaml.safe_load(fh)
+            except FileNotFoundError as e:
+                raise KeyError(f"The cache '{self.path}' does not contain the "
+                               f"key '{key}'") from e
+
     def load(self, key):
         """Loads the data pointed to by a key. Only works on keys that refer to
         data items and will error on keys that refer to pools.
@@ -826,8 +854,6 @@ class Cache:
         ValueError
             If the key does not reference any data meaning you probably tried
             to load a pool.
-        KeyError
-            If the cache does not contain the specified key.
 
         Examples
         --------
@@ -848,16 +874,13 @@ class Cache:
         """
         with self.lock:
             try:
-                with open(self.keys / key) as fh:
-                    path = self.data / yaml.safe_load(fh)['data']
+                key_values = self.read_key(key)
+                path = self.data / key_values['data']
             except TypeError as e:
                 raise ValueError(f"The key file '{key}' does not point to any "
                                  "data. This most likely occurred because you "
                                  "tried to load a pool which is not "
                                  "supported.") from e
-            except FileNotFoundError as e:
-                raise KeyError(f"The cache '{self.path}' does not contain the "
-                               f"key '{key}'") from e
 
             archiver = Archiver.load_raw(path, self)
 
