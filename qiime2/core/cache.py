@@ -382,6 +382,20 @@ class Cache:
     base_cache_contents = \
         set(('data', 'keys', 'pools', 'processes', 'VERSION'))
 
+    def __new__(cls, path=None):
+        if path is None:
+            path = _get_temp_path()
+
+        # We have to ensure we really have the same path here because otherwise
+        # something as simple as path='/tmp/qiime2/x' and path='/tmp/qiime2/x/'
+        # would create two different Cache objects
+        for cache in USED_CACHES:
+            if os.path.exists(path) and os.path.exists(cache.path) and \
+                    os.path.samefile(path, cache.path):
+                return cache
+
+        return super(Cache, cls).__new__(cls)
+
     def __init__(self, path=None, process_pool_lifespan=45):
         """Creates a Cache object backed by the directory specified by path. If
         no path is provided, it gets a path to a temp cache.
@@ -401,6 +415,16 @@ class Cache:
             The number of days we should allow process pools to exist for
             before culling them.
         """
+        # If this is a new cache or if the cache somehow got invalidated
+        # (MacOS culling) then we need to re-init the cache. This could
+        # theoretically cause us to end up with two Cache instances pointing at
+        # the same path again should a cache be in some way invalidated during
+        # the lifetime of a process with an existing Cache instance pointing to
+        # it, but if that happens you're probably in trouble anyway.
+        if self not in USED_CACHES or not self.is_cache(self.path):
+            self.__init(path=path, process_pool_lifespan=process_pool_lifespan)
+
+    def __init(self, path=None, process_pool_lifespan=45):
         if path is not None:
             self.path = pathlib.Path(path)
         else:
