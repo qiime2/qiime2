@@ -326,6 +326,12 @@ class Action(metaclass=abc.ABCMeta):
         remapped_args = []
         remapped_kwargs = {}
 
+        # If this is the first time we called _bind_parsl on a pipeline, the
+        # first argument will be the callable for the pipeline which we do not
+        # want to pass on in this manner, so we skip it.
+        if len(args) >= 1 and callable(args[0]):
+            args = args[1:]
+
         # Parsl will queue up apps with futures as their arguments then not
         # execute the apps until the futures are resolved. This is an extremely
         # handy feature, but QIIME 2 does not play nice with it out of the box.
@@ -337,7 +343,7 @@ class Action(metaclass=abc.ABCMeta):
         # action could contain outputs from the last action that might not
         # be resolved yet because Parsl may be queueing the next action before
         # the last one has completed.
-        for arg in args[1:]:
+        for arg in args:
             if isinstance(arg, ProxyArtifact):
                 futures.append(arg.future)
                 remapped_args.append(ProxyArtifact(len(futures) - 1,
