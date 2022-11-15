@@ -361,7 +361,7 @@ class Action(metaclass=abc.ABCMeta):
             executor = 'default'
 
         # Pipelines run in join apps and are a sort of synchronization point
-        # right now. Unfortunatley it is not currently possible to make say a
+        # right now. Unfortunately it is not currently possible to make say a
         # pipeline that calls two other pipelines within it and execute both of
         # those internal pipelines simultaneously.
         if isinstance(self, qiime2.sdk.action.Pipeline):
