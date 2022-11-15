@@ -178,5 +178,27 @@ class ProxyResults:
         return ProxyArtifact(
             self.future, list(self.signature.keys())[index], self.signature)
 
+    def __repr__(self):
+        lines = []
+        lines.append('%s (name = value)' % self.__class__.__name__)
+        lines.append('')
+
+        max_len = -1
+        for field in self.signature:
+            if len(field) > max_len:
+                max_len = len(field)
+
+        for field, value in zip(self.signature, self):
+            field_padding = ' ' * (max_len - len(field))
+            lines.append('%s%s = %r' % (field, field_padding, value))
+
+        max_len = -1
+        for line in lines:
+            if len(line) > max_len:
+                max_len = len(line)
+        lines[1] = '-' * max_len
+
+        return '\n'.join(lines)
+
     def result(self):
         return self.future.result()
