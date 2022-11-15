@@ -46,7 +46,7 @@ class Context:
         # This factory will create new Contexts with this context as their
         # parent. This allows scope cleanup to happen recursively.
         # A factory is necessary so that independent applications of the
-        # returned callable recieve their own Context objects.
+        # returned callable receive their own Context objects.
         def _bind_parsl_context(ctx):
             def _bind_parsl_args(*args, **kwargs):
                 return action_obj._bind_parsl(ctx, *args, **kwargs)
