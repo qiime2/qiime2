@@ -899,6 +899,11 @@ class Cache:
         key : str
             The key we are removing.
 
+        Raises
+        ------
+        KeyError
+            If the key does not exist in the cache.
+
         Examples
         --------
         >>> from qiime2.sdk.result import Artifact
@@ -937,6 +942,7 @@ class Cache:
         except FileNotFoundError as e:
             raise KeyError(f"The cache '{self.path}' does not contain the key "
                            f"'{key}'") from e
+
         self.garbage_collection()
 
     def clear_lock(self):
