@@ -512,17 +512,3 @@ class TestCache(unittest.TestCase):
 
         with self.assertWarnsRegex(UserWarning, "in an inconsistent state"):
             Cache()
-
-    def test_remove_cache(self):
-        test_cache = os.path.join(self.test_dir.name, 'to_remove')
-
-        Cache(test_cache)
-        self.assertTrue(Cache.is_cache(test_cache))
-
-        Cache.remove_cache(test_cache)
-        self.assertFalse(os.path.exists(test_cache))
-
-    def test_remove_cache_bad_path(self):
-        with self.assertRaisesRegex(
-                ValueError, f"'{self.test_dir.name}' is not a valid cache."):
-            Cache.remove_cache(self.test_dir.name)
