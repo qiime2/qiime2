@@ -932,7 +932,11 @@ class Cache:
         True
         >>> test_dir.cleanup()
         """
-        os.remove(self.keys / key)
+        try:
+            os.remove(self.keys / key)
+        except FileNotFoundError as e:
+            raise KeyError(f"The cache '{self.path}' does not contain the key "
+                           f"'{key}'") from e
         self.garbage_collection()
 
     def clear_lock(self):
