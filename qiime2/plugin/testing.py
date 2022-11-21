@@ -11,6 +11,7 @@ import tempfile
 import unittest
 import shutil
 import pathlib
+import itertools
 
 import qiime2
 
@@ -168,21 +169,21 @@ class TestPluginBase(unittest.TestCase):
             The :term:`Format` to check that the Semantic Type is registed on.
 
         """
+        # For backward compatibility, support type expressions as input here
+        for t in semantic_type:
+            obs_format = None
 
-        obs_format = None
-        for type_format_record in self.plugin.type_formats:
-            if type_format_record.type_expression == semantic_type:
-                obs_format = type_format_record.format
-                break
+            try:
+                obs_format = self.plugin.artifact_classes[str(t)].format
+            except KeyError:
+                self.assertIsNotNone(
+                    obs_format,
+                    "Semantic type %r is not registered to a format." % t)
 
-        self.assertIsNotNone(
-            obs_format,
-            "Semantic type %r is not registered to a format." % semantic_type)
-
-        self.assertEqual(
-            obs_format, exp_format,
-            "Expected semantic type %r to be registered to format %r, not %r."
-            % (semantic_type, exp_format, obs_format))
+            self.assertEqual(
+                obs_format, exp_format,
+                "Expected semantic type %r to be registered to format %r, "
+                "not %r." % (t, exp_format, obs_format))
 
     def transform_format(self, source_format, target, filename=None,
                          filenames=None):
@@ -254,7 +255,8 @@ class TestPluginBase(unittest.TestCase):
         if self.plugin is None:
             raise ValueError('Attempted to run `execute_examples` without '
                              'configuring test harness.')
-        for _, action in self.plugin.actions.items():
+        for _, action in itertools.chain(self.plugin.actions.items(),
+                                         self.plugin.types.items()):
             for name, example_f in action.examples.items():
                 with self.subTest(example=name):
                     use = usage.ExecutionUsage()

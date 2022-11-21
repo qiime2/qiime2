@@ -100,33 +100,76 @@ dummy_plugin.register_views(
     SingleIntFormat, RedundantSingleIntDirectoryFormat,
     citations=[citations['mayer2012walking']])
 
-dummy_plugin.register_semantic_type_to_format(
+
+# Create IntSequence1 import example usage example
+def is1_use(use):
+    def factory():
+        from qiime2.core.testing.format import IntSequenceFormat
+        from qiime2.plugin.util import transform
+        ff = transform([1, 2, 3], to_type=IntSequenceFormat)
+
+        ff.validate()
+        return ff
+
+    to_import = use.init_format('to_import', factory, ext='.hello')
+
+    use.import_from_format('ints',
+                           semantic_type='IntSequence1',
+                           variable=to_import,
+                           view_type='IntSequenceFormat')
+
+
+dummy_plugin.register_artifact_class(
     IntSequence1,
-    artifact_format=IntSequenceDirectoryFormat
+    directory_format=IntSequenceDirectoryFormat,
+    description="The first IntSequence",
+    examples={'IntSequence1 import example': is1_use}
 )
-dummy_plugin.register_semantic_type_to_format(
+
+
+# Create IntSequence2 import example usage example
+def is2_use(use):
+    def factory():
+        from qiime2.core.testing.format import IntSequenceFormatV2
+        from qiime2.plugin.util import transform
+        ff = transform([1, 2, 3], to_type=IntSequenceFormatV2)
+
+        ff.validate()
+        return ff
+
+    to_import = use.init_format('to_import', factory, ext='.hello')
+
+    use.import_from_format('ints',
+                           semantic_type='IntSequence2',
+                           variable=to_import,
+                           view_type='IntSequenceFormatV2')
+
+
+dummy_plugin.register_artifact_class(
     IntSequence2,
-    artifact_format=IntSequenceV2DirectoryFormat
+    directory_format=IntSequenceV2DirectoryFormat,
+    description="The second IntSequence",
+    examples={'IntSequence2 import example': is2_use}
 )
 dummy_plugin.register_semantic_type_to_format(
     IntSequence3,
-    artifact_format=IntSequenceMultiFileDirectoryFormat
+    directory_format=IntSequenceMultiFileDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     Mapping,
-    artifact_format=MappingDirectoryFormat
+    directory_format=MappingDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     FourInts,
-    artifact_format=FourIntsDirectoryFormat
+    directory_format=FourIntsDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     SingleInt,
-    artifact_format=RedundantSingleIntDirectoryFormat
+    directory_format=RedundantSingleIntDirectoryFormat
 )
 dummy_plugin.register_semantic_type_to_format(
     Kennel[Dog | Cat],
-    artifact_format=MappingDirectoryFormat
+    directory_format=MappingDirectoryFormat
 )
 
 dummy_plugin.register_semantic_type_to_format(
@@ -138,15 +181,15 @@ dummy_plugin.register_semantic_type_to_format(
     | Foo
     | Bar
     | Baz,
-    artifact_format=EchoDirectoryFormat)
+    directory_format=EchoDirectoryFormat)
 
 dummy_plugin.register_semantic_type_to_format(
     AscIntSequence,
-    artifact_format=IntSequenceDirectoryFormat)
+    directory_format=IntSequenceDirectoryFormat)
 
 dummy_plugin.register_semantic_type_to_format(
     Squid | Octopus | Cuttlefish,
-    artifact_format=CephalapodDirectoryFormat)
+    directory_format=CephalapodDirectoryFormat)
 
 # TODO add an optional parameter to this method when they are supported
 dummy_plugin.methods.register_function(

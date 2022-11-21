@@ -10,7 +10,8 @@ import unittest
 
 import qiime2.plugin
 import qiime2.sdk
-from qiime2.plugin.plugin import SemanticTypeRecord, FormatRecord
+from qiime2.plugin.plugin import (SemanticTypeRecord, FormatRecord,
+                                  ArtifactClassRecord)
 from qiime2.sdk.plugin_manager import GetFormatFilters
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, IntSequence3,
@@ -36,6 +37,8 @@ from qiime2.core.testing.validator import (validator_example_null1,
                                            validator_example_null2)
 
 from qiime2.core.testing.util import get_dummy_plugin
+
+from qiime2.core.testing.plugin import is1_use, is2_use
 
 
 class TestPluginManager(unittest.TestCase):
@@ -116,29 +119,57 @@ class TestPluginManager(unittest.TestCase):
         self.assertEqual(types, exp)
 
     def test_get_semantic_types(self):
-        types = self.pm.get_semantic_types()
+        artifact_classes = self.pm.get_semantic_types()
 
-        exp = {
-            'IntSequence1': SemanticTypeRecord(semantic_type=IntSequence1,
-                                               plugin=self.plugin),
-            'IntSequence2': SemanticTypeRecord(semantic_type=IntSequence2,
-                                               plugin=self.plugin),
-            'Mapping':      SemanticTypeRecord(semantic_type=Mapping,
-                                               plugin=self.plugin),
-            'FourInts':     SemanticTypeRecord(semantic_type=FourInts,
-                                               plugin=self.plugin),
-            'Kennel[Dog]':  SemanticTypeRecord(semantic_type=Kennel[Dog],
-                                               plugin=self.plugin),
-            'Kennel[Cat]':  SemanticTypeRecord(semantic_type=Kennel[Cat],
-                                               plugin=self.plugin),
-            'SingleInt':    SemanticTypeRecord(semantic_type=SingleInt,
-                                               plugin=self.plugin),
-        }
+        is1 = ArtifactClassRecord(
+            semantic_type=IntSequence1,
+            format=IntSequenceDirectoryFormat,
+            plugin=self.plugin,
+            description="The first IntSequence",
+            examples={'IntSequence1 import example': is1_use},
+            type_expression=IntSequence1)
+        is2 = ArtifactClassRecord(
+            semantic_type=IntSequence2,
+            format=IntSequenceV2DirectoryFormat,
+            plugin=self.plugin,
+            description="The second IntSequence",
+            examples={'IntSequence2 import example': is2_use},
+            type_expression=IntSequence2)
+        is3 = ArtifactClassRecord(semantic_type=IntSequence3,
+                                  format=IntSequenceMultiFileDirectoryFormat,
+                                  plugin=self.plugin,
+                                  description="",
+                                  examples={},
+                                  type_expression=IntSequence3)
 
-        self.assertLessEqual(exp.keys(), types.keys())
-        self.assertNotIn(Cat, types)
-        self.assertNotIn(Dog, types)
-        self.assertNotIn(Kennel, types)
+        kd = ArtifactClassRecord(semantic_type=Kennel[Dog],
+                                 format=MappingDirectoryFormat,
+                                 plugin=self.plugin,
+                                 description="",
+                                 examples={},
+                                 type_expression=Kennel[Dog])
+
+        kc = ArtifactClassRecord(semantic_type=Kennel[Cat],
+                                 format=MappingDirectoryFormat,
+                                 plugin=self.plugin,
+                                 description="",
+                                 examples={},
+                                 type_expression=Kennel[Cat])
+
+        self.assertLessEqual(
+            {str(e.semantic_type) for e in [is1, is2, is3, kd, kc]},
+            artifact_classes.keys())
+
+        self.assertEqual(is1, artifact_classes['IntSequence1'])
+        self.assertEqual(is2, artifact_classes['IntSequence2'])
+        self.assertEqual(is3, artifact_classes['IntSequence3'])
+
+        self.assertNotIn('Cat', artifact_classes)
+        self.assertNotIn('Dog', artifact_classes)
+        self.assertNotIn('Kennel', artifact_classes)
+
+        self.assertIn('Kennel[Dog]', artifact_classes)
+        self.assertIn('Kennel[Cat]', artifact_classes)
 
     # TODO: add tests for type/directory/transformer registrations
     def test_get_formats_no_type_or_filter(self):
@@ -312,6 +343,14 @@ class TestPluginManager(unittest.TestCase):
     def test_get_formats_invalid_filter(self):
         with self.assertRaisesRegex(ValueError, "filter.*is not valid"):
             self.pm.get_formats(filter="EXPORTABLE")
+
+    def test_deprecated_type_formats(self):
+        # PluginManager.type_formats was replaced with
+        # PluginManager.artifact_classes. For backward compatibility the
+        # PluginManager.type_formats property returns the plugin manager's
+        # artifact_classes
+        self.assertEqual(self.pm.type_formats,
+                         list(self.pm.artifact_classes.values()))
 
 
 if __name__ == '__main__':

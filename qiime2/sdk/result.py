@@ -64,8 +64,36 @@ class Result:
     @classmethod
     def load(cls, filepath):
         """Factory for loading Artifacts and Visualizations."""
-        archiver = archive.Archiver.load(filepath)
-        return cls._from_archiver(archiver)
+        from qiime2.core.cache import get_cache
+
+        # Check if the data is already in the cache (if the uuid is in
+        # cache.data) and load it from the cache if it is. Avoids unzipping the
+        # qza again if we already have it.
+        cache = get_cache()
+        peek = cls.peek(filepath)
+        archiver = cache._load_uuid(peek.uuid)
+
+        if not archiver:
+            archiver = archive.Archiver.load(filepath)
+
+        if Artifact._is_valid_type(archiver.type):
+            result = Artifact.__new__(Artifact)
+        elif Visualization._is_valid_type(archiver.type):
+            result = Visualization.__new__(Visualization)
+        else:
+            raise TypeError(
+                "Cannot load filepath %r into an Artifact or Visualization "
+                "because type %r is not supported."
+                % (filepath, archiver.type))
+
+        if type(result) is not cls and cls is not Result:
+            raise TypeError(
+                "Attempting to load %s with `%s.load`. Use `%s.load` instead."
+                % (type(result).__name__, cls.__name__,
+                   type(result).__name__))
+
+        result._archiver = archiver
+        return result
 
     @classmethod
     def _from_archiver(cls, archiver):

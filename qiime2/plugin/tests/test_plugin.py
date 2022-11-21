@@ -14,7 +14,10 @@ import qiime2.sdk
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
                                       FourInts, Kennel, Dog, Cat, SingleInt)
+from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
+                                        IntSequenceV2DirectoryFormat)
 from qiime2.core.testing.util import get_dummy_plugin
+from qiime2.core.testing.plugin import is1_use, is2_use
 
 
 class TestPlugin(unittest.TestCase):
@@ -154,6 +157,13 @@ class TestPlugin(unittest.TestCase):
 
     # TODO test registration of directory formats.
 
+    def test_deprecated_type_formats(self):
+        # Plugin.type_formats was replaced with Plugin.artifact_classes. For
+        # backward compatibility the Plugin.type_formats property returns
+        # the plugin's artifact_classes
+        self.assertEqual(self.plugin.type_formats,
+                         list(self.plugin.artifact_classes.values()))
+
     def test_type_fragments(self):
         types = self.plugin.type_fragments.keys()
 
@@ -166,8 +176,8 @@ class TestPlugin(unittest.TestCase):
 
     def test_types(self):
         types = self.plugin.types
-        # Get just the SemanticTypeRecords out of the types dictionary, then
-        # get just the types out of the SemanticTypeRecord namedtuples
+        # Get just the ArtifactClassRecords out of the types dictionary, then
+        # get just the types out of the ArtifactClassRecords namedtuples
         types = {type_.semantic_type for type_ in types.values()}
 
         exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],
@@ -176,6 +186,204 @@ class TestPlugin(unittest.TestCase):
         self.assertNotIn(Cat, types)
         self.assertNotIn(Dog, types)
         self.assertNotIn(Kennel, types)
+
+    def test_register_semantic_type_to_format_deprecated_parameter_name(self):
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+
+        # both the new (directory_format) and old (artifact_format) names for
+        # the format work
+        plugin.register_semantic_type_to_format(
+            IntSequence1, directory_format=IntSequenceDirectoryFormat)
+
+        plugin.register_semantic_type_to_format(
+            IntSequence2, artifact_format=IntSequenceV2DirectoryFormat)
+
+        ac = plugin.artifact_classes['IntSequence1']
+        self.assertEqual(ac.semantic_type, IntSequence1)
+        self.assertEqual(ac.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
+
+        ac = plugin.artifact_classes['IntSequence2']
+        self.assertEqual(ac.semantic_type, IntSequence2)
+        self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
+
+        # errors are raised when both or neither the new or old names for the
+        # format are provided
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+
+        regex = r'ory_format and artifact_for.*IntSequence1'
+        with self.assertRaisesRegex(ValueError, regex):
+            plugin.register_semantic_type_to_format(
+                IntSequence1, directory_format=IntSequenceDirectoryFormat,
+                artifact_format=IntSequenceDirectoryFormat)
+
+        regex = r'ory_format or artifact_for.*IntSequence1'
+        with self.assertRaisesRegex(ValueError, regex):
+            plugin.register_semantic_type_to_format(IntSequence1)
+
+    def test_register_artifact_class(self):
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+        plugin.register_artifact_class(IntSequence1,
+                                       IntSequenceDirectoryFormat)
+
+        # the original approach for registering artifact_class still works
+        plugin.register_semantic_type_to_format(IntSequence2,
+                                                IntSequenceV2DirectoryFormat)
+
+        plugin.register_artifact_class(Kennel[Dog],
+                                       IntSequenceDirectoryFormat)
+
+        plugin.register_artifact_class(Kennel[Cat],
+                                       IntSequenceV2DirectoryFormat)
+
+        # all and only the expected artifact classes have been registered
+        self.assertEqual(len(plugin.artifact_classes), 4)
+
+        ac = plugin.artifact_classes['IntSequence1']
+        self.assertEqual(ac.semantic_type, IntSequence1)
+        self.assertEqual(ac.type_expression, IntSequence1)
+        self.assertEqual(ac.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
+
+        ac = plugin.artifact_classes['IntSequence2']
+        self.assertEqual(ac.semantic_type, IntSequence2)
+        self.assertEqual(ac.type_expression, IntSequence2)
+        self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
+
+        ac = plugin.artifact_classes['Kennel[Dog]']
+        self.assertEqual(ac.semantic_type, Kennel[Dog])
+        self.assertEqual(ac.type_expression, Kennel[Dog])
+        self.assertEqual(ac.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
+
+        ac = plugin.artifact_classes['Kennel[Cat]']
+        self.assertEqual(ac.semantic_type, Kennel[Cat])
+        self.assertEqual(ac.type_expression, Kennel[Cat])
+        self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "")
+        self.assertEqual(ac.examples, types.MappingProxyType({}))
+
+        self.assertFalse(plugin.artifact_classes['IntSequence1'] is
+                         plugin.artifact_classes['IntSequence2'])
+
+    def test_duplicate_artifact_class_registration_disallowed(self):
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+        plugin.register_artifact_class(IntSequence1,
+                                       IntSequenceDirectoryFormat)
+
+        # Registration of type to the same format with both registration
+        # methods is disallowed
+        with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
+            plugin.register_semantic_type_to_format(
+                IntSequence1, IntSequenceDirectoryFormat)
+
+        with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
+            plugin.register_artifact_class(
+                IntSequence1, IntSequenceDirectoryFormat)
+
+        # Registration of type to the different format with both registration
+        # methods is disallowed
+        with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
+            plugin.register_semantic_type_to_format(
+                IntSequence1, IntSequenceV2DirectoryFormat)
+
+        with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
+            plugin.register_artifact_class(
+                IntSequence1, IntSequenceV2DirectoryFormat)
+
+    def test_register_artifact_class_w_annotations(self):
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+        plugin.register_artifact_class(
+            IntSequence1, IntSequenceDirectoryFormat,
+            description="A sequence of integers.",
+            examples=types.MappingProxyType({'Import ex 1': is1_use}))
+        plugin.register_artifact_class(
+            IntSequence2, IntSequenceV2DirectoryFormat,
+            description="Different seq of ints.",
+            examples=types.MappingProxyType({'Import ex': is2_use}))
+
+        ac = plugin.artifact_classes['IntSequence1']
+        self.assertEqual(ac.semantic_type, IntSequence1)
+        self.assertEqual(ac.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "A sequence of integers.")
+        self.assertEqual(ac.examples,
+                         types.MappingProxyType({'Import ex 1': is1_use}))
+
+        ac = plugin.artifact_classes['IntSequence2']
+        self.assertEqual(ac.semantic_type, IntSequence2)
+        self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
+        self.assertEqual(ac.plugin, plugin)
+        self.assertEqual(ac.description, "Different seq of ints.")
+        self.assertEqual(ac.examples,
+                         types.MappingProxyType({'Import ex': is2_use}))
+
+    def test_register_artifact_class_multiple(self):
+        plugin = qiime2.plugin.Plugin(
+            name='local-dummy-plugin',
+            version='0.0.0-dev',
+            website='https://github.com/qiime2/qiime2',
+            package='qiime2.core.testing')
+
+        # multiple artifact_classes can be registered using the original
+        # approach, since default descriptions and examples are used
+        plugin.register_semantic_type_to_format(Kennel[Dog | Cat],
+                                                IntSequenceDirectoryFormat)
+
+        ac_c = plugin.artifact_classes['Kennel[Cat]']
+        self.assertEqual(ac_c.semantic_type, Kennel[Cat])
+        self.assertEqual(ac_c.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac_c.plugin, plugin)
+        self.assertEqual(ac_c.description, "")
+        self.assertEqual(ac_c.examples, types.MappingProxyType({}))
+
+        ac_d = plugin.artifact_classes['Kennel[Dog]']
+        self.assertEqual(ac_d.semantic_type, Kennel[Dog])
+        self.assertEqual(ac_d.format, IntSequenceDirectoryFormat)
+        self.assertEqual(ac_d.plugin, plugin)
+        self.assertEqual(ac_d.description, "")
+        self.assertEqual(ac_d.examples, types.MappingProxyType({}))
+
+        # multiple artifact_classes cannot be registered using
+        # register_artifact_class, since default descriptions and examples
+        # should be different from one another
+        with self.assertRaisesRegex(TypeError,
+                                    r'Only a single.*Kennel\[Dog \| Cat\]'):
+            plugin.register_artifact_class(
+                Kennel[Dog | Cat], IntSequenceDirectoryFormat)
 
 
 if __name__ == '__main__':

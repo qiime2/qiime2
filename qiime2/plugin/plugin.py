@@ -28,8 +28,12 @@ SemanticTypeFragmentRecord = collections.namedtuple(
 FormatRecord = collections.namedtuple('FormatRecord', ['format', 'plugin'])
 ViewRecord = collections.namedtuple(
     'ViewRecord', ['name', 'view', 'plugin', 'citations'])
-TypeFormatRecord = collections.namedtuple(
-    'TypeFormatRecord', ['type_expression', 'format', 'plugin'])
+# semantic_type and type_expression will point to the same value in
+# ArtifactClassRecords as type_expression is deprecated in favor of
+# semantic_type
+ArtifactClassRecord = collections.namedtuple(
+    'ArtifactClassRecord', ['semantic_type', 'format', 'plugin', 'description',
+                            'examples', 'type_expression'])
 ValidatorRecord = collections.namedtuple(
     'ValidatorRecord', ['validator', 'view', 'plugin', 'context'])
 
@@ -79,7 +83,7 @@ class Plugin:
         self.views = {}
         self.type_fragments = {}
         self.transformers = {}
-        self.type_formats = []
+        self.artifact_classes = {}
         self.validators = {}
 
     def freeze(self):
@@ -99,14 +103,13 @@ class Plugin:
 
     @property
     def types(self):
-        types = {}
+        return self.artifact_classes
 
-        for record in self.type_formats:
-            for type_ in record.type_expression:
-                types[str(type_)] = \
-                    SemanticTypeRecord(semantic_type=type_, plugin=self)
-
-        return types
+    @property
+    def type_formats(self):
+        # self.type_formats was replaced with self.artifact_classes - this
+        # property provides backward compatibility
+        return list(self.artifact_classes.values())
 
     def register_formats(self, *formats, citations=None):
         for format in formats:
@@ -248,22 +251,73 @@ class Plugin:
                 SemanticTypeFragmentRecord(
                     fragment=type_fragment, plugin=self)
 
-    def register_semantic_type_to_format(self, semantic_type, artifact_format):
-        if not issubclass(artifact_format, DirectoryFormat):
-            raise TypeError("%r is not a directory format." % artifact_format)
+    def _register_artifact_class(self, semantic_type, directory_format,
+                                 description, examples):
+        if not issubclass(directory_format, DirectoryFormat):
+            raise TypeError("%r is not a directory format." % directory_format)
         if not is_semantic_type(semantic_type):
             raise TypeError("%r is not a semantic type." % semantic_type)
-        if not is_semantic_type(semantic_type):
-            raise ValueError("%r is not a semantic type expression."
-                             % semantic_type)
+
         for t in semantic_type:
             if t.predicate is not None:
                 raise ValueError("%r has a predicate, differentiating format"
                                  " on predicate is not supported.")
 
-        self.type_formats.append(TypeFormatRecord(
-            type_expression=semantic_type, format=artifact_format,
-            plugin=self))
+        if description is None:
+            description = ""
+        if examples is None:
+            examples = {}
+
+        # register_semantic_type_to_format can accept type expressions such as
+        # Kennel[Dog | Cat]. By iterating, we will register the concrete types
+        # (e.g., Kennel[Dog] and Kennel[Cat], not the type expression)
+        for e in list(semantic_type):
+            semantic_type_str = str(e)
+            if semantic_type_str in self.artifact_classes:
+                raise NameError("Artifact class %s was registered more than "
+                                "once. Artifact classes can only be "
+                                "registered once." % semantic_type_str)
+
+            self.artifact_classes[semantic_type_str] =\
+                ArtifactClassRecord(
+                    semantic_type=e, format=directory_format,
+                    plugin=self, description=description,
+                    examples=types.MappingProxyType(examples),
+                    type_expression=e)
+
+    def register_semantic_type_to_format(self, semantic_type,
+                                         artifact_format=None,
+                                         directory_format=None):
+        # Handle the deprecated parameter name, artifact_format. This is being
+        # replaced with directory_format for clarity.
+        if artifact_format is not None and directory_format is not None:
+            raise ValueError('directory_format and artifact_format were both'
+                             'provided when registering artifact class %s.'
+                             'Please provide directory_format only as '
+                             'artifact_format is deprecated.'
+                             % str(semantic_type))
+        elif artifact_format is None and directory_format is None:
+            raise ValueError('directory_format or artifact_format must be '
+                             'provided when registering artifact class %s.'
+                             'Please provide directory_format only as '
+                             'artifact_format is deprecated.'
+                             % str(semantic_type))
+        else:
+            directory_format = directory_format or artifact_format
+
+        self._register_artifact_class(semantic_type=semantic_type,
+                                      directory_format=directory_format,
+                                      description=None,
+                                      examples=None)
+
+    def register_artifact_class(self, semantic_type, directory_format,
+                                description=None, examples=None):
+        if not semantic_type.is_concrete():
+            raise TypeError("Only a single type can be registered at a time "
+                            "with register_artifact_class. Registration "
+                            "attempted for %s." % str(semantic_type))
+        self._register_artifact_class(
+            semantic_type, directory_format, description, examples)
 
 
 class PluginActions(dict):

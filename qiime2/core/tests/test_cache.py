@@ -190,9 +190,9 @@ class TestCache(unittest.TestCase):
         self.cache.remove('foo')
 
         # Show that we can no longer load our artifact
-        with self.assertRaisesRegex(ValueError,
-                                    f"'{self.cache.path}' does not contain "
-                                    "the key 'foo'"):
+        with self.assertRaisesRegex(
+                KeyError, f"'{self.cache.path}' does not contain the key "
+                "'foo'"):
             self.cache.load('foo')
 
     def test_invalid_keys(self):
@@ -372,8 +372,8 @@ class TestCache(unittest.TestCase):
     def test_loading_pool(self):
         self.cache.create_pool(keys=['pool'])
 
-        with self.assertRaisesRegex(ValueError,
-                                    "'pool' does not point to any data"):
+        with self.assertRaisesRegex(
+                ValueError, "'pool' does not point to any data"):
             self.cache.load('pool')
 
     def test_access_data_with_deleted_key(self):
