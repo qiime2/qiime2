@@ -85,6 +85,8 @@ class Result:
                                      f'{filepath!r}. (Try setting $TMPDIR to '
                                      'a directory with more space, or '
                                      f'increasing the size of {temp!r})')
+                else:
+                    raise e
 
         if Artifact._is_valid_type(archiver.type):
             result = Artifact.__new__(Artifact)
