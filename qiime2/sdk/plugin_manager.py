@@ -252,7 +252,7 @@ class PluginManager:
         filter_map = {"IMPORTABLE": GetFormatFilters.IMPORTABLE,
                       "EXPORTABLE": GetFormatFilters.EXPORTABLE}
         if filter is not None and not isinstance(filter, GetFormatFilters) \
-            and filter not in filter_map:
+                and filter not in filter_map:
             raise ValueError(
                 f"The provided format filter {filter} is not valid.")
         if isinstance(filter, str):
