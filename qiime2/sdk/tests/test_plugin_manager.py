@@ -318,6 +318,24 @@ class TestPluginManager(unittest.TestCase):
 
         self.assertEqual(exp, obs)
 
+    def test_get_formats_DF_exportable_str(self):
+        exp = {
+            'IntSequenceFormat':
+                FormatRecord(format=IntSequenceFormat,
+                             plugin=self.plugin),
+            'IntSequenceDirectoryFormat':
+                FormatRecord(format=IntSequenceDirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceMultiFileDirectoryFormat':
+                FormatRecord(format=IntSequenceMultiFileDirectoryFormat,
+                             plugin=self.plugin)
+        }
+
+        obs = self.pm.get_formats(filter="EXPORTABLE",
+                                  semantic_type=IntSequence3)
+
+        self.assertEqual(exp, obs)
+
     def test_get_formats_DF_IMPORTABLE(self):
         exp = {
             'IntSequenceFormatV2':
@@ -336,13 +354,51 @@ class TestPluginManager(unittest.TestCase):
 
         self.assertEqual(exp, obs)
 
+    def test_get_formats_DF_importable_str(self):
+        exp = {
+            'IntSequenceFormatV2':
+                FormatRecord(format=IntSequenceFormatV2,
+                             plugin=self.plugin),
+            'IntSequenceV2DirectoryFormat':
+                FormatRecord(format=IntSequenceV2DirectoryFormat,
+                             plugin=self.plugin),
+            'IntSequenceMultiFileDirectoryFormat':
+                FormatRecord(format=IntSequenceMultiFileDirectoryFormat,
+                             plugin=self.plugin)
+        }
+
+        obs = self.pm.get_formats(filter="IMPORTABLE",
+                                  semantic_type=IntSequence3)
+
+        self.assertEqual(exp, obs)
+
     def test_get_formats_invalid_type(self):
         with self.assertRaisesRegex(ValueError, "No formats associated"):
             self.pm.get_formats(semantic_type='Random[Frequency]')
 
     def test_get_formats_invalid_filter(self):
         with self.assertRaisesRegex(ValueError, "filter.*is not valid"):
-            self.pm.get_formats(filter="EXPORTABLE")
+            self.pm.get_formats(filter="xyz")
+
+    def test_format_properties(self):
+        # super basic tests of the properties
+        imp_f = self.pm.importable_formats
+        self.assertTrue(isinstance(imp_f, dict))
+        self.assertTrue(len(imp_f) > 0)
+        # spot check for a few formats that should be present
+        self.assertTrue('IntSequenceFormatV2' in imp_f)
+        self.assertTrue('CephalapodDirectoryFormat' in imp_f)
+
+        exp_f = self.pm.exportable_formats
+        self.assertTrue(isinstance(exp_f, dict))
+        self.assertTrue(len(exp_f) > 0)
+        self.assertTrue('IntSequenceDirectoryFormat' in exp_f)
+        self.assertTrue('IntSequenceV2DirectoryFormat' in exp_f)
+
+        self.assertTrue(len(self.pm.get_formats()) > len(imp_f))
+        self.assertTrue(len(self.pm.get_formats()) > len(exp_f))
+
+        raise ValueError
 
     def test_deprecated_type_formats(self):
         # PluginManager.type_formats was replaced with

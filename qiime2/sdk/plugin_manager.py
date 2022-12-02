@@ -348,7 +348,7 @@ class PluginManager:
         A format is importable in a QIIME 2 deployment if it can be transformed
         into at least one of the canonical semantic type formats.
         """
-        return self.get_importable_formats()
+        return self.get_formats(filter=GetFormatFilters.IMPORTABLE)
 
     @property
     def exportable_formats(self):
@@ -356,7 +356,7 @@ class PluginManager:
         A format is exportable in a QIIME 2 deployment if it can be transformed
         from at least one of the canonical semantic type formats.
         """
-        return self.get_exportable_formats()
+        return self.get_formats(filter=GetFormatFilters.EXPORTABLE)
 
     @property
     def importable_types(self):
