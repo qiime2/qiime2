@@ -401,7 +401,6 @@ class TestPluginManager(unittest.TestCase):
             self.pm.get_formats(filter="xyz")
 
     def test_importable_formats_property(self):
-        # super basic tests of the properties
         imp_f = self.pm.importable_formats
         self.assertTrue(isinstance(imp_f, dict))
         # spot check for a few formats that should be present
@@ -414,6 +413,7 @@ class TestPluginManager(unittest.TestCase):
     def test_exportable_formats_property(self):
         exp_f = self.pm.exportable_formats
         self.assertTrue(isinstance(exp_f, dict))
+        # spot check for a few formats that should be present
         self.assertTrue('IntSequenceDirectoryFormat' in exp_f)
         self.assertTrue('IntSequenceV2DirectoryFormat' in exp_f)
         self.assertTrue('ExportableOnlyFormat' in exp_f)
