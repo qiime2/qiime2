@@ -159,3 +159,15 @@ class Cephalapod(TextFileFormat):
 
 CephalapodDirectoryFormat = model.SingleFileDirectoryFormat(
     'CephalapodDirectoryFormat', 'squids.tsv', Cephalapod)
+
+
+class ImportableOnlyFormat(TextFileFormat):
+    """
+    A format that can only be transformed from.
+    """
+
+
+class ExportableOnlyFormat(TextFileFormat):
+    """
+    A format that can only be transformed to.
+    """
