@@ -29,6 +29,8 @@ from .format import (
     EchoDirectoryFormat,
     Cephalapod,
     CephalapodDirectoryFormat,
+    ImportableOnlyFormat,
+    ExportableOnlyFormat
 )
 
 from .type import (IntSequence1, IntSequence2, IntSequence3, Mapping, FourInts,
@@ -89,7 +91,8 @@ dummy_plugin.register_semantic_types(IntSequence1, IntSequence2, IntSequence3,
 dummy_plugin.register_formats(
     IntSequenceFormatV2, MappingFormat, IntSequenceV2DirectoryFormat,
     IntSequenceMultiFileDirectoryFormat, MappingDirectoryFormat,
-    EchoDirectoryFormat, EchoFormat, Cephalapod, CephalapodDirectoryFormat)
+    EchoDirectoryFormat, EchoFormat, Cephalapod, CephalapodDirectoryFormat,
+    ImportableOnlyFormat, ExportableOnlyFormat)
 
 dummy_plugin.register_formats(
     FourIntsDirectoryFormat, UnimportableDirectoryFormat, UnimportableFormat,
