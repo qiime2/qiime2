@@ -8,6 +8,7 @@
 
 import os
 import shutil
+import tempfile
 import collections
 import distutils.dir_util
 import pathlib
@@ -74,7 +75,18 @@ class Result:
         archiver = cache._load_uuid(peek.uuid)
 
         if not archiver:
-            archiver = archive.Archiver.load(filepath)
+            try:
+                archiver = archive.Archiver.load(filepath)
+            except OSError as e:
+                if e.errno == 28:
+                    temp = tempfile.tempdir
+                    raise ValueError(f'There was not enough space left on '
+                                     f'{temp!r} to extract the artifact '
+                                     f'{filepath!r}. (Try setting $TMPDIR to '
+                                     'a directory with more space, or '
+                                     f'increasing the size of {temp!r})')
+                else:
+                    raise e
 
         if Artifact._is_valid_type(archiver.type):
             result = Artifact.__new__(Artifact)

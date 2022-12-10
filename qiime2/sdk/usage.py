@@ -922,6 +922,130 @@ class Usage:
         """
         return self._usage_variable(name, factory, 'format')
 
+    def _request_url(self, url):
+        import urllib.request
+        import urllib.error
+
+        try:
+            data = urllib.request.urlopen(url)
+        except urllib.error.URLError as ex:
+            raise ValueError(
+                'Could not obtain URL: %s\n Exception: %s' %
+                (url, str(ex)))
+
+        return data
+
+    def init_artifact_from_url(self, name: str, url: str,
+                               ) -> UsageVariable:
+        """Obtain an artifact from a url.
+
+        Driver implementations may use this to intialize data for an example.
+
+        Parameters
+        ----------
+        name : str
+            The canonical name of the variable to be returned.
+        url : str
+            The url of the Artifact that should be downloaded for the
+            example. If a QIIME 2 epoch (e.g., 2022.11) is part of the URL, as
+            might be the case if obtaining an Artifact from docs.qiime2.org,
+            it can be templated in by including `{qiime2.__release__}` in an
+            F-string defining the URL.
+
+        Returns
+        -------
+        UsageVariable
+            This particular return class can be changed by a driver which
+            overrides :meth:`usage_variable`.
+        """
+        # The following example needs to use an Artifact that the test suite's
+        # plugin manager can handle.
+        # Examples
+        # --------
+        # >>> import qiime2
+        # >>> url = (f'https://data.qiime2.org/{qiime2.__release__}/data/'
+        # ...        'tutorials/moving-pictures/table.qza')
+        # >>> mvp_table = use.init_artifact_from_url('mvp_table', url)
+        # >>> mvp_table
+        # <ExecutionUsageVariable name='mvp_table', var_type='artifact'>
+        def factory():
+            import tempfile
+            import qiime2
+
+            data = self._request_url(url)
+
+            with tempfile.NamedTemporaryFile() as f:
+                f.write(data.read())
+                f.flush()
+                try:
+                    result = qiime2.Artifact.load(f.name)
+                except ValueError as ex:
+                    raise ValueError(
+                        'Could not load Artifact from URL data: %s\n'
+                        ' Original exception: %s'
+                        % (url, str(ex)))
+
+            return result
+
+        return self.init_artifact(name, factory)
+
+    def init_metadata_from_url(self, name: str, url: str,
+                               ) -> UsageVariable:
+        """Obtain metadata from a url.
+
+        Driver implementations may use this to intialize example metadata.
+
+        Parameters
+        ----------
+        name : str
+            The canonical name of the variable to be returned.
+        url : str
+            The url of the Artifact that should be downloaded for the
+            example. If a QIIME 2 epoch (e.g., 2022.11) is part of the URL, as
+            might be the case if obtaining an Artifact from docs.qiime2.org,
+            it can be templated in by including `{qiime2.__release__}` in an
+            F-string defining the URL (see the doc string for this method for
+            an example).
+
+        Returns
+        -------
+        UsageVariable
+            This particular return class can be changed by a driver which
+            overrides :meth:`usage_variable`.
+
+        Examples
+        --------
+        >>> import qiime2
+        >>> url = (f'https://data.qiime2.org/{qiime2.__release__}/tutorials/'
+        ...        'moving-pictures/sample_metadata.tsv')
+        >>> print(url)
+        https://data.qiime2.org/20...
+        >>> md = use.init_metadata_from_url('md', url)
+        >>> md
+        <ExecutionUsageVariable name='md', var_type='metadata'>
+        """
+        # the print statement in the above doc string provides an illustration
+        # of how F-strings are interpreted
+        def factory():
+            import tempfile
+
+            data = self._request_url(url)
+
+            with tempfile.NamedTemporaryFile() as f:
+                f.write(data.read())
+                f.flush()
+                try:
+                    md = qiime2.Metadata.load(f.name)
+                except qiime2.metadata.io.MetadataFileError as ex:
+                    raise ValueError(
+                        'Could not load Metadata from URL data: %s\n'
+                        ' Original exception: %s'
+                        % (url, str(ex)))
+
+                return md
+
+        return self.init_metadata(name, factory)
+
     def import_from_format(self, name: str, semantic_type: str,
                            variable: UsageVariable,
                            view_type: 'qiime2.core.format.FormatBase' = None

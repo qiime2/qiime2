@@ -10,6 +10,7 @@ import unittest.mock as mock
 import unittest
 import tempfile
 
+import qiime2
 from qiime2.core.testing.util import get_dummy_plugin
 import qiime2.core.testing.examples as examples
 from qiime2.sdk import usage, action, UninitializedPluginManagerError
@@ -413,3 +414,65 @@ class TestExecutionUsage(TestCaseUsage):
         self.assertIsInstance(single_int1.value, Artifact)
         self.assertIsInstance(single_int2.value, Artifact)
         self.assertIsInstance(out.value, Artifact)
+
+    def test_init_artifact_from_url_error(self):
+        use = usage.ExecutionUsage()
+
+        with self.assertRaisesRegex(ValueError, 'Could no.*not-a-url'):
+            use.init_artifact_from_url(
+                'bad_url_artifact',
+                'https://not-a-url.qiime2.org/junk.qza',)
+
+    def test_init_metadata_from_url_error(self):
+        use = usage.ExecutionUsage()
+
+        with self.assertRaisesRegex(ValueError, 'Could no.*https://not-a-url'):
+            use.init_metadata_from_url(
+                'bad_url_metadata',
+                'https://not-a-url.qiime2.org/junk.tsv',)
+
+    # def _test_init_artifact_from_url(self):
+    #     TODO: need a url to an artifact that the test suite plugin manager
+    #     knows about.
+    #     artifact_url = ''
+    #     use = usage.ExecutionUsage()
+
+    #     a = use.init_artifact_from_url('a', artifact_url)
+
+    #     self.assertIsInstance(a, Artifact)
+
+    def test_init_artifact_from_url_error_on_non_artifact(self):
+        metadata_url = \
+            'https://data.qiime2.org/2022.11/tutorials/' \
+            'moving-pictures/sample_metadata.tsv'
+        use = usage.ExecutionUsage()
+
+        with self.assertRaisesRegex(ValueError, "Could not.*\n.*a QIIME arc"):
+            use.init_artifact_from_url('a', metadata_url)
+
+    def test_init_metadata_from_url_error_on_non_metadata(self):
+        url = 'https://www.qiime2.org/'
+        use = usage.ExecutionUsage()
+
+        with self.assertRaisesRegex(ValueError, "Could not.*\n.*nized ID"):
+            use.init_metadata_from_url('a', url)
+
+    def test_init_metadata_from_url(self):
+        metadata_url = \
+            'https://data.qiime2.org/2022.11/tutorials/' \
+            'moving-pictures/sample_metadata.tsv'
+        use = usage.ExecutionUsage()
+
+        md = use.init_metadata_from_url('md', metadata_url)
+
+        self.assertIsInstance(md.value, Metadata)
+
+    def test_init_metadata_from_url_epoch(self):
+        metadata_url = \
+            f'https://data.qiime2.org/{qiime2.__release__}/tutorials/' \
+            'moving-pictures/sample_metadata.tsv'
+        use = usage.ExecutionUsage()
+
+        md = use.init_metadata_from_url('md', metadata_url)
+
+        self.assertIsInstance(md.value, Metadata)

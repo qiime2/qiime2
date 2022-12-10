@@ -21,7 +21,9 @@ from .format import (
     MappingFormat,
     UnimportableFormat,
     RedundantSingleIntDirectoryFormat,
-    EchoFormat
+    EchoFormat,
+    ImportableOnlyFormat,
+    ExportableOnlyFormat
 )
 from .plugin import dummy_plugin, citations
 
@@ -192,3 +194,15 @@ def _a1(data: str) -> EchoFormat:
     with ff.open() as fh:
         fh.write(data)
     return ff
+
+
+# only for testing get_formats - otherwise useless
+@dummy_plugin.register_transformer()
+def _4242(data: ImportableOnlyFormat) -> IntSequenceDirectoryFormat:
+    return IntSequenceDirectoryFormat()
+
+
+# only for testing get_formats - otherwise useless
+@dummy_plugin.register_transformer()
+def _4243(data: IntSequenceDirectoryFormat) -> ExportableOnlyFormat:
+    return ExportableOnlyFormat()

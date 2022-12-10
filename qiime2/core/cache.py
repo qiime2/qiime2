@@ -177,32 +177,6 @@ def _get_temp_path():
     return user_dir
 
 
-# TODO: maybe hand shutil.copytree qiime2.util.duplicate
-def _copy_to_data(cache, ref):
-    """If the data does not already exist in the cache, it will copy the data
-    into the cache's data directory and set the appropriate permissions on the
-    data. If the data does already exist in the cache, it will do nothing.
-
-    Parameters
-    ----------
-    cache : Cache
-        The cache whose data directory we are moving data into.
-    ref : Result
-        The data we are copying into the cache's data directory.
-    """
-    destination = cache.data / str(ref.uuid)
-
-    if not os.path.exists(destination):
-        if not isinstance(ref._archiver.path, ArchivePath):
-            os.mkdir(destination)
-            shutil.copytree(ref._archiver.path, destination,
-                            dirs_exist_ok=True)
-        else:
-            shutil.copytree(ref._archiver.path, cache.data, dirs_exist_ok=True)
-
-        set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
-
-
 def _get_user():
     """Get the uname for our default cache. Internally getpass.getuser is
     getting the uid then looking up the username associated with it. This could
@@ -430,30 +404,33 @@ class Cache:
         else:
             self.path = pathlib.Path(_get_temp_path())
 
-        # Do we want a more rigorous check for whether or not we've been
-        # pointed at an existing cache?
         if not os.path.exists(self.path):
-            self._create_cache()
-        elif not self.is_cache(self.path):
-            # MacOS culls files in the temp dir that haven't been used for a
-            # few days. This can lead to the VERSION file being deleted while
-            # we still have a cache dir, so we see the directory but don't
-            # think it's a cache. Our solution is to just kill this directory
-            # and recreate it. We only do this on the temp cache which is not
-            # storing anything long term anyway
-            if path is None:
-                warnings.warn("Your temporary cache was found to be in an "
-                              "inconsistent state. It has been recreated.")
-                set_permissions(self.path, ALL_PERMISSIONS, ALL_PERMISSIONS)
-                shutil.rmtree(self.path)
-                self._create_cache()
-            else:
-                raise ValueError(
-                    f"Path: \'{self.path}\' already exists and is not a "
-                    "cache.")
+            os.makedirs(self.path)
 
         self.lock = \
             MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
+
+        # We need to lock here to ensure that if we have multiple processes
+        # trying to create the same cache one of them can actually succeed at
+        # creating the cache without interference from the other processes.
+        with self.lock:
+            if not Cache.is_cache(self.path):
+                try:
+                    self._create_cache_contents()
+                except FileExistsError as e:
+                    if path is None:
+                        warnings.warn(
+                            "Your temporary cache was found to be in an "
+                            "inconsistent state. It has been recreated.")
+                        set_permissions(self.path, ALL_PERMISSIONS,
+                                        ALL_PERMISSIONS, skip_root=True)
+                        self._remove_cache_contents()
+                        self._create_cache_contents()
+                    else:
+                        raise ValueError(
+                            f"Path: \'{self.path}\' already exists and is not "
+                            "a cache.") from e
+
         # Make our process pool.
         self.process_pool = self._create_process_pool()
         # Lifespan is supplied in days and converted to seconds for internal
@@ -546,30 +523,36 @@ class Cache:
             version_file = fh.read()
             return regex.match(version_file) is not None
 
-    def _create_cache(self):
+    def _create_cache_contents(self):
         """Create the cache directory, all sub directories, and the version
         file.
         """
-        # Construct the cache root recursively
-        os.makedirs(self.path)
         os.mkdir(self.data)
         os.mkdir(self.keys)
         os.mkdir(self.pools)
         os.mkdir(self.processes)
-        # Do we want this right off the bat? How exactly is setting tmp in the
-        # cache going to work? tmp is never going to be managed by the cache,
-        # it's just so they're both on the same disk, so they'll probably just
-        # set the tmp location in the config or something. I feel like if we're
-        # going to manage the cache, we should manage the cache which means if
-        # they're going to create_pool put tmp in the cache it should have to
-        # be in a set directory within the cache like tmp not just whatever
-        # they want it to be in the cache. Not sure how we would really enforce
-        # that, but we can just... Heavily encourage it I guess
-        # os.mkdir('tmp')
 
         self.version.write_text(
             _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
                                  qiime2.__version__))
+
+    def _remove_cache_contents(self):
+        """Removes everything in a cache that isn't a lock file. If you want to
+        completely remove a cache, just use shutil.rmtree (make sure you have
+        permissions).
+
+        Note
+        ----
+        We ignore lock files because we want the process that is running this
+        method to maintain its lock on the cache.
+        """
+        for elem in os.listdir(self.path):
+            if 'LOCK' not in elem:
+                fp = os.path.join(self.path, elem)
+                if os.path.isdir(fp):
+                    shutil.rmtree(os.path.join(self.path, fp))
+                else:
+                    os.unlink(fp)
 
     def _create_process_pool(self):
         """Creates a process pool which is identical in function to a named
@@ -761,8 +744,8 @@ class Cache:
         # data and remove it leaving us with a dangling reference and no data
         with self.lock:
             self._register_key(key, str(ref.uuid))
+            self._copy_to_data(ref)
 
-        _copy_to_data(self, ref)
         return self.load(key)
 
     def _register_key(self, key, value, pool=False):
@@ -937,13 +920,14 @@ class Cache:
         True
         >>> test_dir.cleanup()
         """
-        try:
-            os.remove(self.keys / key)
-        except FileNotFoundError as e:
-            raise KeyError(f"The cache '{self.path}' does not contain the key "
-                           f"'{key}'") from e
+        with self.lock:
+            try:
+                os.remove(self.keys / key)
+            except FileNotFoundError as e:
+                raise KeyError(f"The cache '{self.path}' does not contain the"
+                               f" key '{key}'") from e
 
-        self.garbage_collection()
+            self.garbage_collection()
 
     def clear_lock(self):
         """Clears the flufl lock on the cache. This exists in case something
@@ -958,10 +942,42 @@ class Cache:
         if os.path.exists(self.lockfile):
             os.remove(self.lockfile)
 
-    def _rename(self, uuid, src):
+    def _copy_to_data(self, ref):
+        """If the data does not already exist in the cache, it will copy the
+        data into the cache's data directory and set the appropriate
+        permissions on the data. If the data does already exist in the cache,
+        it will do nothing. This is generally used to copy data from outside
+        the cache into the cache.
+
+        Parameters
+        ----------
+        ref : Result
+            The data we are copying into the cache's data directory.
+        """
+        destination = self.data / str(ref.uuid)
+
+        with self.lock:
+            if not os.path.exists(destination):
+                # We need to actually create the cache/data/uuid directory
+                # manually because the uuid isn't a part of the ArchivePath
+                if not isinstance(ref._archiver.path, ArchivePath):
+                    os.mkdir(destination)
+                    shutil.copytree(
+                        ref._archiver.path, destination, dirs_exist_ok=True)
+                # Otherwise, the path we are copying should already contain the
+                # uuid, so we don't need to manually create the uuid directory
+                else:
+                    shutil.copytree(
+                        ref._archiver.path, self.data, dirs_exist_ok=True)
+
+                set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
+
+    def _rename_to_data(self, uuid, src):
         """Takes some data in src and renames it into the cache's data dir. It
         then ensures there are symlinks for this data in the process pool and
-        the named pool if one exists.
+        the named pool if one exists. This is generally used to move data from
+        temporary per thread mount points in the process pool into the cache's
+        data directory in one atomic action.
 
         Parameters
         ----------
@@ -1034,6 +1050,9 @@ class Cache:
             The basename of the symlink we are going to be removing from the
             process pool.
         """
+        # NOTE: Beware locking inside of this method. This method is called by
+        # Python's garbage collector and that seems to cause deadlocks when
+        # acquiring the thread lock
         target = self.process_pool.path / symlink
 
         if target.exists():
@@ -1054,7 +1073,8 @@ class Cache:
             All of the data in the cache in the form of the top level
             directories which will be the uuids of the artifacts.
         """
-        return set(os.listdir(self.data))
+        with self.lock:
+            return set(os.listdir(self.data))
 
     @property
     def keys(self):
@@ -1071,7 +1091,8 @@ class Cache:
             All of the keys in the cache. Just the names now what they refer
             to.
         """
-        return set(os.listdir(self.keys))
+        with self.lock:
+            return set(os.listdir(self.keys))
 
     @property
     def lockfile(self):
@@ -1093,7 +1114,8 @@ class Cache:
         set[str]
             The names of all of the named pools in the cache.
         """
-        return set(os.listdir(self.pools))
+        with self.lock:
+            return set(os.listdir(self.pools))
 
     @property
     def processes(self):
@@ -1109,7 +1131,8 @@ class Cache:
         set[str]
             The names of all of the process pools in the cache.
         """
-        return set(os.listdir(self.processes))
+        with self.lock:
+            return set(os.listdir(self.processes))
 
     @property
     def version(self):
@@ -1311,7 +1334,7 @@ class Pool:
 
         self._make_symlink(uuid, alias)
 
-        _copy_to_data(self.cache, ref)
+        self.cache._copy_to_data(ref)
         return self.load(ref)
 
     def _alias(self, uuid):
@@ -1502,12 +1525,13 @@ class Pool:
             uuid = str(ref.uuid)
 
         target = self.path / uuid
-        if target.exists():
-            if os.path.islink(target):
-                os.remove(target)
-            else:
-                shutil.rmtree(target)
-            self.cache.garbage_collection()
+        with self.cache.lock:
+            if target.exists():
+                if os.path.islink(target):
+                    os.remove(target)
+                else:
+                    shutil.rmtree(target)
+                self.cache.garbage_collection()
 
     def get_data(self):
         """Returns a set of all data in the pool.
