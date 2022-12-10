@@ -124,6 +124,59 @@ def get_cache():
     return _CACHE.cache
 
 
+def _get_temp_path():
+    """Get path to temp cache if the user did not specify a named cache.
+    This function will create the path if it does not exist and ensure it
+    is suitable for use as a cache if it does.
+
+    Returns
+    -------
+    str
+        The path created for the temp cache.
+    """
+    tmpdir = tempfile.gettempdir()
+
+    cache_dir = os.path.join(tmpdir, 'qiime2')
+
+    # Make sure the sticky bit is set on the cache directory. Documentation on
+    # what a sticky bit is can be found here
+    # https://docs.python.org/3/library/stat.html#stat.S_ISVTX We also set
+    # read/write/execute permissions for everyone on this directory. We only do
+    # this if we are the owner of the /tmp/qiime2  directory or in other words
+    # the first person to run QIIME 2 with this /tmp since the /tmp was wiped
+    if not os.path.exists(cache_dir):
+        os.mkdir(cache_dir)
+        sticky_permissions = stat.S_ISVTX | stat.S_IRWXU | stat.S_IRWXG \
+            | stat.S_IRWXO
+        os.chmod(cache_dir, sticky_permissions)
+    elif os.stat(cache_dir).st_mode != EXPECTED_PERMISSIONS:
+        raise ValueError(f"Directory '{cache_dir}' already exists without "
+                         f"proper permissions '{oct(EXPECTED_PERMISSIONS)}' "
+                         "set. Current permissions are "
+                         f"'{oct(os.stat(cache_dir).st_mode)}.' This most "
+                         "likely means something other than QIIME 2 created "
+                         f"the directory '{cache_dir}' or QIIME 2 failed "
+                         f"between creating '{cache_dir}' and setting "
+                         "permissions on it.")
+
+    user = _get_user()
+    user_dir = os.path.join(cache_dir, user)
+
+    # It is conceivable that we already have a path matching this username that
+    # belongs to another uid, if we do then we want to create a garbage name
+    # for the temp cache that will be used by this user
+    if os.path.exists(user_dir) and os.stat(user_dir).st_uid != os.getuid():
+        uid_name = _get_uid_cache_name()
+        # This really shouldn't happen
+        if user == uid_name:
+            raise ValueError(f'Temp cache for uid path {user} already exists '
+                             'but does not belong to us.')
+
+        user_dir = os.path.join(cache_dir, uid_name)
+
+    return user_dir
+
+
 def _get_user():
     """Get the uname for our default cache. Internally getpass.getuser is
     getting the uid then looking up the username associated with it. This could
@@ -303,6 +356,20 @@ class Cache:
     base_cache_contents = \
         set(('data', 'keys', 'pools', 'processes', 'VERSION'))
 
+    def __new__(cls, path=None):
+        if path is None:
+            path = _get_temp_path()
+
+        # We have to ensure we really have the same path here because otherwise
+        # something as simple as path='/tmp/qiime2/x' and path='/tmp/qiime2/x/'
+        # would create two different Cache objects
+        for cache in USED_CACHES:
+            if os.path.exists(path) and os.path.exists(cache.path) and \
+                    os.path.samefile(path, cache.path):
+                return cache
+
+        return super(Cache, cls).__new__(cls)
+
     def __init__(self, path=None, process_pool_lifespan=45):
         """Creates a Cache object backed by the directory specified by path. If
         no path is provided, it gets a path to a temp cache.
@@ -322,10 +389,20 @@ class Cache:
             The number of days we should allow process pools to exist for
             before culling them.
         """
+        # If this is a new cache or if the cache somehow got invalidated
+        # (MacOS culling) then we need to re-init the cache. This could
+        # theoretically cause us to end up with two Cache instances pointing at
+        # the same path again should a cache be in some way invalidated during
+        # the lifetime of a process with an existing Cache instance pointing to
+        # it, but if that happens you're probably in trouble anyway.
+        if self not in USED_CACHES or not self.is_cache(self.path):
+            self.__init(path=path, process_pool_lifespan=process_pool_lifespan)
+
+    def __init(self, path=None, process_pool_lifespan=45):
         if path is not None:
             self.path = pathlib.Path(path)
         else:
-            self.path = pathlib.Path(self._get_temp_path())
+            self.path = pathlib.Path(_get_temp_path())
 
         if not os.path.exists(self.path):
             os.makedirs(self.path)
@@ -476,61 +553,6 @@ class Cache:
                     shutil.rmtree(os.path.join(self.path, fp))
                 else:
                     os.unlink(fp)
-
-    def _get_temp_path(self):
-        """Get path to temp cache if the user did not specify a named cache.
-        This function will create the path if it does not exist and ensure it
-        is suitable for use as a cache if it does.
-
-        Returns
-        -------
-        str
-            The path created for the temp cache.
-        """
-        tmpdir = tempfile.gettempdir()
-
-        cache_dir = os.path.join(tmpdir, 'qiime2')
-
-        # Make sure the sticky bit is set on the cache directory. Documentation
-        # on what a sticky bit is can be found here
-        # https://docs.python.org/3/library/stat.html#stat.S_ISVTX
-        # We also set read/write/execute permissions for everyone on this
-        # directory. We only do this if we are the owner of the /tmp/qiime2
-        # directory or in other words the first person to run QIIME 2 with this
-        # /tmp since the /tmp was wiped
-        if not os.path.exists(cache_dir):
-            os.mkdir(cache_dir)
-            sticky_permissions = stat.S_ISVTX | stat.S_IRWXU | stat.S_IRWXG \
-                | stat.S_IRWXO
-            os.chmod(cache_dir, sticky_permissions)
-        elif os.stat(cache_dir).st_mode != EXPECTED_PERMISSIONS:
-            raise ValueError(f"Directory '{cache_dir}' already exists without "
-                             f"proper permissions "
-                             f"'{oct(EXPECTED_PERMISSIONS)}' set. Current "
-                             "permissions are "
-                             f"'{oct(os.stat(cache_dir).st_mode)}.' This most "
-                             "likely means something other than QIIME 2 "
-                             f"created the directory '{cache_dir}' or QIIME 2 "
-                             f"failed between creating '{cache_dir}' and "
-                             "setting permissions on it.")
-
-        user = _get_user()
-        user_dir = os.path.join(cache_dir, user)
-
-        # It is conceivable that we already have a path matching this username
-        # that belongs to another uid, if we do then we want to create a
-        # garbage name for the temp cache that will be used by this user
-        if os.path.exists(user_dir) and \
-                os.stat(user_dir).st_uid != os.getuid():
-            uid_name = _get_uid_cache_name()
-            # This really shouldn't happen
-            if user == uid_name:
-                raise ValueError(f'Temp cache for uid path {user} already '
-                                 'exists but does not belong to us.')
-
-            user_dir = os.path.join(cache_dir, uid_name)
-
-        return user_dir
 
     def _create_process_pool(self):
         """Creates a process pool which is identical in function to a named
@@ -758,6 +780,34 @@ class Cache:
         else:
             key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
 
+    def read_key(self, key):
+        """Reads the contents of a given key.
+
+        Parameters
+        ----------
+        key : str
+            The name of the key to read
+
+        Returns
+        -------
+        dict
+            Maps 'data' -> the data referenced or 'pool' -> the pool
+            referenced. Only 'data' or 'pool' will have a value the other will
+            be none.
+
+        Raises
+        ------
+        KeyError
+            If the key does not exists in the cache.
+        """
+        with self.lock:
+            try:
+                with open(self.keys / key) as fh:
+                    return yaml.safe_load(fh)
+            except FileNotFoundError as e:
+                raise KeyError(f"The cache '{self.path}' does not contain the "
+                               f"key '{key}'") from e
+
     def load(self, key):
         """Loads the data pointed to by a key. Only works on keys that refer to
         data items and will error on keys that refer to pools.
@@ -777,8 +827,6 @@ class Cache:
         ValueError
             If the key does not reference any data meaning you probably tried
             to load a pool.
-        KeyError
-            If the cache does not contain the specified key.
 
         Examples
         --------
@@ -799,16 +847,13 @@ class Cache:
         """
         with self.lock:
             try:
-                with open(self.keys / key) as fh:
-                    path = self.data / yaml.safe_load(fh)['data']
+                key_values = self.read_key(key)
+                path = self.data / key_values['data']
             except TypeError as e:
                 raise ValueError(f"The key file '{key}' does not point to any "
                                  "data. This most likely occurred because you "
                                  "tried to load a pool which is not "
                                  "supported.") from e
-            except FileNotFoundError as e:
-                raise KeyError(f"The cache '{self.path}' does not contain the "
-                               f"key '{key}'") from e
 
             archiver = Archiver.load_raw(path, self)
 
@@ -836,6 +881,11 @@ class Cache:
         ----------
         key : str
             The key we are removing.
+
+        Raises
+        ------
+        KeyError
+            If the key does not exist in the cache.
 
         Examples
         --------
@@ -871,7 +921,12 @@ class Cache:
         >>> test_dir.cleanup()
         """
         with self.lock:
-            os.remove(self.keys / key)
+            try:
+                os.remove(self.keys / key)
+            except FileNotFoundError as e:
+                raise KeyError(f"The cache '{self.path}' does not contain the"
+                               f" key '{key}'") from e
+
             self.garbage_collection()
 
     def clear_lock(self):
