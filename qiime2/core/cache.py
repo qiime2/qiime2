@@ -145,10 +145,23 @@ def _get_temp_path():
     # this if we are the owner of the /tmp/qiime2  directory or in other words
     # the first person to run QIIME 2 with this /tmp since the /tmp was wiped
     if not os.path.exists(cache_dir):
-        os.mkdir(cache_dir)
-        sticky_permissions = stat.S_ISVTX | stat.S_IRWXU | stat.S_IRWXG \
-            | stat.S_IRWXO
-        os.chmod(cache_dir, sticky_permissions)
+        try:
+            os.mkdir(cache_dir)
+        except FileExistsError:
+            # we know that it didn't exist a moment ago, so we're probably
+            # about to set it up in a different process
+            time.sleep(0.5)
+            # this sleep is to give the first process enough time to create
+            # a cache object which we will then re-use. Ideally this would
+            # be handled with a lock, but we don't have anywhere to put it
+            # yet. Since this is the kind of thing that can only happen when
+            # QIIME 2 has to create a new temp cache and there's a race for it
+            # this small hack seems not too bad.
+        else:
+            # skip this if there was an error we ignored
+            sticky_permissions = stat.S_ISVTX | stat.S_IRWXU | stat.S_IRWXG \
+                | stat.S_IRWXO
+            os.chmod(cache_dir, sticky_permissions)
     elif os.stat(cache_dir).st_mode != EXPECTED_PERMISSIONS:
         raise ValueError(f"Directory '{cache_dir}' already exists without "
                          f"proper permissions '{oct(EXPECTED_PERMISSIONS)}' "
