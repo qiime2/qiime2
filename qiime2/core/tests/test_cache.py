@@ -494,8 +494,11 @@ class TestCache(unittest.TestCase):
                 cache_prefix,
                 i_acknowledge_this_is_dangerous=True) as (uname, user_cache):
             with user_cache:
-                user_result = concatenate_ints(
-                    self.art1, self.art2, self.art4, 4, 5)[0]
+                art1 = Artifact.import_data(IntSequence1, [0, 1, 2])
+                art2 = Artifact.import_data(IntSequence1, [3, 4, 5])
+                art4 = Artifact.import_data(IntSequence2, [9, 10, 11])
+
+                user_result = concatenate_ints(art1, art2, art4, 4, 5)[0]
 
             user_expected = set((
                 './VERSION', f'data/{user_result._archiver.uuid}',
