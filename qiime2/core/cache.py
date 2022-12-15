@@ -1153,6 +1153,33 @@ class Cache:
         """
         return self.path / 'VERSION'
 
+    def validate(self):
+        """This method is called by qiime tools cache-validate.
+        """
+        import click
+
+        from q2cli.core.config import CONFIG
+
+        with self.lock:
+            for data in self.get_data():
+                try:
+                    click.echo(
+                        CONFIG.cfg_style('success', 'Validating: %s' % data))
+                    if not is_uuid4(data):
+                        raise ValueError(
+                            "Item in data directory '%s' is not a valid "
+                            "uuid4." % data)
+
+                    art = Result.load(self.data / data)
+                    art.validate()
+                    click.echo(
+                        CONFIG.cfg_style('success', 'Validated: %s\n' % data))
+                except Exception as e:
+                    click.echo(
+                        CONFIG.cfg_style(
+                            'error', 'Failed to validate: %s' % data))
+                    raise e
+
 
 class Pool:
     """Pools are folders in the cache that contain many symlinks to many
