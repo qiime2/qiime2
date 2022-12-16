@@ -282,28 +282,23 @@ def is_uuid4(uuid_str):
 
 def set_permissions(path, file_permissions=None, dir_permissions=None,
                     skip_root=False):
-    """Right now this doesn't seem to be doing anything but causing a thorn in
-    our side with panfs, but we may end up wanting it back later, and we are
-    already calling it in all (or most) of the locations we would want
-    """
-    pass
     """Set permissions on all directories and files under and including path
     """
-    # for directory, _, files in os.walk(path):
-    #     # We may want to set permissions under a directory but not on the
-    #     # directory itself.
-    #     if dir_permissions and not (skip_root and directory == str(path)):
-    #         try:
-    #             os.chmod(directory, dir_permissions)
-    #         except FileNotFoundError:
-    #             pass
+    for directory, _, files in os.walk(path):
+        # We may want to set permissions under a directory but not on the
+        # directory itself.
+        if dir_permissions and not (skip_root and directory == str(path)):
+            try:
+                os.chmod(directory, dir_permissions)
+            except FileNotFoundError:
+                pass
 
-    #     for file in files:
-    #         if file_permissions:
-    #             try:
-    #                 os.chmod(os.path.join(directory, file), file_permissions)
-    #             except FileNotFoundError:
-    #                 pass
+        for file in files:
+            if file_permissions:
+                try:
+                    os.chmod(os.path.join(directory, file), file_permissions)
+                except FileNotFoundError:
+                    pass
 
 
 def touch_under_path(path):
