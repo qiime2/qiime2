@@ -433,23 +433,29 @@ class TestCache(unittest.TestCase):
 
     @pytest.mark.skipif(os.geteuid() == 0, reason="super user always wins")
     def test_surreptitiously_write_artifact(self):
-        self.cache.save(self.art1, 'a')
-        target = self.cache.data / str(self.art1.uuid) / 'metadata.yaml'
+        """Test temporarily no-oped because behavior is temporarily no-oped
+        """
+        return
+        # self.cache.save(self.art1, 'a')
+        # target = self.cache.data / str(self.art1.uuid) / 'metadata.yaml'
 
-        with self.assertRaisesRegex(PermissionError,
-                                    f"Permission denied: '{target}'"):
-            with open(target, mode='a') as fh:
-                fh.write('gonna mess up ur metadata')
+        # with self.assertRaisesRegex(PermissionError,
+        #                             f"Permission denied: '{target}'"):
+        #     with open(target, mode='a') as fh:
+        #         fh.write('gonna mess up ur metadata')
 
     @pytest.mark.skipif(os.geteuid() == 0, reason="super user always wins")
     def test_surreptitiously_add_file(self):
-        self.cache.save(self.art1, 'a')
-        target = self.cache.data / str(self.art1.uuid) / 'extra.file'
+        """Test temporarily no-oped because behavior is temporarily no-oped
+        """
+        return
+        # self.cache.save(self.art1, 'a')
+        # target = self.cache.data / str(self.art1.uuid) / 'extra.file'
 
-        with self.assertRaisesRegex(PermissionError,
-                                    f"Permission denied: '{target}'"):
-            with open(target, mode='w') as fh:
-                fh.write('extra file')
+        # with self.assertRaisesRegex(PermissionError,
+        #                             f"Permission denied: '{target}'"):
+        #     with open(target, mode='w') as fh:
+        #         fh.write('extra file')
 
     @pytest.mark.skipif(
         os.geteuid() != 0, reason="only sudo can mess with users")
