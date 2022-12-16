@@ -53,7 +53,7 @@ import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
 from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
-                              READ_ONLY_FILE, READ_ONLY_DIR, ALL_PERMISSIONS)
+                              READ_ONLY_FILE, READ_ONLY_DIR, USER_GROUP_RWX)
 from qiime2.core.archive.archiver import Archiver
 
 _VERSION_TEMPLATE = """\
@@ -435,8 +435,8 @@ class Cache:
                         warnings.warn(
                             "Your temporary cache was found to be in an "
                             "inconsistent state. It has been recreated.")
-                        set_permissions(self.path, ALL_PERMISSIONS,
-                                        ALL_PERMISSIONS, skip_root=True)
+                        set_permissions(self.path, USER_GROUP_RWX,
+                                        USER_GROUP_RWX, skip_root=True)
                         self._remove_cache_contents()
                         self._create_cache_contents()
                     else:
@@ -716,7 +716,7 @@ class Cache:
                 if data not in referenced_data:
                     target = self.data / data
 
-                    set_permissions(target, None, ALL_PERMISSIONS)
+                    set_permissions(target, None, USER_GROUP_RWX)
                     shutil.rmtree(target)
 
     def save(self, ref, key):
