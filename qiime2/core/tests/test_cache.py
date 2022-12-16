@@ -433,29 +433,23 @@ class TestCache(unittest.TestCase):
 
     @pytest.mark.skipif(os.geteuid() == 0, reason="super user always wins")
     def test_surreptitiously_write_artifact(self):
-        """Test commented out because behavior is temporarily removed
-        """
-        pass
-        # self.cache.save(self.art1, 'a')
-        # target = self.cache.data / str(self.art1.uuid) / 'metadata.yaml'
+        self.cache.save(self.art1, 'a')
+        target = self.cache.data / str(self.art1.uuid) / 'metadata.yaml'
 
-        # with self.assertRaisesRegex(PermissionError,
-        #                             f"Permission denied: '{target}'"):
-        #     with open(target, mode='a') as fh:
-        #         fh.write('gonna mess up ur metadata')
+        with self.assertRaisesRegex(PermissionError,
+                                    f"Permission denied: '{target}'"):
+            with open(target, mode='a') as fh:
+                fh.write('gonna mess up ur metadata')
 
     @pytest.mark.skipif(os.geteuid() == 0, reason="super user always wins")
     def test_surreptitiously_add_file(self):
-        """Test commented out because behavior is temporarily removed
-        """
-        pass
-        # self.cache.save(self.art1, 'a')
-        # target = self.cache.data / str(self.art1.uuid) / 'extra.file'
+        self.cache.save(self.art1, 'a')
+        target = self.cache.data / str(self.art1.uuid) / 'extra.file'
 
-        # with self.assertRaisesRegex(PermissionError,
-        #                             f"Permission denied: '{target}'"):
-        #     with open(target, mode='w') as fh:
-        #         fh.write('extra file')
+        with self.assertRaisesRegex(PermissionError,
+                                    f"Permission denied: '{target}'"):
+            with open(target, mode='w') as fh:
+                fh.write('extra file')
 
     @pytest.mark.skipif(
         os.geteuid() != 0, reason="only sudo can mess with users")
@@ -494,11 +488,8 @@ class TestCache(unittest.TestCase):
                 cache_prefix,
                 i_acknowledge_this_is_dangerous=True) as (uname, user_cache):
             with user_cache:
-                art1 = Artifact.import_data(IntSequence1, [0, 1, 2])
-                art2 = Artifact.import_data(IntSequence1, [3, 4, 5])
-                art4 = Artifact.import_data(IntSequence2, [9, 10, 11])
-
-                user_result = concatenate_ints(art1, art2, art4, 4, 5)[0]
+                user_result = concatenate_ints(
+                    self.art1, self.art2, self.art4, 4, 5)[0]
 
             user_expected = set((
                 './VERSION', f'data/{user_result._archiver.uuid}',
