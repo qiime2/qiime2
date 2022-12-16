@@ -294,6 +294,10 @@ def set_permissions(path, file_permissions=None, dir_permissions=None,
     if dir_permissions != USER_GROUP_RWX:
         dir_permissions = None
 
+    # Just get out if we aren't doing anything
+    if file_permissions is None and dir_permissions is None:
+        return
+
     for directory, _, files in os.walk(path):
         # We may want to set permissions under a directory but not on the
         # directory itself.
