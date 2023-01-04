@@ -20,7 +20,7 @@ import decorator
 READ_ONLY_FILE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
 READ_ONLY_DIR = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH | stat.S_IRUSR \
     | stat.S_IRGRP | stat.S_IROTH
-ALL_PERMISSIONS = stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+USER_GROUP_RWX = stat.S_IRWXU | stat.S_IRWXG
 OTHER_NO_WRITE = stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH
 
 
@@ -280,11 +280,28 @@ def is_uuid4(uuid_str):
     return str(uuid) == uuid_str
 
 
-def set_permissions(path, file_permissions=None, dir_permissions=None):
+def set_permissions(path, file_permissions=None, dir_permissions=None,
+                    skip_root=False):
     """Set permissions on all directories and files under and including path
     """
+    # Panfs is currently causing issues for us setting permissions. We still
+    # want to set rwx for user and group before we remove things to ensure we
+    # can remove them, but we want to temporarily no-op other permission
+    # changes
+    if file_permissions != USER_GROUP_RWX:
+        file_permissions = None
+
+    if dir_permissions != USER_GROUP_RWX:
+        dir_permissions = None
+
+    # Just get out if we aren't doing anything
+    if file_permissions is None and dir_permissions is None:
+        return
+
     for directory, _, files in os.walk(path):
-        if dir_permissions:
+        # We may want to set permissions under a directory but not on the
+        # directory itself.
+        if dir_permissions and not (skip_root and directory == str(path)):
             try:
                 os.chmod(directory, dir_permissions)
             except FileNotFoundError:

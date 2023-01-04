@@ -237,7 +237,7 @@ class PluginManager:
         """
         get_formats(self, *, filter=None, semantic_type=None)
 
-        filter : enum
+        filter : enum | "IMPORTABLE" | "EXPORTABLE"
             filter is an enum integer that will be used to determine user
             input to output specified formats
 
@@ -249,9 +249,14 @@ class PluginManager:
         the user and the semantic type. The return is a dictionary of filtered
         formats keyed on their string names.
         """
-        if filter is not None and not isinstance(filter, GetFormatFilters):
-            raise ValueError("The format filter provided: %s is not "
-                             "valid.", (filter))
+        filter_map = {"IMPORTABLE": GetFormatFilters.IMPORTABLE,
+                      "EXPORTABLE": GetFormatFilters.EXPORTABLE}
+        if filter is not None and not isinstance(filter, GetFormatFilters) \
+                and filter not in filter_map:
+            raise ValueError(
+                f"The provided format filter {filter} is not valid.")
+        if isinstance(filter, str):
+            filter = filter_map[filter]
 
         if semantic_type is None:
             formats = set(f.format for f in self.artifact_classes.values())
@@ -339,11 +344,19 @@ class PluginManager:
 
     @property
     def importable_formats(self):
-        """Return formats that are importable.
+        """Formats that are importable.
         A format is importable in a QIIME 2 deployment if it can be transformed
         into at least one of the canonical semantic type formats.
         """
         return self.get_formats(filter=GetFormatFilters.IMPORTABLE)
+
+    @property
+    def exportable_formats(self):
+        """Formats that are exportable.
+        A format is exportable in a QIIME 2 deployment if it can be transformed
+        from at least one of the canonical semantic type formats.
+        """
+        return self.get_formats(filter=GetFormatFilters.EXPORTABLE)
 
     @property
     def importable_types(self):
