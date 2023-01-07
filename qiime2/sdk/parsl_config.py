@@ -9,6 +9,7 @@
 import os
 import toml
 import psutil
+import appdirs
 import threading
 import importlib
 
@@ -85,30 +86,39 @@ def process_config_file(fp):
 def get_parsl_config():
     # If a config was already withed in by the user do nothing
     if PARSL_CONFIG.parsl_config is not None:
-        pass
+        return PARSL_CONFIG.parsl_config
+
+    conda_env = os.environ.get('CONDA_DEFAULT_ENV')
+
     # Try to load custom config (exact order maybe subject to change)
     # Check envvar
-    elif fp := os.environ.get('QIIME_PARSL_CONF'):
-        config = Config(**process_config_file(fp))
-    # Check in user writable location
-    # NOTE: These are not actually kwargs I made them kwargs in the comment to
-    # remind me of the order
-    # appdirs.user_config_dir(appname='qiime2', author='...')
-    elif 0:  # some check
-        pass
-    # Check for conf in conda env
-    # ~/miniconda3/env/{env_name}/conf
-    elif 0:
-        pass
-    # If nothing check in admin writable location on hpc/user writable local
-    # /etc/
-    # site_config_dir
-    # appdirs.site_config_dir(appname='qiime2, author='...')
-    elif 0:  # another check
-        pass
+    config_fp = os.environ.get('QIIME_CONF')
+
+    if config_fp is None:
+        # Check in user writable location
+        #  appdirs.user_config_dir(appname='qiime2', author='...')
+        if os.path.exists(fp_ := os.path.join(
+                appdirs.user_config_dir('qiime2'), 'qiime_conf.toml')):
+            config_fp = fp_
+        # Check for conf in conda env
+        # ~/miniconda3/env/{env_name}/conf
+        # TODO: We don't enforce use of miniconda3 do we? Makes this
+        # potentially problematic
+        elif os.path.exists(fp_ := os.path.join(
+                os.path.expanduser('~'), 'miniconda3', 'env', conda_env,
+                'conf', 'qiime_conf.toml')):
+            config_fp = fp_
+        # If nothing check in admin writable location
+        # /etc/
+        # site_config_dir
+        # appdirs.site_config_dir(appname='qiime2, author='...')
+        elif config_fp is None and os.path.exists(fp_ := os.path.join(
+                appdirs.site_config_dir('qiime2'), 'qiime_conf.toml')):
+            config_fp = fp_
+
     # Load vendored default
     # If no custom config do this. This will probably end up in a vendored file
-    else:
+    if config_fp is None:
         config = Config(
             executors=[
                 ThreadPoolExecutor(
@@ -125,10 +135,10 @@ def get_parsl_config():
             #  AdHoc Clusters should not be setup with scaling strategy.
             strategy=None,
         )
+    else:
+        config = Config(**process_config_file(config_fp))
 
-    if PARSL_CONFIG.parsl_config is None:
-        PARSL_CONFIG.parsl_config = config
-
+    PARSL_CONFIG.parsl_config = config
     return PARSL_CONFIG.parsl_config
 
 
