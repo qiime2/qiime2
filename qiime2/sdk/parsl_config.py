@@ -6,9 +6,11 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import os
+import toml
 import psutil
 import threading
-import os
+import importlib
 
 # Do a parsl?
 from parsl.config import Config
@@ -21,6 +23,64 @@ PARSL_CONFIG = threading.local()
 PARSL_CONFIG.parsl_config = None
 PARSL_CONFIG.action_executor_mapping = {}
 
+# Directs keys in the config whose values need to be objects to the module that
+# contains the class they need to instantiate
+module_paths = {
+    'channel': 'parsl.channels',
+    'channels': 'parsl.channels',
+    'data_provider': 'parsl.data_provider',
+    'data_providers': 'parsl.data_provider',
+    'executor': 'parsl.executors',
+    'executors': 'parsl.executors',
+    'launcher': 'parsl.launcher',
+    'launchers': 'parsl.launcher',
+    'monitoring': 'parsl.monitoring',
+    'provider': 'parsl.providers',
+    'providers': 'parsl.providers'
+}
+
+
+def process_config_key(key, value):
+    """Takes a key given in the parsl config file and turns its value into the
+    correct data type or class instance to be used in instantiating a
+    parsl.Config object.
+    """
+    # Our key needs to point to some object.
+    if key in module_paths:
+        module = importlib.import_module(module_paths[key])
+        class_ = getattr(module, value.pop('class'))
+        kwargs = {}
+        for k, v in value.items():
+            kwargs[k] = process_config_key(k, v)
+        return class_(**kwargs)
+    # Our key points to primitive data
+    else:
+        return value
+
+
+def process_config_file(fp):
+    """Takes a path to a toml file describing a parsl.Config object and parses
+    it into a dictionary of kwargs that can be used to instantiate a
+    parsl.Config object.
+    """
+    config_dict = toml.load(fp)
+    config_kwargs = {}
+
+    for key, value in config_dict.items():
+        # Our value is a None
+        if isinstance(value, str) and value.lower() == 'none':
+            config_kwargs[key] = None
+        # We have a list of values
+        elif isinstance(value, list):
+            config_kwargs[key] = []
+            for item in value:
+                config_kwargs[key].append(process_config_key(key, item))
+        # We have a single value
+        else:
+            config_kwargs[key] = process_config_key(key, config_dict[key])
+
+    return config_kwargs
+
 
 def get_parsl_config():
     # If a config was already withed in by the user do nothing
@@ -28,9 +88,8 @@ def get_parsl_config():
         pass
     # Try to load custom config (exact order maybe subject to change)
     # Check envvar
-    elif os.environ.get('QIIME_PARSL_CONF'):
-        # Load file pointed at
-        pass
+    elif fp := os.environ.get('QIIME_PARSL_CONF'):
+        config = Config(**process_config_file(fp))
     # Check in user writable location
     # NOTE: These are not actually kwargs I made them kwargs in the comment to
     # remind me of the order
@@ -50,7 +109,7 @@ def get_parsl_config():
     # Load vendored default
     # If no custom config do this. This will probably end up in a vendored file
     else:
-        PARSL_CONFIG.parsl_config = Config(
+        config = Config(
             executors=[
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
@@ -66,6 +125,9 @@ def get_parsl_config():
             #  AdHoc Clusters should not be setup with scaling strategy.
             strategy=None,
         )
+
+    if PARSL_CONFIG.parsl_config is None:
+        PARSL_CONFIG.parsl_config = config
 
     return PARSL_CONFIG.parsl_config
 
