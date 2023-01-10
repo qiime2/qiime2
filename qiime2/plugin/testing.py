@@ -252,6 +252,9 @@ class TestPluginBase(unittest.TestCase):
         return input, obs
 
     def execute_examples(self):
+        # Some interfaces like q2galaxy must commit the test data to a repo,
+        # thus the example data's sizes should not be excessively large.
+        TEN_MiB = 10240
         if self.plugin is None:
             raise ValueError('Attempted to run `execute_examples` without '
                              'configuring test harness.')
@@ -259,5 +262,9 @@ class TestPluginBase(unittest.TestCase):
                                          self.plugin.types.items()):
             for name, example_f in action.examples.items():
                 with self.subTest(example=name):
-                    use = usage.ExecutionUsage()
-                    example_f(use)
+                    use = usage.ExecutionUsage(size_limit=TEN_MiB)
+                    try:
+                        example_f(use)
+                    except AssertionError as e:
+                        raise AssertionError('Error in example %r %r: %s'
+                                             % (name, example_f, e)) from e
