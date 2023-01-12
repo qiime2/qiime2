@@ -1529,7 +1529,8 @@ class ExecutionUsageVariable(UsageVariable):
     """A specialized implementation for :class:`ExecutionUsage`."""
 
     def __init__(self, name: str, factory: Callable[[], Any],
-                 var_type: T_VAR_TYPES, usage: 'Usage', size_limit=0):
+                 var_type: T_VAR_TYPES, usage: 'Usage', size_limit=0,
+                 measure_size=False):
         """Constructor for ExecutionUsageVariable.
 
         Warning
@@ -1557,6 +1558,8 @@ class ExecutionUsageVariable(UsageVariable):
         """
         super().__init__(name, factory, var_type, usage)
         self.size_limit = size_limit
+        self.measure_size = measure_size
+        self.size = None
 
     def execute(self) -> Any:
         """Execute the factory to produce a value, this is stored and returned.
@@ -1583,8 +1586,8 @@ class ExecutionUsageVariable(UsageVariable):
         value
         """
         value = super().execute()
-        if self.size_limit:
 
+        if self.measure_size or self.size_limit:
             def weigh_serialized(x):
                 import qiime2.core.util as util
 
@@ -1609,7 +1612,9 @@ class ExecutionUsageVariable(UsageVariable):
                 'format': weigh_format
             }
             size = handlers[self.var_type](value)
-            if size > self.size_limit:
+            self.size = size
+
+            if self.size_limit and size > self.size_limit:
                 raise AssertionError(
                     'Usage variable %r exceeds allowed size_limit (%d KiB) on'
                     ' disk: actual size %d KiB'
@@ -1643,7 +1648,7 @@ class ExecutionUsageVariable(UsageVariable):
 
 
 class ExecutionUsage(Usage):
-    def __init__(self, asynchronous=False, size_limit=0):
+    def __init__(self, asynchronous=False, size_limit=0, measure_size=False):
         """Constructor for ExecutionUsage.
 
         Warning
@@ -1662,6 +1667,7 @@ class ExecutionUsage(Usage):
         """
         super().__init__(asynchronous)
         self.size_limit = size_limit
+        self.measure_size = measure_size
         # This is here for testing-purposes
         self._recorder = dict()
 
@@ -1695,7 +1701,7 @@ class ExecutionUsage(Usage):
 
     def usage_variable(self, name, factory, var_type):
         return ExecutionUsageVariable(name, factory, var_type, self,
-                                      self.size_limit)
+                                      self.size_limit, self.measure_size)
 
     def init_artifact(self, name, factory):
         variable = super().init_artifact(name, factory)
