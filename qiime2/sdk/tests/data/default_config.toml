@@ -1,0 +1,6 @@
+executors = [
+    {class = "ThreadPoolExecutor", label = "htex", max_threads = 6},
+    {class = "HighThroughputExecutor", label = "default", max_workers = 6, provider = {class = "LocalProvider"}}
+]
+
+strategy = "None"
