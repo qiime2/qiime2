@@ -33,6 +33,7 @@ requirements:
     - flufl.lock
     - parsl
     - appdirs
+    - toml
 
 test:
   requires:
