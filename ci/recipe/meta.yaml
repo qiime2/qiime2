@@ -32,6 +32,7 @@ requirements:
     - psutil
     - flufl.lock
     - parsl
+    - appdirs
 
 test:
   requires:
