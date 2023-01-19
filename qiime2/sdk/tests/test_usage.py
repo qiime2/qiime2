@@ -10,7 +10,6 @@ import unittest.mock as mock
 import unittest
 import tempfile
 
-import qiime2
 from qiime2.core.testing.util import get_dummy_plugin
 import qiime2.core.testing.examples as examples
 from qiime2.sdk import usage, action, UninitializedPluginManagerError
