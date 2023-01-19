@@ -466,13 +466,3 @@ class TestExecutionUsage(TestCaseUsage):
         md = use.init_metadata_from_url('md', metadata_url)
 
         self.assertIsInstance(md.value, Metadata)
-
-    def test_init_metadata_from_url_epoch(self):
-        metadata_url = \
-            f'https://data.qiime2.org/{qiime2.__release__}/tutorials/' \
-            'moving-pictures/sample_metadata.tsv'
-        use = usage.ExecutionUsage()
-
-        md = use.init_metadata_from_url('md', metadata_url)
-
-        self.assertIsInstance(md.value, Metadata)
