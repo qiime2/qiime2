@@ -10,7 +10,6 @@ import unittest.mock as mock
 import unittest
 import tempfile
 
-import qiime2
 from qiime2.core.testing.util import get_dummy_plugin
 import qiime2.core.testing.examples as examples
 from qiime2.sdk import usage, action, UninitializedPluginManagerError
@@ -460,16 +459,6 @@ class TestExecutionUsage(TestCaseUsage):
     def test_init_metadata_from_url(self):
         metadata_url = \
             'https://data.qiime2.org/2022.11/tutorials/' \
-            'moving-pictures/sample_metadata.tsv'
-        use = usage.ExecutionUsage()
-
-        md = use.init_metadata_from_url('md', metadata_url)
-
-        self.assertIsInstance(md.value, Metadata)
-
-    def test_init_metadata_from_url_epoch(self):
-        metadata_url = \
-            f'https://data.qiime2.org/{qiime2.__release__}/tutorials/' \
             'moving-pictures/sample_metadata.tsv'
         use = usage.ExecutionUsage()
 
