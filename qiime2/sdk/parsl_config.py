@@ -124,7 +124,6 @@ def get_parsl_config():
                 HighThroughputExecutor(
                     label='default',
                     max_workers=6,
-
                     provider=LocalProvider()
                 ),
                 ThreadPoolExecutor(
