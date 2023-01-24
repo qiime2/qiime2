@@ -29,7 +29,6 @@ requirements:
     - dill
     - psutil
     - flufl.lock
-    - tornado
 
 test:
   requires:
