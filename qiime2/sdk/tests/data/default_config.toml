@@ -1,6 +1,16 @@
-executors = [
-    {class = "ThreadPoolExecutor", label = "htex", max_threads = 6},
-    {class = "HighThroughputExecutor", label = "default", max_workers = 6, provider = {class = "LocalProvider"}}
-]
+[parsl]
 
 strategy = "None"
+
+[[parsl.executors]]
+class = "HighThroughputExecutor"
+label = "default"
+max_workers = 6
+
+[parsl.executors.provider]
+class = "LocalProvider"
+
+[[parsl.executors]]
+class = "ThreadPoolExecutor"
+label = "tpool"
+max_threads = 6

@@ -11,7 +11,7 @@ import pkg_resources
 
 from parsl import Config
 
-from qiime2.sdk.parsl_config import process_config_file
+from qiime2.sdk.parsl_config import get_config, process_config
 
 
 class TestConfig(unittest.TestCase):
@@ -27,7 +27,9 @@ class TestConfig(unittest.TestCase):
 
     def test_default_config(self):
         config_fp = self.get_data_path('default_config.toml')
-        config_kwargs = process_config_file(config_fp)
+        config_dict = get_config(config_fp)
+        config_kwargs = process_config(config_dict)
+        print(config_kwargs)
 
         config = Config(**config_kwargs)
         # Not a very useful assertion right now

@@ -41,7 +41,18 @@ module_paths = {
 }
 
 
-def process_config_key(key, value):
+def get_config(fp):
+    """Takes a config filepath and determines if the file exists and if so if
+    it contains parsl config info.
+    """
+    if fp is None:
+        return None
+
+    config_dict = toml.load(fp)
+    return config_dict.pop('parsl')
+
+
+def process_key(key, value):
     """Takes a key given in the parsl config file and turns its value into the
     correct data type or class instance to be used in instantiating a
     parsl.Config object.
@@ -52,19 +63,18 @@ def process_config_key(key, value):
         class_ = getattr(module, value.pop('class'))
         kwargs = {}
         for k, v in value.items():
-            kwargs[k] = process_config_key(k, v)
+            kwargs[k] = process_key(k, v)
         return class_(**kwargs)
     # Our key points to primitive data
     else:
         return value
 
 
-def process_config_file(fp):
+def process_config(config_dict):
     """Takes a path to a toml file describing a parsl.Config object and parses
     it into a dictionary of kwargs that can be used to instantiate a
     parsl.Config object.
     """
-    config_dict = toml.load(fp)
     config_kwargs = {}
 
     for key, value in config_dict.items():
@@ -75,10 +85,10 @@ def process_config_file(fp):
         elif isinstance(value, list):
             config_kwargs[key] = []
             for item in value:
-                config_kwargs[key].append(process_config_key(key, item))
+                config_kwargs[key].append(process_key(key, item))
         # We have a single value
         else:
-            config_kwargs[key] = process_config_key(key, config_dict[key])
+            config_kwargs[key] = process_key(key, config_dict[key])
 
     return config_kwargs
 
@@ -116,9 +126,12 @@ def get_parsl_config():
                 appdirs.site_config_dir('qiime2'), 'qiime_conf.toml')):
             config_fp = fp_
 
+    # Check if we have a config file containing parsl config info
+    config_dict = get_config(config_fp)
+
     # Load vendored default
     # If no custom config do this. This will probably end up in a vendored file
-    if config_fp is None:
+    if config_dict is None:
         config = Config(
             executors=[
                 HighThroughputExecutor(
@@ -135,7 +148,7 @@ def get_parsl_config():
             strategy=None,
         )
     else:
-        config = Config(**process_config_file(config_fp))
+        config = Config(**process_config(config_dict))
 
     PARSL_CONFIG.parsl_config = config
     return PARSL_CONFIG.parsl_config
