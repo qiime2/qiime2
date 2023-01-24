@@ -1004,8 +1004,7 @@ class Usage:
             example. If a QIIME 2 epoch (e.g., 2022.11) is part of the URL, as
             might be the case if obtaining an Artifact from docs.qiime2.org,
             it can be templated in by including `{qiime2.__release__}` in an
-            F-string defining the URL (see the doc string for this method for
-            an example).
+            F-string defining the URL.
 
         Returns
         -------
@@ -1016,10 +1015,10 @@ class Usage:
         Examples
         --------
         >>> import qiime2
-        >>> url = (f'https://data.qiime2.org/{qiime2.__release__}/tutorials/'
-        ...        'moving-pictures/sample_metadata.tsv')
+        >>> url = ('https://data.qiime2.org/usage-examples/moving-pictures/'
+        ...        'sample-metadata.tsv')
         >>> print(url)
-        https://data.qiime2.org/20...
+        https://data.qiime2.org/usage...
         >>> md = use.init_metadata_from_url('md', url)
         >>> md
         <ExecutionUsageVariable name='md', var_type='metadata'>
