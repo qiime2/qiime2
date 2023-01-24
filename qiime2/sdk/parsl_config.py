@@ -121,15 +121,15 @@ def get_parsl_config():
     if config_fp is None:
         config = Config(
             executors=[
-                ThreadPoolExecutor(
-                    max_threads=max(psutil.cpu_count() - 1, 1),
-                    label='htex'
-                ),
                 HighThroughputExecutor(
                     label='default',
                     max_workers=6,
 
                     provider=LocalProvider()
+                ),
+                ThreadPoolExecutor(
+                    max_threads=max(psutil.cpu_count() - 1, 1),
+                    label='tpool'
                 )
             ],
             #  AdHoc Clusters should not be setup with scaling strategy.
