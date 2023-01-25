@@ -456,3 +456,19 @@ class PipelineProvenanceCapture(ActionProvenanceCapture):
         forked.alias = alias
         forked.add_ancestor(alias)
         return forked
+
+    # Some kinda function to track the provenance when we partition/split an
+    # artifact into n pieces
+    def split_provenance(self):
+        # What exactly is this going to look like? So we create n new pieces of
+        # the original artifact and these pieces track which bit they are? So
+        # the provenance will look something like
+        #
+        # action:
+        #   type: pipeline
+        #   plugin: whatever
+        #   action: split_whatever
+        #   piece: #<index>
+        #
+        # Are we even trying to put this in this PR or will it go in a new one?
+        pass
