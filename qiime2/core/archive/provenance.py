@@ -474,3 +474,15 @@ class PipelineProvenanceCapture(ActionProvenanceCapture):
         #
         # Are we even trying to put this in this PR or will it go in a new one?
         pass
+
+    # Some kinda function to track the provenance when we combine a bunch of
+    # artifacts back into 1
+    def combine_provenance(self):
+        # Maybe something like
+        #
+        # action:
+        #   type: pipeline
+        #   plugin: whatever
+        #   action: combine whatever
+        #   inputs: foo_1 to foo_n
+        pass
