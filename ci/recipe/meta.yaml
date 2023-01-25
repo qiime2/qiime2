@@ -38,6 +38,8 @@ requirements:
 test:
   requires:
     - pytest
+    - tornado
+    - notebook
 
   imports:
     - qiime2
