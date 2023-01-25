@@ -469,6 +469,8 @@ class PipelineProvenanceCapture(ActionProvenanceCapture):
         #   plugin: whatever
         #   action: split_whatever
         #   piece: #<index>
+        #   num_pieces: each piece should keep track not only of its index, but
+        #   the total number of pieces as well
         #
         # Are we even trying to put this in this PR or will it go in a new one?
         pass
