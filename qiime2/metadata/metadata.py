@@ -447,7 +447,7 @@ class Metadata(_MetadataBase):
     # Try to ensure the source artifact is actually an artifact
     def _add_source_artifact(self, artifact):
         if not isinstance(artifact, qiime2.Artifact):
-            raise TypeError('Source Artifact must an Artifact object not '
+            raise TypeError('Source Artifact must be an Artifact object not '
                             f'{artifact}.')
         self._source_artifact = artifact
 
