@@ -6,7 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .collection import List, Set
+from .collection import List, Set, Collection
 from .semantic import SemanticType, Properties
 from .primitive import (Str, Int, Float, Metadata, Bool, MetadataColumn,
                         Categorical, Numeric, Range, Start, End, Choices)
@@ -24,7 +24,7 @@ __all__ = [
     'is_metadata_type', 'is_collection_type', 'interrogate_collection_type',
     'parse_primitive', 'is_union', 'is_metadata_column_type',
     # Collection Types
-    'Set', 'List',
+    'Set', 'List', 'Collection',
     # Semantic Types
     'SemanticType',
     'Properties',

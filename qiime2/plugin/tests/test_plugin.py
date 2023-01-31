@@ -99,6 +99,8 @@ class TestPlugin(unittest.TestCase):
                           'deprecated_method', 'union_inputs',
                           'unioned_primitives',
                           'type_match_list_and_set',
+                          'list_of_ints',
+                          'dict_of_ints',
                           })
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
@@ -131,6 +133,8 @@ class TestPlugin(unittest.TestCase):
                           'deprecated_method', 'union_inputs',
                           'unioned_primitives',
                           'type_match_list_and_set',
+                          'list_of_ints',
+                          'dict_of_ints',
                           })
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)

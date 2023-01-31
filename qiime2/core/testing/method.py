@@ -138,3 +138,11 @@ def type_match_list_and_set(ints: list, strs1: list, strs2: set) -> list:
 
 def union_inputs(ints1: Union[dict, list], ints2: list) -> list:
     return [0]
+
+
+def list_of_ints(ints: list) -> list:
+    return []
+
+
+def dict_of_ints(ints: dict) -> dict:
+    return {}

@@ -9,7 +9,7 @@
 import collections
 
 from qiime2.core.util import tuplize
-from qiime2.core.type.collection import List, Set
+from qiime2.core.type.collection import List, Set, Collection
 from qiime2.core.type.primitive import Int, Float, Bool, Str
 from qiime2.core.type.grammar import UnionExp, _ExpBase, IntersectionExp
 from qiime2.core.type.parse import ast_to_type
@@ -60,6 +60,7 @@ VariadicRecord = collections.namedtuple('VariadicRecord', ['pytype', 'q2type'])
 _VARIADIC = {
     'List': VariadicRecord(pytype=list, q2type=List),
     'Set': VariadicRecord(pytype=set, q2type=Set),
+    'Collection': VariadicRecord(pytype=dict, q2type=Collection),
 }
 
 CoercionRecord = collections.namedtuple('CoercionRecord', ['func', 'pytype'])

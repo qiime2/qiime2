@@ -9,7 +9,7 @@
 from importlib import import_module
 
 from qiime2.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
-                           Visualization, Metadata, MetadataColumn,
+                           Collection, Visualization, Metadata, MetadataColumn,
                            Categorical, Numeric, TypeMatch)
 
 from .format import (
@@ -45,7 +45,8 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      params_only_method, no_input_method, deprecated_method,
                      optional_artifacts_method, long_description_method,
                      docstring_order_method, variadic_input_method,
-                     unioned_primitives, type_match_list_and_set, union_inputs)
+                     unioned_primitives, type_match_list_and_set, union_inputs,
+                     list_of_ints, dict_of_ints)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -777,6 +778,44 @@ dummy_plugin.methods.register_function(
         'ints': '[0]',
     },
     description='This method accepts a list or dict as first input.'
+)
+
+dummy_plugin.methods.register_function(
+    function=list_of_ints,
+    inputs={
+        'ints': Collection[IntSequence1]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[IntSequence1])
+    ],
+    name='Takes ints',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Collection of ints'
+    }
+)
+
+dummy_plugin.methods.register_function(
+    function=dict_of_ints,
+    inputs={
+        'ints': Collection[IntSequence1]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[IntSequence1])
+    ],
+    name='Takes ints',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Collection of ints'
+    }
 )
 
 import_module('qiime2.core.testing.mapped')

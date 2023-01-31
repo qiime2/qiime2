@@ -587,6 +587,20 @@ class TestMethod(unittest.TestCase):
         docstring_order = docstring_order_method.__call__.__doc__
         self.assertEqual(exp_docstring_order, docstring_order)
 
+    def test_collection(self):
+        list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
+        ints_list = [Artifact.import_data(IntSequence1, [0, 1, 2]),
+                     Artifact.import_data(IntSequence1, [3, 4, 5])]
+
+        list_method(ints_list)
+
+        ints_dict = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
+                     '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
+
+        dict_method(ints_dict)
+
 
 exp_merge_calldoc = """\
 Merge mappings

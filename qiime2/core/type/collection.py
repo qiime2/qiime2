@@ -95,6 +95,24 @@ class _Tuple(_CollectionBase):
         pass
 
 
+class _Collection(_1DCollectionBase):
+    _view = dict
+
+    def is_element_expr(self, self_expr, value):
+        """Since this is a dictionary, we often need to make sure to use its
+        values not its keys.
+        """
+        contained_expr = self_expr.fields[0]
+        if isinstance(value, self._view) and len(value) > 0:
+            return all(v in contained_expr for v in value.values())
+        else:
+            return all(v in contained_expr for v in value)
+
+    def __iter__(self):
+        return self._view.values()
+
+
 Set = _Set()
 List = _List()
 Tuple = _Tuple()
+Collection = _Collection()
