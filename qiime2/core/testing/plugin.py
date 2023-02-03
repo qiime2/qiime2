@@ -46,7 +46,8 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      optional_artifacts_method, long_description_method,
                      docstring_order_method, variadic_input_method,
                      unioned_primitives, type_match_list_and_set, union_inputs,
-                     list_of_ints, dict_of_ints)
+                     list_of_ints, dict_of_ints, collection_inner_union,
+                     collection_outer_union)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -803,6 +804,44 @@ dummy_plugin.methods.register_function(
     function=dict_of_ints,
     inputs={
         'ints': Collection[IntSequence1]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[IntSequence1])
+    ],
+    name='Takes ints',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Collection of ints'
+    }
+)
+
+dummy_plugin.methods.register_function(
+    function=collection_inner_union,
+    inputs={
+        'ints': Collection[IntSequence1 | IntSequence2]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[IntSequence1])
+    ],
+    name='Takes ints',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Collection of ints'
+    }
+)
+
+dummy_plugin.methods.register_function(
+    function=collection_outer_union,
+    inputs={
+        'ints': Collection[IntSequence1] | Collection[IntSequence2]
     },
     parameters={},
     outputs=[

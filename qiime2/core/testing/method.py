@@ -147,3 +147,11 @@ def list_of_ints(ints: list) -> list:
 
 def dict_of_ints(ints: list) -> list:
     return ints
+
+
+def collection_inner_union(ints: list) -> list:
+    return [[0]]
+
+
+def collection_outer_union(ints: list) -> list:
+    return [[0]]

@@ -324,34 +324,50 @@ class PipelineSignature:
         """
         inputs = {}
 
+        # If we have a Collection input and a Union view type complain
         for name, spec in self.inputs.items():
             _input = user_input[name]
             provenance.add_input(name, _input)
+
+            qiime_name = spec.qiime_type.name
+            qiime_type = spec.qiime_type
+            # I don't think this will necessarily work if we nest collection
+            # types in the future
+            if qiime_name == '':
+                # If we have an outer union as our semantic type, the name will
+                # be the empty string, and the type will be the entire union
+                # expression. In order to get a meaningful name and a type
+                # that tells us if we have a collection, we unpack the union
+                # and grab that info from the first element. All subsequent
+                # elements will share this same basic information because we
+                # do not allow
+                # List[TypeA] | Collection[TypeA]
+                first = next(spec.qiime_type.unpack_union())
+                qiime_name = first.name
+                qiime_type = first
+
             if _input is None:
                 inputs[name] = None
             elif spec.has_view_type():
                 # We don't want to write this for every collection element
                 recorder = provenance.transformation_recorder(name)
-                if qtype.is_collection_type(spec.qiime_type):
+                if qtype.is_collection_type(qiime_type):
                     # Transform from dict to list or vice-versa
-                    if spec.qiime_type.name == 'Collection' and \
+                    if qiime_name == 'Collection' and \
                             isinstance(_input, list):
                         inputs[name] = \
                             self._list_to_dict(spec, _input, recorder)
-                    elif spec.qiime_type.name == 'List' and \
+                    elif qiime_name == 'List' and \
                             isinstance(_input, dict):
                         inputs[name] = \
                             self._dict_to_list(spec, _input, recorder)
-                    elif spec.qiime_type.name == 'Collection':
+                    elif qiime_name == 'Collection':
                         inputs[name] = {
                             k: v._view(spec.view_type,
                                        recorder) for k, v in _input.items()}
                     # Necessary to maintain support for the old way of doing
                     # things (and to keep Set working for now) I think.
                     else:
-                        # Always put in a list. Sometimes the view isn't
-                        # hashable, which isn't relevant, but would break
-                        # a Set[SomeType].
                         inputs[name] = [
                             i._view(spec.view_type, recorder) for i in _input]
                 else:
