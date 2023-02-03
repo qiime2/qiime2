@@ -218,6 +218,7 @@ class ProvenanceCapture:
     def transformation_recorder(self, name):
         section = self.transformers[name] = []
 
+        # In here figure out if we are already recorded
         def recorder(transformer_record, input_name, input_record, output_name,
                      output_record):
             entry = collections.OrderedDict()
@@ -413,6 +414,12 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.parameters[name] = handler(parameter)
 
     def add_input(self, name, input):
+        # If we received a Collection, we will have a dict, we want to make
+        # sure we use the values (which should be artifacts) as opposed to the
+        # keys (which should be strings)
+        if isinstance(input, dict):
+            input = list(input.values())
+
         if input is None:
             self.inputs[name] = None
         elif isinstance(input, collections.abc.Iterable):

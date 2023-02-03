@@ -141,8 +141,9 @@ def union_inputs(ints1: Union[dict, list], ints2: list) -> list:
 
 
 def list_of_ints(ints: list) -> list:
-    return []
+    ints.reverse()
+    return ints
 
 
-def dict_of_ints(ints: dict) -> dict:
-    return {}
+def dict_of_ints(ints: list) -> list:
+    return ints

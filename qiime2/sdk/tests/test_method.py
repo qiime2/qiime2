@@ -591,15 +591,15 @@ class TestMethod(unittest.TestCase):
         list_method = self.plugin.methods['list_of_ints']
         dict_method = self.plugin.methods['dict_of_ints']
 
-        ints_list = [Artifact.import_data(IntSequence1, [0, 1, 2]),
-                     Artifact.import_data(IntSequence1, [3, 4, 5])]
+        int_list = [Artifact.import_data(IntSequence1, [0, 1, 2]),
+                    Artifact.import_data(IntSequence1, [3, 4, 5])]
 
-        list_method(ints_list)
+        list_method(int_list)
 
-        ints_dict = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
-                     '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
+        int_dict = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
+                    '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
 
-        dict_method(ints_dict)
+        dict_method(int_dict)
 
 
 exp_merge_calldoc = """\

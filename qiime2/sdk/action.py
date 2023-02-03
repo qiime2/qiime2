@@ -205,25 +205,8 @@ class Action(metaclass=abc.ABCMeta):
                     provenance.add_parameter(name, spec.qiime_type, parameter)
 
                 # Record and transform inputs
-                for name, spec in self.signature.inputs.items():
-                    artifact = user_input[name]
-                    provenance.add_input(name, artifact)
-                    if artifact is None:
-                        callable_args[name] = None
-                    elif spec.has_view_type():
-                        recorder = provenance.transformation_recorder(name)
-                        if qtype.is_collection_type(spec.qiime_type):
-                            # Always put in a list. Sometimes the view isn't
-                            # hashable, which isn't relevant, but would break
-                            # a Set[SomeType].
-                            callable_args[name] = [
-                                a._view(spec.view_type, recorder)
-                                for a in user_input[name]]
-                        else:
-                            callable_args[name] = artifact._view(
-                                spec.view_type, recorder)
-                    else:
-                        callable_args[name] = artifact
+                callable_args.update(self.signature.coerce_given_inputs(
+                    provenance, **user_input))
 
                 if self.deprecated:
                     with qiime2.core.util.warning() as warn:
@@ -394,22 +377,9 @@ class Method(Action):
                 "semantic types: %d != %d"
                 % (len(output_views), len(output_types)))
 
-        output_artifacts = []
-        for output_view, (name, spec) in zip(output_views,
-                                             output_types.items()):
-            if type(output_view) is not spec.view_type:
-                raise TypeError(
-                    "Expected output view type %r, received %r" %
-                    (spec.view_type.__name__, type(output_view).__name__))
-
-            prov = provenance.fork(name)
-            scope.add_reference(prov)
-
-            artifact = qiime2.sdk.Artifact._from_view(
-                spec.qiime_type, output_view, spec.view_type, prov)
-            artifact = scope.add_parent_reference(artifact)
-
-            output_artifacts.append(artifact)
+        output_artifacts = \
+            self.signature.coerce_given_outputs(output_views, output_types,
+                                                scope, provenance)
 
         return tuple(output_artifacts)
 

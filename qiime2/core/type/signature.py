@@ -12,6 +12,7 @@ import copy
 import itertools
 
 import qiime2.sdk
+import qiime2.core.type as qtype
 from .grammar import TypeExp, UnionExp
 from .meta import TypeVarExp
 from .collection import List, Set
@@ -126,7 +127,6 @@ class PipelineSignature:
         self._assert_valid_parameters(parameters)
         self._assert_valid_outputs(outputs)
         self._assert_valid_views(inputs, parameters, outputs)
-
         self.inputs = inputs
         self.parameters = parameters
         self.outputs = outputs
@@ -317,6 +317,108 @@ class PipelineSignature:
                 raise TypeError(
                     " Pipelines do not support function annotations (found one"
                     " for parameter: %r)." % name)
+
+    def coerce_given_inputs(self, provenance, **user_input):
+        """ Coerce the inputs given to the method into the types it wants if
+            possible
+        """
+        inputs = {}
+
+        for name, spec in self.inputs.items():
+            _input = user_input[name]
+            provenance.add_input(name, _input)
+            if _input is None:
+                inputs[name] = None
+            elif spec.has_view_type():
+                # We don't want to write this for every collection element
+                recorder = provenance.transformation_recorder(name)
+                if qtype.is_collection_type(spec.qiime_type):
+                    # Transform from dict to list or vice-versa
+                    if spec.qiime_type.name == 'Collection' and \
+                            isinstance(_input, list):
+                        inputs[name] = \
+                            self._list_to_dict(spec, _input, recorder)
+                    elif spec.qiime_type.name == 'List' and \
+                            isinstance(_input, dict):
+                        inputs[name] = \
+                            self._dict_to_list(spec, _input, recorder)
+                    elif spec.qiime_type.name == 'Collection':
+                        inputs[name] = {
+                            k: v._view(spec.view_type,
+                                       recorder) for k, v in _input.items()}
+                    # Necessary to maintain support for the old way of doing
+                    # things (and to keep Set working for now) I think.
+                    else:
+                        # Always put in a list. Sometimes the view isn't
+                        # hashable, which isn't relevant, but would break
+                        # a Set[SomeType].
+                        inputs[name] = [
+                            i._view(spec.view_type, recorder) for i in _input]
+                else:
+                    inputs[name] = _input._view(spec.view_type, recorder)
+            else:
+                inputs[name] = _input
+
+        return inputs
+
+    def coerce_given_outputs(self, output_views, output_types, scope,
+                             provenance):
+        outputs = []
+
+        for output_view, (name, spec) in zip(output_views,
+                                             output_types.items()):
+            # This is a rough approximation to make things work, I'm not sold
+            # that fields[0] is the way to go
+            if spec.qiime_type.name == 'Collection':
+                output = {}
+
+                if isinstance(output_view, list):
+                    for i, view in enumerate(output_view, 1):
+                        # I don't think this works. It seems like we are
+                        # naming each of these outputs the same thing right
+                        # so I think some prov changes need to happen for
+                        # this
+                        prov = provenance.fork(name)
+                        scope.add_reference(prov)
+
+                        artifact = qiime2.sdk.Artifact._from_view(
+                            spec.qiime_type.fields[0], view,
+                            spec.view_type, prov)
+                        artifact = scope.add_parent_reference(artifact)
+                        output[i] = artifact
+                else:
+                    for key, view in output_view.items():
+                        prov = provenance.fork(name)
+                        scope.add_reference(prov)
+
+                        artifact = qiime2.sdk.Artifact._from_view(
+                            spec.qiime_type.fields[0], view,
+                            spec.view_type, prov)
+                        artifact = scope.add_parent_reference(artifact)
+
+                        output[key] = artifact
+            elif type(output_view) is not spec.view_type:
+                raise TypeError(
+                    "Expected output view type %r, received %r" %
+                    (spec.view_type.__name__, type(output_view).__name__))
+            else:
+                prov = provenance.fork(name)
+                scope.add_reference(prov)
+
+                output = qiime2.sdk.Artifact._from_view(
+                    spec.qiime_type, output_view, spec.view_type, prov)
+                output = scope.add_parent_reference(output)
+
+            outputs.append(output)
+
+        return outputs
+
+    def _dict_to_list(self, spec, _input, recorder):
+        return [i._view(spec.view_type, recorder) for i in _input.values()]
+
+    def _list_to_dict(self, spec, _input, recorder):
+        artifact_input = [i._view(spec.view_type, recorder) for i in _input]
+        return {k + 1: i for k, i in enumerate(artifact_input)}
 
     def decode_parameters(self, **kwargs):
         params = {}

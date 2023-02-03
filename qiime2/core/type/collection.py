@@ -105,6 +105,8 @@ class _Collection(_1DCollectionBase):
         contained_expr = self_expr.fields[0]
         if isinstance(value, self._view) and len(value) > 0:
             return all(v in contained_expr for v in value.values())
+        # The Collection's default view type is dict, but it is also allowed to
+        # be passed around as a list
         else:
             return all(v in contained_expr for v in value)
 

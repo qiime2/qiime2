@@ -783,19 +783,19 @@ dummy_plugin.methods.register_function(
 dummy_plugin.methods.register_function(
     function=list_of_ints,
     inputs={
-        'ints': Collection[IntSequence1]
+        'ints': List[IntSequence1]
     },
     parameters={},
     outputs=[
         ('output', Collection[IntSequence1])
     ],
-    name='Takes ints',
+    name='Reverses list of inputs',
     description='Some description',
     input_descriptions={
         'ints': 'Collection of ints'
     },
     output_descriptions={
-        'output': 'Collection of ints'
+        'output': 'Reversed Collection of ints'
     }
 )
 
