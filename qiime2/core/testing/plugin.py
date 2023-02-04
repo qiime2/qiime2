@@ -47,7 +47,7 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      docstring_order_method, variadic_input_method,
                      unioned_primitives, type_match_list_and_set, union_inputs,
                      list_of_ints, dict_of_ints, collection_inner_union,
-                     collection_outer_union)
+                     collection_outer_union, collection_params)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -855,6 +855,19 @@ dummy_plugin.methods.register_function(
     output_descriptions={
         'output': 'Collection of ints'
     }
+)
+
+dummy_plugin.methods.register_function(
+    function=collection_params,
+    inputs={},
+    parameters={
+        'ints': Collection[Int],
+    },
+    outputs=[
+        ('out', IntSequence1)
+    ],
+    name='Parameters only method',
+    description='This method only accepts parameters.',
 )
 
 import_module('qiime2.core.testing.mapped')

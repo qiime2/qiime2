@@ -592,6 +592,7 @@ class TestMethod(unittest.TestCase):
         dict_method = self.plugin.methods['dict_of_ints']
         inner_union = self.plugin.methods['collection_inner_union']
         outer_union = self.plugin.methods['collection_outer_union']
+        params = self.plugin.methods['collection_params']
 
         int_list = [Artifact.import_data(IntSequence1, [0, 1, 2]),
                     Artifact.import_data(IntSequence1, [3, 4, 5])]
@@ -608,6 +609,11 @@ class TestMethod(unittest.TestCase):
 
         inner_union(inner_test)
         outer_union(int_dict)
+
+        param_list = [1, 2, 3, 4]
+        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
+        params(param_list)
+        params(param_dict)
 
 
 exp_merge_calldoc = """\

@@ -200,10 +200,9 @@ class Action(metaclass=abc.ABCMeta):
                 callable_args = {}
 
                 # Record parameters
-                # TODO: Support transforming outer collection type
-                for name, spec in self.signature.parameters.items():
-                    parameter = callable_args[name] = user_input[name]
-                    provenance.add_parameter(name, spec.qiime_type, parameter)
+                callable_args.update(
+                    self.signature.coerce_given_parameters(
+                        provenance, **user_input))
 
                 # Record and transform inputs
                 callable_args.update(self.signature.coerce_given_inputs(

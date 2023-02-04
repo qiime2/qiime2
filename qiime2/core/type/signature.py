@@ -318,6 +318,27 @@ class PipelineSignature:
                     " Pipelines do not support function annotations (found one"
                     " for parameter: %r)." % name)
 
+    def coerce_given_parameters(self, provenance, **user_input):
+        params = {}
+
+        for name, spec in self.parameters.items():
+            view_type = spec.view_type
+            _param = user_input[name]
+
+            if view_type == dict and isinstance(_param, list):
+                params[name] = {k: v for k, v in enumerate(_param, 1)}
+            elif view_type == list and isinstance(_param, dict):
+                params[name] = list(_param.values())
+            else:
+                params[name] = _param
+
+            # I don't know if we want params[name] (the correct view type parm)
+            # or _param (the potentially incorrect view type, but the one we
+            # were actually given) here. I am leaning towards params[name]
+            provenance.add_parameter(name, spec.qiime_type, params[name])
+
+        return params
+
     def coerce_given_inputs(self, provenance, **user_input):
         """ Coerce the inputs given to the method into the types it wants if
             possible

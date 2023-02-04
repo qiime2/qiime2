@@ -155,3 +155,7 @@ def collection_inner_union(ints: list) -> list:
 
 def collection_outer_union(ints: list) -> list:
     return [[0]]
+
+
+def collection_params(ints: dict) -> list:
+    return list(ints.values())
