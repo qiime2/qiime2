@@ -319,6 +319,9 @@ class PipelineSignature:
                     " for parameter: %r)." % name)
 
     def coerce_given_parameters(self, provenance, **user_input):
+        """ Coerce the parameters given to the method into the types it wants
+            if possible
+        """
         params = {}
 
         for name, spec in self.parameters.items():
@@ -377,11 +380,11 @@ class PipelineSignature:
                     if qiime_name == 'Collection' and \
                             isinstance(_input, list):
                         inputs[name] = \
-                            self._list_to_dict(spec, _input, recorder)
+                            self._input_list_to_dict(spec, _input, recorder)
                     elif qiime_name == 'List' and \
                             isinstance(_input, dict):
                         inputs[name] = \
-                            self._dict_to_list(spec, _input, recorder)
+                            self._input_dict_to_list(spec, _input, recorder)
                     elif qiime_name == 'Collection':
                         inputs[name] = {
                             k: v._view(spec.view_type,
@@ -398,64 +401,66 @@ class PipelineSignature:
 
         return inputs
 
+    def _input_dict_to_list(self, spec, _input, recorder):
+        """ Turn a list of input artifacts into a list of input views
+        """
+        return [i._view(spec.view_type, recorder) for i in _input.values()]
+
+    def _input_list_to_dict(self, spec, _input, recorder):
+        """ Turn a dict of input artifacts into a dict of input views
+        """
+        artifact_input = [i._view(spec.view_type, recorder) for i in _input]
+        return {k: i for k, i in enumerate(artifact_input)}
+
     def coerce_given_outputs(self, output_views, output_types, scope,
                              provenance):
+        """ Coerce the outputs produced by the method into the desired types if
+            possible. Primarily useful to create collections of outputs
+        """
         outputs = []
 
         for output_view, (name, spec) in zip(output_views,
                                              output_types.items()):
-            # This is a rough approximation to make things work, I'm not sold
-            # that fields[0] is the way to go
             if spec.qiime_type.name == 'Collection':
                 output = {}
 
-                if isinstance(output_view, list):
-                    for i, view in enumerate(output_view):
-                        # I don't think this works. It seems like we are
-                        # naming each of these outputs the same thing right
-                        # so I think some prov changes need to happen for
-                        # this
-                        prov = provenance.fork([name, i])
-                        scope.add_reference(prov)
-
-                        artifact = qiime2.sdk.Artifact._from_view(
-                            spec.qiime_type.fields[0], view,
-                            spec.view_type, prov)
-                        artifact = scope.add_parent_reference(artifact)
-                        output[i] = artifact
-                else:
-                    for key, view in output_view.items():
-                        prov = provenance.fork([name, key])
-                        scope.add_reference(prov)
-
-                        artifact = qiime2.sdk.Artifact._from_view(
-                            spec.qiime_type.fields[0], view,
-                            spec.view_type, prov)
-                        artifact = scope.add_parent_reference(artifact)
-
-                        output[key] = artifact
+                for key, view in enumerate(output_view) \
+                        if isinstance(output_view, list) \
+                        else output_view.items():
+                    output[key] = self._create_output_artifact(
+                        provenance, name, scope, spec, view, key=key)
             elif type(output_view) is not spec.view_type:
                 raise TypeError(
                     "Expected output view type %r, received %r" %
                     (spec.view_type.__name__, type(output_view).__name__))
             else:
-                prov = provenance.fork(name)
-                scope.add_reference(prov)
-
-                output = qiime2.sdk.Artifact._from_view(
-                    spec.qiime_type, output_view, spec.view_type, prov)
-                output = scope.add_parent_reference(output)
+                output = self._create_output_artifact(
+                    provenance, name, scope, spec, output_view)
 
             outputs.append(output)
 
         return outputs
 
-    def _dict_to_list(self, spec, _input, recorder):
-        return [i._view(spec.view_type, recorder) for i in _input.values()]
+    def _create_output_artifact(self, provenance, name, scope, spec, view,
+                                key=None):
+        """ Create an output artifact from a view and add it to provenance
+        """
+        # If we have a key we are dealing with an element of an output
+        # collection otherwise we are dealing with a singular output
+        if key is not None:
+            prov = provenance.fork([name, key])
+            qiime_type = spec.qiime_type.fields[0]
+        else:
+            prov = provenance.fork(name)
+            qiime_type = spec.qiime_type
 
-    def _list_to_dict(self, spec, _input, recorder):
-        artifact_input = [i._view(spec.view_type, recorder) for i in _input]
-        return {k: i for k, i in enumerate(artifact_input)}
+        scope.add_reference(prov)
+
+        artifact = qiime2.sdk.Artifact._from_view(
+            qiime_type, view, spec.view_type, prov)
+        artifact = scope.add_parent_reference(artifact)
+
+        return artifact
 
     def decode_parameters(self, **kwargs):
         params = {}
