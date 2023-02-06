@@ -218,7 +218,7 @@ class ProvenanceCapture:
     def transformation_recorder(self, name):
         section = self.transformers[name] = []
 
-        # In here figure out if we are already recorded
+        # TODO: In here figure out if we are already recorded
         def recorder(transformer_record, input_name, input_record, output_name,
                      output_record):
             entry = collections.OrderedDict()
