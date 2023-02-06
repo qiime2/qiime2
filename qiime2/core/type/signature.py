@@ -326,7 +326,7 @@ class PipelineSignature:
             _param = user_input[name]
 
             if view_type == dict and isinstance(_param, list):
-                params[name] = {k: v for k, v in enumerate(_param, 1)}
+                params[name] = {k: v for k, v in enumerate(_param)}
             elif view_type == list and isinstance(_param, dict):
                 params[name] = list(_param.values())
             else:
