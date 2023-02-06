@@ -455,7 +455,7 @@ class PipelineSignature:
 
     def _list_to_dict(self, spec, _input, recorder):
         artifact_input = [i._view(spec.view_type, recorder) for i in _input]
-        return {k + 1: i for k, i in enumerate(artifact_input)}
+        return {k: i for k, i in enumerate(artifact_input, 1)}
 
     def decode_parameters(self, **kwargs):
         params = {}
