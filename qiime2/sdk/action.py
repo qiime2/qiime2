@@ -200,9 +200,8 @@ class Action(metaclass=abc.ABCMeta):
                 callable_args = {}
 
                 # Record parameters
-                callable_args.update(
-                    self.signature.coerce_given_parameters(
-                        provenance, **user_input))
+                callable_args.update(self.signature.coerce_given_parameters(
+                    provenance, **user_input))
 
                 # Record and transform inputs
                 callable_args.update(self.signature.coerce_given_inputs(
