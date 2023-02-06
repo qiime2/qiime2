@@ -587,32 +587,44 @@ class TestMethod(unittest.TestCase):
         docstring_order = docstring_order_method.__call__.__doc__
         self.assertEqual(exp_docstring_order, docstring_order)
 
-    def test_collection(self):
+    def test_collection_list_input(self):
         list_method = self.plugin.methods['list_of_ints']
-        dict_method = self.plugin.methods['dict_of_ints']
-        inner_union = self.plugin.methods['collection_inner_union']
-        outer_union = self.plugin.methods['collection_outer_union']
-        params = self.plugin.methods['collection_params']
-
         int_list = [Artifact.import_data(IntSequence1, [0, 1, 2]),
                     Artifact.import_data(IntSequence1, [3, 4, 5])]
 
         list_method(int_list)
 
+    def test_collection_dict_input(self):
+        dict_method = self.plugin.methods['dict_of_ints']
         int_dict = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
                     '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
 
         dict_method(int_dict)
 
+    def test_collection_inner_union(self):
+        inner_union = self.plugin.methods['collection_inner_union']
         inner_test = [Artifact.import_data(IntSequence1, [0, 1, 2]),
                       Artifact.import_data(IntSequence2, [3, 4, 5])]
 
         inner_union(inner_test)
+
+    def test_collection_outer_union(self):
+        outer_union = self.plugin.methods['collection_outer_union']
+        int_dict = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
+                    '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
+
         outer_union(int_dict)
 
+    def test_collection_list_param(self):
+        params = self.plugin.methods['collection_params']
         param_list = [1, 2, 3, 4]
-        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
+
         params(param_list)
+
+    def test_collection_dict_param(self):
+        params = self.plugin.methods['collection_params']
+        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
+
         params(param_dict)
 
 
