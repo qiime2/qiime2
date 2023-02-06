@@ -415,7 +415,7 @@ class PipelineSignature:
                         # naming each of these outputs the same thing right
                         # so I think some prov changes need to happen for
                         # this
-                        prov = provenance.fork(name)
+                        prov = provenance.fork([name, i])
                         scope.add_reference(prov)
 
                         artifact = qiime2.sdk.Artifact._from_view(
@@ -425,7 +425,7 @@ class PipelineSignature:
                         output[i] = artifact
                 else:
                     for key, view in output_view.items():
-                        prov = provenance.fork(name)
+                        prov = provenance.fork([name, key])
                         scope.add_reference(prov)
 
                         artifact = qiime2.sdk.Artifact._from_view(
