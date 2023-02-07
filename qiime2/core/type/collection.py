@@ -76,6 +76,18 @@ class _Set(_1DCollectionBase):
 class _List(_1DCollectionBase):
     _view = list
 
+    def is_element_expr(self, self_expr, value):
+        """Since this is a dictionary, we often need to make sure to use its
+        values not its keys.
+        """
+        contained_expr = self_expr.fields[0]
+        if isinstance(value, self._view) and len(value) > 0:
+            return all(v in contained_expr for v in value)
+        # The List's default type is unsurprisingly list, but we also want to
+        # be able to pass in a Collection (dict)
+        elif isinstance(value, dict):
+            return all(v in contained_expr for v in value.values())
+
 
 class _Tuple(_CollectionBase):
     _view = tuple
