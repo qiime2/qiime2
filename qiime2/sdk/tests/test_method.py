@@ -589,16 +589,22 @@ class TestMethod(unittest.TestCase):
 
     def test_collection_list_input(self):
         list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
         int_list = [Artifact.import_data(IntSequence1, [0, 1, 2]),
                     Artifact.import_data(IntSequence1, [3, 4, 5])]
 
         list_method(int_list)
+        dict_method(int_list)
 
     def test_collection_dict_input(self):
+        list_method = self.plugin.methods['list_of_ints']
         dict_method = self.plugin.methods['dict_of_ints']
+
         int_dict = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
                     '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
 
+        list_method(int_dict)
         dict_method(int_dict)
 
     def test_collection_inner_union(self):
