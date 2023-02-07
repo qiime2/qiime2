@@ -199,7 +199,7 @@ class Action(metaclass=abc.ABCMeta):
                 output_types = self.signature.solve_output(**user_input)
                 callable_args = {}
 
-                # Record parameters
+                # Record and transform parameters
                 callable_args.update(self.signature.coerce_given_parameters(
                     provenance, **user_input))
 
