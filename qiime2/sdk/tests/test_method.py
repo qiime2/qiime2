@@ -594,8 +594,14 @@ class TestMethod(unittest.TestCase):
         int_list = [Artifact.import_data(IntSequence1, [0, 1, 2]),
                     Artifact.import_data(IntSequence1, [3, 4, 5])]
 
-        list_method(int_list)
-        dict_method(int_list)
+        list_out = list_method(int_list)
+        dict_out = dict_method(int_list)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, dict)
+        self.assertIsInstance(dict_out.output, dict)
 
     def test_collection_dict_input(self):
         list_method = self.plugin.methods['list_of_ints']
@@ -604,11 +610,18 @@ class TestMethod(unittest.TestCase):
         int_dict = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
                     '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
 
-        list_method(int_dict)
-        dict_method(int_dict)
+        list_out = list_method(int_dict)
+        dict_out = dict_method(int_dict)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, dict)
+        self.assertIsInstance(dict_out.output, dict)
 
     def test_collection_inner_union(self):
         inner_union = self.plugin.methods['collection_inner_union']
+
         inner_test = [Artifact.import_data(IntSequence1, [0, 1, 2]),
                       Artifact.import_data(IntSequence2, [3, 4, 5])]
 
@@ -616,22 +629,29 @@ class TestMethod(unittest.TestCase):
 
     def test_collection_outer_union(self):
         outer_union = self.plugin.methods['collection_outer_union']
+
         int_dict = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
                     '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
 
         outer_union(int_dict)
 
     def test_collection_list_param(self):
-        params = self.plugin.methods['collection_params']
+        dict_method = self.plugin.methods['collection_params']
+
+        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
         param_list = [1, 2, 3, 4]
 
-        params(param_list)
+        dict_method(param_list)
+        dict_method(param_dict)
 
     def test_collection_dict_param(self):
-        params = self.plugin.methods['collection_params']
-        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
+        list_method = self.plugin.methods['list_params']
 
-        params(param_dict)
+        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
+        param_list = [1, 2, 3, 4]
+
+        list_method(param_list)
+        list_method(param_dict)
 
 
 exp_merge_calldoc = """\
