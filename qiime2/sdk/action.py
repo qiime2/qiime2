@@ -445,7 +445,17 @@ class Pipeline(Action):
         outputs = tuplize(outputs)
 
         for output in outputs:
-            if not isinstance(output, qiime2.sdk.Result):
+            if isinstance(output, list):
+                for elem in output:
+                    if not isinstance(elem, qiime2.sdk.Result):
+                        raise TypeError("Pipelines must return `Result` "
+                                        "objects, not %s" % (type(elem), ))
+            elif isinstance(output, dict):
+                for elem in output.values():
+                    if not isinstance(elem, qiime2.sdk.Result):
+                        raise TypeError("Pipelines must return `Result` "
+                                        "objects, not %s" % (type(elem), ))
+            elif not isinstance(output, qiime2.sdk.Result):
                 raise TypeError("Pipelines must return `Result` objects, "
                                 "not %s" % (type(output), ))
 
@@ -462,17 +472,38 @@ class Pipeline(Action):
 
         results = []
         for output, (name, spec) in zip(outputs, output_types.items()):
-            if not (output.type <= spec.qiime_type):
+            # If we don't have a Result, we should have a collection, if we
+            # have neither, or our types just don't match up, something bad
+            # happened
+            if isinstance(output, qiime2.sdk.Result) and \
+                        (output.type <= spec.qiime_type):
+                prov = provenance.fork(name, output)
+                scope.add_reference(prov)
+
+                aliased_result = output._alias(prov)
+                aliased_result = scope.add_parent_reference(aliased_result)
+
+                results.append(aliased_result)
+            elif output in spec.qiime_type:
+                if isinstance(output, dict):
+                    _iter = list(output.values())
+                else:
+                    _iter = output
+
+                for _output in _iter:
+                    prov = provenance.fork(name, _output)
+                    scope.add_reference(prov)
+
+                    aliased_result = _output._alias(prov)
+                    aliased_result = scope.add_parent_reference(aliased_result)
+
+                    results.append(aliased_result)
+            else:
+                _type = output.type if isinstance(output, qiime2.sdk.Result) \
+                    else type(output)
                 raise TypeError(
                     "Expected output type %r, received %r" %
-                    (spec.qiime_type, output.type))
-            prov = provenance.fork(name, output)
-            scope.add_reference(prov)
-
-            aliased_result = output._alias(prov)
-            aliased_result = scope.add_parent_reference(aliased_result)
-
-            results.append(aliased_result)
+                    (spec.qiime_type, _type))
 
         return tuple(results)
 
