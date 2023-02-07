@@ -470,6 +470,9 @@ class Pipeline(Action):
                 "semantic types: %d != %d"
                 % (len(outputs), len(output_types)))
 
+        # TODO: Make pipeline tests more robust and make this work properly, it
+        # is currently not returning Collections inside of the Results objects
+        # only a SingleInt1
         results = []
         for output, (name, spec) in zip(outputs, output_types.items()):
             # If we don't have a Result, we should have a collection, if we
