@@ -329,9 +329,9 @@ class PipelineSignature:
             _param = user_input[name]
 
             if view_type == dict and isinstance(_param, list):
-                params[name] = {k: v for k, v in enumerate(_param)}
+                params[name] = self._list_to_dict(_param)
             elif view_type == list and isinstance(_param, dict):
-                params[name] = list(_param.values())
+                params[name] = self._dict_to_list(_param)
             else:
                 params[name] = _param
 
@@ -370,27 +370,23 @@ class PipelineSignature:
                 qiime_name = first.name
                 qiime_type = first
 
+            # Transform collection from list to dict and vice versa if needed
+            if qiime_name == 'Collection' and isinstance(_input, list):
+                _input = self._list_to_dict(_input)
+            elif qiime_name == 'List' and \
+                    isinstance(_input, dict):
+                _input = self._dict_to_list(_input)
+
             if _input is None:
                 inputs[name] = None
             elif spec.has_view_type():
-                # We don't want to write this for every collection element
                 recorder = provenance.transformation_recorder(name)
+                # Transform all members of collection into view type
                 if qtype.is_collection_type(qiime_type):
-                    # Transform from dict to list or vice-versa
-                    if qiime_name == 'Collection' and \
-                            isinstance(_input, list):
-                        inputs[name] = \
-                            self._input_list_to_dict(spec, _input, recorder)
-                    elif qiime_name == 'List' and \
-                            isinstance(_input, dict):
-                        inputs[name] = \
-                            self._input_dict_to_list(spec, _input, recorder)
-                    elif qiime_name == 'Collection':
+                    if isinstance(_input, dict):
                         inputs[name] = {
                             k: v._view(spec.view_type,
                                        recorder) for k, v in _input.items()}
-                    # Necessary to maintain support for the old way of doing
-                    # things (and to keep Set working for now) I think.
                     else:
                         inputs[name] = [
                             i._view(spec.view_type, recorder) for i in _input]
@@ -400,17 +396,6 @@ class PipelineSignature:
                 inputs[name] = _input
 
         return inputs
-
-    def _input_dict_to_list(self, spec, _input, recorder):
-        """ Turn a list of input artifacts into a list of input views
-        """
-        return [i._view(spec.view_type, recorder) for i in _input.values()]
-
-    def _input_list_to_dict(self, spec, _input, recorder):
-        """ Turn a dict of input artifacts into a dict of input views
-        """
-        artifact_input = [i._view(spec.view_type, recorder) for i in _input]
-        return {k: i for k, i in enumerate(artifact_input)}
 
     def coerce_given_outputs(self, output_views, output_types, scope,
                              provenance):
@@ -472,6 +457,16 @@ class PipelineSignature:
             else:
                 params[key] = parse_primitive(spec.qiime_type, kwargs[key])
         return params
+
+    def _dict_to_list(self, _input):
+        """ Turn dict to list
+        """
+        return list(_input.values())
+
+    def _list_to_dict(self, _input):
+        """ Turn list to dict
+        """
+        return {k: i for k, i in enumerate(_input)}
 
     def check_types(self, **kwargs):
         for name, spec in self.signature_order.items():
