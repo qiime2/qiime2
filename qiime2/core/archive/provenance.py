@@ -218,7 +218,6 @@ class ProvenanceCapture:
     def transformation_recorder(self, name):
         section = self.transformers[name] = []
 
-        # TODO: In here figure out if we are already recorded
         def recorder(transformer_record, input_name, input_record, output_name,
                      output_record):
             entry = collections.OrderedDict()
@@ -252,7 +251,17 @@ class ProvenanceCapture:
 
             if citation_keys:
                 entry['citations'] = citation_keys
-            section.append(entry)
+
+            # Don't create duplicate transformer records. These were happening
+            # with collections of inputs. If we have a method that takes a
+            # List[IntSequence1] with view type of list, we need to transform
+            # every IntSequence1 into a list to match the view type. This would
+            # add a transformation record for every IntSequence1 in the list.
+            # This ensures we only end up with one record of a given type for a
+            # given input while still allowing multiple unique records.
+            # NOTE: This does redundant work creating the record, do we care?
+            if entry not in section:
+                section.append(entry)
 
         return recorder
 
