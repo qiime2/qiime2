@@ -47,12 +47,13 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      docstring_order_method, variadic_input_method,
                      unioned_primitives, type_match_list_and_set, union_inputs,
                      list_of_ints, dict_of_ints, collection_inner_union,
-                     collection_outer_union, collection_params)
+                     collection_outer_union, collection_params, list_params)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
-                       pipelines_in_pipeline, pointless_pipeline,
+                       pipelines_in_pipeline, list_pipeline,
+                       collection_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
 
@@ -736,6 +737,24 @@ dummy_plugin.pipelines.register_function(
 )
 
 dummy_plugin.pipelines.register_function(
+    function=list_pipeline,
+    inputs={'ints': List[IntSequence1]},
+    parameters={},
+    outputs=[('random_int', Collection[SingleInt])],
+    name='Get an integer',
+    description='Integer was chosen to be 4 by a random dice roll'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=collection_pipeline,
+    inputs={'ints': Collection[IntSequence1]},
+    parameters={},
+    outputs=[('random_int', Collection[SingleInt])],
+    name='Get an integer',
+    description='Integer was chosen to be 4 by a random dice roll'
+)
+
+dummy_plugin.pipelines.register_function(
     function=pointless_pipeline,
     inputs={},
     parameters={},
@@ -862,6 +881,19 @@ dummy_plugin.methods.register_function(
     inputs={},
     parameters={
         'ints': Collection[Int],
+    },
+    outputs=[
+        ('out', IntSequence1)
+    ],
+    name='Parameters only method',
+    description='This method only accepts parameters.',
+)
+
+dummy_plugin.methods.register_function(
+    function=list_params,
+    inputs={},
+    parameters={
+        'ints': List[Int],
     },
     outputs=[
         ('out', IntSequence1)
