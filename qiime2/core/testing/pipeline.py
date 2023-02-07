@@ -82,12 +82,12 @@ def pipelines_in_pipeline(ctx, int_sequence, mapping):
 
 def list_pipeline(ctx, ints):
     assert isinstance(ints, list)
-    return tuple([ctx.make_artifact(SingleInt, 4)])
+    return ([ctx.make_artifact(SingleInt, 4)],)
 
 
 def collection_pipeline(ctx, ints):
     assert isinstance(ints, dict)
-    return tuple([{'1': ctx.make_artifact(SingleInt, 4)}])
+    return ({'1': ctx.make_artifact(SingleInt, 4)},)
 
 
 def pointless_pipeline(ctx):
