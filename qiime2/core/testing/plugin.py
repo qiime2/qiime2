@@ -740,7 +740,7 @@ dummy_plugin.pipelines.register_function(
     function=list_pipeline,
     inputs={'ints': List[IntSequence1]},
     parameters={},
-    outputs=[('random_int', Collection[SingleInt])],
+    outputs=[('output', Collection[SingleInt])],
     name='Get an integer',
     description='Integer was chosen to be 4 by a random dice roll'
 )
@@ -749,7 +749,7 @@ dummy_plugin.pipelines.register_function(
     function=collection_pipeline,
     inputs={'ints': Collection[IntSequence1]},
     parameters={},
-    outputs=[('random_int', Collection[SingleInt])],
+    outputs=[('output', Collection[SingleInt])],
     name='Get an integer',
     description='Integer was chosen to be 4 by a random dice roll'
 )

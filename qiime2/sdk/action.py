@@ -501,7 +501,7 @@ class Pipeline(Action):
 
                     aliased_result = value._alias(prov)
                     aliased_result = scope.add_parent_reference(aliased_result)
-                    aliased_output[key] = aliased_result
+                    aliased_output[str(key)] = aliased_result
 
                 results.append(aliased_output)
             else:
