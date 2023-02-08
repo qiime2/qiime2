@@ -488,19 +488,22 @@ class Pipeline(Action):
 
                 results.append(aliased_result)
             elif output in spec.qiime_type:
-                if isinstance(output, dict):
-                    _iter = list(output.values())
-                else:
-                    _iter = output
+                # if isinstance(output, dict):
+                #     _iter = list(output.values())
+                # else:
+                #     _iter = output
 
-                for _output in _iter:
-                    prov = provenance.fork(name, _output)
+                aliased_output = {}
+                for key, value in output.items() if isinstance(output, dict) \
+                        else enumerate(output):
+                    prov = provenance.fork(name, value)
                     scope.add_reference(prov)
 
-                    aliased_result = _output._alias(prov)
+                    aliased_result = value._alias(prov)
                     aliased_result = scope.add_parent_reference(aliased_result)
+                    aliased_output[key] = aliased_result
 
-                    results.append(aliased_result)
+                results.append(aliased_output)
             else:
                 _type = output.type if isinstance(output, qiime2.sdk.Result) \
                     else type(output)
