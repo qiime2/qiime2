@@ -158,11 +158,11 @@ def collection_outer_union(ints: list) -> list:
     return [[0]]
 
 
-def collection_params(ints: dict) -> list:
+def collection_params(ints: dict) -> int:
     assert isinstance(ints, dict)
     return ints
 
 
-def list_params(ints: list) -> list:
+def list_params(ints: list) -> int:
     assert isinstance(ints, list)
     return ints
