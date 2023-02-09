@@ -412,6 +412,7 @@ class PipelineSignature:
                 for key, view in enumerate(output_view) \
                         if isinstance(output_view, list) \
                         else output_view.items():
+                    key = str(key)
                     output[key] = self._create_output_artifact(
                         provenance, name, scope, spec, view, key=key)
             elif type(output_view) is not spec.view_type:
@@ -466,7 +467,7 @@ class PipelineSignature:
     def _list_to_dict(self, _input):
         """ Turn list to dict
         """
-        return {k: i for k, i in enumerate(_input)}
+        return {str(k): i for k, i in enumerate(_input)}
 
     def check_types(self, **kwargs):
         for name, spec in self.signature_order.items():
