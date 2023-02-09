@@ -476,7 +476,7 @@ class Pipeline(Action):
             # have neither, or our types just don't match up, something bad
             # happened
             if isinstance(output, qiime2.sdk.Result) and \
-                        (output.type <= spec.qiime_type):
+                    (output.type <= spec.qiime_type):
                 prov = provenance.fork(name, output)
                 scope.add_reference(prov)
 

@@ -883,7 +883,7 @@ dummy_plugin.methods.register_function(
         'ints': Collection[Int],
     },
     outputs=[
-        ('out', IntSequence1)
+        ('out', Collection[IntSequence1])
     ],
     name='Parameters only method',
     description='This method only accepts parameters.',
@@ -896,7 +896,7 @@ dummy_plugin.methods.register_function(
         'ints': List[Int],
     },
     outputs=[
-        ('out', IntSequence1)
+        ('out', Collection[IntSequence1])
     ],
     name='Parameters only method',
     description='This method only accepts parameters.',
