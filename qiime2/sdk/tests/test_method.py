@@ -635,7 +635,7 @@ class TestMethod(unittest.TestCase):
 
         outer_union(int_dict)
 
-    def test_collection_list_param(self):
+    def test_collection_dict_param(self):
         dict_method = self.plugin.methods['collection_params']
 
         param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
@@ -644,7 +644,7 @@ class TestMethod(unittest.TestCase):
         dict_method(param_list)
         dict_method(param_dict)
 
-    def test_collection_dict_param(self):
+    def test_collection_list_param(self):
         list_method = self.plugin.methods['list_params']
 
         param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
