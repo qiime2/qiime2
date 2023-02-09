@@ -160,7 +160,7 @@ def collection_outer_union(ints: list) -> list:
 
 def collection_params(ints: dict) -> list:
     assert isinstance(ints, dict)
-    return list(ints.values())
+    return ints
 
 
 def list_params(ints: list) -> list:
