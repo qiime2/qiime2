@@ -258,4 +258,9 @@ def parse_primitive(t, value):
     if collection_style.view is None:
         return result[0]
     else:
+        # If we are supposed to have a dict we need to give it key, value
+        # pairs. We end up here when we invoke a command that takes a
+        # Collection on the command line
+        if collection_style.view is dict:
+            return collection_style.view(enumerate(result))
         return collection_style.view(result)

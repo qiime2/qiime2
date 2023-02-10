@@ -222,7 +222,7 @@ def ast_to_type(json_ast, scope=None):
             base_template = semantic.SemanticType(name).template
         elif name == 'Visualization':
             return visualization.Visualization
-        elif name in {'List', 'Set', 'Tuple'}:
+        elif name in {'List', 'Set', 'Tuple', 'Collection'}:
             base_template = getattr(collection, name).template
         else:
             base_template = getattr(primitive, name).template
