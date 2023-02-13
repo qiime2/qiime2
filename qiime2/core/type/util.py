@@ -200,8 +200,8 @@ def parse_primitive(t, value):
 
     keys = None
     if isinstance(value, dict):
-        value = list(value.values())
         keys = list(value.keys())
+        value = list(value.values())
 
     if is_metadata_type(expr):
         raise ValueError('%r may not be parsed with this util.' % (expr,))
@@ -272,5 +272,5 @@ def parse_primitive(t, value):
             if keys is not None:
                 return {k: v for k, v in zip(keys, result)}
             else:
-                return {k: v for k, v in enumerate(result)}
+                return {str(k): v for k, v in enumerate(result)}
         return collection_style.view(result)
