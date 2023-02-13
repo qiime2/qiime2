@@ -198,6 +198,11 @@ def parse_primitive(t, value):
     allowed = None
     homogeneous = True
 
+    keys = None
+    if isinstance(value, dict):
+        value = list(value.values())
+        keys = list(value.keys())
+
     if is_metadata_type(expr):
         raise ValueError('%r may not be parsed with this util.' % (expr,))
 
@@ -262,5 +267,10 @@ def parse_primitive(t, value):
         # pairs. We end up here when we invoke a command that takes a
         # Collection on the command line
         if collection_style.view is dict:
-            return collection_style.view(enumerate(result))
+            # If we have keys, value was originally a dict, and we want to
+            # reattach the keys to the values
+            if keys is not None:
+                return {k: v for k, v in zip(keys, result)}
+            else:
+                return {k: v for k, v in enumerate(result)}
         return collection_style.view(result)
