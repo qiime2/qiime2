@@ -419,6 +419,11 @@ class ActionProvenanceCapture(ProvenanceCapture):
             # TODO: handle collection primitives (not currently used)
         }
 
+        # Make sure if we get a Collection of params the items are put into
+        # provenance in the right order
+        if isinstance(parameter, dict):
+            parameter = [{k: v} for k, v in parameter.items()]
+
         handler = type_map.get(type_expr.to_ast().get('name'), lambda x: x)
         self.parameters[name] = handler(parameter)
 
