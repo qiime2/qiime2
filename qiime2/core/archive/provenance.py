@@ -423,20 +423,24 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.parameters[name] = handler(parameter)
 
     def add_input(self, name, input):
-        # If we received a Collection, we will have a dict, we want to make
-        # sure we use the values (which should be artifacts) as opposed to the
-        # keys (which should be strings)
-        if isinstance(input, dict):
-            input = list(input.values())
-
         if input is None:
             self.inputs[name] = None
         elif isinstance(input, collections.abc.Iterable):
             values = []
-            for artifact in input:
-                record = self.add_ancestor(artifact)
-                values.append(record)
-            self.inputs[name] = type(input)(values)
+            # If we took a Collection input, we will have a dict, and we want
+            # the keys to line up with the processed values we were given, so
+            # we can maintain the order of the artifacts
+            if isinstance(input, dict):
+                for artifact in input.values():
+                    record = self.add_ancestor(artifact)
+                    values.append(record)
+                self.inputs[name] = \
+                    [{k: v} for k, v in zip(input.keys(), values)]
+            else:
+                for artifact in input:
+                    record = self.add_ancestor(artifact)
+                    values.append(record)
+                self.inputs[name] = type(input)(values)
         else:
             self.inputs[name] = self.add_ancestor(input)
 
