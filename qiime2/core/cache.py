@@ -770,7 +770,7 @@ class Cache:
         """
         with self.lock:
             pool = self._create_collection_pool(ref_collection, key)
-            # self._register_key(key, ref_collection, pool=True, ordered=True)
+
             for ref in list(ref_collection.values()):
                 pool.save(ref)
 
