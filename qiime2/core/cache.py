@@ -71,6 +71,15 @@ pool:
  %s
 """
 
+_ORDERED_KEY_TEMPLATE = """\
+origin:
+ %s
+pool:
+ %s
+order:
+ %s
+"""
+
 # Thread local indicating the cache to use
 _CACHE = threading.local()
 _CACHE.cache = None
@@ -582,7 +591,7 @@ class Cache:
         """
         return Pool(self, reuse=True)
 
-    def create_pool(self, keys=[], reuse=False):
+    def create_pool(self, keys=[], reuse=False, ordered=False):
         """Used to create named pools. A named pool's name is all of the keys
         given for it separated by underscores. All of the given keys are
         created individually and refer to the named pool as opposed to saving a
@@ -629,11 +638,11 @@ class Cache:
         pool_name = '_'.join(keys)
         pool = Pool(self, name=pool_name, reuse=reuse)
 
-        self._create_pool_keys(pool_name, keys)
+        self._create_pool_keys(pool_name, keys, ordered=ordered)
 
         return pool
 
-    def _create_pool_keys(self, pool_name, keys):
+    def _create_pool_keys(self, pool_name, keys, ordered=False):
         """A pool can have many keys referring to it. This function creates all
         of the keys referring to the pool.
 
@@ -645,7 +654,7 @@ class Cache:
             A list of all the keys to create referring to the pool.
         """
         for key in keys:
-            self._register_key(key, pool_name, pool=True)
+            self._register_key(key, pool_name, pool=True, ordered=ordered)
 
     def garbage_collection(self):
         """Runs garbage collection on the cache in the following steps:
@@ -761,7 +770,19 @@ class Cache:
 
         return self.load(key)
 
-    def _register_key(self, key, value, pool=False):
+    def save_collection(self, ref_collection, key):
+        """Saves a Collection to a pool in the cache with the given key. This
+        pool's key file will keep track of the order of the Collection.
+        """
+        with self.lock:
+            pool = self.create_pool([key], reuse=True, ordered=True)
+            # self._register_key(key, ref_collection, pool=True, ordered=True)
+            for ref in list(ref_collection.values()):
+                pool.save(ref)
+
+        return self.load_collection(key)
+
+    def _register_key(self, key, value, pool=False, ordered=False):
         """Creates a key file pointing at the specified data or pool.
 
         Parameters
@@ -788,8 +809,18 @@ class Cache:
 
         key_fp = self.keys / key
 
-        if pool:
+        # TODO: Need to actually handle ordered pools properly, stopping mid
+        # refactor
+        if pool and ordered:
+            key_fp.write_text(
+                _ORDERED_KEY_TEMPLATE % (key,
+                                         [str(v.uuid) for v in value.values()],
+                                         list(value.keys())))
+        elif pool:
             key_fp.write_text(_KEY_TEMPLATE % (key, '', value))
+        elif ordered:
+            raise ValueError(
+                'Cannot create an ordered key that is not a pool key.')
         else:
             key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
 
@@ -871,6 +902,12 @@ class Cache:
             archiver = Archiver.load_raw(path, self)
 
         return Result._from_archiver(archiver)
+
+    def load_collection(self, key):
+        """Loads a pool referenced by a given key as a Collection. The pool
+        loaded must have been created using Cache.save_collection.
+        """
+        pass
 
     def _load_uuid(self, uuid):
         """Load raw from the cache if the uuid is in the cache. Return None if
