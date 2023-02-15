@@ -803,24 +803,24 @@ class Cache:
 
         key_fp = self.keys / key
 
-        key = {}
-        key['origin'] = key
+        key_dict = {}
+        key_dict['origin'] = key
 
         if pool:
-            key['pool'] = value
+            key_dict['pool'] = value
 
             if collection is not None:
-                key['order'] = \
+                key_dict['order'] = \
                     [{k: str(v.uuid)} for k, v in collection.items()]
         else:
-            key['data'] = value
+            key_dict['data'] = value
 
             if collection is not None:
                 raise ValueError('An ordered Collection key can only be made'
                                  ' for a pool.')
 
         with open(key_fp, 'w') as fh:
-            yaml.dump(key, fh)
+            yaml.dump(key_dict, fh)
 
     def read_key(self, key):
         """Reads the contents of a given key.
