@@ -676,8 +676,7 @@ class Cache:
         # their data
         with self.lock:
             for key in self.get_keys():
-                with open(self.keys / key) as fh:
-                    loaded_key = yaml.safe_load(fh)
+                loaded_key = self.read_key(self.keys / key)
 
                 if 'data' in loaded_key:
                     referenced_data.add(loaded_key['data'])
