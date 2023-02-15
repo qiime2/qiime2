@@ -820,7 +820,7 @@ class Cache:
                                  ' for a pool.')
 
         with open(key_fp, 'w') as fh:
-            yaml.dump(key_dict, fh)
+            yaml.safe_dump(key_dict, fh)
 
     def read_key(self, key):
         """Reads the contents of a given key.
