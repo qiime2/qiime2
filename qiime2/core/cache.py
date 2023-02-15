@@ -62,17 +62,6 @@ cache: %s
 framework: %s
 """
 
-_KEY_TEMPLATE = """\
-origin:
- %s
-data:
- %s
-pool:
- %s
-order:
- %s
-"""
-
 # Thread local indicating the cache to use
 _CACHE = threading.local()
 _CACHE.cache = None
@@ -689,13 +678,17 @@ class Cache:
             for key in self.get_keys():
                 with open(self.keys / key) as fh:
                     loaded_key = yaml.safe_load(fh)
-                referenced_pools.add(loaded_key['pool'])
-                referenced_data.add(loaded_key['data'])
 
-            # Since each key has at most a pool or data, we will end up with a
-            # None in at least one of these sets. We don't want it
-            referenced_pools.discard(None)
-            referenced_data.discard(None)
+                if 'data' in loaded_key:
+                    referenced_data.add(loaded_key['data'])
+                elif 'pool' in loaded_key:
+                    referenced_pools.add(loaded_key['pool'])
+                # This really should never be happening unless someone messes
+                # with things manually
+                else:
+                    raise ValueError(f"The key '{key}' in the cache"
+                                     f"'{self.path}' does not point to"
+                                     " anything")
 
             # Walk over pools and remove any that were not referred to by keys
             # while tracking all data within those that were referenced
@@ -810,16 +803,24 @@ class Cache:
 
         key_fp = self.keys / key
 
-        if pool and collection is not None:
-            key_fp.write_text(_KEY_TEMPLATE % (
-                key, '', value, [str(v) for v in collection.values()]))
-        elif collection is not None:
-            raise ValueError('An ordered Collection key can only be made for a'
-                             ' pool.')
-        elif pool:
-            key_fp.write_text(_KEY_TEMPLATE % (key, '', value, ''))
+        key = {}
+        key['origin'] = key
+
+        if pool:
+            key['pool'] = value
+
+            if collection is not None:
+                key['order'] = \
+                    [{k: str(v.uuid)} for k, v in collection.items()]
         else:
-            key_fp.write_text(_KEY_TEMPLATE % (key, value, '', ''))
+            key['data'] = value
+
+            if collection is not None:
+                raise ValueError('An ordered Collection key can only be made'
+                                 ' for a pool.')
+
+        with open(key_fp, 'w') as fh:
+            yaml.dump(key, fh)
 
     def read_key(self, key):
         """Reads the contents of a given key.
@@ -887,15 +888,15 @@ class Cache:
         >>> test_dir.cleanup()
         """
         with self.lock:
-            try:
-                key_values = self.read_key(key)
-                path = self.data / key_values['data']
-            except TypeError as e:
+            key_values = self.read_key(key)
+
+            if 'data' not in key_values:
                 raise ValueError(f"The key file '{key}' does not point to any "
                                  "data. This most likely occurred because you "
                                  "tried to load a pool which is not "
-                                 "supported.") from e
+                                 "supported.")
 
+            path = self.data / key_values['data']
             archiver = Archiver.load_raw(path, self)
 
         return Result._from_archiver(archiver)
