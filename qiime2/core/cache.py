@@ -904,7 +904,24 @@ class Cache:
         """Loads a pool referenced by a given key as a Collection. The pool
         loaded must have been created using Cache.save_collection.
         """
-        pass
+        collection = {}
+
+        with self.lock:
+            loaded_key = self.read_key(self.keys / key)
+
+            if 'order' not in loaded_key:
+                raise KeyError(f"The key file '{self.keys / key}' does not"
+                               " contain an order which is necessary for a"
+                               " collection.")
+
+            for artifact in loaded_key['order']:
+                # We created a list of one element dicts to make sure the yaml
+                # looked as expected. This is how we parse one of those dicts
+                # into its key value pair.
+                k, v = list(artifact.items())[0]
+                collection[k] = Result._from_archiver(self._load_uuid(v))
+
+        return collection
 
     def _load_uuid(self, uuid):
         """Load raw from the cache if the uuid is in the cache. Return None if
