@@ -850,8 +850,9 @@ class Cache:
                                f"key '{key}'") from e
 
     def load(self, key):
-        """Loads the data pointed to by a key. Only works on keys that refer to
-        data items and will error on keys that refer to pools.
+        """Loads the data pointed to by a key. Will defer to
+        Cache.load_collection if the key contains 'order'. Will error on keys
+        that refer to pools without order.
 
         Parameters
         ----------
@@ -888,6 +889,9 @@ class Cache:
         """
         with self.lock:
             key_values = self.read_key(key)
+
+            if 'order' in key_values:
+                return self.load_collection(key)
 
             if 'data' not in key_values:
                 raise ValueError(f"The key file '{key}' does not point to any "
