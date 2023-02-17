@@ -642,7 +642,7 @@ class TestMethod(unittest.TestCase):
         self.assertIsInstance(out.output, dict)
 
     def test_collection_dict_param(self):
-        dict_method = self.plugin.methods['collection_params']
+        dict_method = self.plugin.methods['dict_params']
 
         param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
         param_list = [1, 2, 3, 4]

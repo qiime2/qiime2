@@ -158,7 +158,7 @@ def collection_outer_union(ints: list) -> list:
     return [[0]]
 
 
-def collection_params(ints: dict) -> list:
+def dict_params(ints: dict) -> dict:
     assert isinstance(ints, dict)
     return [list(ints.values()), list(ints.values())]
 

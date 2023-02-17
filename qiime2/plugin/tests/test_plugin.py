@@ -102,7 +102,7 @@ class TestPlugin(unittest.TestCase):
                           'type_match_list_and_set',
                           'list_of_ints', 'dict_of_ints',
                           'collection_inner_union', 'collection_outer_union',
-                          'collection_params', 'list_params',
+                          'dict_params', 'list_params',
                           })
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
@@ -136,7 +136,7 @@ class TestPlugin(unittest.TestCase):
                           'unioned_primitives',
                           'type_match_list_and_set', 'list_of_ints',
                           'dict_of_ints', 'collection_inner_union',
-                          'collection_outer_union', 'collection_params',
+                          'collection_outer_union', 'dict_params',
                           'list_params',
                           })
         for method in methods.values():
