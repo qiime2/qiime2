@@ -803,11 +803,11 @@ dummy_plugin.methods.register_function(
 dummy_plugin.methods.register_function(
     function=list_of_ints,
     inputs={
-        'ints': List[IntSequence1]
+        'ints': List[SingleInt]
     },
     parameters={},
     outputs=[
-        ('output', Collection[IntSequence1])
+        ('output', Collection[SingleInt])
     ],
     name='Reverses list of inputs',
     description='Some description',
@@ -822,11 +822,11 @@ dummy_plugin.methods.register_function(
 dummy_plugin.methods.register_function(
     function=dict_of_ints,
     inputs={
-        'ints': Collection[IntSequence1]
+        'ints': Collection[SingleInt]
     },
     parameters={},
     outputs=[
-        ('output', Collection[IntSequence1])
+        ('output', Collection[SingleInt])
     ],
     name='Takes ints',
     description='Some description',
@@ -883,7 +883,7 @@ dummy_plugin.methods.register_function(
         'ints': Collection[Int],
     },
     outputs=[
-        ('output', Collection[IntSequence1])
+        ('output', Collection[SingleInt])
     ],
     name='Parameters only method',
     description='This method only accepts parameters.',
@@ -896,7 +896,7 @@ dummy_plugin.methods.register_function(
         'ints': List[Int],
     },
     outputs=[
-        ('output', Collection[IntSequence1])
+        ('output', Collection[SingleInt])
     ],
     name='Parameters only method',
     description='This method only accepts parameters.',

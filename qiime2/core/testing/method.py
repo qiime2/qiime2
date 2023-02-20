@@ -140,12 +140,12 @@ def union_inputs(ints1: Union[dict, list], ints2: list) -> list:
     return [0]
 
 
-def list_of_ints(ints: list) -> list:
+def list_of_ints(ints: int) -> int:
     assert isinstance(ints, list)
     return ints
 
 
-def dict_of_ints(ints: list) -> list:
+def dict_of_ints(ints: int) -> int:
     assert isinstance(ints, dict)
     return ints
 
@@ -158,11 +158,11 @@ def collection_outer_union(ints: list) -> list:
     return [[0]]
 
 
-def dict_params(ints: dict) -> dict:
+def dict_params(ints: dict) -> int:
     assert isinstance(ints, dict)
-    return [list(ints.values()), list(ints.values())]
+    return ints
 
 
-def list_params(ints: list) -> list:
+def list_params(ints: list) -> int:
     assert isinstance(ints, list)
-    return [ints, ints]
+    return ints
