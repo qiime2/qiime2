@@ -85,8 +85,10 @@ class _List(_1DCollectionBase):
             return all(v in contained_expr for v in value)
         # The List's default type is unsurprisingly list, but we also want to
         # be able to pass in a Collection (dict)
-        elif isinstance(value, dict):
+        elif isinstance(value, dict) and len(value) > 0:
             return all(v in contained_expr for v in value.values())
+
+        return False
 
 
 class _Tuple(_CollectionBase):
@@ -119,8 +121,10 @@ class _Collection(_1DCollectionBase):
             return all(v in contained_expr for v in value.values())
         # The Collection's default view type is dict, but it is also allowed to
         # be passed around as a list
-        else:
+        elif len(value) > 0:
             return all(v in contained_expr for v in value)
+
+        return False
 
     def __iter__(self):
         return self._view.values()
