@@ -676,17 +676,17 @@ class Cache:
         # their data
         with self.lock:
             for key in self.get_keys():
-                loaded_key = self.read_key(self.keys / key)
+                loaded_key = self.read_key(key)
 
-                if 'data' in loaded_key:
-                    referenced_data.add(loaded_key['data'])
-                elif 'pool' in loaded_key:
-                    referenced_pools.add(loaded_key['pool'])
+                if (data := loaded_key.get('data')) is not None:
+                    referenced_data.add(data)
+                elif (pool := loaded_key.get('pool')) is not None:
+                    referenced_pools.add(pool)
                 # This really should never be happening unless someone messes
                 # with things manually
                 else:
                     raise ValueError(f"The key '{key}' in the cache"
-                                     f"'{self.path}' does not point to"
+                                     f" '{self.path}' does not point to"
                                      " anything")
 
             # Walk over pools and remove any that were not referred to by keys
@@ -911,7 +911,7 @@ class Cache:
         collection = {}
 
         with self.lock:
-            loaded_key = self.read_key(self.keys / key)
+            loaded_key = self.read_key(key)
 
             if 'order' not in loaded_key:
                 raise KeyError(f"The key file '{self.keys / key}' does not"
