@@ -574,10 +574,9 @@ class Cache:
         return Pool(self, reuse=True)
 
     def _create_collection_pool(self, ref_collection, key):
-        pool_name = f'{key}_collection'
-        pool = Pool(self, name=pool_name, reuse=False)
+        pool = Pool(self, name=key, reuse=False)
         self._register_key(
-            key, pool_name, pool=True, collection=ref_collection)
+            key, key, pool=True, collection=ref_collection)
 
         return pool
 
