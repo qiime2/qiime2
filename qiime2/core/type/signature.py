@@ -467,7 +467,7 @@ class PipelineSignature:
     def _list_to_dict(self, _input):
         """ Turn list to dict
         """
-        return {str(k): i for k, i in enumerate(_input)}
+        return {str(idx): v for idx, v in enumerate(_input)}
 
     def check_types(self, **kwargs):
         for name, spec in self.signature_order.items():
