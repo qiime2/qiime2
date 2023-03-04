@@ -408,13 +408,24 @@ class PipelineSignature:
                                              output_types.items()):
             if spec.qiime_type.name == 'Collection':
                 output = {}
+                collection_size = len(output_view)
 
-                for key, view in enumerate(output_view) \
-                        if isinstance(output_view, list) \
-                        else output_view.items():
-                    key = str(key)
+                if isinstance(output_view, dict):
+                    keys = list(output_view.keys())
+                    values = list(output_view.values())
+                else:
+                    keys = None
+                    values = output_view
+
+                for idx, view in enumerate(values):
+                    if keys is not None:
+                        key = str(keys[idx])
+                    else:
+                        key = str(idx)
+
                     output[key] = self._create_output_artifact(
-                        provenance, name, scope, spec, view, key=key)
+                        provenance, name, scope, spec, view, key=key,
+                        idx_out_of=f'{idx}/{collection_size}')
             elif type(output_view) is not spec.view_type:
                 raise TypeError(
                     "Expected output view type %r, received %r" %
@@ -428,15 +439,23 @@ class PipelineSignature:
         return outputs
 
     def _create_output_artifact(self, provenance, name, scope, spec, view,
-                                key=None):
+                                key=None, idx_out_of=None):
         """ Create an output artifact from a view and add it to provenance
         """
         # If we have a key we are dealing with an element of an output
         # collection otherwise we are dealing with a singular output
         if key is not None:
-            prov = provenance.fork([name, key])
+            if idx_out_of is None:
+                raise ValueError('If a key is provided, the index we are out '
+                                 'of the collection size must also be '
+                                 'provided.')
+            prov = provenance.fork([name, key, idx_out_of])
             qiime_type = spec.qiime_type.fields[0]
         else:
+            if idx_out_of is not None:
+                raise ValueError('If we are given an index into a '
+                                 'collection, we must also be given our index '
+                                 'in the collection.')
             prov = provenance.fork(name)
             qiime_type = spec.qiime_type
 
