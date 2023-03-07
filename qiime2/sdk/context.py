@@ -16,6 +16,10 @@ class Context:
             self.cache = parent.cache
         else:
             self.cache = get_cache()
+            # Only ever do this on the root context. We only want to index the
+            # pool once before we start adding our own stuff to it.
+            if self.cache.named_pool is not None:
+                self.cache.named_pool.index_pool()
 
         self._parent = parent
         self._scope = None
@@ -26,6 +30,12 @@ class Context:
         This function is aware of the pipeline context and manages its own
         cleanup as appropriate.
         """
+
+        # TODO: We want to return a callable here that when called with the
+        # appropriate arguments for the action determines whether to return
+        # this bound action object thing or the results of a previous run. We
+        # only actually NEED to do that if we have a named pool
+
         pm = qiime2.sdk.PluginManager()
         plugin = plugin.replace('_', '-')
         try:
