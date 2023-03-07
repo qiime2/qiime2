@@ -582,12 +582,8 @@ class Cache:
         """
         return Pool(self, reuse=True)
 
-    def create_pool(self, keys=[], reuse=False):
-        """Used to create named pools. A named pool's name is all of the keys
-        given for it separated by underscores. All of the given keys are
-        created individually and refer to the named pool as opposed to saving a
-        single piece of data where a single key is created referring to that
-        data.
+    def create_pool(self, key, reuse=False):
+        """Used to create named pools.
 
         Named pools can be used by pipelines to store all intermediate results
         created by the pipeline and prevent it from being reaped. This allows
@@ -603,8 +599,8 @@ class Cache:
 
         Parameters
         ----------
-        keys : List[str]
-            A list of keys to use to reference the pool.
+        key : str
+            The key to use to reference the pool.
         reuse : bool
             Whether to reuse a pool if a pool with the given keys already
             exists.
@@ -619,33 +615,17 @@ class Cache:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['some', 'kinda', 'keys'])
-        >>> cache.get_keys() == set(['some', 'kinda', 'keys'])
+        >>> pool = cache.create_pool(key='key')
+        >>> cache.get_keys() == set(['key'])
         True
-        >>> cache.get_pools() == set(['some_kinda_keys'])
+        >>> cache.get_pools() == set(['key'])
         True
         >>> test_dir.cleanup()
         """
-        pool_name = '_'.join(keys)
-        pool = Pool(self, name=pool_name, reuse=reuse)
-
-        self._create_pool_keys(pool_name, keys)
+        pool = Pool(self, name=key, reuse=reuse)
+        self._register_key(key, key, pool=True)
 
         return pool
-
-    def _create_pool_keys(self, pool_name, keys):
-        """A pool can have many keys referring to it. This function creates all
-        of the keys referring to the pool.
-
-        Parameters
-        ----------
-        pool_name : str
-            The name of the pool we are keying.
-        keys : List[str]
-            A list of all the keys to create referring to the pool.
-        """
-        for key in keys:
-            self._register_key(key, pool_name, pool=True)
 
     def garbage_collection(self):
         """Runs garbage collection on the cache in the following steps:
