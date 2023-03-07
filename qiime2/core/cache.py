@@ -1218,7 +1218,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool(key='pool')
         >>> # When we with in the pool the set cache will be the cache the pool
         >>> # belongs to, and the named pool on that cache will be the pool
         >>> # we withed in
@@ -1306,7 +1306,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool(key='pool')
         >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
         >>> pool_artifact = pool.save(artifact)
         >>> # The data itself resides in the cache this pool belongs to
@@ -1444,7 +1444,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool(key='pool')
         >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
         >>> pool_artifact = pool.save(artifact)
         >>> loaded_artifact = pool.load(str(artifact.uuid))
@@ -1484,7 +1484,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool('pool')
         >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
         >>> pool_artifact = pool.save(artifact)
         >>> pool.get_data() == set([str(artifact.uuid)])
@@ -1543,10 +1543,15 @@ class Pool:
         def cite_constructor(loader, node):
             return node.value
 
+        def metadata_constructor(loader, node):
+            return node.value
+
         yaml.constructor.SafeConstructor.add_constructor('!ref',
                                                          ref_constructor)
         yaml.constructor.SafeConstructor.add_constructor('!cite',
                                                          cite_constructor)
+        yaml.constructor.SafeConstructor.add_constructor('!metadata',
+                                                         metadata_constructor)
 
         for _uuid in self.get_data():
             print(_uuid)

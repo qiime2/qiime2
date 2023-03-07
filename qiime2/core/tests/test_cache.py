@@ -221,11 +221,11 @@ class TestCache(unittest.TestCase):
         # Data referenced directly by key
         self.cache.save(self.art1, 'foo')
         # Data referenced by pool that is referenced by key
-        pool = self.cache.create_pool(['bar'])
+        pool = self.cache.create_pool('bar')
         pool.save(self.art2)
         # We will be manually deleting the keys that back these two
         self.cache.save(self.art3, 'baz')
-        pool = self.cache.create_pool(['qux'])
+        pool = self.cache.create_pool('qux')
         pool.save(self.art4)
 
         # What we expect to see before and after gc
@@ -278,7 +278,7 @@ class TestCache(unittest.TestCase):
     def test_asynchronous_pool(self):
         plugin = get_dummy_plugin()
         concatenate_ints = plugin.methods['concatenate_ints']
-        test_pool = self.cache.create_pool(keys=[TEST_POOL])
+        test_pool = self.cache.create_pool(TEST_POOL)
 
         with self.cache:
             with test_pool:
@@ -306,7 +306,7 @@ class TestCache(unittest.TestCase):
         ref.validate()
 
     def test_no_dangling_ref_pool(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
         ref = pool.save(self.art1)
         ref.validate()
 
@@ -316,7 +316,7 @@ class TestCache(unittest.TestCase):
         ref.validate()
 
     def test_pool(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         # Create an artifact in the cache and the pool
         with self.cache:
@@ -328,7 +328,7 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
     def test_pool_no_cache_set(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         with pool:
             ref = Artifact.import_data(IntSequence1, [0, 1, 2])
@@ -339,7 +339,7 @@ class TestCache(unittest.TestCase):
 
     def test_pool_wrong_cache_set(self):
         cache = Cache(os.path.join(self.test_dir.name, 'cache'))
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         with cache:
             with self.assertRaisesRegex(ValueError,
@@ -359,8 +359,8 @@ class TestCache(unittest.TestCase):
                     pass
 
     def test_enter_multiple_pools(self):
-        pool1 = self.cache.create_pool(keys=['pool1'])
-        pool2 = self.cache.create_pool(keys=['pool2'])
+        pool1 = self.cache.create_pool('pool1')
+        pool2 = self.cache.create_pool('pool2')
 
         with pool1:
             with self.assertRaisesRegex(ValueError,
@@ -370,14 +370,14 @@ class TestCache(unittest.TestCase):
                     pass
 
     def test_loading_pool(self):
-        self.cache.create_pool(keys=['pool'])
+        self.cache.create_pool('pool')
 
         with self.assertRaisesRegex(
                 ValueError, "'pool' does not point to any data"):
             self.cache.load('pool')
 
     def test_access_data_with_deleted_key(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         with self.cache:
             with pool:
@@ -413,7 +413,7 @@ class TestCache(unittest.TestCase):
         # This test needs to use a cache that exists past the lifespan of the
         # function
         cache = get_cache()
-        test_pool = cache.create_pool(keys=[TEST_POOL], reuse=True)
+        test_pool = cache.create_pool(TEST_POOL, reuse=True)
 
         with test_pool:
             future = concatenate_ints.asynchronous(self.art1, self.art2,
