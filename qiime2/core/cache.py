@@ -1537,10 +1537,16 @@ class Pool:
         return set(os.listdir(self.path))
 
     def index_pool(self):
-        def Ref_constructor(loader, node):
+        def ref_constructor(loader, node):
             return node.value.split(':')
 
-        yaml.constructor.SafeConstructor.add_constructor('!ref', Ref_constructor)
+        def cite_constructor(loader, node):
+            return node.value
+
+        yaml.constructor.SafeConstructor.add_constructor('!ref',
+                                                         ref_constructor)
+        yaml.constructor.SafeConstructor.add_constructor('!cite',
+                                                         cite_constructor)
 
         for _uuid in self.get_data():
             print(_uuid)
@@ -1549,5 +1555,3 @@ class Pool:
 
             with open(action_path) as fh:
                 prov = yaml.safe_load(fh)
-                raise ValueError(prov)
-        pass
