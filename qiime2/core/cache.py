@@ -1537,6 +1537,8 @@ class Pool:
         return set(os.listdir(self.path))
 
     def index_pool(self):
+        # TODO: Make these actually do something useful at least for the tags
+        # that are relevant to what we need out of provenance
         def ref_constructor(loader, node):
             return node.value.split(':')
 
@@ -1559,4 +1561,6 @@ class Pool:
                 'action.yaml'
 
             with open(action_path) as fh:
-                prov = yaml.safe_load(fh)
+                _ = yaml.safe_load(fh)
+                # TODO: Hash an invocation out of the provenance we read and
+                # index it
