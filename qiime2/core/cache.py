@@ -43,6 +43,7 @@ import weakref
 import tempfile
 import warnings
 import threading
+import collections
 from sys import maxsize
 from random import randint
 from datetime import timedelta
@@ -71,6 +72,9 @@ data:
 pool:
  %s
 """
+
+IndexedInvocation = collections.namedtuple(
+    'IndexedInvocation', ['plugin_action', 'inputs', 'parameters'])
 
 # Thread local indicating the cache to use
 _CACHE = threading.local()
@@ -1537,7 +1541,7 @@ class Pool:
         """
         return set(os.listdir(self.path))
 
-    def index_pool(self):
+    def create_index(self):
         # Keep track of executions we have already seen so we don't try to
         # reindex them (maybe not needed)
         indexed_executions = set()
@@ -1578,17 +1582,33 @@ class Pool:
 
             with open(action_path) as fh:
                 prov = yaml.safe_load(fh)
-                stuff = {}
-                stuff.update(prov['action'])
-                invocation = {}
-                invocation['plugin'] = stuff['plugin']
-                invocation['action'] = stuff['action']
-                invocation['inputs'] = stuff['inputs']
-                invocation['parameters'] = stuff['parameters']
-                index = {}
-                index[invocation] = prov['execution']
-                raise ValueError(index)
-                # TODO: Hash an invocation out of the provenance we read and
-                # index it
+                action = prov['action']
 
-    # map: invocation -> output_name -> output
+                plugin_action = action['plugin'] + ':' + action['action']
+                inputs = make_hashable(action['inputs'])
+                parameters = make_hashable(action['parameters'])
+
+                output_name = action['output-name']
+
+                invocation = IndexedInvocation(
+                    plugin_action, inputs, parameters)
+
+                if not invocation in self.index:
+                    self.index[invocation] = {}
+
+                # map: invocation -> output_name -> output_uuid
+                self.index[invocation][output_name] = _uuid
+
+def make_hashable(collection):
+    new_collection = []
+
+    if type(collection) is dict:
+        for k, v in collection.items():
+            new_collection.append((k, make_hashable(v)))
+    elif type(collection) is list:
+        for elem in collection:
+            new_collection.append(make_hashable(elem))
+    else:
+        return collection
+
+    return tuple(new_collection)

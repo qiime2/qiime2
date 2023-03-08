@@ -19,7 +19,7 @@ class Context:
             # Only ever do this on the root context. We only want to index the
             # pool once before we start adding our own stuff to it.
             if self.cache.named_pool is not None:
-                self.cache.named_pool.index_pool()
+                self.cache.named_pool.create_index()
 
         self._parent = parent
         self._scope = None
