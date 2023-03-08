@@ -6,8 +6,13 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import os
+import tempfile
+
+from qiime2.core.util import IndexedInvocation, make_hashable, md5sum
 from qiime2.core.cache import get_cache
 import qiime2.sdk
+from qiime2.metadata import Metadata
 
 
 class Context:
@@ -30,29 +35,63 @@ class Context:
         This function is aware of the pipeline context and manages its own
         cleanup as appropriate.
         """
+        plugin = plugin.replace('_', '-')
+        plugin_action = plugin + ':' + action
 
         # TODO: We want to return a callable here that when called with the
         # appropriate arguments for the action determines whether to return
         # this bound action object thing or the results of a previous run. We
         # only actually NEED to do that if we have a named pool
+        def stuff(*args, **kwargs):
+            pm = qiime2.sdk.PluginManager()
+            try:
+                plugin_obj = pm.plugins[plugin]
+            except KeyError:
+                raise ValueError(
+                    "A plugin named %r could not be found." % plugin)
 
-        pm = qiime2.sdk.PluginManager()
-        plugin = plugin.replace('_', '-')
-        try:
-            plugin_obj = pm.plugins[plugin]
-        except KeyError:
-            raise ValueError("A plugin named %r could not be found." % plugin)
+            try:
+                action_obj = plugin_obj.actions[action]
+            except KeyError:
+                raise ValueError(
+                    "An action named %r was not found for plugin %r"
+                    % (action, plugin))
 
-        try:
-            action_obj = plugin_obj.actions[action]
-        except KeyError:
-            raise ValueError("An action named %r was not found for plugin %r"
-                             % (action, plugin))
-        # This factory will create new Contexts with this context as their
-        # parent. This allows scope cleanup to happen recursively.
-        # A factory is necessary so that independent applications of the
-        # returned callable recieve their own Context objects.
-        return action_obj._bind(lambda: Context(parent=self))
+            if self.cache.named_pool is not None:
+                arguments = []
+                for k, v in kwargs.items():
+                    if isinstance(v, qiime2.sdk.Artifact):
+                        v = str(v.uuid)
+                    if isinstance(v, Metadata):
+                        _, fp = tempfile.mkstemp()
+                        v.save(fp)
+                        v = md5sum(fp)
+                        os.remove(fp)
+
+                    arguments.append({k: v})
+
+                arguments = make_hashable(arguments)
+
+                invocation = IndexedInvocation(plugin_action, arguments)
+                if invocation in self.cache.named_pool.index:
+                    outputs = []
+                    for output in\
+                            self.cache.named_pool.index[invocation].values():
+                        artifact = \
+                            qiime2.sdk.Result.load(self.cache.data / output)
+                        outputs.append(artifact)
+
+                    return qiime2.sdk.Results(
+                        action_obj.signature.outputs.keys(), outputs)
+
+            # This factory will create new Contexts with this context as their
+            # parent. This allows scope cleanup to happen recursively.
+            # A factory is necessary so that independent applications of the
+            # returned callable recieve their own Context objects.
+            return action_obj._bind(
+                lambda: Context(parent=self))(*args, **kwargs)
+
+        return stuff
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.

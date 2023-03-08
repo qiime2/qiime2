@@ -23,6 +23,9 @@ READ_ONLY_DIR = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH | stat.S_IRUSR \
 USER_GROUP_RWX = stat.S_IRWXU | stat.S_IRWXG
 OTHER_NO_WRITE = stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH
 
+IndexedInvocation = collections.namedtuple(
+    'IndexedInvocation', ['plugin_action', 'arguments'])
+
 
 def get_view_name(view):
     from .format import FormatBase
@@ -40,6 +43,21 @@ def tuplize(x):
     if type(x) is not tuple:
         return (x,)
     return x
+
+
+def make_hashable(collection):
+    new_collection = []
+
+    if type(collection) is dict:
+        for k, v in collection.items():
+            new_collection.append((k, make_hashable(v)))
+    elif type(collection) is list:
+        for elem in collection:
+            new_collection.append(make_hashable(elem))
+    else:
+        return collection
+
+    return tuple(new_collection)
 
 
 def overrides(cls):
