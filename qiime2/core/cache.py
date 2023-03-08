@@ -53,7 +53,8 @@ import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
 from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
-                              READ_ONLY_FILE, READ_ONLY_DIR, USER_GROUP_RWX)
+                              md5sum, READ_ONLY_FILE, READ_ONLY_DIR,
+                              USER_GROUP_RWX)
 from qiime2.core.archive.archiver import Archiver
 
 _VERSION_TEMPLATE = """\
@@ -1537,16 +1538,32 @@ class Pool:
         return set(os.listdir(self.path))
 
     def index_pool(self):
+        # Keep track of executions we have already seen so we don't try to
+        # reindex them (maybe not needed)
+        indexed_executions = set()
+        # Keep track of all executions -> outputs
+        self.index = {}
+        # Potential optimization, can map the execution id to the hashed
+        # invocation associated with it so for multi-output actions we don't
+        # need to re hash the invocation can just pull it out of an existing
+        # map of exec-id -> invocation then add the output to the
+        # invocation->outputs map. Maybe not necessary
+
         # TODO: Make these actually do something useful at least for the tags
         # that are relevant to what we need out of provenance
         def ref_constructor(loader, node):
-            return node.value.split(':')
+            # We only care about the name of the thing we are referencing which
+            # is at the end of this list
+            return node.value.split(':')[-1]
 
         def cite_constructor(loader, node):
             return node.value
 
         def metadata_constructor(loader, node):
-            return node.value
+            # Use the md5sum of the metadata as its identifier, so we can tell
+            # if two artifacts used the same metadata input
+            metadata_path = prov_path / node.value
+            return md5sum(metadata_path)
 
         yaml.constructor.SafeConstructor.add_constructor('!ref',
                                                          ref_constructor)
@@ -1556,11 +1573,22 @@ class Pool:
                                                          metadata_constructor)
 
         for _uuid in self.get_data():
-            print(_uuid)
-            action_path = self.cache.data / _uuid / 'provenance' / 'action' / \
-                'action.yaml'
+            prov_path = self.cache.data / _uuid / 'provenance' / 'action'
+            action_path = prov_path / 'action.yaml'
 
             with open(action_path) as fh:
-                _ = yaml.safe_load(fh)
+                prov = yaml.safe_load(fh)
+                stuff = {}
+                stuff.update(prov['action'])
+                invocation = {}
+                invocation['plugin'] = stuff['plugin']
+                invocation['action'] = stuff['action']
+                invocation['inputs'] = stuff['inputs']
+                invocation['parameters'] = stuff['parameters']
+                index = {}
+                index[invocation] = prov['execution']
+                raise ValueError(index)
                 # TODO: Hash an invocation out of the provenance we read and
                 # index it
+
+    # map: invocation -> output_name -> output
