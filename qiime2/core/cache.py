@@ -1544,7 +1544,7 @@ class Pool:
     def create_index(self):
         # Keep track of executions we have already seen so we don't try to
         # reindex them (maybe not needed)
-        indexed_executions = set()
+        # indexed_executions = set()
         # Keep track of all executions -> outputs
         self.index = {}
         # Potential optimization, can map the execution id to the hashed
@@ -1593,11 +1593,12 @@ class Pool:
                 invocation = IndexedInvocation(
                     plugin_action, inputs, parameters)
 
-                if not invocation in self.index:
+                if invocation not in self.index:
                     self.index[invocation] = {}
 
                 # map: invocation -> output_name -> output_uuid
                 self.index[invocation][output_name] = _uuid
+
 
 def make_hashable(collection):
     new_collection = []
