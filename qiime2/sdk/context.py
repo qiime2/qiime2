@@ -40,7 +40,7 @@ class Context:
 
         # We return this callable which determines whether to return cached
         # results or to run the action requested.
-        def stuff(*args, **kwargs):
+        def deferred_action(*args, **kwargs):
             pm = qiime2.sdk.PluginManager()
             try:
                 plugin_obj = pm.plugins[plugin]
@@ -105,7 +105,7 @@ class Context:
             return action_obj._bind(
                 lambda: Context(parent=self))(*args, **kwargs)
 
-        return stuff
+        return deferred_action
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.
