@@ -1549,6 +1549,27 @@ class Pool:
         # map of exec-id -> invocation then add the output to the
         # invocation->outputs map. Maybe not necessary
 
+        with self.cache.lock:
+            for _uuid in self.get_data():
+                prov = self.load_provenance(_uuid)
+                action = prov['action']
+
+                plugin_action = action['plugin'] + ':' + action['action']
+                arguments = action['inputs']
+                arguments.extend(action['parameters'])
+                arguments = make_hashable(arguments)
+
+                output_name = action['output-name']
+
+                invocation = IndexedInvocation(plugin_action, arguments)
+
+                if invocation not in self.index:
+                    self.index[invocation] = {}
+
+                # map: invocation -> output_name -> output_uuid
+                self.index[invocation][output_name] = _uuid
+
+    def load_provenance(self, _uuid):
         # TODO: Make these actually do something useful at least for the tags
         # that are relevant to what we need out of provenance
         def ref_constructor(loader, node):
@@ -1572,26 +1593,10 @@ class Pool:
         yaml.constructor.SafeConstructor.add_constructor('!metadata',
                                                          metadata_constructor)
 
-        with self.cache.lock:
-            for _uuid in self.get_data():
-                prov_path = self.cache.data / _uuid / 'provenance' / 'action'
-                action_path = prov_path / 'action.yaml'
+        prov_path = self.cache.data / _uuid / 'provenance' / 'action'
+        action_path = prov_path / 'action.yaml'
 
-                with open(action_path) as fh:
-                    prov = yaml.safe_load(fh)
-                    action = prov['action']
+        with open(action_path) as fh:
+            prov = yaml.safe_load(fh)
 
-                    plugin_action = action['plugin'] + ':' + action['action']
-                    arguments = action['inputs']
-                    arguments.extend(action['parameters'])
-                    arguments = make_hashable(arguments)
-
-                    output_name = action['output-name']
-
-                    invocation = IndexedInvocation(plugin_action, arguments)
-
-                    if invocation not in self.index:
-                        self.index[invocation] = {}
-
-                    # map: invocation -> output_name -> output_uuid
-                    self.index[invocation][output_name] = _uuid
+        return prov
