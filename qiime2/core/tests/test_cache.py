@@ -412,9 +412,9 @@ class TestCache(unittest.TestCase):
                 left_uuid, right_uuid = str(e.exception).split(',')
                 left, right = resumable_pipeline(art)
 
-                complete_left_uuid = pool.load_provenance(
+                complete_left_uuid = qiime2.core.util.load_provenance(
                     str(left.uuid))['action']['alias-of']
-                complete_right_uuid = pool.load_provenance(
+                complete_right_uuid = qiime2.core.util.load_provenance(
                     str(right.uuid))['action']['alias-of']
 
                 # Assert that the artifacts returned by the completed run of

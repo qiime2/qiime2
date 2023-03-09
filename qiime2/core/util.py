@@ -14,6 +14,7 @@ import os
 import io
 import collections
 import uuid as _uuid
+import yaml
 
 import decorator
 
@@ -349,3 +350,37 @@ def touch_under_path(path):
                     os.path.join(directory, file), None, follow_symlinks=False)
             except FileNotFoundError:
                 pass
+
+
+def load_provenance(uuid):
+    from qiime2.core.cache import get_cache
+    cache = get_cache()
+
+    # TODO: Make these actually do something useful at least for the tags
+    # that are relevant to what we need out of provenance
+    def ref_constructor(loader, node):
+        # We only care about the name of the thing we are referencing which
+        # is at the end of this list
+        return node.value.split(':')[-1]
+
+    def cite_constructor(loader, node):
+        return node.value
+
+    def metadata_constructor(loader, node):
+        # Use the md5sum of the metadata as its identifier, so we can tell
+        # if two artifacts used the same metadata input
+        metadata_path = prov_path / node.value
+        return md5sum(metadata_path)
+
+    yaml.constructor.SafeConstructor.add_constructor('!ref', ref_constructor)
+    yaml.constructor.SafeConstructor.add_constructor('!cite', cite_constructor)
+    yaml.constructor.SafeConstructor.add_constructor(
+        '!metadata', metadata_constructor)
+
+    prov_path = cache.data / uuid / 'provenance' / 'action'
+    action_path = prov_path / 'action.yaml'
+
+    with open(action_path) as fh:
+        prov = yaml.safe_load(fh)
+
+    return prov

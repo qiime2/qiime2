@@ -53,7 +53,7 @@ import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
 from qiime2.core.util import (IndexedInvocation, is_uuid4, set_permissions,
-                              touch_under_path, md5sum, make_hashable,
+                              touch_under_path, make_hashable, load_provenance,
                               READ_ONLY_FILE, READ_ONLY_DIR, USER_GROUP_RWX)
 from qiime2.core.archive.archiver import Archiver
 
@@ -1551,7 +1551,7 @@ class Pool:
 
         with self.cache.lock:
             for _uuid in self.get_data():
-                prov = self.load_provenance(_uuid)
+                prov = load_provenance(_uuid)
                 action = prov['action']
 
                 plugin_action = action['plugin'] + ':' + action['action']
@@ -1568,35 +1568,3 @@ class Pool:
 
                 # map: invocation -> output_name -> output_uuid
                 self.index[invocation][output_name] = _uuid
-
-    def load_provenance(self, _uuid):
-        # TODO: Make these actually do something useful at least for the tags
-        # that are relevant to what we need out of provenance
-        def ref_constructor(loader, node):
-            # We only care about the name of the thing we are referencing which
-            # is at the end of this list
-            return node.value.split(':')[-1]
-
-        def cite_constructor(loader, node):
-            return node.value
-
-        def metadata_constructor(loader, node):
-            # Use the md5sum of the metadata as its identifier, so we can tell
-            # if two artifacts used the same metadata input
-            metadata_path = prov_path / node.value
-            return md5sum(metadata_path)
-
-        yaml.constructor.SafeConstructor.add_constructor('!ref',
-                                                         ref_constructor)
-        yaml.constructor.SafeConstructor.add_constructor('!cite',
-                                                         cite_constructor)
-        yaml.constructor.SafeConstructor.add_constructor('!metadata',
-                                                         metadata_constructor)
-
-        prov_path = self.cache.data / _uuid / 'provenance' / 'action'
-        action_path = prov_path / 'action.yaml'
-
-        with open(action_path) as fh:
-            prov = yaml.safe_load(fh)
-
-        return prov
