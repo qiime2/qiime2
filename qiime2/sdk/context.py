@@ -57,6 +57,8 @@ class Context:
                     "An action named %r was not found for plugin %r"
                     % (action, plugin))
 
+            # If we have a named_pool, we need to check for cached results that
+            # we can reuse
             if self.cache.named_pool is not None:
                 arguments = {}
                 hashable_arguments = []
@@ -95,9 +97,12 @@ class Context:
                     return qiime2.sdk.Results(
                         action_obj.signature.outputs.keys(), outputs)
 
+            # If we didn't have cached results to reuse, we need to execute the
+            # action.
+            #
             # This factory will create new Contexts with this context as their
-            # parent. This allows scope cleanup to happen recursively.
-            # A factory is necessary so that independent applications of the
+            # parent. This allows scope cleanup to happen recursively. A
+            # factory is necessary so that independent applications of the
             # returned callable recieve their own Context objects.
             return action_obj._bind(
                 lambda: Context(parent=self))(*args, **kwargs)
