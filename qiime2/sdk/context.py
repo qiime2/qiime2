@@ -43,7 +43,6 @@ class Context:
         # this bound action object thing or the results of a previous run. We
         # only actually NEED to do that if we have a named pool
         def stuff(*args, **kwargs):
-            # TODO: need to support args currently only support kwargs
             pm = qiime2.sdk.PluginManager()
             try:
                 plugin_obj = pm.plugins[plugin]
@@ -59,8 +58,18 @@ class Context:
                     % (action, plugin))
 
             if self.cache.named_pool is not None:
-                arguments = []
-                for k, v in kwargs.items():
+                arguments = {}
+                hashable_arguments = []
+
+                # Make args look the same as kwargs then process them together.
+                # Transform the args then update with kwargs to retain the
+                # order they were passed in
+                for k, v in \
+                        zip(action_obj.signature.signature_order.keys(), args):
+                    arguments[k] = v
+
+                arguments.update(kwargs)
+                for k, v in arguments.items():
                     if isinstance(v, qiime2.sdk.Artifact):
                         v = str(v.uuid)
                     if isinstance(v, Metadata):
@@ -69,11 +78,12 @@ class Context:
                         v = md5sum(fp)
                         os.remove(fp)
 
-                    arguments.append({k: v})
+                    hashable_arguments.append({k: v})
 
-                arguments = make_hashable(arguments)
+                hashable_arguments = make_hashable(hashable_arguments)
 
-                invocation = IndexedInvocation(plugin_action, arguments)
+                invocation = IndexedInvocation(
+                    plugin_action, hashable_arguments)
                 if invocation in self.cache.named_pool.index:
                     outputs = []
                     for output in\
