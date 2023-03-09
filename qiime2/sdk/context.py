@@ -38,23 +38,22 @@ class Context:
         plugin = plugin.replace('_', '-')
         plugin_action = plugin + ':' + action
 
+        pm = qiime2.sdk.PluginManager()
+        try:
+            plugin_obj = pm.plugins[plugin]
+        except KeyError:
+            raise ValueError("A plugin named %r could not be found." % plugin)
+
+        try:
+            action_obj = plugin_obj.actions[action]
+        except KeyError:
+            raise ValueError(
+                "An action named %r was not found for plugin %r"
+                % (action, plugin))
+
         # We return this callable which determines whether to return cached
         # results or to run the action requested.
         def deferred_action(*args, **kwargs):
-            pm = qiime2.sdk.PluginManager()
-            try:
-                plugin_obj = pm.plugins[plugin]
-            except KeyError:
-                raise ValueError(
-                    "A plugin named %r could not be found." % plugin)
-
-            try:
-                action_obj = plugin_obj.actions[action]
-            except KeyError:
-                raise ValueError(
-                    "An action named %r was not found for plugin %r"
-                    % (action, plugin))
-
             # If we have a named_pool, we need to check for cached results that
             # we can reuse
             if self.cache.named_pool is not None:
