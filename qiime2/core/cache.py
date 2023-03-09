@@ -1572,25 +1572,26 @@ class Pool:
         yaml.constructor.SafeConstructor.add_constructor('!metadata',
                                                          metadata_constructor)
 
-        for _uuid in self.get_data():
-            prov_path = self.cache.data / _uuid / 'provenance' / 'action'
-            action_path = prov_path / 'action.yaml'
+        with self.cache.lock:
+            for _uuid in self.get_data():
+                prov_path = self.cache.data / _uuid / 'provenance' / 'action'
+                action_path = prov_path / 'action.yaml'
 
-            with open(action_path) as fh:
-                prov = yaml.safe_load(fh)
-                action = prov['action']
+                with open(action_path) as fh:
+                    prov = yaml.safe_load(fh)
+                    action = prov['action']
 
-                plugin_action = action['plugin'] + ':' + action['action']
-                arguments = action['inputs']
-                arguments.extend(action['parameters'])
-                arguments = make_hashable(arguments)
+                    plugin_action = action['plugin'] + ':' + action['action']
+                    arguments = action['inputs']
+                    arguments.extend(action['parameters'])
+                    arguments = make_hashable(arguments)
 
-                output_name = action['output-name']
+                    output_name = action['output-name']
 
-                invocation = IndexedInvocation(plugin_action, arguments)
+                    invocation = IndexedInvocation(plugin_action, arguments)
 
-                if invocation not in self.index:
-                    self.index[invocation] = {}
+                    if invocation not in self.index:
+                        self.index[invocation] = {}
 
-                # map: invocation -> output_name -> output_uuid
-                self.index[invocation][output_name] = _uuid
+                    # map: invocation -> output_name -> output_uuid
+                    self.index[invocation][output_name] = _uuid
