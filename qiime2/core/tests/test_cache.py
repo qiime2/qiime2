@@ -118,6 +118,7 @@ def _fake_user_for_cache(cache_prefix, i_acknowledge_this_is_dangerous=False):
 
 class TestCache(unittest.TestCase):
     def setUp(self):
+        self.plugin = get_dummy_plugin()
         # Create temp test dir
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
 
@@ -260,8 +261,7 @@ class TestCache(unittest.TestCase):
         self.assertEqual(expected_post_gc_contents, post_gc_contents)
 
     def test_asynchronous(self):
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
+        concatenate_ints = self.plugin.methods['concatenate_ints']
 
         with self.cache:
             future = concatenate_ints.asynchronous(self.art1, self.art2,
@@ -276,8 +276,7 @@ class TestCache(unittest.TestCase):
         self.assertEqual(expected, observed)
 
     def test_asynchronous_pool(self):
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
+        concatenate_ints = self.plugin.methods['concatenate_ints']
         test_pool = self.cache.create_pool(TEST_POOL)
 
         with self.cache:
@@ -399,6 +398,29 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.data))
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
+    def test_resumable_pipeline(self):
+        resumable_pipeline = self.plugin.pipelines['resumable_pipeline']
+
+        pool = self.cache.create_pool('pool')
+        art = Artifact.import_data(IntSequence1, [0, 1, 2])
+
+        with self.cache:
+            with pool:
+                with self.assertRaises(ValueError) as e:
+                    resumable_pipeline(art, fail=True)
+
+                left_uuid, right_uuid = str(e.exception).split(',')
+                left, right, _, _ = resumable_pipeline(art)
+
+                complete_left_uuid = pool.load_provenance(
+                    str(left.uuid))['action']['alias-of']
+                complete_right_uuid = pool.load_provenance(
+                    str(right.uuid))['action']['alias-of']
+
+                self.assertEqual(left_uuid, complete_left_uuid)
+                self.assertEqual(right_uuid, complete_right_uuid)
+
+
     # This test has zzz in front of it because unittest.Testcase runs the tests
     # in alphabetical order, and we want this test to run last
     def test_zzz_asynchronous_pool_post_exit(self):
@@ -407,8 +429,7 @@ class TestCache(unittest.TestCase):
         destroy our data when running asynchronous actions, and it can probably
         be removed once Archiver is reworked
         """
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
+        concatenate_ints = self.plugin.methods['concatenate_ints']
 
         # This test needs to use a cache that exists past the lifespan of the
         # function
@@ -469,8 +490,7 @@ class TestCache(unittest.TestCase):
         only run as root because only root can create and delete users, and for
         now at least it won't run on Mac
         """
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
+        concatenate_ints = self.plugin.methods['concatenate_ints']
 
         root_cache = get_cache()
         root_user = _get_user()

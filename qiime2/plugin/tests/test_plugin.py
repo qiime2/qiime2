@@ -89,8 +89,8 @@ class TestPlugin(unittest.TestCase):
                           'long_description_method', 'parameter_only_pipeline',
                           'typical_pipeline', 'optional_artifact_pipeline',
                           'pointless_pipeline', 'visualizer_only_pipeline',
-                          'pipelines_in_pipeline', 'failing_pipeline',
-                          'docstring_order_method',
+                          'pipelines_in_pipeline', 'resumable_pipeline',
+                          'failing_pipeline', 'docstring_order_method',
                           'constrained_input_visualization',
                           'combinatorically_mapped_method',
                           'double_bound_variable_method',
@@ -151,7 +151,7 @@ class TestPlugin(unittest.TestCase):
                          {'parameter_only_pipeline', 'typical_pipeline',
                           'optional_artifact_pipeline', 'pointless_pipeline',
                           'visualizer_only_pipeline', 'pipelines_in_pipeline',
-                          'failing_pipeline'})
+                          'resumable_pipeline', 'failing_pipeline'})
         for pipeline in pipelines.values():
             self.assertIsInstance(pipeline, qiime2.sdk.Pipeline)
 
