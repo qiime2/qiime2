@@ -80,9 +80,9 @@ class Context:
                     hashable_arguments.append({k: v})
 
                 hashable_arguments = make_hashable(hashable_arguments)
-
                 invocation = IndexedInvocation(
                     plugin_action, hashable_arguments)
+
                 if invocation in self.cache.named_pool.index:
                     outputs = {}
                     for key in action_obj.signature.outputs.keys():
