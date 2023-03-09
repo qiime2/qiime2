@@ -744,8 +744,6 @@ dummy_plugin.pipelines.register_function(
     outputs=[
         ('left', IntSequence1),
         ('right', IntSequence1),
-        ('left_viz', Visualization),
-        ('right_viz', Visualization),
     ],
     name='To be resumed',
     description=('Called first with fail=True then again with fail=False '

@@ -86,18 +86,12 @@ def resumable_pipeline(ctx, int_sequence, fail=False):
     results from the first call
     """
     split_ints = ctx.get_action('dummy_plugin', 'split_ints')
-    most_common_viz = ctx.get_action('dummy_plugin', 'most_common_viz')
 
     left, right = split_ints(int_sequence)
-
-    print(f'{str(left.uuid)},{str(right.uuid)}')
     if fail:
         raise ValueError(f'{left.uuid},{right.uuid}')
 
-    left_viz, = most_common_viz(left)
-    right_viz, = most_common_viz(right)
-
-    return left, right, left_viz, right_viz
+    return left, right
 
 
 def pointless_pipeline(ctx):
