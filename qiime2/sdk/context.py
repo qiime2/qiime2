@@ -38,10 +38,8 @@ class Context:
         plugin = plugin.replace('_', '-')
         plugin_action = plugin + ':' + action
 
-        # TODO: We want to return a callable here that when called with the
-        # appropriate arguments for the action determines whether to return
-        # this bound action object thing or the results of a previous run. We
-        # only actually NEED to do that if we have a named pool
+        # We return this callable which determines whether to return cached
+        # results or to run the action requested.
         def stuff(*args, **kwargs):
             pm = qiime2.sdk.PluginManager()
             try:
