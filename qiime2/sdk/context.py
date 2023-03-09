@@ -43,6 +43,7 @@ class Context:
         # this bound action object thing or the results of a previous run. We
         # only actually NEED to do that if we have a named pool
         def stuff(*args, **kwargs):
+            # TODO: need to support args currently only support kwargs
             pm = qiime2.sdk.PluginManager()
             try:
                 plugin_obj = pm.plugins[plugin]
