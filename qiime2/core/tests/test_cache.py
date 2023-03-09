@@ -410,16 +410,18 @@ class TestCache(unittest.TestCase):
                     resumable_pipeline(art, fail=True)
 
                 left_uuid, right_uuid = str(e.exception).split(',')
-                left, right, _, _ = resumable_pipeline(art)
+                left, right = resumable_pipeline(art)
 
                 complete_left_uuid = pool.load_provenance(
                     str(left.uuid))['action']['alias-of']
                 complete_right_uuid = pool.load_provenance(
                     str(right.uuid))['action']['alias-of']
 
+                # Assert that the artifacts returned by the completed run of
+                # the pipeline are aliases of the artifacts created by the
+                # first failed run
                 self.assertEqual(left_uuid, complete_left_uuid)
                 self.assertEqual(right_uuid, complete_right_uuid)
-
 
     # This test has zzz in front of it because unittest.Testcase runs the tests
     # in alphabetical order, and we want this test to run last
