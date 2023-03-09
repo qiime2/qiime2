@@ -84,15 +84,13 @@ class Context:
                 invocation = IndexedInvocation(
                     plugin_action, hashable_arguments)
                 if invocation in self.cache.named_pool.index:
-                    outputs = []
-                    for output in\
-                            self.cache.named_pool.index[invocation].values():
-                        artifact = \
+                    outputs = {}
+                    for key in action_obj.signature.outputs.keys():
+                        output = self.cache.named_pool.index[invocation][key]
+                        outputs[key] = \
                             qiime2.sdk.Result.load(self.cache.data / output)
-                        outputs.append(artifact)
 
-                    return qiime2.sdk.Results(
-                        action_obj.signature.outputs.keys(), outputs)
+                    return qiime2.sdk.Results(outputs.keys(), outputs.values())
 
             # If we didn't have cached results to reuse, we need to execute the
             # action.
