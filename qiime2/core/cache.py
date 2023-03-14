@@ -558,28 +558,6 @@ class Cache:
                 else:
                     os.unlink(fp)
 
-    def _create_process_pool(self):
-        """Creates a process pool which is identical in function to a named
-        pool, but it lives in the processes subdirectory not the pools
-        subdirectory, and is handled differently by garbage collection due to
-        being un-keyed. Process pools are used to keep track of results for
-        currently running processes and are removed when the process that
-        created them ends.
-
-        Returns
-        -------
-        Pool
-            The pool we created.
-        """
-        return Pool(self, reuse=True)
-
-    def _create_collection_pool(self, ref_collection, key):
-        pool = Pool(self, name=key, reuse=False)
-        self._register_key(
-            key, key, pool=True, collection=ref_collection)
-
-        return pool
-
     def create_pool(self, keys=[], reuse=False):
         """Used to create named pools. A named pool's name is all of the keys
         given for it separated by underscores. All of the given keys are
@@ -628,6 +606,28 @@ class Cache:
         pool = Pool(self, name=pool_name, reuse=reuse)
 
         self._create_pool_keys(pool_name, keys)
+
+        return pool
+
+    def _create_process_pool(self):
+        """Creates a process pool which is identical in function to a named
+        pool, but it lives in the processes subdirectory not the pools
+        subdirectory, and is handled differently by garbage collection due to
+        being un-keyed. Process pools are used to keep track of results for
+        currently running processes and are removed when the process that
+        created them ends.
+
+        Returns
+        -------
+        Pool
+            The pool we created.
+        """
+        return Pool(self, reuse=True)
+
+    def _create_collection_pool(self, ref_collection, key):
+        pool = Pool(self, name=key, reuse=False)
+        self._register_key(
+            key, key, pool=True, collection=ref_collection)
 
         return pool
 
@@ -766,6 +766,9 @@ class Cache:
         """Saves a Collection to a pool in the cache with the given key. This
         pool's key file will keep track of the order of the Collection.
         """
+        if isinstance(ref_collection, qiime2.sdk.Results):
+            ref_collection = ref_collection.output
+
         with self.lock:
             pool = self._create_collection_pool(ref_collection, key)
 
@@ -1496,6 +1499,28 @@ class Pool:
         with self.cache.lock:
             if not os.path.exists(dest):
                 os.symlink(src, dest)
+
+    def _rename_to_collection_pool(self, uuid, src):
+        uuid = str(uuid)
+
+        dest = self.data / uuid
+        alias = os.path.split(src)[0]
+        with self.lock:
+            # Rename errors if the destination already exists
+            if not os.path.exists(dest):
+                os.rename(src, dest)
+                set_permissions(dest, READ_ONLY_FILE, READ_ONLY_DIR)
+
+            # Create a new alias whether we renamed or not because this is
+            # still loading a new reference to the data even if the data is
+            # already there
+            process_alias = self._alias(uuid)
+
+        # Remove the aliased directory above the one we renamed. We need to do
+        # this whether we renamed or not because we aren't renaming this
+        # directory but the one beneath it
+        shutil.rmtree(alias)
+        return process_alias, dest
 
     def load(self, ref):
         """Loads a reference to an element in the pool.
