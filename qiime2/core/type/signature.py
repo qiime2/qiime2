@@ -335,9 +335,10 @@ class PipelineSignature:
             else:
                 params[name] = _param
 
-            # I don't know if we want params[name] (the correct view type parm)
-            # or _param (the potentially incorrect view type, but the one we
-            # were actually given) here. I am leaning towards params[name]
+            # I don't know if we want params[name] (the correct view type
+            # param) or _param (the potentially incorrect view type, but the
+            # one we were actually given) here. I am leaning towards
+            # params[name]
             provenance.add_parameter(name, spec.qiime_type, params[name])
 
         return params
@@ -351,7 +352,6 @@ class PipelineSignature:
         # If we have a Collection input and a Union view type complain
         for name, spec in self.inputs.items():
             _input = user_input[name]
-            provenance.add_input(name, _input)
 
             qiime_name = spec.qiime_type.name
             qiime_type = spec.qiime_type
@@ -366,9 +366,8 @@ class PipelineSignature:
                 # elements will share this same basic information because we
                 # do not allow
                 # List[TypeA] | Collection[TypeA]
-                first = next(spec.qiime_type.unpack_union())
-                qiime_name = first.name
-                qiime_type = first
+                qiime_type = next(iter(spec.qiime_type))
+                qiime_name = qiime_type.name
 
             # Transform collection from list to dict and vice versa if needed
             if qiime_name == 'Collection' and isinstance(_input, list):
@@ -377,6 +376,11 @@ class PipelineSignature:
                     isinstance(_input, dict):
                 _input = self._dict_to_list(_input)
 
+            # Add input to provenance after creating the correct collection
+            # type
+            provenance.add_input(name, _input)
+
+            # Transform artifacts to view types as necessary
             if _input is None:
                 inputs[name] = None
             elif spec.has_view_type():

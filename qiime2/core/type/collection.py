@@ -126,9 +126,6 @@ class _Collection(_1DCollectionBase):
 
         return False
 
-    def __iter__(self):
-        return self._view.values()
-
 
 Set = _Set()
 List = _List()
