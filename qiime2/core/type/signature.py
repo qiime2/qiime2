@@ -479,3 +479,27 @@ class VisualizerSignature(PipelineSignature):
             if not spec.has_view_type():
                 raise TypeError("Visualizer is missing a function annotation"
                                 " for parameter: %r" % name)
+
+
+class HashableInvocation():
+
+    def __init__(self, plugin, action, inputs, parameters):
+        self.plugin_action = plugin + ':' + action
+        self.arguments = inputs
+        self.arguments.update(parameters)
+        pass
+
+    def make_hashable(self, collection):
+        new_collection = []
+
+        if type(collection) is dict:
+            for k, v in collection.items():
+                new_collection.append((k, self.make_hashable(v)))
+        elif type(collection) is list:
+            for elem in collection:
+                new_collection.append(self.make_hashable(elem))
+        else:
+            return collection
+
+        return tuple(new_collection)
+
