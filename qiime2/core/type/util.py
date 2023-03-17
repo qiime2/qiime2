@@ -9,7 +9,7 @@
 import collections
 
 from qiime2.core.util import tuplize
-from qiime2.core.type.collection import List, Set
+from qiime2.core.type.collection import List, Set, Collection
 from qiime2.core.type.primitive import Int, Float, Bool, Str
 from qiime2.core.type.grammar import UnionExp, _ExpBase, IntersectionExp
 from qiime2.core.type.parse import ast_to_type
@@ -60,6 +60,7 @@ VariadicRecord = collections.namedtuple('VariadicRecord', ['pytype', 'q2type'])
 _VARIADIC = {
     'List': VariadicRecord(pytype=list, q2type=List),
     'Set': VariadicRecord(pytype=set, q2type=Set),
+    'Collection': VariadicRecord(pytype=dict, q2type=Collection),
 }
 
 CoercionRecord = collections.namedtuple('CoercionRecord', ['func', 'pytype'])
@@ -197,6 +198,11 @@ def parse_primitive(t, value):
     allowed = None
     homogeneous = True
 
+    keys = None
+    if isinstance(value, dict):
+        keys = list(value.keys())
+        value = list(value.values())
+
     if is_metadata_type(expr):
         raise ValueError('%r may not be parsed with this util.' % (expr,))
 
@@ -257,4 +263,14 @@ def parse_primitive(t, value):
     if collection_style.view is None:
         return result[0]
     else:
+        # If we are supposed to have a dict we need to give it key, value
+        # pairs. We end up here when we invoke a command that takes a
+        # Collection on the command line
+        if collection_style.view is dict:
+            # If we have keys, value was originally a dict, and we want to
+            # reattach the keys to the values
+            if keys is not None:
+                return {k: v for k, v in zip(keys, result)}
+            else:
+                return {str(k): v for k, v in enumerate(result)}
         return collection_style.view(result)

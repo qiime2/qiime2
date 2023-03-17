@@ -80,6 +80,18 @@ def pipelines_in_pipeline(ctx, int_sequence, mapping):
     return tuple(results)
 
 
+def list_pipeline(ctx, ints):
+    assert isinstance(ints, list)
+    return ([ctx.make_artifact(SingleInt, 4),
+             ctx.make_artifact(SingleInt, 5)])
+
+
+def collection_pipeline(ctx, ints):
+    assert isinstance(ints, dict)
+    return ({'key1': ctx.make_artifact(SingleInt, 4),
+             'key2': ctx.make_artifact(SingleInt, 5)})
+
+
 def pointless_pipeline(ctx):
     # Use a real type expression instead of a string.
     return ctx.make_artifact(SingleInt, 4)

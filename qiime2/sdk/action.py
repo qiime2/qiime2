@@ -199,31 +199,13 @@ class Action(metaclass=abc.ABCMeta):
                 output_types = self.signature.solve_output(**user_input)
                 callable_args = {}
 
-                # Record parameters
-                for name, spec in self.signature.parameters.items():
-                    parameter = callable_args[name] = user_input[name]
-                    provenance.add_parameter(name, spec.qiime_type, parameter)
+                # Record and transform parameters
+                callable_args.update(self.signature.coerce_given_parameters(
+                    provenance, **user_input))
 
                 # Record and transform inputs
-                for name, spec in self.signature.inputs.items():
-                    artifact = user_input[name]
-                    provenance.add_input(name, artifact)
-                    if artifact is None:
-                        callable_args[name] = None
-                    elif spec.has_view_type():
-                        recorder = provenance.transformation_recorder(name)
-                        if qtype.is_collection_type(spec.qiime_type):
-                            # Always put in a list. Sometimes the view isn't
-                            # hashable, which isn't relevant, but would break
-                            # a Set[SomeType].
-                            callable_args[name] = [
-                                a._view(spec.view_type, recorder)
-                                for a in user_input[name]]
-                        else:
-                            callable_args[name] = artifact._view(
-                                spec.view_type, recorder)
-                    else:
-                        callable_args[name] = artifact
+                callable_args.update(self.signature.coerce_given_inputs(
+                    provenance, **user_input))
 
                 if self.deprecated:
                     with qiime2.core.util.warning() as warn:
@@ -394,22 +376,9 @@ class Method(Action):
                 "semantic types: %d != %d"
                 % (len(output_views), len(output_types)))
 
-        output_artifacts = []
-        for output_view, (name, spec) in zip(output_views,
-                                             output_types.items()):
-            if type(output_view) is not spec.view_type:
-                raise TypeError(
-                    "Expected output view type %r, received %r" %
-                    (spec.view_type.__name__, type(output_view).__name__))
-
-            prov = provenance.fork(name)
-            scope.add_reference(prov)
-
-            artifact = qiime2.sdk.Artifact._from_view(
-                spec.qiime_type, output_view, spec.view_type, prov)
-            artifact = scope.add_parent_reference(artifact)
-
-            output_artifacts.append(artifact)
+        output_artifacts = \
+            self.signature.coerce_given_outputs(output_views, output_types,
+                                                scope, provenance)
 
         return tuple(output_artifacts)
 
@@ -476,7 +445,17 @@ class Pipeline(Action):
         outputs = tuplize(outputs)
 
         for output in outputs:
-            if not isinstance(output, qiime2.sdk.Result):
+            if isinstance(output, list):
+                for elem in output:
+                    if not isinstance(elem, qiime2.sdk.Result):
+                        raise TypeError("Pipelines must return `Result` "
+                                        "objects, not %s" % (type(elem), ))
+            elif isinstance(output, dict):
+                for elem in output.values():
+                    if not isinstance(elem, qiime2.sdk.Result):
+                        raise TypeError("Pipelines must return `Result` "
+                                        "objects, not %s" % (type(elem), ))
+            elif not isinstance(output, qiime2.sdk.Result):
                 raise TypeError("Pipelines must return `Result` objects, "
                                 "not %s" % (type(output), ))
 
@@ -493,17 +472,36 @@ class Pipeline(Action):
 
         results = []
         for output, (name, spec) in zip(outputs, output_types.items()):
-            if not (output.type <= spec.qiime_type):
+            # If we don't have a Result, we should have a collection, if we
+            # have neither, or our types just don't match up, something bad
+            # happened
+            if isinstance(output, qiime2.sdk.Result) and \
+                    (output.type <= spec.qiime_type):
+                prov = provenance.fork(name, output)
+                scope.add_reference(prov)
+
+                aliased_result = output._alias(prov)
+                aliased_result = scope.add_parent_reference(aliased_result)
+
+                results.append(aliased_result)
+            elif output in spec.qiime_type:
+                aliased_output = {}
+                for key, value in output.items() if isinstance(output, dict) \
+                        else enumerate(output):
+                    prov = provenance.fork(name, value)
+                    scope.add_reference(prov)
+
+                    aliased_result = value._alias(prov)
+                    aliased_result = scope.add_parent_reference(aliased_result)
+                    aliased_output[str(key)] = aliased_result
+
+                results.append(aliased_output)
+            else:
+                _type = output.type if isinstance(output, qiime2.sdk.Result) \
+                    else type(output)
                 raise TypeError(
                     "Expected output type %r, received %r" %
-                    (spec.qiime_type, output.type))
-            prov = provenance.fork(name, output)
-            scope.add_reference(prov)
-
-            aliased_result = output._alias(prov)
-            aliased_result = scope.add_parent_reference(aliased_result)
-
-            results.append(aliased_result)
+                    (spec.qiime_type, _type))
 
         return tuple(results)
 

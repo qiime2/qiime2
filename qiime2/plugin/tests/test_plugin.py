@@ -89,7 +89,8 @@ class TestPlugin(unittest.TestCase):
                           'long_description_method', 'parameter_only_pipeline',
                           'typical_pipeline', 'optional_artifact_pipeline',
                           'pointless_pipeline', 'visualizer_only_pipeline',
-                          'pipelines_in_pipeline', 'failing_pipeline',
+                          'pipelines_in_pipeline', 'list_pipeline',
+                          'collection_pipeline', 'failing_pipeline',
                           'docstring_order_method',
                           'constrained_input_visualization',
                           'combinatorically_mapped_method',
@@ -99,6 +100,9 @@ class TestPlugin(unittest.TestCase):
                           'deprecated_method', 'union_inputs',
                           'unioned_primitives',
                           'type_match_list_and_set',
+                          'list_of_ints', 'dict_of_ints',
+                          'collection_inner_union', 'collection_outer_union',
+                          'dict_params', 'list_params',
                           })
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
@@ -130,7 +134,10 @@ class TestPlugin(unittest.TestCase):
                           'predicates_preserved_method',
                           'deprecated_method', 'union_inputs',
                           'unioned_primitives',
-                          'type_match_list_and_set',
+                          'type_match_list_and_set', 'list_of_ints',
+                          'dict_of_ints', 'collection_inner_union',
+                          'collection_outer_union', 'dict_params',
+                          'list_params',
                           })
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)
@@ -151,6 +158,7 @@ class TestPlugin(unittest.TestCase):
                          {'parameter_only_pipeline', 'typical_pipeline',
                           'optional_artifact_pipeline', 'pointless_pipeline',
                           'visualizer_only_pipeline', 'pipelines_in_pipeline',
+                          'list_pipeline', 'collection_pipeline',
                           'failing_pipeline'})
         for pipeline in pipelines.values():
             self.assertIsInstance(pipeline, qiime2.sdk.Pipeline)

@@ -138,3 +138,31 @@ def type_match_list_and_set(ints: list, strs1: list, strs2: set) -> list:
 
 def union_inputs(ints1: Union[dict, list], ints2: list) -> list:
     return [0]
+
+
+def list_of_ints(ints: int) -> int:
+    assert isinstance(ints, list)
+    return ints
+
+
+def dict_of_ints(ints: int) -> int:
+    assert isinstance(ints, dict)
+    return ints
+
+
+def collection_inner_union(ints: list) -> list:
+    return [[0]]
+
+
+def collection_outer_union(ints: list) -> list:
+    return [[0]]
+
+
+def dict_params(ints: dict) -> int:
+    assert isinstance(ints, dict)
+    return ints
+
+
+def list_params(ints: list) -> int:
+    assert isinstance(ints, list)
+    return ints

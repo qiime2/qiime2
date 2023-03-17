@@ -91,6 +91,56 @@ class TestPipeline(unittest.TestCase):
 
             self.assertNotEqual(signature_a, signature_b)
 
+    def test_list_pipeline(self):
+        list_pipeline = self.plugin.pipelines['list_pipeline']
+
+        int_list = [qiime2.Artifact.import_data(IntSequence1, [0, 1, 2]),
+                    qiime2.Artifact.import_data(IntSequence1, [3, 4, 5])]
+        int_dict = {'1': qiime2.Artifact.import_data(IntSequence1, [0, 1, 2]),
+                    '2': qiime2.Artifact.import_data(IntSequence1, [3, 4, 5])}
+
+        list_out = list_pipeline(int_list)
+        dict_out = list_pipeline(int_dict)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, dict)
+        self.assertIsInstance(dict_out.output, dict)
+
+        self.assertEqual(list(list_out.output.keys()), ['0', '1'])
+        self.assertEqual(list(dict_out.output.keys()), ['0', '1'])
+
+        self.assertEqual(
+            [v.view(int) for v in list_out.output.values()], [4, 5])
+        self.assertEqual(
+            [v.view(int) for v in dict_out.output.values()], [4, 5])
+
+    def test_collection_pipeline(self):
+        collection_pipeline = self.plugin.pipelines['collection_pipeline']
+
+        int_list = [qiime2.Artifact.import_data(IntSequence1, [0, 1, 2]),
+                    qiime2.Artifact.import_data(IntSequence1, [3, 4, 5])]
+        int_dict = {'1': qiime2.Artifact.import_data(IntSequence1, [0, 1, 2]),
+                    '2': qiime2.Artifact.import_data(IntSequence1, [3, 4, 5])}
+
+        list_out = collection_pipeline(int_list)
+        dict_out = collection_pipeline(int_dict)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, dict)
+        self.assertIsInstance(dict_out.output, dict)
+
+        self.assertEqual(list(list_out.output.keys()), ['key1', 'key2'])
+        self.assertEqual(list(dict_out.output.keys()), ['key1', 'key2'])
+
+        self.assertEqual(
+            [v.view(int) for v in list_out.output.values()], [4, 5])
+        self.assertEqual(
+            [v.view(int) for v in dict_out.output.values()], [4, 5])
+
     def iter_callables(self, name):
         pipeline = self.plugin.pipelines[name]
         yield pipeline

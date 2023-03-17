@@ -62,15 +62,6 @@ cache: %s
 framework: %s
 """
 
-_KEY_TEMPLATE = """\
-origin:
- %s
-data:
- %s
-pool:
- %s
-"""
-
 # Thread local indicating the cache to use
 _CACHE = threading.local()
 _CACHE.cache = None
@@ -567,21 +558,6 @@ class Cache:
                 else:
                     os.unlink(fp)
 
-    def _create_process_pool(self):
-        """Creates a process pool which is identical in function to a named
-        pool, but it lives in the processes subdirectory not the pools
-        subdirectory, and is handled differently by garbage collection due to
-        being un-keyed. Process pools are used to keep track of results for
-        currently running processes and are removed when the process that
-        created them ends.
-
-        Returns
-        -------
-        Pool
-            The pool we created.
-        """
-        return Pool(self, reuse=True)
-
     def create_pool(self, keys=[], reuse=False):
         """Used to create named pools. A named pool's name is all of the keys
         given for it separated by underscores. All of the given keys are
@@ -633,6 +609,28 @@ class Cache:
 
         return pool
 
+    def _create_process_pool(self):
+        """Creates a process pool which is identical in function to a named
+        pool, but it lives in the processes subdirectory not the pools
+        subdirectory, and is handled differently by garbage collection due to
+        being un-keyed. Process pools are used to keep track of results for
+        currently running processes and are removed when the process that
+        created them ends.
+
+        Returns
+        -------
+        Pool
+            The pool we created.
+        """
+        return Pool(self, reuse=True)
+
+    def _create_collection_pool(self, ref_collection, key):
+        pool = Pool(self, name=key, reuse=False)
+        self._register_key(
+            key, key, pool=True, collection=ref_collection)
+
+        return pool
+
     def _create_pool_keys(self, pool_name, keys):
         """A pool can have many keys referring to it. This function creates all
         of the keys referring to the pool.
@@ -677,15 +675,18 @@ class Cache:
         # their data
         with self.lock:
             for key in self.get_keys():
-                with open(self.keys / key) as fh:
-                    loaded_key = yaml.safe_load(fh)
-                referenced_pools.add(loaded_key['pool'])
-                referenced_data.add(loaded_key['data'])
+                loaded_key = self.read_key(key)
 
-            # Since each key has at most a pool or data, we will end up with a
-            # None in at least one of these sets. We don't want it
-            referenced_pools.discard(None)
-            referenced_data.discard(None)
+                if (data := loaded_key.get('data')) is not None:
+                    referenced_data.add(data)
+                elif (pool := loaded_key.get('pool')) is not None:
+                    referenced_pools.add(pool)
+                # This really should never be happening unless someone messes
+                # with things manually
+                else:
+                    raise ValueError(f"The key '{key}' in the cache"
+                                     f" '{self.path}' does not point to"
+                                     " anything")
 
             # Walk over pools and remove any that were not referred to by keys
             # while tracking all data within those that were referenced
@@ -761,7 +762,22 @@ class Cache:
 
         return self.load(key)
 
-    def _register_key(self, key, value, pool=False):
+    def save_collection(self, ref_collection, key):
+        """Saves a Collection to a pool in the cache with the given key. This
+        pool's key file will keep track of the order of the Collection.
+        """
+        if isinstance(ref_collection, qiime2.sdk.Results):
+            ref_collection = ref_collection.output
+
+        with self.lock:
+            pool = self._create_collection_pool(ref_collection, key)
+
+            for ref in ref_collection.values():
+                pool.save(ref)
+
+        return self.load_collection(key)
+
+    def _register_key(self, key, value, pool=False, collection=None):
         """Creates a key file pointing at the specified data or pool.
 
         Parameters
@@ -788,10 +804,24 @@ class Cache:
 
         key_fp = self.keys / key
 
+        key_dict = {}
+        key_dict['origin'] = key
+
         if pool:
-            key_fp.write_text(_KEY_TEMPLATE % (key, '', value))
+            key_dict['pool'] = value
+
+            if collection is not None:
+                key_dict['order'] = \
+                    [{k: str(v.uuid)} for k, v in collection.items()]
         else:
-            key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
+            key_dict['data'] = value
+
+            if collection is not None:
+                raise ValueError('An ordered Collection key can only be made'
+                                 ' for a pool.')
+
+        with open(key_fp, 'w') as fh:
+            yaml.safe_dump(key_dict, fh)
 
     def read_key(self, key):
         """Reads the contents of a given key.
@@ -822,8 +852,9 @@ class Cache:
                                f"key '{key}'") from e
 
     def load(self, key):
-        """Loads the data pointed to by a key. Only works on keys that refer to
-        data items and will error on keys that refer to pools.
+        """Loads the data pointed to by a key. Will defer to
+        Cache.load_collection if the key contains 'order'. Will error on keys
+        that refer to pools without order.
 
         Parameters
         ----------
@@ -859,18 +890,44 @@ class Cache:
         >>> test_dir.cleanup()
         """
         with self.lock:
-            try:
-                key_values = self.read_key(key)
-                path = self.data / key_values['data']
-            except TypeError as e:
+            key_values = self.read_key(key)
+
+            if 'order' in key_values:
+                return self.load_collection(key)
+
+            if 'data' not in key_values:
                 raise ValueError(f"The key file '{key}' does not point to any "
                                  "data. This most likely occurred because you "
                                  "tried to load a pool which is not "
-                                 "supported.") from e
+                                 "supported.")
 
+            path = self.data / key_values['data']
             archiver = Archiver.load_raw(path, self)
 
         return Result._from_archiver(archiver)
+
+    def load_collection(self, key):
+        """Loads a pool referenced by a given key as a Collection. The pool
+        loaded must have been created using Cache.save_collection.
+        """
+        collection = {}
+
+        with self.lock:
+            loaded_key = self.read_key(key)
+
+            if 'order' not in loaded_key:
+                raise KeyError(f"The key file '{self.keys / key}' does not"
+                               " contain an order which is necessary for a"
+                               " collection.")
+
+            for artifact in loaded_key['order']:
+                # We created a list of one element dicts to make sure the yaml
+                # looked as expected. This is how we parse one of those dicts
+                # into its key value pair.
+                k, v = list(artifact.items())[0]
+                collection[k] = Result._from_archiver(self._load_uuid(v))
+
+        return collection
 
     def _load_uuid(self, uuid):
         """Load raw from the cache if the uuid is in the cache. Return None if
@@ -1442,6 +1499,28 @@ class Pool:
         with self.cache.lock:
             if not os.path.exists(dest):
                 os.symlink(src, dest)
+
+    def _rename_to_collection_pool(self, uuid, src):
+        uuid = str(uuid)
+
+        dest = self.data / uuid
+        alias = os.path.split(src)[0]
+        with self.lock:
+            # Rename errors if the destination already exists
+            if not os.path.exists(dest):
+                os.rename(src, dest)
+                set_permissions(dest, READ_ONLY_FILE, READ_ONLY_DIR)
+
+            # Create a new alias whether we renamed or not because this is
+            # still loading a new reference to the data even if the data is
+            # already there
+            process_alias = self._alias(uuid)
+
+        # Remove the aliased directory above the one we renamed. We need to do
+        # this whether we renamed or not because we aren't renaming this
+        # directory but the one beneath it
+        shutil.rmtree(alias)
+        return process_alias, dest
 
     def load(self, ref):
         """Loads a reference to an element in the pool.
