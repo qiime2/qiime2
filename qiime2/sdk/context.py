@@ -87,9 +87,8 @@ class Context:
                     outputs = {}
                     for key in action_obj.signature.outputs.keys():
                         output = self.cache.named_pool.index[invocation][key]
-                        outputs[key] = \
-                            qiime2.sdk.Result.load(self.cache.data / output)
-
+                        outputs[key] = self.cache.named_pool.load(output)
+ 
                     return qiime2.sdk.Results(outputs.keys(), outputs.values())
 
             # If we didn't have cached results to reuse, we need to execute the
