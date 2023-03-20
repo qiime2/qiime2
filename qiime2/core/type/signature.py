@@ -502,4 +502,3 @@ class HashableInvocation():
             return collection
 
         return tuple(new_collection)
-
