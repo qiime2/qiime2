@@ -429,7 +429,7 @@ class PipelineSignature:
 
                     output[key] = self._create_output_artifact(
                         provenance, name, scope, spec, view, key=key,
-                        idx_out_of=f'{idx}/{collection_size}')
+                        idx_out_of=f'{idx + 1}/{collection_size}')
             elif type(output_view) is not spec.view_type:
                 raise TypeError(
                     "Expected output view type %r, received %r" %
