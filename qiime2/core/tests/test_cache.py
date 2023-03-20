@@ -25,7 +25,7 @@ from flufl.lock import LockState
 
 import qiime2
 from qiime2.core.cache import Cache, _exit_cleanup, get_cache, _get_user
-from qiime2.core.testing.type import IntSequence1, IntSequence2
+from qiime2.core.testing.type import IntSequence1, IntSequence2, SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
 
@@ -422,6 +422,44 @@ class TestCache(unittest.TestCase):
                 # first failed run
                 self.assertEqual(left_uuid, complete_left_uuid)
                 self.assertEqual(right_uuid, complete_right_uuid)
+
+    def test_collection_list_input_cache(self):
+        list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
+        int_list = [Artifact.import_data(SingleInt, 0),
+                    Artifact.import_data(SingleInt, 1)]
+
+        list_out = list_method(int_list)
+        dict_out = dict_method(int_list)
+
+        pre_cache_list = list_out.output
+        pre_cache_dict = dict_out.output
+
+        cache_list_out = self.cache.save_collection(list_out, 'list_out')
+        cache_dict_out = self.cache.save_collection(dict_out, 'dict_out')
+
+        self.assertEqual(pre_cache_list, cache_list_out)
+        self.assertEqual(pre_cache_dict, cache_dict_out)
+
+    def test_collection_dict_input_cache(self):
+        list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
+        int_dict = {'1': Artifact.import_data(SingleInt, 0),
+                    '2': Artifact.import_data(SingleInt, 1)}
+
+        list_out = list_method(int_dict)
+        dict_out = dict_method(int_dict)
+
+        pre_cache_list = list_out.output
+        pre_cache_dict = dict_out.output
+
+        cache_list_out = self.cache.save_collection(list_out, 'list_out')
+        cache_dict_out = self.cache.save_collection(dict_out, 'dict_out')
+
+        self.assertEqual(pre_cache_list, cache_list_out)
+        self.assertEqual(pre_cache_dict, cache_dict_out)
 
     # This test has zzz in front of it because unittest.Testcase runs the tests
     # in alphabetical order, and we want this test to run last
