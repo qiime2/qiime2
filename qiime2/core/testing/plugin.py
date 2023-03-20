@@ -52,14 +52,9 @@ from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
-<<<<<<< HEAD
                        pipelines_in_pipeline, resumable_pipeline,
-                       pointless_pipeline, failing_pipeline)
-=======
-                       pipelines_in_pipeline, list_pipeline,
-                       collection_pipeline, pointless_pipeline,
+                       list_pipeline, collection_pipeline, pointless_pipeline,
                        failing_pipeline)
->>>>>>> master
 from ..cite import Citations
 
 from .examples import (concatenate_ints_simple, concatenate_ints_complex,
@@ -756,6 +751,9 @@ dummy_plugin.pipelines.register_function(
     name='To be resumed',
     description=('Called first with fail=True then again with fail=False '
                  'meant to reuse results from first run durng second run')
+)
+
+dummy_plugin.pipelines.register_function(
     function=list_pipeline,
     inputs={'ints': List[IntSequence1]},
     parameters={},
