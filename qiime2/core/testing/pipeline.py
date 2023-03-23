@@ -89,7 +89,7 @@ def resumable_pipeline(ctx, int_sequence, fail=False):
 
     left, right = split_ints(int_sequence)
     if fail:
-        raise ValueError(f'{left.uuid},{right.uuid}')
+        raise ValueError(f'{left.uuid}_{right.uuid}')
 
     return left, right
 

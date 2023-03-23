@@ -53,7 +53,7 @@ import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
 from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
-                              load_provenance, READ_ONLY_FILE, READ_ONLY_DIR,
+                              load_action_yaml, READ_ONLY_FILE, READ_ONLY_DIR,
                               USER_GROUP_RWX)
 from qiime2.core.archive.archiver import Archiver
 from qiime2.core.type import HashableInvocation, IndexedCollectionElement
@@ -1637,8 +1637,9 @@ class Pool:
 
         with self.cache.lock:
             for _uuid in self.get_data():
-                prov = load_provenance(_uuid)
-                action = prov['action']
+                path = self.cache.data / _uuid
+                action_yaml = load_action_yaml(path)
+                action = action_yaml['action']
 
                 plugin_action = action['plugin'] + ':' + action['action']
                 arguments = action['inputs']

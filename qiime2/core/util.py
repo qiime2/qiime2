@@ -334,10 +334,10 @@ def touch_under_path(path):
                 pass
 
 
-def load_provenance(uuid):
-    from qiime2.core.cache import get_cache
-    cache = get_cache()
-
+def load_action_yaml(path):
+    """Takes a path to an Aritfact and loads its action.yaml with
+    yaml.safe_load
+    """
     # TODO: Make these actually do something useful at least for the tags
     # that are relevant to what we need out of provenance
     def ref_constructor(loader, node):
@@ -359,7 +359,7 @@ def load_provenance(uuid):
     yaml.constructor.SafeConstructor.add_constructor(
         '!metadata', metadata_constructor)
 
-    prov_path = cache.data / uuid / 'provenance' / 'action'
+    prov_path = path / 'provenance' / 'action'
     action_path = prov_path / 'action.yaml'
 
     with open(action_path) as fh:

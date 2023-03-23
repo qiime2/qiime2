@@ -28,6 +28,7 @@ from qiime2.core.cache import Cache, _exit_cleanup, get_cache, _get_user
 from qiime2.core.testing.type import IntSequence1, IntSequence2, SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
+from qiime2.core.util import load_action_yaml
 
 # NOTE: If you see an error after all of your tests have ran saying that a pool
 # called __TEST_FAILURE__ doesn't exist and you were running tests in multiple
@@ -409,13 +410,13 @@ class TestCache(unittest.TestCase):
                 with self.assertRaises(ValueError) as e:
                     resumable_pipeline(art, fail=True)
 
-                left_uuid, right_uuid = str(e.exception).split(',')
+                left_uuid, right_uuid = str(e.exception).split('_')
                 left, right = resumable_pipeline(art)
 
-                complete_left_uuid = qiime2.core.util.load_provenance(
-                    str(left.uuid))['action']['alias-of']
-                complete_right_uuid = qiime2.core.util.load_provenance(
-                    str(right.uuid))['action']['alias-of']
+                complete_left_uuid = load_action_yaml(
+                    self.cache.data / str(left.uuid))['action']['alias-of']
+                complete_right_uuid = load_action_yaml(
+                    self.cache.data / str(right.uuid))['action']['alias-of']
 
                 # Assert that the artifacts returned by the completed run of
                 # the pipeline are aliases of the artifacts created by the
@@ -447,15 +448,20 @@ class TestCache(unittest.TestCase):
                 complete_list_uuids = []
                 for artifact in list_return.values():
                     complete_list_uuids.append(
-                        qiime2.core.util.load_provenance(
-                            str(artifact.uuid))['action']['alias-of'])
+                        load_action_yaml(
+                            self.cache.data / str(artifact.uuid)
+                            )['action']['alias-of'])
 
                 complete_dict_uuids = []
                 for artifact in dict_return.values():
                     complete_dict_uuids.append(
-                        qiime2.core.util.load_provenance(
-                            str(artifact.uuid))['action']['alias-of'])
+                        load_action_yaml(
+                            self.cache.data / str(artifact.uuid)
+                            )['action']['alias-of'])
 
+                # Assert that the artifacts returned by the completed run of
+                # the pipeline are aliases of the artifacts created by the
+                # first failed run
                 self.assertEqual(list_uuids, str(complete_list_uuids))
                 self.assertEqual(dict_uuids, str(complete_dict_uuids))
 
