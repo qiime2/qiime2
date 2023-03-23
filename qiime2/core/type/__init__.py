@@ -11,7 +11,8 @@ from .semantic import SemanticType, Properties
 from .primitive import (Str, Int, Float, Metadata, Bool, MetadataColumn,
                         Categorical, Numeric, Range, Start, End, Choices)
 from .visualization import Visualization
-from .signature import PipelineSignature, MethodSignature, VisualizerSignature
+from .signature import (PipelineSignature, MethodSignature,
+                        VisualizerSignature, HashableInvocation)
 from .meta import TypeMap, TypeMatch
 from .util import (is_primitive_type, is_semantic_type, is_metadata_type,
                    is_collection_type, is_visualization_type,
@@ -35,6 +36,7 @@ __all__ = [
     'Visualization',
     # Signatures
     'PipelineSignature', 'MethodSignature', 'VisualizerSignature',
+    'HashableInvocation',
     # Variables
     'TypeMap', 'TypeMatch'
 ]

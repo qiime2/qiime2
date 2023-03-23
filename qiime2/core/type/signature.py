@@ -20,7 +20,7 @@ from .primitive import infer_primitive_type
 from .visualization import Visualization
 from . import meta
 from .util import is_semantic_type, is_primitive_type, parse_primitive
-from ..util import ImmutableBase
+from ..util import ImmutableBase, make_hashable
 
 
 class __NoValueMeta(type):
@@ -646,22 +646,40 @@ class VisualizerSignature(PipelineSignature):
 
 class HashableInvocation():
 
-    def __init__(self, plugin, action, inputs, parameters):
-        self.plugin_action = plugin + ':' + action
-        self.arguments = inputs
-        self.arguments.update(parameters)
-        pass
+    def __init__(self, plugin_action, arguments, outputs=None):
+        self.plugin_action = plugin_action
 
-    def make_hashable(self, collection):
-        new_collection = []
+        unified_arguments = self._unify_dicts(arguments)
+        self.arguments = make_hashable(unified_arguments)
 
-        if type(collection) is dict:
-            for k, v in collection.items():
-                new_collection.append((k, self.make_hashable(v)))
-        elif type(collection) is list:
-            for elem in collection:
-                new_collection.append(self.make_hashable(elem))
-        else:
-            return collection
+        self.outputs = make_hashable(outputs)
 
-        return tuple(new_collection)
+    def __eq__(self, other):
+        return (self.plugin_action == other.plugin_action) \
+              and (self.arguments == other.arguments)
+
+    def __hash__(self):
+        return hash((self.plugin_action, self.arguments))
+
+    def _unify_dicts(self, arguments):
+        """Check if action.yaml gave us any lists of single element dicts to
+        unify
+        """
+        for idx, argument in enumerate(arguments):
+            name, value = list(argument.items())[0]
+            if isinstance(value, list) and \
+                    all(isinstance(x, dict) for x in value):
+                arguments[idx] = {name: self._unify_dict(value)}
+
+        return arguments
+
+    def _unify_dict(self, collection):
+        """If we do have a list of single element dicts, turn it into one dict
+        """
+        unified_dict = {}
+
+        for elem in collection:
+            for k, v in elem.items():
+                unified_dict[k] = v
+
+        return unified_dict

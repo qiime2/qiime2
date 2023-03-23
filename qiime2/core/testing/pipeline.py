@@ -94,6 +94,28 @@ def resumable_pipeline(ctx, int_sequence, fail=False):
     return left, right
 
 
+def resumable_collection_pipeline(ctx, int_list, int_dict, fail=False):
+    """ This pipeline is designed to be called first with fail=True then a
+    second time with fail=False. The second call is meant to reuse cached
+    results from the first call
+    """
+    list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
+    dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
+
+    list_return, = list_of_ints(int_list)
+    dict_return, = dict_of_ints(int_dict)
+
+    if fail:
+        list_uuids = \
+            [str(result.uuid) for result in list_return.values()]
+        dict_uuids = \
+            [str(result.uuid) for result in dict_return.values()]
+
+        raise ValueError(f'{list_uuids}_{dict_uuids}')
+
+    return list_return, dict_return
+
+
 def list_pipeline(ctx, ints):
     assert isinstance(ints, list)
     return ([ctx.make_artifact(SingleInt, 4),

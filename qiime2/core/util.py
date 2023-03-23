@@ -8,6 +8,7 @@
 
 import contextlib
 import warnings
+import tempfile
 import hashlib
 import stat
 import os
@@ -23,9 +24,6 @@ READ_ONLY_DIR = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH | stat.S_IRUSR \
     | stat.S_IRGRP | stat.S_IROTH
 USER_GROUP_RWX = stat.S_IRWXU | stat.S_IRWXG
 OTHER_NO_WRITE = stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH
-
-IndexedInvocation = collections.namedtuple(
-    'IndexedInvocation', ['plugin_action', 'arguments'])
 
 
 def get_view_name(view):
@@ -47,6 +45,12 @@ def tuplize(x):
 
 
 def make_hashable(collection):
+    """Take an arbitrarily nested collection and turn it into a hashable
+    arbitrarily nested tuple. Turns Artifacts into their uuid and Metadata
+    into their md5sum
+    """
+    from qiime2 import Artifact, Metadata
+
     new_collection = []
 
     if type(collection) is dict:
@@ -55,6 +59,13 @@ def make_hashable(collection):
     elif type(collection) is list:
         for elem in collection:
             new_collection.append(make_hashable(elem))
+    elif isinstance(collection, Artifact):
+        return str(collection.uuid)
+    elif isinstance(collection, Metadata):
+        _, fp = tempfile.mkstemp()
+        collection.save(fp)
+        collection = md5sum(fp)
+        os.remove(fp)
     else:
         return collection
 

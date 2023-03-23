@@ -423,6 +423,54 @@ class TestCache(unittest.TestCase):
                 self.assertEqual(left_uuid, complete_left_uuid)
                 self.assertEqual(right_uuid, complete_right_uuid)
 
+    def test_resumable_collection_pipeline(self):
+        resumable_collection_pipeline = \
+            self.plugin.pipelines['resumable_collection_pipeline']
+
+        pool = self.cache.create_pool('pool')
+
+        int_list = [Artifact.import_data(SingleInt, 0),
+                    Artifact.import_data(SingleInt, 1)]
+        int_dict = {'1': Artifact.import_data(SingleInt, 0),
+                    '2': Artifact.import_data(SingleInt, 1)}
+
+        with self.cache:
+            with pool:
+                with self.assertRaises(ValueError) as e:
+                    resumable_collection_pipeline(
+                                int_list, int_dict, fail=True)
+
+                list_uuids, dict_uuids = str(e.exception).split('_')
+                list_return, dict_return = \
+                    resumable_collection_pipeline(int_list, int_dict)
+
+                complete_list_uuids = []
+                for artifact in list_return.values():
+                    complete_list_uuids.append(
+                        qiime2.core.util.load_provenance(
+                            str(artifact.uuid))['action']['alias-of'])
+
+                complete_dict_uuids = []
+                for artifact in dict_return.values():
+                    complete_dict_uuids.append(
+                        qiime2.core.util.load_provenance(
+                            str(artifact.uuid))['action']['alias-of'])
+
+                # complete_left_uuid = qiime2.core.util.load_provenance(
+                #     str(left.uuid))['action']['alias-of']
+                # complete_right_uuid = qiime2.core.util.load_provenance(
+                #     str(right.uuid))['action']['alias-of']
+
+                # Assert that the artifacts returned by the completed run of
+                # the pipeline are aliases of the artifacts created by the
+                # first failed run
+                # raise ValueError(f'\n{list_uuids}\n{complete_list_uuids}\n\n{dict_uuids}\n{complete_dict_uuids}')
+                # raise ValueError(list_uuids == complete_list_uuids)
+                self.assertEqual(list_uuids, str(complete_list_uuids))
+                # The was dicts are being read in here doesn't match the way they
+                # are being indexed in context.py
+                self.assertEqual(dict_uuids, str(complete_dict_uuids))
+
     def test_collection_list_input_cache(self):
         list_method = self.plugin.methods['list_of_ints']
         dict_method = self.plugin.methods['dict_of_ints']

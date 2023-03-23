@@ -52,10 +52,11 @@ import flufl.lock
 import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
-from qiime2.core.util import (IndexedInvocation, is_uuid4, set_permissions,
-                              touch_under_path, make_hashable, load_provenance,
-                              READ_ONLY_FILE, READ_ONLY_DIR, USER_GROUP_RWX)
+from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
+                              load_provenance, make_hashable, READ_ONLY_FILE,
+                              READ_ONLY_DIR, USER_GROUP_RWX)
 from qiime2.core.archive.archiver import Archiver
+from qiime2.core.type import HashableInvocation
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -1650,11 +1651,11 @@ class Pool:
                 plugin_action = action['plugin'] + ':' + action['action']
                 arguments = action['inputs']
                 arguments.extend(action['parameters'])
-                arguments = make_hashable(arguments)
 
-                output_name = action['output-name']
-
-                invocation = IndexedInvocation(plugin_action, arguments)
+                output = action['output-name']
+                invocation = \
+                    HashableInvocation(plugin_action, arguments, output)
+                output_name = make_hashable(output_name)
 
                 if invocation not in self.index:
                     self.index[invocation] = {}

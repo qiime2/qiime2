@@ -6,13 +6,10 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import os
-import tempfile
-
-from qiime2.core.util import IndexedInvocation, make_hashable, md5sum
+from qiime2.core.type.util import is_collection_type
+from qiime2.core.type import HashableInvocation
 from qiime2.core.cache import get_cache
 import qiime2.sdk
-from qiime2.metadata import Metadata
 
 
 class Context:
@@ -25,6 +22,7 @@ class Context:
             # pool once before we start adding our own stuff to it.
             if self.cache.named_pool is not None:
                 self.cache.named_pool.create_index()
+                print(self.cache.named_pool.index)
 
         self._parent = parent
         self._scope = None
@@ -57,39 +55,48 @@ class Context:
             # If we have a named_pool, we need to check for cached results that
             # we can reuse
             if self.cache.named_pool is not None:
-                arguments = {}
-                hashable_arguments = []
+                arguments = []
 
-                # Make args look the same as kwargs then process them together.
-                # Transform the args then update with kwargs to retain the
-                # order they were passed in
+                # Make args and kwargs look how they do when we read them out
+                # of a .yaml file (list of single value dicts of
+                # input_name: value)
                 for k, v in \
                         zip(action_obj.signature.signature_order.keys(), args):
-                    arguments[k] = v
+                    arguments.append({k: v})
 
-                arguments.update(kwargs)
-                for k, v in arguments.items():
-                    if isinstance(v, qiime2.sdk.Artifact):
-                        v = str(v.uuid)
-                    if isinstance(v, Metadata):
-                        _, fp = tempfile.mkstemp()
-                        v.save(fp)
-                        v = md5sum(fp)
-                        os.remove(fp)
+                for k, v in kwargs:
+                    arguments.append({k: v})
 
-                    hashable_arguments.append({k: v})
-
-                hashable_arguments = make_hashable(hashable_arguments)
-                invocation = IndexedInvocation(
-                    plugin_action, hashable_arguments)
-
+                invocation = HashableInvocation(plugin_action, arguments)
                 if invocation in self.cache.named_pool.index:
-                    outputs = {}
-                    for key in action_obj.signature.outputs.keys():
-                        output = self.cache.named_pool.index[invocation][key]
-                        outputs[key] = self.cache.named_pool.load(output)
+                    cached_outputs = self.cache.named_pool.index[invocation]
+                    loaded_outputs = {}
 
-                    return qiime2.sdk.Results(outputs.keys(), outputs.values())
+                    for name, _type in action_obj.signature.outputs.items():
+                        if is_collection_type(_type.qiime_type):
+                            output_collection = []
+                            dict_collection = {}
+
+                            for output_name, output in cached_outputs.items():
+                                if output_name[0] == name:
+                                    output_collection.append((output_name, output))
+                            output_collection.sort(key=lambda x: x[0][2].split('/')[0])
+
+                            if len(output_collection) != output_collection[0][0][2].split('/')[1]:
+                                # Raise some kinda error that says we didn't
+                                # get the expected number of outputs
+                                pass
+
+                            for output in output_collection:
+                                dict_collection[output[0][1]] = self.cache.named_pool.load(output[1])
+                            loaded_outputs[name] = dict_collection
+                        else:
+                            output = cached_outputs[name]
+                            loaded_outputs[name] = \
+                                self.cache.named_pool.load(output)
+
+                    return qiime2.sdk.Results(
+                        loaded_outputs.keys(), loaded_outputs.values())
 
             # If we didn't have cached results to reuse, we need to execute the
             # action.
@@ -98,6 +105,9 @@ class Context:
             # parent. This allows scope cleanup to happen recursively. A
             # factory is necessary so that independent applications of the
             # returned callable recieve their own Context objects.
+            # print(f'\n{invocation}')
+            # for key in self.cache.named_pool.index.keys():
+            #     print(key)
             return action_obj._bind(
                 lambda: Context(parent=self))(*args, **kwargs)
 

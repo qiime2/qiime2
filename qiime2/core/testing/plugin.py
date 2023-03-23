@@ -53,7 +53,8 @@ from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
                        pipelines_in_pipeline, resumable_pipeline,
-                       list_pipeline, collection_pipeline, pointless_pipeline,
+                       resumable_collection_pipeline, list_pipeline,
+                       collection_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
 
@@ -747,6 +748,24 @@ dummy_plugin.pipelines.register_function(
     outputs=[
         ('left', IntSequence1),
         ('right', IntSequence1),
+    ],
+    name='To be resumed',
+    description=('Called first with fail=True then again with fail=False '
+                 'meant to reuse results from first run durng second run')
+)
+
+dummy_plugin.pipelines.register_function(
+    function=resumable_collection_pipeline,
+    inputs={
+        'int_list': List[SingleInt],
+        'int_dict': Collection[SingleInt],
+    },
+    parameters={
+        'fail': Bool
+    },
+    outputs=[
+        ('list_return', Collection[SingleInt]),
+        ('dict_return', Collection[SingleInt]),
     ],
     name='To be resumed',
     description=('Called first with fail=True then again with fail=False '
