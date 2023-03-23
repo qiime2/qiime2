@@ -229,8 +229,9 @@ def _exit_cleanup():
         # workers). It could also happen if someone deleted the process pool
         # but... They probably shouldn't do that
         if os.path.exists(target):
-            shutil.rmtree(target)
-            cache.garbage_collection()
+            with cache.lock:
+                shutil.rmtree(target)
+                cache.garbage_collection()
 
 
 def monitor_thread(cache_dir, is_done):
