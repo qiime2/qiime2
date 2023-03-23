@@ -10,6 +10,8 @@ import collections
 import inspect
 import copy
 import itertools
+import os
+import tempfile
 
 import qiime2.sdk
 import qiime2.core.type as qtype
@@ -20,7 +22,7 @@ from .primitive import infer_primitive_type
 from .visualization import Visualization
 from . import meta
 from .util import is_semantic_type, is_primitive_type, parse_primitive
-from ..util import ImmutableBase, make_hashable
+from ..util import ImmutableBase, md5sum
 
 
 class __NoValueMeta(type):
@@ -644,15 +646,16 @@ class VisualizerSignature(PipelineSignature):
                                 " for parameter: %r" % name)
 
 
-class HashableInvocation():
+IndexedCollectionElement = collections.namedtuple(
+    'IndexedCollectionElement', ['item_name', 'idx', 'total'])
 
-    def __init__(self, plugin_action, arguments, outputs=None):
+
+class HashableInvocation():
+    def __init__(self, plugin_action, arguments):
         self.plugin_action = plugin_action
 
         unified_arguments = self._unify_dicts(arguments)
-        self.arguments = make_hashable(unified_arguments)
-
-        self.outputs = make_hashable(outputs)
+        self.arguments = self._make_hashable(unified_arguments)
 
     def __eq__(self, other):
         return (self.plugin_action == other.plugin_action) \
@@ -660,6 +663,10 @@ class HashableInvocation():
 
     def __hash__(self):
         return hash((self.plugin_action, self.arguments))
+
+    def __repr__(self):
+        return (f'\nPLUGIN_ACTION: {self.plugin_action}\nARGUMENTS:'
+                f' {self.arguments}\n')
 
     def _unify_dicts(self, arguments):
         """Check if action.yaml gave us any lists of single element dicts to
@@ -683,3 +690,30 @@ class HashableInvocation():
                 unified_dict[k] = v
 
         return unified_dict
+
+    def _make_hashable(self, collection):
+        """Take an arbitrarily nested collection and turn it into a hashable
+        arbitrarily nested tuple. Turns Artifacts into their uuid and Metadata
+        into their md5sum
+        """
+        from qiime2 import Artifact, Metadata
+
+        new_collection = []
+
+        if type(collection) is dict:
+            for k, v in collection.items():
+                new_collection.append((k, self._make_hashable(v)))
+        elif type(collection) is list:
+            for elem in collection:
+                new_collection.append(self._make_hashable(elem))
+        elif isinstance(collection, Artifact):
+            return str(collection.uuid)
+        elif isinstance(collection, Metadata):
+            _, fp = tempfile.mkstemp()
+            collection.save(fp)
+            collection = md5sum(fp)
+            os.remove(fp)
+        else:
+            return collection
+
+        return tuple(new_collection)

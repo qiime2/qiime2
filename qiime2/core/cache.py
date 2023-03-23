@@ -53,10 +53,10 @@ import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
 from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
-                              load_provenance, make_hashable, READ_ONLY_FILE,
-                              READ_ONLY_DIR, USER_GROUP_RWX)
+                              load_provenance, READ_ONLY_FILE, READ_ONLY_DIR,
+                              USER_GROUP_RWX)
 from qiime2.core.archive.archiver import Archiver
-from qiime2.core.type import HashableInvocation
+from qiime2.core.type import HashableInvocation, IndexedCollectionElement
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -1632,16 +1632,8 @@ class Pool:
         return set(os.listdir(self.path))
 
     def create_index(self):
-        # Keep track of executions we have already seen so we don't try to
-        # reindex them (maybe not needed)
-        # indexed_executions = set()
-        # Keep track of all executions -> outputs
+        # Keep track of all invocations -> outputs
         self.index = {}
-        # Potential optimization, can map the execution id to the hashed
-        # invocation associated with it so for multi-output actions we don't
-        # need to re hash the invocation can just pull it out of an existing
-        # map of exec-id -> invocation then add the output to the
-        # invocation->outputs map. Maybe not necessary
 
         with self.cache.lock:
             for _uuid in self.get_data():
@@ -1652,13 +1644,25 @@ class Pool:
                 arguments = action['inputs']
                 arguments.extend(action['parameters'])
 
-                output = action['output-name']
-                invocation = \
-                    HashableInvocation(plugin_action, arguments, output)
-                output_name = make_hashable(output_name)
-
+                invocation = HashableInvocation(plugin_action, arguments)
                 if invocation not in self.index:
                     self.index[invocation] = {}
 
-                # map: invocation -> output_name -> output_uuid
-                self.index[invocation][output_name] = _uuid
+                self._add_index_output(
+                    self.index[invocation], action['output-name'], _uuid)
+
+    def _add_index_output(self, outputs, name, value):
+        if isinstance(name, list):
+            self._add_collection_index_output(outputs, name, value)
+        else:
+            outputs[name] = value
+
+    def _add_collection_index_output(self, outputs, name, value):
+        output_name, item_name, idx_out_of = name
+        idx, total = idx_out_of.split('/')
+
+        if output_name not in outputs:
+            outputs[output_name] = {}
+
+        item = IndexedCollectionElement(item_name, int(idx), int(total))
+        outputs[output_name][item] = value

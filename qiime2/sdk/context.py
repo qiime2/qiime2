@@ -22,7 +22,6 @@ class Context:
             # pool once before we start adding our own stuff to it.
             if self.cache.named_pool is not None:
                 self.cache.named_pool.create_index()
-                print(self.cache.named_pool.index)
 
         self._parent = parent
         self._scope = None
@@ -74,22 +73,21 @@ class Context:
 
                     for name, _type in action_obj.signature.outputs.items():
                         if is_collection_type(_type.qiime_type):
-                            output_collection = []
-                            dict_collection = {}
+                            loaded_collection = {}
+                            cached_collection = cached_outputs[name]
 
-                            for output_name, output in cached_outputs.items():
-                                if output_name[0] == name:
-                                    output_collection.append((output_name, output))
-                            output_collection.sort(key=lambda x: x[0][2].split('/')[0])
+                            # Get the order we should load collection items in
+                            collection_order = list(cached_collection.keys())
+                            self._validate_collection(collection_order)
+                            collection_order.sort(key=lambda x: x.idx)
 
-                            if len(output_collection) != output_collection[0][0][2].split('/')[1]:
-                                # Raise some kinda error that says we didn't
-                                # get the expected number of outputs
-                                pass
+                            for elem_info in collection_order:
+                                elem = cached_collection[elem_info]
+                                loaded_elem = self.cache.named_pool.load(elem)
+                                loaded_collection[
+                                    elem_info.item_name] = loaded_elem
 
-                            for output in output_collection:
-                                dict_collection[output[0][1]] = self.cache.named_pool.load(output[1])
-                            loaded_outputs[name] = dict_collection
+                            loaded_outputs[name] = loaded_collection
                         else:
                             output = cached_outputs[name]
                             loaded_outputs[name] = \
@@ -105,13 +103,18 @@ class Context:
             # parent. This allows scope cleanup to happen recursively. A
             # factory is necessary so that independent applications of the
             # returned callable recieve their own Context objects.
-            # print(f'\n{invocation}')
-            # for key in self.cache.named_pool.index.keys():
-            #     print(key)
             return action_obj._bind(
                 lambda: Context(parent=self))(*args, **kwargs)
 
         return deferred_action
+
+    def _validate_collection(self, collection_order):
+        """Validate that all indexed items in the collection agree on how
+        large the collection should be and that we have that many elements.
+        """
+        assert all([elem.total == collection_order[0].total
+                    for elem in collection_order])
+        assert len(collection_order) == collection_order[0].total
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.

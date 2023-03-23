@@ -8,7 +8,6 @@
 
 import contextlib
 import warnings
-import tempfile
 import hashlib
 import stat
 import os
@@ -42,34 +41,6 @@ def tuplize(x):
     if type(x) is not tuple:
         return (x,)
     return x
-
-
-def make_hashable(collection):
-    """Take an arbitrarily nested collection and turn it into a hashable
-    arbitrarily nested tuple. Turns Artifacts into their uuid and Metadata
-    into their md5sum
-    """
-    from qiime2 import Artifact, Metadata
-
-    new_collection = []
-
-    if type(collection) is dict:
-        for k, v in collection.items():
-            new_collection.append((k, make_hashable(v)))
-    elif type(collection) is list:
-        for elem in collection:
-            new_collection.append(make_hashable(elem))
-    elif isinstance(collection, Artifact):
-        return str(collection.uuid)
-    elif isinstance(collection, Metadata):
-        _, fp = tempfile.mkstemp()
-        collection.save(fp)
-        collection = md5sum(fp)
-        os.remove(fp)
-    else:
-        return collection
-
-    return tuple(new_collection)
 
 
 def overrides(cls):

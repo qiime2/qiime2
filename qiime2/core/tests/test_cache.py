@@ -456,19 +456,7 @@ class TestCache(unittest.TestCase):
                         qiime2.core.util.load_provenance(
                             str(artifact.uuid))['action']['alias-of'])
 
-                # complete_left_uuid = qiime2.core.util.load_provenance(
-                #     str(left.uuid))['action']['alias-of']
-                # complete_right_uuid = qiime2.core.util.load_provenance(
-                #     str(right.uuid))['action']['alias-of']
-
-                # Assert that the artifacts returned by the completed run of
-                # the pipeline are aliases of the artifacts created by the
-                # first failed run
-                # raise ValueError(f'\n{list_uuids}\n{complete_list_uuids}\n\n{dict_uuids}\n{complete_dict_uuids}')
-                # raise ValueError(list_uuids == complete_list_uuids)
                 self.assertEqual(list_uuids, str(complete_list_uuids))
-                # The was dicts are being read in here doesn't match the way they
-                # are being indexed in context.py
                 self.assertEqual(dict_uuids, str(complete_dict_uuids))
 
     def test_collection_list_input_cache(self):
