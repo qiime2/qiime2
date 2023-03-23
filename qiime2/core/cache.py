@@ -228,9 +228,17 @@ def _exit_cleanup():
         # does not create a process pool (on Mac this atexit is invoked on
         # workers). It could also happen if someone deleted the process pool
         # but... They probably shouldn't do that
-        if os.path.exists(target):
-            shutil.rmtree(target)
-            cache.garbage_collection()
+        try:
+            cache.lock.__enter__()
+        except Exception:
+            continue
+        else:
+            try:
+                if os.path.exists(target):
+                    shutil.rmtree(target)
+                    cache.garbage_collection()
+            finally:
+                cache.lock.__exit__()
 
 
 def monitor_thread(cache_dir, is_done):
@@ -278,7 +286,12 @@ class MEGALock(tm):
         """
         if self.re_entries == 0:
             self.thread_lock.acquire()
-            self.flufl_lock.lock()
+
+            try:
+                self.flufl_lock.lock()
+            except Exception:
+                self.thread_lock.release()
+                raise
 
         self.re_entries += 1
 
