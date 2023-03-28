@@ -1641,7 +1641,11 @@ class Pool:
                 action_yaml = load_action_yaml(path)
                 action = action_yaml['action']
 
-                # TODO: How do we want to handle this
+                # This means the artifact was created in the pipeline by
+                # ctx.make_artifact, we don't index those because we cannot
+                # guarantee that whatever view they imported was hashable. it
+                # would be better to create an action that produces the
+                # artifact rather than using make_artifact
                 if 'type' in action and action['type'] == 'import':
                     continue
 
