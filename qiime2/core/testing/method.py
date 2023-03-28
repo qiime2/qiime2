@@ -166,3 +166,14 @@ def dict_params(ints: dict) -> int:
 def list_params(ints: list) -> int:
     assert isinstance(ints, list)
     return ints
+
+
+# TODO: Test this and create a pipeline that runs this and something else and
+# verifies we can resume with more complex and varied arguments
+def varied_method(ints1: int, ints2: list, int1: int, string: str) -> \
+                  (int, list, int):
+    assert isinstance(ints1, list)
+    assert isinstance(ints2, dict)
+    assert isinstance(int1, int)
+    assert isinstance(string, str)
+    return ints1, ints2, int1

@@ -66,6 +66,9 @@ class Context:
                 for k, v in kwargs:
                     arguments.append({k: v})
 
+                # TODO: Need coerce inputs and parameters here. Look at current
+                # test failure
+
                 invocation = HashableInvocation(plugin_action, arguments)
                 if invocation in self.cache.named_pool.index:
                     cached_outputs = self.cache.named_pool.index[invocation]
@@ -103,6 +106,7 @@ class Context:
             # parent. This allows scope cleanup to happen recursively. A
             # factory is necessary so that independent applications of the
             # returned callable recieve their own Context objects.
+            print(f'FAILED TO FIND:\n{invocation}\n\n{self.cache.named_pool.index}\n\n')
             return action_obj._bind(
                 lambda: Context(parent=self))(*args, **kwargs)
 

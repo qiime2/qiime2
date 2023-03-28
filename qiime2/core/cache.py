@@ -1641,6 +1641,10 @@ class Pool:
                 action_yaml = load_action_yaml(path)
                 action = action_yaml['action']
 
+                # TODO: How do we want to handle this
+                if 'type' in action and action['type'] == 'import':
+                    continue
+
                 plugin_action = action['plugin'] + ':' + action['action']
                 arguments = action['inputs']
                 arguments.extend(action['parameters'])

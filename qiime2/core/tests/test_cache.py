@@ -399,6 +399,10 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.data))
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
+    # TODO Anthony: Create tests here with actions that return multiple
+    # collections and with actions that return multiple non-collections and
+    # with actions that return a combination of collections and individual
+    # values.
     def test_resumable_pipeline(self):
         resumable_pipeline = self.plugin.pipelines['resumable_pipeline']
 
@@ -462,6 +466,70 @@ class TestCache(unittest.TestCase):
                 # Assert that the artifacts returned by the completed run of
                 # the pipeline are aliases of the artifacts created by the
                 # first failed run
+                self.assertEqual(list_uuids, str(complete_list_uuids))
+                self.assertEqual(dict_uuids, str(complete_dict_uuids))
+
+    def test_resumable_varied_pipeline(self):
+        resumable_varied_pipeline = \
+            self.plugin.pipelines['resumable_varied_pipeline']
+
+        pool = self.cache.create_pool('pool')
+
+        ints1 = [Artifact.import_data(SingleInt, 0),
+                 Artifact.import_data(SingleInt, 1)]
+        ints2 = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
+                 '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
+        int1 = Artifact.import_data(SingleInt, 42)
+
+        with self.cache:
+            with pool:
+                with self.assertRaises(ValueError) as e:
+                    resumable_varied_pipeline(
+                        ints1, ints2, int1, 'Hi', fail=True)
+
+                ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids = \
+                    str(e.exception).split('_')
+
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
+                    resumable_varied_pipeline(ints1, ints2, int1, 'Hi')
+
+                complete_ints1_uuids = []
+                for artifact in ints1_ret.values():
+                    complete_ints1_uuids.append(
+                        load_action_yaml(
+                            self.cache.data / str(artifact.uuid)
+                            )['action']['alias-of'])
+
+                complete_ints2_uuids = []
+                for artifact in ints2_ret.values():
+                    complete_ints2_uuids.append(
+                        load_action_yaml(
+                            self.cache.data / str(artifact.uuid)
+                            )['action']['alias-of'])
+
+                complete_int1_uuid = load_action_yaml(
+                    self.cache.data / str(int1_ret.uuid))['action']['alias-of']
+
+                complete_list_uuids = []
+                for artifact in list_ret.values():
+                    complete_list_uuids.append(
+                        load_action_yaml(
+                            self.cache.data / str(artifact.uuid)
+                            )['action']['alias-of'])
+
+                complete_dict_uuids = []
+                for artifact in dict_ret.values():
+                    complete_dict_uuids.append(
+                        load_action_yaml(
+                            self.cache.data / str(artifact.uuid)
+                            )['action']['alias-of'])
+
+                # Assert that the artifacts returned by the completed run of
+                # the pipeline are aliases of the artifacts created by the
+                # first failed run
+                self.assertEqual(ints1_uuids, str(complete_ints1_uuids))
+                self.assertEqual(ints2_uuids, str(complete_ints2_uuids))
+                self.assertEqual(int1_uuid, str(complete_int1_uuid))
                 self.assertEqual(list_uuids, str(complete_list_uuids))
                 self.assertEqual(dict_uuids, str(complete_dict_uuids))
 

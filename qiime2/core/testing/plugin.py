@@ -46,14 +46,16 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      optional_artifacts_method, long_description_method,
                      docstring_order_method, variadic_input_method,
                      unioned_primitives, type_match_list_and_set, union_inputs,
-                     list_of_ints, dict_of_ints, collection_inner_union,
-                     collection_outer_union, dict_params, list_params)
+                     list_of_ints, dict_of_ints, varied_method,
+                     collection_inner_union, collection_outer_union,
+                     dict_params, list_params)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
                        pipelines_in_pipeline, resumable_pipeline,
-                       resumable_collection_pipeline, list_pipeline,
+                       resumable_collection_pipeline,
+                       resumable_varied_pipeline, list_pipeline,
                        collection_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
@@ -773,6 +775,29 @@ dummy_plugin.pipelines.register_function(
 )
 
 dummy_plugin.pipelines.register_function(
+    function=resumable_varied_pipeline,
+    inputs={
+        'ints1': List[SingleInt],
+        'ints2': Collection[IntSequence1],
+        'int1': SingleInt,
+    },
+    parameters={
+        'string': Str,
+        'fail': Bool,
+    },
+    outputs=[
+        ('ints1_return', Collection[SingleInt]),
+        ('ints2_return', Collection[IntSequence1]),
+        ('int1_return', SingleInt),
+        ('list_return', Collection[SingleInt]),
+        ('dict_return', Collection[SingleInt]),
+    ],
+    name='To be resumed',
+    description=('Called first with fail=True then again with fail=False '
+                 'meant to reuse results from first run durng second run')
+)
+
+dummy_plugin.pipelines.register_function(
     function=list_pipeline,
     inputs={'ints': List[IntSequence1]},
     parameters={},
@@ -936,6 +961,26 @@ dummy_plugin.methods.register_function(
     ],
     name='Parameters only method',
     description='This method only accepts parameters.',
+)
+
+dummy_plugin.methods.register_function(
+    function=varied_method,
+    inputs={
+        'ints1': List[SingleInt],
+        'ints2': Collection[IntSequence1],
+        'int1': SingleInt
+    },
+    parameters={
+        'string': Str,
+    },
+    outputs=[
+        ('ints', Collection[SingleInt]),
+        ('sequences', Collection[IntSequence1]),
+        ('int', SingleInt)
+    ],
+    name='Takes and returns a combination of colletions and non collections',
+    description='Takes and returns a combination of colletions and non'
+                ' collections'
 )
 
 import_module('qiime2.core.testing.mapped')

@@ -106,14 +106,38 @@ def resumable_collection_pipeline(ctx, int_list, int_dict, fail=False):
     dict_return, = dict_of_ints(int_dict)
 
     if fail:
-        list_uuids = \
-            [str(result.uuid) for result in list_return.values()]
-        dict_uuids = \
-            [str(result.uuid) for result in dict_return.values()]
+        list_uuids = [str(result.uuid) for result in list_return.values()]
+        dict_uuids = [str(result.uuid) for result in dict_return.values()]
 
         raise ValueError(f'{list_uuids}_{dict_uuids}')
 
     return list_return, dict_return
+
+
+def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, fail=False):
+    varied_method = ctx.get_action('dummy_plugin', 'varied_method')
+    list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
+    dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
+
+    ints1_ret, ints2_ret, int1_ret = varied_method(
+        ints1, ints2, int1, string)
+
+    list_return, = list_of_ints(ints1)
+    dict_return, = dict_of_ints(ints1)
+
+    if fail:
+        ints1_uuids = [str(result.uuid) for result in ints1_ret.values()]
+        ints2_uuids = [str(result.uuid) for result in ints2_ret.values()]
+        int1_uuid = str(int1_ret.uuid)
+
+        list_uuids = [str(result.uuid) for result in list_return.values()]
+        dict_uuids = [str(result.uuid) for result in dict_return.values()]
+
+        raise ValueError(f'{ints1_uuids}_{ints2_uuids}_{int1_uuid}'
+                         f'_{list_uuids}_{dict_uuids}')
+
+    dict_uuids = [str(result.uuid) for result in dict_return.values()]
+    return ints1_ret, ints2_ret, int1_ret, list_return, dict_return
 
 
 def list_pipeline(ctx, ints):

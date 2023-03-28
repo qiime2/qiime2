@@ -664,8 +664,8 @@ class TestMethod(unittest.TestCase):
     def test_collection_list_param(self):
         list_method = self.plugin.methods['list_params']
 
-        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
         param_list = [1, 2, 3, 4]
+        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
 
         expected = {'0': 1, '1': 2, '2': 3, '3': 4}
 
@@ -687,8 +687,8 @@ class TestMethod(unittest.TestCase):
     def test_collection_dict_param(self):
         dict_method = self.plugin.methods['dict_params']
 
-        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
         param_list = [1, 2, 3, 4]
+        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
 
         # The dict method should have preserved the keys, the list method can't
         # have because it never received them because it recieved only the
@@ -710,6 +710,39 @@ class TestMethod(unittest.TestCase):
 
         self.assertEqual(view_list_out, expected_list)
         self.assertEqual(view_dict_out, expected_dict)
+
+    def test_varied_method(self):
+        varied_method = self.plugin.methods['varied_method']
+
+        ints1 = [Artifact.import_data(SingleInt, 1),
+                 Artifact.import_data(SingleInt, 2)]
+        ints2 = {'foo': Artifact.import_data(IntSequence1, [0, 1, 2]),
+                 'bar': Artifact.import_data(IntSequence1, [3, 4, 5])}
+        int1 = Artifact.import_data(SingleInt, 1)
+
+        ints1_expected = {'0': 1, '1': 2}
+        ints2_expected = {'foo': [0, 1, 2], 'bar': [3, 4, 5]}
+        int1_expected = 1
+
+        int2 = 42
+        flag = True
+
+        ints1_ret, ints2_ret, int1_ret = varied_method(
+            ints1, ints2, int1, int2, flag)
+
+        self.assertEqual(len(ints1_ret), 2)
+        self.assertEqual(len(ints2_ret), 2)
+
+        self.assertIsInstance(ints1_ret, dict)
+        self.assertIsInstance(ints2_ret, dict)
+
+        view_ints1_ret = self._view_collection(ints1_ret, int)
+        view_ints2_ret = self._view_collection(ints2_ret, list)
+        view_int1_ret = int1_ret.view(int)
+
+        self.assertEqual(view_ints1_ret, ints1_expected)
+        self.assertEqual(view_ints2_ret, ints2_expected)
+        self.assertEqual(view_int1_ret, int1_expected)
 
     def _view_collection(self, collection, view_type):
         return {k: v.view(view_type) for k, v in collection.items()}
