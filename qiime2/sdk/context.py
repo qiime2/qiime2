@@ -55,7 +55,9 @@ class Context:
             # we can reuse
             if self.cache.named_pool is not None:
                 # NOTE: This work is currently done both here and in action.py
-                # in bound_callable
+                # in bound_callable. We should be able to remove this redundant
+                # work by adding something like _bind_deferred and calling it
+                # where we call _bind below, but that might not be worth it
                 user_input = {name: value for value, name in
                               zip(args, action_obj.signature.signature_order)}
                 user_input.update(kwargs)
