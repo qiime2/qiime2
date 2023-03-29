@@ -105,7 +105,6 @@ class Context:
             # parent. This allows scope cleanup to happen recursively. A
             # factory is necessary so that independent applications of the
             # returned callable recieve their own Context objects.
-            # print(f'BEFORE: {callable_args}')
             return action_obj._bind(
                 lambda: Context(parent=self))(*args, **kwargs)
 

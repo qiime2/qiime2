@@ -119,7 +119,6 @@ def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, fail=False):
     list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
     dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
 
-    print(f'ints1: {ints1}\nints2: {ints2}\nint1: {int1}\nstring: {string}')
     ints1_ret, ints2_ret, int1_ret = varied_method(
         ints1, ints2, int1, string)
 
