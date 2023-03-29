@@ -383,7 +383,7 @@ class PipelineSignature:
                 if isinstance(_input, dict):
                     transformed_input = {
                         k: v._view(spec.view_type,
-                                    recorder) for k, v in _input.items()}
+                                   recorder) for k, v in _input.items()}
                 else:
                     transformed_input = [
                         i._view(spec.view_type, recorder) for i in _input]

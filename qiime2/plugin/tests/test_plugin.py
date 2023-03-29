@@ -90,7 +90,8 @@ class TestPlugin(unittest.TestCase):
                           'typical_pipeline', 'optional_artifact_pipeline',
                           'pointless_pipeline', 'visualizer_only_pipeline',
                           'pipelines_in_pipeline', 'resumable_pipeline',
-                          'resumable_collection_pipeline', 'list_pipeline',
+                          'resumable_collection_pipeline',
+                          'resumable_varied_pipeline', 'list_pipeline',
                           'collection_pipeline', 'failing_pipeline',
                           'docstring_order_method',
                           'constrained_input_visualization',
@@ -103,7 +104,7 @@ class TestPlugin(unittest.TestCase):
                           'type_match_list_and_set',
                           'list_of_ints', 'dict_of_ints',
                           'collection_inner_union', 'collection_outer_union',
-                          'dict_params', 'list_params',
+                          'dict_params', 'list_params', 'varied_method',
                           })
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
@@ -138,7 +139,7 @@ class TestPlugin(unittest.TestCase):
                           'type_match_list_and_set', 'list_of_ints',
                           'dict_of_ints', 'collection_inner_union',
                           'collection_outer_union', 'dict_params',
-                          'list_params',
+                          'list_params', 'varied_method',
                           })
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)
@@ -160,7 +161,8 @@ class TestPlugin(unittest.TestCase):
                           'optional_artifact_pipeline', 'pointless_pipeline',
                           'visualizer_only_pipeline', 'pipelines_in_pipeline',
                           'resumable_pipeline',
-                          'resumable_collection_pipeline', 'list_pipeline',
+                          'resumable_collection_pipeline',
+                          'resumable_varied_pipeline', 'list_pipeline',
                           'collection_pipeline', 'failing_pipeline'})
         for pipeline in pipelines.values():
             self.assertIsInstance(pipeline, qiime2.sdk.Pipeline)

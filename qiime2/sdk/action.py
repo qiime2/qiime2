@@ -234,54 +234,6 @@ class Action(metaclass=abc.ABCMeta):
         self._set_wrapper_name(bound_callable, self.id)
         return bound_callable
 
-    def _deferred_bind(self, context_factory):
-        def bound_callable(*args, **callable_args):
-            print(f'HERE: {args}\n\n{callable_args}')
-            # This function's signature is rewritten below using
-            # `decorator.decorator`. When the signature is rewritten,
-            # args[0] is the function whose signature was used to rewrite
-            # this function's signature.
-            args = args[1:]
-            ctx = context_factory()
-            # Set up a scope under which we can track destructable references
-            # if something goes wrong, the __exit__ handler of this context
-            # manager will clean up. (It also cleans up when things go right)
-            with ctx as scope:
-                provenance = self._ProvCaptureCls(
-                    self.type, self.plugin_id, self.id)
-                scope.add_reference(provenance)
-
-                # Type management
-                self.signature.check_types(**callable_args)
-                output_types = self.signature.solve_output(**callable_args)
-
-                self.signature.add_callable_args_to_prov(**callable_args)
-
-                if self.deprecated:
-                    with qiime2.core.util.warning() as warn:
-                        warn(self._build_deprecation_message(),
-                             FutureWarning)
-
-                # Execute
-                outputs = self._callable_executor_(scope, callable_args,
-                                                   output_types, provenance)
-
-                if len(outputs) != len(self.signature.outputs):
-                    raise ValueError(
-                        "Number of callable outputs must match number of "
-                        "outputs defined in signature: %d != %d" %
-                        (len(outputs), len(self.signature.outputs)))
-
-                # Wrap in a Results object mapping output name to value so
-                # users have access to outputs by name or position.
-                return qiime2.sdk.Results(self.signature.outputs.keys(),
-                                          outputs)
-
-        bound_callable = self._rewrite_wrapper_signature(bound_callable)
-        self._set_wrapper_properties(bound_callable)
-        self._set_wrapper_name(bound_callable, self.id)
-        return bound_callable
-
     def _get_callable_wrapper(self):
         # This is a "root" level invocation (not a nested call within a
         # pipeline), so no special factory is needed.

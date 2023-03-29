@@ -51,21 +51,15 @@ class Context:
         # We return this callable which determines whether to return cached
         # results or to run the action requested.
         def deferred_action(*args, **kwargs):
-            # raise ValueError(action_obj.signature.coerce_given_parameters)
-            user_input = {name: value for value, name in
-                            zip(args, action_obj.signature.signature_order)}
-            user_input.update(kwargs)
-
-            callable_args = action_obj.signature.coerce_user_input(**user_input)
-
             # If we have a named_pool, we need to check for cached results that
             # we can reuse
             if self.cache.named_pool is not None:
-                # TODO: Need coerce inputs and parameters here. Look at current
-                # test failure
-                # callable_args = {}
-                # callable_args.update(action_obj.signature.coerce_parameters_no_prov(**user_input))
-                # callable_args.update(action_obj.signature.coerce_inputs_no_prov(**user_input))
+                user_input = {name: value for value, name in
+                              zip(args, action_obj.signature.signature_order)}
+                user_input.update(kwargs)
+
+                callable_args = action_obj.signature.coerce_user_input(
+                    **user_input)
 
                 # Make args and kwargs look how they do when we read them out
                 # of a .yaml file (list of single value dicts of
@@ -111,9 +105,9 @@ class Context:
             # parent. This allows scope cleanup to happen recursively. A
             # factory is necessary so that independent applications of the
             # returned callable recieve their own Context objects.
-            print(f'BEFORE: {callable_args}')
-            return action_obj._deferred_bind(
-                lambda: Context(parent=self))(**callable_args)
+            # print(f'BEFORE: {callable_args}')
+            return action_obj._bind(
+                lambda: Context(parent=self))(*args, **kwargs)
 
         return deferred_action
 

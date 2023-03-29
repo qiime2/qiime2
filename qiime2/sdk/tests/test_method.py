@@ -724,11 +724,8 @@ class TestMethod(unittest.TestCase):
         ints2_expected = {'foo': [0, 1, 2], 'bar': [3, 4, 5]}
         int1_expected = 1
 
-        int2 = 42
-        flag = True
-
         ints1_ret, ints2_ret, int1_ret = varied_method(
-            ints1, ints2, int1, int2, flag)
+            ints1, ints2, int1, 'Hi')
 
         self.assertEqual(len(ints1_ret), 2)
         self.assertEqual(len(ints2_ret), 2)
