@@ -367,7 +367,9 @@ class PipelineSignature:
     def transform_and_add_callable_args_to_prov(self, provenance,
                                                 **callable_args):
         """ Transform inputs to views and add all callable arguments to
-            provenance
+            provenance. Needs to be done together so we can add transformation
+            records to provenance and because we want transformers to run
+            outside the DFK in parsl
         """
         for name, spec in self.signature_order.items():
             arg = callable_args[name]
