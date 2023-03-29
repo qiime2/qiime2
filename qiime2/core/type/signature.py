@@ -320,6 +320,102 @@ class PipelineSignature:
                     " Pipelines do not support function annotations (found one"
                     " for parameter: %r)." % name)
 
+    def coerce_user_input(self, **user_input):
+        callable_args = {}
+
+        for name, spec in self.signature_order.items():
+            arg = user_input[name]
+            if name in self.inputs:
+                callable_args[name] = self._coerce_given_input(arg, spec)
+            else:
+                callable_args[name] = self._coerce_given_parameter(arg, spec)
+
+        return callable_args
+
+    def _coerce_given_input(self, _input, spec):
+        _, qiime_name = self._get_qiime_type_and_name(spec)
+
+        # Transform collection from list to dict and vice versa if needed
+        if qiime_name == 'Collection' and isinstance(_input, list):
+            _input = self._list_to_dict(_input)
+        elif qiime_name == 'List' and \
+                isinstance(_input, dict):
+            _input = self._dict_to_list(_input)
+
+        return _input
+
+    def _coerce_given_parameter(self, param, spec):
+        view_type = spec.view_type
+
+        if view_type == dict and isinstance(param, list):
+            param = self._list_to_dict(param)
+        elif view_type == list and isinstance(param, dict):
+            param = self._dict_to_list(param)
+
+        return param
+
+    def add_callable_args_to_prov(self, provenance, **callable_args):
+        for name, spec in self.signature_order:
+            arg = callable_args[name]
+
+            if name in self.inputs:
+                callable_args[name] = \
+                    self._transform_and_add_input_to_prov(name, spec, arg)
+            else:
+                provenance.add_parameter(name, spec.qiime_type, arg)
+
+    def _transform_and_add_input_to_prov(self, provenance, name, spec, _input):
+        """ Transform the input and add both the input and the transformation
+            record to provenance
+        """
+        transformed_input = None
+
+        # Add input to provenance after creating the correct collection
+        # type
+        provenance.add_input(name, _input)
+        qiime_type, _ = self._get_qiime_type_and_name(spec)
+
+        # Transform artifacts to view types as necessary
+        if spec.has_view_type():
+            recorder = provenance.transformation_recorder(name)
+            # Transform all members of collection into view type
+            if qtype.is_collection_type(qiime_type):
+                if isinstance(_input, dict):
+                    transformed_input = {
+                        k: v._view(spec.view_type,
+                                    recorder) for k, v in _input.items()}
+                else:
+                    transformed_input = [
+                        i._view(spec.view_type, recorder) for i in _input]
+            else:
+                transformed_input = _input._view(spec.view_type, recorder)
+        else:
+            transformed_input = _input
+
+        return transformed_input
+
+    def _get_qiime_type_and_name(self, spec):
+        """ Get concrete qiime type and name from nested spec
+        """
+        qiime_type = spec.qiime_type
+        qiime_name = spec.qiime_type.name
+
+        # I don't think this will necessarily work if we nest collection
+        # types in the future
+        if qiime_name == '':
+            # If we have an outer union as our semantic type, the name will
+            # be the empty string, and the type will be the entire union
+            # expression. In order to get a meaningful name and a type
+            # that tells us if we have a collection, we unpack the union
+            # and grab that info from the first element. All subsequent
+            # elements will share this same basic information because we
+            # do not allow
+            # List[TypeA] | Collection[TypeA]
+            qiime_type = next(iter(spec.qiime_type))
+            qiime_name = qiime_type.name
+
+        return qiime_type, qiime_name
+
     def coerce_given_parameters(self, provenance, **user_input):
         """ Coerce the parameters given to the method into the types it wants
             if possible
@@ -342,6 +438,22 @@ class PipelineSignature:
             # one we were actually given) here. I am leaning towards
             # params[name]
             provenance.add_parameter(name, spec.qiime_type, params[name])
+
+        return params
+
+    def coerce_parameters_no_prov(self, **user_input):
+        params = {}
+
+        for name, spec in self.parameters.items():
+            view_type = spec.view_type
+            _param = user_input[name]
+
+            if view_type == dict and isinstance(_param, list):
+                params[name] = self._list_to_dict(_param)
+            elif view_type == list and isinstance(_param, dict):
+                params[name] = self._dict_to_list(_param)
+            else:
+                params[name] = _param
 
         return params
 
@@ -398,6 +510,44 @@ class PipelineSignature:
                             i._view(spec.view_type, recorder) for i in _input]
                 else:
                     inputs[name] = _input._view(spec.view_type, recorder)
+            else:
+                inputs[name] = _input
+
+        return inputs
+
+    def coerce_inputs_no_prov(self, **user_input):
+        inputs = {}
+
+        # If we have a Collection input and a Union view type complain
+        for name, spec in self.inputs.items():
+            _input = user_input[name]
+
+            qiime_name = spec.qiime_type.name
+            qiime_type = spec.qiime_type
+            # I don't think this will necessarily work if we nest collection
+            # types in the future
+            if qiime_name == '':
+                # If we have an outer union as our semantic type, the name will
+                # be the empty string, and the type will be the entire union
+                # expression. In order to get a meaningful name and a type
+                # that tells us if we have a collection, we unpack the union
+                # and grab that info from the first element. All subsequent
+                # elements will share this same basic information because we
+                # do not allow
+                # List[TypeA] | Collection[TypeA]
+                qiime_type = next(iter(spec.qiime_type))
+                qiime_name = qiime_type.name
+
+            # Transform collection from list to dict and vice versa if needed
+            if qiime_name == 'Collection' and isinstance(_input, list):
+                _input = self._list_to_dict(_input)
+            elif qiime_name == 'List' and \
+                    isinstance(_input, dict):
+                _input = self._dict_to_list(_input)
+
+            # Transform artifacts to view types as necessary
+            if _input is None:
+                inputs[name] = None
             else:
                 inputs[name] = _input
 
