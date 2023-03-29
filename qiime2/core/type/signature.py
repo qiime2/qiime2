@@ -324,11 +324,15 @@ class PipelineSignature:
         callable_args = {}
 
         for name, spec in self.signature_order.items():
-            arg = user_input[name]
-            if name in self.inputs:
-                callable_args[name] = self._coerce_given_input(arg, spec)
-            else:
-                callable_args[name] = self._coerce_given_parameter(arg, spec)
+            # Some arguments may be optional and won't be present here. Whether
+            # they passed all mandatory arguments or not is validated elsewhere
+            if name in user_input:
+                arg = user_input[name]
+                if name in self.inputs:
+                    callable_args[name] = self._coerce_given_input(arg, spec)
+                else:
+                    callable_args[name] = \
+                        self._coerce_given_parameter(arg, spec)
 
         return callable_args
 
@@ -355,14 +359,17 @@ class PipelineSignature:
         return param
 
     def add_callable_args_to_prov(self, provenance, **callable_args):
-        for name, spec in self.signature_order:
+        for name, spec in self.signature_order.items():
             arg = callable_args[name]
 
             if name in self.inputs:
                 callable_args[name] = \
-                    self._transform_and_add_input_to_prov(name, spec, arg)
+                    self._transform_and_add_input_to_prov(
+                        provenance, name, spec, arg)
             else:
                 provenance.add_parameter(name, spec.qiime_type, arg)
+
+        return callable_args
 
     def _transform_and_add_input_to_prov(self, provenance, name, spec, _input):
         """ Transform the input and add both the input and the transformation
@@ -376,7 +383,9 @@ class PipelineSignature:
         qiime_type, _ = self._get_qiime_type_and_name(spec)
 
         # Transform artifacts to view types as necessary
-        if spec.has_view_type():
+        if _input is None:
+            transformed_input = None
+        elif spec.has_view_type():
             recorder = provenance.transformation_recorder(name)
             # Transform all members of collection into view type
             if qtype.is_collection_type(qiime_type):
@@ -415,143 +424,6 @@ class PipelineSignature:
             qiime_name = qiime_type.name
 
         return qiime_type, qiime_name
-
-    def coerce_given_parameters(self, provenance, **user_input):
-        """ Coerce the parameters given to the method into the types it wants
-            if possible
-        """
-        params = {}
-
-        for name, spec in self.parameters.items():
-            view_type = spec.view_type
-            _param = user_input[name]
-
-            if view_type == dict and isinstance(_param, list):
-                params[name] = self._list_to_dict(_param)
-            elif view_type == list and isinstance(_param, dict):
-                params[name] = self._dict_to_list(_param)
-            else:
-                params[name] = _param
-
-            # I don't know if we want params[name] (the correct view type
-            # param) or _param (the potentially incorrect view type, but the
-            # one we were actually given) here. I am leaning towards
-            # params[name]
-            provenance.add_parameter(name, spec.qiime_type, params[name])
-
-        return params
-
-    def coerce_parameters_no_prov(self, **user_input):
-        params = {}
-
-        for name, spec in self.parameters.items():
-            view_type = spec.view_type
-            _param = user_input[name]
-
-            if view_type == dict and isinstance(_param, list):
-                params[name] = self._list_to_dict(_param)
-            elif view_type == list and isinstance(_param, dict):
-                params[name] = self._dict_to_list(_param)
-            else:
-                params[name] = _param
-
-        return params
-
-    def coerce_given_inputs(self, provenance, **user_input):
-        """ Coerce the inputs given to the method into the types it wants if
-            possible
-        """
-        inputs = {}
-
-        # If we have a Collection input and a Union view type complain
-        for name, spec in self.inputs.items():
-            _input = user_input[name]
-
-            qiime_name = spec.qiime_type.name
-            qiime_type = spec.qiime_type
-            # I don't think this will necessarily work if we nest collection
-            # types in the future
-            if qiime_name == '':
-                # If we have an outer union as our semantic type, the name will
-                # be the empty string, and the type will be the entire union
-                # expression. In order to get a meaningful name and a type
-                # that tells us if we have a collection, we unpack the union
-                # and grab that info from the first element. All subsequent
-                # elements will share this same basic information because we
-                # do not allow
-                # List[TypeA] | Collection[TypeA]
-                qiime_type = next(iter(spec.qiime_type))
-                qiime_name = qiime_type.name
-
-            # Transform collection from list to dict and vice versa if needed
-            if qiime_name == 'Collection' and isinstance(_input, list):
-                _input = self._list_to_dict(_input)
-            elif qiime_name == 'List' and \
-                    isinstance(_input, dict):
-                _input = self._dict_to_list(_input)
-
-            # Add input to provenance after creating the correct collection
-            # type
-            provenance.add_input(name, _input)
-
-            # Transform artifacts to view types as necessary
-            if _input is None:
-                inputs[name] = None
-            elif spec.has_view_type():
-                recorder = provenance.transformation_recorder(name)
-                # Transform all members of collection into view type
-                if qtype.is_collection_type(qiime_type):
-                    if isinstance(_input, dict):
-                        inputs[name] = {
-                            k: v._view(spec.view_type,
-                                       recorder) for k, v in _input.items()}
-                    else:
-                        inputs[name] = [
-                            i._view(spec.view_type, recorder) for i in _input]
-                else:
-                    inputs[name] = _input._view(spec.view_type, recorder)
-            else:
-                inputs[name] = _input
-
-        return inputs
-
-    def coerce_inputs_no_prov(self, **user_input):
-        inputs = {}
-
-        # If we have a Collection input and a Union view type complain
-        for name, spec in self.inputs.items():
-            _input = user_input[name]
-
-            qiime_name = spec.qiime_type.name
-            qiime_type = spec.qiime_type
-            # I don't think this will necessarily work if we nest collection
-            # types in the future
-            if qiime_name == '':
-                # If we have an outer union as our semantic type, the name will
-                # be the empty string, and the type will be the entire union
-                # expression. In order to get a meaningful name and a type
-                # that tells us if we have a collection, we unpack the union
-                # and grab that info from the first element. All subsequent
-                # elements will share this same basic information because we
-                # do not allow
-                # List[TypeA] | Collection[TypeA]
-                qiime_type = next(iter(spec.qiime_type))
-                qiime_name = qiime_type.name
-
-            # Transform collection from list to dict and vice versa if needed
-            if qiime_name == 'Collection' and isinstance(_input, list):
-                _input = self._list_to_dict(_input)
-            elif qiime_name == 'List' and \
-                    isinstance(_input, dict):
-                _input = self._dict_to_list(_input)
-
-            # Transform artifacts to view types as necessary
-            if _input is None:
-                inputs[name] = None
-            else:
-                inputs[name] = _input
-
-        return inputs
 
     def coerce_given_outputs(self, output_views, output_types, scope,
                              provenance):
