@@ -339,7 +339,8 @@ def load_action_yaml(path):
     yaml.safe_load
     """
     # TODO: Make these actually do something useful at least for the tags
-    # that are relevant to what we need out of provenance
+    # that are relevant to what we need out of provenance (this is partially
+    # done)
     def ref_constructor(loader, node):
         # We only care about the name of the thing we are referencing which
         # is at the end of this list

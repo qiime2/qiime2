@@ -399,10 +399,6 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.data))
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
-    # TODO Anthony: Create tests here with actions that return multiple
-    # collections and with actions that return multiple non-collections and
-    # with actions that return a combination of collections and individual
-    # values.
     def test_resumable_pipeline(self):
         resumable_pipeline = self.plugin.pipelines['resumable_pipeline']
 
