@@ -54,6 +54,8 @@ class Context:
             # If we have a named_pool, we need to check for cached results that
             # we can reuse
             if self.cache.named_pool is not None:
+                # NOTE: This work is currently done both here and in action.py
+                # in bound_callable
                 user_input = {name: value for value, name in
                               zip(args, action_obj.signature.signature_order)}
                 user_input.update(kwargs)
