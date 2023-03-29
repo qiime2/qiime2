@@ -533,6 +533,49 @@ class TestCache(unittest.TestCase):
                 self.assertEqual(list_uuids, str(complete_list_uuids))
                 self.assertEqual(dict_uuids, str(complete_dict_uuids))
 
+                # Pass in a different string, this should cause the returns
+                # from varied_method to not be reused and the others to be
+                # reused
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
+                    resumable_varied_pipeline(ints1, ints2, int1, 'Bye')
+
+                complete_ints1_uuids = []
+                for artifact in ints1_ret.values():
+                    complete_ints1_uuids.append(
+                        load_action_yaml(
+                            self.cache.data / str(artifact.uuid)
+                            )['action']['alias-of'])
+
+                complete_ints2_uuids = []
+                for artifact in ints2_ret.values():
+                    complete_ints2_uuids.append(
+                        load_action_yaml(
+                            self.cache.data / str(artifact.uuid)
+                            )['action']['alias-of'])
+
+                complete_int1_uuid = load_action_yaml(
+                    self.cache.data / str(int1_ret.uuid))['action']['alias-of']
+
+                complete_list_uuids = []
+                for artifact in list_ret.values():
+                    complete_list_uuids.append(
+                        load_action_yaml(
+                            self.cache.data / str(artifact.uuid)
+                            )['action']['alias-of'])
+
+                complete_dict_uuids = []
+                for artifact in dict_ret.values():
+                    complete_dict_uuids.append(
+                        load_action_yaml(
+                            self.cache.data / str(artifact.uuid)
+                            )['action']['alias-of'])
+
+                self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
+                self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
+                self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
+                self.assertEqual(list_uuids, str(complete_list_uuids))
+                self.assertEqual(dict_uuids, str(complete_dict_uuids))
+
     def test_collection_list_input_cache(self):
         list_method = self.plugin.methods['list_of_ints']
         dict_method = self.plugin.methods['dict_of_ints']
