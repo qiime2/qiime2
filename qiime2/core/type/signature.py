@@ -321,6 +321,8 @@ class PipelineSignature:
                     " for parameter: %r)." % name)
 
     def coerce_user_input(self, **user_input):
+        """ Coerce user inputs to be appropriate for callable
+        """
         callable_args = {}
 
         for name, spec in self.signature_order.items():
@@ -337,6 +339,8 @@ class PipelineSignature:
         return callable_args
 
     def _coerce_given_input(self, _input, spec):
+        """ Coerce input to be appropriate for callable
+        """
         _, qiime_name = self._get_qiime_type_and_name(spec)
 
         # Transform collection from list to dict and vice versa if needed
@@ -349,6 +353,8 @@ class PipelineSignature:
         return _input
 
     def _coerce_given_parameter(self, param, spec):
+        """ Coerce parameter to be appropriate for callable
+        """
         view_type = spec.view_type
 
         if view_type == dict and isinstance(param, list):
@@ -358,7 +364,11 @@ class PipelineSignature:
 
         return param
 
-    def add_callable_args_to_prov(self, provenance, **callable_args):
+    def transform_and_add_callable_args_to_prov(self, provenance,
+                                                **callable_args):
+        """ Transform inputs to views and add all callable arguments to
+            provenance
+        """
         for name, spec in self.signature_order.items():
             arg = callable_args[name]
 
