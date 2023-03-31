@@ -1493,7 +1493,7 @@ class Pool:
         # already exists. This could happen legitimately from trying to save
         # the same thing to a named pool several times.
         with self.cache.lock:
-            if not os.path.exists(dest):
+            if not os.path.islink(dest):
                 os.symlink(src, dest)
 
     def _rename_to_collection_pool(self, uuid, src):
