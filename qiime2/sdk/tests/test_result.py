@@ -17,7 +17,7 @@ from qiime2.sdk.result import ResultMetadata
 import qiime2.core.archive as archive
 import qiime2.core.exceptions as exceptions
 
-from qiime2.core.testing.type import FourInts
+from qiime2.core.testing.type import FourInts, SingleInt
 from qiime2.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 from qiime2.core.testing.visualizer import mapping_viz
 from qiime2.core.util import set_permissions, OTHER_NO_WRITE
@@ -76,6 +76,45 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         self.assertIsInstance(visualization, Visualization)
         self.assertEqual(visualization.type, qiime2.core.type.Visualization)
         self.assertEqual(visualization.uuid, saved_visualization.uuid)
+
+    def test_roundtrip_ordered_collection(self):
+        collection = {'foo': Artifact.import_data(SingleInt, 0),
+                      'bar': Artifact.import_data(SingleInt, 1)}
+        output_fp = os.path.join(self.test_dir.name, 'output')
+
+        Result.save_collection(output_fp, collection)
+
+        foo = Artifact.load(os.path.join(output_fp, 'foo.qza'))
+        bar = Artifact.load(os.path.join(output_fp, 'bar.qza'))
+
+        self.assertEqual(foo.view(int), 0)
+        self.assertEqual(bar.view(int), 1)
+
+        with open(os.path.join(output_fp, '.order')) as fh:
+            self.assertEqual(fh.read(), 'foo\nbar\n')
+
+        read_collection = Result.load_collection(output_fp)
+        self.assertEqual(collection, read_collection)
+
+    def test_roundtrip_unordered_collection(self):
+        collection = {'foo': Artifact.import_data(SingleInt, 0),
+                      'bar': Artifact.import_data(SingleInt, 1)}
+        output_fp = os.path.join(self.test_dir.name, 'output')
+
+        Result.save_collection(output_fp, collection)
+        os.remove(os.path.join(output_fp, '.order'))
+
+        foo = Artifact.load(os.path.join(output_fp, 'foo.qza'))
+        bar = Artifact.load(os.path.join(output_fp, 'bar.qza'))
+
+        self.assertEqual(foo.view(int), 0)
+        self.assertEqual(bar.view(int), 1)
+
+        with self.assertWarnsRegex(UserWarning, f"The directory '{output_fp}' "
+                                   "does not contain a .order file"):
+            read_collection = Result.load_collection(output_fp)
+
+        self.assertEqual(set(collection.items()), set(read_collection.items()))
 
     def test_extract_artifact(self):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')

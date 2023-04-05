@@ -8,6 +8,7 @@
 
 import os
 import shutil
+import warnings
 import tempfile
 import collections
 import distutils.dir_util
@@ -61,6 +62,71 @@ class Result:
     def extract(cls, filepath, output_dir):
         """Unzip contents of Artifacts and Visualizations."""
         return archive.Archiver.extract(filepath, output_dir)
+
+    @classmethod
+    def save_collection(cls, directory, collection):
+        """Saves a colleciton of QIIME 2 artifacts into a given directory with
+           an order file.
+
+           NOTE: The firectory given must not exist
+        """
+        if os.path.exists(directory):
+            raise ValueError(f"The given directory '{directory}' already "
+                             "exists. A new directory must be given to save "
+                             "the collection to.")
+
+        os.makedirs(directory)
+
+        with open(os.path.join(directory, '.order'), 'w') as fh:
+            for name, artifact in collection.items():
+                artifact_fp = os.path.join(directory, name)
+                artifact.save(artifact_fp)
+                fh.write(f'{name}\n')
+
+    @classmethod
+    def load_collection(cls, directory):
+        """Determines how to load a Collection of QIIME 2 Artifacts in a
+           directory and dispatches to helpers
+        """
+        if not os.path.isdir(directory):
+            raise ValueError(
+                f"Given filepath '{directory}' is not a directory")
+
+        order_fp = os.path.join(directory, '.order')
+
+        if os.path.isfile(order_fp):
+            collection = cls._load_ordered_collection(directory, order_fp)
+        else:
+            warnings.warn(f"The directory '{directory}' does not contain a "
+                          ".order file. The files will be read into the "
+                          "collection in the order the filesystem provides "
+                          "them in.")
+            collection = cls._load_unordered_collection(directory)
+
+        return collection
+
+    @classmethod
+    def _load_ordered_collection(cls, directory, order_fp):
+        collection = {}
+
+        with open(order_fp, 'r') as order_fh:
+            for artifact_name in order_fh.read().splitlines():
+                artifact_fp = os.path.join(directory, artifact_name + '.qza')
+                collection[artifact_name] = cls.load(artifact_fp)
+
+        return collection
+
+    @classmethod
+    def _load_unordered_collection(cls, directory):
+        collection = {}
+
+        for artifact in os.listdir(directory):
+            artifact_fp = os.path.join(directory, artifact)
+            artifact_name = artifact.rstrip('.qza')
+
+            collection[artifact_name] = cls.load(artifact_fp)
+
+        return collection
 
     @classmethod
     def load(cls, filepath):
