@@ -445,19 +445,8 @@ class TestCache(unittest.TestCase):
                 list_return, dict_return = \
                     resumable_collection_pipeline(int_list, int_dict)
 
-                complete_list_uuids = []
-                for artifact in list_return.values():
-                    complete_list_uuids.append(
-                        load_action_yaml(
-                            self.cache.data / str(artifact.uuid)
-                            )['action']['alias-of'])
-
-                complete_dict_uuids = []
-                for artifact in dict_return.values():
-                    complete_dict_uuids.append(
-                        load_action_yaml(
-                            self.cache.data / str(artifact.uuid)
-                            )['action']['alias-of'])
+                complete_list_uuids = load_alias_uuids(list_return)
+                complete_dict_uuids = load_alias_uuids(dict_return)
 
                 # Assert that the artifacts returned by the completed run of
                 # the pipeline are aliases of the artifacts created by the
@@ -489,36 +478,12 @@ class TestCache(unittest.TestCase):
                 ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
                     resumable_varied_pipeline(ints1, ints2, int1, 'Hi')
 
-                complete_ints1_uuids = []
-                for artifact in ints1_ret.values():
-                    complete_ints1_uuids.append(
-                        load_action_yaml(
-                            self.cache.data / str(artifact.uuid)
-                            )['action']['alias-of'])
-
-                complete_ints2_uuids = []
-                for artifact in ints2_ret.values():
-                    complete_ints2_uuids.append(
-                        load_action_yaml(
-                            self.cache.data / str(artifact.uuid)
-                            )['action']['alias-of'])
-
+                complete_ints1_uuids = load_alias_uuids(ints1_ret)
+                complete_ints2_uuids = load_alias_uuids(ints2_ret)
                 complete_int1_uuid = load_action_yaml(
                     self.cache.data / str(int1_ret.uuid))['action']['alias-of']
-
-                complete_list_uuids = []
-                for artifact in list_ret.values():
-                    complete_list_uuids.append(
-                        load_action_yaml(
-                            self.cache.data / str(artifact.uuid)
-                            )['action']['alias-of'])
-
-                complete_dict_uuids = []
-                for artifact in dict_ret.values():
-                    complete_dict_uuids.append(
-                        load_action_yaml(
-                            self.cache.data / str(artifact.uuid)
-                            )['action']['alias-of'])
+                complete_list_uuids = load_alias_uuids(list_ret)
+                complete_dict_uuids = load_alias_uuids(dict_ret)
 
                 # Assert that the artifacts returned by the completed run of
                 # the pipeline are aliases of the artifacts created by the
@@ -535,36 +500,12 @@ class TestCache(unittest.TestCase):
                 ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
                     resumable_varied_pipeline(ints1, ints2, int1, 'Bye')
 
-                complete_ints1_uuids = []
-                for artifact in ints1_ret.values():
-                    complete_ints1_uuids.append(
-                        load_action_yaml(
-                            self.cache.data / str(artifact.uuid)
-                            )['action']['alias-of'])
-
-                complete_ints2_uuids = []
-                for artifact in ints2_ret.values():
-                    complete_ints2_uuids.append(
-                        load_action_yaml(
-                            self.cache.data / str(artifact.uuid)
-                            )['action']['alias-of'])
-
+                complete_ints1_uuids = load_alias_uuids(ints1_ret)
+                complete_ints2_uuids = load_alias_uuids(ints2_ret)
                 complete_int1_uuid = load_action_yaml(
                     self.cache.data / str(int1_ret.uuid))['action']['alias-of']
-
-                complete_list_uuids = []
-                for artifact in list_ret.values():
-                    complete_list_uuids.append(
-                        load_action_yaml(
-                            self.cache.data / str(artifact.uuid)
-                            )['action']['alias-of'])
-
-                complete_dict_uuids = []
-                for artifact in dict_ret.values():
-                    complete_dict_uuids.append(
-                        load_action_yaml(
-                            self.cache.data / str(artifact.uuid)
-                            )['action']['alias-of'])
+                complete_list_uuids = load_alias_uuids(list_ret)
+                complete_dict_uuids = load_alias_uuids(dict_ret)
 
                 self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
                 self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
@@ -733,3 +674,13 @@ class TestCache(unittest.TestCase):
 
         with self.assertWarnsRegex(UserWarning, "in an inconsistent state"):
             Cache()
+
+
+def load_alias_uuids(collection):
+    uuids = []
+
+    for artifact in collection.values():
+        uuids.append(load_action_yaml(
+            artifact._archiver.path)['action']['alias-of'])
+
+    return uuids
