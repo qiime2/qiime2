@@ -110,9 +110,12 @@ class Result:
         collection = {}
 
         with open(order_fp, 'r') as order_fh:
-            for artifact_name in order_fh.read().splitlines():
-                artifact_fp = os.path.join(directory, artifact_name + '.qza')
-                collection[artifact_name] = cls.load(artifact_fp)
+            # TODO: Check if thing in .order file exists and if not try it with
+            # .qza at the end and if not try it with .qzv at the end
+            for result_name in order_fh.read().splitlines():
+                result_fp = \
+                    cls._get_collection_result_fp(directory, result_name)
+                collection[result_name] = cls.load(result_fp)
 
         return collection
 
@@ -120,13 +123,32 @@ class Result:
     def _load_unordered_collection(cls, directory):
         collection = {}
 
-        for artifact in os.listdir(directory):
-            artifact_fp = os.path.join(directory, artifact)
-            artifact_name = artifact.rstrip('.qza')
+        for result in os.listdir(directory):
+            result_fp = os.path.join(directory, result)
+            result_name = result.rstrip('.qza')
+            result_name = result_name.rstrip('.qzv')
 
-            collection[artifact_name] = cls.load(artifact_fp)
+            collection[result_name] = cls.load(result_fp)
 
         return collection
+
+    @classmethod
+    def _get_collection_result_fp(cls, directory, result_name):
+        result_fp = os.path.join(directory, result_name)
+
+        if not os.path.isfile(result_fp):
+            result_fp += '.qza'
+
+            if not os.path.isfile(result_fp):
+                result_fp = result_fp.rstrip('.qza')
+                result_fp += '.qzv'
+
+                if not os.path.isfile(result_fp):
+                    raise ValueError(
+                        f"The Result '{result_name}' is referenced in the "
+                        "order file but does not exist in the directory.")
+
+        return result_fp
 
     @classmethod
     def load(cls, filepath):
