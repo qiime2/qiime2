@@ -116,6 +116,30 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         self.assertEqual(set(collection.items()), set(read_collection.items()))
 
+    def test_collection_order_file_contains_nonexistent_key(self):
+        BAD_KEY = 'NonexistentKey'
+
+        collection = {'foo': Artifact.import_data(SingleInt, 0),
+                      'bar': Artifact.import_data(SingleInt, 1)}
+        output_fp = os.path.join(self.test_dir.name, 'output')
+
+        Result.save_collection(output_fp, collection)
+        order_fp = os.path.join(output_fp, '.order')
+
+        with open(order_fp, 'a') as order_fh:
+            order_fh.write(BAD_KEY)
+
+        foo = Artifact.load(os.path.join(output_fp, 'foo.qza'))
+        bar = Artifact.load(os.path.join(output_fp, 'bar.qza'))
+
+        self.assertEqual(foo.view(int), 0)
+        self.assertEqual(bar.view(int), 1)
+
+        with self.assertRaisesRegex(
+                ValueError, f"The Result '{BAD_KEY}' is referenced in the "
+                            "order file but does not exist"):
+            Result.load_collection(output_fp)
+
     def test_extract_artifact(self):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
         artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
