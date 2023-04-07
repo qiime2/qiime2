@@ -129,28 +129,29 @@ class ProxyArtifact:
         """We have a future that represents the results of some QIIME 2 action,
         and we have a selector indicating specifically which result we want
         """
-        self.future = future
-        self.selector = selector
-        self.signature = signature
+        self._future_ = future
+        self._selector_ = selector
+        self._signature_ = signature
 
     def __repr__(self):
-        if self.signature is None:
+        if self._signature_ is None:
             return f'<artifact: Unknown Type {object.__repr__(self)}>'
         else:
-            return f'<artifact: {self.signature[self.selector].qiime_type}>'
+            return \
+                f'<artifact: {self._signature_[self._selector_].qiime_type}>'
 
     def get_element(self, results):
         """Get the result we want off of the future we have
         """
-        return getattr(results, self.selector)
+        return getattr(results, self._selector_)
 
     def view(self, type):
         """If we want to view the result we need the future to be resolved
         """
-        return self.get_element(self.future.result()).view(type)
+        return self.get_element(self._future_.result()).view(type)
 
     def result(self):
-        return self.get_element(self.future.result())
+        return self.get_element(self._future_.result())
 
 
 class ProxyResults:
@@ -160,23 +161,24 @@ class ProxyResults:
         """We have the future results and the outputs portion of the signature
         of the action creating the results
         """
-        self.future = future
-        self.signature = signature
+        self._future_ = future
+        self._signature_ = signature
 
     def __iter__(self):
         """Give us a ProxyArtifact for each result in the future
         """
-        for s in self.signature:
-            yield ProxyArtifact(self.future, s, self.signature)
+        for s in self._signature_:
+            yield ProxyArtifact(self._future_, s, self._signature_)
 
     def __getattr__(self, attr):
         """Get a particular ProxyArtifact out of the future
         """
-        return ProxyArtifact(self.future, attr, self.signature)
+        return ProxyArtifact(self._future_, attr, self._signature_)
 
     def __getitem__(self, index):
         return ProxyArtifact(
-            self.future, list(self.signature.keys())[index], self.signature)
+            self._future_, list(self._signature_.keys())[index],
+            self._signature_)
 
     def __repr__(self):
         lines = []
@@ -184,11 +186,11 @@ class ProxyResults:
         lines.append('')
 
         max_len = -1
-        for field in self.signature:
+        for field in self._signature_:
             if len(field) > max_len:
                 max_len = len(field)
 
-        for field, value in zip(self.signature, self):
+        for field, value in zip(self._signature_, self):
             field_padding = ' ' * (max_len - len(field))
             lines.append('%s%s = %r' % (field, field_padding, value))
 
@@ -201,4 +203,4 @@ class ProxyResults:
         return '\n'.join(lines)
 
     def result(self):
-        return self.future.result()
+        return self._future_.result()
