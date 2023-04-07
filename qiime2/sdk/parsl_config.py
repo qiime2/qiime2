@@ -145,7 +145,7 @@ def get_parsl_config():
                 )
             ],
             #  AdHoc Clusters should not be setup with scaling strategy.
-            strategy=None,
+            strategy='none',
         )
     else:
         config = Config(**process_config(config_dict))
