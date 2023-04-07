@@ -513,6 +513,65 @@ class TestCache(unittest.TestCase):
                 self.assertEqual(list_uuids, str(complete_list_uuids))
                 self.assertEqual(dict_uuids, str(complete_dict_uuids))
 
+    def test_resumable_varied_pipeline_parsl(self):
+        resumable_varied_pipeline = \
+            self.plugin.pipelines['resumable_varied_pipeline']
+
+        pool = self.cache.create_pool('pool')
+
+        ints1 = [Artifact.import_data(SingleInt, 0),
+                 Artifact.import_data(SingleInt, 1)]
+        ints2 = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
+                 '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
+        int1 = Artifact.import_data(SingleInt, 42)
+
+        with self.cache:
+            with pool:
+                with self.assertRaises(ValueError) as e:
+                    resumable_varied_pipeline.parsl(
+                        ints1, ints2, int1, 'Hi', fail=True)
+
+                ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids = \
+                    str(e.exception).split('_')
+
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
+                    resumable_varied_pipeline.parsl(ints1, ints2, int1, 'Hi')
+
+                complete_ints1_uuids = load_alias_uuids(ints1_ret)
+                complete_ints2_uuids = load_alias_uuids(ints2_ret)
+                complete_int1_uuid = load_action_yaml(
+                    self.cache.data / str(int1_ret.uuid))['action']['alias-of']
+                complete_list_uuids = load_alias_uuids(list_ret)
+                complete_dict_uuids = load_alias_uuids(dict_ret)
+
+                # Assert that the artifacts returned by the completed run of
+                # the pipeline are aliases of the artifacts created by the
+                # first failed run
+                self.assertEqual(ints1_uuids, str(complete_ints1_uuids))
+                self.assertEqual(ints2_uuids, str(complete_ints2_uuids))
+                self.assertEqual(int1_uuid, str(complete_int1_uuid))
+                self.assertEqual(list_uuids, str(complete_list_uuids))
+                self.assertEqual(dict_uuids, str(complete_dict_uuids))
+
+                # Pass in a different string, this should cause the returns
+                # from varied_method to not be reused and the others to be
+                # reused
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
+                    resumable_varied_pipeline(ints1, ints2, int1, 'Bye')
+
+                complete_ints1_uuids = load_alias_uuids(ints1_ret)
+                complete_ints2_uuids = load_alias_uuids(ints2_ret)
+                complete_int1_uuid = load_action_yaml(
+                    self.cache.data / str(int1_ret.uuid))['action']['alias-of']
+                complete_list_uuids = load_alias_uuids(list_ret)
+                complete_dict_uuids = load_alias_uuids(dict_ret)
+
+                self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
+                self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
+                self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
+                self.assertEqual(list_uuids, str(complete_list_uuids))
+                self.assertEqual(dict_uuids, str(complete_dict_uuids))
+
     def test_collection_list_input_cache(self):
         list_method = self.plugin.methods['list_of_ints']
         dict_method = self.plugin.methods['dict_of_ints']
