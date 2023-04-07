@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -78,6 +78,18 @@ def pipelines_in_pipeline(ctx, int_sequence, mapping):
     results += visualizer_only_pipeline(typical_results[0])
 
     return tuple(results)
+
+
+def list_pipeline(ctx, ints):
+    assert isinstance(ints, list)
+    return ([ctx.make_artifact(SingleInt, 4),
+             ctx.make_artifact(SingleInt, 5)])
+
+
+def collection_pipeline(ctx, ints):
+    assert isinstance(ints, dict)
+    return ({'key1': ctx.make_artifact(SingleInt, 4),
+             'key2': ctx.make_artifact(SingleInt, 5)})
 
 
 def pointless_pipeline(ctx):

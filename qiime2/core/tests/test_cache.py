@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -25,7 +25,7 @@ from flufl.lock import LockState
 
 import qiime2
 from qiime2.core.cache import Cache, _exit_cleanup, get_cache, _get_user
-from qiime2.core.testing.type import IntSequence1, IntSequence2
+from qiime2.core.testing.type import IntSequence1, IntSequence2, SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
 
@@ -118,6 +118,7 @@ def _fake_user_for_cache(cache_prefix, i_acknowledge_this_is_dangerous=False):
 
 class TestCache(unittest.TestCase):
     def setUp(self):
+        self.plugin = get_dummy_plugin()
         # Create temp test dir
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
 
@@ -260,8 +261,7 @@ class TestCache(unittest.TestCase):
         self.assertEqual(expected_post_gc_contents, post_gc_contents)
 
     def test_asynchronous(self):
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
+        concatenate_ints = self.plugin.methods['concatenate_ints']
 
         with self.cache:
             future = concatenate_ints.asynchronous(self.art1, self.art2,
@@ -276,8 +276,7 @@ class TestCache(unittest.TestCase):
         self.assertEqual(expected, observed)
 
     def test_asynchronous_pool(self):
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
+        concatenate_ints = self.plugin.methods['concatenate_ints']
         test_pool = self.cache.create_pool(keys=[TEST_POOL])
 
         with self.cache:
@@ -399,6 +398,44 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.data))
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
+    def test_collection_list_input_cache(self):
+        list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
+        int_list = [Artifact.import_data(SingleInt, 0),
+                    Artifact.import_data(SingleInt, 1)]
+
+        list_out = list_method(int_list)
+        dict_out = dict_method(int_list)
+
+        pre_cache_list = list_out.output
+        pre_cache_dict = dict_out.output
+
+        cache_list_out = self.cache.save_collection(list_out, 'list_out')
+        cache_dict_out = self.cache.save_collection(dict_out, 'dict_out')
+
+        self.assertEqual(pre_cache_list, cache_list_out)
+        self.assertEqual(pre_cache_dict, cache_dict_out)
+
+    def test_collection_dict_input_cache(self):
+        list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
+        int_dict = {'1': Artifact.import_data(SingleInt, 0),
+                    '2': Artifact.import_data(SingleInt, 1)}
+
+        list_out = list_method(int_dict)
+        dict_out = dict_method(int_dict)
+
+        pre_cache_list = list_out.output
+        pre_cache_dict = dict_out.output
+
+        cache_list_out = self.cache.save_collection(list_out, 'list_out')
+        cache_dict_out = self.cache.save_collection(dict_out, 'dict_out')
+
+        self.assertEqual(pre_cache_list, cache_list_out)
+        self.assertEqual(pre_cache_dict, cache_dict_out)
+
     # This test has zzz in front of it because unittest.Testcase runs the tests
     # in alphabetical order, and we want this test to run last
     def test_zzz_asynchronous_pool_post_exit(self):
@@ -407,8 +444,7 @@ class TestCache(unittest.TestCase):
         destroy our data when running asynchronous actions, and it can probably
         be removed once Archiver is reworked
         """
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
+        concatenate_ints = self.plugin.methods['concatenate_ints']
 
         # This test needs to use a cache that exists past the lifespan of the
         # function
@@ -469,8 +505,7 @@ class TestCache(unittest.TestCase):
         only run as root because only root can create and delete users, and for
         now at least it won't run on Mac
         """
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
+        concatenate_ints = self.plugin.methods['concatenate_ints']
 
         root_cache = get_cache()
         root_user = _get_user()

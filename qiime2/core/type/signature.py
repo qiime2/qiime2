@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -12,6 +12,7 @@ import copy
 import itertools
 
 import qiime2.sdk
+import qiime2.core.type as qtype
 from .grammar import TypeExp, UnionExp
 from .meta import TypeVarExp
 from .collection import List, Set
@@ -126,7 +127,6 @@ class PipelineSignature:
         self._assert_valid_parameters(parameters)
         self._assert_valid_outputs(outputs)
         self._assert_valid_views(inputs, parameters, outputs)
-
         self.inputs = inputs
         self.parameters = parameters
         self.outputs = outputs
@@ -318,6 +318,159 @@ class PipelineSignature:
                     " Pipelines do not support function annotations (found one"
                     " for parameter: %r)." % name)
 
+    def coerce_given_parameters(self, provenance, **user_input):
+        """ Coerce the parameters given to the method into the types it wants
+            if possible
+        """
+        params = {}
+
+        for name, spec in self.parameters.items():
+            view_type = spec.view_type
+            _param = user_input[name]
+
+            if view_type == dict and isinstance(_param, list):
+                params[name] = self._list_to_dict(_param)
+            elif view_type == list and isinstance(_param, dict):
+                params[name] = self._dict_to_list(_param)
+            else:
+                params[name] = _param
+
+            # I don't know if we want params[name] (the correct view type
+            # param) or _param (the potentially incorrect view type, but the
+            # one we were actually given) here. I am leaning towards
+            # params[name]
+            provenance.add_parameter(name, spec.qiime_type, params[name])
+
+        return params
+
+    def coerce_given_inputs(self, provenance, **user_input):
+        """ Coerce the inputs given to the method into the types it wants if
+            possible
+        """
+        inputs = {}
+
+        # If we have a Collection input and a Union view type complain
+        for name, spec in self.inputs.items():
+            _input = user_input[name]
+
+            qiime_name = spec.qiime_type.name
+            qiime_type = spec.qiime_type
+            # I don't think this will necessarily work if we nest collection
+            # types in the future
+            if qiime_name == '':
+                # If we have an outer union as our semantic type, the name will
+                # be the empty string, and the type will be the entire union
+                # expression. In order to get a meaningful name and a type
+                # that tells us if we have a collection, we unpack the union
+                # and grab that info from the first element. All subsequent
+                # elements will share this same basic information because we
+                # do not allow
+                # List[TypeA] | Collection[TypeA]
+                qiime_type = next(iter(spec.qiime_type))
+                qiime_name = qiime_type.name
+
+            # Transform collection from list to dict and vice versa if needed
+            if qiime_name == 'Collection' and isinstance(_input, list):
+                _input = self._list_to_dict(_input)
+            elif qiime_name == 'List' and \
+                    isinstance(_input, dict):
+                _input = self._dict_to_list(_input)
+
+            # Add input to provenance after creating the correct collection
+            # type
+            provenance.add_input(name, _input)
+
+            # Transform artifacts to view types as necessary
+            if _input is None:
+                inputs[name] = None
+            elif spec.has_view_type():
+                recorder = provenance.transformation_recorder(name)
+                # Transform all members of collection into view type
+                if qtype.is_collection_type(qiime_type):
+                    if isinstance(_input, dict):
+                        inputs[name] = {
+                            k: v._view(spec.view_type,
+                                       recorder) for k, v in _input.items()}
+                    else:
+                        inputs[name] = [
+                            i._view(spec.view_type, recorder) for i in _input]
+                else:
+                    inputs[name] = _input._view(spec.view_type, recorder)
+            else:
+                inputs[name] = _input
+
+        return inputs
+
+    def coerce_given_outputs(self, output_views, output_types, scope,
+                             provenance):
+        """ Coerce the outputs produced by the method into the desired types if
+            possible. Primarily useful to create collections of outputs
+        """
+        outputs = []
+
+        for output_view, (name, spec) in zip(output_views,
+                                             output_types.items()):
+            if spec.qiime_type.name == 'Collection':
+                output = {}
+                collection_size = len(output_view)
+
+                if isinstance(output_view, dict):
+                    keys = list(output_view.keys())
+                    values = list(output_view.values())
+                else:
+                    keys = None
+                    values = output_view
+
+                for idx, view in enumerate(values):
+                    if keys is not None:
+                        key = str(keys[idx])
+                    else:
+                        key = str(idx)
+
+                    output[key] = self._create_output_artifact(
+                        provenance, name, scope, spec, view, key=key,
+                        idx_out_of=f'{idx}/{collection_size}')
+            elif type(output_view) is not spec.view_type:
+                raise TypeError(
+                    "Expected output view type %r, received %r" %
+                    (spec.view_type.__name__, type(output_view).__name__))
+            else:
+                output = self._create_output_artifact(
+                    provenance, name, scope, spec, output_view)
+
+            outputs.append(output)
+
+        return outputs
+
+    def _create_output_artifact(self, provenance, name, scope, spec, view,
+                                key=None, idx_out_of=None):
+        """ Create an output artifact from a view and add it to provenance
+        """
+        # If we have a key we are dealing with an element of an output
+        # collection otherwise we are dealing with a singular output
+        if key is not None:
+            if idx_out_of is None:
+                raise ValueError('If a key is provided, the index we are out '
+                                 'of the collection size must also be '
+                                 'provided.')
+            prov = provenance.fork([name, key, idx_out_of])
+            qiime_type = spec.qiime_type.fields[0]
+        else:
+            if idx_out_of is not None:
+                raise ValueError('If we are given an index into a '
+                                 'collection, we must also be given our index '
+                                 'in the collection.')
+            prov = provenance.fork(name)
+            qiime_type = spec.qiime_type
+
+        scope.add_reference(prov)
+
+        artifact = qiime2.sdk.Artifact._from_view(
+            qiime_type, view, spec.view_type, prov)
+        artifact = scope.add_parent_reference(artifact)
+
+        return artifact
+
     def decode_parameters(self, **kwargs):
         params = {}
         for key, spec in self.parameters.items():
@@ -328,6 +481,16 @@ class PipelineSignature:
             else:
                 params[key] = parse_primitive(spec.qiime_type, kwargs[key])
         return params
+
+    def _dict_to_list(self, _input):
+        """ Turn dict to list
+        """
+        return list(_input.values())
+
+    def _list_to_dict(self, _input):
+        """ Turn list to dict
+        """
+        return {str(idx): v for idx, v in enumerate(_input)}
 
     def check_types(self, **kwargs):
         for name, spec in self.signature_order.items():

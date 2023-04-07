@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -586,6 +586,90 @@ class TestMethod(unittest.TestCase):
 
         docstring_order = docstring_order_method.__call__.__doc__
         self.assertEqual(exp_docstring_order, docstring_order)
+
+    def test_collection_list_input(self):
+        list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
+        int_list = [Artifact.import_data(SingleInt, 0),
+                    Artifact.import_data(SingleInt, 1)]
+
+        list_out = list_method(int_list)
+        dict_out = dict_method(int_list)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, dict)
+        self.assertIsInstance(dict_out.output, dict)
+
+    def test_collection_dict_input(self):
+        list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
+        int_dict = {'1': Artifact.import_data(SingleInt, 0),
+                    '2': Artifact.import_data(SingleInt, 1)}
+
+        list_out = list_method(int_dict)
+        dict_out = dict_method(int_dict)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, dict)
+        self.assertIsInstance(dict_out.output, dict)
+
+    def test_collection_inner_union(self):
+        inner_union = self.plugin.methods['collection_inner_union']
+
+        inner_test = [Artifact.import_data(IntSequence1, [0, 1, 2]),
+                      Artifact.import_data(IntSequence2, [3, 4, 5])]
+
+        out = inner_union(inner_test)
+
+        self.assertEqual(len(out), 1)
+        self.assertIsInstance(out.output, dict)
+
+    def test_collection_outer_union(self):
+        outer_union = self.plugin.methods['collection_outer_union']
+
+        int_dict = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
+                    '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
+
+        out = outer_union(int_dict)
+
+        self.assertEqual(len(out), 1)
+        self.assertIsInstance(out.output, dict)
+
+    def test_collection_dict_param(self):
+        dict_method = self.plugin.methods['dict_params']
+
+        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
+        param_list = [1, 2, 3, 4]
+
+        list_out = dict_method(param_list)
+        dict_out = dict_method(param_dict)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, dict)
+        self.assertIsInstance(dict_out.output, dict)
+
+    def test_collection_list_param(self):
+        list_method = self.plugin.methods['list_params']
+
+        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
+        param_list = [1, 2, 3, 4]
+
+        list_out = list_method(param_list)
+        dict_out = list_method(param_dict)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, dict)
+        self.assertIsInstance(dict_out.output, dict)
 
 
 exp_merge_calldoc = """\

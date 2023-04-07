@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -9,7 +9,7 @@
 import unittest
 
 from qiime2.core.type import (
-    parse_primitive, Int, Float, Bool, Str, List, Set, Metadata,
+    parse_primitive, Int, Float, Bool, Str, List, Set, Collection, Metadata,
     MetadataColumn)
 
 
@@ -207,6 +207,18 @@ class TestParsePrimitiveCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, set)
         self.assertIsInstance(obs.pop(), int)
 
+    def test_collection_of_int_given_list(self):
+        obs = parse_primitive(Collection[Int], ('1', '2', '3'))
+        self.assertEqual(obs, {'0': 1, '1': 2, '2': 3})
+        self.assertIsInstance(obs, dict)
+        self.assertIsInstance(obs['0'], int)
+
+    def test_collection_of_int_given_dict(self):
+        obs = parse_primitive(Collection[Int], {'1': '1', '2': '2', '3': '3'})
+        self.assertEqual(obs, {'1': 1, '2': 2, '3': 3})
+        self.assertIsInstance(obs, dict)
+        self.assertIsInstance(obs['1'], int)
+
     def test_list_of_float(self):
         obs = parse_primitive(List[Float], ('1.0', '2.0', '3.0'))
         self.assertEqual(obs, [1.0, 2.0, 3.0])
@@ -218,6 +230,19 @@ class TestParsePrimitiveCollectionsSimple(unittest.TestCase):
         self.assertEqual(obs, {1.0, 2.0, 3.0})
         self.assertIsInstance(obs, set)
         self.assertIsInstance(obs.pop(), float)
+
+    def test_collection_of_float_given_list(self):
+        obs = parse_primitive(Collection[Float], ('1.0', '2.0', '3.0'))
+        self.assertEqual(obs, {'0': 1.0, '1': 2.0, '2': 3.0})
+        self.assertIsInstance(obs, dict)
+        self.assertIsInstance(obs['0'], float)
+
+    def test_collection_of_float_given_dict(self):
+        obs = parse_primitive(Collection[Float],
+                              {'1': '1.0', '2': '2.0', '3': '3.0'})
+        self.assertEqual(obs, {'1': 1, '2': 2, '3': 3})
+        self.assertIsInstance(obs, dict)
+        self.assertIsInstance(obs['1'], float)
 
     def test_list_of_bool(self):
         obs = parse_primitive(List[Bool], ('True', 'False', 'True'))
@@ -231,6 +256,19 @@ class TestParsePrimitiveCollectionsSimple(unittest.TestCase):
         self.assertIsInstance(obs, set)
         self.assertIsInstance(obs.pop(), bool)
 
+    def test_collection_of_bool_given_list(self):
+        obs = parse_primitive(Collection[Bool], ('True', 'False', 'True'))
+        self.assertEqual(obs, {'0': True, '1': False, '2': True})
+        self.assertIsInstance(obs, dict)
+        self.assertIsInstance(obs['0'], bool)
+
+    def test_collection_of_bool_given_dict(self):
+        obs = parse_primitive(Collection[Bool],
+                              {'1': 'True', '2': 'False', '3': 'True'})
+        self.assertEqual(obs, {'1': True, '2': False, '3': True})
+        self.assertIsInstance(obs, dict)
+        self.assertIsInstance(obs['1'], int)
+
     def test_list_of_str(self):
         obs = parse_primitive(List[Str], ('peanut', 'the', 'dog'))
         self.assertEqual(obs, ['peanut', 'the', 'dog'])
@@ -242,6 +280,19 @@ class TestParsePrimitiveCollectionsSimple(unittest.TestCase):
         self.assertEqual(obs, {'peanut', 'the', 'dog'})
         self.assertIsInstance(obs, set)
         self.assertIsInstance(obs.pop(), str)
+
+    def test_collection_of_str_given_list(self):
+        obs = parse_primitive(Collection[Str], ('peanut', 'the', 'dog'))
+        self.assertEqual(obs, {'0': 'peanut', '1': 'the', '2': 'dog'})
+        self.assertIsInstance(obs, dict)
+        self.assertIsInstance(obs['0'], str)
+
+    def test_collection_of_str_given_dict(self):
+        obs = parse_primitive(Collection[Str],
+                              {'1': 'peanut', '2': 'the', '3': 'dog'})
+        self.assertEqual(obs, {'1': 'peanut', '2': 'the', '3': 'dog'})
+        self.assertIsInstance(obs, dict)
+        self.assertIsInstance(obs['1'], str)
 
     # The next tests _aren't_ monomorphic, because unions of Int and Float
     # always yield a Float (List[Int] | List[Float] == List[Float]).

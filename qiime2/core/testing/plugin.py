@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -9,7 +9,7 @@
 from importlib import import_module
 
 from qiime2.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
-                           Visualization, Metadata, MetadataColumn,
+                           Collection, Visualization, Metadata, MetadataColumn,
                            Categorical, Numeric, TypeMatch)
 
 from .format import (
@@ -45,12 +45,15 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      params_only_method, no_input_method, deprecated_method,
                      optional_artifacts_method, long_description_method,
                      docstring_order_method, variadic_input_method,
-                     unioned_primitives, type_match_list_and_set, union_inputs)
+                     unioned_primitives, type_match_list_and_set, union_inputs,
+                     list_of_ints, dict_of_ints, collection_inner_union,
+                     collection_outer_union, dict_params, list_params)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
-                       pipelines_in_pipeline, pointless_pipeline,
+                       pipelines_in_pipeline, list_pipeline,
+                       collection_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
 
@@ -734,6 +737,24 @@ dummy_plugin.pipelines.register_function(
 )
 
 dummy_plugin.pipelines.register_function(
+    function=list_pipeline,
+    inputs={'ints': List[IntSequence1]},
+    parameters={},
+    outputs=[('output', Collection[SingleInt])],
+    name='Get an integer',
+    description='Integer was chosen to be 4 by a random dice roll'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=collection_pipeline,
+    inputs={'ints': Collection[IntSequence1]},
+    parameters={},
+    outputs=[('output', Collection[SingleInt])],
+    name='Get an integer',
+    description='Integer was chosen to be 4 by a random dice roll'
+)
+
+dummy_plugin.pipelines.register_function(
     function=pointless_pipeline,
     inputs={},
     parameters={},
@@ -777,6 +798,108 @@ dummy_plugin.methods.register_function(
         'ints': '[0]',
     },
     description='This method accepts a list or dict as first input.'
+)
+
+dummy_plugin.methods.register_function(
+    function=list_of_ints,
+    inputs={
+        'ints': List[SingleInt]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[SingleInt])
+    ],
+    name='Reverses list of inputs',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Reversed Collection of ints'
+    }
+)
+
+dummy_plugin.methods.register_function(
+    function=dict_of_ints,
+    inputs={
+        'ints': Collection[SingleInt]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[SingleInt])
+    ],
+    name='Takes ints',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Collection of ints'
+    }
+)
+
+dummy_plugin.methods.register_function(
+    function=collection_inner_union,
+    inputs={
+        'ints': Collection[IntSequence1 | IntSequence2]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[IntSequence1])
+    ],
+    name='Takes ints',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Collection of ints'
+    }
+)
+
+dummy_plugin.methods.register_function(
+    function=collection_outer_union,
+    inputs={
+        'ints': Collection[IntSequence1] | Collection[IntSequence2]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[IntSequence1])
+    ],
+    name='Takes ints',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Collection of ints'
+    }
+)
+
+dummy_plugin.methods.register_function(
+    function=dict_params,
+    inputs={},
+    parameters={
+        'ints': Collection[Int],
+    },
+    outputs=[
+        ('output', Collection[SingleInt])
+    ],
+    name='Parameters only method',
+    description='This method only accepts parameters.',
+)
+
+dummy_plugin.methods.register_function(
+    function=list_params,
+    inputs={},
+    parameters={
+        'ints': List[Int],
+    },
+    outputs=[
+        ('output', Collection[SingleInt])
+    ],
+    name='Parameters only method',
+    description='This method only accepts parameters.',
 )
 
 import_module('qiime2.core.testing.mapped')

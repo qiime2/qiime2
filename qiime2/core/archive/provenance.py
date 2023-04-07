@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -251,7 +251,17 @@ class ProvenanceCapture:
 
             if citation_keys:
                 entry['citations'] = citation_keys
-            section.append(entry)
+
+            # Don't create duplicate transformer records. These were happening
+            # with collections of inputs. If we have a method that takes a
+            # List[IntSequence1] with view type of list, we need to transform
+            # every IntSequence1 into a list to match the view type. This would
+            # add a transformation record for every IntSequence1 in the list.
+            # This ensures we only end up with one record of a given type for a
+            # given input while still allowing multiple unique records.
+            # NOTE: This does redundant work creating the record, do we care?
+            if entry not in section:
+                section.append(entry)
 
         return recorder
 
@@ -409,6 +419,11 @@ class ActionProvenanceCapture(ProvenanceCapture):
             # TODO: handle collection primitives (not currently used)
         }
 
+        # Make sure if we get a Collection of params the items are put into
+        # provenance in the right order
+        if isinstance(parameter, dict):
+            parameter = [{k: v} for k, v in parameter.items()]
+
         handler = type_map.get(type_expr.to_ast().get('name'), lambda x: x)
         self.parameters[name] = handler(parameter)
 
@@ -417,10 +432,20 @@ class ActionProvenanceCapture(ProvenanceCapture):
             self.inputs[name] = None
         elif isinstance(input, collections.abc.Iterable):
             values = []
-            for artifact in input:
-                record = self.add_ancestor(artifact)
-                values.append(record)
-            self.inputs[name] = type(input)(values)
+            # If we took a Collection input, we will have a dict, and we want
+            # the keys to line up with the processed values we were given, so
+            # we can maintain the order of the artifacts
+            if isinstance(input, dict):
+                for artifact in input.values():
+                    record = self.add_ancestor(artifact)
+                    values.append(record)
+                self.inputs[name] = \
+                    [{k: v} for k, v in zip(input.keys(), values)]
+            else:
+                for artifact in input:
+                    record = self.add_ancestor(artifact)
+                    values.append(record)
+                self.inputs[name] = type(input)(values)
         else:
             self.inputs[name] = self.add_ancestor(input)
 

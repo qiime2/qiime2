@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -56,7 +56,7 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
         self.assertRegex(str(version), '^.*archive: 0.*$')
 
     def test_write_v4_archive(self):
-        fp = os.path.join(self.temp_dir.name, 'artifact_v1.qza')
+        fp = os.path.join(self.temp_dir.name, 'artifact_v4.qza')
 
         with artifact_version(4):
             artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
