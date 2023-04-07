@@ -335,7 +335,7 @@ def touch_under_path(path):
 
 
 def load_action_yaml(path):
-    """Takes a path to an Aritfact and loads its action.yaml with
+    """Takes a path to an unzipped Aritfact and loads its action.yaml with
     yaml.safe_load
     """
     # TODO: Make these actually do something useful at least for the tags
