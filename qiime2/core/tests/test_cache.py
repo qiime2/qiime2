@@ -528,14 +528,17 @@ class TestCache(unittest.TestCase):
         with self.cache:
             with pool:
                 with self.assertRaises(ValueError) as e:
-                    resumable_varied_pipeline.parsl(
+                    future = resumable_varied_pipeline.parsl(
                         ints1, ints2, int1, 'Hi', fail=True)
+                    future.result()
 
                 ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids = \
                     str(e.exception).split('_')
 
-                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
+                future = \
                     resumable_varied_pipeline.parsl(ints1, ints2, int1, 'Hi')
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
+                    future.result()
 
                 complete_ints1_uuids = load_alias_uuids(ints1_ret)
                 complete_ints2_uuids = load_alias_uuids(ints2_ret)
@@ -556,8 +559,10 @@ class TestCache(unittest.TestCase):
                 # Pass in a different string, this should cause the returns
                 # from varied_method to not be reused and the others to be
                 # reused
+                future = \
+                    resumable_varied_pipeline.parsl(ints1, ints2, int1, 'Bye')
                 ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
-                    resumable_varied_pipeline(ints1, ints2, int1, 'Bye')
+                    future.result()
 
                 complete_ints1_uuids = load_alias_uuids(ints1_ret)
                 complete_ints2_uuids = load_alias_uuids(ints2_ret)

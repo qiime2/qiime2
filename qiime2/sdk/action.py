@@ -46,14 +46,14 @@ def run_parsl_action(action, ctx, args, kwargs, inputs=[]):
     remapped_kwargs = {}
     for key, value in kwargs.items():
         if isinstance(value, qiime2.sdk.util.ProxyArtifact):
-            remapped_kwargs[key] = value.get_element(inputs[value.future])
+            remapped_kwargs[key] = value.get_element(inputs[value._future_])
         else:
             remapped_kwargs[key] = value
 
     remapped_args = []
     for arg in args:
         if isinstance(arg, qiime2.sdk.util.ProxyArtifact):
-            remapped_args.append(arg.get_element(inputs[arg.future]))
+            remapped_args.append(arg.get_element(inputs[arg._future_]))
         else:
             remapped_args.append(arg)
 
@@ -325,7 +325,7 @@ class Action(metaclass=abc.ABCMeta):
         # the last one has completed.
         for arg in args:
             if isinstance(arg, ProxyArtifact):
-                futures.append(arg.future)
+                futures.append(arg._future_)
                 remapped_args.append(ProxyArtifact(len(futures) - 1,
                                      arg.selector))
             else:
@@ -333,7 +333,7 @@ class Action(metaclass=abc.ABCMeta):
 
         for key, value in kwargs.items():
             if isinstance(value, ProxyArtifact):
-                futures.append(value.future)
+                futures.append(value._future_)
                 remapped_kwargs[key] = ProxyArtifact(len(futures) - 1,
                                                      value.selector)
             else:
@@ -573,8 +573,18 @@ class Pipeline(Action):
         # If we are using parsl, these will be futures from parsl actions,
         # and we need the results of those futures.
         if parsl:
-            outputs = tuple(output.get_element(output.future.result())
-                            for output in tuplize(outputs))
+            outputs = tuplize(outputs)
+            _outputs = []
+            for output in outputs:
+                if isinstance(output, dict):
+                    _output = {}
+                    for k, v in output.items():
+                        _output[k] = v.get_element(v._future_.result())
+                else:
+                    _outputs.append(
+                        output.get_element(output._future_.result()))
+
+            outputs = tuple(_outputs)
         else:
             outputs = tuplize(outputs)
 

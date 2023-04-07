@@ -11,6 +11,7 @@ from qiime2.core.type import HashableInvocation
 from qiime2.core.cache import get_cache
 import qiime2.sdk
 from qiime2.sdk.parsl_config import PARSL_CONFIG
+from qiime2.sdk.util import ProxyResults
 
 
 class Context:
@@ -102,6 +103,14 @@ class Context:
                             output = cached_outputs[name]
                             loaded_outputs[name] = \
                                 self.cache.named_pool.load(output)
+
+                    if self.parsl:
+                        from qiime2.sdk.action import _create_future
+
+                        results = qiime2.sdk.Results(loaded_outputs.keys(),
+                                                     loaded_outputs.values())
+                        return ProxyResults(_create_future(results),
+                                            action_obj.signature.outputs)
 
                     return qiime2.sdk.Results(
                         loaded_outputs.keys(), loaded_outputs.values())
