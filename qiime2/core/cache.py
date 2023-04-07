@@ -53,8 +53,10 @@ import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
 from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
-                              READ_ONLY_FILE, READ_ONLY_DIR, USER_GROUP_RWX)
+                              load_action_yaml, READ_ONLY_FILE, READ_ONLY_DIR,
+                              USER_GROUP_RWX)
 from qiime2.core.archive.archiver import Archiver
+from qiime2.core.type import HashableInvocation, IndexedCollectionElement
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -576,12 +578,8 @@ class Cache:
                 else:
                     os.unlink(fp)
 
-    def create_pool(self, keys=[], reuse=False):
-        """Used to create named pools. A named pool's name is all of the keys
-        given for it separated by underscores. All of the given keys are
-        created individually and refer to the named pool as opposed to saving a
-        single piece of data where a single key is created referring to that
-        data.
+    def create_pool(self, key, reuse=False):
+        """Used to create named pools.
 
         Named pools can be used by pipelines to store all intermediate results
         created by the pipeline and prevent it from being reaped. This allows
@@ -597,8 +595,8 @@ class Cache:
 
         Parameters
         ----------
-        keys : List[str]
-            A list of keys to use to reference the pool.
+        key : str
+            The key to use to reference the pool.
         reuse : bool
             Whether to reuse a pool if a pool with the given keys already
             exists.
@@ -613,17 +611,15 @@ class Cache:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['some', 'kinda', 'keys'])
-        >>> cache.get_keys() == set(['some', 'kinda', 'keys'])
+        >>> pool = cache.create_pool(key='key')
+        >>> cache.get_keys() == set(['key'])
         True
-        >>> cache.get_pools() == set(['some_kinda_keys'])
+        >>> cache.get_pools() == set(['key'])
         True
         >>> test_dir.cleanup()
         """
-        pool_name = '_'.join(keys)
-        pool = Pool(self, name=pool_name, reuse=reuse)
-
-        self._create_pool_keys(pool_name, keys)
+        pool = Pool(self, name=key, reuse=reuse)
+        self._register_key(key, key, pool=True)
 
         return pool
 
@@ -1313,7 +1309,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool(key='pool')
         >>> # When we with in the pool the set cache will be the cache the pool
         >>> # belongs to, and the named pool on that cache will be the pool
         >>> # we withed in
@@ -1405,7 +1401,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool(key='pool')
         >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
         >>> pool_artifact = pool.save(artifact)
         >>> # The data itself resides in the cache this pool belongs to
@@ -1519,7 +1515,7 @@ class Pool:
         # already exists. This could happen legitimately from trying to save
         # the same thing to a named pool several times.
         with self.cache.lock:
-            if not os.path.exists(dest):
+            if not os.path.lexists(dest):
                 os.symlink(src, dest)
 
     def _rename_to_collection_pool(self, uuid, src):
@@ -1565,7 +1561,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool(key='pool')
         >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
         >>> pool_artifact = pool.save(artifact)
         >>> loaded_artifact = pool.load(str(artifact.uuid))
@@ -1605,7 +1601,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool('pool')
         >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
         >>> pool_artifact = pool.save(artifact)
         >>> pool.get_data() == set([str(artifact.uuid)])
@@ -1656,3 +1652,48 @@ class Pool:
             The uuids of all of the data in the pool.
         """
         return set(os.listdir(self.path))
+
+    def create_index(self):
+        # Keep track of all invocations -> outputs
+        self.index = {}
+
+        with self.cache.lock:
+            for _uuid in self.get_data():
+                path = self.cache.data / _uuid
+                action_yaml = load_action_yaml(path)
+                action = action_yaml['action']
+
+                # This means the artifact was created in the pipeline by
+                # ctx.make_artifact, we don't index those because we cannot
+                # guarantee that whatever view they imported was hashable. it
+                # would be better to create an action that produces the
+                # artifact rather than using make_artifact
+                if 'type' in action and action['type'] == 'import':
+                    continue
+
+                plugin_action = action['plugin'] + ':' + action['action']
+                arguments = action['inputs']
+                arguments.extend(action['parameters'])
+
+                invocation = HashableInvocation(plugin_action, arguments)
+                if invocation not in self.index:
+                    self.index[invocation] = {}
+
+                self._add_index_output(
+                    self.index[invocation], action['output-name'], _uuid)
+
+    def _add_index_output(self, outputs, name, value):
+        if isinstance(name, list):
+            self._add_collection_index_output(outputs, name, value)
+        else:
+            outputs[name] = value
+
+    def _add_collection_index_output(self, outputs, name, value):
+        output_name, item_name, idx_out_of = name
+        idx, total = idx_out_of.split('/')
+
+        if output_name not in outputs:
+            outputs[output_name] = {}
+
+        item = IndexedCollectionElement(item_name, int(idx), int(total))
+        outputs[output_name][item] = value

@@ -235,15 +235,10 @@ class Action(metaclass=abc.ABCMeta):
                 # Type management
                 self.signature.check_types(**user_input)
                 output_types = self.signature.solve_output(**user_input)
-                callable_args = {}
-
-                # Record and transform parameters
-                callable_args.update(self.signature.coerce_given_parameters(
-                    provenance, **user_input))
-
-                # Record and transform inputs
-                callable_args.update(self.signature.coerce_given_inputs(
-                    provenance, **user_input))
+                callable_args = self.signature.coerce_user_input(**user_input)
+                callable_args = \
+                    self.signature.transform_and_add_callable_args_to_prov(
+                        provenance, **callable_args)
 
                 if self.deprecated:
                     with qiime2.core.util.warning() as warn:
@@ -591,6 +586,11 @@ class Pipeline(Action):
                                         "objects, not %s" % (type(elem), ))
             elif isinstance(output, dict):
                 for elem in output.values():
+                    if not isinstance(elem, qiime2.sdk.Result):
+                        raise TypeError("Pipelines must return `Result` "
+                                        "objects, not %s" % (type(elem), ))
+            elif isinstance(output, qiime2.sdk.Results):
+                for elem in output.output.values():
                     if not isinstance(elem, qiime2.sdk.Result):
                         raise TypeError("Pipelines must return `Result` "
                                         "objects, not %s" % (type(elem), ))
