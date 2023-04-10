@@ -24,7 +24,7 @@ from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 from qiime2.sdk.parsl_config import get_parsl_config
 from qiime2.sdk.context import Context
 from qiime2.sdk.results import Results
-from qiime2.sdk.util import ProxyArtifact
+from qiime2.sdk.proxy import ProxyArtifact
 
 
 def _subprocess_apply(action, ctx, args, kwargs):
@@ -45,14 +45,14 @@ def run_parsl_action(action, ctx, args, kwargs, inputs=[]):
 
     remapped_kwargs = {}
     for key, value in kwargs.items():
-        if isinstance(value, qiime2.sdk.util.ProxyArtifact):
+        if isinstance(value, ProxyArtifact):
             remapped_kwargs[key] = value.get_element(inputs[value._future_])
         else:
             remapped_kwargs[key] = value
 
     remapped_args = []
     for arg in args:
-        if isinstance(arg, qiime2.sdk.util.ProxyArtifact):
+        if isinstance(arg, ProxyArtifact):
             remapped_args.append(arg.get_element(inputs[arg._future_]))
         else:
             remapped_args.append(arg)
@@ -315,14 +315,13 @@ class Action(metaclass=abc.ABCMeta):
         # Parsl will queue up apps with futures as their arguments then not
         # execute the apps until the futures are resolved. This is an extremely
         # handy feature, but QIIME 2 does not play nice with it out of the box.
-        # You can look at ProxyArtifact and ProxyResults in qiime2/sdk/util.py
-        # for some more details on how this is working, but we are basically
-        # taking future QIIME 2 results and mapping them to the correct inputs
-        # in the action we are trying to call. This is necessary if we are
-        # running a pipeline in particular because the inputs to the next
-        # action could contain outputs from the last action that might not
-        # be resolved yet because Parsl may be queueing the next action before
-        # the last one has completed.
+        # You can look in qiime2/sdk/proxy.py for some more details on how this
+        # is working, but we are basically taking future QIIME 2 results and
+        # mapping them to the correct inputs in the action we are trying to
+        # call. This is necessary if we are running a pipeline in particular
+        # because the inputs to the next action could contain outputs from the
+        # last action that might not be resolved yet because Parsl may be
+        # queueing the next action before the last one has completed.
         for arg in args:
             if isinstance(arg, ProxyArtifact):
                 futures.append(arg._future_)
@@ -363,7 +362,7 @@ class Action(metaclass=abc.ABCMeta):
                                       remapped_kwargs, inputs=futures)
 
         # Again, we return a set of futures not a set of real results
-        return qiime2.sdk.util.ProxyResults(future, self.signature.outputs)
+        return qiime2.sdk.proxy.ProxyResults(future, self.signature.outputs)
 
     def _get_parsl_wrapper(self):
         def parsl_wrapper(*args, **kwargs):

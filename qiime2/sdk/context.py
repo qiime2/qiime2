@@ -11,7 +11,7 @@ from qiime2.core.type import HashableInvocation
 from qiime2.core.cache import get_cache
 import qiime2.sdk
 from qiime2.sdk.parsl_config import PARSL_CONFIG
-from qiime2.sdk.util import ProxyResults
+from qiime2.sdk.proxy import ProxyResults
 
 
 class Context:
