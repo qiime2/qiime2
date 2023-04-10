@@ -10,7 +10,6 @@ import collections
 import inspect
 import copy
 import itertools
-import os
 import tempfile
 
 import qiime2.sdk
@@ -743,10 +742,9 @@ class HashableInvocation():
         elif isinstance(collection, Artifact):
             return str(collection.uuid)
         elif isinstance(collection, Metadata):
-            _, fp = tempfile.mkstemp()
-            collection.save(fp)
-            collection = md5sum(fp)
-            os.remove(fp)
+            with tempfile.TemporaryFile('w') as fp:
+                collection.save(fp)
+                collection = md5sum(fp)
         else:
             return collection
 

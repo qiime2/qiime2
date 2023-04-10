@@ -424,6 +424,28 @@ class TestCache(unittest.TestCase):
                 self.assertEqual(left_uuid, complete_left_uuid)
                 self.assertEqual(right_uuid, complete_right_uuid)
 
+    def test_resumable_pipeline_no_pool(self):
+        resumable_pipeline = self.plugin.pipelines['resumable_pipeline']
+
+        art = Artifact.import_data(IntSequence1, [0, 1, 2])
+
+        with self.cache:
+            with self.assertRaises(ValueError) as e:
+                resumable_pipeline(art, fail=True)
+
+            left_uuid, right_uuid = str(e.exception).split('_')
+            left, right = resumable_pipeline(art)
+
+            complete_left_uuid = load_action_yaml(
+                self.cache.data / str(left.uuid))['action']['alias-of']
+            complete_right_uuid = load_action_yaml(
+                self.cache.data / str(right.uuid))['action']['alias-of']
+
+            # Noting should have been cached because we did not use a pool at
+            # all
+            self.assertNotEqual(left_uuid, complete_left_uuid)
+            self.assertNotEqual(right_uuid, complete_right_uuid)
+
     def test_resumable_collection_pipeline(self):
         resumable_collection_pipeline = \
             self.plugin.pipelines['resumable_collection_pipeline']
