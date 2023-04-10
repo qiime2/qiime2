@@ -80,6 +80,66 @@ def pipelines_in_pipeline(ctx, int_sequence, mapping):
     return tuple(results)
 
 
+def resumable_pipeline(ctx, int_sequence, fail=False):
+    """ This pipeline is designed to be called first with fail=True then a
+    second time with fail=False. The second call is meant to reuse cached
+    results from the first call
+    """
+    split_ints = ctx.get_action('dummy_plugin', 'split_ints')
+
+    left, right = split_ints(int_sequence)
+    if fail:
+        raise ValueError(f'{left.uuid}_{right.uuid}')
+
+    return left, right
+
+
+def resumable_collection_pipeline(ctx, int_list, int_dict, fail=False):
+    """ This pipeline is designed to be called first with fail=True then a
+    second time with fail=False. The second call is meant to reuse cached
+    results from the first call
+    """
+    list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
+    dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
+
+    list_return, = list_of_ints(int_list)
+    dict_return, = dict_of_ints(int_dict)
+
+    if fail:
+        list_uuids = [str(result.uuid) for result in list_return.values()]
+        dict_uuids = [str(result.uuid) for result in dict_return.values()]
+
+        raise ValueError(f'{list_uuids}_{dict_uuids}')
+
+    return list_return, dict_return
+
+
+def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, fail=False):
+    varied_method = ctx.get_action('dummy_plugin', 'varied_method')
+    list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
+    dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
+
+    ints1_ret, ints2_ret, int1_ret = varied_method(
+        ints1, ints2, int1, string)
+
+    list_return, = list_of_ints(ints1)
+    dict_return, = dict_of_ints(ints1)
+
+    if fail:
+        ints1_uuids = [str(result.uuid) for result in ints1_ret.values()]
+        ints2_uuids = [str(result.uuid) for result in ints2_ret.values()]
+        int1_uuid = str(int1_ret.uuid)
+
+        list_uuids = [str(result.uuid) for result in list_return.values()]
+        dict_uuids = [str(result.uuid) for result in dict_return.values()]
+
+        raise ValueError(f'{ints1_uuids}_{ints2_uuids}_{int1_uuid}'
+                         f'_{list_uuids}_{dict_uuids}')
+
+    dict_uuids = [str(result.uuid) for result in dict_return.values()]
+    return ints1_ret, ints2_ret, int1_ret, list_return, dict_return
+
+
 def list_pipeline(ctx, ints):
     assert isinstance(ints, list)
     return ([ctx.make_artifact(SingleInt, 4),
