@@ -41,8 +41,6 @@ def run_parsl_action(action, ctx, args, kwargs, inputs=[]):
     """This is what the parsl app itself actually runs. It's basically just a
     wrapper around our QIIME 2 action
     """
-    import qiime2.sdk.context
-
     remapped_kwargs = {}
     for key, value in kwargs.items():
         if isinstance(value, ProxyArtifact):

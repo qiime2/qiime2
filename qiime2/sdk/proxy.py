@@ -68,6 +68,10 @@ class ProxyVisualization(ProxyResult):
     pass
 
 
+class ProxyCollection:
+    pass
+
+
 class ProxyResults:
     """This represents future results that are being returned by a Parsl app
     """

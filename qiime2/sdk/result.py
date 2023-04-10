@@ -556,3 +556,7 @@ class Visualization(Result):
     def _repr_html_(self):
         from qiime2.jupyter import make_html
         return make_html(str(self._archiver.path))
+
+
+class Collection:
+    pass
