@@ -450,11 +450,6 @@ class Pipeline(Action):
                     if not isinstance(elem, qiime2.sdk.Result):
                         raise TypeError("Pipelines must return `Result` "
                                         "objects, not %s" % (type(elem), ))
-            elif isinstance(output, qiime2.sdk.Results):
-                for elem in output.output.values():
-                    if not isinstance(elem, qiime2.sdk.Result):
-                        raise TypeError("Pipelines must return `Result` "
-                                        "objects, not %s" % (type(elem), ))
             elif not isinstance(output, qiime2.sdk.Result):
                 raise TypeError("Pipelines must return `Result` objects, "
                                 "not %s" % (type(output), ))
