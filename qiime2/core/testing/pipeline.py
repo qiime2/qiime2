@@ -114,6 +114,9 @@ def resumable_collection_pipeline(ctx, int_list, int_dict, fail=False):
     return list_return, dict_return
 
 
+# TODO: Make this also return a viz and take in metadata as an argument and use
+# a typematch then I can get rid of the other resumption tests here and in the
+# cliand only use this pipeline because it will test everything
 def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, fail=False):
     varied_method = ctx.get_action('dummy_plugin', 'varied_method')
     list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
