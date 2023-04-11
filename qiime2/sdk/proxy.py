@@ -5,6 +5,8 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
+from qiime2.core.type.util import is_visualization_type, is_collection_type
+
 
 class ProxyResult:
     pass
@@ -13,8 +15,28 @@ class ProxyResult:
 # TODO: Can put all artifact API methods on this class because we know what
 # type it will be (maybe not uuid)
 class ProxyArtifact:
-    """This represents a future artifact that is being returned by a Parsl app
+    """This represents a future Artifact that is being returned by a Parsl app
     """
+    @property
+    def _archiver(self):
+        return self.result()._archiver
+
+    @property
+    def type(self):
+        return self._archiver.type
+
+    @property
+    def uuid(self):
+        return self._archiver.uuid
+
+    @property
+    def format(self):
+        return self._archiver.format
+
+    @property
+    def citations(self):
+        return self._archiver.citations
+
     def __init__(self, future, selector, signature=None):
         """We have a future that represents the results of some QIIME 2 action,
         and we have a selector indicating specifically which result we want
@@ -43,33 +65,33 @@ class ProxyArtifact:
     def result(self):
         return self.get_element(self._future_.result())
 
-    # @property
-    # def _archiver(self):
-    #     return self.result()._archiver
-
-    # @property
-    # def type(self):
-    #     return self._archiver.type
-
-    # @property
-    # def uuid(self):
-    #     return self._archiver.uuid
-
-    # @property
-    # def format(self):
-    #     return self._archiver.format
-
-    # @property
-    # def citations(self):
-        # return self._archiver.citations
-
 
 class ProxyVisualization(ProxyResult):
     pass
 
 
 class ProxyCollection:
-    pass
+    def __init__(self, future, selector, signature=None):
+        self._future_ = future
+        self._selector_ = selector
+        self._signature_ = signature
+
+    def keys(self):
+        return self.result().collection.keys()
+
+    def values(self):
+        return self.result().collection.values()
+
+    def items(self):
+        return self.result().collection.items()
+
+    def get_element(self, results):
+        """Get the result we want off of the future we have
+        """
+        return getattr(results, self._selector_)
+
+    def result(self):
+        return self.get_element(self._future_.result())
 
 
 class ProxyResults:
@@ -82,21 +104,20 @@ class ProxyResults:
         self._future_ = future
         self._signature_ = signature
 
+    # TODO: These need to be smart enough to give the correct proxy type
     def __iter__(self):
         """Give us a ProxyArtifact for each result in the future
         """
         for s in self._signature_:
-            yield ProxyArtifact(self._future_, s, self._signature_)
+            yield self._create_proxy(s)
 
     def __getattr__(self, attr):
         """Get a particular ProxyArtifact out of the future
         """
-        return ProxyArtifact(self._future_, attr, self._signature_)
+        return self._create_proxy(attr)
 
     def __getitem__(self, index):
-        return ProxyArtifact(
-            self._future_, list(self._signature_.keys())[index],
-            self._signature_)
+        return self._create_proxy(list(self._signature_.keys())[index])
 
     def __repr__(self):
         lines = []
@@ -122,3 +143,14 @@ class ProxyResults:
 
     def result(self):
         return self._future_.result()
+
+    def _create_proxy(self, selector):
+        qiime_type = self._signature_[selector].qiime_type
+
+        if is_collection_type(qiime_type):
+            return ProxyCollection(self._future_, selector, self._signature_)
+        elif is_visualization_type(qiime_type):
+            return ProxyVisualization(
+                self._future_, selector, self._signature_)
+
+        return ProxyArtifact(self._future_, selector, self._signature_)
