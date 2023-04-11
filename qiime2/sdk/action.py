@@ -324,7 +324,7 @@ class Action(metaclass=abc.ABCMeta):
             if isinstance(arg, Proxy):
                 futures.append(arg._future_)
                 remapped_args.append(arg.__class__(len(futures) - 1,
-                                                   arg.selector))
+                                                   arg._selector_))
             else:
                 remapped_args.append(arg)
 
@@ -332,7 +332,7 @@ class Action(metaclass=abc.ABCMeta):
             if isinstance(value, Proxy):
                 futures.append(value._future_)
                 remapped_kwargs[key] = arg.__class__(len(futures) - 1,
-                                                     value.selector)
+                                                     value._selector_)
             else:
                 remapped_kwargs[key] = value
 
