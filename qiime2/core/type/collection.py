@@ -124,7 +124,7 @@ class _Collection(_1DCollectionBase):
 
         contained_expr = self_expr.fields[0]
 
-        if (isinstance(value, ResultCollection) or \
+        if (isinstance(value, ResultCollection) or
                 isinstance(value, self._view)) and len(value) > 0:
             return all(v in contained_expr for v in value.values())
         elif isinstance(value, list) and len(value) > 0:

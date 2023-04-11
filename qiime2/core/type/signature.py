@@ -353,7 +353,7 @@ class PipelineSignature:
         if qiime_name == 'Collection' and isinstance(_input, list):
             _input = self._list_to_dict(_input)
         elif qiime_name == 'List' and \
-                (isinstance(_input, dict) or \
+                (isinstance(_input, dict) or
                  isinstance(_input, qiime2.sdk.ResultCollection)):
             _input = self._dict_to_list(_input)
 
