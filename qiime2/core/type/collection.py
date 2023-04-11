@@ -116,12 +116,14 @@ class _Collection(_1DCollectionBase):
         """Since this is a dictionary, we often need to make sure to use its
         values not its keys.
         """
+        from qiime2.sdk import ResultCollection
+
         contained_expr = self_expr.fields[0]
-        if isinstance(value, self._view) and len(value) > 0:
+
+        if isinstance(value, ResultCollection) or \
+                isinstance(value, self._view) and len(value) > 0:
             return all(v in contained_expr for v in value.values())
-        # The Collection's default view type is dict, but it is also allowed to
-        # be passed around as a list
-        elif len(value) > 0:
+        elif isinstance(value, list) and len(value) > 0:
             return all(v in contained_expr for v in value)
 
         return False

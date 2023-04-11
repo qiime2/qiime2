@@ -84,7 +84,7 @@ class Context:
 
                     for name, _type in action_obj.signature.outputs.items():
                         if is_collection_type(_type.qiime_type):
-                            loaded_collection = {}
+                            loaded_collection = qiime2.sdk.ResultCollection()
                             cached_collection = cached_outputs[name]
 
                             # Get the order we should load collection items in

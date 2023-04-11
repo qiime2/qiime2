@@ -494,11 +494,11 @@ class ResultCollection:
                           "them in.")
             collection = cls._load_unordered(directory)
 
-        return cls(collection)
+        return collection
 
     @classmethod
     def _load_ordered(cls, directory, order_fp):
-        collection = {}
+        collection = cls()
 
         with open(order_fp, 'r') as order_fh:
             # TODO: Check if thing in .order file exists and if not try it with
@@ -512,7 +512,7 @@ class ResultCollection:
 
     @classmethod
     def _load_unordered(cls, directory):
-        collection = {}
+        collection = cls()
 
         for result in os.listdir(directory):
             result_fp = os.path.join(directory, result)
@@ -541,27 +541,31 @@ class ResultCollection:
 
         return result_fp
 
-    @property
-    def type(self):
-        return self._get_first_archiver().format
-
-    @property
-    def uuid(self):
-        return [str(v._archiver.uuid) for v in self.values()]
-
-    @property
-    def format(self):
-        return self._get_first_archiver().format
-
-    @property
-    def citations(self):
-        return self._get_first_archiver().format
-
-    def __init__(self, collection):
-        self._collection_ = collection
+    def __init__(self, collection=None):
+        if collection is None:
+            self.collection = {}
+        elif isinstance(collection, dict):
+            self.collection = collection
+        else:
+            self.collection = {k: v for k, v in enumerate(collection)}
 
     def __eq__(self, other):
-        return self._collection_ == other._collection_
+        if isinstance(other, dict):
+            return self.collection == other
+
+        return self.collection == other.collection
+
+    def __len__(self):
+        return len(self.collection)
+
+    def __iter__(self):
+        yield self.collection.__iter__()
+
+    def __setitem__(self, key, item):
+        self.collection[key] = item
+
+    def __getitem__(self, key):
+        return self.collection[key]
 
     def save(self, directory):
         """Saves a colleciton of QIIME 2 Results into a given directory with
@@ -577,23 +581,20 @@ class ResultCollection:
         os.makedirs(directory)
 
         with open(os.path.join(directory, '.order'), 'w') as fh:
-            for name, result in self._collection_.items():
+            for name, result in self.collection.items():
                 result_fp = os.path.join(directory, name)
                 result.save(result_fp)
                 fh.write(f'{name}\n')
 
     def keys(self):
-        return self._collection_.keys()
+        return self.collection.keys()
 
     def values(self):
-        return self._collection_.values()
+        return self.collection.values()
 
     def items(self):
-        return self._collection_.items()
+        return self.collection.items()
 
-    def _get_first_archiver(self):
-        """ Since all members of a Collection are necessarily the same type, we
-            can report type information and such based on the _archiver for the
-            first value in the Collection.
-        """
-        return list(self.values)[0]._archiver
+    def validate(self, view, level=None):
+        for result in self.values():
+            result.validate(view, level)

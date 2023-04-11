@@ -428,24 +428,24 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.parameters[name] = handler(parameter)
 
     def add_input(self, name, input):
+        values = []
+
         if input is None:
             self.inputs[name] = None
+        elif isinstance(input, qiime2.sdk.result.ResultCollection):
+            # If we took a Collection input, we will have a ResultCollection,
+            # and we want the keys to line up with the processed values we were
+            # given, so we can maintain the order of the artifacts
+            for artifact in input.values():
+                record = self.add_ancestor(artifact)
+                values.append(record)
+            self.inputs[name] = \
+                [{k: v} for k, v in zip(input.keys(), values)]
         elif isinstance(input, collections.abc.Iterable):
-            values = []
-            # If we took a Collection input, we will have a dict, and we want
-            # the keys to line up with the processed values we were given, so
-            # we can maintain the order of the artifacts
-            if isinstance(input, dict):
-                for artifact in input.values():
-                    record = self.add_ancestor(artifact)
-                    values.append(record)
-                self.inputs[name] = \
-                    [{k: v} for k, v in zip(input.keys(), values)]
-            else:
-                for artifact in input:
-                    record = self.add_ancestor(artifact)
-                    values.append(record)
-                self.inputs[name] = type(input)(values)
+            for artifact in input:
+                record = self.add_ancestor(artifact)
+                values.append(record)
+            self.inputs[name] = type(input)(values)
         else:
             self.inputs[name] = self.add_ancestor(input)
 

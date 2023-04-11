@@ -566,11 +566,14 @@ class Pipeline(Action):
     def _callable_executor_(self, scope, view_args, output_types, provenance,
                             parsl=False):
         outputs = self._callable(scope.ctx, **view_args)
+        outputs = tuplize(outputs)
+        # Make sure any collections returned are in the form of
+        # ResultCollections
+        outputs = self._transform_output_collections(outputs)
 
         # If we are using parsl, these will be futures from parsl actions,
         # and we need the results of those futures.
         if parsl:
-            outputs = tuplize(outputs)
             _outputs = []
             for output in outputs:
                 if isinstance(output, dict):
@@ -582,16 +585,9 @@ class Pipeline(Action):
                         output.get_element(output._future_.result()))
 
             outputs = tuple(_outputs)
-        else:
-            outputs = tuplize(outputs)
 
         for output in outputs:
-            if isinstance(output, list):
-                for elem in output:
-                    if not isinstance(elem, qiime2.sdk.Result):
-                        raise TypeError("Pipelines must return `Result` "
-                                        "objects, not %s" % (type(elem), ))
-            elif isinstance(output, dict):
+            if isinstance(output, qiime2.sdk.ResultCollection):
                 for elem in output.values():
                     if not isinstance(elem, qiime2.sdk.Result):
                         raise TypeError("Pipelines must return `Result` "
@@ -630,10 +626,10 @@ class Pipeline(Action):
                 aliased_result = scope.add_parent_reference(aliased_result)
 
                 results.append(aliased_result)
-            elif output in spec.qiime_type:
-                aliased_output = {}
-                for key, value in output.items() if isinstance(output, dict) \
-                        else enumerate(output):
+            elif spec.qiime_type.name == 'Collection' and \
+                    output.collection in spec.qiime_type:
+                aliased_output = qiime2.sdk.ResultCollection()
+                for key, value in output.items():
                     prov = provenance.fork(name, value)
                     scope.add_reference(prov)
 
@@ -663,6 +659,18 @@ class Pipeline(Action):
             return _create_future(results)
         else:
             return results
+
+    def _transform_output_collections(self, outputs):
+        transformed_outputs = []
+
+        for output in outputs:
+            if isinstance(output, dict) or isinstance(output, list):
+                transformed_output = qiime2.sdk.ResultCollection(output)
+                transformed_outputs.append(transformed_output)
+            else:
+                transformed_outputs.append(output)
+
+        return tuple(transformed_outputs)
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,

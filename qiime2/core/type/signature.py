@@ -342,12 +342,22 @@ class PipelineSignature:
         """
         _, qiime_name = self._get_qiime_type_and_name(spec)
 
+        # TODO: Maybe if we have just a dict we turn it into a ResultCollection
+        # then we basically accept either list or ResultCollection and always
+        # return ResultCollection. People can still give us dicts, but they
+        # will be turned into ResultCollections. This may break some rules
+        # though because in collection.py we have _Collection with a view type
+        # of dict, but we will never actually have a dict inside of a Method
+
         # Transform collection from list to dict and vice versa if needed
         if qiime_name == 'Collection' and isinstance(_input, list):
             _input = self._list_to_dict(_input)
         elif qiime_name == 'List' and \
                 isinstance(_input, dict):
             _input = self._dict_to_list(_input)
+
+        if isinstance(_input, dict):
+            _input = qiime2.sdk.result.ResultCollection(_input)
 
         return _input
 
@@ -400,10 +410,10 @@ class PipelineSignature:
             recorder = provenance.transformation_recorder(name)
             # Transform all members of collection into view type
             if qtype.is_collection_type(qiime_type):
-                if isinstance(_input, dict):
-                    transformed_input = {
-                        k: v._view(spec.view_type,
-                                   recorder) for k, v in _input.items()}
+                if isinstance(_input, qiime2.sdk.result.ResultCollection):
+                    transformed_input = qiime2.sdk.result.ResultCollection(
+                        {k: v._view(spec.view_type,
+                                    recorder) for k, v in _input.items()})
                 else:
                     transformed_input = [
                         i._view(spec.view_type, recorder) for i in _input]
@@ -446,10 +456,11 @@ class PipelineSignature:
         for output_view, (name, spec) in zip(output_views,
                                              output_types.items()):
             if spec.qiime_type.name == 'Collection':
-                output = {}
+                output = qiime2.sdk.ResultCollection()
                 collection_size = len(output_view)
 
-                if isinstance(output_view, dict):
+                if isinstance(output_view, qiime2.sdk.ResultCollection) or \
+                        isinstance(output_view, dict):
                     keys = list(output_view.keys())
                     values = list(output_view.values())
                 else:
@@ -730,13 +741,15 @@ class HashableInvocation():
         into their md5sum
         """
         from qiime2 import Artifact, Metadata
+        from qiime2.sdk import ResultCollection
 
         new_collection = []
 
-        if type(collection) is dict:
+        if isinstance(collection, dict) or \
+                isinstance(collection, ResultCollection):
             for k, v in collection.items():
                 new_collection.append((k, self._make_hashable(v)))
-        elif type(collection) is list:
+        elif isinstance(collection, list):
             for elem in collection:
                 new_collection.append(self._make_hashable(elem))
         elif isinstance(collection, Artifact):

@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 from .type import SingleInt, Mapping
+from qiime2.sdk.result import ResultCollection
 
 
 def parameter_only_pipeline(ctx, int1, int2=2, metadata=None):
@@ -157,9 +158,9 @@ def list_pipeline(ctx, ints):
 
 
 def collection_pipeline(ctx, ints):
-    assert isinstance(ints, dict)
-    return ({'key1': ctx.make_artifact(SingleInt, 4),
-             'key2': ctx.make_artifact(SingleInt, 5)})
+    assert isinstance(ints, ResultCollection)
+    return {'key1': ctx.make_artifact(SingleInt, 4),
+            'key2': ctx.make_artifact(SingleInt, 5)}
 
 
 def pointless_pipeline(ctx):
