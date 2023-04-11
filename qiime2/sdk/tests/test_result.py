@@ -12,7 +12,7 @@ import unittest
 import pathlib
 
 import qiime2.core.type
-from qiime2.sdk import Result, Artifact, Visualization
+from qiime2.sdk import Result, Artifact, Visualization, ResultCollection
 from qiime2.sdk.result import ResultMetadata
 import qiime2.core.archive as archive
 import qiime2.core.exceptions as exceptions
@@ -82,7 +82,8 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
                       'bar': Artifact.import_data(SingleInt, 1)}
         output_fp = os.path.join(self.test_dir.name, 'output')
 
-        Result.save_collection(output_fp, collection)
+        collection = ResultCollection(collection)
+        collection.save(output_fp)
 
         foo = Artifact.load(os.path.join(output_fp, 'foo.qza'))
         bar = Artifact.load(os.path.join(output_fp, 'bar.qza'))
@@ -93,7 +94,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         with open(os.path.join(output_fp, '.order')) as fh:
             self.assertEqual(fh.read(), 'foo\nbar\n')
 
-        read_collection = Result.load_collection(output_fp)
+        read_collection = ResultCollection.load(output_fp)
         self.assertEqual(collection, read_collection)
 
     def test_roundtrip_unordered_collection(self):
@@ -101,7 +102,8 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
                       'bar': Artifact.import_data(SingleInt, 1)}
         output_fp = os.path.join(self.test_dir.name, 'output')
 
-        Result.save_collection(output_fp, collection)
+        collection = ResultCollection(collection)
+        collection.save(output_fp)
         os.remove(os.path.join(output_fp, '.order'))
 
         foo = Artifact.load(os.path.join(output_fp, 'foo.qza'))
@@ -112,7 +114,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         with self.assertWarnsRegex(UserWarning, f"The directory '{output_fp}' "
                                    "does not contain a .order file"):
-            read_collection = Result.load_collection(output_fp)
+            read_collection = ResultCollection.load(output_fp)
 
         self.assertEqual(set(collection.items()), set(read_collection.items()))
 
@@ -123,7 +125,8 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
                       'bar': Artifact.import_data(SingleInt, 1)}
         output_fp = os.path.join(self.test_dir.name, 'output')
 
-        Result.save_collection(output_fp, collection)
+        collection = ResultCollection(collection)
+        collection.save(output_fp)
         order_fp = os.path.join(output_fp, '.order')
 
         with open(order_fp, 'a') as order_fh:
@@ -138,7 +141,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         with self.assertRaisesRegex(
                 ValueError, f"The Result '{BAD_KEY}' is referenced in the "
                             "order file but does not exist"):
-            Result.load_collection(output_fp)
+            ResultCollection.load(output_fp)
 
     def test_extract_artifact(self):
         fp = os.path.join(self.test_dir.name, 'artifact.qza')
