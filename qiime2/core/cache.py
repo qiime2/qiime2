@@ -508,10 +508,6 @@ class Cache:
 
         return threadless_dict
 
-    # def __setstate__(self, state):
-    #     self.__dict__.update(state)
-    #     self.lock = MEGALock(str(self.lockfile), timedelta(minutes=10))
-
     @classmethod
     def is_cache(cls, path):
         """Tells us if the path we were given is a cache.
