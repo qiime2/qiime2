@@ -24,7 +24,7 @@ from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 from qiime2.sdk.parsl_config import get_parsl_config
 from qiime2.sdk.context import Context
 from qiime2.sdk.results import Results
-from qiime2.sdk.proxy import ProxyArtifact
+from qiime2.sdk.proxy import Proxy
 
 
 def _subprocess_apply(action, ctx, args, kwargs):
@@ -43,14 +43,14 @@ def run_parsl_action(action, ctx, args, kwargs, inputs=[]):
     """
     remapped_kwargs = {}
     for key, value in kwargs.items():
-        if isinstance(value, ProxyArtifact):
+        if isinstance(value, Proxy):
             remapped_kwargs[key] = value.get_element(inputs[value._future_])
         else:
             remapped_kwargs[key] = value
 
     remapped_args = []
     for arg in args:
-        if isinstance(arg, ProxyArtifact):
+        if isinstance(arg, Proxy):
             remapped_args.append(arg.get_element(inputs[arg._future_]))
         else:
             remapped_args.append(arg)
@@ -321,17 +321,17 @@ class Action(metaclass=abc.ABCMeta):
         # last action that might not be resolved yet because Parsl may be
         # queueing the next action before the last one has completed.
         for arg in args:
-            if isinstance(arg, ProxyArtifact):
+            if isinstance(arg, Proxy):
                 futures.append(arg._future_)
-                remapped_args.append(ProxyArtifact(len(futures) - 1,
-                                     arg.selector))
+                remapped_args.append(arg.__class__(len(futures) - 1,
+                                                   arg.selector))
             else:
                 remapped_args.append(arg)
 
         for key, value in kwargs.items():
-            if isinstance(value, ProxyArtifact):
+            if isinstance(value, Proxy):
                 futures.append(value._future_)
-                remapped_kwargs[key] = ProxyArtifact(len(futures) - 1,
+                remapped_kwargs[key] = arg.__class__(len(futures) - 1,
                                                      value.selector)
             else:
                 remapped_kwargs[key] = value

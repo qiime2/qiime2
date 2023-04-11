@@ -8,13 +8,17 @@
 from qiime2.core.type.util import is_visualization_type, is_collection_type
 
 
-class ProxyResult:
+class Proxy:
+    pass
+
+
+class ProxyResult(Proxy):
     pass
 
 
 # TODO: Can put all artifact API methods on this class because we know what
 # type it will be (maybe not uuid)
-class ProxyArtifact:
+class ProxyArtifact(Proxy):
     """This represents a future Artifact that is being returned by a Parsl app
     """
     @property
@@ -70,7 +74,7 @@ class ProxyVisualization(ProxyResult):
     pass
 
 
-class ProxyCollection:
+class ProxyCollection(Proxy):
     def __init__(self, future, selector, signature=None):
         self._future_ = future
         self._selector_ = selector
