@@ -230,18 +230,26 @@ class Action(metaclass=abc.ABCMeta):
                               zip(args, self.signature.signature_order)}
                 user_input.update(kwargs)
 
-                # Type management
-                self.signature.check_types(**user_input)
-                output_types = self.signature.solve_output(**user_input)
-                callable_args = self.signature.coerce_user_input(**user_input)
-                callable_args = \
-                    self.signature.transform_and_add_callable_args_to_prov(
-                        provenance, **callable_args)
-
                 if self.deprecated:
                     with qiime2.core.util.warning() as warn:
                         warn(self._build_deprecation_message(),
                              FutureWarning)
+
+                # Type management
+                self.signature.check_types(**user_input)
+                output_types = self.signature.solve_output(**user_input)
+                callable_args = self.signature.coerce_user_input(**user_input)
+
+                # If we have a named pool, check if we have an indexed result
+                # for this action
+                if ctx.cache.named_pool is not None:
+                    indexed = ctx.check_index(self, **callable_args)
+                    if indexed is not None:
+                        return indexed
+
+                callable_args = \
+                    self.signature.transform_and_add_callable_args_to_prov(
+                        provenance, **callable_args)
 
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position. If we are

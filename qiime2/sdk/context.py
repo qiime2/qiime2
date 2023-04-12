@@ -11,7 +11,6 @@ from qiime2.core.type import HashableInvocation
 from qiime2.core.cache import get_cache
 import qiime2.sdk
 from qiime2.sdk.parsl_config import PARSL_CONFIG
-from qiime2.sdk.proxy import ProxyResults
 
 
 class Context:
@@ -38,7 +37,6 @@ class Context:
         cleanup as appropriate.
         """
         plugin = plugin.replace('_', '-')
-        plugin_action = plugin + ':' + action
 
         pm = qiime2.sdk.PluginManager()
         try:
@@ -53,87 +51,58 @@ class Context:
                 "An action named %r was not found for plugin %r"
                 % (action, plugin))
 
-        # We return this callable which determines whether to return cached
-        # results or to run the action requested.
-        def deferred_action(*args, **kwargs):
-            # If we have a named_pool, we need to check for cached results that
-            # we can reuse
-            if self.cache.named_pool is not None:
-                # NOTE: This work is currently done both here and in action.py
-                # in bound_callable. We should be able to remove this redundant
-                # work by adding something like _bind_deferred and calling it
-                # where we call _bind below, but that might not be worth it
-                user_input = {name: value for value, name in
-                              zip(args, action_obj.signature.signature_order)}
-                user_input.update(kwargs)
+        def _bind_parsl_context(ctx):
+            def _bind_parsl_args(*args, **kwargs):
+                return action_obj._bind_parsl(ctx, *args, **kwargs)
+            return _bind_parsl_args
 
-                callable_args = action_obj.signature.coerce_user_input(
-                    **user_input)
+        if self.parsl:
+            return _bind_parsl_context(self)
 
-                # Make args and kwargs look how they do when we read them out
-                # of a .yaml file (list of single value dicts of
-                # input_name: value)
-                arguments = []
-                for k, v in callable_args.items():
-                    arguments.append({k: v})
+        return action_obj._bind(
+            lambda: Context(parent=self))
 
-                invocation = HashableInvocation(plugin_action, arguments)
-                if invocation in self.cache.named_pool.index:
-                    cached_outputs = self.cache.named_pool.index[invocation]
-                    loaded_outputs = {}
+    def check_index(self, action_obj, **callable_args):
+        plugin = action_obj.plugin_id.replace('_', '-')
+        action = action_obj.id
+        plugin_action = plugin + ':' + action
 
-                    for name, _type in action_obj.signature.outputs.items():
-                        if is_collection_type(_type.qiime_type):
-                            loaded_collection = qiime2.sdk.ResultCollection()
-                            cached_collection = cached_outputs[name]
+        # Make args and kwargs look how they do when we read them out
+        # of a .yaml file (list of single value dicts of
+        # input_name: value)
+        arguments = []
+        for k, v in callable_args.items():
+            arguments.append({k: v})
 
-                            # Get the order we should load collection items in
-                            collection_order = list(cached_collection.keys())
-                            self._validate_collection(collection_order)
-                            collection_order.sort(key=lambda x: x.idx)
+        invocation = HashableInvocation(plugin_action, arguments)
+        if invocation in self.cache.named_pool.index:
+            cached_outputs = self.cache.named_pool.index[invocation]
+            loaded_outputs = {}
 
-                            for elem_info in collection_order:
-                                elem = cached_collection[elem_info]
-                                loaded_elem = self.cache.named_pool.load(elem)
-                                loaded_collection[
-                                    elem_info.item_name] = loaded_elem
+            for name, _type in action_obj.signature.outputs.items():
+                if is_collection_type(_type.qiime_type):
+                    loaded_collection = qiime2.sdk.ResultCollection()
+                    cached_collection = cached_outputs[name]
 
-                            loaded_outputs[name] = loaded_collection
-                        else:
-                            output = cached_outputs[name]
-                            loaded_outputs[name] = \
-                                self.cache.named_pool.load(output)
+                    # Get the order we should load collection items in
+                    collection_order = list(cached_collection.keys())
+                    self._validate_collection(collection_order)
+                    collection_order.sort(key=lambda x: x.idx)
 
-                    if self.parsl:
-                        from qiime2.sdk.action import _create_future
+                    for elem_info in collection_order:
+                        elem = cached_collection[elem_info]
+                        loaded_elem = self.cache.named_pool.load(elem)
+                        loaded_collection[
+                            elem_info.item_name] = loaded_elem
 
-                        results = qiime2.sdk.Results(loaded_outputs.keys(),
-                                                     loaded_outputs.values())
-                        return ProxyResults(_create_future(results),
-                                            action_obj.signature.outputs)
+                    loaded_outputs[name] = loaded_collection
+                else:
+                    output = cached_outputs[name]
+                    loaded_outputs[name] = \
+                        self.cache.named_pool.load(output)
 
-                    return qiime2.sdk.Results(
-                        loaded_outputs.keys(), loaded_outputs.values())
-
-            # If we didn't have cached results to reuse, we need to execute the
-            # action.
-            #
-            # This factory will create new Contexts with this context as their
-            # parent. This allows scope cleanup to happen recursively. A
-            # factory is necessary so that independent applications of the
-            # returned callable recieve their own Context objects.
-            def _bind_parsl_context(ctx):
-                def _bind_parsl_args(*args, **kwargs):
-                    return action_obj._bind_parsl(ctx, *args, **kwargs)
-                return _bind_parsl_args
-
-            if self.parsl:
-                return _bind_parsl_context(self)(*args, **kwargs)
-
-            return action_obj._bind(
-                lambda: Context(parent=self))(*args, **kwargs)
-
-        return deferred_action
+            return qiime2.sdk.Results(
+                loaded_outputs.keys(), loaded_outputs.values())
 
     def _validate_collection(self, collection_order):
         """Validate that all indexed items in the collection agree on how

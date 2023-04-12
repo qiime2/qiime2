@@ -598,7 +598,7 @@ class TestCache(unittest.TestCase):
                 self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
                 self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
                 self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
-                self.assertEqual(list_uuids, str(complete_list_uuids))
+                self.assertNotEqual(list_uuids, str(complete_list_uuids))
                 self.assertEqual(dict_uuids, str(complete_dict_uuids))
 
     def test_collection_list_input_cache(self):
