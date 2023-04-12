@@ -529,10 +529,12 @@ class TestCache(unittest.TestCase):
                 complete_list_uuids = load_alias_uuids(list_ret)
                 complete_dict_uuids = load_alias_uuids(dict_ret)
 
+                # list_uuids not equal because it uses a return from
+                # varied_method as its input
                 self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
                 self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
                 self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
-                self.assertEqual(list_uuids, str(complete_list_uuids))
+                self.assertNotEqual(list_uuids, str(complete_list_uuids))
                 self.assertEqual(dict_uuids, str(complete_dict_uuids))
 
     def test_resumable_varied_pipeline_parsl(self):

@@ -129,7 +129,7 @@ def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, fail=False):
         ints1, ints2, int1, string)
 
     list_return, = list_of_ints(ints1_ret)
-    dict_return, = dict_of_ints(ints1_ret)
+    dict_return, = dict_of_ints(ints1)
 
     if fail:
         ints1_uuids = [str(result.uuid) for result in ints1_ret.values()]
