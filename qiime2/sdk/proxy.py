@@ -53,8 +53,6 @@ class ProxyResult(Proxy):
         return getattr(results, self._selector_)
 
 
-# TODO: Can put all artifact API methods on this class because we know what
-# type it will be (maybe not uuid)
 class ProxyArtifact(ProxyResult):
     """This represents a future Artifact that is being returned by a Parsl app
     """
