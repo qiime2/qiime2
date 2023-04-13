@@ -55,7 +55,8 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
                        pipelines_in_pipeline, resumable_pipeline,
                        resumable_collection_pipeline,
-                       resumable_varied_pipeline, list_pipeline,
+                       resumable_varied_pipeline,
+                       resumable_nested_varied_pipeline, list_pipeline,
                        collection_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
@@ -784,8 +785,36 @@ dummy_plugin.pipelines.register_function(
     },
     parameters={
         'string': Str,
-        'fail': Bool,
         'metadata': Metadata,
+        'fail': Bool,
+    },
+    outputs=[
+        ('ints1_ret', Collection[SingleInt]),
+        ('ints2_ret', Collection[T]),
+        ('int1_ret', SingleInt),
+        ('list_ret', Collection[SingleInt]),
+        ('dict_ret', Collection[SingleInt]),
+        ('identity_ret', T),
+        ('viz', Visualization),
+    ],
+    name='To be resumed',
+    description=('Called first with fail=True then again with fail=False '
+                 'meant to reuse results from first run durng second run')
+)
+
+T = TypeMatch([IntSequence1, IntSequence2])
+dummy_plugin.pipelines.register_function(
+    function=resumable_nested_varied_pipeline,
+    inputs={
+        'ints1': Collection[SingleInt],
+        'ints2': List[T],
+        'int1': SingleInt,
+    },
+    parameters={
+        'string': Str,
+        'metadata': Metadata,
+        'fail': Bool,
+        'inner_fail': Bool,
     },
     outputs=[
         ('ints1_ret', Collection[SingleInt]),

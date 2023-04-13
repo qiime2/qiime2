@@ -137,7 +137,7 @@ def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
 
     identity_ret, = identity_with_metadata(ints2[0], metadata)
 
-    viz, = most_common_viz(ints2[1])
+    viz_ret, = most_common_viz(ints2[1])
 
     if fail:
         ints1_uuids = [str(result.uuid) for result in ints1_ret.values()]
@@ -149,14 +149,60 @@ def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
 
         identity_uuid = str(identity_ret.uuid)
 
-        viz_uuid = str(viz.uuid)
+        viz_uuid = str(viz_ret.uuid)
 
         raise ValueError(f'{ints1_uuids}_{ints2_uuids}_{int1_uuid}'
                          f'_{list_uuids}_{dict_uuids}_{identity_uuid}'
                          f'_{viz_uuid}')
 
     return (ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret,
-            viz)
+            viz_ret)
+
+
+def resumable_nested_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
+                                     fail=False, inner_fail=False):
+    resumable_varied_pipeline = ctx.get_action(
+        'dummy_plugin', 'resumable_varied_pipeline')
+
+    ints1_ret1, ints2_ret1, int1_ret1, list_ret1, dict_ret1, identity_ret1, \
+        viz_ret1 = resumable_varied_pipeline(
+            ints1, ints2, int1, string, metadata, inner_fail)
+
+    varied_method = ctx.get_action('dummy_plugin', 'varied_method')
+    list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
+    dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
+    identity_with_metadata = ctx.get_action('dummy_plugin',
+                                            'identity_with_metadata')
+    most_common_viz = ctx.get_action('dummy_plugin', 'most_common_viz')
+
+    ints1_ret, ints2_ret, int1_ret = varied_method(
+        ints1_ret1, ints2_ret1, int1_ret1, string)
+
+    list_ret, = list_of_ints(ints1_ret)
+    dict_ret, = dict_of_ints(ints1_ret1)
+
+    identity_ret, = identity_with_metadata(ints2_ret1[0], metadata)
+
+    viz_ret, = most_common_viz(ints2_ret[1])
+
+    if fail:
+        ints1_uuids = [str(result.uuid) for result in ints1_ret.values()]
+        ints2_uuids = [str(result.uuid) for result in ints2_ret.values()]
+        int1_uuid = str(int1_ret.uuid)
+
+        list_uuids = [str(result.uuid) for result in list_ret.values()]
+        dict_uuids = [str(result.uuid) for result in dict_ret.values()]
+
+        identity_uuid = str(identity_ret.uuid)
+
+        viz_uuid = str(viz_ret.uuid)
+
+        raise ValueError(f'{ints1_uuids}_{ints2_uuids}_{int1_uuid}'
+                         f'_{list_uuids}_{dict_uuids}_{identity_uuid}'
+                         f'_{viz_uuid}')
+
+    return (ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret,
+            viz_ret)
 
 
 def list_pipeline(ctx, ints):
