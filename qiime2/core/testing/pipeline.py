@@ -120,29 +120,43 @@ def resumable_collection_pipeline(ctx, int_list, int_dict, fail=False):
 # cliand only use this pipeline because it will test everything. This pipeline
 # should also pass return values from methods called in it to other methods
 # called in it (should actually propogate datas)
-def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, fail=False):
+def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
+                              fail=False):
     varied_method = ctx.get_action('dummy_plugin', 'varied_method')
     list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
     dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
+    identity_with_metadata = ctx.get_action('dummy_plugin',
+                                            'identity_with_metadata')
+    most_common_viz = ctx.get_action('dummy_plugin', 'most_common_viz')
 
     ints1_ret, ints2_ret, int1_ret = varied_method(
         ints1, ints2, int1, string)
 
-    list_return, = list_of_ints(ints1_ret)
-    dict_return, = dict_of_ints(ints1)
+    list_ret, = list_of_ints(ints1_ret)
+    dict_ret, = dict_of_ints(ints1)
+
+    identity_ret, = identity_with_metadata(ints2[0], metadata)
+
+    viz, = most_common_viz(ints2[1])
 
     if fail:
         ints1_uuids = [str(result.uuid) for result in ints1_ret.values()]
         ints2_uuids = [str(result.uuid) for result in ints2_ret.values()]
         int1_uuid = str(int1_ret.uuid)
 
-        list_uuids = [str(result.uuid) for result in list_return.values()]
-        dict_uuids = [str(result.uuid) for result in dict_return.values()]
+        list_uuids = [str(result.uuid) for result in list_ret.values()]
+        dict_uuids = [str(result.uuid) for result in dict_ret.values()]
+
+        identity_uuid = str(identity_ret.uuid)
+
+        viz_uuid = str(viz.uuid)
 
         raise ValueError(f'{ints1_uuids}_{ints2_uuids}_{int1_uuid}'
-                         f'_{list_uuids}_{dict_uuids}')
+                         f'_{list_uuids}_{dict_uuids}_{identity_uuid}'
+                         f'_{viz_uuid}')
 
-    return ints1_ret, ints2_ret, int1_ret, list_return, dict_return
+    return (ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret,
+            viz)
 
 
 def list_pipeline(ctx, ints):

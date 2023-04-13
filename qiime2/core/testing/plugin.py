@@ -774,23 +774,27 @@ dummy_plugin.pipelines.register_function(
                  'meant to reuse results from first run durng second run')
 )
 
+T = TypeMatch([IntSequence1, IntSequence2])
 dummy_plugin.pipelines.register_function(
     function=resumable_varied_pipeline,
     inputs={
-        'ints1': List[SingleInt],
-        'ints2': Collection[IntSequence1],
+        'ints1': Collection[SingleInt],
+        'ints2': List[T],
         'int1': SingleInt,
     },
     parameters={
         'string': Str,
         'fail': Bool,
+        'metadata': Metadata,
     },
     outputs=[
-        ('ints1_return', Collection[SingleInt]),
-        ('ints2_return', Collection[IntSequence1]),
-        ('int1_return', SingleInt),
-        ('list_return', Collection[SingleInt]),
-        ('dict_return', Collection[SingleInt]),
+        ('ints1_ret', Collection[SingleInt]),
+        ('ints2_ret', Collection[T]),
+        ('int1_ret', SingleInt),
+        ('list_ret', Collection[SingleInt]),
+        ('dict_ret', Collection[SingleInt]),
+        ('identity_ret', T),
+        ('viz', Visualization),
     ],
     name='To be resumed',
     description=('Called first with fail=True then again with fail=False '

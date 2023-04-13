@@ -16,7 +16,7 @@ import qiime2.sdk
 import qiime2.core.type as qtype
 from .grammar import TypeExp, UnionExp
 from .meta import TypeVarExp
-from .collection import List, Set
+from .collection import List, Set, Collection
 from .primitive import infer_primitive_type
 from .visualization import Visualization
 from . import meta
@@ -617,6 +617,10 @@ class PipelineSignature:
         if type(value) is set:
             inner = UnionExp((self._infer_type(key, v) for v in value))
             return Set[inner.normalize()]
+        if type(value) is dict:
+            inner = UnionExp(
+                (self._infer_type(key, v) for v in value.values()))
+            return Collection[inner.normalize()]
         if isinstance(value, qiime2.sdk.Artifact):
             return value.type
         else:
@@ -756,9 +760,11 @@ class HashableInvocation():
         elif isinstance(collection, Artifact):
             return str(collection.uuid)
         elif isinstance(collection, Metadata):
-            with tempfile.TemporaryFile('w') as fp:
+            with tempfile.NamedTemporaryFile('w') as fh:
+                fp = fh.name
                 collection.save(fp)
                 collection = md5sum(fp)
+                return collection
         else:
             return collection
 

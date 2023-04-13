@@ -21,6 +21,7 @@ import unittest
 from contextlib import contextmanager
 
 import pytest
+import pandas as pd
 from flufl.lock import LockState
 
 import qiime2
@@ -482,30 +483,36 @@ class TestCache(unittest.TestCase):
 
         pool = self.cache.create_pool('pool')
 
-        ints1 = [Artifact.import_data(SingleInt, 0),
-                 Artifact.import_data(SingleInt, 1)]
-        ints2 = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
-                 '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
+        ints1 = {'1': Artifact.import_data(SingleInt, 0),
+                 '2': Artifact.import_data(SingleInt, 1)}
+        ints2 = [Artifact.import_data(IntSequence1, [0, 1, 2]),
+                 Artifact.import_data(IntSequence1, [3, 4, 5])]
         int1 = Artifact.import_data(SingleInt, 42)
+
+        df = pd.DataFrame({'a': ['1', '2', '3']},
+                          index=pd.Index(['0', '1', '2'], name='feature ID'))
+        metadata = qiime2.Metadata(df)
 
         with self.cache:
             with pool:
                 with self.assertRaises(ValueError) as e:
                     resumable_varied_pipeline(
-                        ints1, ints2, int1, 'Hi', fail=True)
+                        ints1, ints2, int1, 'Hi', metadata, fail=True)
 
-                ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids = \
-                    str(e.exception).split('_')
+                ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                    identity_uuid, viz_uuid = str(e.exception).split('_')
 
-                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
-                    resumable_varied_pipeline(ints1, ints2, int1, 'Hi')
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                    identity_ret, viz_ret = resumable_varied_pipeline(
+                        ints1, ints2, int1, 'Hi', metadata)
 
                 complete_ints1_uuids = load_alias_uuids(ints1_ret)
                 complete_ints2_uuids = load_alias_uuids(ints2_ret)
-                complete_int1_uuid = load_action_yaml(
-                    self.cache.data / str(int1_ret.uuid))['action']['alias-of']
+                complete_int1_uuid = load_alias_uuid(int1_ret)
                 complete_list_uuids = load_alias_uuids(list_ret)
                 complete_dict_uuids = load_alias_uuids(dict_ret)
+                complete_identity_uuid = load_alias_uuid(identity_ret)
+                complete_viz_uuid = load_alias_uuid(viz_ret)
 
                 # Assert that the artifacts returned by the completed run of
                 # the pipeline are aliases of the artifacts created by the
@@ -515,19 +522,23 @@ class TestCache(unittest.TestCase):
                 self.assertEqual(int1_uuid, str(complete_int1_uuid))
                 self.assertEqual(list_uuids, str(complete_list_uuids))
                 self.assertEqual(dict_uuids, str(complete_dict_uuids))
+                self.assertEqual(identity_uuid, str(complete_identity_uuid))
+                self.assertEqual(viz_uuid, str(complete_viz_uuid))
 
                 # Pass in a different string, this should cause the returns
                 # from varied_method to not be reused and the others to be
                 # reused
-                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
-                    resumable_varied_pipeline(ints1, ints2, int1, 'Bye')
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                    identity_ret, viz_ret = resumable_varied_pipeline(
+                        ints1, ints2, int1, 'Bye', metadata)
 
                 complete_ints1_uuids = load_alias_uuids(ints1_ret)
                 complete_ints2_uuids = load_alias_uuids(ints2_ret)
-                complete_int1_uuid = load_action_yaml(
-                    self.cache.data / str(int1_ret.uuid))['action']['alias-of']
+                complete_int1_uuid = load_alias_uuid(int1_ret)
                 complete_list_uuids = load_alias_uuids(list_ret)
                 complete_dict_uuids = load_alias_uuids(dict_ret)
+                complete_identity_uuid = load_alias_uuid(identity_ret)
+                complete_viz_uuid = load_alias_uuid(viz_ret)
 
                 # list_uuids not equal because it uses a return from
                 # varied_method as its input
@@ -536,40 +547,47 @@ class TestCache(unittest.TestCase):
                 self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
                 self.assertNotEqual(list_uuids, str(complete_list_uuids))
                 self.assertEqual(dict_uuids, str(complete_dict_uuids))
+                self.assertEqual(identity_uuid, str(complete_identity_uuid))
+                self.assertEqual(viz_uuid, str(complete_viz_uuid))
 
-    def test_resumable_varied_pipeline_parsl(self):
+    def test_parsl_resumable_varied_pipeline(self):
         resumable_varied_pipeline = \
             self.plugin.pipelines['resumable_varied_pipeline']
 
         pool = self.cache.create_pool('pool')
 
-        ints1 = [Artifact.import_data(SingleInt, 0),
-                 Artifact.import_data(SingleInt, 1)]
-        ints2 = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
-                 '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
+        ints1 = {'1': Artifact.import_data(SingleInt, 0),
+                 '2': Artifact.import_data(SingleInt, 1)}
+        ints2 = [Artifact.import_data(IntSequence1, [0, 1, 2]),
+                 Artifact.import_data(IntSequence1, [3, 4, 5])]
         int1 = Artifact.import_data(SingleInt, 42)
+
+        df = pd.DataFrame({'a': ['1', '2', '3']},
+                          index=pd.Index(['0', '1', '2'], name='feature ID'))
+        metadata = qiime2.Metadata(df)
 
         with self.cache:
             with pool:
                 with self.assertRaises(ValueError) as e:
                     future = resumable_varied_pipeline.parsl(
-                        ints1, ints2, int1, 'Hi', fail=True)
+                        ints1, ints2, int1, 'Hi', metadata, fail=True)
                     future.result()
 
-                ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids = \
-                    str(e.exception).split('_')
+                ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                    identity_uuid, viz_uuid = str(e.exception).split('_')
 
-                future = \
-                    resumable_varied_pipeline.parsl(ints1, ints2, int1, 'Hi')
-                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
-                    future.result()
+                future = resumable_varied_pipeline.parsl(
+                    ints1, ints2, int1, 'Hi', metadata)
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                    identity_ret, viz_ret = future.result()
 
                 complete_ints1_uuids = load_alias_uuids(ints1_ret)
                 complete_ints2_uuids = load_alias_uuids(ints2_ret)
-                complete_int1_uuid = load_action_yaml(
-                    self.cache.data / str(int1_ret.uuid))['action']['alias-of']
+                complete_int1_uuid = load_alias_uuid(int1_ret)
                 complete_list_uuids = load_alias_uuids(list_ret)
                 complete_dict_uuids = load_alias_uuids(dict_ret)
+                complete_identity_uuid = load_alias_uuid(identity_ret)
+                complete_viz_uuid = load_alias_uuid(viz_ret)
 
                 # Assert that the artifacts returned by the completed run of
                 # the pipeline are aliases of the artifacts created by the
@@ -579,27 +597,35 @@ class TestCache(unittest.TestCase):
                 self.assertEqual(int1_uuid, str(complete_int1_uuid))
                 self.assertEqual(list_uuids, str(complete_list_uuids))
                 self.assertEqual(dict_uuids, str(complete_dict_uuids))
+                self.assertEqual(identity_uuid, str(complete_identity_uuid))
+                self.assertEqual(viz_uuid, str(complete_viz_uuid))
 
                 # Pass in a different string, this should cause the returns
                 # from varied_method to not be reused and the others to be
                 # reused
-                future = \
-                    resumable_varied_pipeline.parsl(ints1, ints2, int1, 'Bye')
-                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
-                    future.result()
+                future = resumable_varied_pipeline.parsl(
+                    ints1, ints2, int1, 'Bye', metadata)
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                    identity_ret, viz_ret = future.result()
 
                 complete_ints1_uuids = load_alias_uuids(ints1_ret)
                 complete_ints2_uuids = load_alias_uuids(ints2_ret)
-                complete_int1_uuid = load_action_yaml(
-                    self.cache.data / str(int1_ret.uuid))['action']['alias-of']
+                complete_int1_uuid = load_alias_uuid(int1_ret)
                 complete_list_uuids = load_alias_uuids(list_ret)
                 complete_dict_uuids = load_alias_uuids(dict_ret)
+                complete_identity_uuid = load_alias_uuid(identity_ret)
+                complete_viz_uuid = load_alias_uuid(viz_ret)
 
+                # list_uuids not equal because it uses a return from
+                # varied_method as its input
                 self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
                 self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
                 self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
                 self.assertNotEqual(list_uuids, str(complete_list_uuids))
                 self.assertEqual(dict_uuids, str(complete_dict_uuids))
+                self.assertEqual(identity_uuid, str(complete_identity_uuid))
+                self.assertEqual(viz_uuid, str(complete_viz_uuid))
+
 
     def test_collection_list_input_cache(self):
         list_method = self.plugin.methods['list_of_ints']
@@ -764,11 +790,14 @@ class TestCache(unittest.TestCase):
             Cache()
 
 
+def load_alias_uuid(result):
+    return load_action_yaml(result._archiver.path)['action']['alias-of']
+
+
 def load_alias_uuids(collection):
     uuids = []
 
-    for artifact in collection.values():
-        uuids.append(load_action_yaml(
-            artifact._archiver.path)['action']['alias-of'])
+    for result in collection.values():
+        uuids.append(load_alias_uuid(result))
 
     return uuids
