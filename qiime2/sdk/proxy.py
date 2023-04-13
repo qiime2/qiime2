@@ -108,7 +108,6 @@ class ProxyResults:
         self._future_ = future
         self._signature_ = signature
 
-    # TODO: These need to be smart enough to give the correct proxy type
     def __iter__(self):
         """Give us a ProxyArtifact for each result in the future
         """

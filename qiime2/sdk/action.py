@@ -23,7 +23,6 @@ import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 from qiime2.sdk.parsl_config import get_parsl_config
 from qiime2.sdk.context import Context
-from qiime2.sdk.results import Results
 from qiime2.sdk.proxy import Proxy
 
 
@@ -240,28 +239,31 @@ class Action(metaclass=abc.ABCMeta):
                 output_types = self.signature.solve_output(**user_input)
                 callable_args = self.signature.coerce_user_input(**user_input)
 
-                # If we have a named pool, check if we have an indexed result
-                # for this action
-                if ctx.cache.named_pool is not None:
-                    indexed = ctx.check_index(self, **callable_args)
-                    if indexed is not None:
-                        return indexed
-
                 callable_args = \
                     self.signature.transform_and_add_callable_args_to_prov(
                         provenance, **callable_args)
 
-                # Wrap in a Results object mapping output name to value so
-                # users have access to outputs by name or position. If we are
-                # using a Pipeline with parsl, then we need to run the executor
-                # slightly differently.
-                if isinstance(self, Pipeline) and ctx.parsl:
-                    return self._callable_executor_(
-                        scope, callable_args, output_types, provenance,
-                        parsl=True)
-
-                return self._callable_executor_(
+                outputs = self._callable_executor_(
                     scope, callable_args, output_types, provenance)
+
+                if len(outputs) != len(self.signature.outputs):
+                    raise ValueError(
+                        "Number of callable outputs must match number of "
+                        "outputs defined in signature: %d != %d" %
+                        (len(outputs), len(self.signature.outputs)))
+
+                # Wrap in a Results object mapping output name to value so
+                # users have access to outputs by name or position.
+                results = qiime2.sdk.Results(
+                    self.signature.outputs.keys(), outputs)
+
+                # If we are running a pipeline through parsl, we need to create
+                # a future here because the parsl join app the pipeline was
+                # running in is expected to return a future
+                if isinstance(self, Pipeline) and ctx.parsl:
+                    return _create_future(results)
+
+                return results
 
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
@@ -496,15 +498,7 @@ class Method(Action):
             self.signature.coerce_given_outputs(output_views, output_types,
                                                 scope, provenance)
 
-        results = Results(self.signature.outputs.keys(), output_artifacts)
-
-        if len(results) != len(self.signature.outputs):
-            raise ValueError(
-                "Number of callable outputs must match number of "
-                "outputs defined in signature: %d != %d" %
-                (len(results), len(self.signature.outputs)))
-
-        return results
+        return tuple(output_artifacts)
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
@@ -542,15 +536,8 @@ class Visualizer(Action):
             viz = qiime2.sdk.Visualization._from_data_dir(temp_dir,
                                                           provenance)
             viz = scope.add_parent_reference(viz)
-            results = Results(self.signature.outputs.keys(), (viz,))
 
-            if len(results) != len(self.signature.outputs):
-                raise ValueError(
-                    "Number of callable outputs must match number of "
-                    "outputs defined in signature: %d != %d" %
-                    (len(results), len(self.signature.outputs)))
-
-            return results
+            return (viz, )
 
     @classmethod
     def _init(cls, callable, inputs, parameters, plugin_id, name, description,
@@ -571,37 +558,20 @@ class Pipeline(Action):
     def _callable_sig_converter_(self, callable):
         return DropFirstParameter.from_function(callable)
 
-    def _callable_executor_(self, scope, view_args, output_types, provenance,
-                            parsl=False):
+    def _callable_executor_(self, scope, view_args, output_types, provenance):
         outputs = self._callable(scope.ctx, **view_args)
+        # Just make sure we have an iterable even if there was only one output
         outputs = tuplize(outputs)
         # Make sure any collections returned are in the form of
-        # ResultCollections
-        outputs = self._transform_output_collections(outputs)
-
-        # If we are using parsl, these will be futures from parsl actions,
-        # and we need the results of those futures.
-        if parsl:
-            _outputs = []
-            for output in outputs:
-                if isinstance(output, dict):
-                    _output = {}
-                    for k, v in output.items():
-                        _output[k] = v.get_element(v._future_.result())
-                else:
-                    _outputs.append(
-                        output.get_element(output._future_.result()))
-
-            outputs = tuple(_outputs)
+        # ResultCollections and that futures are resolved
+        #
+        # TODO: Ideally we would not need to resolve futures here as this
+        # prevents us from properly parallelizing nested pipelines
+        outputs = self._coerce_pipeline_outputs(outputs)
 
         for output in outputs:
             if isinstance(output, qiime2.sdk.ResultCollection):
                 for elem in output.values():
-                    if not isinstance(elem, qiime2.sdk.Result):
-                        raise TypeError("Pipelines must return `Result` "
-                                        "objects, not %s" % (type(elem), ))
-            elif isinstance(output, qiime2.sdk.Results):
-                for elem in output.output.values():
                     if not isinstance(elem, qiime2.sdk.Result):
                         raise TypeError("Pipelines must return `Result` "
                                         "objects, not %s" % (type(elem), ))
@@ -659,26 +629,25 @@ class Pipeline(Action):
                 "outputs defined in signature: %d != %d" %
                 (len(results), len(self.signature.outputs)))
 
-        results = Results(self.signature.outputs.keys(), tuple(results))
+        return tuple(results)
 
-        # If we are using parsl, we are expecting a future in return from the
-        # join app the pipeline is running in.
-        if parsl:
-            return _create_future(results)
-        else:
-            return results
-
-    def _transform_output_collections(self, outputs):
-        transformed_outputs = []
+    def _coerce_pipeline_outputs(self, outputs):
+        """Ensure all futures are resolved and all collections are of type
+           ResultCollection
+        """
+        coerced_outputs = []
 
         for output in outputs:
-            if isinstance(output, dict) or isinstance(output, list):
-                transformed_output = qiime2.sdk.ResultCollection(output)
-                transformed_outputs.append(transformed_output)
-            else:
-                transformed_outputs.append(output)
+            if isinstance(output, Proxy):
+                output = output.result()
 
-        return tuple(transformed_outputs)
+            if isinstance(output, dict) or \
+                    isinstance(output, list):
+                output = qiime2.sdk.ResultCollection(output)
+
+            coerced_outputs.append(output)
+
+        return tuple(coerced_outputs)
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
