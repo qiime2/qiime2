@@ -96,7 +96,7 @@ class ProxyCollection(Proxy):
         return self.get_element(self._future_.result())
 
 
-class ProxyResults:
+class ProxyResults(Proxy):
     """This represents future results that are being returned by a Parsl app
     """
     def __init__(self, future, signature):
