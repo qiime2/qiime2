@@ -13,14 +13,14 @@ class Proxy:
 
 
 class ProxyResult(Proxy):
-    pass
+    def __init__(self, future, selector, signature=None):
+        """We have a future that represents the results of some QIIME 2 action,
+        and we have a selector indicating specifically which result we want
+        """
+        self._future_ = future
+        self._selector_ = selector
+        self._signature_ = signature
 
-
-# TODO: Can put all artifact API methods on this class because we know what
-# type it will be (maybe not uuid)
-class ProxyArtifact(Proxy):
-    """This represents a future Artifact that is being returned by a Parsl app
-    """
     @property
     def _archiver(self):
         return self.result()._archiver
@@ -41,14 +41,20 @@ class ProxyArtifact(Proxy):
     def citations(self):
         return self._archiver.citations
 
-    def __init__(self, future, selector, signature=None):
-        """We have a future that represents the results of some QIIME 2 action,
-        and we have a selector indicating specifically which result we want
-        """
-        self._future_ = future
-        self._selector_ = selector
-        self._signature_ = signature
+    def result(self):
+        return self.get_element(self._future_.result())
 
+    def get_element(self, results):
+        """Get the result we want off of the future we have
+        """
+        return getattr(results, self._selector_)
+
+
+# TODO: Can put all artifact API methods on this class because we know what
+# type it will be (maybe not uuid)
+class ProxyArtifact(ProxyResult):
+    """This represents a future Artifact that is being returned by a Parsl app
+    """
     def __repr__(self):
         if self._signature_ is None:
             return f'<artifact: Unknown Type {object.__repr__(self)}>'
@@ -56,18 +62,10 @@ class ProxyArtifact(Proxy):
             return \
                 f'<artifact: {self._signature_[self._selector_].qiime_type}>'
 
-    def get_element(self, results):
-        """Get the result we want off of the future we have
-        """
-        return getattr(results, self._selector_)
-
     def view(self, type):
         """If we want to view the result we need the future to be resolved
         """
         return self.get_element(self._future_.result()).view(type)
-
-    def result(self):
-        return self.get_element(self._future_.result())
 
 
 class ProxyVisualization(ProxyResult):

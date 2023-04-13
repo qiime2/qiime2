@@ -626,7 +626,6 @@ class TestCache(unittest.TestCase):
                 self.assertEqual(identity_uuid, str(complete_identity_uuid))
                 self.assertEqual(viz_uuid, str(complete_viz_uuid))
 
-
     def test_collection_list_input_cache(self):
         list_method = self.plugin.methods['list_of_ints']
         dict_method = self.plugin.methods['dict_of_ints']
