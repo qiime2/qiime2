@@ -9,7 +9,7 @@ from qiime2.core.type.util import is_visualization_type, is_collection_type
 
 
 class Proxy:
-    """Abstract base class to indicate that a given class that inherit from it
+    """Abstract base class to indicate that a given class that inherits from it
     is a proxy
     """
     pass
