@@ -663,32 +663,7 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertEqual(identity_uuid, complete_identity_uuid)
             self.assertEqual(viz_uuid, complete_viz_uuid)
 
-            # # Pass in a different string, this should cause the returns
-            # # from varied_method to not be reused and the others to be
-            # # reused
-            # ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
-            #     identity_ret, viz_ret = self.pipeline(
-            #         self.ints1, self.ints2, int1, 'Bye', metadata)
-
-            # complete_ints1_uuids = load_alias_uuids(ints1_ret)
-            # complete_ints2_uuids = load_alias_uuids(ints2_ret)
-            # complete_int1_uuid = load_alias_uuid(int1_ret)
-            # complete_list_uuids = load_alias_uuids(list_ret)
-            # complete_dict_uuids = load_alias_uuids(dict_ret)
-            # complete_identity_uuid = load_alias_uuid(identity_ret)
-            # complete_viz_uuid = load_alias_uuid(viz_ret)
-
-            # # list_uuids not equal because it uses a return from
-            # # varied_method as its input
-            # self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
-            # self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
-            # self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
-            # self.assertNotEqual(list_uuids, str(complete_list_uuids))
-            # self.assertEqual(dict_uuids, str(complete_dict_uuids))
-            # self.assertEqual(identity_uuid, str(complete_identity_uuid))
-            # self.assertEqual(viz_uuid, str(complete_viz_uuid))
-
-    def test_resumable_pipeline_parsl(self):
+      def test_resumable_pipeline_parsl(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 future = self.pipeline.parsl(
@@ -722,32 +697,6 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertEqual(dict_uuids, complete_dict_uuids)
             self.assertEqual(identity_uuid, complete_identity_uuid)
             self.assertEqual(viz_uuid, complete_viz_uuid)
-
-            # Pass in a different string, this should cause the returns
-            # from varied_method to not be reused and the others to be
-            # reused
-            # future = resumable_varied_pipeline.parsl(
-            #     ints1, ints2, int1, 'Bye', metadata)
-            # ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
-            #     identity_ret, viz_ret = future.result()
-
-            # complete_ints1_uuids = load_alias_uuids(ints1_ret)
-            # complete_ints2_uuids = load_alias_uuids(ints2_ret)
-            # complete_int1_uuid = load_alias_uuid(int1_ret)
-            # complete_list_uuids = load_alias_uuids(list_ret)
-            # complete_dict_uuids = load_alias_uuids(dict_ret)
-            # complete_identity_uuid = load_alias_uuid(identity_ret)
-            # complete_viz_uuid = load_alias_uuid(viz_ret)
-
-            # # list_uuids not equal because it uses a return from
-            # # varied_method as its input
-            # self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
-            # self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
-            # self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
-            # self.assertNotEqual(list_uuids, str(complete_list_uuids))
-            # self.assertEqual(dict_uuids, str(complete_dict_uuids))
-            # self.assertEqual(identity_uuid, str(complete_identity_uuid))
-            # self.assertEqual(viz_uuid, str(complete_viz_uuid))
 
     def test_resumable_pipeline_artifact_varies(self):
         with self.pool:
