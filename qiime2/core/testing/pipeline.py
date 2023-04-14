@@ -8,6 +8,7 @@
 
 from .type import SingleInt, Mapping
 from qiime2.sdk.result import ResultCollection
+from qiime2.core.testing.util import PipelineError
 
 
 def parameter_only_pipeline(ctx, int1, int2=2, metadata=None):
@@ -140,20 +141,20 @@ def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
     viz_ret, = most_common_viz(ints2[1])
 
     if fail:
-        ints1_uuids = [str(result.uuid) for result in ints1_ret.values()]
-        ints2_uuids = [str(result.uuid) for result in ints2_ret.values()]
-        int1_uuid = str(int1_ret.uuid)
+        uuids = []
 
-        list_uuids = [str(result.uuid) for result in list_ret.values()]
-        dict_uuids = [str(result.uuid) for result in dict_ret.values()]
+        uuids.append([str(result.uuid) for result in ints1_ret.values()])
+        uuids.append([str(result.uuid) for result in ints2_ret.values()])
+        uuids.append(str(int1_ret.uuid))
 
-        identity_uuid = str(identity_ret.uuid)
+        uuids.append([str(result.uuid) for result in list_ret.values()])
+        uuids.append([str(result.uuid) for result in dict_ret.values()])
 
-        viz_uuid = str(viz_ret.uuid)
+        uuids.append(str(identity_ret.uuid))
 
-        raise ValueError(f'{ints1_uuids}_{ints2_uuids}_{int1_uuid}'
-                         f'_{list_uuids}_{dict_uuids}_{identity_uuid}'
-                         f'_{viz_uuid}')
+        uuids.append(str(viz_ret.uuid))
+
+        raise PipelineError(uuids)
 
     return (ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret,
             viz_ret)
@@ -186,20 +187,20 @@ def resumable_nested_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
     viz_ret, = most_common_viz(ints2_ret[1])
 
     if fail:
-        ints1_uuids = [str(result.uuid) for result in ints1_ret.values()]
-        ints2_uuids = [str(result.uuid) for result in ints2_ret.values()]
-        int1_uuid = str(int1_ret.uuid)
+        uuids = []
 
-        list_uuids = [str(result.uuid) for result in list_ret.values()]
-        dict_uuids = [str(result.uuid) for result in dict_ret.values()]
+        uuids.append([str(result.uuid) for result in ints1_ret.values()])
+        uuids.append([str(result.uuid) for result in ints2_ret.values()])
+        uuids.append(str(int1_ret.uuid))
 
-        identity_uuid = str(identity_ret.uuid)
+        uuids.append([str(result.uuid) for result in list_ret.values()])
+        uuids.append([str(result.uuid) for result in dict_ret.values()])
 
-        viz_uuid = str(viz_ret.uuid)
+        uuids.append(str(identity_ret.uuid))
 
-        raise ValueError(f'{ints1_uuids}_{ints2_uuids}_{int1_uuid}'
-                         f'_{list_uuids}_{dict_uuids}_{identity_uuid}'
-                         f'_{viz_uuid}')
+        uuids.append(str(viz_ret.uuid))
+
+        raise PipelineError(uuids)
 
     return (ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret,
             viz_ret)

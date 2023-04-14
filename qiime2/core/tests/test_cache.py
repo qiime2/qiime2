@@ -27,7 +27,7 @@ from flufl.lock import LockState
 import qiime2
 from qiime2.core.cache import Cache, _exit_cleanup, get_cache, _get_user
 from qiime2.core.testing.type import IntSequence1, IntSequence2, SingleInt
-from qiime2.core.testing.util import get_dummy_plugin
+from qiime2.core.testing.util import get_dummy_plugin, PipelineError
 from qiime2.sdk.result import Artifact
 from qiime2.core.util import load_action_yaml
 
@@ -400,232 +400,6 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.data))
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
-    def test_resumable_pipeline(self):
-        resumable_pipeline = self.plugin.pipelines['resumable_pipeline']
-
-        pool = self.cache.create_pool('pool')
-        art = Artifact.import_data(IntSequence1, [0, 1, 2])
-
-        with self.cache:
-            with pool:
-                with self.assertRaises(ValueError) as e:
-                    resumable_pipeline(art, fail=True)
-
-                left_uuid, right_uuid = str(e.exception).split('_')
-                left, right = resumable_pipeline(art)
-
-                complete_left_uuid = load_action_yaml(
-                    self.cache.data / str(left.uuid))['action']['alias-of']
-                complete_right_uuid = load_action_yaml(
-                    self.cache.data / str(right.uuid))['action']['alias-of']
-
-                # Assert that the artifacts returned by the completed run of
-                # the pipeline are aliases of the artifacts created by the
-                # first failed run
-                self.assertEqual(left_uuid, complete_left_uuid)
-                self.assertEqual(right_uuid, complete_right_uuid)
-
-    def test_resumable_pipeline_no_pool(self):
-        resumable_pipeline = self.plugin.pipelines['resumable_pipeline']
-
-        art = Artifact.import_data(IntSequence1, [0, 1, 2])
-
-        with self.cache:
-            with self.assertRaises(ValueError) as e:
-                resumable_pipeline(art, fail=True)
-
-            left_uuid, right_uuid = str(e.exception).split('_')
-            left, right = resumable_pipeline(art)
-
-            complete_left_uuid = load_action_yaml(
-                self.cache.data / str(left.uuid))['action']['alias-of']
-            complete_right_uuid = load_action_yaml(
-                self.cache.data / str(right.uuid))['action']['alias-of']
-
-            # Noting should have been cached because we did not use a pool at
-            # all
-            self.assertNotEqual(left_uuid, complete_left_uuid)
-            self.assertNotEqual(right_uuid, complete_right_uuid)
-
-    def test_resumable_collection_pipeline(self):
-        resumable_collection_pipeline = \
-            self.plugin.pipelines['resumable_collection_pipeline']
-
-        pool = self.cache.create_pool('pool')
-
-        int_list = [Artifact.import_data(SingleInt, 0),
-                    Artifact.import_data(SingleInt, 1)]
-        int_dict = {'1': Artifact.import_data(SingleInt, 0),
-                    '2': Artifact.import_data(SingleInt, 1)}
-
-        with self.cache:
-            with pool:
-                with self.assertRaises(ValueError) as e:
-                    resumable_collection_pipeline(
-                                int_list, int_dict, fail=True)
-
-                list_uuids, dict_uuids = str(e.exception).split('_')
-                list_return, dict_return = \
-                    resumable_collection_pipeline(int_list, int_dict)
-
-                complete_list_uuids = load_alias_uuids(list_return)
-                complete_dict_uuids = load_alias_uuids(dict_return)
-
-                # Assert that the artifacts returned by the completed run of
-                # the pipeline are aliases of the artifacts created by the
-                # first failed run
-                self.assertEqual(list_uuids, str(complete_list_uuids))
-                self.assertEqual(dict_uuids, str(complete_dict_uuids))
-
-    def test_resumable_varied_pipeline(self):
-        resumable_varied_pipeline = \
-            self.plugin.pipelines['resumable_varied_pipeline']
-
-        pool = self.cache.create_pool('pool')
-
-        ints1 = {'1': Artifact.import_data(SingleInt, 0),
-                 '2': Artifact.import_data(SingleInt, 1)}
-        ints2 = [Artifact.import_data(IntSequence1, [0, 1, 2]),
-                 Artifact.import_data(IntSequence1, [3, 4, 5])]
-        int1 = Artifact.import_data(SingleInt, 42)
-
-        df = pd.DataFrame({'a': ['1', '2', '3']},
-                          index=pd.Index(['0', '1', '2'], name='feature ID'))
-        metadata = qiime2.Metadata(df)
-
-        with self.cache:
-            with pool:
-                with self.assertRaises(ValueError) as e:
-                    resumable_varied_pipeline(
-                        ints1, ints2, int1, 'Hi', metadata, fail=True)
-
-                ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
-                    identity_uuid, viz_uuid = str(e.exception).split('_')
-
-                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
-                    identity_ret, viz_ret = resumable_varied_pipeline(
-                        ints1, ints2, int1, 'Hi', metadata)
-
-                complete_ints1_uuids = load_alias_uuids(ints1_ret)
-                complete_ints2_uuids = load_alias_uuids(ints2_ret)
-                complete_int1_uuid = load_alias_uuid(int1_ret)
-                complete_list_uuids = load_alias_uuids(list_ret)
-                complete_dict_uuids = load_alias_uuids(dict_ret)
-                complete_identity_uuid = load_alias_uuid(identity_ret)
-                complete_viz_uuid = load_alias_uuid(viz_ret)
-
-                # Assert that the artifacts returned by the completed run of
-                # the pipeline are aliases of the artifacts created by the
-                # first failed run
-                self.assertEqual(ints1_uuids, str(complete_ints1_uuids))
-                self.assertEqual(ints2_uuids, str(complete_ints2_uuids))
-                self.assertEqual(int1_uuid, str(complete_int1_uuid))
-                self.assertEqual(list_uuids, str(complete_list_uuids))
-                self.assertEqual(dict_uuids, str(complete_dict_uuids))
-                self.assertEqual(identity_uuid, str(complete_identity_uuid))
-                self.assertEqual(viz_uuid, str(complete_viz_uuid))
-
-                # Pass in a different string, this should cause the returns
-                # from varied_method to not be reused and the others to be
-                # reused
-                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
-                    identity_ret, viz_ret = resumable_varied_pipeline(
-                        ints1, ints2, int1, 'Bye', metadata)
-
-                complete_ints1_uuids = load_alias_uuids(ints1_ret)
-                complete_ints2_uuids = load_alias_uuids(ints2_ret)
-                complete_int1_uuid = load_alias_uuid(int1_ret)
-                complete_list_uuids = load_alias_uuids(list_ret)
-                complete_dict_uuids = load_alias_uuids(dict_ret)
-                complete_identity_uuid = load_alias_uuid(identity_ret)
-                complete_viz_uuid = load_alias_uuid(viz_ret)
-
-                # list_uuids not equal because it uses a return from
-                # varied_method as its input
-                self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
-                self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
-                self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
-                self.assertNotEqual(list_uuids, str(complete_list_uuids))
-                self.assertEqual(dict_uuids, str(complete_dict_uuids))
-                self.assertEqual(identity_uuid, str(complete_identity_uuid))
-                self.assertEqual(viz_uuid, str(complete_viz_uuid))
-
-    def test_parsl_resumable_varied_pipeline(self):
-        resumable_varied_pipeline = \
-            self.plugin.pipelines['resumable_varied_pipeline']
-
-        pool = self.cache.create_pool('pool')
-
-        ints1 = {'1': Artifact.import_data(SingleInt, 0),
-                 '2': Artifact.import_data(SingleInt, 1)}
-        ints2 = [Artifact.import_data(IntSequence1, [0, 1, 2]),
-                 Artifact.import_data(IntSequence1, [3, 4, 5])]
-        int1 = Artifact.import_data(SingleInt, 42)
-
-        df = pd.DataFrame({'a': ['1', '2', '3']},
-                          index=pd.Index(['0', '1', '2'], name='feature ID'))
-        metadata = qiime2.Metadata(df)
-
-        with self.cache:
-            with pool:
-                with self.assertRaises(ValueError) as e:
-                    future = resumable_varied_pipeline.parsl(
-                        ints1, ints2, int1, 'Hi', metadata, fail=True)
-                    future.result()
-
-                ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
-                    identity_uuid, viz_uuid = str(e.exception).split('_')
-
-                future = resumable_varied_pipeline.parsl(
-                    ints1, ints2, int1, 'Hi', metadata)
-                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
-                    identity_ret, viz_ret = future.result()
-
-                complete_ints1_uuids = load_alias_uuids(ints1_ret)
-                complete_ints2_uuids = load_alias_uuids(ints2_ret)
-                complete_int1_uuid = load_alias_uuid(int1_ret)
-                complete_list_uuids = load_alias_uuids(list_ret)
-                complete_dict_uuids = load_alias_uuids(dict_ret)
-                complete_identity_uuid = load_alias_uuid(identity_ret)
-                complete_viz_uuid = load_alias_uuid(viz_ret)
-
-                # Assert that the artifacts returned by the completed run of
-                # the pipeline are aliases of the artifacts created by the
-                # first failed run
-                self.assertEqual(ints1_uuids, str(complete_ints1_uuids))
-                self.assertEqual(ints2_uuids, str(complete_ints2_uuids))
-                self.assertEqual(int1_uuid, str(complete_int1_uuid))
-                self.assertEqual(list_uuids, str(complete_list_uuids))
-                self.assertEqual(dict_uuids, str(complete_dict_uuids))
-                self.assertEqual(identity_uuid, str(complete_identity_uuid))
-                self.assertEqual(viz_uuid, str(complete_viz_uuid))
-
-                # Pass in a different string, this should cause the returns
-                # from varied_method to not be reused and the others to be
-                # reused
-                future = resumable_varied_pipeline.parsl(
-                    ints1, ints2, int1, 'Bye', metadata)
-                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
-                    identity_ret, viz_ret = future.result()
-
-                complete_ints1_uuids = load_alias_uuids(ints1_ret)
-                complete_ints2_uuids = load_alias_uuids(ints2_ret)
-                complete_int1_uuid = load_alias_uuid(int1_ret)
-                complete_list_uuids = load_alias_uuids(list_ret)
-                complete_dict_uuids = load_alias_uuids(dict_ret)
-                complete_identity_uuid = load_alias_uuid(identity_ret)
-                complete_viz_uuid = load_alias_uuid(viz_ret)
-
-                # list_uuids not equal because it uses a return from
-                # varied_method as its input
-                self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
-                self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
-                self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
-                self.assertNotEqual(list_uuids, str(complete_list_uuids))
-                self.assertEqual(dict_uuids, str(complete_dict_uuids))
-                self.assertEqual(identity_uuid, str(complete_identity_uuid))
-                self.assertEqual(viz_uuid, str(complete_viz_uuid))
-
     def test_collection_list_input_cache(self):
         list_method = self.plugin.methods['list_of_ints']
         dict_method = self.plugin.methods['dict_of_ints']
@@ -787,6 +561,473 @@ class TestCache(unittest.TestCase):
 
         with self.assertWarnsRegex(UserWarning, "in an inconsistent state"):
             Cache()
+
+
+class TestPipelineResumption(unittest.TestCase):
+    def setUp(self):
+        # Get our pipeline
+        self.plugin = get_dummy_plugin()
+        self.pipeline = self.plugin.pipelines['resumable_varied_pipeline']
+
+        # Create temp test dir
+        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+
+        # Create cache and pool
+        self.cache = Cache(os.path.join(self.test_dir.name, 'cache'))
+        self.pool = self.cache.create_pool('pool')
+
+        # Create artifacts
+        self.ints1 = {'1': Artifact.import_data(SingleInt, 0),
+                      '2': Artifact.import_data(SingleInt, 1)}
+        self.ints1_2 = {'3': Artifact.import_data(SingleInt, 1),
+                        '4': Artifact.import_data(SingleInt, 2)}
+        self.ints2 = [Artifact.import_data(IntSequence1, [0, 1, 2]),
+                      Artifact.import_data(IntSequence1, [3, 4, 5])]
+        self.int1 = Artifact.import_data(SingleInt, 42)
+        self.int2 = Artifact.import_data(SingleInt, 43)
+
+        # Create metadata
+        df1 = pd.DataFrame({'a': ['1', '2', '3']},
+                           index=pd.Index(['0', '1', '2'], name='feature ID'))
+        self.md1 = qiime2.Metadata(df1)
+        df2 = pd.DataFrame({'b': ['4', '5', '6']},
+                           index=pd.Index(['0', '1', '2'], name='feature ID'))
+        self.md2 = qiime2.Metadata(df2)
+
+    def tearDown(self):
+        """Remove our cache and all that from last test
+        """
+        self.test_dir.cleanup()
+
+    def test_resumable_pipeline_no_pool(self):
+        with self.cache:
+            with self.assertRaises(PipelineError) as e:
+                self.pipeline(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret, \
+                viz_ret = self.pipeline(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1)
+
+            complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            complete_int1_uuid = load_alias_uuid(int1_ret)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Nothing should have been recyled because we didn't use a pool
+            self.assertNotEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertNotEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertNotEqual(int1_uuid, complete_int1_uuid)
+            self.assertNotEqual(list_uuids, complete_list_uuids)
+            self.assertNotEqual(dict_uuids, complete_dict_uuids)
+            self.assertNotEqual(identity_uuid, complete_identity_uuid)
+            self.assertNotEqual(viz_uuid, complete_viz_uuid)
+
+    def test_resumable_pipeline(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                self.pipeline(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = self.pipeline(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1)
+
+            complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            complete_int1_uuid = load_alias_uuid(int1_ret)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed run of
+            # the pipeline are aliases of the artifacts created by the
+            # first failed run
+            self.assertEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertEqual(int1_uuid, complete_int1_uuid)
+            self.assertEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+            # # Pass in a different string, this should cause the returns
+            # # from varied_method to not be reused and the others to be
+            # # reused
+            # ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+            #     identity_ret, viz_ret = self.pipeline(
+            #         self.ints1, self.ints2, int1, 'Bye', metadata)
+
+            # complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            # complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            # complete_int1_uuid = load_alias_uuid(int1_ret)
+            # complete_list_uuids = load_alias_uuids(list_ret)
+            # complete_dict_uuids = load_alias_uuids(dict_ret)
+            # complete_identity_uuid = load_alias_uuid(identity_ret)
+            # complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # # list_uuids not equal because it uses a return from
+            # # varied_method as its input
+            # self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
+            # self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
+            # self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
+            # self.assertNotEqual(list_uuids, str(complete_list_uuids))
+            # self.assertEqual(dict_uuids, str(complete_dict_uuids))
+            # self.assertEqual(identity_uuid, str(complete_identity_uuid))
+            # self.assertEqual(viz_uuid, str(complete_viz_uuid))
+
+    def test_resumable_pipeline_parsl(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                future = self.pipeline.parsl(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+                future.result()
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            future = self.pipeline.parsl(
+                self.ints1, self.ints2, self.int1, 'Hi', self.md1)
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = future.result()
+
+            complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            complete_int1_uuid = load_alias_uuid(int1_ret)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed run of
+            # the pipeline are aliases of the artifacts created by the
+            # first failed run
+            self.assertEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertEqual(int1_uuid, complete_int1_uuid)
+            self.assertEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+            # Pass in a different string, this should cause the returns
+            # from varied_method to not be reused and the others to be
+            # reused
+            # future = resumable_varied_pipeline.parsl(
+            #     ints1, ints2, int1, 'Bye', metadata)
+            # ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+            #     identity_ret, viz_ret = future.result()
+
+            # complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            # complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            # complete_int1_uuid = load_alias_uuid(int1_ret)
+            # complete_list_uuids = load_alias_uuids(list_ret)
+            # complete_dict_uuids = load_alias_uuids(dict_ret)
+            # complete_identity_uuid = load_alias_uuid(identity_ret)
+            # complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # # list_uuids not equal because it uses a return from
+            # # varied_method as its input
+            # self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
+            # self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
+            # self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
+            # self.assertNotEqual(list_uuids, str(complete_list_uuids))
+            # self.assertEqual(dict_uuids, str(complete_dict_uuids))
+            # self.assertEqual(identity_uuid, str(complete_identity_uuid))
+            # self.assertEqual(viz_uuid, str(complete_viz_uuid))
+
+    def test_resumable_pipeline_artifact_varies(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                self.pipeline(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            # Pass int2 instead of int1
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = self.pipeline(
+                    self.ints1, self.ints2, self.int2, 'Hi', self.md1)
+
+            complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            complete_int1_uuid = load_alias_uuid(int1_ret)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed pipeline that
+            # are implicated by the changed input are not aliases while the
+            # others are
+            self.assertNotEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertNotEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertNotEqual(int1_uuid, complete_int1_uuid)
+            self.assertNotEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_resumable_pipeline_artifact_varies_parsl(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                future = self.pipeline.parsl(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+                future.result()
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            # Pass int2 instead of int1
+            future = self.pipeline.parsl(
+                self.ints1, self.ints2, self.int2, 'Hi', self.md1)
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret, \
+                viz_ret = future.result()
+
+            complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            complete_int1_uuid = load_alias_uuid(int1_ret)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed pipeline that
+            # are implicated by the changed input are not aliases while the
+            # others are
+            self.assertNotEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertNotEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertNotEqual(int1_uuid, complete_int1_uuid)
+            self.assertNotEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_resumable_pipeline_collection_varies(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                self.pipeline(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            # Pass ints1_2 instead of ints1
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = self.pipeline(
+                    self.ints1_2, self.ints2, self.int1, 'Hi', self.md1)
+
+            complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            complete_int1_uuid = load_alias_uuid(int1_ret)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed pipeline that
+            # are implicated by the changed input are not aliases while the
+            # others are
+            self.assertNotEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertNotEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertNotEqual(int1_uuid, complete_int1_uuid)
+            self.assertNotEqual(list_uuids, complete_list_uuids)
+            self.assertNotEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_resumable_pipeline_collection_varies_parsl(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                future = self.pipeline.parsl(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+                future.result()
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            # Pass ints1_2 instead of ints1
+            future = self.pipeline.parsl(
+                self.ints1_2, self.ints2, self.int2, 'Hi', self.md1)
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret, \
+                viz_ret = future.result()
+
+            complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            complete_int1_uuid = load_alias_uuid(int1_ret)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed pipeline that
+            # are implicated by the changed input are not aliases while the
+            # others are
+            self.assertNotEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertNotEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertNotEqual(int1_uuid, complete_int1_uuid)
+            self.assertNotEqual(list_uuids, complete_list_uuids)
+            self.assertNotEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_resumable_pipeline_str_varies(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                self.pipeline(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            # Pass in Bye instead of Hi
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = self.pipeline(
+                    self.ints1, self.ints2, self.int1, 'Bye', self.md1)
+
+            complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            complete_int1_uuid = load_alias_uuid(int1_ret)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed pipeline that
+            # are implicated by the changed input are not aliases while the
+            # others are
+            self.assertNotEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertNotEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertNotEqual(int1_uuid, complete_int1_uuid)
+            self.assertNotEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_resumable_pipeline_str_varies_parsl(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                future = self.pipeline.parsl(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+                future.result()
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            # Pass in Bye instead of Hi
+            future = self.pipeline.parsl(
+                self.ints1, self.ints2, self.int1, 'Bye', self.md1)
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = future.result()
+
+            complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            complete_int1_uuid = load_alias_uuid(int1_ret)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed pipeline that
+            # are implicated by the changed input are not aliases while the
+            # others are
+            self.assertNotEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertNotEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertNotEqual(int1_uuid, complete_int1_uuid)
+            self.assertNotEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_resumable_pipeline_md_varies(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                self.pipeline(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            # Pass in md2 instead of md1
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = self.pipeline(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md2)
+
+            complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            complete_int1_uuid = load_alias_uuid(int1_ret)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed pipeline that
+            # are implicated by the changed input are not aliases while the
+            # others are
+            self.assertEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertEqual(int1_uuid, complete_int1_uuid)
+            self.assertEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertNotEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_resumable_pipeline_md_varies_parsl(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                future = self.pipeline.parsl(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+                future.result()
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            # Pass in md2 instead of md1
+            future = self.pipeline.parsl(
+                self.ints1, self.ints2, self.int1, 'Hi', self.md2)
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = future.result()
+
+            complete_ints1_uuids = load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = load_alias_uuids(ints2_ret)
+            complete_int1_uuid = load_alias_uuid(int1_ret)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed pipeline that
+            # are implicated by the changed input are not aliases while the
+            # others are
+            self.assertEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertEqual(int1_uuid, complete_int1_uuid)
+            self.assertEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertNotEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
 
 
 def load_alias_uuid(result):
