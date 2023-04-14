@@ -663,7 +663,7 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertEqual(identity_uuid, complete_identity_uuid)
             self.assertEqual(viz_uuid, complete_viz_uuid)
 
-      def test_resumable_pipeline_parsl(self):
+    def test_resumable_pipeline_parsl(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 future = self.pipeline.parsl(
