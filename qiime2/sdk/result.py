@@ -571,7 +571,7 @@ class ResultCollection:
         """Saves a colleciton of QIIME 2 Results into a given directory with
            an order file.
 
-           NOTE: The firectory given must not exist
+           NOTE: The directory given must not exist
         """
         if os.path.exists(directory):
             raise ValueError(f"The given directory '{directory}' already "
