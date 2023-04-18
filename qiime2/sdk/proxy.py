@@ -70,7 +70,16 @@ class ProxyArtifact(ProxyResult):
 
 
 class ProxyVisualization(ProxyResult):
-    pass
+    """This represents a future Visualization that is being returned by a Parsl
+       app
+    """
+    def __repr__(self):
+        if self._signature_ is None:
+            return f'<visualization: Unknown Type {object.__repr__(self)}>'
+        else:
+            return \
+                f'<visualization: ' \
+                f'{self._signature_[self._selector_].qiime_type}>'
 
 
 class ProxyCollection(Proxy):
