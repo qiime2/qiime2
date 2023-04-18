@@ -161,37 +161,33 @@ def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
 
 
 def resumable_nested_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
-                                     fail=False, inner_fail=False):
-    resumable_varied_pipeline = ctx.get_action(
-        'dummy_plugin', 'resumable_varied_pipeline')
-
-    ints1_ret1, ints2_ret1, int1_ret1, list_ret1, dict_ret1, identity_ret1, \
-        viz_ret1 = resumable_varied_pipeline(
-            ints1, ints2, int1, string, metadata, inner_fail)
-
-    varied_method = ctx.get_action('dummy_plugin', 'varied_method')
+                                     fail=False):
+    internal_pipeline = ctx.get_action('dummy_plugin',
+                                       'internal_fail_pipeline')
     list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
     dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
     identity_with_metadata = ctx.get_action('dummy_plugin',
                                             'identity_with_metadata')
     most_common_viz = ctx.get_action('dummy_plugin', 'most_common_viz')
 
-    ints1_ret, ints2_ret, int1_ret = varied_method(
-        ints1_ret1, ints2_ret1, int1_ret1, string)
+    list_ret, = list_of_ints(ints1)
+    dict_ret, = dict_of_ints(ints1)
 
-    list_ret, = list_of_ints(ints1_ret)
-    dict_ret, = dict_of_ints(ints1_ret1)
+    identity_ret, = identity_with_metadata(ints2[0], metadata)
 
-    identity_ret, = identity_with_metadata(ints2_ret1[0], metadata)
+    viz_ret, = most_common_viz(ints2[1])
 
-    viz_ret, = most_common_viz(ints2_ret[1])
-
-    if fail:
-        uuids = []
-
-        uuids.append([str(result.uuid) for result in ints1_ret.values()])
-        uuids.append([str(result.uuid) for result in ints2_ret.values()])
-        uuids.append(str(int1_ret.uuid))
+    try:
+        # TODO: This breaks our rules, if we want to handle an exception in a
+        # pipeline we need to know whether we are using parsl or not
+        if ctx.parsl:
+            future = internal_pipeline(ints1, ints2, int1, string, fail)
+            ints1_ret, ints2_ret, int1_ret = future.result()
+        else:
+            ints1_ret, ints2_ret, int1_ret = internal_pipeline(
+                ints1, ints2, int1, string, fail)
+    except PipelineError as e:
+        uuids = [uuid for uuid in e.uuids]
 
         uuids.append([str(result.uuid) for result in list_ret.values()])
         uuids.append([str(result.uuid) for result in dict_ret.values()])
@@ -204,6 +200,24 @@ def resumable_nested_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
 
     return (ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret,
             viz_ret)
+
+
+def internal_fail_pipeline(ctx, ints1, ints2, int1, string, fail=False):
+    varied_method = ctx.get_action('dummy_plugin', 'varied_method')
+
+    ints1_ret, ints2_ret, int1_ret = varied_method(
+        ints1, ints2, int1, string)
+
+    if fail:
+        uuids = []
+
+        uuids.append([str(result.uuid) for result in ints1_ret.values()])
+        uuids.append([str(result.uuid) for result in ints2_ret.values()])
+        uuids.append(str(int1_ret.uuid))
+
+        raise PipelineError(uuids)
+
+    return ints1_ret, ints2_ret, int1_ret
 
 
 def list_pipeline(ctx, ints):

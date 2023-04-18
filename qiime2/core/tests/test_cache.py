@@ -568,6 +568,8 @@ class TestPipelineResumption(unittest.TestCase):
         # Get our pipeline
         self.plugin = get_dummy_plugin()
         self.pipeline = self.plugin.pipelines['resumable_varied_pipeline']
+        self.nested_pipeline = \
+            self.plugin.pipelines['resumable_nested_varied_pipeline']
 
         # Create temp test dir
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
@@ -978,9 +980,90 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertNotEqual(identity_uuid, complete_identity_uuid)
             self.assertEqual(viz_uuid, complete_viz_uuid)
 
+    def test_nested_resumable_pipeline(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                self.nested_pipeline(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            # We now run the not nested version. This will be able to reuse the
+            # returns from varied_method
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = self.nested_pipeline(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1)
+
+            complete_ints1_uuids = load_nested_alias_uuids(
+                ints1_ret, self.cache)
+            complete_ints2_uuids = load_nested_alias_uuids(
+                ints2_ret, self.cache)
+            complete_int1_uuid = load_nested_alias_uuid(int1_ret, self.cache)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed run of the
+            # pipeline are aliases of the artifacts created by the first failed
+            # run
+            self.assertEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertEqual(int1_uuid, complete_int1_uuid)
+            self.assertEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_nested_resumable_pipeline_parsl(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                future = self.nested_pipeline.parsl(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    fail=True)
+                future.result()
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            future = self.nested_pipeline.parsl(
+                    self.ints1, self.ints2, self.int1, 'Hi', self.md1)
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = future.result()
+
+            complete_ints1_uuids = load_nested_alias_uuids(
+                ints1_ret, self.cache)
+            complete_ints2_uuids = load_nested_alias_uuids(
+                ints2_ret, self.cache)
+            complete_int1_uuid = load_nested_alias_uuid(int1_ret, self.cache)
+            complete_list_uuids = load_alias_uuids(list_ret)
+            complete_dict_uuids = load_alias_uuids(dict_ret)
+            complete_identity_uuid = load_alias_uuid(identity_ret)
+            complete_viz_uuid = load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed run of the
+            # pipeline are aliases of the artifacts created by the first failed
+            # run
+            self.assertEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertEqual(int1_uuid, complete_int1_uuid)
+            self.assertEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
 
 def load_alias_uuid(result):
     return load_action_yaml(result._archiver.path)['action']['alias-of']
+
+
+def load_nested_alias_uuid(result, cache):
+    alias_uuid = load_alias_uuid(result)
+    aliased_result = qiime2.sdk.Result.load(
+        os.path.join(cache.data, alias_uuid))
+    return load_alias_uuid(aliased_result)
 
 
 def load_alias_uuids(collection):
@@ -990,3 +1073,16 @@ def load_alias_uuids(collection):
         uuids.append(load_alias_uuid(result))
 
     return uuids
+
+
+def load_nested_alias_uuids(collection, cache):
+    alias_uuids = load_alias_uuids(collection)
+
+    # load_alias_uuids is expecting a dictionary, so just make a dictionary
+    # here so it gets what it wants
+    alias_results = {}
+    for idx, alias_uuid in enumerate(alias_uuids):
+        alias_results[idx] = \
+            qiime2.sdk.Result.load(os.path.join(cache.data, alias_uuid))
+
+    return load_alias_uuids(alias_results)

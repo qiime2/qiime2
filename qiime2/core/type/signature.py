@@ -617,7 +617,8 @@ class PipelineSignature:
         if type(value) is set:
             inner = UnionExp((self._infer_type(key, v) for v in value))
             return Set[inner.normalize()]
-        if type(value) is dict:
+        if type(value) is dict or \
+                isinstance(value, qiime2.sdk.ResultCollection):
             inner = UnionExp(
                 (self._infer_type(key, v) for v in value.values()))
             return Collection[inner.normalize()]

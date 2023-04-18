@@ -25,6 +25,7 @@ class TestUtil(unittest.TestCase):
         exp = [('dummy-plugin', set([
             'To be resumed',
             'Do stuff normally, but override this one step sometimes',
+            'Internal fail pipeline',
             'Takes and returns a combination of colletions and non collections'
         ]))]
         self.assertEqual(obs, exp)

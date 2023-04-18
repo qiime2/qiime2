@@ -56,7 +56,8 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        pipelines_in_pipeline, resumable_pipeline,
                        resumable_collection_pipeline,
                        resumable_varied_pipeline,
-                       resumable_nested_varied_pipeline, list_pipeline,
+                       resumable_nested_varied_pipeline,
+                       internal_fail_pipeline, list_pipeline,
                        collection_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
@@ -802,7 +803,6 @@ dummy_plugin.pipelines.register_function(
                  'meant to reuse results from first run durng second run')
 )
 
-T = TypeMatch([IntSequence1, IntSequence2])
 dummy_plugin.pipelines.register_function(
     function=resumable_nested_varied_pipeline,
     inputs={
@@ -814,7 +814,6 @@ dummy_plugin.pipelines.register_function(
         'string': Str,
         'metadata': Metadata,
         'fail': Bool,
-        'inner_fail': Bool,
     },
     outputs=[
         ('ints1_ret', Collection[SingleInt]),
@@ -828,6 +827,28 @@ dummy_plugin.pipelines.register_function(
     name='To be resumed',
     description=('Called first with fail=True then again with fail=False '
                  'meant to reuse results from first run durng second run')
+)
+
+dummy_plugin.pipelines.register_function(
+    function=internal_fail_pipeline,
+    inputs={
+        'ints1': Collection[SingleInt],
+        'ints2': List[T],
+        'int1': SingleInt,
+    },
+    parameters={
+        'string': Str,
+        'fail': Bool,
+    },
+    outputs=[
+        ('ints1_ret', Collection[SingleInt]),
+        ('ints2_ret', Collection[T]),
+        ('int1_ret', SingleInt),
+    ],
+    name='Internal fail pipeline',
+    description=('This pipeline is called inside of '
+                 'resumable_nested_variable_pipeline to mimic a nested '
+                 'pipeline failing')
 )
 
 dummy_plugin.pipelines.register_function(
