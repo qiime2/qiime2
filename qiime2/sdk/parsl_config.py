@@ -156,7 +156,7 @@ def get_parsl_config():
 
 class ParallelConfig():
     def __init__(self, parsl_config=None, action_executor_mapping={}):
-        """Tell QIIME 2 how to parsl
+        """Tell QIIME 2 how to parsl from the Python API
 
         action_executor_mapping: maps actions to executors. All unmapped
         actions will be run on the default executor. We check which executor a
