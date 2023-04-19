@@ -586,6 +586,9 @@ class ResultCollection:
                 result.save(result_fp)
                 fh.write(f'{name}\n')
 
+        # Do this to give us a unified API with Result.save
+        return directory
+
     def keys(self):
         return self.collection.keys()
 
