@@ -568,7 +568,7 @@ class ResultCollection:
         return self.collection[key]
 
     def save(self, directory):
-        """Saves a colleciton of QIIME 2 Results into a given directory with
+        """Saves a collection of QIIME 2 Results into a given directory with
            an order file.
 
            NOTE: The directory given must not exist
