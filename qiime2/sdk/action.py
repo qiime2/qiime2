@@ -341,8 +341,8 @@ class Action(metaclass=abc.ABCMeta):
         for key, value in kwargs.items():
             if isinstance(value, Proxy):
                 futures.append(value._future_)
-                remapped_kwargs[key] = arg.__class__(len(futures) - 1,
-                                                     value._selector_)
+                remapped_kwargs[key] = value.__class__(len(futures) - 1,
+                                                       value._selector_)
             else:
                 remapped_kwargs[key] = value
 
