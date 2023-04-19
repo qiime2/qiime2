@@ -144,7 +144,7 @@ def get_parsl_config():
                     label='tpool'
                 )
             ],
-            #  AdHoc Clusters should not be setup with scaling strategy.
+            # AdHoc Clusters should not be setup with scaling strategy.
             strategy='none',
         )
     else:
