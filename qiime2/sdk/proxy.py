@@ -52,6 +52,11 @@ class ProxyResult(Proxy):
         """
         return getattr(results, self._selector_)
 
+    def save(self, filepath, ext=None):
+        """Blocks then calls save on the result.
+        """
+        return self.result().save(filepath, ext=ext)
+
 
 class ProxyArtifact(ProxyResult):
     """This represents a future Artifact that is being returned by a Parsl app
@@ -104,6 +109,11 @@ class ProxyCollection(Proxy):
 
     def result(self):
         return self.get_element(self._future_.result())
+
+    def save(self, directory):
+        """Blocks then calls save on the result.
+        """
+        return self.result().save(directory)
 
 
 class ProxyResults(Proxy):
