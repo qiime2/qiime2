@@ -49,7 +49,7 @@ def get_config(fp):
         return None
 
     config_dict = toml.load(fp)
-    return config_dict.pop('parsl')
+    return config_dict.get('parsl')
 
 
 def process_key(key, value):
