@@ -13,7 +13,6 @@ import appdirs
 import threading
 import importlib
 
-# Do a parsl?
 from parsl.config import Config
 from parsl.providers import LocalProvider
 from parsl.executors.threads import ThreadPoolExecutor
