@@ -47,7 +47,7 @@ def setup_parsl(config_fp=None):
     """
     if config_fp is None:
         # If a config was already explicitly set and this function was called
-        # gain without an explicit filepath, do not replace the manually set
+        # again without an explicit filepath, do not replace the manually set
         # config with an internal one
         if PARSL_CONFIG.parsl_config is not None:
             return
