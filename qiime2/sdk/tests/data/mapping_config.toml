@@ -1,5 +1,4 @@
 [parsl_config]
-
 strategy = "None"
 
 [[parsl_config.executors]]
@@ -14,3 +13,6 @@ class = "LocalProvider"
 class = "ThreadPoolExecutor"
 label = "tpool"
 max_threads = 6
+
+[action_executor_mapping]
+foo = "tpool"
