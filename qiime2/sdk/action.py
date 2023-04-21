@@ -29,8 +29,6 @@ from qiime2.sdk.proxy import Proxy
 def _subprocess_apply(action, ctx, args, kwargs):
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
-    action.executor['type'] = 'asynchronous'
-
     with ctx.cache:
         exe = action._bind(lambda: qiime2.sdk.Context(parent=ctx))
         results = exe(*args, **kwargs)

@@ -28,8 +28,9 @@ class Context:
             # an executor object when we write this to then read this from
             # provenance
             self.executor_name_type_mapping = \
-                {v.label: str(type(v))
-                 for v in PARSL_CONFIG.parsl_config.executors}
+                None if PARSL_CONFIG.parsl_config is None \
+                else {v.label: str(type(v))
+                      for v in PARSL_CONFIG.parsl_config.executors}
             self.parsl = parsl
             self.cache = get_cache()
             # Only ever do this on the root context. We only want to index the
