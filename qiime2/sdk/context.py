@@ -14,19 +14,29 @@ from qiime2.sdk.parsl_config import PARSL_CONFIG
 
 
 class Context:
-    def __init__(self, parent=None, parsl=False):
+    def __init__(self, parent=None, parsl=False,
+                 execution_context={'type': 'synchronous'}):
         if parent is not None:
             self.action_executor_mapping = parent.action_executor_mapping
+            self.executor_name_type_mapping = parent.executor_name_type_mapping
             self.parsl = parent.parsl
             self.cache = parent.cache
+            self.execution_context = parent.execution_context
         else:
             self.action_executor_mapping = PARSL_CONFIG.action_executor_mapping
+            # Cast type to str so yaml doesn't think it needs tpo instantiate
+            # an executor object when we write this to then read this from
+            # provenance
+            self.executor_name_type_mapping = \
+                {v.label: str(type(v))
+                 for v in PARSL_CONFIG.parsl_config.executors}
             self.parsl = parsl
             self.cache = get_cache()
             # Only ever do this on the root context. We only want to index the
             # pool once before we start adding our own stuff to it.
             if self.cache.named_pool is not None:
                 self.cache.named_pool.create_index()
+            self.execution_context = execution_context
 
         self._parent = parent
         self._scope = None

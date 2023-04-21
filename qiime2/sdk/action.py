@@ -96,8 +96,7 @@ class Action(metaclass=abc.ABCMeta):
     # Private constructor
     @classmethod
     def _init(cls, callable, signature, plugin_id, name, description,
-              citations, deprecated, examples,
-              executor={'type': 'synchronous'}):
+              citations, deprecated, examples):
         """
 
         Parameters
@@ -113,15 +112,14 @@ class Action(metaclass=abc.ABCMeta):
         """
         self = cls.__new__(cls)
         self.__init(callable, signature, plugin_id, name, description,
-                    citations, deprecated, examples, executor)
+                    citations, deprecated, examples)
         return self
 
     # This "extra private" constructor is necessary because `Action` objects
     # can be initialized from a static (classmethod) context or on an
     # existing instance (see `_init` and `__setstate__`, respectively).
     def __init(self, callable, signature, plugin_id, name, description,
-               citations, deprecated, examples,
-               executor={'type': 'synchronous'}):
+               citations, deprecated, examples):
         self._callable = callable
         self.signature = signature
         self.plugin_id = plugin_id
@@ -130,7 +128,6 @@ class Action(metaclass=abc.ABCMeta):
         self.citations = citations
         self.deprecated = deprecated
         self.examples = examples
-        self.executor = executor
 
         self.id = callable.__name__
         self._dynamic_call = self._get_callable_wrapper()
@@ -181,7 +178,6 @@ class Action(metaclass=abc.ABCMeta):
             'citations': self.citations,
             'deprecated': self.deprecated,
             'examples': self.examples,
-            'executor': self.executor,
         })
 
     def __setstate__(self, state):
@@ -227,7 +223,7 @@ class Action(metaclass=abc.ABCMeta):
             # manager will clean up. (It also cleans up when things go right)
             with ctx as scope:
                 provenance = self._ProvCaptureCls(
-                    self.type, self.plugin_id, self.id, self.executor)
+                    self.type, self.plugin_id, self.id, ctx.execution_context)
                 scope.add_reference(provenance)
 
                 # Collate user arguments
@@ -302,8 +298,10 @@ class Action(metaclass=abc.ABCMeta):
             args = args[1:]
 
             pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)
-            future = pool.submit(_subprocess_apply, self, qiime2.sdk.Context(),
-                                 args, kwargs)
+            future = pool.submit(
+                _subprocess_apply, self, qiime2.sdk.Context(
+                    execution_context={'type': 'asynchronous'}),
+                args, kwargs)
             # TODO: pool.shutdown(wait=False) caused the child process to
             # hang unrecoverably. This seems to be a bug in Python 3.7
             # It's probably best to gut concurrent.futures entirely, so we're
@@ -355,27 +353,24 @@ class Action(metaclass=abc.ABCMeta):
         # If the user specified a particular executor for a this action
         # determine that here
         executor = ctx.action_executor_mapping.get(self.id, 'default')
-
-        # raise ValueError(dir(PARSL_CONFIG.parsl_config.executors))
-        self.executor['type'] = 'parsl'
-        # TODO: Replace this with the actual class of executor used
-        self.executor['label'] = executor
-
-        # for _executor in PARSL_CONFIG.parsl_config.executors:
-        #     if _executor.label == executor:
-        #         self.executor['parsl_type'] = type(_executor)
+        execution_context = {'type': 'parsl'}
 
         # Pipelines run in join apps and are a sort of synchronization point
         # right now. Unfortunately it is not currently possible to make say a
         # pipeline that calls two other pipelines within it and execute both of
         # those internal pipelines simultaneously.
         if isinstance(self, qiime2.sdk.action.Pipeline):
+            execution_context['parsl_type'] = 'DFK'
+            ctx.execution_context = execution_context
             # NOTE: Do not make this a python_app(join=True). We need it to run
             # in the parsl main thread
             future = join_app()(
                     run_parsl_action)(self, ctx, remapped_args,
                                       remapped_kwargs, inputs=futures)
         else:
+            execution_context['parsl_type'] = \
+                ctx.executor_name_type_mapping[executor]
+            ctx.execution_context = execution_context
             future = python_app(
                 executors=[executor])(
                     run_parsl_action)(self, ctx, remapped_args,
