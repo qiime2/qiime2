@@ -41,4 +41,4 @@ class TestConfig(unittest.TestCase):
         # Assert modified state
         self.assertIsInstance(PARSL_CONFIG.parsl_config, Config)
         self.assertEqual(
-            PARSL_CONFIG.action_executor_mapping, {'foo': 'tpool'})
+            PARSL_CONFIG.action_executor_mapping, {'rarefy': 'tpool'})

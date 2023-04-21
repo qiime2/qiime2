@@ -274,6 +274,15 @@ class ProvenanceCapture:
         runtime['duration'] = \
             util.duration_time(relativedelta.relativedelta(end, start))
 
+        # TODO: Import capture does not have an executor right now. Should I
+        # figure out making this happen? We could import in a pipeline running
+        # in a parsl DFK
+        if hasattr(self, 'executor'):
+            execution['executor'] = executor = collections.OrderedDict()
+            executor['type'] = self.executor['type']
+            if executor['type'] == 'parsl':
+                executor['label'] = self.executor['label']
+
         return execution
 
     def make_transformers_section(self):
@@ -375,7 +384,7 @@ class ImportProvenanceCapture(ProvenanceCapture):
 
 
 class ActionProvenanceCapture(ProvenanceCapture):
-    def __init__(self, action_type, plugin_id, action_id):
+    def __init__(self, action_type, plugin_id, action_id, executor):
         from qiime2.sdk import PluginManager
 
         super().__init__()
@@ -385,6 +394,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.inputs = OrderedKeyValue()
         self.parameters = OrderedKeyValue()
         self.output_name = ''
+        self.executor = executor
 
         self._action_citations = []
         for idx, citation in enumerate(self.action.citations):

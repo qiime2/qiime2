@@ -29,6 +29,8 @@ from qiime2.sdk.proxy import Proxy
 def _subprocess_apply(action, ctx, args, kwargs):
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
+    action.executor['type'] = 'asynchronous'
+
     with ctx.cache:
         exe = action._bind(lambda: qiime2.sdk.Context(parent=ctx))
         results = exe(*args, **kwargs)
@@ -94,7 +96,8 @@ class Action(metaclass=abc.ABCMeta):
     # Private constructor
     @classmethod
     def _init(cls, callable, signature, plugin_id, name, description,
-              citations, deprecated, examples):
+              citations, deprecated, examples,
+              executor={'type': 'synchronous'}):
         """
 
         Parameters
@@ -110,14 +113,15 @@ class Action(metaclass=abc.ABCMeta):
         """
         self = cls.__new__(cls)
         self.__init(callable, signature, plugin_id, name, description,
-                    citations, deprecated, examples)
+                    citations, deprecated, examples, executor)
         return self
 
     # This "extra private" constructor is necessary because `Action` objects
     # can be initialized from a static (classmethod) context or on an
     # existing instance (see `_init` and `__setstate__`, respectively).
     def __init(self, callable, signature, plugin_id, name, description,
-               citations, deprecated, examples):
+               citations, deprecated, examples,
+               executor={'type': 'synchronous'}):
         self._callable = callable
         self.signature = signature
         self.plugin_id = plugin_id
@@ -126,6 +130,7 @@ class Action(metaclass=abc.ABCMeta):
         self.citations = citations
         self.deprecated = deprecated
         self.examples = examples
+        self.executor = executor
 
         self.id = callable.__name__
         self._dynamic_call = self._get_callable_wrapper()
@@ -176,6 +181,7 @@ class Action(metaclass=abc.ABCMeta):
             'citations': self.citations,
             'deprecated': self.deprecated,
             'examples': self.examples,
+            'executor': self.executor,
         })
 
     def __setstate__(self, state):
@@ -221,7 +227,7 @@ class Action(metaclass=abc.ABCMeta):
             # manager will clean up. (It also cleans up when things go right)
             with ctx as scope:
                 provenance = self._ProvCaptureCls(
-                    self.type, self.plugin_id, self.id)
+                    self.type, self.plugin_id, self.id, self.executor)
                 scope.add_reference(provenance)
 
                 # Collate user arguments
@@ -348,10 +354,16 @@ class Action(metaclass=abc.ABCMeta):
 
         # If the user specified a particular executor for a this action
         # determine that here
-        if self.id in ctx.action_executor_mapping:
-            executor = ctx.action_executor_mapping[self.id]
-        else:
-            executor = 'default'
+        executor = ctx.action_executor_mapping.get(self.id, 'default')
+
+        # raise ValueError(dir(PARSL_CONFIG.parsl_config.executors))
+        self.executor['type'] = 'parsl'
+        # TODO: Replace this with the actual class of executor used
+        self.executor['label'] = executor
+
+        # for _executor in PARSL_CONFIG.parsl_config.executors:
+        #     if _executor.label == executor:
+        #         self.executor['parsl_type'] = type(_executor)
 
         # Pipelines run in join apps and are a sort of synchronization point
         # right now. Unfortunately it is not currently possible to make say a
