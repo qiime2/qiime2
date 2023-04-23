@@ -15,4 +15,4 @@ label = "tpool"
 max_threads = 6
 
 [action_executor_mapping]
-rarefy = "tpool"
+list_of_ints = "tpool"
