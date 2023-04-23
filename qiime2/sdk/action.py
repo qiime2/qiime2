@@ -22,21 +22,21 @@ import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
 from qiime2.sdk.parsl_config import PARSL_CONFIG, setup_parsl
-from qiime2.sdk.context import Context
 from qiime2.sdk.proxy import Proxy
 
 
-def _subprocess_apply(action, ctx, args, kwargs):
+def _subprocess_apply(action, ctx, execution_ctx, args, kwargs):
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
     with ctx.cache:
-        exe = action._bind(lambda: qiime2.sdk.Context(parent=ctx))
+        exe = action._bind(
+            lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
         results = exe(*args, **kwargs)
 
         return results
 
 
-def run_parsl_action(action, ctx, execution_context, args, kwargs, inputs=[]):
+def run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
     """This is what the parsl app itself actually runs. It's basically just a
     wrapper around our QIIME 2 action
     """
@@ -57,8 +57,8 @@ def run_parsl_action(action, ctx, execution_context, args, kwargs, inputs=[]):
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
     with ctx.cache:
-        exe = action._bind(lambda: Context(
-            parent=ctx, execution_context=execution_context))
+        exe = action._bind(
+            lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
         return exe(*remapped_args, **remapped_kwargs)
 
 
@@ -184,7 +184,7 @@ class Action(metaclass=abc.ABCMeta):
 
     # Use bind to bind parsl config to action when action is being sent to
     # executor
-    def _bind(self, context_factory):
+    def _bind(self, context_factory, execution_ctx={'type': 'synchronous'}):
         """Bind an action to a Context factory, returning a decorated function.
 
         This is a very primitive API and should be used primarily by the
@@ -222,7 +222,7 @@ class Action(metaclass=abc.ABCMeta):
             # manager will clean up. (It also cleans up when things go right)
             with ctx as scope:
                 provenance = self._ProvCaptureCls(
-                    self.type, self.plugin_id, self.id, ctx.execution_context)
+                    self.type, self.plugin_id, self.id, execution_ctx)
                 scope.add_reference(provenance)
 
                 # Collate user arguments
@@ -274,8 +274,7 @@ class Action(metaclass=abc.ABCMeta):
     def _get_callable_wrapper(self):
         # This is a "root" level invocation (not a nested call within a
         # pipeline), so no special factory is needed.
-        callable_wrapper = self._bind(
-            lambda: Context(execution_context={'type': 'synchronous'}))
+        callable_wrapper = self._bind(qiime2.sdk.Context)
         self._set_wrapper_name(callable_wrapper, '__call__')
         return callable_wrapper
 
@@ -299,9 +298,8 @@ class Action(metaclass=abc.ABCMeta):
 
             pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)
             future = pool.submit(
-                _subprocess_apply, self, qiime2.sdk.Context(
-                    execution_context={'type': 'asynchronous'}),
-                args, kwargs)
+                _subprocess_apply, self, qiime2.sdk.Context(),
+                {'type': 'asynchronous'}, args, kwargs)
             # TODO: pool.shutdown(wait=False) caused the child process to
             # hang unrecoverably. This seems to be a bug in Python 3.7
             # It's probably best to gut concurrent.futures entirely, so we're
@@ -353,26 +351,26 @@ class Action(metaclass=abc.ABCMeta):
         # If the user specified a particular executor for a this action
         # determine that here
         executor = ctx.action_executor_mapping.get(self.id, 'default')
-        execution_context = {'type': 'parsl'}
+        execution_ctx = {'type': 'parsl'}
 
         # Pipelines run in join apps and are a sort of synchronization point
         # right now. Unfortunately it is not currently possible to make say a
         # pipeline that calls two other pipelines within it and execute both of
         # those internal pipelines simultaneously.
         if isinstance(self, qiime2.sdk.action.Pipeline):
-            execution_context['parsl_type'] = 'DFK'
+            execution_ctx['parsl_type'] = 'DFK'
             # NOTE: Do not make this a python_app(join=True). We need it to run
             # in the parsl main thread
             future = join_app()(
-                    run_parsl_action)(self, ctx, execution_context,
+                    run_parsl_action)(self, ctx, execution_ctx,
                                       remapped_args, remapped_kwargs,
                                       inputs=futures)
         else:
-            execution_context['parsl_type'] = \
+            execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
             future = python_app(
                 executors=[executor])(
-                    run_parsl_action)(self, ctx, execution_context,
+                    run_parsl_action)(self, ctx, execution_ctx,
                                       remapped_args, remapped_kwargs,
                                       inputs=futures)
 
