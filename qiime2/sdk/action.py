@@ -36,7 +36,7 @@ def _subprocess_apply(action, ctx, args, kwargs):
         return results
 
 
-def run_parsl_action(action, ctx, args, kwargs, inputs=[]):
+def run_parsl_action(action, ctx, execution_context, args, kwargs, inputs=[]):
     """This is what the parsl app itself actually runs. It's basically just a
     wrapper around our QIIME 2 action
     """
@@ -57,7 +57,8 @@ def run_parsl_action(action, ctx, args, kwargs, inputs=[]):
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
     with ctx.cache:
-        exe = action._bind(lambda: Context(parent=ctx))
+        exe = action._bind(lambda: Context(
+            parent=ctx, execution_context=execution_context))
         return exe(*remapped_args, **remapped_kwargs)
 
 
@@ -273,7 +274,8 @@ class Action(metaclass=abc.ABCMeta):
     def _get_callable_wrapper(self):
         # This is a "root" level invocation (not a nested call within a
         # pipeline), so no special factory is needed.
-        callable_wrapper = self._bind(qiime2.sdk.Context)
+        callable_wrapper = self._bind(
+            lambda: Context(execution_context={'type': 'synchronous'}))
         self._set_wrapper_name(callable_wrapper, '__call__')
         return callable_wrapper
 
@@ -359,20 +361,20 @@ class Action(metaclass=abc.ABCMeta):
         # those internal pipelines simultaneously.
         if isinstance(self, qiime2.sdk.action.Pipeline):
             execution_context['parsl_type'] = 'DFK'
-            ctx.execution_context = execution_context
             # NOTE: Do not make this a python_app(join=True). We need it to run
             # in the parsl main thread
             future = join_app()(
-                    run_parsl_action)(self, ctx, remapped_args,
-                                      remapped_kwargs, inputs=futures)
+                    run_parsl_action)(self, ctx, execution_context,
+                                      remapped_args, remapped_kwargs,
+                                      inputs=futures)
         else:
             execution_context['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
-            ctx.execution_context = execution_context
             future = python_app(
                 executors=[executor])(
-                    run_parsl_action)(self, ctx, remapped_args,
-                                      remapped_kwargs, inputs=futures)
+                    run_parsl_action)(self, ctx, execution_context,
+                                      remapped_args, remapped_kwargs,
+                                      inputs=futures)
 
         # Again, we return a set of futures not a set of real results
         return qiime2.sdk.proxy.ProxyResults(future, self.signature.outputs)

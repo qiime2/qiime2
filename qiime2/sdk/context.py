@@ -14,14 +14,12 @@ from qiime2.sdk.parsl_config import PARSL_CONFIG
 
 
 class Context:
-    def __init__(self, parent=None, parsl=False,
-                 execution_context={'type': 'synchronous'}):
+    def __init__(self, parent=None, parsl=False, execution_context=None):
         if parent is not None:
             self.action_executor_mapping = parent.action_executor_mapping
             self.executor_name_type_mapping = parent.executor_name_type_mapping
             self.parsl = parent.parsl
             self.cache = parent.cache
-            self.execution_context = parent.execution_context
         else:
             self.action_executor_mapping = PARSL_CONFIG.action_executor_mapping
             # Cast type to str so yaml doesn't think it needs tpo instantiate
@@ -37,6 +35,14 @@ class Context:
             # pool once before we start adding our own stuff to it.
             if self.cache.named_pool is not None:
                 self.cache.named_pool.create_index()
+
+        # Our execution context could very well be different from out parent's.
+        # Exeuction context keeps track of which QIIME 2 callable was used and
+        # if it was parsl which parsl executor was used. Actions in a pipeline
+        # can use different executors.
+        if execution_context is None and parent is not None:
+            self.execution_context = parent.execution_context
+        else:
             self.execution_context = execution_context
 
         self._parent = parent

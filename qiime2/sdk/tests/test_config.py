@@ -96,7 +96,6 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(list_execution_contexts, list_expected)
         self.assertEqual(dict_execution_contexts, dict_expected)
 
-
     def test_mapping_from_dict(self):
         config = Config(
             executors=[
@@ -151,7 +150,6 @@ class TestConfig(unittest.TestCase):
 
         self.assertEqual(list_execution_contexts, list_expected)
         self.assertEqual(dict_execution_contexts, dict_expected)
-
 
     def _load_alias_execution_contexts(self, collection):
         execution_contexts = []
