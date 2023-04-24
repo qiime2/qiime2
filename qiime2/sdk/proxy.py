@@ -163,6 +163,22 @@ class ProxyResults(Proxy):
         return '\n'.join(lines)
 
     def result(self):
+        """ If you are calling an action in a try-except block in a pipeline,
+            you need to call this method on the Results object returned by the
+            action.
+
+            This is because if the Pipeline was executed with parsl, we need to
+            block on the action in the try-except to ensure we get the result
+            and raise the potential exception while we are still inside of the
+            try-except. Otherwise we would just get the exception whenever the
+            future resolved which would likely be outside of the try-except, so
+            the exception would be raised and not caught.
+
+            If you call an action in the Python API using parsl inside of a
+            context manage (a withed in Cache for instance) you also must call
+            this method there to ensure you get you don't start using a
+            different cache/pool/whatever before your future resolves.
+        """
         return self._future_.result()
 
     def _create_proxy(self, selector):

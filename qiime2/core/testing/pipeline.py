@@ -173,14 +173,8 @@ def resumable_nested_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
     viz_ret, = most_common_viz(ints2[1])
 
     try:
-        # TODO: This breaks our rules, if we want to handle an exception in a
-        # pipeline we need to know whether we are using parsl or not
-        if ctx.parsl:
-            future = internal_pipeline(ints1, ints2, int1, string, fail)
-            ints1_ret, ints2_ret, int1_ret = future.result()
-        else:
-            ints1_ret, ints2_ret, int1_ret = internal_pipeline(
-                ints1, ints2, int1, string, fail)
+        ints1_ret, ints2_ret, int1_ret = internal_pipeline(
+            ints1, ints2, int1, string, fail).result()
     except PipelineError as e:
         uuids = [uuid for uuid in e.uuids]
 
