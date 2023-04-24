@@ -114,6 +114,6 @@ class Results(tuple):
     def result(self):
         """ This exists to provide a standardized interface with ProxyResults.
             Check the 'result' method on ProxyResults for a full
-            explaination.
+            explanation.
         """
         return self
