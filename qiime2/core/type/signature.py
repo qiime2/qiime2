@@ -342,13 +342,6 @@ class PipelineSignature:
         """
         _, qiime_name = self._get_qiime_type_and_name(spec)
 
-        # TODO: Maybe if we have just a dict we turn it into a ResultCollection
-        # then we basically accept either list or ResultCollection and always
-        # return ResultCollection. People can still give us dicts, but they
-        # will be turned into ResultCollections. This may break some rules
-        # though because in collection.py we have _Collection with a view type
-        # of dict, but we will never actually have a dict inside of a Method
-
         # Transform collection from list to dict and vice versa if needed
         if qiime_name == 'Collection' and isinstance(_input, list):
             _input = self._list_to_dict(_input)
