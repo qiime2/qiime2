@@ -9,8 +9,7 @@
 The cache is used to store unzipped data on disk in a predictable and user
 controlled location. This allows us to skip constantly zipping and unzipping
 large amounts of data and taking up CPU time when storage space is not an
-issue. It also allows us to to know exactly what data has been created and
-where.
+issue. It also allows us to know exactly what data has been created and where.
 
 By default, a cache will be created under $TMPDIR/qiime2/$USER and all
 intermediate data created by QIIME 2 as it executes will be written into that
