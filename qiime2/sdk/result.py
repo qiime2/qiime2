@@ -500,8 +500,7 @@ class ResultCollection:
 
         with open(order_fp, 'r') as order_fh:
             for result_name in order_fh.read().splitlines():
-                result_fp = \
-                    cls._get_result_fp(directory, result_name)
+                result_fp = cls._get_result_fp(directory, result_name)
                 collection[result_name] = Result.load(result_fp)
 
         return collection
