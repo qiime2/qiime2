@@ -53,7 +53,7 @@ from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
-                       pipelines_in_pipeline, resumable_collection_pipeline,
+                       pipelines_in_pipeline, resumable_pipeline,
                        resumable_varied_pipeline,
                        resumable_nested_varied_pipeline,
                        internal_fail_pipeline, list_pipeline,
@@ -741,7 +741,7 @@ dummy_plugin.pipelines.register_function(
 )
 
 dummy_plugin.pipelines.register_function(
-    function=resumable_collection_pipeline,
+    function=resumable_pipeline,
     inputs={
         'int_list': List[SingleInt],
         'int_dict': Collection[SingleInt],

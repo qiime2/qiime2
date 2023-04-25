@@ -31,7 +31,7 @@ class TestConfig(unittest.TestCase):
         PARSL_CONFIG.action_executor_mapping = {}
 
         plugin = get_dummy_plugin()
-        self.pipeline = plugin.pipelines['resumable_collection_pipeline']
+        self.pipeline = plugin.pipelines['resumable_pipeline']
 
         # Create temp test dir
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
