@@ -278,7 +278,8 @@ class Archiver:
         '2': 'qiime2.core.archive.format.v2:ArchiveFormat',
         '3': 'qiime2.core.archive.format.v3:ArchiveFormat',
         '4': 'qiime2.core.archive.format.v4:ArchiveFormat',
-        '5': 'qiime2.core.archive.format.v5:ArchiveFormat'
+        '5': 'qiime2.core.archive.format.v5:ArchiveFormat',
+        '6': 'qiime2.core.archive.format.v6:ArchiveFormat'
     }
 
     @classmethod
