@@ -472,8 +472,6 @@ class Visualization(Result):
 
 
 class ResultCollection:
-    # TODO: Make this take a callable for loading individual results so I can
-    # use _load_input_file in the cli
     @classmethod
     def load(cls, directory):
         """ Determines how to load a Collection of QIIME 2 Artifacts in a
