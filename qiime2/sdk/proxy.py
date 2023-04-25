@@ -162,6 +162,17 @@ class ProxyResults(Proxy):
 
         return '\n'.join(lines)
 
+    def _create_proxy(self, selector):
+        qiime_type = self._signature_[selector].qiime_type
+
+        if is_collection_type(qiime_type):
+            return ProxyCollection(self._future_, selector, self._signature_)
+        elif is_visualization_type(qiime_type):
+            return ProxyVisualization(
+                self._future_, selector, self._signature_)
+
+        return ProxyArtifact(self._future_, selector, self._signature_)
+
     def result(self):
         """ If you are calling an action in a try-except block in a pipeline,
             you need to call this method on the Results object returned by the
@@ -180,14 +191,3 @@ class ProxyResults(Proxy):
             different cache/pool/whatever before your future resolves.
         """
         return self._future_.result()
-
-    def _create_proxy(self, selector):
-        qiime_type = self._signature_[selector].qiime_type
-
-        if is_collection_type(qiime_type):
-            return ProxyCollection(self._future_, selector, self._signature_)
-        elif is_visualization_type(qiime_type):
-            return ProxyVisualization(
-                self._future_, selector, self._signature_)
-
-        return ProxyArtifact(self._future_, selector, self._signature_)
