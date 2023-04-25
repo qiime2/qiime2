@@ -53,8 +53,7 @@ from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
-                       pipelines_in_pipeline, resumable_pipeline,
-                       resumable_collection_pipeline,
+                       pipelines_in_pipeline, resumable_collection_pipeline,
                        resumable_varied_pipeline,
                        resumable_nested_varied_pipeline,
                        internal_fail_pipeline, list_pipeline,
@@ -739,23 +738,6 @@ dummy_plugin.pipelines.register_function(
     name='Do a great many things',
     description=('Mapping is chained from typical_pipeline into '
                  'visualizer_only_pipeline')
-)
-
-dummy_plugin.pipelines.register_function(
-    function=resumable_pipeline,
-    inputs={
-        'int_sequence': IntSequence1,
-    },
-    parameters={
-        'fail': Bool
-    },
-    outputs=[
-        ('left', IntSequence1),
-        ('right', IntSequence1),
-    ],
-    name='To be resumed',
-    description=('Called first with fail=True then again with fail=False '
-                 'meant to reuse results from first run durng second run')
 )
 
 dummy_plugin.pipelines.register_function(
