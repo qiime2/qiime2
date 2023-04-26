@@ -2,15 +2,15 @@
 
 strategy = "None"
 
-[[parsl_config.executors]]
-class = "HighThroughputExecutor"
+[[parsl.executors]]
+class = "ThreadPoolExecutor"
 label = "default"
+max_threads = 6
+
+[[parsl.executors]]
+class = "HighThroughputExecutor"
+label = "htex"
 max_workers = 6
 
-[parsl_config.executors.provider]
+[parsl.executors.provider]
 class = "LocalProvider"
-
-[[parsl_config.executors]]
-class = "ThreadPoolExecutor"
-label = "tpool"
-max_threads = 6

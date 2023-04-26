@@ -1,18 +1,18 @@
-[parsl_config]
+[parsl]
 strategy = "None"
 
-[[parsl_config.executors]]
-class = "HighThroughputExecutor"
-label = "default"
-max_workers = 6
-
-[parsl_config.executors.provider]
-class = "LocalProvider"
-
-[[parsl_config.executors]]
+[[parsl.executors]]
 class = "ThreadPoolExecutor"
-label = "tpool"
+label = "default"
 max_threads = 6
 
-[action_executor_mapping]
-list_of_ints = "tpool"
+[[parsl.executors]]
+class = "HighThroughputExecutor"
+label = "htex"
+max_workers = 6
+
+[parsl.executors.provider]
+class = "LocalProvider"
+
+[parsl.executor_mapping]
+list_of_ints = "htex"

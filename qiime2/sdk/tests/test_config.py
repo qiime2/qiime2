@@ -65,7 +65,7 @@ class TestConfig(unittest.TestCase):
         # Assert modified state
         self.assertIsInstance(PARSL_CONFIG.parsl_config, Config)
         self.assertEqual(
-            PARSL_CONFIG.action_executor_mapping, {'list_of_ints': 'tpool'})
+            PARSL_CONFIG.action_executor_mapping, {'list_of_ints': 'htex'})
 
         with self.cache:
             future = self.pipeline.parsl(self.art, self.art)
@@ -79,19 +79,19 @@ class TestConfig(unittest.TestCase):
         list_expected = [{
             'type': 'parsl',
             'parsl_type':
-            "<class 'parsl.executors.threads.ThreadPoolExecutor'>"}, {
-            'type': 'parsl',
-            'parsl_type':
-            "<class 'parsl.executors.threads.ThreadPoolExecutor'>"}]
-        dict_expected = [{
-            'type': 'parsl',
-            'parsl_type':
             "<class 'parsl.executors.high_throughput.executor."
             "HighThroughputExecutor'>"}, {
             'type': 'parsl',
             'parsl_type':
             "<class 'parsl.executors.high_throughput.executor."
             "HighThroughputExecutor'>"}]
+        dict_expected = [{
+            'type': 'parsl',
+            'parsl_type':
+            "<class 'parsl.executors.threads.ThreadPoolExecutor'>"}, {
+            'type': 'parsl',
+            'parsl_type':
+            "<class 'parsl.executors.threads.ThreadPoolExecutor'>"}]
 
         self.assertEqual(list_execution_contexts, list_expected)
         self.assertEqual(dict_execution_contexts, dict_expected)
@@ -99,21 +99,21 @@ class TestConfig(unittest.TestCase):
     def test_mapping_from_dict(self):
         config = Config(
             executors=[
-                HighThroughputExecutor(
-                    label='default',
-                    max_workers=6,
-                    provider=LocalProvider()
-                ),
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
-                    label='tpool'
+                    label='default'
+                ),
+                HighThroughputExecutor(
+                    label='htex',
+                    max_workers=6,
+                    provider=LocalProvider()
                 )
             ],
             # AdHoc Clusters should not be setup with scaling strategy.
             strategy='none',
         )
 
-        mapping = {'list_of_ints': 'tpool'}
+        mapping = {'list_of_ints': 'htex'}
 
         with self.cache:
             with ParallelConfig(config, mapping):
@@ -121,7 +121,7 @@ class TestConfig(unittest.TestCase):
                 self.assertIsInstance(PARSL_CONFIG.parsl_config, Config)
                 self.assertEqual(
                     PARSL_CONFIG.action_executor_mapping,
-                    {'list_of_ints': 'tpool'})
+                    {'list_of_ints': 'htex'})
 
                 future = self.pipeline.parsl(self.art, self.art)
                 list_return, dict_return = future.result()
@@ -134,19 +134,19 @@ class TestConfig(unittest.TestCase):
         list_expected = [{
             'type': 'parsl',
             'parsl_type':
-            "<class 'parsl.executors.threads.ThreadPoolExecutor'>"}, {
-            'type': 'parsl',
-            'parsl_type':
-            "<class 'parsl.executors.threads.ThreadPoolExecutor'>"}]
-        dict_expected = [{
-            'type': 'parsl',
-            'parsl_type':
             "<class 'parsl.executors.high_throughput.executor."
             "HighThroughputExecutor'>"}, {
             'type': 'parsl',
             'parsl_type':
             "<class 'parsl.executors.high_throughput.executor."
             "HighThroughputExecutor'>"}]
+        dict_expected = [{
+            'type': 'parsl',
+            'parsl_type':
+            "<class 'parsl.executors.threads.ThreadPoolExecutor'>"}, {
+            'type': 'parsl',
+            'parsl_type':
+            "<class 'parsl.executors.threads.ThreadPoolExecutor'>"}]
 
         self.assertEqual(list_execution_contexts, list_expected)
         self.assertEqual(dict_execution_contexts, dict_expected)
