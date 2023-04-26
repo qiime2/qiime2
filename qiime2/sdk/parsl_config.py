@@ -108,9 +108,6 @@ def _get_config(fp):
     """Takes a config filepath and determines if the file exists and if so if
     it contains parsl config info.
     """
-    if fp is None:
-        return None
-
     with open(fp, 'r') as fh:
         config_dict = tomlkit.load(fh)
 
@@ -121,9 +118,6 @@ def _get_mapping(config_dict):
     """Takes a config filepath and determines if the file exists and if so if
     it contains action executor mapping info.
     """
-    if config_dict is None:
-        return {}
-
     return config_dict.pop('executor_mapping', {})
 
 
