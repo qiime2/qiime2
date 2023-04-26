@@ -55,50 +55,57 @@ def setup_parsl(config_fp=None):
         # Try to load custom config (exact order maybe subject to change)
 
         # 1. Check envvar
-        config_fp = os.environ.get('QIIME_CONF')
+        config_fp = os.environ.get('QIIME2_CONFIG')
 
         if config_fp is None:
-            conda_env = os.environ.get('CONDA_DEFAULT_ENV')
+            conda_env = os.environ.get('CONDA_PREFIX')
 
             # 2. Check in user writable location
             # appdirs.user_config_dir(appname='qiime2', author='...')
             if os.path.exists(fp_ := os.path.join(
-                    appdirs.user_config_dir('qiime2'), 'qiime_conf.toml')):
+                    appdirs.user_config_dir('qiime2'), 'qiime2_config.toml')):
                 config_fp = fp_
-            # 3. Check in conda env
-            # ~/miniconda3/env/{env_name}/conf
-            # TODO: We don't enforce use of miniconda3 do we? Makes this
-            # potentially problematic
-            elif os.path.exists(fp_ := os.path.join(
-                    os.path.expanduser('~'), 'miniconda3', 'env', conda_env,
-                    'conf', 'qiime_conf.toml')):
-                config_fp = fp_
-            # 4. Check in admin writable location
+            # 3. Check in admin writable location
             # /etc/
             # site_config_dir
             # appdirs.site_config_dir(appname='qiime2, author='...')
             elif config_fp is None and os.path.exists(fp_ := os.path.join(
-                    appdirs.site_config_dir('qiime2'), 'qiime_conf.toml')):
+                    appdirs.site_config_dir('qiime2'), 'qiime2_config.toml')):
+                config_fp = fp_
+            # 4. Check in conda env
+            # ~/miniconda3/env/{env_name}/conf
+            # TODO: Use CONDA_PREFIX to get env path if we are in an environment.
+            # env_prefix/etc/qiime2/qiime2_config.toml
+            elif os.path.exists(fp_ := os.path.join(
+                    os.path.expanduser('~'), 'miniconda3', 'env', conda_env,
+                    'conf', 'qiime2_config.toml')):
                 config_fp = fp_
 
     # Check if we actually found a file containing config info or a mapping
     # dict
     config_dict = _get_config(config_fp)
-    mapping = _get_mapping(config_fp)
+    mapping = _get_mapping(config_dict)
 
     # Load vendored default
     # If no custom config do this. This will probably end up in a vendored file
+    # TODO: Put this where citations.bib is and load it similarlry also if the conda env
+    # config doesn't exist yet copy this file there.
+    #
+    # A few changes. Do not write a set vendored file instead do something here to
+    # gather some info (like CPU count) then write a file to the conda location
+    # based on the info we gather (Might be smarter about that later). Probably
+    # set tpool as default
     if config_dict is None:
         config = Config(
             executors=[
-                HighThroughputExecutor(
-                    label='default',
-                    max_workers=6,
-                    provider=LocalProvider()
-                ),
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
-                    label='tpool'
+                    label='default'
+                ),
+                HighThroughputExecutor(
+                    label='htex',
+                    max_workers=6,
+                    provider=LocalProvider()
                 )
             ],
             # AdHoc Clusters should not be setup with scaling strategy.
@@ -120,18 +127,17 @@ def _get_config(fp):
         return None
 
     config_dict = toml.load(fp)
-    return config_dict.get('parsl_config')
+    return config_dict.get('parsl')
 
 
-def _get_mapping(fp):
+def _get_mapping(config_dict):
     """Takes a config filepath and determines if the file exists and if so if
     it contains action executor mapping info.
     """
-    if fp is None:
+    if config_dict is None:
         return {}
 
-    mapping_dict = toml.load(fp)
-    return mapping_dict.get('action_executor_mapping', {})
+    return config_dict.pop('executor_mapping', {})
 
 
 def _process_config(config_dict):
