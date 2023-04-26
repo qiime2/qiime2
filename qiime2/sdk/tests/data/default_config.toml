@@ -1,5 +1,4 @@
-[parsl_config]
-
+[parsl]
 strategy = "None"
 
 [[parsl.executors]]

@@ -7,16 +7,13 @@
 # ----------------------------------------------------------------------------
 
 import os
-import toml
 import psutil
 import appdirs
+import tomlkit
 import threading
 import importlib
 
 from parsl.config import Config
-from parsl.providers import LocalProvider
-from parsl.executors.threads import ThreadPoolExecutor
-from parsl.executors import HighThroughputExecutor
 
 
 PARSL_CONFIG = threading.local()
@@ -39,6 +36,22 @@ module_paths = {
     'providers': 'parsl.providers'
 }
 
+VENDORED_FP = os.path.join(
+    os.environ.get('CONDA_PREFIX'), 'etc', 'qiime2_config.toml')
+VENDORED_CONFIG = {
+    'parsl': {
+        'strategy': 'None',
+        'executors': [
+            {'class': 'ThreadPoolExecutor', 'label': 'default',
+             'max_threads': max(psutil.cpu_count() - 1, 1)},
+            {'class': 'HighThroughputExecutor', 'label': 'htex',
+             'max_workers': max(psutil.cpu_count() - 1, 1),
+             'provider': {'class': 'LocalProvider'}}
+        ],
+        'executor_mapping': {'list_of_ints': 'htex'}
+        }
+     }
+
 
 def setup_parsl(config_fp=None):
     """Sets the parsl config and action executor mapping from a file at a given
@@ -58,8 +71,6 @@ def setup_parsl(config_fp=None):
         config_fp = os.environ.get('QIIME2_CONFIG')
 
         if config_fp is None:
-            conda_env = os.environ.get('CONDA_PREFIX')
-
             # 2. Check in user writable location
             # appdirs.user_config_dir(appname='qiime2', author='...')
             if os.path.exists(fp_ := os.path.join(
@@ -74,46 +85,20 @@ def setup_parsl(config_fp=None):
                 config_fp = fp_
             # 4. Check in conda env
             # ~/miniconda3/env/{env_name}/conf
-            # TODO: Use CONDA_PREFIX to get env path if we are in an environment.
-            # env_prefix/etc/qiime2/qiime2_config.toml
-            elif os.path.exists(fp_ := os.path.join(
-                    os.path.expanduser('~'), 'miniconda3', 'env', conda_env,
-                    'conf', 'qiime2_config.toml')):
+            elif os.path.exists(fp_ := VENDORED_FP):
                 config_fp = fp_
+            # 5. Write the vendored config to the vendored location and use
+            # that
+            else:
+                with open(VENDORED_FP, 'w') as fh:
+                    tomlkit.dump(VENDORED_CONFIG, fh)
+                config_fp = VENDORED_FP
 
-    # Check if we actually found a file containing config info or a mapping
-    # dict
     config_dict = _get_config(config_fp)
     mapping = _get_mapping(config_dict)
 
-    # Load vendored default
-    # If no custom config do this. This will probably end up in a vendored file
-    # TODO: Put this where citations.bib is and load it similarlry also if the conda env
-    # config doesn't exist yet copy this file there.
-    #
-    # A few changes. Do not write a set vendored file instead do something here to
-    # gather some info (like CPU count) then write a file to the conda location
-    # based on the info we gather (Might be smarter about that later). Probably
-    # set tpool as default
-    if config_dict is None:
-        config = Config(
-            executors=[
-                ThreadPoolExecutor(
-                    max_threads=max(psutil.cpu_count() - 1, 1),
-                    label='default'
-                ),
-                HighThroughputExecutor(
-                    label='htex',
-                    max_workers=6,
-                    provider=LocalProvider()
-                )
-            ],
-            # AdHoc Clusters should not be setup with scaling strategy.
-            strategy='none',
-        )
-    else:
-        processed_config = _process_config(config_dict)
-        config = Config(**processed_config)
+    processed_config = _process_config(config_dict)
+    config = Config(**processed_config)
 
     PARSL_CONFIG.parsl_config = config
     PARSL_CONFIG.action_executor_mapping = mapping
@@ -126,7 +111,9 @@ def _get_config(fp):
     if fp is None:
         return None
 
-    config_dict = toml.load(fp)
+    with open(fp, 'r') as fh:
+        config_dict = tomlkit.load(fh)
+
     return config_dict.get('parsl')
 
 

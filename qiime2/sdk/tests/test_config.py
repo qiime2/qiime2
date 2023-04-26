@@ -105,7 +105,7 @@ class TestConfig(unittest.TestCase):
                 ),
                 HighThroughputExecutor(
                     label='htex',
-                    max_workers=6,
+                    max_workers=max(psutil.cpu_count() - 1, 1),
                     provider=LocalProvider()
                 )
             ],
