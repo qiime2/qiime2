@@ -10,6 +10,18 @@ import qiime2.core.archive.format.v5 as v5
 
 
 class ArchiveFormat(v5.ArchiveFormat):
-    # Exactly the same as v5, but we will have an execution_context describing
-    # what executor was used and can have output collections
+    # - Adds execution_context to the execution section of action.yaml.
+    #   This looks like:
+    #
+    #   execution_context:
+    #       type: parsl/synchronous/asynchronous
+    #       parsl_type (if type is parsl): Type of executor
+    #
+    # - Adds support for output collections.
+    #   This looks like:
+    #
+    #   output-name:
+    #   - The name of the entire output collection (the qiime output name)
+    #   - The key of this element in the collection
+    #   - The index of this element in the collection
     pass
