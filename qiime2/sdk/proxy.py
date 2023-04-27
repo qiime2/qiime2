@@ -186,7 +186,7 @@ class ProxyResults(Proxy):
             the exception would be raised and not caught.
 
             If you call an action in the Python API using parsl inside of a
-            context manage (a withed in Cache for instance) you also must call
+            context manager (a withed in Cache for instance) you also must call
             this method there to ensure you get you don't start using a
             different cache/pool/whatever before your future resolves.
         """
