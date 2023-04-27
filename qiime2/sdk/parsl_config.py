@@ -47,8 +47,7 @@ VENDORED_CONFIG = {
             {'class': 'HighThroughputExecutor', 'label': 'htex',
              'max_workers': max(psutil.cpu_count() - 1, 1),
              'provider': {'class': 'LocalProvider'}}
-            ],
-        'executor_mapping': {'list_of_ints': 'htex'}
+            ]
         }
     }
 
