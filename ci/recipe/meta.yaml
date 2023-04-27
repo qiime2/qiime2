@@ -13,8 +13,6 @@ build:
 
 requirements:
   host:
-    # TODO: Pin version of openssl that supports @rpath/libssl.1.1.dylib
-    - openssl =1.1.1q
     - python {{ python }}
     - setuptools
 
