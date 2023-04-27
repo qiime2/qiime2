@@ -25,12 +25,12 @@ from qiime2.sdk.parsl_config import PARSL_CONFIG, setup_parsl
 from qiime2.sdk.proxy import Proxy
 
 
-def _subprocess_apply(action, ctx, execution_ctx, args, kwargs):
+def _subprocess_apply(action, ctx, args, kwargs):
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
     with ctx.cache:
         exe = action._bind(
-            lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
+            lambda: qiime2.sdk.Context(parent=ctx), {'type': 'asynchronous'})
         results = exe(*args, **kwargs)
 
         return results
@@ -298,8 +298,7 @@ class Action(metaclass=abc.ABCMeta):
 
             pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)
             future = pool.submit(
-                _subprocess_apply, self, qiime2.sdk.Context(),
-                {'type': 'asynchronous'}, args, kwargs)
+                _subprocess_apply, self, qiime2.sdk.Context(), args, kwargs)
             # TODO: pool.shutdown(wait=False) caused the child process to
             # hang unrecoverably. This seems to be a bug in Python 3.7
             # It's probably best to gut concurrent.futures entirely, so we're
