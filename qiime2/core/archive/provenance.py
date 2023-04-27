@@ -442,9 +442,8 @@ class ActionProvenanceCapture(ProvenanceCapture):
             self.inputs[name] = \
                 [{k: self.add_ancestor(v)} for k, v in input.items()]
         elif isinstance(input, collections.abc.Iterable):
-            self.inputs[name] = \
-                type(input)(
-                    [self.add_ancestor(artifact) for artifact in input])
+            self.inputs[name] = type(input)(
+                [self.add_ancestor(artifact) for artifact in input])
         else:
             self.inputs[name] = self.add_ancestor(input)
 
