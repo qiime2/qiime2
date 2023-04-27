@@ -43,14 +43,16 @@ def run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
     remapped_kwargs = {}
     for key, value in kwargs.items():
         if isinstance(value, Proxy):
-            remapped_kwargs[key] = value.get_element(inputs[value._future_])
+            resolved_result = inputs[value._future_]
+            remapped_kwargs[key] = value.get_element(resolved_result)
         else:
             remapped_kwargs[key] = value
 
     remapped_args = []
     for arg in args:
         if isinstance(arg, Proxy):
-            remapped_args.append(arg.get_element(inputs[arg._future_]))
+            resolved_result = inputs[arg._future_]
+            remapped_args.append(arg.get_element(resolved_result))
         else:
             remapped_args.append(arg)
 
