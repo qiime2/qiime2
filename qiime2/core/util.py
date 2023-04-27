@@ -371,6 +371,6 @@ def load_action_yaml(path):
 
 def create_collection_name(*, name, key, idx, size):
     """ Only accepts kwargs. Creates a name for a collection item in a
-        standardized way
+        standardized way. Assumes 0 based indexing.
     """
-    return [name, key, f'{idx}/{size}']
+    return [name, key, f'{idx + 1}/{size}']

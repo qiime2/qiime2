@@ -469,7 +469,7 @@ class PipelineSignature:
                         key = str(idx)
 
                     collection_name = create_collection_name(
-                        name=name, key=key, idx=idx + 1, size=size)
+                        name=name, key=key, idx=idx, size=size)
                     output[key] = self._create_output_artifact(
                         provenance, collection_name, scope, spec, view)
             elif type(output_view) is not spec.view_type:

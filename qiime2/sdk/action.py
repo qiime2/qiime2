@@ -640,7 +640,7 @@ class Pipeline(Action):
                     output.collection in spec.qiime_type:
                 size = len(output)
                 aliased_output = qiime2.sdk.ResultCollection()
-                for idx, (key, value) in enumerate(output.items(), 1):
+                for idx, (key, value) in enumerate(output.items()):
                     collection_name = create_collection_name(
                         name=name, key=key, idx=idx, size=size)
                     prov = provenance.fork(collection_name, value)
