@@ -132,7 +132,7 @@ class Context:
             #
             # The parsl factory is a bit more complicated because we need to
             # pass this exact Context along for a while longer until we run a
-            # normal _bind in action/run_parsl_action. Then we create a new
+            # normal _bind in action/_run_parsl_action. Then we create a new
             # Context with this one as its parent inside of the parsl app
             def _bind_parsl_context(ctx):
                 def _bind_parsl_args(*args, **kwargs):

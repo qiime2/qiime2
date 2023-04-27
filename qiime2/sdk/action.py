@@ -36,7 +36,7 @@ def _subprocess_apply(action, ctx, args, kwargs):
         return results
 
 
-def run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
+def _run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
     """This is what the parsl app itself actually runs. It's basically just a
     wrapper around our QIIME 2 action
     """
@@ -378,17 +378,17 @@ class Action(metaclass=abc.ABCMeta):
             # NOTE: Do not make this a python_app(join=True). We need it to run
             # in the parsl main thread
             future = join_app()(
-                    run_parsl_action)(self, ctx, execution_ctx,
-                                      remapped_args, remapped_kwargs,
-                                      inputs=futures)
+                    _run_parsl_action)(self, ctx, execution_ctx,
+                                       remapped_args, remapped_kwargs,
+                                       inputs=futures)
         else:
             execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
             future = python_app(
                 executors=[executor])(
-                    run_parsl_action)(self, ctx, execution_ctx,
-                                      remapped_args, remapped_kwargs,
-                                      inputs=futures)
+                    _run_parsl_action)(self, ctx, execution_ctx,
+                                       remapped_args, remapped_kwargs,
+                                       inputs=futures)
 
         # Again, we return a set of futures not a set of real results
         return qiime2.sdk.proxy.ProxyResults(future, self.signature.outputs)
