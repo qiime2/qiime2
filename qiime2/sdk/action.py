@@ -64,7 +64,25 @@ def run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
     with ctx.cache:
         exe = action._bind(
             lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
-        return exe(*remapped_args, **remapped_kwargs)
+        results = exe(*remapped_args, **remapped_kwargs)
+
+        # If we are running a pipeline, we need to create a future here because
+        # the parsl join app the pipeline was running in is expected to return
+        # a future, but we will have concrete results by this point if we are a
+        # pipeline
+        if isinstance(action, Pipeline) and ctx.parsl:
+            return _create_future(results)
+
+        return results
+
+
+@python_app
+def _create_future(results):
+    """ This is a bit of a dumb hack. It's just a way for us to make pipelines
+    return a future which is what Parsl wants a join_app to return even though
+    we will have real results at this point.
+    """
+    return results
 
 
 class Action(metaclass=abc.ABCMeta):
@@ -262,12 +280,6 @@ class Action(metaclass=abc.ABCMeta):
                 # users have access to outputs by name or position.
                 results = qiime2.sdk.Results(
                     self.signature.outputs.keys(), outputs)
-
-                # If we are running a pipeline through parsl, we need to create
-                # a future here because the parsl join app the pipeline was
-                # running in is expected to return a future
-                if isinstance(self, Pipeline) and ctx.parsl:
-                    return _create_future(results)
 
                 return results
 
@@ -670,15 +682,6 @@ class Pipeline(Action):
                                             output_descriptions)
         return super()._init(callable, signature, plugin_id, name, description,
                              citations, deprecated, examples)
-
-
-@python_app
-def _create_future(results):
-    """ This is a bit of a dumb hack. It's just a way for us to make pipelines
-    return a future which is what Parsl wants a join_app to return even though
-    we will have real results at this point.
-    """
-    return results
 
 
 markdown_source_template = """
