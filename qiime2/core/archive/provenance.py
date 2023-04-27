@@ -274,9 +274,6 @@ class ProvenanceCapture:
         runtime['duration'] = \
             util.duration_time(relativedelta.relativedelta(end, start))
 
-        # TODO: Import capture does not have an execution context right now.
-        # Should I figure out making this happen? We could import in a pipeline
-        # running in a parsl DFK
         if not isinstance(self, ImportProvenanceCapture):
             execution['execution_context'] = collections.OrderedDict(
                 {k: v for k, v in self.execution_context.items()})

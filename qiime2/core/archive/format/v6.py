@@ -17,6 +17,8 @@ class ArchiveFormat(v5.ArchiveFormat):
     #       type: parsl/synchronous/asynchronous
     #       parsl_type (if type is parsl): Type of executor
     #
+    #   NOTE: Import actions will not have an execution_context section
+    #
     # - Adds support for output collections.
     #   This looks like:
     #
