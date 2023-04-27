@@ -20,7 +20,8 @@ from parsl.app.app import python_app, join_app
 import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
-from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
+from qiime2.core.util import (LateBindingAttribute, DropFirstParameter,
+                              tuplize, create_collection_name)
 from qiime2.sdk.parsl_config import PARSL_CONFIG, setup_parsl
 from qiime2.sdk.proxy import Proxy
 
@@ -637,9 +638,12 @@ class Pipeline(Action):
                 results.append(aliased_result)
             elif spec.qiime_type.name == 'Collection' and \
                     output.collection in spec.qiime_type:
+                size = len(output)
                 aliased_output = qiime2.sdk.ResultCollection()
-                for key, value in output.items():
-                    prov = provenance.fork(name, value)
+                for idx, (key, value) in enumerate(output.items(), 1):
+                    collection_name = create_collection_name(
+                        name=name, key=key, idx=idx, size=size)
+                    prov = provenance.fork(collection_name, value)
                     scope.add_reference(prov)
 
                     aliased_result = value._alias(prov)

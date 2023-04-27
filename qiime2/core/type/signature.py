@@ -20,8 +20,9 @@ from .collection import List, Set, Collection
 from .primitive import infer_primitive_type
 from .visualization import Visualization
 from . import meta
-from .util import is_semantic_type, is_primitive_type, parse_primitive
-from ..util import ImmutableBase, md5sum
+from .util import (is_semantic_type, is_collection_type, is_primitive_type,
+                   parse_primitive)
+from ..util import ImmutableBase, md5sum, create_collection_name
 
 
 class __NoValueMeta(type):
@@ -451,7 +452,7 @@ class PipelineSignature:
                                              output_types.items()):
             if spec.qiime_type.name == 'Collection':
                 output = qiime2.sdk.ResultCollection()
-                collection_size = len(output_view)
+                size = len(output_view)
 
                 if isinstance(output_view, qiime2.sdk.ResultCollection) or \
                         isinstance(output_view, dict):
@@ -467,9 +468,10 @@ class PipelineSignature:
                     else:
                         key = str(idx)
 
+                    collection_name = create_collection_name(
+                        name=name, key=key, idx=idx + 1, size=size)
                     output[key] = self._create_output_artifact(
-                        provenance, name, scope, spec, view, key=key,
-                        idx_out_of=f'{idx + 1}/{collection_size}')
+                        provenance, collection_name, scope, spec, view)
             elif type(output_view) is not spec.view_type:
                 raise TypeError(
                     "Expected output view type %r, received %r" %
@@ -482,26 +484,20 @@ class PipelineSignature:
 
         return outputs
 
-    def _create_output_artifact(self, provenance, name, scope, spec, view,
-                                key=None, idx_out_of=None):
+    def _create_output_artifact(self, provenance, name, scope, spec, view):
         """ Create an output artifact from a view and add it to provenance
         """
-        # If we have a key we are dealing with an element of an output
-        # collection otherwise we are dealing with a singular output
-        if key is not None:
-            if idx_out_of is None:
-                raise ValueError('If a key is provided, the index we are out '
-                                 'of the collection size must also be '
-                                 'provided.')
-            prov = provenance.fork([name, key, idx_out_of])
-            qiime_type = spec.qiime_type.fields[0]
-        else:
-            if idx_out_of is not None:
-                raise ValueError('If we are given an index into a '
-                                 'collection, we must also be given our index '
-                                 'in the collection.')
-            prov = provenance.fork(name)
-            qiime_type = spec.qiime_type
+        prov = provenance.fork(name)
+        qiime_type = spec.qiime_type
+
+        # If we have a collection we need to get a concrete qiime_type to
+        # instantiate each artifact as.
+        #
+        # For instance, we cannot instantiate a Collection[SingleInt] from an
+        # integer. We want to instantiate a SingleInt that will be put into a
+        # ResultCollection outside of this method.
+        if is_collection_type(qiime_type):
+            qiime_type = qiime_type.fields[0]
 
         scope.add_reference(prov)
 

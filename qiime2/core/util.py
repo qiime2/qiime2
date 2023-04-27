@@ -367,3 +367,10 @@ def load_action_yaml(path):
         prov = yaml.safe_load(fh)
 
     return prov
+
+
+def create_collection_name(*, name, key, idx, size):
+    """ Only accepts kwargs. Creates a name for a collection item in a
+        standardized way
+    """
+    return [name, key, f'{idx}/{size}']
