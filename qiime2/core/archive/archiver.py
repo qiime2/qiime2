@@ -270,7 +270,7 @@ class ArchiveCheck(_Archive):
 
 
 class Archiver:
-    CURRENT_FORMAT_VERSION = '5'
+    CURRENT_FORMAT_VERSION = '6'
     _FORMAT_REGISTRY = {
         # NOTE: add more archive formats as things change
         '0': 'qiime2.core.archive.format.v0:ArchiveFormat',
