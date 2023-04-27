@@ -173,7 +173,7 @@ class ProxyResults(Proxy):
 
         return ProxyArtifact(self._future_, selector, self._signature_)
 
-    def result(self):
+    def _result(self):
         """ If you are calling an action in a try-except block in a pipeline,
             you need to call this method on the Results object returned by the
             action.

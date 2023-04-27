@@ -160,7 +160,7 @@ def resumable_nested_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
 
     try:
         ints1_ret, ints2_ret, int1_ret = internal_pipeline(
-            ints1, ints2, int1, string, fail).result()
+            ints1, ints2, int1, string, fail)._result()
     except PipelineError as e:
         uuids = [uuid for uuid in e.uuids]
 

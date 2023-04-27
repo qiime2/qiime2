@@ -69,7 +69,7 @@ class TestConfig(unittest.TestCase):
 
         with self.cache:
             future = self.pipeline.parsl(self.art, self.art)
-            list_return, dict_return = future.result()
+            list_return, dict_return = future._result()
 
         list_execution_contexts = self._load_alias_execution_contexts(
             list_return)
@@ -124,7 +124,7 @@ class TestConfig(unittest.TestCase):
                     {'list_of_ints': 'htex'})
 
                 future = self.pipeline.parsl(self.art, self.art)
-                list_return, dict_return = future.result()
+                list_return, dict_return = future._result()
 
         list_execution_contexts = self._load_alias_execution_contexts(
             list_return)

@@ -671,7 +671,7 @@ class TestPipelineResumption(unittest.TestCase):
                 future = self.pipeline.parsl(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
-                future.result()
+                future._result()
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
                 identity_uuid, viz_uuid = e.exception.uuids
@@ -679,7 +679,7 @@ class TestPipelineResumption(unittest.TestCase):
             future = self.pipeline.parsl(
                 self.ints1, self.ints2, self.int1, 'Hi', self.md1)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
-                identity_ret, viz_ret = future.result()
+                identity_ret, viz_ret = future._result()
 
             complete_ints1_uuids = load_alias_uuids(ints1_ret)
             complete_ints2_uuids = load_alias_uuids(ints2_ret)
@@ -740,7 +740,7 @@ class TestPipelineResumption(unittest.TestCase):
                 future = self.pipeline.parsl(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
-                future.result()
+                future._result()
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
                 identity_uuid, viz_uuid = e.exception.uuids
@@ -749,7 +749,7 @@ class TestPipelineResumption(unittest.TestCase):
             future = self.pipeline.parsl(
                 self.ints1, self.ints2, self.int2, 'Hi', self.md1)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret, \
-                viz_ret = future.result()
+                viz_ret = future._result()
 
             complete_ints1_uuids = load_alias_uuids(ints1_ret)
             complete_ints2_uuids = load_alias_uuids(ints2_ret)
@@ -810,7 +810,7 @@ class TestPipelineResumption(unittest.TestCase):
                 future = self.pipeline.parsl(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
-                future.result()
+                future._result()
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
                 identity_uuid, viz_uuid = e.exception.uuids
@@ -819,7 +819,7 @@ class TestPipelineResumption(unittest.TestCase):
             future = self.pipeline.parsl(
                 self.ints1_2, self.ints2, self.int2, 'Hi', self.md1)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret, \
-                viz_ret = future.result()
+                viz_ret = future._result()
 
             complete_ints1_uuids = load_alias_uuids(ints1_ret)
             complete_ints2_uuids = load_alias_uuids(ints2_ret)
@@ -880,7 +880,7 @@ class TestPipelineResumption(unittest.TestCase):
                 future = self.pipeline.parsl(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
-                future.result()
+                future._result()
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
                 identity_uuid, viz_uuid = e.exception.uuids
@@ -889,7 +889,7 @@ class TestPipelineResumption(unittest.TestCase):
             future = self.pipeline.parsl(
                 self.ints1, self.ints2, self.int1, 'Bye', self.md1)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
-                identity_ret, viz_ret = future.result()
+                identity_ret, viz_ret = future._result()
 
             complete_ints1_uuids = load_alias_uuids(ints1_ret)
             complete_ints2_uuids = load_alias_uuids(ints2_ret)
@@ -950,7 +950,7 @@ class TestPipelineResumption(unittest.TestCase):
                 future = self.pipeline.parsl(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
-                future.result()
+                future._result()
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
                 identity_uuid, viz_uuid = e.exception.uuids
@@ -959,7 +959,7 @@ class TestPipelineResumption(unittest.TestCase):
             future = self.pipeline.parsl(
                 self.ints1, self.ints2, self.int1, 'Hi', self.md2)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
-                identity_ret, viz_ret = future.result()
+                identity_ret, viz_ret = future._result()
 
             complete_ints1_uuids = load_alias_uuids(ints1_ret)
             complete_ints2_uuids = load_alias_uuids(ints2_ret)
@@ -1023,7 +1023,7 @@ class TestPipelineResumption(unittest.TestCase):
                 future = self.nested_pipeline.parsl(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
-                future.result()
+                future._result()
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
                 identity_uuid, viz_uuid = e.exception.uuids
@@ -1031,7 +1031,7 @@ class TestPipelineResumption(unittest.TestCase):
             future = self.nested_pipeline.parsl(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
-                identity_ret, viz_ret = future.result()
+                identity_ret, viz_ret = future._result()
 
             complete_ints1_uuids = load_nested_alias_uuids(
                 ints1_ret, self.cache)
