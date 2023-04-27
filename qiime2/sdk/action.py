@@ -43,6 +43,8 @@ def run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
     remapped_kwargs = {}
     for key, value in kwargs.items():
         if isinstance(value, Proxy):
+            # We were hacky and set _future_ to be the index of this artifact
+            # in the inputs list
             resolved_result = inputs[value._future_]
             remapped_kwargs[key] = value.get_element(resolved_result)
         else:
@@ -51,6 +53,7 @@ def run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
     remapped_args = []
     for arg in args:
         if isinstance(arg, Proxy):
+            # Same as above with the hackiness
             resolved_result = inputs[arg._future_]
             remapped_args.append(arg.get_element(resolved_result))
         else:
