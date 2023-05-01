@@ -45,9 +45,9 @@ class ProxyResult(Proxy):
         return self._archiver.citations
 
     def result(self):
-        return self.get_element(self._future_.result())
+        return self._get_element_(self._future_.result())
 
-    def get_element(self, results):
+    def _get_element_(self, results):
         """Get the result we want off of the future we have
         """
         return getattr(results, self._selector_)
@@ -71,7 +71,7 @@ class ProxyArtifact(ProxyResult):
     def view(self, type):
         """If we want to view the result we need the future to be resolved
         """
-        return self.get_element(self._future_.result()).view(type)
+        return self._get_element_(self._future_.result()).view(type)
 
 
 class ProxyVisualization(ProxyResult):
@@ -102,13 +102,13 @@ class ProxyCollection(Proxy):
     def items(self):
         return self.result().collection.items()
 
-    def get_element(self, results):
+    def _get_element_(self, results):
         """Get the result we want off of the future we have
         """
         return getattr(results, self._selector_)
 
     def result(self):
-        return self.get_element(self._future_.result())
+        return self._get_element_(self._future_.result())
 
     def save(self, directory):
         """Blocks then calls save on the result.

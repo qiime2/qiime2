@@ -25,5 +25,13 @@ class ArchiveFormat(v5.ArchiveFormat):
     #   output-name:
     #   - The name of the entire output collection (the qiime output name)
     #   - The key of this element in the collection
-    #   - The index of this element in the collection
+    #   - The index of this element in the collection ex. '5/10' for the 5th
+    #     out of 10 elements in the collection
+    #
+    #   Input collections now look like:
+    #
+    #   input-name:
+    #   - key: value
+    #   - key: value
+    #   etc. for n elements
     pass

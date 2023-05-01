@@ -27,7 +27,7 @@ class Context:
             # provenance
             self.executor_name_type_mapping = \
                 None if PARSL_CONFIG.parsl_config is None \
-                else {v.label: str(type(v))
+                else {v.label: v.__class__.__name__
                       for v in PARSL_CONFIG.parsl_config.executors}
             self.parsl = parsl
             self.cache = get_cache()

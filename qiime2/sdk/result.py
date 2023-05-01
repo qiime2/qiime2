@@ -265,6 +265,11 @@ class Result:
 
             raise exceptions.ValidationError(error)
 
+    def result(self):
+        """ Noop to provide standardized interface with ProxyResult.
+        """
+        return self
+
 
 class Artifact(Result):
     extension = '.qza'
@@ -598,3 +603,8 @@ class ResultCollection:
     def validate(self, view, level=None):
         for result in self.values():
             result.validate(view, level)
+
+    def result(self):
+        """ Noop to provide standardized interface with ProxyCollection.
+        """
+        return self

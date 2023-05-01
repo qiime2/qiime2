@@ -79,7 +79,7 @@ def setup_parsl(config_fp=None):
             # /etc/
             # site_config_dir
             # appdirs.site_config_dir(appname='qiime2, author='...')
-            elif config_fp is None and os.path.exists(fp_ := os.path.join(
+            elif os.path.exists(fp_ := os.path.join(
                     appdirs.site_config_dir('qiime2'), 'qiime2_config.toml')):
                 config_fp = fp_
             # 4. Check in conda env
@@ -151,11 +151,11 @@ def _process_key(key, value):
     # Our key needs to point to some object.
     if key in module_paths:
         module = importlib.import_module(module_paths[key])
-        class_ = getattr(module, value.pop('class'))
+        cls = getattr(module, value.pop('class'))
         kwargs = {}
         for k, v in value.items():
             kwargs[k] = _process_key(k, v)
-        return class_(**kwargs)
+        return cls(**kwargs)
     # Our key points to primitive data
     else:
         return value

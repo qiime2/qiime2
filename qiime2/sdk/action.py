@@ -55,7 +55,7 @@ def _run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
             # We were hacky and set _future_ to be the index of this artifact
             # in the inputs list
             resolved_result = inputs[value._future_]
-            remapped_kwargs[key] = value.get_element(resolved_result)
+            remapped_kwargs[key] = value._get_element_(resolved_result)
         else:
             remapped_kwargs[key] = value
 
@@ -64,7 +64,7 @@ def _run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
         if isinstance(arg, Proxy):
             # Same as above with the hackiness
             resolved_result = inputs[arg._future_]
-            remapped_args.append(arg.get_element(resolved_result))
+            remapped_args.append(arg._get_element_(resolved_result))
         else:
             remapped_args.append(arg)
 
@@ -214,8 +214,6 @@ class Action(metaclass=abc.ABCMeta):
     def __setstate__(self, state):
         self.__init(**dill.loads(state))
 
-    # Use bind to bind parsl config to action when action is being sent to
-    # executor
     def _bind(self, context_factory, execution_ctx={'type': 'synchronous'}):
         """Bind an action to a Context factory, returning a decorated function.
 
