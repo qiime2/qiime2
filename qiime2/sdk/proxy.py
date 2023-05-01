@@ -9,10 +9,25 @@ from qiime2.core.type.util import is_visualization_type, is_collection_type
 
 
 class Proxy:
-    """Abstract base class to indicate that a given class that inherits from it
-    is a proxy
+    """Base class to indicate that a given class that inherits from it is a
+    proxy. Also implements some generic functionality
     """
-    pass
+    def __eq__(self, other):
+        return self.result == other.result()
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def _create_proxy(self, selector):
+        qiime_type = self._signature_[selector].qiime_type
+
+        if is_collection_type(qiime_type):
+            return ProxyCollection(self._future_, selector, self._signature_)
+        elif is_visualization_type(qiime_type):
+            return ProxyVisualization(
+                self._future_, selector, self._signature_)
+
+        return ProxyArtifact(self._future_, selector, self._signature_)
 
 
 class ProxyResult(Proxy):
@@ -93,14 +108,30 @@ class ProxyCollection(Proxy):
         self._selector_ = selector
         self._signature_ = signature
 
+    def __len__(self):
+        return len(self.collection)
+
+    def __iter__(self):
+        yield self.collection.__iter__()
+
+    def __setitem__(self, key, item):
+        self.collection[key] = item
+
+    def __getitem__(self, key):
+        return self.collection[key]
+
+    @property
+    def collection(self):
+        return self.result().collection
+
     def keys(self):
-        return self.result().collection.keys()
+        return self.collection.keys()
 
     def values(self):
-        return self.result().collection.values()
+        return self.collection.values()
 
     def items(self):
-        return self.result().collection.items()
+        return self.collection.items()
 
     def _get_element_(self, results):
         """Get the result we want off of the future we have
@@ -162,16 +193,10 @@ class ProxyResults(Proxy):
 
         return '\n'.join(lines)
 
-    def _create_proxy(self, selector):
-        qiime_type = self._signature_[selector].qiime_type
-
-        if is_collection_type(qiime_type):
-            return ProxyCollection(self._future_, selector, self._signature_)
-        elif is_visualization_type(qiime_type):
-            return ProxyVisualization(
-                self._future_, selector, self._signature_)
-
-        return ProxyArtifact(self._future_, selector, self._signature_)
+    def __eq__(self, other):
+        """ Overriding the one on Proxy because we have _result not result
+        """
+        return self._result() == other._result()
 
     def _result(self):
         """ If you are calling an action in a try-except block in a pipeline,

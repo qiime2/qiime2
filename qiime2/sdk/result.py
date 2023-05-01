@@ -533,7 +533,8 @@ class ResultCollection:
             result_fp += '.qza'
 
             if not os.path.isfile(result_fp):
-                result_fp = result_fp.rstrip('.qza')
+                # Get rid of the trailing .qza before adding .qzv
+                result_fp = result_fp[:-4]
                 result_fp += '.qzv'
 
                 if not os.path.isfile(result_fp):
@@ -568,6 +569,14 @@ class ResultCollection:
 
     def __getitem__(self, key):
         return self.collection[key]
+
+    @property
+    def type(self):
+        # Get the type of the first element in the collection, all elements in
+        # the collection should have the same type.
+        inner_type = list(self.collection.values())[0].type
+
+        return qiime2.core.type.Collection[inner_type]
 
     def save(self, directory):
         """Saves a collection of QIIME 2 Results into a given directory with
