@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import qiime2.core.transform as transform
+
 from qiime2.core.type.util import is_visualization_type, is_collection_type
 from qiime2.core.type.collection import Collection
 
@@ -15,7 +17,7 @@ class Proxy:
     proxy. Also implements some generic functionality
     """
     def __eq__(self, other):
-        return self.result == other.result()
+        return self.result() == other.result()
 
     def __ne__(self, other):
         return not (self == other)
@@ -49,6 +51,9 @@ class ProxyResult(Proxy):
         else:
             return f'<{self.__class__.__name__.__lower__}: {self.type}>'
 
+    def __hash__(self):
+        return hash(self.uuid)
+
     @property
     def _archiver(self):
         return self.result()._archiver
@@ -58,7 +63,7 @@ class ProxyResult(Proxy):
         if self._signature_ is not None:
             return self._signature_[self._selector_].qiime_type
 
-        return self.result.type
+        return self.result().type
 
     @property
     def uuid(self):
@@ -66,7 +71,10 @@ class ProxyResult(Proxy):
 
     @property
     def format(self):
-        return self._archiver.format
+        from qiime2.sdk import PluginManager
+
+        pm = PluginManager()
+        return pm.get_directory_format(self.type)
 
     @property
     def citations(self):
@@ -80,10 +88,16 @@ class ProxyResult(Proxy):
         """
         return getattr(results, self._selector_)
 
+    def export_data(self, output_dir):
+        return self.result().export_data(output_dir)
+
     def save(self, filepath, ext=None):
         """Blocks then calls save on the result.
         """
         return self.result().save(filepath, ext=ext)
+
+    def validate(self, level=NotImplemented):
+        return self.result().validate(level=level)
 
 
 class ProxyArtifact(ProxyResult):
@@ -94,12 +108,23 @@ class ProxyArtifact(ProxyResult):
         """
         return self._get_element_(self._future_.result()).view(type)
 
+    def has_metadata(self):
+        from qiime2 import Metadata
+
+        from_type = transform.ModelType.from_view_type(self.format)
+        to_type = transform.ModelType.from_view_type(Metadata)
+        return from_type.has_transformation(to_type)
+
+    def validate(self, level='max'):
+        self.result().validate(level=level)
+
 
 class ProxyVisualization(ProxyResult):
     """This represents a future Visualization that is being returned by a Parsl
        app
     """
-    pass
+    def get_index_paths(self, relative=True):
+        return self.result().get_index_paths(relative=relative)
 
 
 class ProxyResultCollection(Proxy):
@@ -137,6 +162,11 @@ class ProxyResultCollection(Proxy):
     def collection(self):
         return self.result().collection
 
+    def save(self, directory):
+        """Blocks then calls save on the result.
+        """
+        return self.result().save(directory)
+
     def keys(self):
         return self.collection.keys()
 
@@ -153,11 +183,6 @@ class ProxyResultCollection(Proxy):
 
     def result(self):
         return self._get_element_(self._future_.result())
-
-    def save(self, directory):
-        """Blocks then calls save on the result.
-        """
-        return self.result().save(directory)
 
 
 class ProxyResults(Proxy):
@@ -210,6 +235,9 @@ class ProxyResults(Proxy):
         """ Overriding the one on Proxy because we have _result not result
         """
         return self._result() == other._result()
+
+    def _asdict(self):
+        return self.result()._asdict()
 
     def _result(self):
         """ If you are calling an action in a try-except block in a pipeline,
