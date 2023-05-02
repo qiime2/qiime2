@@ -216,9 +216,11 @@ class ReplayPythonUsage(ArtifactAPIUsage):
     shebang = '#!/usr/bin/env python'
     header_boundary = '# ' + ('-' * 77)
     copyright = pkg_resources.resource_string(
-        __package__, 'assets/copyright_note.txt').decode('utf-8').split('\n')
+        'qiime2.core.archive.provenance_lib',
+        'assets/copyright_note.txt').decode('utf-8').split('\n')
     how_to = pkg_resources.resource_string(
-        __package__, 'assets/python_howto.txt').decode('utf-8').split('\n')
+        'qiime2.core.archive.provenance_lib',
+        'assets/python_howto.txt').decode('utf-8').split('\n')
 
     def __init__(self, enable_assertions: bool = False,
                  action_collection_size: int = 2):
