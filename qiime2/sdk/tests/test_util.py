@@ -25,6 +25,7 @@ class TestUtil(unittest.TestCase):
         exp = [('dummy-plugin', set([
             'To be resumed',
             'Do stuff normally, but override this one step sometimes',
+            'Internal fail pipeline',
             'Takes and returns a combination of colletions and non collections'
         ]))]
         self.assertEqual(obs, exp)
@@ -40,9 +41,9 @@ class TestUtil(unittest.TestCase):
         exp = [('dummy-plugin', [
             'A typical pipeline with the potential to raise an error',
             'Concatenate integers', 'Identity', 'Identity', 'Identity',
-            'Do a great many things', 'To be resumed', 'Identity', 'Identity',
-            'Identity', 'Visualize most common integers',
-            'Inputs with typing.Union', 'Split sequence of integers in half',
+            'Do a great many things', 'Identity', 'Identity', 'Identity',
+            'Visualize most common integers', 'Inputs with typing.Union',
+            'Split sequence of integers in half',
             'Test different ways of failing', 'Optional artifacts method',
             'Do stuff normally, but override this one step sometimes',
             'TypeMatch with list and set params'])]

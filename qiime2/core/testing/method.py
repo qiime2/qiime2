@@ -146,7 +146,7 @@ def list_of_ints(ints: int) -> int:
 
 
 def dict_of_ints(ints: int) -> int:
-    assert isinstance(ints, dict)
+    assert isinstance(ints, qiime2.sdk.result.ResultCollection)
     return ints
 
 
@@ -171,7 +171,7 @@ def list_params(ints: list) -> int:
 def varied_method(ints1: int, ints2: list, int1: int, string: str) -> \
                   (int, list, int):
     assert isinstance(ints1, list)
-    assert isinstance(ints2, dict)
+    assert isinstance(ints2, qiime2.sdk.result.ResultCollection)
     assert isinstance(int1, int)
     assert isinstance(string, str)
     return ints1, ints2, int1

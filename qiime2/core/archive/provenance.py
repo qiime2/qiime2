@@ -274,6 +274,10 @@ class ProvenanceCapture:
         runtime['duration'] = \
             util.duration_time(relativedelta.relativedelta(end, start))
 
+        if not isinstance(self, ImportProvenanceCapture):
+            execution['execution_context'] = collections.OrderedDict(
+                {k: v for k, v in self.execution_context.items()})
+
         return execution
 
     def make_transformers_section(self):
@@ -375,7 +379,7 @@ class ImportProvenanceCapture(ProvenanceCapture):
 
 
 class ActionProvenanceCapture(ProvenanceCapture):
-    def __init__(self, action_type, plugin_id, action_id):
+    def __init__(self, action_type, plugin_id, action_id, execution_context):
         from qiime2.sdk import PluginManager
 
         super().__init__()
@@ -385,6 +389,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.inputs = OrderedKeyValue()
         self.parameters = OrderedKeyValue()
         self.output_name = ''
+        self.execution_context = execution_context
 
         self._action_citations = []
         for idx, citation in enumerate(self.action.citations):
@@ -430,22 +435,15 @@ class ActionProvenanceCapture(ProvenanceCapture):
     def add_input(self, name, input):
         if input is None:
             self.inputs[name] = None
+        elif isinstance(input, qiime2.sdk.result.ResultCollection):
+            # If we took a Collection input, we will have a ResultCollection,
+            # and we want the keys to line up with the processed values we were
+            # given, so we can maintain the order of the artifacts
+            self.inputs[name] = \
+                [{k: self.add_ancestor(v)} for k, v in input.items()]
         elif isinstance(input, collections.abc.Iterable):
-            values = []
-            # If we took a Collection input, we will have a dict, and we want
-            # the keys to line up with the processed values we were given, so
-            # we can maintain the order of the artifacts
-            if isinstance(input, dict):
-                for artifact in input.values():
-                    record = self.add_ancestor(artifact)
-                    values.append(record)
-                self.inputs[name] = \
-                    [{k: v} for k, v in zip(input.keys(), values)]
-            else:
-                for artifact in input:
-                    record = self.add_ancestor(artifact)
-                    values.append(record)
-                self.inputs[name] = type(input)(values)
+            self.inputs[name] = type(input)(
+                [self.add_ancestor(artifact) for artifact in input])
         else:
             self.inputs[name] = self.add_ancestor(input)
 

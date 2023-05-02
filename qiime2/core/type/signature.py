@@ -16,12 +16,13 @@ import qiime2.sdk
 import qiime2.core.type as qtype
 from .grammar import TypeExp, UnionExp
 from .meta import TypeVarExp
-from .collection import List, Set
+from .collection import List, Set, Collection
 from .primitive import infer_primitive_type
 from .visualization import Visualization
 from . import meta
-from .util import is_semantic_type, is_primitive_type, parse_primitive
-from ..util import ImmutableBase, md5sum
+from .util import (is_semantic_type, is_collection_type, is_primitive_type,
+                   parse_primitive)
+from ..util import ImmutableBase, md5sum, create_collection_name
 
 
 class __NoValueMeta(type):
@@ -235,6 +236,13 @@ class PipelineSignature:
         return (annotated_inputs, annotated_parameters, annotated_outputs,
                 signature_order)
 
+    def collate_inputs(self, *args, **kwargs):
+        collated_inputs = {name: value for value, name in
+                           zip(args, self.signature_order)}
+        collated_inputs.update(kwargs)
+
+        return collated_inputs
+
     def _assert_valid_inputs(self, inputs):
         for input_name, spec in inputs.items():
             if not is_semantic_type(spec.qiime_type):
@@ -346,8 +354,12 @@ class PipelineSignature:
         if qiime_name == 'Collection' and isinstance(_input, list):
             _input = self._list_to_dict(_input)
         elif qiime_name == 'List' and \
-                isinstance(_input, dict):
+                (isinstance(_input, dict) or
+                 isinstance(_input, qiime2.sdk.ResultCollection)):
             _input = self._dict_to_list(_input)
+
+        if isinstance(_input, dict):
+            _input = qiime2.sdk.ResultCollection(_input)
 
         return _input
 
@@ -400,10 +412,10 @@ class PipelineSignature:
             recorder = provenance.transformation_recorder(name)
             # Transform all members of collection into view type
             if qtype.is_collection_type(qiime_type):
-                if isinstance(_input, dict):
-                    transformed_input = {
-                        k: v._view(spec.view_type,
-                                   recorder) for k, v in _input.items()}
+                if isinstance(_input, qiime2.sdk.result.ResultCollection):
+                    transformed_input = qiime2.sdk.result.ResultCollection(
+                        {k: v._view(spec.view_type,
+                                    recorder) for k, v in _input.items()})
                 else:
                     transformed_input = [
                         i._view(spec.view_type, recorder) for i in _input]
@@ -446,10 +458,11 @@ class PipelineSignature:
         for output_view, (name, spec) in zip(output_views,
                                              output_types.items()):
             if spec.qiime_type.name == 'Collection':
-                output = {}
-                collection_size = len(output_view)
+                output = qiime2.sdk.ResultCollection()
+                size = len(output_view)
 
-                if isinstance(output_view, dict):
+                if isinstance(output_view, qiime2.sdk.ResultCollection) or \
+                        isinstance(output_view, dict):
                     keys = list(output_view.keys())
                     values = list(output_view.values())
                 else:
@@ -462,9 +475,10 @@ class PipelineSignature:
                     else:
                         key = str(idx)
 
+                    collection_name = create_collection_name(
+                        name=name, key=key, idx=idx, size=size)
                     output[key] = self._create_output_artifact(
-                        provenance, name, scope, spec, view, key=key,
-                        idx_out_of=f'{idx + 1}/{collection_size}')
+                        provenance, collection_name, scope, spec, view)
             elif type(output_view) is not spec.view_type:
                 raise TypeError(
                     "Expected output view type %r, received %r" %
@@ -477,26 +491,20 @@ class PipelineSignature:
 
         return outputs
 
-    def _create_output_artifact(self, provenance, name, scope, spec, view,
-                                key=None, idx_out_of=None):
+    def _create_output_artifact(self, provenance, name, scope, spec, view):
         """ Create an output artifact from a view and add it to provenance
         """
-        # If we have a key we are dealing with an element of an output
-        # collection otherwise we are dealing with a singular output
-        if key is not None:
-            if idx_out_of is None:
-                raise ValueError('If a key is provided, the index we are out '
-                                 'of the collection size must also be '
-                                 'provided.')
-            prov = provenance.fork([name, key, idx_out_of])
-            qiime_type = spec.qiime_type.fields[0]
-        else:
-            if idx_out_of is not None:
-                raise ValueError('If we are given an index into a '
-                                 'collection, we must also be given our index '
-                                 'in the collection.')
-            prov = provenance.fork(name)
-            qiime_type = spec.qiime_type
+        prov = provenance.fork(name)
+        qiime_type = spec.qiime_type
+
+        # If we have a collection we need to get a concrete qiime_type to
+        # instantiate each artifact as.
+        #
+        # For instance, we cannot instantiate a Collection[SingleInt] from an
+        # integer. We want to instantiate a SingleInt that will be put into a
+        # ResultCollection outside of this method.
+        if is_collection_type(qiime_type):
+            qiime_type = qiime_type.fields[0]
 
         scope.add_reference(prov)
 
@@ -605,6 +613,11 @@ class PipelineSignature:
         if type(value) is set:
             inner = UnionExp((self._infer_type(key, v) for v in value))
             return Set[inner.normalize()]
+        if type(value) is dict or \
+                isinstance(value, qiime2.sdk.ResultCollection):
+            inner = UnionExp(
+                (self._infer_type(key, v) for v in value.values()))
+            return Collection[inner.normalize()]
         if isinstance(value, qiime2.sdk.Artifact):
             return value.type
         else:
@@ -730,21 +743,25 @@ class HashableInvocation():
         into their md5sum
         """
         from qiime2 import Artifact, Metadata
+        from qiime2.sdk import ResultCollection
 
         new_collection = []
 
-        if type(collection) is dict:
+        if isinstance(collection, dict) or \
+                isinstance(collection, ResultCollection):
             for k, v in collection.items():
                 new_collection.append((k, self._make_hashable(v)))
-        elif type(collection) is list:
+        elif isinstance(collection, list):
             for elem in collection:
                 new_collection.append(self._make_hashable(elem))
         elif isinstance(collection, Artifact):
             return str(collection.uuid)
         elif isinstance(collection, Metadata):
-            with tempfile.TemporaryFile('w') as fp:
+            with tempfile.NamedTemporaryFile('w') as fh:
+                fp = fh.name
                 collection.save(fp)
                 collection = md5sum(fp)
+                return collection
         else:
             return collection
 

@@ -64,93 +64,6 @@ class Result:
         return archive.Archiver.extract(filepath, output_dir)
 
     @classmethod
-    def save_collection(cls, directory, collection):
-        """Saves a colleciton of QIIME 2 artifacts into a given directory with
-           an order file.
-
-           NOTE: The firectory given must not exist
-        """
-        if os.path.exists(directory):
-            raise ValueError(f"The given directory '{directory}' already "
-                             "exists. A new directory must be given to save "
-                             "the collection to.")
-
-        os.makedirs(directory)
-
-        with open(os.path.join(directory, '.order'), 'w') as fh:
-            for name, artifact in collection.items():
-                artifact_fp = os.path.join(directory, name)
-                artifact.save(artifact_fp)
-                fh.write(f'{name}\n')
-
-    @classmethod
-    def load_collection(cls, directory):
-        """Determines how to load a Collection of QIIME 2 Artifacts in a
-           directory and dispatches to helpers
-        """
-        if not os.path.isdir(directory):
-            raise ValueError(
-                f"Given filepath '{directory}' is not a directory")
-
-        order_fp = os.path.join(directory, '.order')
-
-        if os.path.isfile(order_fp):
-            collection = cls._load_ordered_collection(directory, order_fp)
-        else:
-            warnings.warn(f"The directory '{directory}' does not contain a "
-                          ".order file. The files will be read into the "
-                          "collection in the order the filesystem provides "
-                          "them in.")
-            collection = cls._load_unordered_collection(directory)
-
-        return collection
-
-    @classmethod
-    def _load_ordered_collection(cls, directory, order_fp):
-        collection = {}
-
-        with open(order_fp, 'r') as order_fh:
-            # TODO: Check if thing in .order file exists and if not try it with
-            # .qza at the end and if not try it with .qzv at the end
-            for result_name in order_fh.read().splitlines():
-                result_fp = \
-                    cls._get_collection_result_fp(directory, result_name)
-                collection[result_name] = cls.load(result_fp)
-
-        return collection
-
-    @classmethod
-    def _load_unordered_collection(cls, directory):
-        collection = {}
-
-        for result in os.listdir(directory):
-            result_fp = os.path.join(directory, result)
-            result_name = result.rstrip('.qza')
-            result_name = result_name.rstrip('.qzv')
-
-            collection[result_name] = cls.load(result_fp)
-
-        return collection
-
-    @classmethod
-    def _get_collection_result_fp(cls, directory, result_name):
-        result_fp = os.path.join(directory, result_name)
-
-        if not os.path.isfile(result_fp):
-            result_fp += '.qza'
-
-            if not os.path.isfile(result_fp):
-                result_fp = result_fp.rstrip('.qza')
-                result_fp += '.qzv'
-
-                if not os.path.isfile(result_fp):
-                    raise ValueError(
-                        f"The Result '{result_name}' is referenced in the "
-                        "order file but does not exist in the directory.")
-
-        return result_fp
-
-    @classmethod
     def load(cls, filepath):
         """Factory for loading Artifacts and Visualizations."""
         from qiime2.core.cache import get_cache
@@ -351,6 +264,11 @@ class Result:
                 error += "  - %r: %s -> %s\n" % (key, exp, obs)
 
             raise exceptions.ValidationError(error)
+
+    def result(self):
+        """ Noop to provide standardized interface with ProxyResult.
+        """
+        return self
 
 
 class Artifact(Result):
@@ -556,3 +474,148 @@ class Visualization(Result):
     def _repr_html_(self):
         from qiime2.jupyter import make_html
         return make_html(str(self._archiver.path))
+
+
+class ResultCollection:
+    @classmethod
+    def load(cls, directory):
+        """ Determines how to load a Collection of QIIME 2 Artifacts in a
+            directory and dispatches to helpers
+        """
+        if not os.path.isdir(directory):
+            raise ValueError(
+                f"Given filepath '{directory}' is not a directory")
+
+        order_fp = os.path.join(directory, '.order')
+
+        if os.path.isfile(order_fp):
+            collection = cls._load_ordered(directory, order_fp)
+        else:
+            warnings.warn(f"The directory '{directory}' does not contain a "
+                          ".order file. The files will be read into the "
+                          "collection in the order the filesystem provides "
+                          "them in.")
+            collection = cls._load_unordered(directory)
+
+        return collection
+
+    @classmethod
+    def _load_ordered(cls, directory, order_fp):
+        collection = cls()
+
+        with open(order_fp, 'r') as order_fh:
+            for result_name in order_fh.read().splitlines():
+                result_fp = cls._get_result_fp(directory, result_name)
+                collection[result_name] = Result.load(result_fp)
+
+        return collection
+
+    @classmethod
+    def _load_unordered(cls, directory):
+        collection = cls()
+
+        for result in os.listdir(directory):
+            result_fp = os.path.join(directory, result)
+            result_name = result.rstrip('.qza')
+            result_name = result_name.rstrip('.qzv')
+
+            collection[result_name] = Result.load(result_fp)
+
+        return collection
+
+    @classmethod
+    def _get_result_fp(cls, directory, result_name):
+        result_fp = os.path.join(directory, result_name)
+
+        # Check if thing in .order file exists and if not try it with .qza at
+        # the end and if not try it with .qzv at the end
+        if not os.path.isfile(result_fp):
+            result_fp += '.qza'
+
+            if not os.path.isfile(result_fp):
+                # Get rid of the trailing .qza before adding .qzv
+                result_fp = result_fp[:-4]
+                result_fp += '.qzv'
+
+                if not os.path.isfile(result_fp):
+                    raise ValueError(
+                        f"The Result '{result_name}' is referenced in the "
+                        "order file but does not exist in the directory.")
+
+        return result_fp
+
+    def __init__(self, collection=None):
+        if collection is None:
+            self.collection = {}
+        elif isinstance(collection, dict):
+            self.collection = collection
+        else:
+            self.collection = {k: v for k, v in enumerate(collection)}
+
+    def __eq__(self, other):
+        if isinstance(other, dict):
+            return self.collection == other
+
+        return self.collection == other.collection
+
+    def __len__(self):
+        return len(self.collection)
+
+    def __iter__(self):
+        yield self.collection.__iter__()
+
+    def __setitem__(self, key, item):
+        self.collection[key] = item
+
+    def __getitem__(self, key):
+        return self.collection[key]
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__.lower()}: {self.type}>"
+
+    @property
+    def type(self):
+        inner_type = qiime2.core.type.grammar.UnionExp(
+            v.type for v in self.collection.values()).normalize()
+
+        return qiime2.core.type.Collection[inner_type]
+
+    def save(self, directory):
+        """Saves a collection of QIIME 2 Results into a given directory with
+           an order file.
+
+           NOTE: The directory given must not exist
+        """
+        if os.path.exists(directory):
+            raise ValueError(f"The given directory '{directory}' already "
+                             "exists. A new directory must be given to save "
+                             "the collection to.")
+
+        os.makedirs(directory)
+
+        with open(os.path.join(directory, '.order'), 'w') as fh:
+            for name, result in self.collection.items():
+                result_fp = os.path.join(directory, name)
+                result.save(result_fp)
+                fh.write(f'{name}\n')
+
+        # Do this to give us a unified API with Result.save
+        return directory
+
+    def keys(self):
+        return self.collection.keys()
+
+    def values(self):
+        return self.collection.values()
+
+    def items(self):
+        return self.collection.items()
+
+    def validate(self, view, level=None):
+        for result in self.values():
+            result.validate(view, level)
+
+    def result(self):
+        """ Noop to provide standardized interface with ProxyResultCollection.
+        """
+        return self
