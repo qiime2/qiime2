@@ -1,0 +1,28 @@
+
+# Instructions for use:
+# 1. Open this script in a text editor or IDE. Support for BASH
+#    syntax highlighting can be helpful.
+# 2. Search or scan visually for '<' or '>' characters to find places where
+#    user input (e.g. a filepath or column name) is required. These must be
+#    replaced with your own values. E.g. <column name> -> 'patient_id'.
+#    Failure to remove '<' or '>' may result in `No such File ...` errors
+# 3. Search for 'FIXME' comments in the script, and respond as directed.
+# 4. Remove all 'FIXME' comments from the script completely. Failure to do so
+#    may result in 'Missing Option' errors
+# 5. Adjust the arguments to the commands below to suit your data and metadata.
+#    If your data is not identical to that in the replayed analysis,
+#    changes may be required. (e.g. sample ids or rarefaction depth)
+# 6. Optional: replace any filenames in this script that begin with 'XX' with
+#    unique file names to ensure they are preserved. QIIME 2 saves all outputs
+#    from all actions in this script to disk regardless of whether those
+#    outputs were in the original collection of replayed results. The filenames
+#    of "un-replayed" artifacts are prefixed with 'XX' so they may be easily
+#    located. These names are not guaranteed to be unique, so 'XX_table.qza'
+#    may be overwritten by another 'XX_table.qza' later in the script.
+# 7. Activate your replay conda environment, and confirm you have installed all
+#    plugins used by the script.
+# 8. Run this script with `bash <path to this script>`, or copy-paste commands
+#    into the terminal for a more interactive analysis.
+# 9. Optional: to delete all results not required to produce the figures and
+#    data used to generate this script, navigate to the directory in which you
+#    ran the script and `rm XX*.qz*`

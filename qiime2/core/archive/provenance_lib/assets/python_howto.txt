@@ -1,0 +1,19 @@
+
+# Instructions for use:
+# 1. Open this script in a text editor or IDE. Support for Python
+#    syntax highlighting is helpful.
+# 2. Search or scan visually for '<' or '>' characters to find places where
+#    user input (e.g. a filepath or column name) is required. If syntax
+#    highlighting is enabled, '<' and '>' will appear as syntax errors.
+# 3. Search for 'FIXME' comments in the script, and respond as directed.
+# 4. Remove all 'FIXME' comments from the script completely. Failure to do so
+#    may result in 'Missing Option' errors
+# 5. Adjust the arguments to the commands below to suit your data and metadata.
+#    If your data is not identical to that in the replayed analysis,
+#    changes may be required. (e.g. sample ids or rarefaction depth)
+# 6. Optional: search for 'SAVE' comments in the script, commenting out the
+#    `some_result.save` lines for any Results you do not want saved to disk.
+# 7. Activate your replay conda environment, and confirm you have installed all
+#    plugins used by the script.
+# 8. Run this script with `python <path to this script>`, or paste commands
+#    into a python interpreter or jupyter notebook for an interactive analysis
