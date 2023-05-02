@@ -570,11 +570,13 @@ class ResultCollection:
     def __getitem__(self, key):
         return self.collection[key]
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__.lower()}: {self.type}>"
+
     @property
     def type(self):
-        # Get the type of the first element in the collection, all elements in
-        # the collection should have the same type.
-        inner_type = list(self.collection.values())[0].type
+        inner_type = qiime2.core.type.grammar.UnionExp(
+            v.type for v in self.collection.values()).normalize()
 
         return qiime2.core.type.Collection[inner_type]
 
@@ -614,6 +616,6 @@ class ResultCollection:
             result.validate(view, level)
 
     def result(self):
-        """ Noop to provide standardized interface with ProxyCollection.
+        """ Noop to provide standardized interface with ProxyResultCollection.
         """
         return self

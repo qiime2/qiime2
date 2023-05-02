@@ -397,8 +397,15 @@ class Action(metaclass=abc.ABCMeta):
                                        remapped_args, remapped_kwargs,
                                        inputs=futures)
 
+        # This bit that creates user_input now exists in three places. Here,
+        # _bind, and deffered_action. So that's not great.
+        user_input = {name: value for value, name in
+                      zip(args, self.signature.signature_order)}
+        user_input.update(kwargs)
+        output_types = self.signature.solve_output(**user_input)
+
         # Again, we return a set of futures not a set of real results
-        return qiime2.sdk.proxy.ProxyResults(future, self.signature.outputs)
+        return qiime2.sdk.proxy.ProxyResults(future, output_types)
 
     def _get_parsl_wrapper(self):
         def parsl_wrapper(*args, **kwargs):

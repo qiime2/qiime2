@@ -5,7 +5,9 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
+
 from qiime2.core.type.util import is_visualization_type, is_collection_type
+from qiime2.core.type.collection import Collection
 
 
 class Proxy:
@@ -22,7 +24,8 @@ class Proxy:
         qiime_type = self._signature_[selector].qiime_type
 
         if is_collection_type(qiime_type):
-            return ProxyCollection(self._future_, selector, self._signature_)
+            return ProxyResultCollection(
+                self._future_, selector, self._signature_)
         elif is_visualization_type(qiime_type):
             return ProxyVisualization(
                 self._future_, selector, self._signature_)
@@ -39,13 +42,23 @@ class ProxyResult(Proxy):
         self._selector_ = selector
         self._signature_ = signature
 
+    def __repr__(self):
+        if self._signature_ is None:
+            return f'<{self.__class__.__name__.__lower__}: Unknown Type ' \
+                   f'{object.__repr__(self)}>'
+        else:
+            return f'<{self.__class__.__name__.__lower__}: {self.type}>'
+
     @property
     def _archiver(self):
         return self.result()._archiver
 
     @property
     def type(self):
-        return self._archiver.type
+        if self._signature_ is not None:
+            return self._signature_[self._selector_].qiime_type
+
+        return self.result.type
 
     @property
     def uuid(self):
@@ -76,13 +89,6 @@ class ProxyResult(Proxy):
 class ProxyArtifact(ProxyResult):
     """This represents a future Artifact that is being returned by a Parsl app
     """
-    def __repr__(self):
-        if self._signature_ is None:
-            return f'<artifact: Unknown Type {object.__repr__(self)}>'
-        else:
-            return \
-                f'<artifact: {self._signature_[self._selector_].qiime_type}>'
-
     def view(self, type):
         """If we want to view the result we need the future to be resolved
         """
@@ -93,16 +99,10 @@ class ProxyVisualization(ProxyResult):
     """This represents a future Visualization that is being returned by a Parsl
        app
     """
-    def __repr__(self):
-        if self._signature_ is None:
-            return f'<visualization: Unknown Type {object.__repr__(self)}>'
-        else:
-            return \
-                f'<visualization: ' \
-                f'{self._signature_[self._selector_].qiime_type}>'
+    pass
 
 
-class ProxyCollection(Proxy):
+class ProxyResultCollection(Proxy):
     def __init__(self, future, selector, signature=None):
         self._future_ = future
         self._selector_ = selector
@@ -119,6 +119,19 @@ class ProxyCollection(Proxy):
 
     def __getitem__(self, key):
         return self.collection[key]
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__.lower()}: {self.type}>"
+
+    @property
+    def type(self):
+        # I'm note a huge fan of the fact that this may or may not need to
+        # to block. If this is a return from an action (which it basically
+        # always will be) we don't need to block for type. Otherwise we do.
+        if self._signature_ is not None:
+            return Collection[self._signature_[self._selector_]]
+
+        return self.result().type
 
     @property
     def collection(self):
