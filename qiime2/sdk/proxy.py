@@ -9,7 +9,6 @@
 import qiime2.core.transform as transform
 
 from qiime2.core.type.util import is_visualization_type, is_collection_type
-from qiime2.core.type.collection import Collection
 
 
 class Proxy:
@@ -22,30 +21,18 @@ class Proxy:
     def __ne__(self, other):
         return not (self == other)
 
-    def _create_proxy(self, selector):
-        qiime_type = self._signature_[selector].qiime_type
-
-        if is_collection_type(qiime_type):
-            return ProxyResultCollection(
-                self._future_, selector, self._signature_)
-        elif is_visualization_type(qiime_type):
-            return ProxyVisualization(
-                self._future_, selector, self._signature_)
-
-        return ProxyArtifact(self._future_, selector, self._signature_)
-
 
 class ProxyResult(Proxy):
-    def __init__(self, future, selector, signature=None):
+    def __init__(self, future, selector, qiime_type=None):
         """We have a future that represents the results of some QIIME 2 action,
         and we have a selector indicating specifically which result we want
         """
         self._future_ = future
         self._selector_ = selector
-        self._signature_ = signature
+        self._qiime_type_ = qiime_type
 
     def __repr__(self):
-        if self._signature_ is None:
+        if self._qiime_type_ is None:
             return f'<{self.__class__.__name__.__lower__}: Unknown Type ' \
                    f'{object.__repr__(self)}>'
         else:
@@ -60,8 +47,8 @@ class ProxyResult(Proxy):
 
     @property
     def type(self):
-        if self._signature_ is not None:
-            return self._signature_[self._selector_].qiime_type
+        if self._qiime_type_ is not None:
+            return self._qiime_type_
 
         return self.result().type
 
@@ -128,10 +115,10 @@ class ProxyVisualization(ProxyResult):
 
 
 class ProxyResultCollection(Proxy):
-    def __init__(self, future, selector, signature=None):
+    def __init__(self, future, selector, qiime_type=None):
         self._future_ = future
         self._selector_ = selector
-        self._signature_ = signature
+        self._qiime_type_ = qiime_type
 
     def __len__(self):
         return len(self.collection)
@@ -153,8 +140,8 @@ class ProxyResultCollection(Proxy):
         # I'm not a huge fan of the fact that this may or may not need to
         # block. If this is a return from an action (which it basically
         # always will be) we don't need to block for type. Otherwise we do.
-        if self._signature_ is not None:
-            return Collection[self._signature_[self._selector_]]
+        if self._qiime_type_ is not None:
+            return self._qiime_type_
 
         return self.result().type
 
@@ -257,3 +244,15 @@ class ProxyResults(Proxy):
             different cache/pool/whatever before your future resolves.
         """
         return self._future_.result()
+
+    def _create_proxy(self, selector):
+        qiime_type = self._signature_[selector].qiime_type
+
+        if is_collection_type(qiime_type):
+            return ProxyResultCollection(
+                self._future_, selector, qiime_type)
+        elif is_visualization_type(qiime_type):
+            return ProxyVisualization(
+                self._future_, selector, qiime_type)
+
+        return ProxyArtifact(self._future_, selector, qiime_type)
