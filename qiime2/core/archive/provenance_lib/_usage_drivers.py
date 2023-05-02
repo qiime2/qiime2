@@ -1,6 +1,6 @@
 from datetime import datetime
 import functools
-from importlib.metadata import version, metadata
+from importlib.metadata import metadata
 import pkg_resources
 import re
 import textwrap
@@ -131,8 +131,8 @@ def build_header(shebang: str = '', boundary: str = '', copyright: str = '',
     Writes header copy for all replay outputs, with optional params allowing
     for general utility
     """
-    vzn = version('provenance_lib')
-    p_lib_md = metadata('provenance_lib')
+    p_lib_md = metadata('qiime2')
+    vzn = p_lib_md['Version']
     ts = datetime.now()
     header = []
 
