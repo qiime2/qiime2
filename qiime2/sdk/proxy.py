@@ -150,8 +150,8 @@ class ProxyResultCollection(Proxy):
 
     @property
     def type(self):
-        # I'm note a huge fan of the fact that this may or may not need to
-        # to block. If this is a return from an action (which it basically
+        # I'm not a huge fan of the fact that this may or may not need to
+        # block. If this is a return from an action (which it basically
         # always will be) we don't need to block for type. Otherwise we do.
         if self._signature_ is not None:
             return Collection[self._signature_[self._selector_]]
