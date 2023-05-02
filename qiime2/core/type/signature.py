@@ -236,6 +236,13 @@ class PipelineSignature:
         return (annotated_inputs, annotated_parameters, annotated_outputs,
                 signature_order)
 
+    def collate_inputs(self, *args, **kwargs):
+        collated_inputs = {name: value for value, name in
+                           zip(args, self.signature_order)}
+        collated_inputs.update(kwargs)
+
+        return collated_inputs
+
     def _assert_valid_inputs(self, inputs):
         for input_name, spec in inputs.items():
             if not is_semantic_type(spec.qiime_type):

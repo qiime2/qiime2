@@ -255,20 +255,18 @@ class Action(metaclass=abc.ABCMeta):
                     self.type, self.plugin_id, self.id, execution_ctx)
                 scope.add_reference(provenance)
 
-                # Collate user arguments
-                user_input = {name: value for value, name in
-                              zip(args, self.signature.signature_order)}
-                user_input.update(kwargs)
-
                 if self.deprecated:
                     with qiime2.core.util.warning() as warn:
                         warn(self._build_deprecation_message(),
                              FutureWarning)
 
                 # Type management
-                self.signature.check_types(**user_input)
-                output_types = self.signature.solve_output(**user_input)
-                callable_args = self.signature.coerce_user_input(**user_input)
+                collated_inputs = self.signature.collate_inputs(
+                    *args, **kwargs)
+                self.signature.check_types(**collated_inputs)
+                output_types = self.signature.solve_output(**collated_inputs)
+                callable_args = self.signature.coerce_user_input(
+                    **collated_inputs)
 
                 callable_args = \
                     self.signature.transform_and_add_callable_args_to_prov(
@@ -399,10 +397,8 @@ class Action(metaclass=abc.ABCMeta):
 
         # This bit that creates user_input now exists in three places. Here,
         # _bind, and deffered_action. So that's not great.
-        user_input = {name: value for value, name in
-                      zip(args, self.signature.signature_order)}
-        user_input.update(kwargs)
-        output_types = self.signature.solve_output(**user_input)
+        collated_input = self.signature.collate_inputs(*args, **kwargs)
+        output_types = self.signature.solve_output(**collated_input)
 
         # Again, we return a set of futures not a set of real results
         return qiime2.sdk.proxy.ProxyResults(future, output_types)
