@@ -710,7 +710,8 @@ def dedupe_citations(citations: List[Dict]) -> List[Dict]:
         # Write a single hardcoded framework citation
         if 'framework|qiime2' in id:
             if not fw_cited:
-                root = pkg_resources.resource_filename('provenance_lib', '.')
+                root = pkg_resources.resource_filename(
+                    'qiime2.core.archive.provenance_lib', '.')
                 root = os.path.abspath(root)
                 path = os.path.join(root, 'q2_citation.bib')
                 with open(path) as bibtex_file:

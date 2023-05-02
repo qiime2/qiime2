@@ -304,9 +304,10 @@ class ReplayProvDAGDirectoryTests(unittest.TestCase):
 
 
 class BuildUsageExamplesTests(unittest.TestCase):
-    @patch('provenance_lib.replay.build_action_usage')
-    @patch('provenance_lib.replay.build_import_usage')
-    @patch('provenance_lib.replay.build_no_provenance_node_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.build_action_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.build_import_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.' \
+           'build_no_provenance_node_usage')
     def test_build_usage_examples(self, n_p_builder, imp_builder, act_builder):
         v5_dag = ProvDAG(TEST_DATA['5']['qzv_fp'])
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
@@ -317,9 +318,10 @@ class BuildUsageExamplesTests(unittest.TestCase):
         imp_builder.assert_called_once()
         self.assertEqual(act_builder.call_count, 4)
 
-    @patch('provenance_lib.replay.build_action_usage')
-    @patch('provenance_lib.replay.build_import_usage')
-    @patch('provenance_lib.replay.build_no_provenance_node_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.build_action_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.build_import_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.' \
+           'build_no_provenance_node_usage')
     def test_build_usage_examples_lone_v0(
             self, n_p_builder, imp_builder, act_builder):
         v0_uuid = '0b8b47bd-f2f8-4029-923c-0e37a68340c3'
@@ -334,9 +336,10 @@ class BuildUsageExamplesTests(unittest.TestCase):
         imp_builder.assert_not_called()
         act_builder.assert_not_called()
 
-    @patch('provenance_lib.replay.build_action_usage')
-    @patch('provenance_lib.replay.build_import_usage')
-    @patch('provenance_lib.replay.build_no_provenance_node_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.build_action_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.build_import_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.' \
+           'build_no_provenance_node_usage')
     def test_build_usage_examples_joined_v0s(
             self, n_p_builder, imp_builder, act_builder):
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
@@ -361,9 +364,10 @@ class BuildUsageExamplesTests(unittest.TestCase):
         imp_builder.assert_not_called()
         act_builder.assert_not_called()
 
-    @patch('provenance_lib.replay.build_action_usage')
-    @patch('provenance_lib.replay.build_import_usage')
-    @patch('provenance_lib.replay.build_no_provenance_node_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.build_action_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.build_import_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.' \
+           'build_no_provenance_node_usage')
     def test_build_usage_examples_mixed(
             self, n_p_builder, imp_builder, act_builder):
         mixed_uuid = '9f6a0f3e-22e6-4c39-8733-4e672919bbc7'
@@ -379,9 +383,10 @@ class BuildUsageExamplesTests(unittest.TestCase):
         imp_builder.assert_not_called()
         act_builder.assert_called_once()
 
-    @patch('provenance_lib.replay.build_action_usage')
-    @patch('provenance_lib.replay.build_import_usage')
-    @patch('provenance_lib.replay.build_no_provenance_node_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.build_action_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.build_import_usage')
+    @patch('qiime2.core.archive.provenance_lib.replay.' \
+           'build_no_provenance_node_usage')
     def test_build_usage_examples_big(
             self, n_p_builder, imp_builder, act_builder):
         big = ProvDAG(os.path.join(DATA_DIR, 'artifact_as_md_v5.qzv'))
@@ -1099,7 +1104,7 @@ class BuildActionUsageTests(CustomAssertions):
         self.assertRegex(rendered, f'metadata.*{md_name}')
         self.assertRegex(rendered, "custom_axis='DaysSinceExperimentStart'")
 
-    @patch('provenance_lib.replay.init_md_from_artifacts')
+    @patch('qiime2.core.archive.provenance_lib.replay.init_md_from_artifacts')
     def test_build_action_usage_md_from_artifacts(self, patch):
         act_id = '59798956-9261-40f3-b70f-fc5059e379f5'
         n_id = '75f035ac-33fb-4d1c-bdcd-63ae1d564056'
