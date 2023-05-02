@@ -28,6 +28,7 @@ from qiime2.core.cache import Cache, _exit_cleanup, get_cache, _get_user
 from qiime2.core.testing.type import IntSequence1, IntSequence2, SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
+from qiime2.core.util import load_action_yaml
 
 # NOTE: If you see an error after all of your tests have ran saying that a pool
 # called __TEST_FAILURE__ doesn't exist and you were running tests in multiple
@@ -222,11 +223,11 @@ class TestCache(unittest.TestCase):
         # Data referenced directly by key
         self.cache.save(self.art1, 'foo')
         # Data referenced by pool that is referenced by key
-        pool = self.cache.create_pool(['bar'])
+        pool = self.cache.create_pool('bar')
         pool.save(self.art2)
         # We will be manually deleting the keys that back these two
         self.cache.save(self.art3, 'baz')
-        pool = self.cache.create_pool(['qux'])
+        pool = self.cache.create_pool('qux')
         pool.save(self.art4)
 
         # What we expect to see before and after gc
@@ -277,7 +278,7 @@ class TestCache(unittest.TestCase):
 
     def test_asynchronous_pool(self):
         concatenate_ints = self.plugin.methods['concatenate_ints']
-        test_pool = self.cache.create_pool(keys=[TEST_POOL])
+        test_pool = self.cache.create_pool(TEST_POOL)
 
         with self.cache:
             with test_pool:
@@ -305,7 +306,7 @@ class TestCache(unittest.TestCase):
         ref.validate()
 
     def test_no_dangling_ref_pool(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
         ref = pool.save(self.art1)
         ref.validate()
 
@@ -315,7 +316,7 @@ class TestCache(unittest.TestCase):
         ref.validate()
 
     def test_pool(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         # Create an artifact in the cache and the pool
         with self.cache:
@@ -327,7 +328,7 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
     def test_pool_no_cache_set(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         with pool:
             ref = Artifact.import_data(IntSequence1, [0, 1, 2])
@@ -338,7 +339,7 @@ class TestCache(unittest.TestCase):
 
     def test_pool_wrong_cache_set(self):
         cache = Cache(os.path.join(self.test_dir.name, 'cache'))
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         with cache:
             with self.assertRaisesRegex(ValueError,
@@ -358,8 +359,8 @@ class TestCache(unittest.TestCase):
                     pass
 
     def test_enter_multiple_pools(self):
-        pool1 = self.cache.create_pool(keys=['pool1'])
-        pool2 = self.cache.create_pool(keys=['pool2'])
+        pool1 = self.cache.create_pool('pool1')
+        pool2 = self.cache.create_pool('pool2')
 
         with pool1:
             with self.assertRaisesRegex(ValueError,
@@ -369,14 +370,14 @@ class TestCache(unittest.TestCase):
                     pass
 
     def test_loading_pool(self):
-        self.cache.create_pool(keys=['pool'])
+        self.cache.create_pool('pool')
 
         with self.assertRaisesRegex(
                 ValueError, "'pool' does not point to any data"):
             self.cache.load('pool')
 
     def test_access_data_with_deleted_key(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         with self.cache:
             with pool:
@@ -397,6 +398,142 @@ class TestCache(unittest.TestCase):
         art.validate()
         self.assertIn(uuid, os.listdir(self.cache.data))
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
+
+    def test_resumable_pipeline(self):
+        resumable_pipeline = self.plugin.pipelines['resumable_pipeline']
+
+        pool = self.cache.create_pool('pool')
+        art = Artifact.import_data(IntSequence1, [0, 1, 2])
+
+        with self.cache:
+            with pool:
+                with self.assertRaises(ValueError) as e:
+                    resumable_pipeline(art, fail=True)
+
+                left_uuid, right_uuid = str(e.exception).split('_')
+                left, right = resumable_pipeline(art)
+
+                complete_left_uuid = load_action_yaml(
+                    self.cache.data / str(left.uuid))['action']['alias-of']
+                complete_right_uuid = load_action_yaml(
+                    self.cache.data / str(right.uuid))['action']['alias-of']
+
+                # Assert that the artifacts returned by the completed run of
+                # the pipeline are aliases of the artifacts created by the
+                # first failed run
+                self.assertEqual(left_uuid, complete_left_uuid)
+                self.assertEqual(right_uuid, complete_right_uuid)
+
+    def test_resumable_pipeline_no_pool(self):
+        resumable_pipeline = self.plugin.pipelines['resumable_pipeline']
+
+        art = Artifact.import_data(IntSequence1, [0, 1, 2])
+
+        with self.cache:
+            with self.assertRaises(ValueError) as e:
+                resumable_pipeline(art, fail=True)
+
+            left_uuid, right_uuid = str(e.exception).split('_')
+            left, right = resumable_pipeline(art)
+
+            complete_left_uuid = load_action_yaml(
+                self.cache.data / str(left.uuid))['action']['alias-of']
+            complete_right_uuid = load_action_yaml(
+                self.cache.data / str(right.uuid))['action']['alias-of']
+
+            # Noting should have been cached because we did not use a pool at
+            # all
+            self.assertNotEqual(left_uuid, complete_left_uuid)
+            self.assertNotEqual(right_uuid, complete_right_uuid)
+
+    def test_resumable_collection_pipeline(self):
+        resumable_collection_pipeline = \
+            self.plugin.pipelines['resumable_collection_pipeline']
+
+        pool = self.cache.create_pool('pool')
+
+        int_list = [Artifact.import_data(SingleInt, 0),
+                    Artifact.import_data(SingleInt, 1)]
+        int_dict = {'1': Artifact.import_data(SingleInt, 0),
+                    '2': Artifact.import_data(SingleInt, 1)}
+
+        with self.cache:
+            with pool:
+                with self.assertRaises(ValueError) as e:
+                    resumable_collection_pipeline(
+                                int_list, int_dict, fail=True)
+
+                list_uuids, dict_uuids = str(e.exception).split('_')
+                list_return, dict_return = \
+                    resumable_collection_pipeline(int_list, int_dict)
+
+                complete_list_uuids = load_alias_uuids(list_return)
+                complete_dict_uuids = load_alias_uuids(dict_return)
+
+                # Assert that the artifacts returned by the completed run of
+                # the pipeline are aliases of the artifacts created by the
+                # first failed run
+                self.assertEqual(list_uuids, str(complete_list_uuids))
+                self.assertEqual(dict_uuids, str(complete_dict_uuids))
+
+    def test_resumable_varied_pipeline(self):
+        resumable_varied_pipeline = \
+            self.plugin.pipelines['resumable_varied_pipeline']
+
+        pool = self.cache.create_pool('pool')
+
+        ints1 = [Artifact.import_data(SingleInt, 0),
+                 Artifact.import_data(SingleInt, 1)]
+        ints2 = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
+                 '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
+        int1 = Artifact.import_data(SingleInt, 42)
+
+        with self.cache:
+            with pool:
+                with self.assertRaises(ValueError) as e:
+                    resumable_varied_pipeline(
+                        ints1, ints2, int1, 'Hi', fail=True)
+
+                ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids = \
+                    str(e.exception).split('_')
+
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
+                    resumable_varied_pipeline(ints1, ints2, int1, 'Hi')
+
+                complete_ints1_uuids = load_alias_uuids(ints1_ret)
+                complete_ints2_uuids = load_alias_uuids(ints2_ret)
+                complete_int1_uuid = load_action_yaml(
+                    self.cache.data / str(int1_ret.uuid))['action']['alias-of']
+                complete_list_uuids = load_alias_uuids(list_ret)
+                complete_dict_uuids = load_alias_uuids(dict_ret)
+
+                # Assert that the artifacts returned by the completed run of
+                # the pipeline are aliases of the artifacts created by the
+                # first failed run
+                self.assertEqual(ints1_uuids, str(complete_ints1_uuids))
+                self.assertEqual(ints2_uuids, str(complete_ints2_uuids))
+                self.assertEqual(int1_uuid, str(complete_int1_uuid))
+                self.assertEqual(list_uuids, str(complete_list_uuids))
+                self.assertEqual(dict_uuids, str(complete_dict_uuids))
+
+                # Pass in a different string, this should cause the returns
+                # from varied_method to not be reused and the others to be
+                # reused
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret = \
+                    resumable_varied_pipeline(ints1, ints2, int1, 'Bye')
+
+                complete_ints1_uuids = load_alias_uuids(ints1_ret)
+                complete_ints2_uuids = load_alias_uuids(ints2_ret)
+                complete_int1_uuid = load_action_yaml(
+                    self.cache.data / str(int1_ret.uuid))['action']['alias-of']
+                complete_list_uuids = load_alias_uuids(list_ret)
+                complete_dict_uuids = load_alias_uuids(dict_ret)
+
+                self.assertNotEqual(ints1_uuids, str(complete_ints1_uuids))
+                self.assertNotEqual(ints2_uuids, str(complete_ints2_uuids))
+                self.assertNotEqual(int1_uuid, str(complete_int1_uuid))
+                self.assertEqual(list_uuids, str(complete_list_uuids))
+                self.assertEqual(dict_uuids, str(complete_dict_uuids))
 
     def test_collection_list_input_cache(self):
         list_method = self.plugin.methods['list_of_ints']
@@ -449,7 +586,7 @@ class TestCache(unittest.TestCase):
         # This test needs to use a cache that exists past the lifespan of the
         # function
         cache = get_cache()
-        test_pool = cache.create_pool(keys=[TEST_POOL], reuse=True)
+        test_pool = cache.create_pool(TEST_POOL, reuse=True)
 
         with test_pool:
             future = concatenate_ints.asynchronous(self.art1, self.art2,
@@ -559,3 +696,13 @@ class TestCache(unittest.TestCase):
 
         with self.assertWarnsRegex(UserWarning, "in an inconsistent state"):
             Cache()
+
+
+def load_alias_uuids(collection):
+    uuids = []
+
+    for artifact in collection.values():
+        uuids.append(load_action_yaml(
+            artifact._archiver.path)['action']['alias-of'])
+
+    return uuids

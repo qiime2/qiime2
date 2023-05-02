@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+from qiime2.core.type.util import is_collection_type
+from qiime2.core.type import HashableInvocation
 from qiime2.core.cache import get_cache
 import qiime2.sdk
 
@@ -16,6 +18,10 @@ class Context:
             self.cache = parent.cache
         else:
             self.cache = get_cache()
+            # Only ever do this on the root context. We only want to index the
+            # pool once before we start adding our own stuff to it.
+            if self.cache.named_pool is not None:
+                self.cache.named_pool.create_index()
 
         self._parent = parent
         self._scope = None
@@ -26,8 +32,10 @@ class Context:
         This function is aware of the pipeline context and manages its own
         cleanup as appropriate.
         """
-        pm = qiime2.sdk.PluginManager()
         plugin = plugin.replace('_', '-')
+        plugin_action = plugin + ':' + action
+
+        pm = qiime2.sdk.PluginManager()
         try:
             plugin_obj = pm.plugins[plugin]
         except KeyError:
@@ -36,13 +44,83 @@ class Context:
         try:
             action_obj = plugin_obj.actions[action]
         except KeyError:
-            raise ValueError("An action named %r was not found for plugin %r"
-                             % (action, plugin))
-        # This factory will create new Contexts with this context as their
-        # parent. This allows scope cleanup to happen recursively.
-        # A factory is necessary so that independent applications of the
-        # returned callable recieve their own Context objects.
-        return action_obj._bind(lambda: Context(parent=self))
+            raise ValueError(
+                "An action named %r was not found for plugin %r"
+                % (action, plugin))
+
+        # We return this callable which determines whether to return cached
+        # results or to run the action requested.
+        def deferred_action(*args, **kwargs):
+            # If we have a named_pool, we need to check for cached results that
+            # we can reuse
+            if self.cache.named_pool is not None:
+                # NOTE: This work is currently done both here and in action.py
+                # in bound_callable. We should be able to remove this redundant
+                # work by adding something like _bind_deferred and calling it
+                # where we call _bind below, but that might not be worth it
+                user_input = {name: value for value, name in
+                              zip(args, action_obj.signature.signature_order)}
+                user_input.update(kwargs)
+
+                callable_args = action_obj.signature.coerce_user_input(
+                    **user_input)
+
+                # Make args and kwargs look how they do when we read them out
+                # of a .yaml file (list of single value dicts of
+                # input_name: value)
+                arguments = []
+                for k, v in callable_args.items():
+                    arguments.append({k: v})
+
+                invocation = HashableInvocation(plugin_action, arguments)
+                if invocation in self.cache.named_pool.index:
+                    cached_outputs = self.cache.named_pool.index[invocation]
+                    loaded_outputs = {}
+
+                    for name, _type in action_obj.signature.outputs.items():
+                        if is_collection_type(_type.qiime_type):
+                            loaded_collection = {}
+                            cached_collection = cached_outputs[name]
+
+                            # Get the order we should load collection items in
+                            collection_order = list(cached_collection.keys())
+                            self._validate_collection(collection_order)
+                            collection_order.sort(key=lambda x: x.idx)
+
+                            for elem_info in collection_order:
+                                elem = cached_collection[elem_info]
+                                loaded_elem = self.cache.named_pool.load(elem)
+                                loaded_collection[
+                                    elem_info.item_name] = loaded_elem
+
+                            loaded_outputs[name] = loaded_collection
+                        else:
+                            output = cached_outputs[name]
+                            loaded_outputs[name] = \
+                                self.cache.named_pool.load(output)
+
+                    return qiime2.sdk.Results(
+                        loaded_outputs.keys(), loaded_outputs.values())
+
+            # If we didn't have cached results to reuse, we need to execute the
+            # action.
+            #
+            # This factory will create new Contexts with this context as their
+            # parent. This allows scope cleanup to happen recursively. A
+            # factory is necessary so that independent applications of the
+            # returned callable recieve their own Context objects.
+            return action_obj._bind(
+                lambda: Context(parent=self))(*args, **kwargs)
+
+        return deferred_action
+
+    def _validate_collection(self, collection_order):
+        """Validate that all indexed items in the collection agree on how
+        large the collection should be and that we have that many elements.
+        """
+        assert all([elem.total == collection_order[0].total
+                    for elem in collection_order])
+        assert len(collection_order) == collection_order[0].total
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.
