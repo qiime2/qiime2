@@ -33,10 +33,10 @@ class ProxyResult(Proxy):
 
     def __repr__(self):
         if self._qiime_type_ is None:
-            return f'<{self.__class__.__name__.__lower__}: Unknown Type ' \
+            return f'<{self.__class__.__name__.lower()}: Unknown Type ' \
                    f'{object.__repr__(self)}>'
         else:
-            return f'<{self.__class__.__name__.__lower__}: {self.type}>'
+            return f'<{self.__class__.__name__.lower()}: {self.type}>'
 
     def __hash__(self):
         return hash(self.uuid)

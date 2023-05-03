@@ -742,8 +742,9 @@ class HashableInvocation():
         arbitrarily nested tuple. Turns Artifacts into their uuid and Metadata
         into their md5sum
         """
-        from qiime2 import Artifact, Metadata
+        from qiime2 import Artifact
         from qiime2.sdk import ResultCollection
+        from qiime2.metadata.metadata import _MetadataBase
 
         new_collection = []
 
@@ -756,7 +757,7 @@ class HashableInvocation():
                 new_collection.append(self._make_hashable(elem))
         elif isinstance(collection, Artifact):
             return str(collection.uuid)
-        elif isinstance(collection, Metadata):
+        elif isinstance(collection, _MetadataBase):
             with tempfile.NamedTemporaryFile('w') as fh:
                 fp = fh.name
                 collection.save(fp)
