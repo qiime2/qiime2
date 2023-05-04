@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import os
+import parsl
 import psutil
 import appdirs
 import tomlkit
@@ -57,50 +58,82 @@ def setup_parsl(config_fp=None):
     path or looks through several default paths if no path is provided and
     loads a vendored config as a last resort
     """
-    if config_fp is None:
-        # If a config was already explicitly set and this function was called
-        # again without an explicit filepath, do not replace the manually set
-        # config with an internal one
-        if PARSL_CONFIG.parsl_config is not None:
-            return
+    config = PARSL_CONFIG.parsl_config
+    mapping = PARSL_CONFIG.action_executor_mapping
 
-        # Try to load custom config (exact order maybe subject to change)
+    # If we don't have a filepath or a currently existing config then get the
+    # path to the vendored one. We do not want to get the vendored path if they
+    # have a pre-existing config because we do not want to overwrite an exiting
+    # config with the vendored one
+    if config_fp is None and PARSL_CONFIG.parsl_config is None:
+        config_fp = _get_vendored_config()
 
-        # 1. Check envvar
-        config_fp = os.environ.get('QIIME2_CONFIG')
+    if config_fp is not None:
+        config_dict = _get_config(config_fp)
+        mapping = _get_mapping(config_dict)
 
-        if config_fp is None:
-            # 2. Check in user writable location
-            # appdirs.user_config_dir(appname='qiime2', author='...')
-            if os.path.exists(fp_ := os.path.join(
-                    appdirs.user_config_dir('qiime2'), 'qiime2_config.toml')):
-                config_fp = fp_
-            # 3. Check in admin writable location
-            # /etc/
-            # site_config_dir
-            # appdirs.site_config_dir(appname='qiime2, author='...')
-            elif os.path.exists(fp_ := os.path.join(
-                    appdirs.site_config_dir('qiime2'), 'qiime2_config.toml')):
-                config_fp = fp_
-            # 4. Check in conda env
-            # ~/miniconda3/env/{env_name}/conf
-            elif os.path.exists(fp_ := VENDORED_FP):
-                config_fp = fp_
-            # 5. Write the vendored config to the vendored location and use
-            # that
-            else:
-                with open(VENDORED_FP, 'w') as fh:
-                    tomlkit.dump(VENDORED_CONFIG, fh)
-                config_fp = VENDORED_FP
+        # If config_dict is empty now, they gave a file that only contained a
+        # mapping, so we want to load a default config assuming they do not
+        # already have a loaded config
+        if config_dict == {} and PARSL_CONFIG.parsl_config is None:
+            config_fp = _get_vendored_config()
+            config_dict = _get_config(config_fp)
 
-    config_dict = _get_config(config_fp)
-    mapping = _get_mapping(config_dict)
+        # Now if we actually have a config dict, we want to load the config. We
+        # still will not have one if they gave us a file that only contained a
+        # mapping while already having a config set up.
+        if config_dict != {}:
+            processed_config = _process_config(config_dict)
+            config = Config(**processed_config)
 
-    processed_config = _process_config(config_dict)
-    config = Config(**processed_config)
+    # We only want to clear the config if the config we are trying to load is
+    # actually different. If we clear the config then load the same config
+    # while in the middle of doing something, we're going to have problems. If
+    # someone is trying to change the config in the middle of doing something,
+    # they are doing things wrong (probably forgot to resolve their future
+    # inside of their context manager).
+    if PARSL_CONFIG.parsl_config != config:
+        parsl.clear()
+
+    try:
+        parsl.load(config)
+    except RuntimeError:
+        pass
 
     PARSL_CONFIG.parsl_config = config
-    PARSL_CONFIG.action_executor_mapping = mapping
+    if mapping != {}:
+        PARSL_CONFIG.action_executor_mapping = mapping
+
+
+def _get_vendored_config():
+    # 1. Check envvar
+    config_fp = os.environ.get('QIIME2_CONFIG')
+
+    if config_fp is None:
+        # 2. Check in user writable location
+        # appdirs.user_config_dir(appname='qiime2', author='...')
+        if os.path.exists(fp_ := os.path.join(
+                appdirs.user_config_dir('qiime2'), 'qiime2_config.toml')):
+            config_fp = fp_
+        # 3. Check in admin writable location
+        # /etc/
+        # site_config_dir
+        # appdirs.site_config_dir(appname='qiime2, author='...')
+        elif os.path.exists(fp_ := os.path.join(
+                appdirs.site_config_dir('qiime2'), 'qiime2_config.toml')):
+            config_fp = fp_
+        # 4. Check in conda env
+        # ~/miniconda3/env/{env_name}/conf
+        elif os.path.exists(fp_ := VENDORED_FP):
+            config_fp = fp_
+        # 5. Write the vendored config to the vendored location and use
+        # that
+        else:
+            with open(VENDORED_FP, 'w') as fh:
+                tomlkit.dump(VENDORED_CONFIG, fh)
+            config_fp = VENDORED_FP
+
+    return config_fp
 
 
 def _get_config(fp):
