@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import os
+import parsl
 import psutil
 import appdirs
 import tomlkit
@@ -16,9 +17,9 @@ import importlib
 from parsl.config import Config
 
 
-PARSL_CONFIG = threading.local()
-PARSL_CONFIG.parsl_config = None
-PARSL_CONFIG.action_executor_mapping = {}
+PARALLEL_CONFIG = threading.local()
+PARALLEL_CONFIG.parallel_config = None
+PARALLEL_CONFIG.action_executor_mapping = {}
 
 # Directs keys in the config whose values need to be objects to the module that
 # contains the class they need to instantiate
@@ -52,55 +53,87 @@ VENDORED_CONFIG = {
     }
 
 
-def setup_parsl(config_fp=None):
+def setup_parallel(config_fp=None):
     """Sets the parsl config and action executor mapping from a file at a given
     path or looks through several default paths if no path is provided and
     loads a vendored config as a last resort
     """
+    config = PARALLEL_CONFIG.parallel_config
+    mapping = PARALLEL_CONFIG.action_executor_mapping
+
+    # If we don't have a filepath or a currently existing config then get the
+    # path to the vendored one. We do not want to get the vendored path if they
+    # have a pre-existing config because we do not want to overwrite an exiting
+    # config with the vendored one
+    if config_fp is None and PARALLEL_CONFIG.parallel_config is None:
+        config_fp = _get_vendored_config()
+
+    if config_fp is not None:
+        config_dict = _get_config(config_fp)
+        mapping = _get_mapping(config_dict)
+
+        # If config_dict is empty now, they gave a file that only contained a
+        # mapping, so we want to load a default config assuming they do not
+        # already have a loaded config
+        if config_dict == {} and PARALLEL_CONFIG.parallel_config is None:
+            config_fp = _get_vendored_config()
+            config_dict = _get_config(config_fp)
+
+        # Now if we actually have a config dict, we want to load the config. We
+        # still will not have one if they gave us a file that only contained a
+        # mapping while already having a config set up.
+        if config_dict != {}:
+            processed_config = _process_config(config_dict)
+            config = Config(**processed_config)
+
+    # We only want to clear the config if the config we are trying to load is
+    # actually different. If we clear the config then load the same config
+    # while in the middle of doing something, we're going to have problems. If
+    # someone is trying to change the config in the middle of doing something,
+    # they are doing things wrong (probably forgot to resolve their future
+    # inside of their context manager).
+    if PARALLEL_CONFIG.parallel_config != config:
+        parsl.clear()
+
+    try:
+        parsl.load(config)
+    except RuntimeError:
+        pass
+
+    PARALLEL_CONFIG.parallel_config = config
+    if mapping != {}:
+        PARALLEL_CONFIG.action_executor_mapping = mapping
+
+
+def _get_vendored_config():
+    # 1. Check envvar
+    config_fp = os.environ.get('QIIME2_CONFIG')
+
     if config_fp is None:
-        # If a config was already explicitly set and this function was called
-        # again without an explicit filepath, do not replace the manually set
-        # config with an internal one
-        if PARSL_CONFIG.parsl_config is not None:
-            return
+        # 2. Check in user writable location
+        # appdirs.user_config_dir(appname='qiime2', author='...')
+        if os.path.exists(fp_ := os.path.join(
+                appdirs.user_config_dir('qiime2'), 'qiime2_config.toml')):
+            config_fp = fp_
+        # 3. Check in admin writable location
+        # /etc/
+        # site_config_dir
+        # appdirs.site_config_dir(appname='qiime2, author='...')
+        elif os.path.exists(fp_ := os.path.join(
+                appdirs.site_config_dir('qiime2'), 'qiime2_config.toml')):
+            config_fp = fp_
+        # 4. Check in conda env
+        # ~/miniconda3/env/{env_name}/conf
+        elif os.path.exists(fp_ := VENDORED_FP):
+            config_fp = fp_
+        # 5. Write the vendored config to the vendored location and use
+        # that
+        else:
+            with open(VENDORED_FP, 'w') as fh:
+                tomlkit.dump(VENDORED_CONFIG, fh)
+            config_fp = VENDORED_FP
 
-        # Try to load custom config (exact order maybe subject to change)
-
-        # 1. Check envvar
-        config_fp = os.environ.get('QIIME2_CONFIG')
-
-        if config_fp is None:
-            # 2. Check in user writable location
-            # appdirs.user_config_dir(appname='qiime2', author='...')
-            if os.path.exists(fp_ := os.path.join(
-                    appdirs.user_config_dir('qiime2'), 'qiime2_config.toml')):
-                config_fp = fp_
-            # 3. Check in admin writable location
-            # /etc/
-            # site_config_dir
-            # appdirs.site_config_dir(appname='qiime2, author='...')
-            elif os.path.exists(fp_ := os.path.join(
-                    appdirs.site_config_dir('qiime2'), 'qiime2_config.toml')):
-                config_fp = fp_
-            # 4. Check in conda env
-            # ~/miniconda3/env/{env_name}/conf
-            elif os.path.exists(fp_ := VENDORED_FP):
-                config_fp = fp_
-            # 5. Write the vendored config to the vendored location and use
-            # that
-            else:
-                with open(VENDORED_FP, 'w') as fh:
-                    tomlkit.dump(VENDORED_CONFIG, fh)
-                config_fp = VENDORED_FP
-
-    config_dict = _get_config(config_fp)
-    mapping = _get_mapping(config_dict)
-
-    processed_config = _process_config(config_dict)
-    config = Config(**processed_config)
-
-    PARSL_CONFIG.parsl_config = config
-    PARSL_CONFIG.action_executor_mapping = mapping
+    return config_fp
 
 
 def _get_config(fp):
@@ -162,7 +195,7 @@ def _process_key(key, value):
 
 
 class ParallelConfig():
-    def __init__(self, parsl_config=None, action_executor_mapping={}):
+    def __init__(self, parallel_config=None, action_executor_mapping={}):
         """Tell QIIME 2 how to parsl from the Python API
 
         action_executor_mapping: maps actions to executors. All unmapped
@@ -171,23 +204,23 @@ class ParallelConfig():
         errors will only occur if an action that is being run in a given
         QIIME 2 invocation has been mapped to an executor that does not exist
 
-        parsl_config: Specifies which executors should be created and how they
-        should be created
+        parallel_config: Specifies which executors should be created and how
+        they should be created
         """
-        self.parsl_config = parsl_config
+        self.parallel_config = parallel_config
         self.action_executor_mapping = action_executor_mapping
 
     def __enter__(self):
         """Set this to be our Parsl config on the current thread local
         """
-        self.backup_config = PARSL_CONFIG.parsl_config
-        PARSL_CONFIG.parsl_config = self.parsl_config
+        self.backup_config = PARALLEL_CONFIG.parallel_config
+        PARALLEL_CONFIG.parallel_config = self.parallel_config
 
-        self.backup_map = PARSL_CONFIG.action_executor_mapping
-        PARSL_CONFIG.action_executor_mapping = self.action_executor_mapping
+        self.backup_map = PARALLEL_CONFIG.action_executor_mapping
+        PARALLEL_CONFIG.action_executor_mapping = self.action_executor_mapping
 
     def __exit__(self, *args):
         """Set our Parsl config back to whatever it was before this one
         """
-        PARSL_CONFIG.parsl_config = self.backup_config
-        PARSL_CONFIG.action_executor_mapping = self.backup_map
+        PARALLEL_CONFIG.parallel_config = self.backup_config
+        PARALLEL_CONFIG.action_executor_mapping = self.backup_map
