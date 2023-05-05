@@ -123,7 +123,7 @@ class Context:
             # These factories will create new Contexts with this context as
             # their parent. This allows scope cleanup to happen recursively. A
             # factory is necessary so that independent applications of the
-            # returned callable recieve their own Context objects.
+            # returned callable receive their own Context objects.
             #
             # The parsl factory is a bit more complicated because we need to
             # pass this exact Context along for a while longer until we run a
