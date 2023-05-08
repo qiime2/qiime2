@@ -115,7 +115,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
-        setup_parsl(self.config_fp)
+        setup_parallel(self.config_fp)
 
         with self.cache:
             future = self.pipeline.parallel(self.art, self.art)
