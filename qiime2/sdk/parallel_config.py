@@ -69,15 +69,15 @@ def setup_parallel(config_fp=None):
         config_fp = _get_vendored_config()
 
     if config_fp is not None:
-        config_dict = _get_config(config_fp)
-        mapping = _get_mapping(config_dict)
+        config_dict = get_config(config_fp)
+        mapping = get_mapping(config_dict)
 
         # If config_dict is empty now, they gave a file that only contained a
         # mapping, so we want to load a default config assuming they do not
         # already have a loaded config
         if config_dict == {} and PARALLEL_CONFIG.parallel_config is None:
             config_fp = _get_vendored_config()
-            config_dict = _get_config(config_fp)
+            config_dict = get_config(config_fp)
 
         # Now if we actually have a config dict, we want to load the config. We
         # still will not have one if they gave us a file that only contained a
@@ -103,6 +103,22 @@ def setup_parallel(config_fp=None):
     PARALLEL_CONFIG.parallel_config = config
     if mapping != {}:
         PARALLEL_CONFIG.action_executor_mapping = mapping
+
+
+def get_config(fp):
+    """Takes a config filepath and determines if the file exists and if so if
+    it contains parsl config info.
+    """
+    with open(fp, 'r') as fh:
+        config_dict = tomlkit.load(fh)
+
+    return config_dict.get('parsl')
+
+
+def get_mapping(config_dict):
+    """Takes a config dict and pops off the action_executor_mapping
+    """
+    return config_dict.pop('executor_mapping', {})
 
 
 def _get_vendored_config():
@@ -134,23 +150,6 @@ def _get_vendored_config():
             config_fp = VENDORED_FP
 
     return config_fp
-
-
-def _get_config(fp):
-    """Takes a config filepath and determines if the file exists and if so if
-    it contains parsl config info.
-    """
-    with open(fp, 'r') as fh:
-        config_dict = tomlkit.load(fh)
-
-    return config_dict.get('parsl')
-
-
-def _get_mapping(config_dict):
-    """Takes a config filepath and determines if the file exists and if so if
-    it contains action executor mapping info.
-    """
-    return config_dict.pop('executor_mapping', {})
 
 
 def _process_config(config_dict):
