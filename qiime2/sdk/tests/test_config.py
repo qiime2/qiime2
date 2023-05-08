@@ -21,14 +21,15 @@ from qiime2 import Artifact, Cache
 from qiime2.core.util import load_action_yaml
 from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
-from qiime2.sdk.parsl_config import PARSL_CONFIG, ParallelConfig, setup_parsl
+from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, ParallelConfig,
+                                        setup_parallel)
 
 
 class TestConfig(unittest.TestCase):
     def setUp(self):
         # Ensure default state prior to test
-        PARSL_CONFIG.parsl_config = None
-        PARSL_CONFIG.action_executor_mapping = {}
+        PARALLEL_CONFIG.parallel_config = None
+        PARALLEL_CONFIG.action_executor_mapping = {}
 
         plugin = get_dummy_plugin()
         self.pipeline = plugin.pipelines['resumable_pipeline']
@@ -107,17 +108,17 @@ class TestConfig(unittest.TestCase):
     def test_default_config(self):
         config_fp = self.get_data_path('default_config.toml')
 
-        setup_parsl(config_fp)
+        setup_parallel(config_fp)
 
         # Assert modified state
-        self.assertIsInstance(PARSL_CONFIG.parsl_config, Config)
-        self.assertEqual(PARSL_CONFIG.action_executor_mapping, {})
+        self.assertIsInstance(PARALLEL_CONFIG.parallel_config, Config)
+        self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
         setup_parsl(self.config_fp)
 
         with self.cache:
-            future = self.pipeline.parsl(self.art, self.art)
+            future = self.pipeline.parallel(self.art, self.art)
             list_return, dict_return = future._result()
 
         list_execution_contexts = self._load_alias_execution_contexts(

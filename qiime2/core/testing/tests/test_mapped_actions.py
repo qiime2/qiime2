@@ -27,7 +27,7 @@ class ActionTester(unittest.TestCase):
         future = self.action.asynchronous(**inputs)
         async_results = future.result()
 
-        proxy_results = self.action.parsl(**inputs)
+        proxy_results = self.action.parallel(**inputs)
         parsl_results = proxy_results._future_.result()
 
         for a, b, c in zip(async_results, results, parsl_results):

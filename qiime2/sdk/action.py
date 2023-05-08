@@ -21,7 +21,7 @@ import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import (LateBindingAttribute, DropFirstParameter,
                               tuplize, create_collection_name)
-from qiime2.sdk.parsl_config import setup_parsl
+from qiime2.sdk.parallel_config import setup_parallel
 from qiime2.sdk.proxy import Proxy
 
 
@@ -78,7 +78,7 @@ def _run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
         # the parsl join app the pipeline was running in is expected to return
         # a future, but we will have concrete results by this point if we are a
         # pipeline
-        if isinstance(action, Pipeline) and ctx.parsl:
+        if isinstance(action, Pipeline) and ctx.parallel:
             return _create_future(results)
 
         return results
@@ -100,7 +100,7 @@ class Action(metaclass=abc.ABCMeta):
 
     __call__ = LateBindingAttribute('_dynamic_call')
     asynchronous = LateBindingAttribute('_dynamic_async')
-    parsl = LateBindingAttribute('_dynamic_parsl')
+    parallel = LateBindingAttribute('_dynamic_parsl')
 
     # Converts a callable's signature into its wrapper's signature (i.e.
     # converts the "view API" signature into the "artifact API" signature).
@@ -372,6 +372,7 @@ class Action(metaclass=abc.ABCMeta):
         # determine that here
         executor = ctx.action_executor_mapping.get(self.id, 'default')
         execution_ctx = {'type': 'parsl'}
+        print(f'HERE: {ctx.action_executor_mapping}')
 
         # Pipelines run in join apps and are a sort of synchronization point
         # right now. Unfortunately it is not currently possible to make say a
@@ -404,9 +405,8 @@ class Action(metaclass=abc.ABCMeta):
 
     def _get_parsl_wrapper(self):
         def parsl_wrapper(*args, **kwargs):
-            setup_parsl()
-
-            return self._bind_parsl(qiime2.sdk.Context(parsl=True), *args,
+            setup_parallel()
+            return self._bind_parsl(qiime2.sdk.Context(parallel=True), *args,
                                     **kwargs)
 
         parsl_wrapper = self._rewrite_wrapper_signature(parsl_wrapper)
