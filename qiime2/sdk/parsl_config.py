@@ -204,8 +204,9 @@ class ParallelConfig():
         errors will only occur if an action that is being run in a given
         QIIME 2 invocation has been mapped to an executor that does not exist
 
-        parsl_config: Specifies which executors should be created and how they
-        should be created
+        parallel_config: Specifies which executors should be created and how
+        they should be created. If this is None, it will use the default
+        config.
         """
         self.parsl_config = parsl_config
         self.action_executor_mapping = action_executor_mapping
