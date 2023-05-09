@@ -113,7 +113,7 @@ class TestPipelineResumption(unittest.TestCase):
             complete_identity_uuid = _load_alias_uuid(identity_ret)
             complete_viz_uuid = _load_alias_uuid(viz_ret)
 
-            # Nothing should have been recyled because we didn't use a pool
+            # Nothing should have been recycled because we didn't use a pool
             self.assertNotEqual(ints1_uuids, complete_ints1_uuids)
             self.assertNotEqual(ints2_uuids, complete_ints2_uuids)
             self.assertNotEqual(int1_uuid, complete_int1_uuid)
