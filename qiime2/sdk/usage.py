@@ -52,7 +52,8 @@ def assert_usage_var_type(usage_variable, *valid_types):
     ----------
     usage_variable : `qiime2.sdk.usage.UsageVariable`
         The usage variable to test.
-    *valid_types : 'artifact', 'visualization', 'metadata', 'column', 'format'
+    *valid_types : 'artifact', 'artifact-collection', 'visualization',
+                   'metadata', 'column', 'format'
         The valid variable types to expect.
 
     Raises
@@ -445,7 +446,8 @@ class UsageOutputs(sdk.Results):
     pass
 
 
-VAR_TYPES = ('artifact', 'visualization', 'metadata', 'column', 'format')
+VAR_TYPES = ('artifact', 'artifact-collection', 'visualization',
+             'metadata', 'column', 'format')
 T_VAR_TYPES = Literal['artifact', 'visualization', 'metadata', 'column',
                       'format']
 
@@ -476,7 +478,8 @@ class UsageVariable:
             point).
         factory : Callable[[], Any]
             A function which will return a realized value of `var_type`.
-        var_type : 'artifact', 'visualization', 'metadata', 'column', 'format'
+        var_type : 'artifact', 'artifact-collection', 'visualization',
+                   'metadata', 'column', 'format'
             The type of value which will be returned by the factory.
             Most are self-explanatory, but "format" indicates that the factory
             produces a QIIME 2 file format or directory format, which is used
@@ -510,7 +513,8 @@ class UsageVariable:
         For use by interface drivers only (and rarely at that).
         Do not use in a written usage example.
         """
-        self.var_type: Literal['artifact', 'visualization', 'metadata',
+        self.var_type: Literal['artifact', 'artifact-collection',
+                               'visualization', 'metadata',
                                'column', 'format'] = var_type
         """The general type of this variable.
 
