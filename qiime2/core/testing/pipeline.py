@@ -7,6 +7,8 @@
 # ----------------------------------------------------------------------------
 
 from .type import SingleInt, Mapping
+from qiime2.sdk.result import ResultCollection
+from qiime2.core.testing.util import PipelineError
 
 
 def parameter_only_pipeline(ctx, int1, int2=2, metadata=None):
@@ -80,21 +82,7 @@ def pipelines_in_pipeline(ctx, int_sequence, mapping):
     return tuple(results)
 
 
-def resumable_pipeline(ctx, int_sequence, fail=False):
-    """ This pipeline is designed to be called first with fail=True then a
-    second time with fail=False. The second call is meant to reuse cached
-    results from the first call
-    """
-    split_ints = ctx.get_action('dummy_plugin', 'split_ints')
-
-    left, right = split_ints(int_sequence)
-    if fail:
-        raise ValueError(f'{left.uuid}_{right.uuid}')
-
-    return left, right
-
-
-def resumable_collection_pipeline(ctx, int_list, int_dict, fail=False):
+def resumable_pipeline(ctx, int_list, int_dict, fail=False):
     """ This pipeline is designed to be called first with fail=True then a
     second time with fail=False. The second call is meant to reuse cached
     results from the first call
@@ -114,30 +102,97 @@ def resumable_collection_pipeline(ctx, int_list, int_dict, fail=False):
     return list_return, dict_return
 
 
-def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, fail=False):
+def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
+                              fail=False):
     varied_method = ctx.get_action('dummy_plugin', 'varied_method')
     list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
     dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
+    identity_with_metadata = ctx.get_action('dummy_plugin',
+                                            'identity_with_metadata')
+    most_common_viz = ctx.get_action('dummy_plugin', 'most_common_viz')
 
     ints1_ret, ints2_ret, int1_ret = varied_method(
         ints1, ints2, int1, string)
 
-    list_return, = list_of_ints(ints1)
-    dict_return, = dict_of_ints(ints1)
+    list_ret, = list_of_ints(ints1_ret)
+    dict_ret, = dict_of_ints(ints1)
+
+    identity_ret, = identity_with_metadata(ints2[0], metadata)
+
+    viz_ret, = most_common_viz(ints2[1])
 
     if fail:
-        ints1_uuids = [str(result.uuid) for result in ints1_ret.values()]
-        ints2_uuids = [str(result.uuid) for result in ints2_ret.values()]
-        int1_uuid = str(int1_ret.uuid)
+        uuids = []
 
-        list_uuids = [str(result.uuid) for result in list_return.values()]
-        dict_uuids = [str(result.uuid) for result in dict_return.values()]
+        uuids.append([str(result.uuid) for result in ints1_ret.values()])
+        uuids.append([str(result.uuid) for result in ints2_ret.values()])
+        uuids.append(str(int1_ret.uuid))
 
-        raise ValueError(f'{ints1_uuids}_{ints2_uuids}_{int1_uuid}'
-                         f'_{list_uuids}_{dict_uuids}')
+        uuids.append([str(result.uuid) for result in list_ret.values()])
+        uuids.append([str(result.uuid) for result in dict_ret.values()])
 
-    dict_uuids = [str(result.uuid) for result in dict_return.values()]
-    return ints1_ret, ints2_ret, int1_ret, list_return, dict_return
+        uuids.append(str(identity_ret.uuid))
+
+        uuids.append(str(viz_ret.uuid))
+
+        raise PipelineError(uuids)
+
+    return (ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret,
+            viz_ret)
+
+
+def resumable_nested_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
+                                     fail=False):
+    internal_pipeline = ctx.get_action('dummy_plugin',
+                                       'internal_fail_pipeline')
+    list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
+    dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
+    identity_with_metadata = ctx.get_action('dummy_plugin',
+                                            'identity_with_metadata')
+    most_common_viz = ctx.get_action('dummy_plugin', 'most_common_viz')
+
+    list_ret, = list_of_ints(ints1)
+    dict_ret, = dict_of_ints(ints1)
+
+    identity_ret, = identity_with_metadata(ints2[0], metadata)
+
+    viz_ret, = most_common_viz(ints2[1])
+
+    try:
+        ints1_ret, ints2_ret, int1_ret = internal_pipeline(
+            ints1, ints2, int1, string, fail)._result()
+    except PipelineError as e:
+        uuids = [uuid for uuid in e.uuids]
+
+        uuids.append([str(result.uuid) for result in list_ret.values()])
+        uuids.append([str(result.uuid) for result in dict_ret.values()])
+
+        uuids.append(str(identity_ret.uuid))
+
+        uuids.append(str(viz_ret.uuid))
+
+        raise PipelineError(uuids)
+
+    return (ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret,
+            viz_ret)
+
+
+def internal_fail_pipeline(ctx, ints1, ints2, int1, string, fail=False):
+    varied_method = ctx.get_action('dummy_plugin', 'varied_method')
+
+    ints1_ret, ints2_ret, int1_ret = varied_method(
+        ints1, ints2, int1, string)
+
+    if fail:
+        uuids = []
+
+        uuids.append([str(result.uuid) for result in ints1_ret.values()])
+        uuids.append([str(result.uuid) for result in ints2_ret.values()])
+        uuids.append(str(int1_ret.uuid))
+
+        raise PipelineError(uuids)
+
+    return ints1_ret, ints2_ret, int1_ret
 
 
 def list_pipeline(ctx, ints):
@@ -147,9 +202,9 @@ def list_pipeline(ctx, ints):
 
 
 def collection_pipeline(ctx, ints):
-    assert isinstance(ints, dict)
-    return ({'key1': ctx.make_artifact(SingleInt, 4),
-             'key2': ctx.make_artifact(SingleInt, 5)})
+    assert isinstance(ints, ResultCollection)
+    return {'key1': ctx.make_artifact(SingleInt, 4),
+            'key2': ctx.make_artifact(SingleInt, 5)}
 
 
 def pointless_pipeline(ctx):

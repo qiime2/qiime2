@@ -14,21 +14,84 @@ import textwrap
 
 import decorator
 import dill
+import parsl
+from parsl.app.app import python_app, join_app
 
 import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
-from qiime2.core.util import LateBindingAttribute, DropFirstParameter, tuplize
+from qiime2.core.util import (LateBindingAttribute, DropFirstParameter,
+                              tuplize, create_collection_name)
+from qiime2.sdk.parsl_config import PARSL_CONFIG, setup_parsl
+from qiime2.sdk.proxy import Proxy
 
 
 def _subprocess_apply(action, ctx, args, kwargs):
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
     with ctx.cache:
-        exe = action._bind(lambda: qiime2.sdk.Context(parent=ctx))
+        exe = action._bind(
+            lambda: qiime2.sdk.Context(parent=ctx), {'type': 'asynchronous'})
         results = exe(*args, **kwargs)
 
         return results
+
+
+def _run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
+    """This is what the parsl app itself actually runs. It's basically just a
+    wrapper around our QIIME 2 action. When this is initially called, args and
+    kwargs may contain proxies that reference futures in inputs. By the time
+    this starts executing, those futures will have resolved. We then need to
+    take the resolved inputs and map the correct parts of them to the correct
+    args/kwargs before calling the action with them.
+
+    This is necessary because a single future in inputs will resolve into a
+    Results object. We need to take singular Result objects off of that Results
+    object and map them to the correct inputs for the action we want to call.
+    """
+    remapped_kwargs = {}
+    for key, value in kwargs.items():
+        if isinstance(value, Proxy):
+            # We were hacky and set _future_ to be the index of this artifact
+            # in the inputs list
+            resolved_result = inputs[value._future_]
+            remapped_kwargs[key] = value._get_element_(resolved_result)
+        else:
+            remapped_kwargs[key] = value
+
+    remapped_args = []
+    for arg in args:
+        if isinstance(arg, Proxy):
+            # Same as above with the hackiness
+            resolved_result = inputs[arg._future_]
+            remapped_args.append(arg._get_element_(resolved_result))
+        else:
+            remapped_args.append(arg)
+
+    # We with in the cache here to make sure archiver.load* puts things in the
+    # right cache
+    with ctx.cache:
+        exe = action._bind(
+            lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
+        results = exe(*remapped_args, **remapped_kwargs)
+
+        # If we are running a pipeline, we need to create a future here because
+        # the parsl join app the pipeline was running in is expected to return
+        # a future, but we will have concrete results by this point if we are a
+        # pipeline
+        if isinstance(action, Pipeline) and ctx.parsl:
+            return _create_future(results)
+
+        return results
+
+
+@python_app
+def _create_future(results):
+    """ This is a bit of a dumb hack. It's just a way for us to make pipelines
+    return a future which is what Parsl wants a join_app to return even though
+    we will have real results at this point.
+    """
+    return results
 
 
 class Action(metaclass=abc.ABCMeta):
@@ -38,6 +101,7 @@ class Action(metaclass=abc.ABCMeta):
 
     __call__ = LateBindingAttribute('_dynamic_call')
     asynchronous = LateBindingAttribute('_dynamic_async')
+    parsl = LateBindingAttribute('_dynamic_parsl')
 
     # Converts a callable's signature into its wrapper's signature (i.e.
     # converts the "view API" signature into the "artifact API" signature).
@@ -99,6 +163,8 @@ class Action(metaclass=abc.ABCMeta):
         self.id = callable.__name__
         self._dynamic_call = self._get_callable_wrapper()
         self._dynamic_async = self._get_async_wrapper()
+        # This a temp thing to play with parsl before integrating more deeply
+        self._dynamic_parsl = self._get_parsl_wrapper()
 
     def __init__(self):
         raise NotImplementedError(
@@ -148,7 +214,7 @@ class Action(metaclass=abc.ABCMeta):
     def __setstate__(self, state):
         self.__init(**dill.loads(state))
 
-    def _bind(self, context_factory):
+    def _bind(self, context_factory, execution_ctx={'type': 'synchronous'}):
         """Bind an action to a Context factory, returning a decorated function.
 
         This is a very primitive API and should be used primarily by the
@@ -186,30 +252,28 @@ class Action(metaclass=abc.ABCMeta):
             # manager will clean up. (It also cleans up when things go right)
             with ctx as scope:
                 provenance = self._ProvCaptureCls(
-                    self.type, self.plugin_id, self.id)
+                    self.type, self.plugin_id, self.id, execution_ctx)
                 scope.add_reference(provenance)
-
-                # Collate user arguments
-                user_input = {name: value for value, name in
-                              zip(args, self.signature.signature_order)}
-                user_input.update(kwargs)
-
-                # Type management
-                self.signature.check_types(**user_input)
-                output_types = self.signature.solve_output(**user_input)
-                callable_args = self.signature.coerce_user_input(**user_input)
-                callable_args = \
-                    self.signature.transform_and_add_callable_args_to_prov(
-                        provenance, **callable_args)
 
                 if self.deprecated:
                     with qiime2.core.util.warning() as warn:
                         warn(self._build_deprecation_message(),
                              FutureWarning)
 
-                # Execute
-                outputs = self._callable_executor_(scope, callable_args,
-                                                   output_types, provenance)
+                # Type management
+                collated_inputs = self.signature.collate_inputs(
+                    *args, **kwargs)
+                self.signature.check_types(**collated_inputs)
+                output_types = self.signature.solve_output(**collated_inputs)
+                callable_args = self.signature.coerce_user_input(
+                    **collated_inputs)
+
+                callable_args = \
+                    self.signature.transform_and_add_callable_args_to_prov(
+                        provenance, **callable_args)
+
+                outputs = self._callable_executor_(
+                    scope, callable_args, output_types, provenance)
 
                 if len(outputs) != len(self.signature.outputs):
                     raise ValueError(
@@ -219,8 +283,10 @@ class Action(metaclass=abc.ABCMeta):
 
                 # Wrap in a Results object mapping output name to value so
                 # users have access to outputs by name or position.
-                return qiime2.sdk.Results(self.signature.outputs.keys(),
-                                          outputs)
+                results = qiime2.sdk.Results(
+                    self.signature.outputs.keys(), outputs)
+
+                return results
 
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
@@ -253,8 +319,8 @@ class Action(metaclass=abc.ABCMeta):
             args = args[1:]
 
             pool = concurrent.futures.ProcessPoolExecutor(max_workers=1)
-            future = pool.submit(_subprocess_apply, self, qiime2.sdk.Context(),
-                                 args, kwargs)
+            future = pool.submit(
+                _subprocess_apply, self, qiime2.sdk.Context(), args, kwargs)
             # TODO: pool.shutdown(wait=False) caused the child process to
             # hang unrecoverably. This seems to be a bug in Python 3.7
             # It's probably best to gut concurrent.futures entirely, so we're
@@ -265,6 +331,96 @@ class Action(metaclass=abc.ABCMeta):
         self._set_wrapper_properties(async_wrapper)
         self._set_wrapper_name(async_wrapper, 'asynchronous')
         return async_wrapper
+
+    def _bind_parsl(self, ctx, *args, **kwargs):
+        futures = []
+        remapped_args = []
+        remapped_kwargs = {}
+
+        # If this is the first time we called _bind_parsl on a pipeline, the
+        # first argument will be the callable for the pipeline which we do not
+        # want to pass on in this manner, so we skip it.
+        if len(args) >= 1 and callable(args[0]):
+            args = args[1:]
+
+        # Parsl will queue up apps with futures as their arguments then not
+        # execute the apps until the futures are resolved. This is an extremely
+        # handy feature, but QIIME 2 does not play nice with it out of the box.
+        # You can look in qiime2/sdk/proxy.py for some more details on how this
+        # is working, but we are basically taking future QIIME 2 results and
+        # mapping them to the correct inputs in the action we are trying to
+        # call. This is necessary if we are running a pipeline in particular
+        # because the inputs to the next action could contain outputs from the
+        # last action that might not be resolved yet because Parsl may be
+        # queueing the next action before the last one has completed.
+        for arg in args:
+            if isinstance(arg, Proxy):
+                futures.append(arg._future_)
+                remapped_args.append(arg.__class__(len(futures) - 1,
+                                                   arg._selector_))
+            else:
+                remapped_args.append(arg)
+
+        for key, value in kwargs.items():
+            if isinstance(value, Proxy):
+                futures.append(value._future_)
+                remapped_kwargs[key] = value.__class__(len(futures) - 1,
+                                                       value._selector_)
+            else:
+                remapped_kwargs[key] = value
+
+        # If the user specified a particular executor for a this action
+        # determine that here
+        executor = ctx.action_executor_mapping.get(self.id, 'default')
+        execution_ctx = {'type': 'parsl'}
+
+        # Pipelines run in join apps and are a sort of synchronization point
+        # right now. Unfortunately it is not currently possible to make say a
+        # pipeline that calls two other pipelines within it and execute both of
+        # those internal pipelines simultaneously.
+        if isinstance(self, qiime2.sdk.action.Pipeline):
+            execution_ctx['parsl_type'] = 'DFK'
+            # NOTE: Do not make this a python_app(join=True). We need it to run
+            # in the parsl main thread
+            future = join_app()(
+                    _run_parsl_action)(self, ctx, execution_ctx,
+                                       remapped_args, remapped_kwargs,
+                                       inputs=futures)
+        else:
+            execution_ctx['parsl_type'] = \
+                ctx.executor_name_type_mapping[executor]
+            future = python_app(
+                executors=[executor])(
+                    _run_parsl_action)(self, ctx, execution_ctx,
+                                       remapped_args, remapped_kwargs,
+                                       inputs=futures)
+
+        # This bit that creates user_input now exists in three places. Here,
+        # _bind, and deffered_action. So that's not great.
+        collated_input = self.signature.collate_inputs(*args, **kwargs)
+        output_types = self.signature.solve_output(**collated_input)
+
+        # Again, we return a set of futures not a set of real results
+        return qiime2.sdk.proxy.ProxyResults(future, output_types)
+
+    def _get_parsl_wrapper(self):
+        def parsl_wrapper(*args, **kwargs):
+            setup_parsl()
+
+            # If you find a good way to determine if a parsl config is loaded.
+            # Use it here
+            try:
+                parsl.load(PARSL_CONFIG.parsl_config)
+            except RuntimeError:
+                pass
+
+            return self._bind_parsl(qiime2.sdk.Context(parsl=True), *args,
+                                    **kwargs)
+
+        parsl_wrapper = self._rewrite_wrapper_signature(parsl_wrapper)
+        self._set_wrapper_properties(parsl_wrapper)
+        self._set_wrapper_name(parsl_wrapper, 'parsl')
+        return parsl_wrapper
 
     def _rewrite_wrapper_signature(self, wrapper):
         # Convert the callable's signature into the wrapper's signature and set
@@ -414,7 +570,7 @@ class Visualizer(Action):
                                                           provenance)
             viz = scope.add_parent_reference(viz)
 
-            return (viz,)
+            return (viz, )
 
     @classmethod
     def _init(cls, callable, inputs, parameters, plugin_id, name, description,
@@ -437,15 +593,17 @@ class Pipeline(Action):
 
     def _callable_executor_(self, scope, view_args, output_types, provenance):
         outputs = self._callable(scope.ctx, **view_args)
+        # Just make sure we have an iterable even if there was only one output
         outputs = tuplize(outputs)
+        # Make sure any collections returned are in the form of
+        # ResultCollections and that futures are resolved
+        #
+        # TODO: Ideally we would not need to resolve futures here as this
+        # prevents us from properly parallelizing nested pipelines
+        outputs = self._coerce_pipeline_outputs(outputs)
 
         for output in outputs:
-            if isinstance(output, list):
-                for elem in output:
-                    if not isinstance(elem, qiime2.sdk.Result):
-                        raise TypeError("Pipelines must return `Result` "
-                                        "objects, not %s" % (type(elem), ))
-            elif isinstance(output, dict):
+            if isinstance(output, qiime2.sdk.ResultCollection):
                 for elem in output.values():
                     if not isinstance(elem, qiime2.sdk.Result):
                         raise TypeError("Pipelines must return `Result` "
@@ -479,11 +637,14 @@ class Pipeline(Action):
                 aliased_result = scope.add_parent_reference(aliased_result)
 
                 results.append(aliased_result)
-            elif output in spec.qiime_type:
-                aliased_output = {}
-                for key, value in output.items() if isinstance(output, dict) \
-                        else enumerate(output):
-                    prov = provenance.fork(name, value)
+            elif spec.qiime_type.name == 'Collection' and \
+                    output.collection in spec.qiime_type:
+                size = len(output)
+                aliased_output = qiime2.sdk.ResultCollection()
+                for idx, (key, value) in enumerate(output.items()):
+                    collection_name = create_collection_name(
+                        name=name, key=key, idx=idx, size=size)
+                    prov = provenance.fork(collection_name, value)
                     scope.add_reference(prov)
 
                     aliased_result = value._alias(prov)
@@ -498,7 +659,31 @@ class Pipeline(Action):
                     "Expected output type %r, received %r" %
                     (spec.qiime_type, _type))
 
+        if len(results) != len(self.signature.outputs):
+            raise ValueError(
+                "Number of callable outputs must match number of "
+                "outputs defined in signature: %d != %d" %
+                (len(results), len(self.signature.outputs)))
+
         return tuple(results)
+
+    def _coerce_pipeline_outputs(self, outputs):
+        """Ensure all futures are resolved and all collections are of type
+           ResultCollection
+        """
+        coerced_outputs = []
+
+        for output in outputs:
+            if isinstance(output, Proxy):
+                output = output.result()
+
+            if isinstance(output, dict) or \
+                    isinstance(output, list):
+                output = qiime2.sdk.ResultCollection(output)
+
+            coerced_outputs.append(output)
+
+        return tuple(coerced_outputs)
 
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,

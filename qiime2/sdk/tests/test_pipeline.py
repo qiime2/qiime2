@@ -105,8 +105,8 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(len(list_out), 1)
         self.assertEqual(len(dict_out), 1)
 
-        self.assertIsInstance(list_out.output, dict)
-        self.assertIsInstance(dict_out.output, dict)
+        self.assertIsInstance(list_out.output, qiime2.sdk.ResultCollection)
+        self.assertIsInstance(dict_out.output, qiime2.sdk.ResultCollection)
 
         self.assertEqual(list(list_out.output.keys()), ['0', '1'])
         self.assertEqual(list(dict_out.output.keys()), ['0', '1'])
@@ -130,8 +130,8 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(len(list_out), 1)
         self.assertEqual(len(dict_out), 1)
 
-        self.assertIsInstance(list_out.output, dict)
-        self.assertIsInstance(dict_out.output, dict)
+        self.assertIsInstance(list_out.output, qiime2.sdk.ResultCollection)
+        self.assertIsInstance(dict_out.output, qiime2.sdk.ResultCollection)
 
         self.assertEqual(list(list_out.output.keys()), ['key1', 'key2'])
         self.assertEqual(list(dict_out.output.keys()), ['key1', 'key2'])

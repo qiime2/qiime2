@@ -69,3 +69,6 @@ target/
 
 #Editor file
 .vscode
+
+#Parsl log
+runinfo

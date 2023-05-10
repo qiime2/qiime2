@@ -27,8 +27,12 @@ class ActionTester(unittest.TestCase):
         future = self.action.asynchronous(**inputs)
         async_results = future.result()
 
-        for a, b in zip(async_results, results):
+        proxy_results = self.action.parsl(**inputs)
+        parsl_results = proxy_results._future_.result()
+
+        for a, b, c in zip(async_results, results, parsl_results):
             self.assertEqual(a.type, b.type)
+            self.assertEqual(b.type, c.type)
 
         return results
 

@@ -111,7 +111,6 @@ class OutPath(OwnedPath):
 
     def __exit__(self, t, v, tb):
         self._destructor()
-        super().__exit__(t, v, tb)
 
 
 class InternalDirectory(_ConcretePath):

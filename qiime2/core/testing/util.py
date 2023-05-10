@@ -115,3 +115,11 @@ class ReallyEqualMixin:
         self.assertFalse(b == a)
         self.assertTrue(a != b)
         self.assertTrue(b != a)
+
+
+class PipelineError(Exception):
+    """This error is raised by the dummy-plugin pipelines that are designed to
+    fail and be rerun to test pipeline resumption.
+    """
+    def __init__(self, uuids):
+        self.uuids = uuids

@@ -14,7 +14,7 @@ import uuid
 
 import qiime2.plugin
 from qiime2.core.type import MethodSignature, Int
-from qiime2.sdk import Artifact, Method, Results
+from qiime2.sdk import Artifact, Method, Results, ResultCollection
 
 from qiime2.core.testing.method import (concatenate_ints, merge_mappings,
                                         params_only_method, no_input_method)
@@ -602,8 +602,8 @@ class TestMethod(unittest.TestCase):
         self.assertEqual(len(list_out), 1)
         self.assertEqual(len(dict_out), 1)
 
-        self.assertIsInstance(list_out.output, dict)
-        self.assertIsInstance(dict_out.output, dict)
+        self.assertIsInstance(list_out.output, ResultCollection)
+        self.assertIsInstance(dict_out.output, ResultCollection)
 
         view_list_out = self._view_collection(list_out.output, int)
         view_dict_out = self._view_collection(dict_out.output, int)
@@ -630,8 +630,8 @@ class TestMethod(unittest.TestCase):
         self.assertEqual(len(list_out), 1)
         self.assertEqual(len(dict_out), 1)
 
-        self.assertIsInstance(list_out.output, dict)
-        self.assertIsInstance(dict_out.output, dict)
+        self.assertIsInstance(list_out.output, ResultCollection)
+        self.assertIsInstance(dict_out.output, ResultCollection)
 
         view_list_out = self._view_collection(list_out.output, int)
         view_dict_out = self._view_collection(dict_out.output, int)
@@ -648,7 +648,7 @@ class TestMethod(unittest.TestCase):
         out = inner_union(inner_test)
 
         self.assertEqual(len(out), 1)
-        self.assertIsInstance(out.output, dict)
+        self.assertIsInstance(out.output, ResultCollection)
 
     def test_collection_outer_union(self):
         outer_union = self.plugin.methods['collection_outer_union']
@@ -659,7 +659,7 @@ class TestMethod(unittest.TestCase):
         out = outer_union(int_dict)
 
         self.assertEqual(len(out), 1)
-        self.assertIsInstance(out.output, dict)
+        self.assertIsInstance(out.output, ResultCollection)
 
     def test_collection_list_param(self):
         list_method = self.plugin.methods['list_params']
@@ -675,8 +675,8 @@ class TestMethod(unittest.TestCase):
         self.assertEqual(len(list_out), 1)
         self.assertEqual(len(dict_out), 1)
 
-        self.assertIsInstance(list_out.output, dict)
-        self.assertIsInstance(dict_out.output, dict)
+        self.assertIsInstance(list_out.output, ResultCollection)
+        self.assertIsInstance(dict_out.output, ResultCollection)
 
         view_list_out = self._view_collection(list_out.output, int)
         view_dict_out = self._view_collection(dict_out.output, int)
@@ -702,8 +702,8 @@ class TestMethod(unittest.TestCase):
         self.assertEqual(len(list_out), 1)
         self.assertEqual(len(dict_out), 1)
 
-        self.assertIsInstance(list_out.output, dict)
-        self.assertIsInstance(dict_out.output, dict)
+        self.assertIsInstance(list_out.output, ResultCollection)
+        self.assertIsInstance(dict_out.output, ResultCollection)
 
         view_list_out = self._view_collection(list_out.output, int)
         view_dict_out = self._view_collection(dict_out.output, int)
@@ -730,8 +730,8 @@ class TestMethod(unittest.TestCase):
         self.assertEqual(len(ints1_ret), 2)
         self.assertEqual(len(ints2_ret), 2)
 
-        self.assertIsInstance(ints1_ret, dict)
-        self.assertIsInstance(ints2_ret, dict)
+        self.assertIsInstance(ints1_ret, ResultCollection)
+        self.assertIsInstance(ints2_ret, ResultCollection)
 
         view_ints1_ret = self._view_collection(ints1_ret, int)
         view_ints2_ret = self._view_collection(ints2_ret, list)

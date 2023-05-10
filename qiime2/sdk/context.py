@@ -10,13 +10,26 @@ from qiime2.core.type.util import is_collection_type
 from qiime2.core.type import HashableInvocation
 from qiime2.core.cache import get_cache
 import qiime2.sdk
+from qiime2.sdk.parsl_config import PARSL_CONFIG
 
 
 class Context:
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, parsl=False):
         if parent is not None:
+            self.action_executor_mapping = parent.action_executor_mapping
+            self.executor_name_type_mapping = parent.executor_name_type_mapping
+            self.parsl = parent.parsl
             self.cache = parent.cache
         else:
+            self.action_executor_mapping = PARSL_CONFIG.action_executor_mapping
+            # Cast type to str so yaml doesn't think it needs tpo instantiate
+            # an executor object when we write this to then read this from
+            # provenance
+            self.executor_name_type_mapping = \
+                None if PARSL_CONFIG.parsl_config is None \
+                else {v.label: v.__class__.__name__
+                      for v in PARSL_CONFIG.parsl_config.executors}
+            self.parsl = parsl
             self.cache = get_cache()
             # Only ever do this on the root context. We only want to index the
             # pool once before we start adding our own stuff to it.
@@ -28,7 +41,6 @@ class Context:
 
     def get_action(self, plugin: str, action: str):
         """Return a function matching the callable API of an action.
-
         This function is aware of the pipeline context and manages its own
         cleanup as appropriate.
         """
@@ -52,18 +64,20 @@ class Context:
         # results or to run the action requested.
         def deferred_action(*args, **kwargs):
             # If we have a named_pool, we need to check for cached results that
-            # we can reuse
-            if self.cache.named_pool is not None:
-                # NOTE: This work is currently done both here and in action.py
-                # in bound_callable. We should be able to remove this redundant
-                # work by adding something like _bind_deferred and calling it
-                # where we call _bind below, but that might not be worth it
-                user_input = {name: value for value, name in
-                              zip(args, action_obj.signature.signature_order)}
-                user_input.update(kwargs)
-
+            # we can reuse.
+            #
+            # We can short circuit our index checking if any of our arguments
+            # are proxies because if we got a proxy as an argument, we know it
+            # is a new thing we are computing from a prior step in the pipeline
+            # and thus will not be cached. We can only have proxies if we are
+            # executing with parsl
+            if self.cache.named_pool is not None and (not self.parsl or (
+                    self.parsl and not self._contains_proxies(
+                        *args, **kwargs))):
+                collated_inputs = action_obj.signature.collate_inputs(
+                    *args, **kwargs)
                 callable_args = action_obj.signature.coerce_user_input(
-                    **user_input)
+                    **collated_inputs)
 
                 # Make args and kwargs look how they do when we read them out
                 # of a .yaml file (list of single value dicts of
@@ -79,7 +93,7 @@ class Context:
 
                     for name, _type in action_obj.signature.outputs.items():
                         if is_collection_type(_type.qiime_type):
-                            loaded_collection = {}
+                            loaded_collection = qiime2.sdk.ResultCollection()
                             cached_collection = cached_outputs[name]
 
                             # Get the order we should load collection items in
@@ -105,14 +119,34 @@ class Context:
             # If we didn't have cached results to reuse, we need to execute the
             # action.
             #
-            # This factory will create new Contexts with this context as their
-            # parent. This allows scope cleanup to happen recursively. A
+            # These factories will create new Contexts with this context as
+            # their parent. This allows scope cleanup to happen recursively. A
             # factory is necessary so that independent applications of the
             # returned callable recieve their own Context objects.
+            #
+            # The parsl factory is a bit more complicated because we need to
+            # pass this exact Context along for a while longer until we run a
+            # normal _bind in action/_run_parsl_action. Then we create a new
+            # Context with this one as its parent inside of the parsl app
+            def _bind_parsl_context(ctx):
+                def _bind_parsl_args(*args, **kwargs):
+                    return action_obj._bind_parsl(ctx, *args, **kwargs)
+                return _bind_parsl_args
+
+            if self.parsl:
+                return _bind_parsl_context(self)(*args, **kwargs)
+
             return action_obj._bind(
                 lambda: Context(parent=self))(*args, **kwargs)
 
         return deferred_action
+
+    def _contains_proxies(self, *args, **kwargs):
+        """Returns True if any of the args or kwargs are proxies
+        """
+        return any(isinstance(arg, qiime2.sdk.proxy.Proxy) for arg in args) \
+            or any(isinstance(value, qiime2.sdk.proxy.Proxy) for
+                   value in kwargs.values())
 
     def _validate_collection(self, collection_order):
         """Validate that all indexed items in the collection agree on how
@@ -212,9 +246,9 @@ class Scope:
 
         # Unset instance state, handy to prevent cycles in GC, and also causes
         # catastrophic failure if some invariant is violated.
+        del self.ctx
         del self._locals
         del self._parent_locals
-        del self.ctx
 
         for ref in local_refs:
             ref._destructor()

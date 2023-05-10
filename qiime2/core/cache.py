@@ -9,8 +9,7 @@
 The cache is used to store unzipped data on disk in a predictable and user
 controlled location. This allows us to skip constantly zipping and unzipping
 large amounts of data and taking up CPU time when storage space is not an
-issue. It also allows us to to know exactly what data has been created and
-where.
+issue. It also allows us to know exactly what data has been created and where.
 
 By default, a cache will be created under $TMPDIR/qiime2/$USER and all
 intermediate data created by QIIME 2 as it executes will be written into that
@@ -478,7 +477,8 @@ class Cache:
         """Tell QIIME 2 to use this cache in its current invocation (see
         get_cache).
         """
-        if _CACHE.cache is not None and _CACHE.cache.path != self.path:
+        if hasattr(_CACHE, 'cache') and _CACHE.cache is not None \
+                and _CACHE.cache.path != self.path:
             raise ValueError("You cannot enter multiple caches at once, "
                              "currently entered cache is located at: "
                              f"'{_CACHE.cache.path}'")
@@ -1321,12 +1321,16 @@ class Pool:
         False
         >>> test_dir.cleanup()
         """
-        if _CACHE.cache is not None and _CACHE.cache.path != self.cache.path:
+        # This threadlocal may not even have a cache attribute
+        has_cache = hasattr(_CACHE, 'cache')
+
+        if has_cache and _CACHE.cache is not None \
+                and _CACHE.cache.path != self.cache.path:
             raise ValueError('Cannot enter a pool that is not on the '
                              'currently set cache. The current cache is '
                              f'located at: {_CACHE.cache.path}')
         else:
-            self.previously_entered_cache = _CACHE.cache
+            self.previously_entered_cache = _CACHE.cache if has_cache else None
             _CACHE.cache = self.cache
 
         if self.cache.named_pool is not None:
