@@ -372,7 +372,6 @@ class Action(metaclass=abc.ABCMeta):
         # determine that here
         executor = ctx.action_executor_mapping.get(self.id, 'default')
         execution_ctx = {'type': 'parsl'}
-        print(f'HERE: {ctx.action_executor_mapping}')
 
         # Pipelines run in join apps and are a sort of synchronization point
         # right now. Unfortunately it is not currently possible to make say a
