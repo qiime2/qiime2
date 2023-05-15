@@ -33,6 +33,7 @@ class TestConfig(unittest.TestCase):
 
         plugin = get_dummy_plugin()
         self.pipeline = plugin.pipelines['resumable_pipeline']
+        self.method = plugin.methods['list_of_ints']
 
         # Create temp test dir
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
@@ -212,6 +213,11 @@ class TestConfig(unittest.TestCase):
 
                 self.assertEqual(list_execution_contexts, self.tpool_expected)
                 self.assertEqual(dict_execution_contexts, self.tpool_expected)
+
+    def test_parallel_non_pipeline(self):
+        with self.assertRaisesRegex(
+                ValueError, 'Only pipelines may be run in parallel'):
+            self.method.parallel(self.art)
 
     def _load_alias_execution_contexts(self, collection):
         execution_contexts = []

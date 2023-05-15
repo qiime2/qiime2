@@ -9,6 +9,7 @@
 import unittest
 
 from qiime2 import Artifact
+from qiime2.sdk.action import Pipeline
 from qiime2.core.testing.util import get_dummy_plugin
 
 from ..type import IntSequence1, IntSequence2
@@ -22,17 +23,29 @@ class ActionTester(unittest.TestCase):
         self.action = plugin.actions[self.ACTION]
 
     def run_action(self, **inputs):
+        if isinstance(self.action, Pipeline):
+            return self.run_pipeline(**inputs)
+        else:
+            return self.run_non_pipeline(**inputs)
+
+    def run_pipeline(self, **inputs):
+        results, _ = self.run_non_pipeline(**inputs)
+
+        parsl_results = self.action.parallel(**inputs)._result()
+
+        for a, b in zip(results, parsl_results):
+            self.assertEqual(a.type, b.type)
+
+        return results
+
+    def run_non_pipeline(self, **inputs):
         results = self.action(**inputs)
 
         future = self.action.asynchronous(**inputs)
         async_results = future.result()
 
-        proxy_results = self.action.parallel(**inputs)
-        parsl_results = proxy_results._future_.result()
-
-        for a, b, c in zip(async_results, results, parsl_results):
+        for a, b in zip(results, async_results):
             self.assertEqual(a.type, b.type)
-            self.assertEqual(b.type, c.type)
 
         return results
 

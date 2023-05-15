@@ -405,6 +405,10 @@ class Action(metaclass=abc.ABCMeta):
 
     def _get_parsl_wrapper(self):
         def parsl_wrapper(*args, **kwargs):
+            # TODO: Maybe make this a warning instead?
+            if not isinstance(self, Pipeline):
+                raise ValueError('Only pipelines may be run in parallel')
+
             setup_parallel()
             return self._bind_parsl(qiime2.sdk.Context(parallel=True), *args,
                                     **kwargs)
