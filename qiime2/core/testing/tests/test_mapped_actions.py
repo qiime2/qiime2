@@ -23,17 +23,10 @@ class ActionTester(unittest.TestCase):
         self.action = plugin.actions[self.ACTION]
 
     def run_action(self, **inputs):
-        if isinstance(self.action, Pipeline):
-            return self.run_pipeline(**inputs)
-        else:
-            return self.run_non_pipeline(**inputs)
-
-    def run_pipeline(self, **inputs):
         results = self.run_non_pipeline(**inputs)
-        parsl_results = self.action.parallel(**inputs)._result()
 
-        for a, b in zip(results, parsl_results):
-            self.assertEqual(a.type, b.type)
+        if isinstance(self.action, Pipeline):
+            self.run_pipeline(results, **inputs)
 
         return results
 
@@ -45,6 +38,12 @@ class ActionTester(unittest.TestCase):
             self.assertEqual(a.type, b.type)
 
         return results
+
+    def run_pipeline(self, results, **inputs):
+        parsl_results = self.action.parallel(**inputs)._result()
+
+        for a, b in zip(results, parsl_results):
+            self.assertEqual(a.type, b.type)
 
 
 class TestConstrainedInputVisualization(ActionTester):
