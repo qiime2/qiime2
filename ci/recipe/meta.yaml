@@ -46,6 +46,7 @@ test:
     # TODO don't require devs to remember setting this env var before running
     # tests. The value can be anything.
     - QIIMETEST= python -c "import qiime2.plugins.dummy_plugin"
+    - QIIMETEST= py.test --pyargs --doctest-modules qiime2
 
 about:
   home: https://qiime2.org
