@@ -29,8 +29,7 @@ class ActionTester(unittest.TestCase):
             return self.run_non_pipeline(**inputs)
 
     def run_pipeline(self, **inputs):
-        results, _ = self.run_non_pipeline(**inputs)
-
+        results = self.run_non_pipeline(**inputs)
         parsl_results = self.action.parallel(**inputs)._result()
 
         for a, b in zip(results, parsl_results):
@@ -40,9 +39,7 @@ class ActionTester(unittest.TestCase):
 
     def run_non_pipeline(self, **inputs):
         results = self.action(**inputs)
-
-        future = self.action.asynchronous(**inputs)
-        async_results = future.result()
+        async_results = self.action.asynchronous(**inputs).result()
 
         for a, b in zip(results, async_results):
             self.assertEqual(a.type, b.type)
