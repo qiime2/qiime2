@@ -9,6 +9,7 @@
 import unittest
 
 from qiime2 import Artifact
+from qiime2.sdk.action import Pipeline
 from qiime2.core.testing.util import get_dummy_plugin
 
 from ..type import IntSequence1, IntSequence2
@@ -22,19 +23,27 @@ class ActionTester(unittest.TestCase):
         self.action = plugin.actions[self.ACTION]
 
     def run_action(self, **inputs):
-        results = self.action(**inputs)
+        results = self.run_non_pipeline(**inputs)
 
-        future = self.action.asynchronous(**inputs)
-        async_results = future.result()
-
-        proxy_results = self.action.parsl(**inputs)
-        parsl_results = proxy_results._future_.result()
-
-        for a, b, c in zip(async_results, results, parsl_results):
-            self.assertEqual(a.type, b.type)
-            self.assertEqual(b.type, c.type)
+        if isinstance(self.action, Pipeline):
+            self.run_pipeline(results, **inputs)
 
         return results
+
+    def run_non_pipeline(self, **inputs):
+        results = self.action(**inputs)
+        async_results = self.action.asynchronous(**inputs).result()
+
+        for a, b in zip(results, async_results):
+            self.assertEqual(a.type, b.type)
+
+        return results
+
+    def run_pipeline(self, results, **inputs):
+        parsl_results = self.action.parallel(**inputs)._result()
+
+        for a, b in zip(results, parsl_results):
+            self.assertEqual(a.type, b.type)
 
 
 class TestConstrainedInputVisualization(ActionTester):
