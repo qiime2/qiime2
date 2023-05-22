@@ -18,5 +18,5 @@ from ..core.exceptions import ValidationError, ImplementationError
 __all__ = ['Result', 'Results', 'Artifact', 'Visualization',
            'ResultCollection', 'Action', 'Method', 'Visualizer', 'Pipeline',
            'PluginManager', 'parse_type', 'parse_format', 'type_from_ast',
-           'Context', 'Citations', 'PARSL_CONFIG', 'ValidationError',
+           'Context', 'Citations', 'PARALLEL_CONFIG', 'ValidationError',
            'ImplementationError', 'UninitializedPluginManagerError']
