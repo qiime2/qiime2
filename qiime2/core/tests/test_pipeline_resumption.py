@@ -113,7 +113,7 @@ class TestPipelineResumption(unittest.TestCase):
             complete_identity_uuid = _load_alias_uuid(identity_ret)
             complete_viz_uuid = _load_alias_uuid(viz_ret)
 
-            # Nothing should have been recyled because we didn't use a pool
+            # Nothing should have been recycled because we didn't use a pool
             self.assertNotEqual(ints1_uuids, complete_ints1_uuids)
             self.assertNotEqual(ints2_uuids, complete_ints2_uuids)
             self.assertNotEqual(int1_uuid, complete_int1_uuid)
@@ -158,7 +158,7 @@ class TestPipelineResumption(unittest.TestCase):
     def test_resumable_pipeline_parsl(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
-                future = self.pipeline.parsl(
+                future = self.pipeline.parallel(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
                 future._result()
@@ -166,7 +166,7 @@ class TestPipelineResumption(unittest.TestCase):
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
                 identity_uuid, viz_uuid = e.exception.uuids
 
-            future = self.pipeline.parsl(
+            future = self.pipeline.parallel(
                 self.ints1, self.ints2, self.int1, 'Hi', self.md1)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                 identity_ret, viz_ret = future._result()
@@ -227,7 +227,7 @@ class TestPipelineResumption(unittest.TestCase):
     def test_resumable_pipeline_artifact_varies_parsl(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
-                future = self.pipeline.parsl(
+                future = self.pipeline.parallel(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
                 future._result()
@@ -236,7 +236,7 @@ class TestPipelineResumption(unittest.TestCase):
                 identity_uuid, viz_uuid = e.exception.uuids
 
             # Pass int2 instead of int1
-            future = self.pipeline.parsl(
+            future = self.pipeline.parallel(
                 self.ints1, self.ints2, self.int2, 'Hi', self.md1)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret, \
                 viz_ret = future._result()
@@ -297,7 +297,7 @@ class TestPipelineResumption(unittest.TestCase):
     def test_resumable_pipeline_collection_varies_parsl(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
-                future = self.pipeline.parsl(
+                future = self.pipeline.parallel(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
                 future._result()
@@ -306,7 +306,7 @@ class TestPipelineResumption(unittest.TestCase):
                 identity_uuid, viz_uuid = e.exception.uuids
 
             # Pass ints1_2 instead of ints1
-            future = self.pipeline.parsl(
+            future = self.pipeline.parallel(
                 self.ints1_2, self.ints2, self.int2, 'Hi', self.md1)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret, \
                 viz_ret = future._result()
@@ -367,7 +367,7 @@ class TestPipelineResumption(unittest.TestCase):
     def test_resumable_pipeline_str_varies_parsl(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
-                future = self.pipeline.parsl(
+                future = self.pipeline.parallel(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
                 future._result()
@@ -376,7 +376,7 @@ class TestPipelineResumption(unittest.TestCase):
                 identity_uuid, viz_uuid = e.exception.uuids
 
             # Pass in Bye instead of Hi
-            future = self.pipeline.parsl(
+            future = self.pipeline.parallel(
                 self.ints1, self.ints2, self.int1, 'Bye', self.md1)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                 identity_ret, viz_ret = future._result()
@@ -437,7 +437,7 @@ class TestPipelineResumption(unittest.TestCase):
     def test_resumable_pipeline_md_varies_parsl(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
-                future = self.pipeline.parsl(
+                future = self.pipeline.parallel(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
                 future._result()
@@ -446,7 +446,7 @@ class TestPipelineResumption(unittest.TestCase):
                 identity_uuid, viz_uuid = e.exception.uuids
 
             # Pass in md2 instead of md1
-            future = self.pipeline.parsl(
+            future = self.pipeline.parallel(
                 self.ints1, self.ints2, self.int1, 'Hi', self.md2)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                 identity_ret, viz_ret = future._result()
@@ -510,7 +510,7 @@ class TestPipelineResumption(unittest.TestCase):
     def test_nested_resumable_pipeline_parsl(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
-                future = self.nested_pipeline.parsl(
+                future = self.nested_pipeline.parallel(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1,
                     fail=True)
                 future._result()
@@ -518,7 +518,7 @@ class TestPipelineResumption(unittest.TestCase):
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
                 identity_uuid, viz_uuid = e.exception.uuids
 
-            future = self.nested_pipeline.parsl(
+            future = self.nested_pipeline.parallel(
                     self.ints1, self.ints2, self.int1, 'Hi', self.md1)
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                 identity_ret, viz_ret = future._result()

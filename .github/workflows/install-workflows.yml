@@ -1,0 +1,72 @@
+## VERSION 3
+name: Install QIIME 2 workflows to your repository
+
+on:
+  workflow_dispatch: {}
+
+env:
+  current_version_path: './current-repo/.github/workflows/install-workflows.yml'
+  latest_version_path: './template-repo/workflow-templates/install-workflows.yml'
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.INSTALL_WORKFLOWS_PAT }}
+          path: ./current-repo
+
+      - uses: actions/checkout@v3
+        with:
+          repository: qiime2/.github
+          path: ./template-repo
+
+      - id: current-version
+        shell: bash
+        run: |
+          echo version=$(
+            head -n 1 ${{ env.current_version_path }} | cut -d' ' -f3
+          ) >> $GITHUB_OUTPUT
+
+      - id: latest-version
+        shell: bash
+        run: |
+          echo version=$(
+            head -n 1 ${{ env.latest_version_path }} | cut -d' ' -f3
+          ) >> $GITHUB_OUTPUT
+
+      # If workflow installer is not up-to-date, update it and notify user
+      - name: compare versions
+        if: ${{ steps.current-version.outputs.version != steps.latest-version.outputs.version }}
+        shell: bash
+        run: |
+          cp ${{ env.latest_version_path }} ${{ env.current_version_path }}
+
+      - name: commit latest version
+        if: ${{ steps.current-version.outputs.version != steps.latest-version.outputs.version }}
+        run: |
+          cd ./current-repo
+          git config --global user.name "q2d2"
+          git config --global user.email "q2d2.noreply@gmail.com"
+          git commit -am "ci: updating install workflows to ${{ steps.latest-version.outputs.version }}"
+          git push
+
+      - name: please re-run
+        if: ${{ steps.current-version.outputs.version != steps.latest-version.outputs.version }}
+        shell: bash
+        run: |
+          echo '::notice title=workflow-reinstalled::Please re-run this workflow, as it has been updated with new instructions!'
+
+      # If workflow installer is up-to-date, do other stuff
+      - name: copy qiime2-workflows
+        if: ${{ steps.current-version.outputs.version == steps.latest-version.outputs.version }}
+        shell: bash
+        run: |
+          cd ./current-repo
+          cp -r ../template-repo/qiime2-workflows/* ./.github/
+          git config --global user.name "q2d2"
+          git config --global user.email "q2d2.noreply@gmail.com"
+          git add .github
+          git commit -am "ci: adding new workflows"
+          git push

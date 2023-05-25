@@ -10,26 +10,27 @@ from qiime2.core.type.util import is_collection_type
 from qiime2.core.type import HashableInvocation
 from qiime2.core.cache import get_cache
 import qiime2.sdk
-from qiime2.sdk.parsl_config import PARSL_CONFIG
+from qiime2.sdk.parallel_config import PARALLEL_CONFIG
 
 
 class Context:
-    def __init__(self, parent=None, parsl=False):
+    def __init__(self, parent=None, parallel=False):
         if parent is not None:
             self.action_executor_mapping = parent.action_executor_mapping
             self.executor_name_type_mapping = parent.executor_name_type_mapping
-            self.parsl = parent.parsl
+            self.parallel = parent.parallel
             self.cache = parent.cache
         else:
-            self.action_executor_mapping = PARSL_CONFIG.action_executor_mapping
+            self.action_executor_mapping = \
+                PARALLEL_CONFIG.action_executor_mapping
             # Cast type to str so yaml doesn't think it needs tpo instantiate
             # an executor object when we write this to then read this from
             # provenance
             self.executor_name_type_mapping = \
-                None if PARSL_CONFIG.parsl_config is None \
+                None if PARALLEL_CONFIG.parallel_config is None \
                 else {v.label: v.__class__.__name__
-                      for v in PARSL_CONFIG.parsl_config.executors}
-            self.parsl = parsl
+                      for v in PARALLEL_CONFIG.parallel_config.executors}
+            self.parallel = parallel
             self.cache = get_cache()
             # Only ever do this on the root context. We only want to index the
             # pool once before we start adding our own stuff to it.
@@ -71,8 +72,8 @@ class Context:
             # is a new thing we are computing from a prior step in the pipeline
             # and thus will not be cached. We can only have proxies if we are
             # executing with parsl
-            if self.cache.named_pool is not None and (not self.parsl or (
-                    self.parsl and not self._contains_proxies(
+            if self.cache.named_pool is not None and (not self.parallel or (
+                    self.parallel and not self._contains_proxies(
                         *args, **kwargs))):
                 collated_inputs = action_obj.signature.collate_inputs(
                     *args, **kwargs)
@@ -122,7 +123,7 @@ class Context:
             # These factories will create new Contexts with this context as
             # their parent. This allows scope cleanup to happen recursively. A
             # factory is necessary so that independent applications of the
-            # returned callable recieve their own Context objects.
+            # returned callable receive their own Context objects.
             #
             # The parsl factory is a bit more complicated because we need to
             # pass this exact Context along for a while longer until we run a
@@ -133,7 +134,7 @@ class Context:
                     return action_obj._bind_parsl(ctx, *args, **kwargs)
                 return _bind_parsl_args
 
-            if self.parsl:
+            if self.parallel:
                 return _bind_parsl_context(self)(*args, **kwargs)
 
             return action_obj._bind(
