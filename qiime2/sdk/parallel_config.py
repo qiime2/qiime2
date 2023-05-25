@@ -160,9 +160,9 @@ def _process_config(config_dict):
     config_kwargs = {}
 
     for key, value in config_dict.items():
-        # Our value is a None
+        # Parsl likes the string 'none' as opposed to None or 'None'
         if isinstance(value, str) and value.lower() == 'none':
-            config_kwargs[key] = None
+            config_kwargs[key] = value.lower()
         # We have a list of values
         elif isinstance(value, list):
             config_kwargs[key] = []
