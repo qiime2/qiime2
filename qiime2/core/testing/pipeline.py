@@ -207,6 +207,15 @@ def collection_pipeline(ctx, ints):
             'key2': ctx.make_artifact(SingleInt, 5)}
 
 
+def de_facto_collection_pipeline(ctx):
+    method = ctx.get_action('dummy_plugin', 'no_input_method')
+
+    p1, = method()
+    p2, = method()
+
+    return [p1, p2]
+
+
 def pointless_pipeline(ctx):
     # Use a real type expression instead of a string.
     return ctx.make_artifact(SingleInt, 4)

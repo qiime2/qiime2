@@ -141,6 +141,43 @@ class TestPipeline(unittest.TestCase):
         self.assertEqual(
             [v.view(int) for v in dict_out.output.values()], [4, 5])
 
+    def test_de_facto_collection_pipeline(self):
+        de_facto_collection_pipeline = \
+            self.plugin.pipelines['de_facto_collection_pipeline']
+
+        result = de_facto_collection_pipeline()
+        self.assertEqual(len(result), 1)
+
+        output = result.output
+        self.assertIsInstance(output, qiime2.sdk.ResultCollection)
+
+        expected = {'0': {'foo': '42'}, '1': {'foo': '42'}}
+        observed = {}
+        for k, v in output.items():
+            observed[k] = v.view(dict)
+
+        self.assertEqual(observed, expected)
+
+    def test_de_facto_collection_pipeline_parallel(self):
+        de_facto_collection_pipeline = \
+            self.plugin.pipelines['de_facto_collection_pipeline']
+
+        result = de_facto_collection_pipeline.parallel()
+        result = result._result()
+
+        self.assertEqual(len(result), 1)
+
+        output = result.output
+
+        self.assertIsInstance(output, qiime2.sdk.ResultCollection)
+
+        expected = {'0': {'foo': '42'}, '1': {'foo': '42'}}
+        observed = {}
+        for k, v in output.items():
+            observed[k] = v.view(dict)
+
+        self.assertEqual(observed, expected)
+
     def iter_callables(self, name):
         pipeline = self.plugin.pipelines[name]
         yield pipeline
