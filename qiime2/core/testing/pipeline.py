@@ -210,10 +210,10 @@ def collection_pipeline(ctx, ints):
 def de_facto_collection_pipeline(ctx):
     method = ctx.get_action('dummy_plugin', 'no_input_method')
 
-    p1, = method()
-    p2, = method()
+    art1, = method()
+    art2, = method()
 
-    return [p1, p2]
+    return [art1, art2]
 
 
 def pointless_pipeline(ctx):
