@@ -775,6 +775,18 @@ class ParserV5(ParserV4):
         return _checksum_validator.validate_checksums(zf)
 
 
+class ParserV6(ParserV5):
+    """
+    Parser for V6 archives.
+    """
+    # These are files we expect will be present in every QIIME2 archive with
+    # this format. "Optional" filenames should not be included here.
+    expected_files_in_all_nodes = ParserV5.expected_files_in_all_nodes
+    expected_files_root_only = ParserV5.expected_files_root_only
+
+
+
+
 FORMAT_REGISTRY = {
     # NOTE: update for new format versions in qiime2.core.archive.Archiver
     '0': ParserV0,
@@ -783,4 +795,5 @@ FORMAT_REGISTRY = {
     '3': ParserV3,
     '4': ParserV4,
     '5': ParserV5,
+    '6': ParserV6
 }
