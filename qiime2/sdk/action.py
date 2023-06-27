@@ -394,8 +394,6 @@ class Action(metaclass=abc.ABCMeta):
                                        remapped_args, remapped_kwargs,
                                        inputs=futures)
 
-        # This bit that creates user_input now exists in three places. Here,
-        # _bind, and deffered_action. So that's not great.
         collated_input = self.signature.collate_inputs(*args, **kwargs)
         output_types = self.signature.solve_output(**collated_input)
 
