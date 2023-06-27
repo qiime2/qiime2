@@ -9,37 +9,10 @@ from typing import List, Literal
 from q2cli.core.state import get_action_state
 from q2cli.core.usage import CLIUsage, CLIUsageVariable
 import q2cli.util
-from qiime2.core.type import is_semantic_type, is_visualization_type
 from qiime2.plugins import ArtifactAPIUsage, ArtifactAPIUsageVariable
-from qiime2.sdk.usage import (
-    Usage, UsageAction, UsageInputs, UsageOutputNames, UsageOutputs)
+from qiime2.sdk.usage import Usage
 
 from .parse import ProvDAG
-from .util import camel_to_snake
-
-
-class MissingPluginError(Exception):
-    """
-    an exception class we can use to aggregate missing plugin names
-    """
-    pass
-
-
-def _get_action_if_plugin_present(action):
-    try:
-        return action.get_action()
-    except KeyError as e:
-        if "No plugin currently registered with id" in (msg := str(e)):
-            plugin_id = msg.split()[-1].strip('."\'')
-            raise MissingPluginError(
-                f"Your QIIME 2 deployment is \n"
-                "missing one or more plugins. "
-                f"The plugin '{plugin_id}' must be installed to \n"
-                "support provenance replay of these Results. "
-                "Please install and re-run your command.\n"
-                "Many plugins are available at https://library.qiime2.org")
-        else:
-            raise e
 
 
 def build_header(shebang: str = '', boundary: str = '', copyright: str = '',
