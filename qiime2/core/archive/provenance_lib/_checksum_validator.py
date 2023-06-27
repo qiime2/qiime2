@@ -10,6 +10,8 @@ from typing import Optional, Tuple
 from .util import get_root_uuid
 from .version_parser import parse_version
 
+from qiime2.core.util import md5sum_directory_zip
+
 
 @dataclass
 class ChecksumDiff:
@@ -124,7 +126,7 @@ def diff_checksums(zf: zipfile.ZipFile) -> ChecksumDiff:
 
     root_dir = pathlib.Path(get_root_uuid(zf))
     checksum_filename = root_dir / 'checksums.md5'
-    obs = dict(x for x in md5sum_directory(zf).items()
+    obs = dict(x for x in md5sum_directory_zip(zf).items()
                if x[0] != checksum_filename)
     exp = dict(from_checksum_format(line) for line in
                zf.open(str(checksum_filename))
@@ -138,40 +140,6 @@ def diff_checksums(zf: zipfile.ZipFile) -> ChecksumDiff:
                if exp[x] != obs[x]}
 
     return ChecksumDiff(added=added, removed=removed, changed=changed)
-
-
-def md5sum_directory(zf: zipfile.ZipFile) -> dict:
-    """
-    Returns a mapping of fp/checksum pairs for all files in zf.
-
-    The root dir has been removed from these filepaths. This mimics the output
-    in checksums.md5 (without sorted descent), but is not generalizable beyond
-    QIIME 2 archives.
-
-    Code adapted from qiime2/core/util.py
-    """
-    sums = dict()
-    for file in zf.namelist():
-        fp = pathlib.Path(file)
-        if fp.name != 'checksums.md5':
-            file_parts = list(fp.parts)
-            fp_w_o_root_uuid = pathlib.Path(*(file_parts[1:]))
-            sums[str(fp_w_o_root_uuid)] = md5sum(zf, file)
-    return sums
-
-
-def md5sum(zf: zipfile.ZipFile, filepath: str) -> str:
-    """
-    Given a ZipFile object and relative filepath within the zip archive,
-    returns the md5sum of the file
-
-    Code adapted from qiime2/core/util.py
-    """
-    md5 = hashlib.md5()
-    with zf.open(filepath) as fh:
-        for chunk in iter(lambda: fh.read(io.DEFAULT_BUFFER_SIZE), b""):
-            md5.update(chunk)
-    return md5.hexdigest()
 
 
 def from_checksum_format(line_bytes: bytes) -> Tuple[str, str]:

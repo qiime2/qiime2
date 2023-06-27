@@ -4,8 +4,9 @@ import pathlib
 import unittest
 import zipfile
 
+from qiime2.core.util import md5sum_zip, md5sum_directory_zip
 from .._checksum_validator import (
-    diff_checksums, md5sum_directory, md5sum, from_checksum_format,
+    diff_checksums, from_checksum_format,
     validate_checksums, ChecksumDiff, ValidationCode,
 )
 from .test_parse import TEST_DATA
@@ -171,7 +172,7 @@ class MD5SumDirectoryTests(unittest.TestCase):
     """
     Are the filename/checksum pairs we calculate from an archive correct?
 
-    These tests (like our md5sum_directory() implementation assume
+    These tests (like our md5sum_directory_zip() implementation assume
     that all QIIME 2 Archives contain a root dir named with the terminal
     uuid. (This is true, and likely always will be.)
 
@@ -200,7 +201,7 @@ class MD5SumDirectoryTests(unittest.TestCase):
         self.make_zip_archive(b'Normal text\nand things\n', 'foobarbaz.txt')
         with zipfile.ZipFile(self.zip_fname) as zf:
             self.assertEqual(
-                md5sum_directory(zf), {'foobarbaz.txt':
+                md5sum_directory_zip(zf), {'foobarbaz.txt':
                                        '93b048d0202e4b06b658f3aef1e764d3'})
 
     def test_single_file_nested(self):
@@ -211,7 +212,7 @@ class MD5SumDirectoryTests(unittest.TestCase):
         self.make_zip_archive(b'anything at all', filepath)
 
         with zipfile.ZipFile(self.zip_fname) as zf:
-            self.assertEqual(md5sum_directory(zf),
+            self.assertEqual(md5sum_directory_zip(zf),
                              {'bar/foo.baz':
                              'dcc0975b66728be0315abae5968379cb'})
 
@@ -236,7 +237,7 @@ class MD5SumDirectoryTests(unittest.TestCase):
 
         with zipfile.ZipFile(self.zip_fname) as zf:
             self.assertEqual(
-                md5sum_directory(zf),
+                md5sum_directory_zip(zf),
                 dict([
                     ('z', 'fbade9e36a3f36d3d676c1b808451dd7'),
                     ('alpha/bar', '37b51d194a7513e45b56f6524f2d51f2'),
@@ -255,7 +256,7 @@ class MD5SumDirectoryTests(unittest.TestCase):
 
         with zipfile.ZipFile(self.zip_fname) as zf:
             self.assertEqual(
-                md5sum_directory(zf),
+                md5sum_directory_zip(zf),
                 collections.OrderedDict([
                     ('bar/foo.baz', 'dcc0975b66728be0315abae5968379cb')
                 ]))
@@ -289,25 +290,25 @@ class MD5SumTests(unittest.TestCase):
     def test_empty_file(self):
         zfpath, arcname = self.make_zip_archive(b'')
         with zipfile.ZipFile(zfpath) as zf:
-            self.assertEqual(md5sum(zf, arcname),
+            self.assertEqual(md5sum_zip(zf, arcname),
                              'd41d8cd98f00b204e9800998ecf8427e')
 
     def test_single_byte_file(self):
         zfpath, arcname = self.make_zip_archive(b'a')
         with zipfile.ZipFile(zfpath) as zf:
-            self.assertEqual(md5sum(zf, arcname),
+            self.assertEqual(md5sum_zip(zf, arcname),
                              '0cc175b9c0f1b6a831c399e269772661')
 
     def test_large_file(self):
         zfpath, arcname = self.make_zip_archive(b'verybigfile' * (1024 * 50))
         with zipfile.ZipFile(zfpath) as zf:
-            self.assertEqual(md5sum(zf, arcname),
+            self.assertEqual(md5sum_zip(zf, arcname),
                              '27d64211ee283283ad866c18afa26611')
 
     def test_can_use_string(self):
         zfpath, arcname = self.make_zip_archive(b'Normal text\nand things\n')
         with zipfile.ZipFile(zfpath) as zf:
-            self.assertEqual(md5sum(zf, arcname),
+            self.assertEqual(md5sum_zip(zf, arcname),
                              '93b048d0202e4b06b658f3aef1e764d3')
 
 

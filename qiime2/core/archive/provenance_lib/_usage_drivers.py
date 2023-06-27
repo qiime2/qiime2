@@ -1,5 +1,4 @@
 from datetime import datetime
-import functools
 from importlib.metadata import metadata
 import pkg_resources
 import re
