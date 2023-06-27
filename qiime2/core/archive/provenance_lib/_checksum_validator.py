@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 from enum import IntEnum
-import hashlib
-import io
 import pathlib
 import warnings
 import zipfile
