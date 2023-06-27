@@ -43,7 +43,7 @@ import re
 import qiime2
 from qiime2 import sdk
 from qiime2.core.type import is_semantic_type, is_visualization_type
-from qiime2.sdk.util import camel_to_snake
+from qiime2.sdk.util import camel_to_snake, get_action_if_plugin_present
 
 
 def assert_usage_var_type(usage_variable, *valid_types):
@@ -1394,7 +1394,7 @@ class Usage:
                              'received %r.' % (UsageOutputNames,
                                                type(outputs)))
 
-        action_f = action.get_action()
+        action_f = get_action_if_plugin_present(action)
 
         @functools.lru_cache(maxsize=None)
         def memoized_action():
@@ -1408,13 +1408,13 @@ class Usage:
         # signature order - this makes it so that the example writer doesn't
         # need to be explicitly aware of the signature order
         for param_name, var_name in outputs.items():
-            # param name is not output-name in archive versions without 
+            # param name is not output-name in archive versions without
             # output-name
             try:
                 qiime_type = action_f.signature.outputs[param_name].qiime_type
             except KeyError:
                 # param_name is often a snake-case qiime2 type, so we can check
-                # if the same type still exists in the param spec. 
+                # if the same type still exists in the param spec.
                 # If so, use it.
                 for (p_name, p_spec) in action_f.signature.outputs.items():
                     searchable_type_name = camel_to_snake(

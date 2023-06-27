@@ -24,6 +24,31 @@ __all__ = [
     'actions_by_input_type', 'is_union', 'is_metadata_column_type',
 ]
 
+
+class MissingPluginError(Exception):
+    """
+    an exception class we can use to aggregate missing plugin names
+    """
+    pass
+
+
+def get_action_if_plugin_present(action):
+    try:
+        return action.get_action()
+    except KeyError as e:
+        if "No plugin currently registered with id" in (msg := str(e)):
+            plugin_id = msg.split()[-1].strip('."\'')
+            raise MissingPluginError(
+                f"Your QIIME 2 deployment is \n"
+                "missing one or more plugins. "
+                f"The plugin '{plugin_id}' must be installed to \n"
+                "support provenance replay of these Results. "
+                "Please install and re-run your command.\n"
+                "Many plugins are available at https://library.qiime2.org")
+        else:
+            raise e
+
+
 def camel_to_snake(name: str) -> str:
     """
     There are more comprehensive and faster ways of doing this (incl compiling)
@@ -36,6 +61,7 @@ def camel_to_snake(name: str) -> str:
     # camel to snake
     name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+
 
 def type_from_ast(ast, scope=None):
     """Convert a type ast (from `.to_ast()`) to a type expression.
