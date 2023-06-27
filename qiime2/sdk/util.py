@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import re
+
 import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.type.parse as _parse
@@ -22,6 +24,18 @@ __all__ = [
     'actions_by_input_type', 'is_union', 'is_metadata_column_type',
 ]
 
+def camel_to_snake(name: str) -> str:
+    """
+    There are more comprehensive and faster ways of doing this (incl compiling)
+    but it handles acronyms in semantic types nicely
+    e.g. EMPSingleEndSequences -> emp_single_end_sequences
+    c/o https://stackoverflow.com/a/1176023/9872253
+    """
+    # this will frequently be called on QIIME type expressions, so drop [ and ]
+    name = re.sub(r'[\[\]]', '', name)
+    # camel to snake
+    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
 
 def type_from_ast(ast, scope=None):
     """Convert a type ast (from `.to_ast()`) to a type expression.

@@ -122,7 +122,7 @@ def action_patch(self,
 # NOTE: True monkeypatching happening here. Gross, but the alternative is
 # overriding more methods from ReplayCLIUsage and ReplayPythonUsage to point
 # to a ReplayUsage subclass
-Usage.action = action_patch
+# Usage.action = action_patch
 
 
 def build_header(shebang: str = '', boundary: str = '', copyright: str = '',
