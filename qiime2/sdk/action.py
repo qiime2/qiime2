@@ -11,6 +11,7 @@ import concurrent.futures
 import inspect
 import tempfile
 import textwrap
+from collections.abc import Iterable
 
 import decorator
 import dill
@@ -64,6 +65,14 @@ def _run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
             # Same as above with the hackiness
             resolved_result = inputs[arg._future_]
             remapped_args.append(arg._get_element_(resolved_result))
+        elif isinstance(arg, list) and isinstance(arg[0], Proxy):
+            remapped = []
+
+            for proxy in arg:
+                resolved_result = inputs[proxy._future_]
+                remapped.append(proxy._get_element_(resolved_result))
+
+            remapped_args.append(remapped)
         else:
             remapped_args.append(arg)
 
@@ -357,6 +366,15 @@ class Action(metaclass=abc.ABCMeta):
                 futures.append(arg._future_)
                 remapped_args.append(arg.__class__(len(futures) - 1,
                                                    arg._selector_))
+            elif isinstance(arg, list) and isinstance(arg[0], Proxy):
+                remapped = []
+
+                for proxy in arg:
+                    futures.append(proxy._future_)
+                    remapped.append(proxy.__class__(len(futures) - 1,
+                                                    proxy._selector_))
+
+                remapped_args.append(remapped)
             else:
                 remapped_args.append(arg)
 
