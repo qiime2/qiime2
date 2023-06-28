@@ -11,7 +11,6 @@ import concurrent.futures
 import inspect
 import tempfile
 import textwrap
-from collections.abc import Iterable
 
 import decorator
 import dill
@@ -87,21 +86,18 @@ def _map_arg(arg, futures):
         futures.append(arg._future_)
         mapped = arg.__class__(len(futures) - 1, arg._selector_)
     # We do the above but for all elements in the collection
-    elif isinstance(arg, Iterable) and _is_all_proxies(arg):
-        if isinstance(arg, dict):
-            mapped = {}
+    elif isinstance(arg, list) and _is_all_proxies(arg):
+        mapped = []
 
-            for key, value in arg.items():
-                futures.append(value._future_)
-                mapped[key] = value.__class__(len(futures) - 1,
-                                              value._selector_)
-        else:
-            mapped = []
+        for proxy in arg:
+            futures.append(proxy._future_)
+            mapped.append(proxy.__class__(len(futures) - 1, proxy._selector_))
+    elif isinstance(arg, dict) and _is_all_proxies(arg):
+        mapped = {}
 
-            for proxy in arg:
-                futures.append(proxy._future_)
-                mapped.append(proxy.__class__(len(futures) - 1,
-                                              proxy._selector_))
+        for key, value in arg.items():
+            futures.append(value._future_)
+            mapped[key] = value.__class__(len(futures) - 1, value._selector_)
     # We just have a real artifact and don't need to map
     else:
         mapped = arg
@@ -121,19 +117,18 @@ def _unmap_arg(arg, inputs):
     # If we got a collection of proxies as the input we were even hackier and
     # added each proxy to the inputs list individually while having a list of
     # their indices in the args.
-    elif isinstance(arg, Iterable) and _is_all_proxies(arg):
-        if isinstance(arg, dict):
-            unmapped = {}
+    elif isinstance(arg, list) and _is_all_proxies(arg):
+        unmapped = []
 
-            for key, value in arg.items():
-                resolved_result = inputs[value._future_]
-                unmapped[key] = value._get_element_(resolved_result)
-        else:
-            unmapped = []
+        for proxy in arg:
+            resolved_result = inputs[proxy._future_]
+            unmapped.append(proxy._get_element_(resolved_result))
+    elif isinstance(arg, dict) and _is_all_proxies(arg):
+        unmapped = {}
 
-            for proxy in arg:
-                resolved_result = inputs[proxy._future_]
-                unmapped.append(proxy._get_element_(resolved_result))
+        for key, value in arg.items():
+            resolved_result = inputs[value._future_]
+            unmapped[key] = value._get_element_(resolved_result)
     # We didn't have a proxy at all
     else:
         unmapped = arg
