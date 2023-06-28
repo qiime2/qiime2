@@ -127,7 +127,7 @@ def _unmap_arg(arg, inputs):
 
             for key, value in arg.items():
                 resolved_result = inputs[value._future_]
-                unmapped[key] = resolved_result
+                unmapped[key] = value._get_element_(resolved_result)
         else:
             unmapped = []
 
