@@ -49,25 +49,19 @@ def _run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
     Results object. We need to take singular Result objects off of that Results
     object and map them to the correct inputs for the action we want to call.
     """
-    remapped_kwargs = {}
-    for key, value in kwargs.items():
-        if isinstance(value, Proxy):
-            # We were hacky and set _future_ to be the index of this artifact
-            # in the inputs list
-            resolved_result = inputs[value._future_]
-            remapped_kwargs[key] = value._get_element_(resolved_result)
-        else:
-            remapped_kwargs[key] = value
-
     remapped_args = []
     for arg in args:
         if isinstance(arg, Proxy):
-            # Same as above with the hackiness
+            # We were hacky and set _future_ to be the index of this artifact
+            # in the inputs list
             resolved_result = inputs[arg._future_]
             remapped_args.append(arg._get_element_(resolved_result))
         elif isinstance(arg, list) and isinstance(arg[0], Proxy):
             remapped = []
 
+            # If we got a list of proxies as the input we were even hackier and
+            # added each proxy to the inputs list individually while having a
+            # list of their indices in the args
             for proxy in arg:
                 resolved_result = inputs[proxy._future_]
                 remapped.append(proxy._get_element_(resolved_result))
@@ -75,6 +69,15 @@ def _run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
             remapped_args.append(remapped)
         else:
             remapped_args.append(arg)
+
+    remapped_kwargs = {}
+    for key, value in kwargs.items():
+        if isinstance(value, Proxy):
+            # Same as above with the hackiness
+            resolved_result = inputs[value._future_]
+            remapped_kwargs[key] = value._get_element_(resolved_result)
+        else:
+            remapped_kwargs[key] = value
 
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
