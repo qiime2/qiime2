@@ -838,7 +838,8 @@ dummy_plugin.pipelines.register_function(
     function=de_facto_list_pipeline,
     inputs={},
     parameters={
-        'kwarg': Bool
+        'kwarg': Bool,
+        'non_proxies': Bool
     },
     outputs=[
         ('output', Collection[SingleInt]),
@@ -852,7 +853,8 @@ dummy_plugin.pipelines.register_function(
     function=de_facto_dict_pipeline,
     inputs={},
     parameters={
-        'kwarg': Bool
+        'kwarg': Bool,
+        'non_proxies': Bool
     },
     outputs=[
         ('output', Collection[SingleInt]),

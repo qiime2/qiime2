@@ -195,14 +195,18 @@ def internal_fail_pipeline(ctx, ints1, ints2, int1, string, fail=False):
     return ints1_ret, ints2_ret, int1_ret
 
 
-def de_facto_list_pipeline(ctx, kwarg=False):
+def de_facto_list_pipeline(ctx, kwarg=False, non_proxies=False):
     returns_int = ctx.get_action('dummy_plugin', 'returns_int')
     list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
+    num_ints = 3
 
     ints = []
-    for i in range(3):
+    for i in range(num_ints):
         ints_ret, = returns_int(i)
         ints.append(ints_ret)
+
+    if non_proxies:
+        ints.append(ctx.make_artifact(SingleInt, num_ints + 1))
 
     if kwarg:
         ret, = list_of_ints(ints=ints)
@@ -212,14 +216,18 @@ def de_facto_list_pipeline(ctx, kwarg=False):
     return ret
 
 
-def de_facto_dict_pipeline(ctx, kwarg=False):
+def de_facto_dict_pipeline(ctx, kwarg=False, non_proxies=False):
     returns_int = ctx.get_action('dummy_plugin', 'returns_int')
     dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
+    num_ints = 3
 
     ints = {}
-    for i in range(3):
+    for i in range(num_ints):
         ints_ret, = returns_int(i)
         ints[i + 1] = ints_ret
+
+    if non_proxies:
+        ints[num_ints + 2] = ctx.make_artifact(SingleInt, num_ints + 1)
 
     if kwarg:
         ret, = dict_of_ints(ints=ints)
