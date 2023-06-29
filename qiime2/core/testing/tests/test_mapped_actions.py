@@ -40,9 +40,9 @@ class ActionTester(unittest.TestCase):
         return results
 
     def run_pipeline(self, results, **inputs):
-        parsl_results = self.action.parallel(**inputs)._result()
+        parallel_results = self.action.parallel(**inputs)._result()
 
-        for a, b in zip(results, parsl_results):
+        for a, b in zip(results, parallel_results):
             self.assertEqual(a.type, b.type)
 
 
