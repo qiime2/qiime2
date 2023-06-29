@@ -150,6 +150,10 @@ def dict_of_ints(ints: int) -> int:
     return ints
 
 
+def returns_int(int: int) -> int:
+    return int
+
+
 def collection_inner_union(ints: list) -> list:
     return [[0]]
 

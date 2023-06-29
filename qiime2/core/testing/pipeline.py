@@ -195,6 +195,40 @@ def internal_fail_pipeline(ctx, ints1, ints2, int1, string, fail=False):
     return ints1_ret, ints2_ret, int1_ret
 
 
+def de_facto_list_pipeline(ctx, kwarg=False):
+    returns_int = ctx.get_action('dummy_plugin', 'returns_int')
+    list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
+
+    ints = []
+    for i in range(3):
+        ints_ret, = returns_int(i)
+        ints.append(ints_ret)
+
+    if kwarg:
+        ret, = list_of_ints(ints=ints)
+    else:
+        ret, = list_of_ints(ints)
+
+    return ret
+
+
+def de_facto_dict_pipeline(ctx, kwarg=False):
+    returns_int = ctx.get_action('dummy_plugin', 'returns_int')
+    dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
+
+    ints = {}
+    for i in range(3):
+        ints_ret, = returns_int(i)
+        ints[i + 1] = ints_ret
+
+    if kwarg:
+        ret, = dict_of_ints(ints=ints)
+    else:
+        ret, = dict_of_ints(ints)
+
+    return ret
+
+
 def list_pipeline(ctx, ints):
     assert isinstance(ints, list)
     return ([ctx.make_artifact(SingleInt, 4),
