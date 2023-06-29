@@ -76,7 +76,7 @@ class TestParallel(unittest.TestCase):
 
         self.assertEqual(obs, exp)
 
-    def test_de_facto_dict_kwargl(self):
+    def test_de_facto_dict_kwarg(self):
         pipeline = self.plugin.pipelines['de_facto_dict_pipeline']
 
         exp = {'1': 0, '2': 1, '3': 2}
