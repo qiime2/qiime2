@@ -102,6 +102,10 @@ class TestConfig(unittest.TestCase):
     def tearDown(self):
         self.test_dir.cleanup()
 
+        # Ensure default state post test
+        PARALLEL_CONFIG.parallel_config = None
+        PARALLEL_CONFIG.action_executor_mapping = {}
+
     def get_data_path(self, filename):
         return pkg_resources.resource_filename('qiime2.sdk.tests',
                                                'data/%s' % filename)
