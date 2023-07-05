@@ -390,8 +390,8 @@ class TestExecutionUsage(TestCaseUsage):
 
     def test_variadic_input_simple(self):
         use = usage.ExecutionUsage()
-        action = self.plugin.actions['list_of_ints']
-        action.examples['list_of_ints'](use)
+        action = self.plugin.actions['variadic_input_method']
+        action.examples['variadic_input_simple'](use)
 
         ints_a, ints_b, single_int1, single_int2, out = use.render().values()
 
@@ -414,7 +414,7 @@ class TestExecutionUsage(TestCaseUsage):
         self.assertIsInstance(single_int2.value, Artifact)
         self.assertIsInstance(out.value, Artifact)
 
-    def test_result_collection_blah_blah_blah(self):
+    def test_result_collection_list_of_ints(self):
         use = usage.ExecutionUsage()
         action = self.plugin.actions['list_of_ints']
         action.examples['collection_list_of_ints'](use)

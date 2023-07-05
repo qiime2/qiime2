@@ -884,18 +884,14 @@ class Usage:
         ...     # This type is only available during testing.
         ...     # A real example would use a real type.
         ...     a = qiime2.ResultCollection(
-                    {'Foo': qiime2.Artifact.import_data('IntSequence1',
-                                                        [1, 2, 3]),
-                     'Bar': qiime2.Artifact.import_data('IntSequence1',
-                                                        [4, 5, 6])})
+        ...         {'Foo': qiime2.Artifact.import_data('IntSequence1', [1, 2, 3]),
+        ...          'Bar': qiime2.Artifact.import_data('IntSequence1', [4, 5, 6])})
         ...     return a
         ...
-        >>> my_collection = use.init_result_collection('my_collection',
-                                                       factory)
+        >>> my_collection = use.init_result_collection('my_collection', factory)
         >>> my_collection
-        <ExecutionUsageVariable name='my_collection',
-                                var_type='result_collection'>
-        """
+        <ExecutionUsageVariable name='my_collection', var_type='result_collection'>
+        """  # noqa: E501
         return self._usage_variable(name, factory, 'result_collection')
 
     def init_metadata(self, name: str,
