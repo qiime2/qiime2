@@ -52,7 +52,7 @@ def assert_usage_var_type(usage_variable, *valid_types):
     ----------
     usage_variable : `qiime2.sdk.usage.UsageVariable`
         The usage variable to test.
-    *valid_types : 'artifact', 'artifact-collection', 'visualization',
+    *valid_types : 'artifact', 'result_collection', 'visualization',
                    'metadata', 'column', 'format'
         The valid variable types to expect.
 
@@ -446,7 +446,7 @@ class UsageOutputs(sdk.Results):
     pass
 
 
-VAR_TYPES = ('artifact', 'artifact-collection', 'visualization',
+VAR_TYPES = ('artifact', 'result_collection', 'visualization',
              'metadata', 'column', 'format')
 T_VAR_TYPES = Literal['artifact', 'visualization', 'metadata', 'column',
                       'format']
@@ -478,7 +478,7 @@ class UsageVariable:
             point).
         factory : Callable[[], Any]
             A function which will return a realized value of `var_type`.
-        var_type : 'artifact', 'artifact-collection', 'visualization',
+        var_type : 'artifact', 'result_collection', 'visualization',
                    'metadata', 'column', 'format'
             The type of value which will be returned by the factory.
             Most are self-explanatory, but "format" indicates that the factory
@@ -513,7 +513,7 @@ class UsageVariable:
         For use by interface drivers only (and rarely at that).
         Do not use in a written usage example.
         """
-        self.var_type: Literal['artifact', 'artifact-collection',
+        self.var_type: Literal['artifact', 'result_collection',
                                'visualization', 'metadata',
                                'column', 'format'] = var_type
         """The general type of this variable.
@@ -851,6 +851,47 @@ class Usage:
         <ExecutionUsageVariable name='my_artifact', var_type='artifact'>
         """
         return self._usage_variable(name, factory, 'artifact')
+
+    def init_result_collection(
+        self, name: str,
+            factory: Callable[[], qiime2.ResultCollection]) -> UsageVariable:
+        """Communicate that a result collection will be needed.
+
+        Driver implementations may use this to intialize data for an example.
+
+        Parameters
+        ----------
+        name : str
+            The canonical name of the variable to be returned.
+        factory : Callable which returns :class:`qiime2.sdk.ResultCollection`
+            A function which takes no parameters, and returns
+            a result collection.
+            This function may do anything internally to create
+            the result collection.
+
+        Returns
+        -------
+        UsageVariable
+            This particular return class can be changed by a driver which
+            overrides :meth:`usage_variable`.
+
+        Examples
+        --------
+        >>> # A factory which will be used in the example to generate data.
+        >>> def factory():
+        ...     import qiime2
+        ...     # This type is only available during testing.
+        ...     # A real example would use a real type.
+        ...     a = qiime2.ResultCollection(
+                    {'Foo': qiime2.Artifact.import_data('IntSequence1', [1, 2, 3]),  #noqa: E501
+                     'Bar': qiime2.Artifact.import_data('IntSequence1', [4, 5, 6])}) #noqa: E501
+        ...     return a
+        ...
+        >>> my_collection = use.init_result_collection('my_collection', factory)    #noqa: E501
+        >>> my_collection
+        <ExecutionUsageVariable name='my_collection', var_type='result_collection'> #noqa: E501
+        """
+        return self._usage_variable(name, factory, 'result_collection')
 
     def init_metadata(self, name: str,
                       factory: Callable[[], qiime2.Metadata]) -> UsageVariable:
@@ -1416,7 +1457,7 @@ class Usage:
             if is_visualization_type(qiime_type):
                 var_type = 'visualization'
             # elif is_collection_type(qiime_type):
-                # var_type = 'artifact-collection'
+                # var_type = 'result_collection'
             elif is_semantic_type(qiime_type):
                 var_type = 'artifact'
             else:
@@ -1614,6 +1655,12 @@ class ExecutionUsage(Usage):
         self._recorder[variable.name] = variable
 
         return variable
+
+    def init_result(self, name, factory):
+        variable = super().init_result_collection(name, factory)
+
+        variable.execute()
+        self._recorder[variable.name] = variable
 
     def init_metadata(self, name, factory):
         variable = super().init_metadata(name, factory)
