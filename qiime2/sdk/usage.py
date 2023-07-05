@@ -42,7 +42,9 @@ import re
 
 import qiime2
 from qiime2 import sdk
-from qiime2.core.type import is_semantic_type, is_visualization_type
+from qiime2.core.type import (is_semantic_type,
+                              is_visualization_type,
+                              is_collection_type)
 
 
 def assert_usage_var_type(usage_variable, *valid_types):
@@ -1457,8 +1459,8 @@ class Usage:
             qiime_type = action_f.signature.outputs[param_name].qiime_type
             if is_visualization_type(qiime_type):
                 var_type = 'visualization'
-            # elif is_collection_type(qiime_type):
-                # var_type = 'result_collection'
+            elif is_collection_type(qiime_type):
+                var_type = 'result_collection'
             elif is_semantic_type(qiime_type):
                 var_type = 'artifact'
             else:

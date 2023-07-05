@@ -363,6 +363,27 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertTrue(obs4.variable[0].is_deferred)
         self.assertTrue(obs5.variable[0].is_deferred)
 
+    def test_result_collections_list_of_ints(self):
+        action = self.plugin.actions['list_of_ints']
+        use = usage.DiagnosticUsage()
+        action.examples['collection_list_of_ints'](use)
+
+        self.assertEqual(2, len(use.render()))
+
+        obs1, obs2 = use.render()
+
+        self.assertEqual('init_result_collection', obs1.source)
+        self.assertEqual('action', obs2.source)
+
+        self.assertEqual('int_collection', obs1.variable.name)
+        self.assertEqual('out', obs2.variable[0].name)
+
+        self.assertEqual('result_collection', obs1.variable.var_type)
+        self.assertEqual('result_collection', obs2.variable[0].var_type)
+
+        self.assertTrue(obs1.variable.is_deferred)
+        self.assertTrue(obs2.variable[0].is_deferred)
+
 
 class TestExecutionUsage(TestCaseUsage):
     def test_basic(self):
