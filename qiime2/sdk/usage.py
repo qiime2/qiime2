@@ -888,9 +888,9 @@ class Usage:
         ...          'Bar': qiime2.Artifact.import_data('IntSequence1', [4, 5, 6])})
         ...     return a
         ...
-        >>> my_collection = use.init_result_collection('my_collection', factory)
-        >>> my_collection
-        <ExecutionUsageVariable name='my_collection', var_type='result_collection'>
+        >>> int_collection = use.init_result_collection('int_collection', factory)
+        >>> int_collection
+        <ExecutionUsageVariable name='int_collection', var_type='result_collection'>
         """  # noqa: E501
         return self._usage_variable(name, factory, 'result_collection')
 
