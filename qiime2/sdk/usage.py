@@ -633,6 +633,7 @@ class UsageVariable:
         """
         return self.name
 
+    # going to add another assertion for
     def assert_has_line_matching(self, path: str, expression: str):
         """Communicate that the result of this variable should match a regex.
 
@@ -1414,6 +1415,8 @@ class Usage:
             qiime_type = action_f.signature.outputs[param_name].qiime_type
             if is_visualization_type(qiime_type):
                 var_type = 'visualization'
+            # elif is_collection_type(qiime_type):
+                # var_type = 'artifact-collection'
             elif is_semantic_type(qiime_type):
                 var_type = 'artifact'
             else:
