@@ -8,7 +8,7 @@
 
 import pandas as pd
 
-from qiime2 import Artifact, Metadata
+from qiime2 import Artifact, Metadata, ResultCollection
 
 from .type import IntSequence1, IntSequence2, Mapping, SingleInt
 
@@ -23,6 +23,11 @@ def ints2_factory():
 
 def ints3_factory():
     return Artifact.import_data(IntSequence2, [6, 7, 8])
+
+
+def result_collection_factory():
+    return ResultCollection({'SingleInt1': Artifact.import_data(SingleInt, 1),
+                             'SingleInt2': Artifact.import_data(SingleInt, 2)})
 
 
 def mapping1_factory():
@@ -234,4 +239,16 @@ def optional_inputs(use):
                         action_id='optional_artifacts_method'),
         use.UsageInputs(ints=ints, optional1=output3, num1=3, num2=4),
         use.UsageOutputNames(output='output4'),
+    )
+
+
+def collection_list_of_ints(use):
+    int_collection = use.init_result_collection('int_collection',
+                                                result_collection_factory)
+
+    out, = use.action(
+                use.UsageAction(plugin_id='dummy_plugin',
+                                action_id='list_of_ints'),
+                use.UsageInputs(ints=int_collection),
+                use.UsageOutputNames(output='out'),
     )

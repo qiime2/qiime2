@@ -313,7 +313,8 @@ class UsageInputs:
 
         def mapped(v):
             if isinstance(v, UsageVariable):
-                assert_usage_var_type(v, 'artifact', 'metadata', 'column')
+                assert_usage_var_type(v, 'artifact', 'result_collection',
+                                      'metadata', 'column')
                 v = function(v)
             return v
 
@@ -883,13 +884,17 @@ class Usage:
         ...     # This type is only available during testing.
         ...     # A real example would use a real type.
         ...     a = qiime2.ResultCollection(
-                    {'Foo': qiime2.Artifact.import_data('IntSequence1', [1, 2, 3]),  #noqa: E501
-                     'Bar': qiime2.Artifact.import_data('IntSequence1', [4, 5, 6])}) #noqa: E501
+                    {'Foo': qiime2.Artifact.import_data('IntSequence1',
+                                                        [1, 2, 3]),
+                     'Bar': qiime2.Artifact.import_data('IntSequence1',
+                                                        [4, 5, 6])})
         ...     return a
         ...
-        >>> my_collection = use.init_result_collection('my_collection', factory)    #noqa: E501
+        >>> my_collection = use.init_result_collection('my_collection',
+                                                       factory)
         >>> my_collection
-        <ExecutionUsageVariable name='my_collection', var_type='result_collection'> #noqa: E501
+        <ExecutionUsageVariable name='my_collection',
+                                var_type='result_collection'>
         """
         return self._usage_variable(name, factory, 'result_collection')
 
@@ -1522,6 +1527,11 @@ class DiagnosticUsage(Usage):
     def init_artifact(self, name, factory):
         variable = super().init_artifact(name, factory)
         self._append_record('init_artifact', variable)
+        return variable
+
+    def init_result_collection(self, name, factory):
+        variable = super().init_result_collection(name, factory)
+        self._append_record('init_result_collection', variable)
         return variable
 
     def init_metadata(self, name, factory):

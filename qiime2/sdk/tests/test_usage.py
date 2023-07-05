@@ -13,7 +13,7 @@ import tempfile
 from qiime2.core.testing.util import get_dummy_plugin
 import qiime2.core.testing.examples as examples
 from qiime2.sdk import usage, action, UninitializedPluginManagerError
-from qiime2 import Metadata, Artifact
+from qiime2 import Metadata, Artifact, ResultCollection
 
 
 class TestCaseUsage(unittest.TestCase):
@@ -390,8 +390,8 @@ class TestExecutionUsage(TestCaseUsage):
 
     def test_variadic_input_simple(self):
         use = usage.ExecutionUsage()
-        action = self.plugin.actions['variadic_input_method']
-        action.examples['variadic_input_simple'](use)
+        action = self.plugin.actions['list_of_ints']
+        action.examples['list_of_ints'](use)
 
         ints_a, ints_b, single_int1, single_int2, out = use.render().values()
 
@@ -413,6 +413,15 @@ class TestExecutionUsage(TestCaseUsage):
         self.assertIsInstance(single_int1.value, Artifact)
         self.assertIsInstance(single_int2.value, Artifact)
         self.assertIsInstance(out.value, Artifact)
+
+    def test_result_collection_blah_blah_blah(self):
+        use = usage.ExecutionUsage()
+        action = self.plugin.actions['list_of_ints']
+        action.examples['collection_list_of_ints'](use)
+
+        out, = use.render().values()
+
+        self.assertIsInstance(out.value, ResultCollection)
 
     def test_init_artifact_from_url_error(self):
         use = usage.ExecutionUsage()
