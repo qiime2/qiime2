@@ -68,8 +68,9 @@ def setup_parallel(config_fp=None):
     # they are doing things wrong (probably forgot to resolve their future
     # inside of their context manager).
     if PARALLEL_CONFIG.parallel_config != parallel_config:
-        # If a dfk is already loaded, clean it up, if one doesn't exist we get
-        # a runtime error which we except.
+        # If a config was already loaded, clean up the DFK and clear it for a
+        # new one. If there wasn't already a config loaded, we get an error
+        # which we except and ignore
         try:
             dfk = parsl.dfk()
             dfk.cleanup()
@@ -81,6 +82,10 @@ def setup_parallel(config_fp=None):
 
         parsl.clear()
 
+    # If a config is already loaded at this point, we will get an error which
+    # we except and ignore. This will happen if this function was called and no
+    # new config was provided (if there was a new config, the old one would
+    # have been cleard above).
     try:
         parsl.load(parallel_config)
     except RuntimeError as e:
