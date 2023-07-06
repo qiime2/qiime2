@@ -665,7 +665,8 @@ class UsageVariable:
         """
         pass
 
-    def assert_output_type(self, semantic_type: str):
+    # TODO: add key param to assert details about result collection contents
+    def assert_output_type(self, semantic_type: str, key: str):
         """Communicate that this variable should have a given semantic type.
 
         The default implementation is to do nothing.
@@ -675,10 +676,14 @@ class UsageVariable:
         semantic_type : QIIME 2 Semantic Type or str
             The semantic type to match.
 
+        key : str
+            TODO: does stuff. more on this soon.
+
         Note
         ----
         Should not be called on non-artifact variables.
 
+        # TODO: include key param in existing example, or add new example
         Examples
         --------
         >>> bar, = use.action(
