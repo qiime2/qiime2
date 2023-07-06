@@ -12,7 +12,7 @@ import tempfile
 import unittest
 import pkg_resources
 
-from parsl import Config
+import parsl
 from parsl.providers import LocalProvider
 from parsl.executors.threads import ThreadPoolExecutor
 from parsl.executors import HighThroughputExecutor
@@ -22,7 +22,7 @@ from qiime2.core.util import load_action_yaml
 from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, ParallelConfig,
-                                        setup_parallel)
+                                        setup_parallel, get_config)
 
 
 class TestConfig(unittest.TestCase):
@@ -44,7 +44,7 @@ class TestConfig(unittest.TestCase):
                     Artifact.import_data(SingleInt, 1)]
         self.cache = Cache(os.path.join(self.test_dir.name, 'new_cache'))
 
-        self.config = Config(
+        self.config = parsl.Config(
             executors=[
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
@@ -60,7 +60,7 @@ class TestConfig(unittest.TestCase):
             strategy='none',
         )
 
-        self.tpool_default = Config(
+        self.tpool_default = parsl.Config(
             executors=[
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
@@ -76,7 +76,7 @@ class TestConfig(unittest.TestCase):
             strategy='none',
         )
 
-        self.htex_default = Config(
+        self.htex_default = parsl.Config(
             executors=[
                 ThreadPoolExecutor(
                     max_threads=max(psutil.cpu_count() - 1, 1),
@@ -107,20 +107,34 @@ class TestConfig(unittest.TestCase):
                                                'data/%s' % filename)
 
     def test_default_config(self):
-        config_fp = self.get_data_path('default_config.toml')
+        setup_parallel()
 
-        setup_parallel(config_fp)
-
-        # Assert modified state
-        self.assertIsInstance(PARALLEL_CONFIG.parallel_config, Config)
+        self.assertIsInstance(PARALLEL_CONFIG.parallel_config, parsl.Config)
         self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
-        setup_parallel(self.config_fp)
+        config, mapping= get_config(self.config_fp)
 
         with self.cache:
-            future = self.pipeline.parallel(self.art, self.art)
-            list_return, dict_return = future._result()
+            with ParallelConfig(config, mapping):
+                future = self.pipeline.parallel(self.art, self.art)
+                list_return, dict_return = future._result()
+
+        list_execution_contexts = self._load_alias_execution_contexts(
+            list_return)
+        dict_execution_contexts = self._load_alias_execution_contexts(
+            dict_return)
+
+        self.assertEqual(list_execution_contexts, self.htex_expected)
+        self.assertEqual(dict_execution_contexts, self.tpool_expected)
+
+    def test_mapping_only_config(self):
+        _, mapping= get_config(self.config_fp)
+
+        with self.cache:
+            with ParallelConfig(action_executor_mapping=mapping):
+                future = self.pipeline.parallel(self.art, self.art)
+                list_return, dict_return = future._result()
 
         list_execution_contexts = self._load_alias_execution_contexts(
             list_return)

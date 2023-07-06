@@ -58,7 +58,7 @@ def setup_parallel(config_fp=None):
     path or looks through several default paths if no path is provided and
     loads a vendored config as a last resort
     """
-    config = PARALLEL_CONFIG.parallel_config
+    parallel_config = PARALLEL_CONFIG.parallel_config
     mapping = PARALLEL_CONFIG.action_executor_mapping
 
     # If we don't have a filepath or a currently existing config then get the
@@ -69,22 +69,14 @@ def setup_parallel(config_fp=None):
         config_fp = _get_vendored_config()
 
     if config_fp is not None:
-        config_dict = get_config(config_fp)
-        mapping = get_mapping(config_dict)
+        parallel_config, mapping = get_config(config_fp)
 
         # If config_dict is empty now, they gave a file that only contained a
         # mapping, so we want to load a default config assuming they do not
         # already have a loaded config
-        if config_dict == {} and PARALLEL_CONFIG.parallel_config is None:
+        if parallel_config is None and PARALLEL_CONFIG.parallel_config is None:
             config_fp = _get_vendored_config()
-            config_dict = get_config(config_fp)
-
-        # Now if we actually have a config dict, we want to load the config. We
-        # still will not have one if they gave us a file that only contained a
-        # mapping while already having a config set up.
-        if config_dict != {}:
-            processed_config = _process_config(config_dict)
-            config = Config(**processed_config)
+            parallel_config, = get_config(config_fp)
 
     # We only want to clear the config if the config we are trying to load is
     # actually different. If we clear the config then load the same config
@@ -92,15 +84,29 @@ def setup_parallel(config_fp=None):
     # someone is trying to change the config in the middle of doing something,
     # they are doing things wrong (probably forgot to resolve their future
     # inside of their context manager).
-    if PARALLEL_CONFIG.parallel_config != config:
+    if PARALLEL_CONFIG.parallel_config != parallel_config:
+        # If a dfk is already loaded, clean it up, if one doesn't exist we get
+        # a runtime error which we except.
+        try:
+            dfk = parsl.dfk()
+            dfk.cleanup()
+        except RuntimeError as e:
+            if 'Must first load config' in str(e):
+                pass
+            else:
+                raise e
+
         parsl.clear()
 
     try:
-        parsl.load(config)
-    except RuntimeError:
-        pass
+        parsl.load(parallel_config)
+    except RuntimeError as e:
+        if 'Config has already been loaded' in str(e):
+            pass
+        else:
+            raise e
 
-    PARALLEL_CONFIG.parallel_config = config
+    PARALLEL_CONFIG.parallel_config = parallel_config
     if mapping != {}:
         PARALLEL_CONFIG.action_executor_mapping = mapping
 
@@ -112,13 +118,19 @@ def get_config(fp):
     with open(fp, 'r') as fh:
         config_dict = tomlkit.load(fh)
 
-    return config_dict.get('parsl')
+    parallel_config_dict = config_dict.get('parsl')
+    mapping = parallel_config_dict.pop('executor_mapping', {})
 
+    processed_parallel_config_dict = _process_config(parallel_config_dict)
 
-def get_mapping(config_dict):
-    """Takes a config dict and pops off the action_executor_mapping
-    """
-    return config_dict.pop('executor_mapping', {})
+    # They could have given us a file that contained a mapping but no config.
+    # This is technically valid.
+    if processed_parallel_config_dict != {}:
+        parallel_config = parsl.Config(**processed_parallel_config_dict)
+    else:
+        parallel_config = None
+
+    return parallel_config, mapping
 
 
 def _get_vendored_config():
