@@ -93,6 +93,12 @@ def setup_parallel(config_fp=None):
     # they are doing things wrong (probably forgot to resolve their future
     # inside of their context manager).
     if PARALLEL_CONFIG.parallel_config != config:
+        try:
+            dfk = parsl.dfk()
+            dfk.cleanup()
+        except RuntimeError:
+            pass
+
         parsl.clear()
 
     try:
