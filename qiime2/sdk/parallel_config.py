@@ -81,18 +81,7 @@ def setup_parallel(config_fp=None):
                 raise e
 
         parsl.clear()
-
-    # If a config is already loaded at this point, we will get an error which
-    # we except and ignore. This will happen if this function was called and no
-    # new config was provided (if there was a new config, the old one would
-    # have been cleard above).
-    try:
         parsl.load(parallel_config)
-    except RuntimeError as e:
-        if 'Config has already been loaded' in str(e):
-            pass
-        else:
-            raise e
 
     PARALLEL_CONFIG.parallel_config = parallel_config
     if mapping != {}:
