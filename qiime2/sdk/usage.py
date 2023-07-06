@@ -1664,7 +1664,7 @@ class ExecutionUsage(Usage):
 
         return variable
 
-    def init_result(self, name, factory):
+    def init_result_collection(self, name, factory):
         variable = super().init_result_collection(name, factory)
 
         variable.execute()
