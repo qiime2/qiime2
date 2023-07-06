@@ -93,6 +93,8 @@ def setup_parallel(config_fp=None):
     # they are doing things wrong (probably forgot to resolve their future
     # inside of their context manager).
     if PARALLEL_CONFIG.parallel_config != config:
+        # If a dfk is already loaded, clean it up, if one doesn't exist we get
+        # a runtime error which we except
         try:
             dfk = parsl.dfk()
             dfk.cleanup()
