@@ -59,7 +59,7 @@ def setup_parallel(config_fp=None):
         # already have a loaded config
         if parallel_config is None and PARALLEL_CONFIG.parallel_config is None:
             config_fp = _get_vendored_config()
-            parallel_config, = get_config(config_fp)
+            parallel_config, _ = get_config(config_fp)
 
     # We only want to clear the config if the config we are trying to load is
     # actually different. If we clear the config then load the same config
