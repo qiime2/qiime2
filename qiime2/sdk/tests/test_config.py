@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import os
-import psutil
 import tempfile
 import unittest
 import pkg_resources
@@ -37,7 +36,9 @@ class TestConfig(unittest.TestCase):
 
         # Create temp test dir
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
-        self.config_fp = self.get_data_path('mapping_config.toml')
+        self.mapping_config_fp = self.get_data_path('mapping_config.toml')
+        self.mapping_only_config_fp = self.get_data_path(
+            'mapping_only_config.toml')
 
         # Create artifact and cache
         self.art = [Artifact.import_data(SingleInt, 0),
@@ -47,12 +48,12 @@ class TestConfig(unittest.TestCase):
         self.config = parsl.Config(
             executors=[
                 ThreadPoolExecutor(
-                    max_threads=max(psutil.cpu_count() - 1, 1),
+                    max_threads=1,
                     label='default'
                 ),
                 HighThroughputExecutor(
                     label='htex',
-                    max_workers=max(psutil.cpu_count() - 1, 1),
+                    max_workers=1,
                     provider=LocalProvider()
                 )
             ],
@@ -63,12 +64,12 @@ class TestConfig(unittest.TestCase):
         self.tpool_default = parsl.Config(
             executors=[
                 ThreadPoolExecutor(
-                    max_threads=max(psutil.cpu_count() - 1, 1),
+                    max_threads=1,
                     label='default'
                 ),
                 HighThroughputExecutor(
                     label='htex',
-                    max_workers=max(psutil.cpu_count() - 1, 1),
+                    max_workers=1,
                     provider=LocalProvider()
                 )
             ],
@@ -79,12 +80,12 @@ class TestConfig(unittest.TestCase):
         self.htex_default = parsl.Config(
             executors=[
                 ThreadPoolExecutor(
-                    max_threads=max(psutil.cpu_count() - 1, 1),
+                    max_threads=1,
                     label='tpool'
                 ),
                 HighThroughputExecutor(
                     label='default',
-                    max_workers=max(psutil.cpu_count() - 1, 1),
+                    max_workers=1,
                     provider=LocalProvider()
                 )
             ],
@@ -113,7 +114,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
-        config, mapping = get_config(self.config_fp)
+        config, mapping = get_config(self.mapping_config_fp)
 
         with self.cache:
             with ParallelConfig(config, mapping):
@@ -129,7 +130,8 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def test_mapping_only_config(self):
-        _, mapping = get_config(self.config_fp)
+        # This file only contains a mapping, we should get the default config
+        _, mapping = get_config(self.mapping_only_config_fp)
 
         with self.cache:
             with ParallelConfig(action_executor_mapping=mapping):
