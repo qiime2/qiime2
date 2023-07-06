@@ -113,7 +113,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
-        config, mapping= get_config(self.config_fp)
+        config, mapping = get_config(self.config_fp)
 
         with self.cache:
             with ParallelConfig(config, mapping):
@@ -129,7 +129,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def test_mapping_only_config(self):
-        _, mapping= get_config(self.config_fp)
+        _, mapping = get_config(self.config_fp)
 
         with self.cache:
             with ParallelConfig(action_executor_mapping=mapping):

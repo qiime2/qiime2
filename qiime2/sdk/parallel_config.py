@@ -7,15 +7,13 @@
 # ----------------------------------------------------------------------------
 
 import os
-import parsl
 import psutil
 import appdirs
-import tomlkit
 import threading
 import importlib
 
-from parsl.config import Config
-
+import parsl
+import tomlkit
 
 PARALLEL_CONFIG = threading.local()
 PARALLEL_CONFIG.parallel_config = None
@@ -132,10 +130,10 @@ def _get_vendored_config():
             'strategy': 'None',
             'executors': [
                 {'class': 'ThreadPoolExecutor', 'label': 'default',
-                'max_threads': max(psutil.cpu_count() - 1, 1)},
+                 'max_threads': max(psutil.cpu_count() - 1, 1)},
                 {'class': 'HighThroughputExecutor', 'label': 'htex',
-                'max_workers': max(psutil.cpu_count() - 1, 1),
-                'provider': {'class': 'LocalProvider'}}
+                 'max_workers': max(psutil.cpu_count() - 1, 1),
+                 'provider': {'class': 'LocalProvider'}}
                 ]
             }
         }
