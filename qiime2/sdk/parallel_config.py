@@ -37,21 +37,6 @@ module_paths = {
     'providers': 'parsl.providers'
 }
 
-VENDORED_FP = os.path.join(
-    os.environ.get('CONDA_PREFIX'), 'etc', 'qiime2_config.toml')
-VENDORED_CONFIG = {
-    'parsl': {
-        'strategy': 'None',
-        'executors': [
-            {'class': 'ThreadPoolExecutor', 'label': 'default',
-             'max_threads': max(psutil.cpu_count() - 1, 1)},
-            {'class': 'HighThroughputExecutor', 'label': 'htex',
-             'max_workers': max(psutil.cpu_count() - 1, 1),
-             'provider': {'class': 'LocalProvider'}}
-            ]
-        }
-    }
-
 
 def setup_parallel(config_fp=None):
     """Sets the parsl config and action executor mapping from a file at a given
@@ -134,6 +119,27 @@ def get_config(fp):
 
 
 def _get_vendored_config():
+    conda_prefix = os.environ.get('CONDA_PREFIX')
+
+    if conda_prefix is None:
+        VENDORED_FP = None
+    else:
+        VENDORED_FP = os.path.join(
+            os.environ.get('CONDA_PREFIX'), 'etc', 'qiime2_config.toml')
+
+    VENDORED_CONFIG = {
+        'parsl': {
+            'strategy': 'None',
+            'executors': [
+                {'class': 'ThreadPoolExecutor', 'label': 'default',
+                'max_threads': max(psutil.cpu_count() - 1, 1)},
+                {'class': 'HighThroughputExecutor', 'label': 'htex',
+                'max_workers': max(psutil.cpu_count() - 1, 1),
+                'provider': {'class': 'LocalProvider'}}
+                ]
+            }
+        }
+
     # 1. Check envvar
     config_fp = os.environ.get('QIIME2_CONFIG')
 
@@ -152,11 +158,11 @@ def _get_vendored_config():
             config_fp = fp_
         # 4. Check in conda env
         # ~/miniconda3/env/{env_name}/conf
-        elif os.path.exists(fp_ := VENDORED_FP):
+        elif VENDORED_FP is not None and os.path.exists(fp_ := VENDORED_FP):
             config_fp = fp_
         # 5. Write the vendored config to the vendored location and use
         # that
-        else:
+        elif VENDORED_FP is not None:
             with open(VENDORED_FP, 'w') as fh:
                 tomlkit.dump(VENDORED_CONFIG, fh)
             config_fp = VENDORED_FP
