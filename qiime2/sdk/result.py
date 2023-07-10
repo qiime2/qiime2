@@ -552,6 +552,9 @@ class ResultCollection:
         else:
             self.collection = {k: v for k, v in enumerate(collection)}
 
+    def __contains__(self, item):
+        return item in self.collection
+
     def __eq__(self, other):
         if isinstance(other, dict):
             return self.collection == other
