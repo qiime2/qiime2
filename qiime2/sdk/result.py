@@ -601,6 +601,7 @@ class ResultCollection:
 
         with open(os.path.join(directory, '.order'), 'w') as fh:
             for name, result in self.collection.items():
+                name = str(name)
                 result_fp = os.path.join(directory, name)
                 result.save(result_fp)
                 fh.write(f'{name}\n')
