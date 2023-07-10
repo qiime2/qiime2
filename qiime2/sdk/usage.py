@@ -705,9 +705,9 @@ class UsageVariable:
         >>> int_collection = use.init_result_collection('int_collection', factory)
         >>> bar, = use.action(
         ...     use.UsageAction(plugin_id='dummy_plugin',
-        ...                     action_id='list_of_ints'),
+        ...                     action_id='dict_of_ints'),
         ...     use.UsageInputs(ints=int_collection),
-        ...     use.UsageOutputs(output='bar6')
+        ...     use.UsageOutputNames(output='bar6')
         ... )
         >>> bar.assert_output_type(semantic_type='SingleInt', key='Foo')
         ...
@@ -913,9 +913,9 @@ class Usage:
         ...          'Bar': qiime2.Artifact.import_data('IntSequence1', [4, 5, 6])})
         ...     return a
         ...
-        >>> int_collection = use.init_result_collection('int_collection', factory)
-        >>> int_collection
-        <ExecutionUsageVariable name='int_collection', var_type='result_collection'>
+        >>> int_seq_collection = use.init_result_collection('int_seq_collection', factory)
+        >>> int_seq_collection
+        <ExecutionUsageVariable name='int_seq_collection', var_type='result_collection'>
         """  # noqa: E501
         return self._usage_variable(name, factory, 'result_collection')
 
@@ -1629,7 +1629,7 @@ class ExecutionUsageVariable(UsageVariable):
                 raise TypeError("Key can only be provided for output of type"
                                 " result_collection. Output of type %s was"
                                 " provided." % (self.var_type))
-            if key not in data:
+            if key not in data.keys():
                 raise ValueError("Provided key %s not found in output" % (key))
 
             data = data[key]
