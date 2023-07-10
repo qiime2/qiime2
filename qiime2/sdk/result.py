@@ -561,8 +561,8 @@ class ResultCollection:
         elif isinstance(other, ResultCollection):
             return self.collection == other.collection
         else:
-            raise TypeError(f'Equality between {type(other)} and '
-                            'ResultCollection is undefined.')
+            raise TypeError(f"Equality between '{type(other)}' and "
+                            "ResultCollection is undefined.")
 
     def __len__(self):
         return len(self.collection)
