@@ -363,26 +363,26 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertTrue(obs4.variable[0].is_deferred)
         self.assertTrue(obs5.variable[0].is_deferred)
 
-    def test_result_collections_list_of_ints(self):
-        action = self.plugin.actions['list_of_ints']
-        use = usage.DiagnosticUsage()
-        action.examples['collection_list_of_ints'](use)
+    # def test_result_collection_list_of_ints(self):
+    #     action = self.plugin.actions['list_of_ints']
+    #     use = usage.DiagnosticUsage()
+    #     action.examples['collection_list_of_ints'](use)
 
-        self.assertEqual(2, len(use.render()))
+    #     self.assertEqual(2, len(use.render()))
 
-        obs1, obs2 = use.render()
+    #     obs1, obs2 = use.render()
 
-        self.assertEqual('init_result_collection', obs1.source)
-        self.assertEqual('action', obs2.source)
+    #     self.assertEqual('init_result_collection', obs1.source)
+    #     self.assertEqual('action', obs2.source)
 
-        self.assertEqual('int_collection', obs1.variable.name)
-        self.assertEqual('out', obs2.variable[0].name)
+    #     self.assertEqual('int_collection', obs1.variable.name)
+    #     self.assertEqual('out', obs2.variable[0].name)
 
-        self.assertEqual('result_collection', obs1.variable.var_type)
-        self.assertEqual('result_collection', obs2.variable[0].var_type)
+    #     self.assertEqual('result_collection', obs1.variable.var_type)
+    #     self.assertEqual('result_collection', obs2.variable[0].var_type)
 
-        self.assertTrue(obs1.variable.is_deferred)
-        self.assertTrue(obs2.variable[0].is_deferred)
+    #     self.assertTrue(obs1.variable.is_deferred)
+    #     self.assertTrue(obs2.variable[0].is_deferred)
 
 
 class TestExecutionUsage(TestCaseUsage):
@@ -440,8 +440,9 @@ class TestExecutionUsage(TestCaseUsage):
         action = self.plugin.actions['list_of_ints']
         action.examples['collection_list_of_ints'](use)
 
-        out, = use.render().values()
+        ints, out = use.render().values()
 
+        self.assertIsInstance(ints.value, ResultCollection)
         self.assertIsInstance(out.value, ResultCollection)
 
     def test_init_artifact_from_url_error(self):

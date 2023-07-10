@@ -636,7 +636,6 @@ class UsageVariable:
         """
         return self.name
 
-    # going to add another assertion for
     def assert_has_line_matching(self, path: str, expression: str):
         """Communicate that the result of this variable should match a regex.
 
@@ -665,8 +664,7 @@ class UsageVariable:
         """
         pass
 
-    # TODO: add key param to assert details about result collection contents
-    def assert_output_type(self, semantic_type: str, key: str):
+    def assert_output_type(self, semantic_type: str, key: str = None):
         """Communicate that this variable should have a given semantic type.
 
         The default implementation is to do nothing.
@@ -677,13 +675,13 @@ class UsageVariable:
             The semantic type to match.
 
         key : str
-            TODO: does stuff. more on this soon.
+            The key to match against a given semantic type
+            if the output is a ResultCollection.
 
         Note
         ----
         Should not be called on non-artifact variables.
 
-        # TODO: include key param in existing example, or add new example
         Examples
         --------
         >>> bar, = use.action(
@@ -693,7 +691,27 @@ class UsageVariable:
         ...     use.UsageOutputNames(out='bar5')
         ... )
         >>> bar.assert_output_type('Mapping')
-        """
+        ...
+        >>> # A factory which will be used in the example to generate data.
+        >>> def factory():
+        ...     import qiime2
+        ...     # This type is only available during testing.
+        ...     # A real example would use a real type.
+        ...     a = qiime2.ResultCollection(
+        ...         {'Foo': qiime2.Artifact.import_data('SingleInt', 1),
+        ...          'Bar': qiime2.Artifact.import_data('SingleInt', 2)})
+        ...     return a
+        ...
+        >>> int_collection = use.init_result_collection('int_collection', factory)
+        >>> bar, = use.action(
+        ...     use.UsageAction(plugin_id='dummy_plugin',
+        ...                     action_id='list_of_ints'),
+        ...     use.UsageInputs(ints=int_collection),
+        ...     use.UsageOutputs(output='bar6')
+        ... )
+        >>> bar.assert_output_type(semantic_type='SingleInt', key='Foo')
+        ...
+        """  # noqa: E501
         pass
 
 
@@ -1602,13 +1620,25 @@ class ExecutionUsageVariable(UsageVariable):
             raise AssertionError('Expression %r not found in %s.' %
                                  (expression, path))
 
-    def assert_output_type(self, semantic_type):
+    def assert_output_type(self, semantic_type, key=None):
         data = self.value
+        name = self.name
+
+        if key:
+            if self.var_type != 'result_collection':
+                raise TypeError("Key can only be provided for output of type"
+                                " result_collection. Output of type %s was"
+                                " provided." % (self.var_type))
+            if key not in data:
+                raise ValueError("Provided key %s not found in output" % (key))
+
+            data = data[key]
+            name = "%s[%s]" % (self.name, key)
 
         if str(data.type) != str(semantic_type):
             raise AssertionError("Output %r has type %s, which does not match"
                                  " expected output type of %s"
-                                 % (self.name, data.type, semantic_type))
+                                 % (name, data.type, semantic_type))
 
 
 class ExecutionUsage(Usage):
@@ -1674,6 +1704,8 @@ class ExecutionUsage(Usage):
 
         variable.execute()
         self._recorder[variable.name] = variable
+
+        return variable
 
     def init_metadata(self, name, factory):
         variable = super().init_metadata(name, factory)

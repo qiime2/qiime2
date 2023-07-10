@@ -71,7 +71,8 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
 
         self.use._add(lines)
 
-    def assert_output_type(self, semantic_type):
+    # TODO: add key param to assert type of ResultCollection contents
+    def assert_output_type(self, semantic_type, key=None):
         if not self.use.enable_assertions:
             return
 
