@@ -71,12 +71,14 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
 
         self.use._add(lines)
 
-    # TODO: add key param to assert type of ResultCollection contents
     def assert_output_type(self, semantic_type, key=None):
         if not self.use.enable_assertions:
             return
 
         name = self.to_interface_name()
+
+        if key:
+            name = "%s[%s]" % (name, key)
 
         lines = [
             'if str(%r.type) != %r:' % (name, str(semantic_type)),
