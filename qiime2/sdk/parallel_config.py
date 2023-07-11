@@ -18,6 +18,7 @@ from parsl.config import Config
 
 
 PARALLEL_CONFIG = threading.local()
+PARALLEL_CONFIG.dfk = None
 PARALLEL_CONFIG.parallel_config = None
 PARALLEL_CONFIG.action_executor_mapping = {}
 
@@ -53,7 +54,7 @@ VENDORED_CONFIG = {
     }
 
 
-def setup_parallel(config_fp=None):
+def _setup_parallel(config_fp=None):
     """Sets the parsl config and action executor mapping from a file at a given
     path or looks through several default paths if no path is provided and
     loads a vendored config as a last resort
@@ -83,32 +84,28 @@ def setup_parallel(config_fp=None):
     # while in the middle of doing something, we're going to have problems. If
     # someone is trying to change the config in the middle of doing something,
     # they are doing things wrong (probably forgot to resolve their future
-    # inside of their context manager).
-    if PARALLEL_CONFIG.parallel_config != parallel_config:
-        # If a dfk is already loaded, clean it up, if one doesn't exist we get
-        # a runtime error which we except.
-        try:
-            dfk = parsl.dfk()
-            dfk.cleanup()
-        except RuntimeError as e:
-            if 'Must first load config' in str(e):
-                pass
-            else:
-                raise e
+    # # inside of their context manager).
+    # if PARALLEL_CONFIG.parallel_config != parallel_config:
+    #     _cleanup_parsl()
 
-        parsl.clear()
-
-    try:
-        parsl.load(parallel_config)
-    except RuntimeError as e:
-        if 'Config has already been loaded' in str(e):
-            pass
-        else:
-            raise e
+    # try:
+    PARALLEL_CONFIG.dfk = parsl.load(parallel_config)
+    # except RuntimeError as e:
+    #     if 'Config has already been loaded' in str(e):
+    #         pass
+    #     else:
+    #         raise e
 
     PARALLEL_CONFIG.parallel_config = parallel_config
     if mapping != {}:
         PARALLEL_CONFIG.action_executor_mapping = mapping
+
+
+def _cleanup_parallel():
+    PARALLEL_CONFIG.dfk.cleanup()
+    import time
+    time.sleep(500)
+    parsl.clear()
 
 
 def get_config(fp):
@@ -225,14 +222,20 @@ class ParallelConfig():
     def __enter__(self):
         """Set this to be our Parsl config on the current thread local
         """
-        self.backup_config = PARALLEL_CONFIG.parallel_config
-        PARALLEL_CONFIG.parallel_config = self.parallel_config
+        if PARALLEL_CONFIG.parallel_config is not None:
+            raise ValueError('ParallelConfig already loaded, cannot nest '
+                             'ParallelConfigs')
 
-        self.backup_map = PARALLEL_CONFIG.action_executor_mapping
+        PARALLEL_CONFIG.parallel_config = self.parallel_config
         PARALLEL_CONFIG.action_executor_mapping = self.action_executor_mapping
+
+        _setup_parallel()
 
     def __exit__(self, *args):
         """Set our Parsl config back to whatever it was before this one
         """
-        PARALLEL_CONFIG.parallel_config = self.backup_config
-        PARALLEL_CONFIG.action_executor_mapping = self.backup_map
+        _cleanup_parallel()
+
+        PARALLEL_CONFIG.dfk = None
+        PARALLEL_CONFIG.parallel_config = None
+        PARALLEL_CONFIG.action_executor_mapping = {}

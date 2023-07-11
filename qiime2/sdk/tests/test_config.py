@@ -31,11 +31,40 @@ class TestConfig(unittest.TestCase):
         PARALLEL_CONFIG.parallel_config = None
         PARALLEL_CONFIG.action_executor_mapping = {}
 
-        plugin = get_dummy_plugin()
-        self.pipeline = plugin.pipelines['resumable_pipeline']
-        self.method = plugin.methods['list_of_ints']
+        # Create configs
+        self.tpool_default = parsl.Config(
+            executors=[
+                ThreadPoolExecutor(
+                    max_threads=1,
+                    label='default'
+                ),
+                HighThroughputExecutor(
+                    label='htex',
+                    max_workers=1,
+                    provider=LocalProvider()
+                )
+            ],
+            # AdHoc Clusters should not be setup with scaling strategy.
+            strategy='none',
+        )
 
-        # Create temp test dir
+        self.htex_default = parsl.Config(
+            executors=[
+                ThreadPoolExecutor(
+                    max_threads=1,
+                    label='tpool'
+                ),
+                HighThroughputExecutor(
+                    label='default',
+                    max_workers=1,
+                    provider=LocalProvider()
+                )
+            ],
+            # AdHoc Clusters should not be setup with scaling strategy.
+            strategy='none',
+        )
+
+        # Create temp test dir and cache in dir
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         self.config_fp = self.get_data_path('mapping_config.toml')
 
@@ -107,10 +136,10 @@ class TestConfig(unittest.TestCase):
                                                'data/%s' % filename)
 
     def test_default_config(self):
-        setup_parallel()
-
-        self.assertIsInstance(PARALLEL_CONFIG.parallel_config, parsl.Config)
-        self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
+        with ParallelConfig(self.tpool_default):
+            self.assertIsInstance(
+                PARALLEL_CONFIG.parallel_config, parsl.Config)
+            self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
         config, mapping= get_config(self.config_fp)
@@ -148,7 +177,7 @@ class TestConfig(unittest.TestCase):
         mapping = {'list_of_ints': 'htex'}
 
         with self.cache:
-            with ParallelConfig(self.config, mapping):
+            with ParallelConfig(self.tpool_default, mapping):
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
 
@@ -196,37 +225,11 @@ class TestConfig(unittest.TestCase):
 
     def test_nested_configs(self):
         with self.cache:
-            with ParallelConfig(self.tpool_default):
-                with ParallelConfig(self.htex_default):
-                    with ParallelConfig(
-                            action_executor_mapping={'list_of_ints': 'tpool'}):
-                        with self.assertRaisesRegex(KeyError, 'tpool'):
-                            future = self.pipeline.parallel(self.art, self.art)
-                            list_return, dict_return = future._result()
-
-                    future = self.pipeline.parallel(self.art, self.art)
-                    list_return, dict_return = future._result()
-
-                    list_execution_contexts = \
-                        self._load_alias_execution_contexts(list_return)
-                    dict_execution_contexts = \
-                        self._load_alias_execution_contexts(dict_return)
-
-                    self.assertEqual(
-                        list_execution_contexts, self.htex_expected)
-                    self.assertEqual(
-                        dict_execution_contexts, self.htex_expected)
-
-                future = self.pipeline.parallel(self.art, self.art)
-                list_return, dict_return = future._result()
-
-                list_execution_contexts = self._load_alias_execution_contexts(
-                    list_return)
-                dict_execution_contexts = self._load_alias_execution_contexts(
-                    dict_return)
-
-                self.assertEqual(list_execution_contexts, self.tpool_expected)
-                self.assertEqual(dict_execution_contexts, self.tpool_expected)
+            with self.assertRaisesRegex(
+                    ValueError, 'cannot nest ParallelConfigs'):
+                with ParallelConfig(self.tpool_default):
+                    with ParallelConfig(self.htex_default):
+                        pass
 
     def test_parallel_non_pipeline(self):
         with self.assertRaisesRegex(
