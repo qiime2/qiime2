@@ -17,7 +17,7 @@ from .._archive_parser import (
     ArchiveParser,
 )
 
-from .._yaml_constructors import MetadataInfo
+from ...provenance import MetadataInfo
 from .testing_utilities import ReallyEqualMixin
 
 

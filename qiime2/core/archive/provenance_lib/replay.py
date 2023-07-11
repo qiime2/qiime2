@@ -18,7 +18,7 @@ from ._usage_drivers import (
     build_header, build_footer
 )
 from .util import FileName, camel_to_snake
-from ._yaml_constructors import MetadataInfo
+from ..provenance import MetadataInfo
 
 from qiime2.sdk import PluginManager
 from qiime2.sdk.usage import UsageVariable

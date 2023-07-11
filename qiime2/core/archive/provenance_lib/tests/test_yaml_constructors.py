@@ -2,7 +2,7 @@ import unittest
 import warnings
 import yaml
 
-from .._yaml_constructors import MetadataInfo
+from ...provenance import MetadataInfo
 
 
 class YamlConstructorTests(unittest.TestCase):

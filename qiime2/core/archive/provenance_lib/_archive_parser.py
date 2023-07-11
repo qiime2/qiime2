@@ -16,10 +16,7 @@ import bibtexparser as bp
 from . import _checksum_validator
 from . import version_parser
 from .util import get_root_uuid, get_nonroot_uuid, UUID, FileName
-from ._yaml_constructors import CONSTRUCTOR_REGISTRY, MetadataInfo
-
-for key in CONSTRUCTOR_REGISTRY:
-    yaml.SafeLoader.add_constructor(key, CONSTRUCTOR_REGISTRY[key])
+from ..provenance import MetadataInfo
 
 
 @dataclass(frozen=False)
