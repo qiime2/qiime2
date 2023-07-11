@@ -26,8 +26,8 @@ def ints3_factory():
 
 
 def result_collection_factory():
-    return ResultCollection({'SingleInt1': Artifact.import_data(SingleInt, 1),
-                             'SingleInt2': Artifact.import_data(SingleInt, 2)})
+    return ResultCollection({'Foo': Artifact.import_data(SingleInt, 1),
+                             'Bar': Artifact.import_data(SingleInt, 2)})
 
 
 def mapping1_factory():
@@ -243,12 +243,24 @@ def optional_inputs(use):
 
 
 def collection_list_of_ints(use):
-    int_collection = use.init_result_collection('int_collection',
-                                                result_collection_factory)
+    ints = use.init_result_collection('ints', result_collection_factory)
 
     out, = use.action(
                 use.UsageAction(plugin_id='dummy_plugin',
                                 action_id='list_of_ints'),
-                use.UsageInputs(ints=int_collection),
+                use.UsageInputs(ints=ints),
                 use.UsageOutputNames(output='out'),
     )
+
+
+def collection_dict_of_ints(use):
+    ints = use.init_result_collection('ints', result_collection_factory)
+
+    out, = use.action(
+                use.UsageAction(plugin_id='dummy_plugin',
+                                action_id='dict_of_ints'),
+                use.UsageInputs(ints=ints),
+                use.UsageOutputNames(output='out'),
+    )
+
+    out.assert_output_type(semantic_type='SingleInt', key='Foo')

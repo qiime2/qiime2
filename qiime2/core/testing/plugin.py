@@ -68,6 +68,7 @@ from .examples import (concatenate_ints_simple, concatenate_ints_complex,
                        identity_with_metadata_column_get_mdc,
                        variadic_input_simple, optional_inputs,
                        comments_only_factory, collection_list_of_ints,
+                       collection_dict_of_ints,
                        )
 
 
@@ -933,7 +934,8 @@ dummy_plugin.methods.register_function(
     },
     output_descriptions={
         'output': 'Collection of ints'
-    }
+    },
+    examples={'collection_dict_of_ints': collection_dict_of_ints}
 )
 
 dummy_plugin.methods.register_function(

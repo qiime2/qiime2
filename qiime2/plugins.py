@@ -41,6 +41,7 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
 
         parts = {
             'artifact': [self.name],
+            'result_collection': [self.name, 'collection'],
             'visualization': [self.name, 'viz'],
             'metadata': [self.name, 'md'],
             'column': [self.name, 'mdc'],
@@ -77,6 +78,8 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
 
         name = self.to_interface_name()
 
+        # TODO: we expect a syntax error to occur here, need to ensure that
+        # this fails if not a string, and potentially update to "%s[%r]"
         if key:
             name = "%s[%s]" % (name, key)
 
@@ -173,6 +176,14 @@ class ArtifactAPIUsage(usage.Usage):
 
     def init_metadata(self, name, factory):
         variable = super().init_metadata(name, factory)
+
+        var_name = str(variable.to_interface_name())
+        self.init_data_refs[var_name] = variable
+
+        return variable
+
+    def init_result_collection(self, name, factory):
+        variable = super().init_result_collection(name, factory)
 
         var_name = str(variable.to_interface_name())
         self.init_data_refs[var_name] = variable
