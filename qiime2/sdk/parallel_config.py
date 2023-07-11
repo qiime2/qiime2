@@ -102,9 +102,15 @@ def _setup_parallel(config_fp=None):
 
 
 def _cleanup_parallel():
+    executors = PARALLEL_CONFIG.dfk.config.executors
+    for executor in executors:
+        if isinstance(executor, parsl.executors.HighThroughputExecutor):
+            job_ids = executor.provider.resources.keys()
+            executor.scale_in(len(job_ids))
+            # executor.scale_in(0)
+        executor.shutdown()
+
     PARALLEL_CONFIG.dfk.cleanup()
-    import time
-    time.sleep(500)
     parsl.clear()
 
 
