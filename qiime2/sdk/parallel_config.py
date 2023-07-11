@@ -19,6 +19,26 @@ PARALLEL_CONFIG = threading.local()
 PARALLEL_CONFIG.parallel_config = None
 PARALLEL_CONFIG.action_executor_mapping = {}
 
+# We write a default config to a location in the conda env if there is an
+# active conda env. If there is not an active conda env (most likely because we
+# are using Docker) then the path we want to write the default to will not
+# exist, so we will not write a default, we will just load it from memory
+CONDA_PREFIX = os.environ.get('CONDA_PREFIX', '')
+VENDORED_FP = os.path.join(CONDA_PREFIX, 'etc', 'qiime2_config.toml')
+
+VENDORED_CONFIG = {
+    'parsl': {
+        'strategy': 'None',
+        'executors': [
+            {'class': 'ThreadPoolExecutor', 'label': 'default',
+                'max_threads': max(psutil.cpu_count() - 1, 1)},
+            {'class': 'HighThroughputExecutor', 'label': 'htex',
+                'max_workers': max(psutil.cpu_count() - 1, 1),
+                'provider': {'class': 'LocalProvider'}}
+            ]
+        }
+    }
+
 # Directs keys in the config whose values need to be objects to the module that
 # contains the class they need to instantiate
 module_paths = {
@@ -54,12 +74,19 @@ def setup_parallel(config_fp=None):
     if config_fp is not None:
         parallel_config, mapping = get_config(config_fp)
 
-        # If config_dict is empty now, they gave a file that only contained a
+        # If we don't have a config now, they gave a file that only contained a
         # mapping, so we want to load a default config assuming they do not
         # already have a loaded config
         if parallel_config is None and PARALLEL_CONFIG.parallel_config is None:
             config_fp = _get_vendored_config()
             parallel_config, _ = get_config(config_fp)
+    # If we do not have a config_fp or loaded config here, then they did not
+    # give us an fp and _get_vendored config returned None, so as a last resort
+    # we load the VENDORED_CONFIG directly
+    elif config_fp is None and PARALLEL_CONFIG.parallel_config is None:
+        parallel_config_dict = VENDORED_CONFIG.get('parsl')
+        processed_parallel_config_dict = _process_config(parallel_config_dict)
+        parallel_config = parsl.Config(**processed_parallel_config_dict)
 
     # We only want to clear the config if the config we are trying to load is
     # actually different. If we clear the config then load the same config
@@ -111,27 +138,6 @@ def get_config(fp):
 
 
 def _get_vendored_config():
-    conda_prefix = os.environ.get('CONDA_PREFIX')
-
-    if conda_prefix is None:
-        VENDORED_FP = None
-    else:
-        VENDORED_FP = os.path.join(
-            os.environ.get('CONDA_PREFIX'), 'etc', 'qiime2_config.toml')
-
-    VENDORED_CONFIG = {
-        'parsl': {
-            'strategy': 'None',
-            'executors': [
-                {'class': 'ThreadPoolExecutor', 'label': 'default',
-                 'max_threads': max(psutil.cpu_count() - 1, 1)},
-                {'class': 'HighThroughputExecutor', 'label': 'htex',
-                 'max_workers': max(psutil.cpu_count() - 1, 1),
-                 'provider': {'class': 'LocalProvider'}}
-                ]
-            }
-        }
-
     # 1. Check envvar
     config_fp = os.environ.get('QIIME2_CONFIG')
 
@@ -148,13 +154,14 @@ def _get_vendored_config():
         elif os.path.exists(fp_ := os.path.join(
                 appdirs.site_config_dir('qiime2'), 'qiime2_config.toml')):
             config_fp = fp_
+        # NOTE: These next two are dependent on us being in a conda environment
         # 4. Check in conda env
         # ~/miniconda3/env/{env_name}/conf
-        elif VENDORED_FP is not None and os.path.exists(fp_ := VENDORED_FP):
+        elif CONDA_PREFIX != '' and os.path.exists(fp_ := VENDORED_FP):
             config_fp = fp_
         # 5. Write the vendored config to the vendored location and use
         # that
-        elif VENDORED_FP is not None:
+        elif CONDA_PREFIX != '':
             with open(VENDORED_FP, 'w') as fh:
                 tomlkit.dump(VENDORED_CONFIG, fh)
             config_fp = VENDORED_FP
@@ -234,3 +241,21 @@ class ParallelConfig():
         """
         PARALLEL_CONFIG.parallel_config = self.backup_config
         PARALLEL_CONFIG.action_executor_mapping = self.backup_map
+
+
+# Used to test config loading behavior when outside of a conda environment
+class _MaskCondaEnv():
+    def __enter__(self):
+        global CONDA_PREFIX, VENDORED_FP
+
+        self.old_prefix = CONDA_PREFIX
+        self.old_fp = VENDORED_FP
+
+        CONDA_PREFIX = ''
+        VENDORED_FP = None
+
+    def __exit__(self, *args):
+        global CONDA_PREFIX, VENDORED_FP
+
+        CONDA_PREFIX = self.old_prefix
+        VENDORED_FP = self.old_fp
