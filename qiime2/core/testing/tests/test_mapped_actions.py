@@ -9,7 +9,6 @@
 import unittest
 
 from qiime2 import Artifact
-from qiime2.sdk.action import Pipeline
 from qiime2.core.testing.util import get_dummy_plugin
 
 from ..type import IntSequence1, IntSequence2
