@@ -548,9 +548,12 @@ class ResultCollection:
         if collection is None:
             self.collection = {}
         elif isinstance(collection, dict):
+            if any(not isinstance(key, str) for key in collection.keys()):
+                raise TypeError('All ResultCollection keys must be strings')
+
             self.collection = collection
         else:
-            self.collection = {k: v for k, v in enumerate(collection)}
+            self.collection = {str(k): v for k, v in enumerate(collection)}
 
     def __contains__(self, item):
         return item in self.collection
@@ -601,7 +604,6 @@ class ResultCollection:
 
         with open(os.path.join(directory, '.order'), 'w') as fh:
             for name, result in self.collection.items():
-                name = str(name)
                 result_fp = os.path.join(directory, name)
                 result.save(result_fp)
                 fh.write(f'{name}\n')
