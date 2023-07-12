@@ -102,14 +102,8 @@ def _setup_parallel(config_fp=None):
 
 
 def _cleanup_parallel():
-    executors = PARALLEL_CONFIG.dfk.config.executors
-    for executor in executors:
-        if isinstance(executor, parsl.executors.HighThroughputExecutor):
-            job_ids = executor.provider.resources.keys()
-            executor.scale_in(len(job_ids))
-            # executor.scale_in(0)
-        executor.shutdown()
-
+    """Ask parsl to cleanup and then remove the currently active dfk
+    """
     PARALLEL_CONFIG.dfk.cleanup()
     parsl.clear()
 
@@ -138,6 +132,16 @@ def get_config_from_dict(config_dict):
         parallel_config = None
 
     return parallel_config, mapping
+
+
+def _finalize_setup(parallel_config, mapping):
+    """Finish loading the config and setting up our threadlocal
+    """
+    PARALLEL_CONFIG.dfk = parsl.load(parallel_config)
+
+    PARALLEL_CONFIG.parallel_config = parallel_config
+    if mapping != {}:
+        PARALLEL_CONFIG.action_executor_mapping = mapping
 
 
 def _get_vendored_config():
@@ -249,3 +253,46 @@ class ParallelConfig():
         PARALLEL_CONFIG.dfk = None
         PARALLEL_CONFIG.parallel_config = None
         PARALLEL_CONFIG.action_executor_mapping = {}
+<<<<<<< HEAD
+=======
+
+
+def _check_env(cls):
+    if 'QIIMETEST' not in os.environ:
+        raise ValueError(
+            f"Do not instantiate the class '{cls}' when not testing")
+
+
+class _MASK_CONDA_ENV_():
+    """Used to test config loading behavior when outside of a conda environment
+    """
+    def __init__(self):
+        _check_env(self.__class__)
+
+    def __enter__(self):
+        global CONDA_PREFIX, VENDORED_FP
+
+        self.old_prefix = CONDA_PREFIX
+        self.old_fp = VENDORED_FP
+
+        CONDA_PREFIX = ''
+        VENDORED_FP = None
+
+    def __exit__(self, *args):
+        global CONDA_PREFIX, VENDORED_FP
+
+        CONDA_PREFIX = self.old_prefix
+        VENDORED_FP = self.old_fp
+
+
+class _TEST_EXECUTOR_(parsl.executors.threads.ThreadPoolExecutor):
+    """We needed multiple kinds of executor to ensure we were mapping things
+    correctly, but the HighThroughputExecutor was leaking sockets, so we avoid
+    creating those during the tests because so many sockets were being opened
+    that we were getting "Too many open files" errors, so this gets used as the
+    second executor type."""
+
+    def __init__(self, *args, **kwargs):
+        _check_env(self.__class__)
+        super(_TEST_EXECUTOR_, self).__init__(*args, **kwargs)
+>>>>>>> 74bc79c... Comments
