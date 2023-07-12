@@ -75,7 +75,7 @@ module_paths = {
 }
 
 
-def _setup_parallel(config_fp=None, ):
+def _setup_parallel(config_fp=None):
     """Sets the parsl config and action executor mapping from a file at a given
     path or looks through several default paths if no path is provided and
     loads a vendored config as a last resort
