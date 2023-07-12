@@ -21,7 +21,7 @@ from qiime2.core.util import load_action_yaml
 from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, _MaskCondaEnv,
-                                        ParallelConfig, get_config)
+                                        ParallelConfig, get_config_from_file)
 
 
 class TestConfig(unittest.TestCase):
@@ -103,7 +103,7 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
-        config, mapping = get_config(self.mapping_config_fp)
+        config, mapping = get_config_from_file(self.mapping_config_fp)
 
         with self.cache:
             with ParallelConfig(config, mapping):
@@ -120,7 +120,7 @@ class TestConfig(unittest.TestCase):
 
     def test_mapping_only_config(self):
         # This file only contains a mapping, we should get the default config
-        _, mapping = get_config(self.mapping_only_config_fp)
+        _, mapping = get_config_from_file(self.mapping_only_config_fp)
 
         with self.cache:
             with ParallelConfig(action_executor_mapping=mapping):
@@ -153,7 +153,7 @@ class TestConfig(unittest.TestCase):
 
     def test_parallel_configs(self):
         with self.cache:
-            with ParallelConfig(self.tpool_default):
+            with ParallelConfig(__test__=True):
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
 
@@ -189,8 +189,8 @@ class TestConfig(unittest.TestCase):
         with self.cache:
             with self.assertRaisesRegex(
                     ValueError, 'cannot nest ParallelConfigs'):
-                with ParallelConfig(self.tpool_default):
-                    with ParallelConfig(self.htex_default):
+                with ParallelConfig(__test__=True):
+                    with ParallelConfig(__test__=True):
                         pass
 
     def test_parallel_non_pipeline(self):
@@ -200,7 +200,7 @@ class TestConfig(unittest.TestCase):
 
     def test_no_vendored_fp(self):
         with _MaskCondaEnv():
-            with ParallelConfig():
+            with ParallelConfig(__test__=True):
                 with self.cache:
                     future = self.pipeline.parallel(self.art, self.art)
                     list_return, dict_return = future._result()
