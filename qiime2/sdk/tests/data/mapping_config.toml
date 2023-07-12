@@ -7,12 +7,9 @@ label = "default"
 max_threads = 1
 
 [[parsl.executors]]
-class = "HighThroughputExecutor"
-label = "htex"
-max_workers = 1
-
-[parsl.executors.provider]
-class = "LocalProvider"
+class = "_TEST_EXECUTOR_"
+label = "test"
+max_threads = 1
 
 [parsl.executor_mapping]
-list_of_ints = "htex"
+list_of_ints = "test"
