@@ -241,13 +241,6 @@ class TestPipelineResumption(unittest.TestCase):
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret, \
                 viz_ret = future._result()
 
-            complete_ints1_uuids = _load_alias_uuids(ints1_ret)
-            complete_ints2_uuids = _load_alias_uuids(ints2_ret)
-            complete_int1_uuid = _load_alias_uuid(int1_ret)
-            complete_list_uuids = _load_alias_uuids(list_ret)
-            complete_dict_uuids = _load_alias_uuids(dict_ret)
-            complete_identity_uuid = _load_alias_uuid(identity_ret)
-            complete_viz_uuid = _load_alias_uuid(viz_ret)
 
             # Assert that the artifacts returned by the completed pipeline that
             # are implicated by the changed input are not aliases while the
@@ -311,13 +304,6 @@ class TestPipelineResumption(unittest.TestCase):
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret, \
                 viz_ret = future._result()
 
-            complete_ints1_uuids = _load_alias_uuids(ints1_ret)
-            complete_ints2_uuids = _load_alias_uuids(ints2_ret)
-            complete_int1_uuid = _load_alias_uuid(int1_ret)
-            complete_list_uuids = _load_alias_uuids(list_ret)
-            complete_dict_uuids = _load_alias_uuids(dict_ret)
-            complete_identity_uuid = _load_alias_uuid(identity_ret)
-            complete_viz_uuid = _load_alias_uuid(viz_ret)
 
             # Assert that the artifacts returned by the completed pipeline that
             # are implicated by the changed input are not aliases while the

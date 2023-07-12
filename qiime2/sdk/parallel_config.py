@@ -21,6 +21,42 @@ PARALLEL_CONFIG = threading.local()
 PARALLEL_CONFIG.parallel_config = None
 PARALLEL_CONFIG.action_executor_mapping = {}
 
+# We write a default config to a location in the conda env if there is an
+# active conda env. If there is not an active conda env (most likely because we
+# are using Docker) then the path we want to write the default to will not
+# exist, so we will not write a default, we will just load it from memory
+CONDA_PREFIX = os.environ.get('CONDA_PREFIX', '')
+VENDORED_FP = os.path.join(CONDA_PREFIX, 'etc', 'qiime2_config.toml')
+
+VENDORED_CONFIG = {
+    'parsl': {
+        'strategy': 'None',
+        'executors': [
+            {'class': 'ThreadPoolExecutor', 'label': 'default',
+                'max_threads': max(psutil.cpu_count() - 1, 1)},
+            {'class': 'HighThroughputExecutor', 'label': 'htex',
+                'max_workers': max(psutil.cpu_count() - 1, 1),
+                'provider': {'class': 'LocalProvider'}}
+            ]
+        }
+    }
+
+# As near as I can tell, loading a config with a HighThroughputExecutor leaks
+# open sockets. This leads to issues (especially on osx) with "too many open
+# files" errors while running the test, so this test config with no
+# HighThroughputExecutor was created to mitigate that scenario. This config is
+# only to be used in tests that do not specifically need to test multiple
+# different executors
+__TEST_CONFIG__ = {
+    'parsl': {
+        'strategy': 'None',
+        'executors': [
+            {'class': 'ThreadPoolExecutor', 'label': 'default',
+                'max_threads': 1}
+            ]
+        }
+    }
+
 # Directs keys in the config whose values need to be objects to the module that
 # contains the class they need to instantiate
 module_paths = {
@@ -60,6 +96,11 @@ def setup_parallel(config_fp=None):
     """
     config = PARALLEL_CONFIG.parallel_config
     mapping = PARALLEL_CONFIG.action_executor_mapping
+
+    if __test__:
+        parallel_config, mapping = get_config_from_dict(__TEST_CONFIG__)
+        _finalize_setup(parallel_config, mapping)
+        return
 
     # If we don't have a filepath or a currently existing config then get the
     # path to the vendored one. We do not want to get the vendored path if they
@@ -119,6 +160,14 @@ def get_mapping(config_dict):
     """Takes a config dict and pops off the action_executor_mapping
     """
     return config_dict.pop('executor_mapping', {})
+
+
+def _finalize_setup(parallel_config, mapping):
+    PARALLEL_CONFIG.dfk = parsl.load(parallel_config)
+
+    PARALLEL_CONFIG.parallel_config = parallel_config
+    if mapping != {}:
+        PARALLEL_CONFIG.action_executor_mapping = mapping
 
 
 def _get_vendored_config():
@@ -182,11 +231,19 @@ def _process_key(key, value):
     """
     # Our key needs to point to some object.
     if key in module_paths:
+        # Get the module our class is from
         module = importlib.import_module(module_paths[key])
-        cls = getattr(module, value.pop('class'))
+        # Get the class we need to instantiate
+        cls = getattr(module, value['class'])
+
+        # Get the kwargs we need to pass to the class constructor
         kwargs = {}
         for k, v in value.items():
-            kwargs[k] = _process_key(k, v)
+            # We already handled this key
+            if k != 'class':
+                kwargs[k] = _process_key(k, v)
+
+        # Instantiate the class
         return cls(**kwargs)
     # Our key points to primitive data
     else:
@@ -194,7 +251,8 @@ def _process_key(key, value):
 
 
 class ParallelConfig():
-    def __init__(self, parallel_config=None, action_executor_mapping={}):
+    def __init__(self, parallel_config=None, action_executor_mapping={},
+                 __test__=False):
         """Tell QIIME 2 how to parsl from the Python API
 
         action_executor_mapping: maps actions to executors. All unmapped
@@ -206,9 +264,13 @@ class ParallelConfig():
         parallel_config: Specifies which executors should be created and how
         they should be created. If this is None, it will use the default
         config.
+
+        __test__: Set to true when writing a unit test that is fine with only a
+        ThreadPool executor.
         """
         self.parallel_config = parallel_config
         self.action_executor_mapping = action_executor_mapping
+        self.__test__ = __test__
 
     def __enter__(self):
         """Set this to be our Parsl config on the current thread local

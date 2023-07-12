@@ -148,7 +148,7 @@ class TestConfig(unittest.TestCase):
 
     def test_parallel_configs(self):
         with self.cache:
-            with ParallelConfig(self.tpool_default):
+            with ParallelConfig(__test__=True):
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
 
@@ -182,14 +182,21 @@ class TestConfig(unittest.TestCase):
 
     def test_nested_configs(self):
         with self.cache:
-            with ParallelConfig(self.tpool_default):
-                with ParallelConfig(self.htex_default):
-                    with ParallelConfig(
-                            action_executor_mapping={'list_of_ints': 'tpool'}):
-                        with self.assertRaisesRegex(KeyError, 'tpool'):
-                            future = self.pipeline.parallel(self.art, self.art)
-                            list_return, dict_return = future._result()
+            with self.assertRaisesRegex(
+                    ValueError, 'cannot nest ParallelConfigs'):
+                with ParallelConfig(__test__=True):
+                    with ParallelConfig(__test__=True):
+                        pass
 
+    def test_parallel_non_pipeline(self):
+        with self.assertRaisesRegex(
+                ValueError, 'Only pipelines may be run in parallel'):
+            self.method.parallel(self.art)
+
+    def test_no_vendored_fp(self):
+        with _MaskCondaEnv():
+            with ParallelConfig(__test__=True):
+                with self.cache:
                     future = self.pipeline.parallel(self.art, self.art)
                     list_return, dict_return = future._result()
 
