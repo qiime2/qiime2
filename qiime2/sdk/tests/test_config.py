@@ -18,7 +18,7 @@ from qiime2 import Artifact, Cache
 from qiime2.core.util import load_action_yaml
 from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
-from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, _MaskCondaEnv,
+from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, _MASK_CONDA_ENV_,
                                         ParallelConfig, _TEST_EXECUTOR_,
                                         get_config_from_file)
 
@@ -179,7 +179,7 @@ class TestConfig(unittest.TestCase):
             self.method.parallel(self.art)
 
     def test_no_vendored_fp(self):
-        with _MaskCondaEnv():
+        with _MASK_CONDA_ENV_():
             with ParallelConfig():
                 with self.cache:
                     future = self.pipeline.parallel(self.art, self.art)

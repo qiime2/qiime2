@@ -277,8 +277,17 @@ class ParallelConfig():
         PARALLEL_CONFIG.action_executor_mapping = {}
 
 
+def _check_env(cls):
+    if 'QIIMETEST' not in os.environ:
+        raise ValueError(
+            f"Do not instantiate the class '{cls}' when not testing")
+
+
 # Used to test config loading behavior when outside of a conda environment
-class _MaskCondaEnv():
+class _MASK_CONDA_ENV_():
+    def __init__(self):
+        _check_env(self.__class__)
+
     def __enter__(self):
         global CONDA_PREFIX, VENDORED_FP
 
@@ -299,11 +308,9 @@ class _TEST_EXECUTOR_(parsl.executors.threads.ThreadPoolExecutor):
     """We needed multiple kinds of executor to ensure we were mapping things
     correctly, but the HighThroughputExecutor was leaking sockets, so we avoid
     creating those during the tests because so many sockets were being opened
-    that we were getting 'Too many open files' errors, so this gets used as the
+    that we were getting "Too many open files" errors, so this gets used as the
     second executor type."""
 
     def __init__(self, *args, **kwargs):
-        if os.environ.get('QIIMETEST') is None:
-            raise ValueError('Do not instantiate this class when not testing')
-
+        _check_env(self.__class__)
         super(_TEST_EXECUTOR_, self).__init__(*args, **kwargs)
