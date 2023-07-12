@@ -1,5 +1,4 @@
 import codecs
-import contextlib
 import os
 import shutil
 import tempfile
@@ -11,36 +10,10 @@ from qiime2 import Artifact
 from qiime2.sdk.plugin_manager import PluginManager
 from qiime2.core.archive.archiver import Archiver
 
-from ..util import _VERSION_MATCHER, parse_version
-
-
-@contextlib.contextmanager
-def monkeypatch_archive_version(patch_version):
-    try:
-        og_version = Archiver.CURRENT_FORMAT_VERSION
-        Archiver.CURRENT_FORMAT_VERSION = patch_version
-        yield
-    finally:
-        Archiver.CURRENT_FORMAT_VERSION = og_version
-
-
-@contextlib.contextmanager
-def monkeypatch_framework_version(patch_version):
-    try:
-        og_version = qiime2.__version__
-        qiime2.__version__ = patch_version
-        yield
-    finally:
-        qiime2.__version__ = og_version
-
-
-def write_zip_archive(zfp, unzipped_dir):
-    with zipfile.ZipFile(zfp, 'w') as zf:
-        for root, dirs, files in os.walk(unzipped_dir):
-            for file in files:
-                path = os.path.join(root, file)
-                archive_name = os.path.relpath(path, start=unzipped_dir)
-                zf.write(path, arcname=archive_name)
+from ..util import (
+    _VERSION_MATCHER, parse_version, monkeypatch_archive_version,
+    monkeypatch_framework_version, write_zip_archive
+)
 
 
 class TestVersionParser(unittest.TestCase):

@@ -1,10 +1,15 @@
 import codecs
+import contextlib
+import os
 import pathlib
 import re
 import warnings
 import zipfile
 
 from typing import Optional, Tuple
+
+import qiime2
+from qiime2.core.archive import Archiver
 
 # Alias string as UUID so we can specify types more clearly
 UUID = str
@@ -98,3 +103,32 @@ def parse_version(zf: zipfile.ZipFile,
         line.strip().split()[-1] for line in
         version_contents.split(sep='\n') if line]
     return (archive_version, frmwk_vrsn)
+
+
+@contextlib.contextmanager
+def monkeypatch_archive_version(patch_version):
+    try:
+        og_version = Archiver.CURRENT_FORMAT_VERSION
+        Archiver.CURRENT_FORMAT_VERSION = patch_version
+        yield
+    finally:
+        Archiver.CURRENT_FORMAT_VERSION = og_version
+
+
+@contextlib.contextmanager
+def monkeypatch_framework_version(patch_version):
+    try:
+        og_version = qiime2.__version__
+        qiime2.__version__ = patch_version
+        yield
+    finally:
+        qiime2.__version__ = og_version
+
+
+def write_zip_archive(zfp, unzipped_dir):
+    with zipfile.ZipFile(zfp, 'w') as zf:
+        for root, dirs, files in os.walk(unzipped_dir):
+            for file in files:
+                path = os.path.join(root, file)
+                archive_name = os.path.relpath(path, start=unzipped_dir)
+                zf.write(path, arcname=archive_name)
