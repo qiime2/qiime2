@@ -47,11 +47,13 @@ VENDORED_CONFIG = {
 # HighThroughputExecutor was created to mitigate that scenario. This config is
 # only to be used in tests that do not specifically need to test multiple
 # different executors
-__TEST_CONFIG__ = {
+_TEST_CONFIG_ = {
     'parsl': {
         'strategy': 'None',
         'executors': [
             {'class': 'ThreadPoolExecutor', 'label': 'default',
+                'max_threads': 1},
+            {'class': '_TEST_EXECUTOR_', 'label': 'test',
                 'max_threads': 1}
             ]
         }
@@ -97,8 +99,8 @@ def setup_parallel(config_fp=None):
     config = PARALLEL_CONFIG.parallel_config
     mapping = PARALLEL_CONFIG.action_executor_mapping
 
-    if __test__:
-        parallel_config, mapping = get_config_from_dict(__TEST_CONFIG__)
+    if os.environ.get('QIIMETEST') is not None and parallel_config is None:
+        parallel_config, mapping = get_config_from_dict(_TEST_CONFIG_)
         _finalize_setup(parallel_config, mapping)
         return
 
@@ -233,8 +235,14 @@ def _process_key(key, value):
     if key in module_paths:
         # Get the module our class is from
         module = importlib.import_module(module_paths[key])
-        # Get the class we need to instantiate
-        cls = getattr(module, value['class'])
+
+        _type = value['class']
+        if _type == '_TEST_EXECUTOR_':
+            # Only used for tests
+            cls = _TEST_EXECUTOR_
+        else:
+            # Get the class we need to instantiate
+            cls = getattr(module, value['class'])
 
         # Get the kwargs we need to pass to the class constructor
         kwargs = {}
@@ -251,8 +259,7 @@ def _process_key(key, value):
 
 
 class ParallelConfig():
-    def __init__(self, parallel_config=None, action_executor_mapping={},
-                 __test__=False):
+    def __init__(self, parallel_config=None, action_executor_mapping={}):
         """Tell QIIME 2 how to parsl from the Python API
 
         action_executor_mapping: maps actions to executors. All unmapped
@@ -264,13 +271,9 @@ class ParallelConfig():
         parallel_config: Specifies which executors should be created and how
         they should be created. If this is None, it will use the default
         config.
-
-        __test__: Set to true when writing a unit test that is fine with only a
-        ThreadPool executor.
         """
         self.parallel_config = parallel_config
         self.action_executor_mapping = action_executor_mapping
-        self.__test__ = __test__
 
     def __enter__(self):
         """Set this to be our Parsl config on the current thread local
