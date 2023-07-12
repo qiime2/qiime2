@@ -129,7 +129,6 @@ def get_config_from_file(config_fp):
 
 
 def get_config_from_dict(config_dict):
-    # raise ValueError(config_dict)
     parallel_config_dict = config_dict.get('parsl')
     mapping = parallel_config_dict.pop('executor_mapping', {})
 
