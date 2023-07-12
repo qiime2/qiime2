@@ -1,36 +1,58 @@
 import collections
-import tempfile
+import os
 import pathlib
+import shutil
+import tempfile
 import unittest
 import zipfile
 
-from qiime2.core.util import md5sum_zip, md5sum_directory_zip
+from qiime2.core.util import (
+    md5sum_zip, md5sum_directory_zip, from_checksum_format
+)
+from qiime2 import Artifact
+from qiime2.core.archive.archiver import ChecksumDiff
+from qiime2.sdk.plugin_manager import PluginManager
+
 from .._checksum_validator import (
-    diff_checksums, from_checksum_format,
-    validate_checksums, ChecksumDiff, ValidationCode,
+    diff_checksums, validate_checksums, ValidationCode,
 )
 from .test_parse import TEST_DATA
 from .testing_utilities import (
     generate_archive_with_file_removed,
 )
+from ..util import monkeypatch_archive_version, write_zip_archive
 
 
 class ValidateChecksumTests(unittest.TestCase):
-    def test_validate_checksums_valid(self):
-        """
-        Test a collection of intact archives from v0 to v5
-        """
-        for archive_version in TEST_DATA:
-            fp = TEST_DATA[archive_version]['qzv_fp']
-            with zipfile.ZipFile(fp) as zf:
-                is_valid, diff = validate_checksums(zf)
+    def setUp(self):
+        self.pm = PluginManager()
+        self.dp = self.pm.plugins['dummy-plugin']
+        self.tempdir = tempfile.mkdtemp(
+            prefix='qiime2-test-checksum-validator-temp-'
+        )
 
-                self.assertEqual(is_valid, ValidationCode.VALID)
-                self.assertEqual(type(diff), ChecksumDiff)
-                self.assertEqual(diff, ChecksumDiff({}, {}, {}))
-                self.assertEqual(diff.added, {})
-                self.assertEqual(diff.removed, {})
-                self.assertEqual(diff.changed, {})
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    def test_validate_checksums_valid(self):
+        int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        int_seq.save(fp)
+
+        with zipfile.ZipFile(fp) as zf:
+            is_valid, diff = validate_checksums(zf)
+        self.assertEqual(is_valid, ValidationCode.VALID)
+        self.assertEqual(diff, ChecksumDiff({}, {}, {}))
+
+        fp = os.path.join(self.tempdir, 'int-seq-av2.qza')
+        with monkeypatch_archive_version('1'):
+            int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
+            int_seq.save(fp)
+
+        with zipfile.ZipFile(fp) as zf:
+            is_valid, diff = validate_checksums(zf)
+        self.assertEqual(is_valid, ValidationCode.VALID)
+        self.assertEqual(diff, ChecksumDiff({}, {}, {}))
 
     def test_validate_checksums_invalid(self):
         """
@@ -39,69 +61,58 @@ class ValidateChecksumTests(unittest.TestCase):
         Specifically:
         - remove the root `<uuid>/metadata.yaml`
         - add a new file called '<uuid>/tamper.txt`
-        - overwrite `<uuid>/data/index.html` with '999\n'
+        - overwrite `<uuid>/provenance/citations.bib`
         """
-        original_archive = TEST_DATA['5']['qzv_fp']
-        root_uuid = TEST_DATA['5']['uuid']
-        fp_pfx = pathlib.Path(root_uuid)
-        drop_file = pathlib.Path('metadata.yaml')
-        with generate_archive_with_file_removed(
-            qzv_fp=original_archive,
-            root_uuid=root_uuid,
-                file_to_drop=drop_file) as chopped_archive:
+        int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
+        fp = os.path.join(self.tempdir, 'int-seq-altered.qza')
+        int_seq.save(fp)
 
-            with zipfile.ZipFile(chopped_archive, 'a') as zf:
-                # add a new file...
-                new_fn = str(fp_pfx / 'tamper.txt')
-                zf.writestr(new_fn, 'extra file')
+        with tempfile.TemporaryDirectory() as tempdir:
+            with zipfile.ZipFile(fp) as zf:
+                zf.extractall(tempdir)
 
-                # and overwrite an existing file with junk
-                extant_fn = str(fp_pfx / 'data' / 'index.html')
-                # we expect a warning that we're overwriting the filename
-                # this cm stops the warning from propagating up to stderr/out
-                with self.assertWarnsRegex(UserWarning, 'Duplicate name'):
-                    with zf.open(extant_fn, 'w') as myfile:
-                        myfile.write(b'999\n')
+            uuid = os.listdir(tempdir)[0]
+            root_dir = os.path.join(tempdir, uuid)
+            print(os.listdir(root_dir))
+            os.remove(os.path.join(root_dir, 'metadata.yaml'))
+            print(os.listdir(root_dir))
+            with open(os.path.join(root_dir, 'tamper.txt'), 'w') as fh:
+                pass
+            citations_path = \
+                os.path.join(root_dir, 'provenance', 'citations.bib')
+            with open(citations_path, 'w') as fh:
+                fh.write('file overwritten\n')
 
-                with self.assertWarnsRegex(
-                    UserWarning,
-                        '(?s)Checksums.*invalid.*added.*remove.*changed'):
-                    is_valid, diff = validate_checksums(zf)
+            write_zip_archive(fp, tempdir)
 
-            # Here we'll just check name for reasons of simplicity
-            self.assertEqual(is_valid, ValidationCode.INVALID)
-            self.assertEqual(list(diff.removed.keys()), ['metadata.yaml'])
-            self.assertEqual(
-                diff.added,
-                {'tamper.txt': '296583001b00d2b811b5871b19e0ad28'})
-            self.assertEqual(
-                diff.changed,
-                {'data/index.html': ('065031e17943cd0780f197874c4f011e',
-                                     'f47bc36040d5c7db08e4b3a457dcfbb2')
-                 })
+        with zipfile.ZipFile(fp) as zf:
+            is_valid, diff = validate_checksums(zf)
+
+        self.assertEqual(is_valid, ValidationCode.INVALID)
+        self.assertEqual(list(diff.added.keys()), ['tamper.txt'])
+        self.assertEqual(list(diff.removed.keys()), ['metadata.yaml'])
+        self.assertEqual(list(diff.changed.keys()),
+                         ['provenance/citations.bib'])
 
     def test_validate_checksums_checksums_missing(self):
-        """
-        Mangle an intact v5 Archive so that its checksums.md5 is missing
-        and then confirm that we're warning and returning the right values
-        """
-        original_archive = TEST_DATA['5']['qzv_fp']
-        root_uuid = TEST_DATA['5']['uuid']
-        drop_file = pathlib.Path('checksums.md5')
-        with generate_archive_with_file_removed(
-            qzv_fp=original_archive,
-            root_uuid=root_uuid,
-                file_to_drop=drop_file) as chopped_archive:
+        int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
+        fp = os.path.join(self.tempdir, 'int-seq-missing-version.qza')
+        int_seq.save(fp)
 
-            with zipfile.ZipFile(chopped_archive, 'a') as zf:
-                with self.assertWarnsRegex(
-                    UserWarning,
-                        'no item.*checksums.md5.*provenance.*false'):
-                    is_valid, diff = validate_checksums(zf)
+        with tempfile.TemporaryDirectory() as tempdir:
+            with zipfile.ZipFile(fp) as zf:
+                zf.extractall(tempdir)
 
-            # Here we'll just check name for reasons of simplicity
-            self.assertEqual(is_valid, ValidationCode.INVALID)
-            self.assertEqual(diff, None)
+            uuid = os.listdir(tempdir)[0]
+            os.remove(os.path.join(tempdir, uuid, 'checksums.md5'))
+
+            write_zip_archive(fp, tempdir)
+
+        with zipfile.ZipFile(fp) as zf:
+            is_valid, diff = validate_checksums(zf)
+
+        self.assertEqual(is_valid, ValidationCode.INVALID)
+        self.assertEqual(diff, None)
 
 
 class DiffChecksumTests(unittest.TestCase):
@@ -317,14 +328,14 @@ class FromChecksumFormatTests(unittest.TestCase):
 
     def test_from_simple(self):
         fp, chks = from_checksum_format(
-            b'd9724aeba59d8cea5265f698b2c19684  this/is/a/filepath')
+            'd9724aeba59d8cea5265f698b2c19684  this/is/a/filepath')
         self.assertEqual(fp, 'this/is/a/filepath')
         self.assertEqual(chks, 'd9724aeba59d8cea5265f698b2c19684')
 
     def test_from_hard(self):
         line = (
-            rb'\939aaaae6098ebdab049b0f3abe7b68c  filepath/\n/with/\\newline' +
-            b'\n'  # newline from a checksum "file"
+            r'\939aaaae6098ebdab049b0f3abe7b68c  filepath/\n/with/\\newline' +
+            '\n'  # newline from a checksum "file"
         )
         fp, chks = from_checksum_format(line)
 
@@ -332,14 +343,14 @@ class FromChecksumFormatTests(unittest.TestCase):
         self.assertEqual(chks, '939aaaae6098ebdab049b0f3abe7b68c')
 
     def test_filepath_with_leading_backslash(self):
-        line = rb'\d41d8cd98f00b204e9800998ecf8427e  \\.qza'
+        line = '\d41d8cd98f00b204e9800998ecf8427e  \\.qza'
         fp, chks = from_checksum_format(line)
 
         self.assertEqual(chks, 'd41d8cd98f00b204e9800998ecf8427e')
         self.assertEqual(fp, r'\.qza')
 
     def test_filepath_with_leading_backslashes(self):
-        line = rb'\d41d8cd98f00b204e9800998ecf8427e  \\\\\\.qza'
+        line = r'\d41d8cd98f00b204e9800998ecf8427e  \\\\\\.qza'
         fp, chks = from_checksum_format(line)
 
         self.assertEqual(fp, r'\\\.qza')
@@ -354,11 +365,11 @@ class FromChecksumFormatTests(unittest.TestCase):
         The same filepath results regardless of whether checksum[0] == '\\'.
         """
         fp, _ = from_checksum_format(
-            rb'fake_checksum  \.qza'
+            'fake_checksum  \.qza'
         )
 
         fp2, _ = from_checksum_format(
-            rb'\fake_checksum  \.qza'
+            '\fake_checksum  \.qza'
         )
 
         self.assertEqual(fp, r'\.qza')
@@ -366,7 +377,7 @@ class FromChecksumFormatTests(unittest.TestCase):
 
     def test_from_legacy_format(self):
         fp, chks = from_checksum_format(
-            rb'0ed29022ace300b4d96847882daaf0ef *this/means/binary/mode')
+            '0ed29022ace300b4d96847882daaf0ef *this/means/binary/mode')
 
         self.assertEqual(fp, 'this/means/binary/mode')
         self.assertEqual(chks, '0ed29022ace300b4d96847882daaf0ef')

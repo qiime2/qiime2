@@ -1,32 +1,13 @@
-from dataclasses import dataclass
 from enum import IntEnum
 import pathlib
 import warnings
 import zipfile
 from typing import Optional, Tuple
 
+from qiime2.core.util import md5sum_directory_zip, from_checksum_format
+from qiime2.core.archive.archiver import ChecksumDiff
+
 from .util import get_root_uuid, parse_version
-
-from qiime2.core.util import md5sum_directory_zip
-
-
-@dataclass
-class ChecksumDiff:
-    """
-    All files added to, removed from, or modified in a .qza/.qzv, since the
-    checksums.md5 file was created during provenance capture.
-
-    added, removed, and changed are all dictionaries _keyed on filenames_.
-    added and removed values are the added or removed file's md5sum.
-    E.g. added = {'tamper.txt': '296583001b00d2b811b5871b19e0ad28'}
-
-    The changed value is a two-tuple containing expected then observed md5sums
-    E.g. changed = {'data/index.html': ('065031e17943cd0780f197874c4f011e',
-                                        'f47bc36040d5c7db08e4b3a457dcfbb2')
-    """
-    added: dict
-    removed: dict
-    changed: dict
 
 
 class ValidationCode(IntEnum):
@@ -123,9 +104,8 @@ def diff_checksums(zf: zipfile.ZipFile) -> ChecksumDiff:
 
     root_dir = pathlib.Path(get_root_uuid(zf))
     checksum_filename = root_dir / 'checksums.md5'
-    obs = dict(x for x in md5sum_directory_zip(zf).items()
-               if x[0] != checksum_filename)
-    exp = dict(from_checksum_format(line) for line in
+    obs = md5sum_directory_zip(zf)
+    exp = dict(from_checksum_format(str(line, 'utf-8')) for line in
                zf.open(str(checksum_filename))
                )
     obs_keys = set(obs)
@@ -137,51 +117,3 @@ def diff_checksums(zf: zipfile.ZipFile) -> ChecksumDiff:
                if exp[x] != obs[x]}
 
     return ChecksumDiff(added=added, removed=removed, changed=changed)
-
-
-def from_checksum_format(line_bytes: bytes) -> Tuple[str, str]:
-    """
-    Given one line of bytes from a checksums.md5 file,
-    parses the line and returns the filepath and that file's recorded checksum
-
-    We expect a line to look roughly like this:
-    2eb067afb7ba4eefe89a0416ab16f688  provenance/metadata.yaml
-
-    ...with checksum followed by relative filepath (excluding root UUID dir)
-
-    Code adapted from qiime2/core/util.py
-    """
-    line = str(line_bytes, 'utf-8').rstrip('\n')
-    parts = line.split('  ', 1)
-    if len(parts) < 2:
-        parts = line.split(' *', 1)
-
-    checksum, filepath = parts
-
-    if checksum[0] == '\\':
-        chars = ''
-        escape = False
-        # Gross, but regular `.replace` will overlap with itself and
-        # negative lookbehind in regex is *probably* harder than scanning
-        for char in filepath:
-            # 1) Escape next character
-            if not escape and char == '\\':
-                escape = True
-                continue
-
-            # 2) Handle escape sequence
-            if escape:
-                try:
-                    chars += {'\\': '\\', 'n': '\n'}[char]
-                except KeyError:
-                    chars += '\\' + char  # Wasn't an escape after all
-                escape = False
-                continue
-
-            # 3) Nothing interesting
-            chars += char
-
-        checksum = checksum[1:]
-        filepath = chars
-
-    return filepath, checksum
