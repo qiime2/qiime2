@@ -1,48 +1,96 @@
 import codecs
+import contextlib
 import os
+import shutil
+import tempfile
 import unittest
 import warnings
 import zipfile
 
+import qiime2
+from qiime2 import Artifact
+from qiime2.sdk.plugin_manager import PluginManager
+from qiime2.core.archive.archiver import Archiver
+
 from .test_parse import DATA_DIR, TEST_DATA
 from ..version_parser import (
-    _VERSION_MATCHER, parse_version, parse_version_from_fp
+    _VERSION_MATCHER, parse_version
 )
 
 
-class ParseVersionFromFPTests(unittest.TestCase):
-    """
-    Simple tests for from_fp convenience function, which passes an fp through
-    to `parse_version`. Comprehensive tests for that function below.
-    """
+@contextlib.contextmanager
+def monkeypatch_archive_version(patch_version):
+    try:
+        og_version = Archiver.CURRENT_FORMAT_VERSION
+        Archiver.CURRENT_FORMAT_VERSION = patch_version
+        yield
+    finally:
+        Archiver.CURRENT_FORMAT_VERSION = og_version
 
-    def test_parse_version_from_fp(self):
-        fp = os.path.join(DATA_DIR, 'v5_uu_emperor.qzv')
-        actual = parse_version_from_fp(fp)
-        self.assertEqual(actual,
-                         (TEST_DATA['5']['av'],
-                          TEST_DATA['5']['fwv']))
 
-    def test_qza_written_in_dev_state(self):
-        """
-        The test archive was produced by running feature-table merge in a dev
-        version of QIIME 2.
-        """
-        fp = os.path.join(DATA_DIR, 'table_written_in_dev_version.qza')
-        actual = parse_version_from_fp(fp)
-        self.assertEqual(actual,
-                         ('5', '2021.10.0.dev0'))
+@contextlib.contextmanager
+def monkeypatch_framework_version(patch_version):
+    try:
+        og_version = qiime2.__version__
+        qiime2.__version__ = patch_version
+        yield
+    finally:
+        qiime2.__version__ = og_version
 
-    def test_qza_written_in_dirty_dev_state(self):
-        """
-        The test archive was produced in a "dirty" dev version of QIIME 2.
-        The regex handles these generously, matching a plus followed by
-        any collection of . and word characters
-        """
-        fp = os.path.join(DATA_DIR, 'ns_collisions.qza')
-        actual = parse_version_from_fp(fp)
-        self.assertEqual(actual,
-                         ('5', '2019.7.0.dev0+111.g40f412f'))
+
+class TestVersionParser(unittest.TestCase):
+    def setUp(self):
+        self.pm = PluginManager()
+        self.dp = self.pm.plugins['dummy-plugin']
+        self.tempdir = tempfile.mkdtemp(
+            prefix='qiime2-test-version-parser-temp-'
+        )
+        self.framework_version_exp = qiime2.__version__
+        self.archive_version_exp = Archiver.CURRENT_FORMAT_VERSION
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    def test_parse_version(self):
+        int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
+        int_seq.save(os.path.join(self.tempdir, 'int-seq.qza'))
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        with zipfile.ZipFile(fp) as zf:
+            actual = parse_version(zf)
+            self.assertEqual(
+                actual,
+                (self.archive_version_exp, self.framework_version_exp)
+            )
+
+    def test_parse_version_old_archive_format(self):
+        archive_version_exp = '2'
+        fp = os.path.join(self.tempdir, 'int-seq-av2.qza')
+
+        with monkeypatch_archive_version(archive_version_exp):
+            int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
+            int_seq.save(fp)
+
+        with zipfile.ZipFile(fp) as zf:
+            actual = parse_version(zf)
+            self.assertEqual(
+                actual,
+                (archive_version_exp, self.framework_version_exp)
+            )
+
+    def test_artifact_with_commit_version(self):
+        framework_version_exp = '2022.8.0+29.gb053440'
+        fp = os.path.join(self.tempdir, 'int-seq-custom-fv.qza')
+
+        with monkeypatch_framework_version(framework_version_exp):
+            int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
+            int_seq.save(fp)
+
+        with zipfile.ZipFile(fp) as zf:
+            actual = parse_version(zf)
+            self.assertEqual(
+                actual,
+                (self.archive_version_exp, framework_version_exp)
+            )
 
 
 class GetVersionTests(unittest.TestCase):

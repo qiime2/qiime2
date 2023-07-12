@@ -12,19 +12,8 @@ _VERSION_MATCHER = (
     r'archive: [0-9]{1,2}$\n'
     r'framework: '
     r'(?:20[0-9]{2}|2)\.(?:[1-9][0-2]?|0)\.[0-9](?:\.dev[0-9]?)?'
-    r'(?:\+[.\w]+)?\Z')
-
-
-def parse_version_from_fp(fp: pathlib.Path) -> Tuple[str, str]:
-    """
-    Convenience function that takes a zip archive filepath and parses the root
-    VERSION file of the archive, returning (archive_version, framework_version)
-
-    Intended for use as a standalone for this module, rather than for the
-    current implementation.
-    """
-    with zipfile.ZipFile(fp) as zf:
-        return parse_version(zf)
+    r'(?:\+[.\w]+)?\Z'
+)
 
 
 def parse_version(zf: zipfile.ZipFile,
