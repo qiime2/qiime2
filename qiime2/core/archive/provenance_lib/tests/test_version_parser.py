@@ -11,7 +11,7 @@ from qiime2 import Artifact
 from qiime2.sdk.plugin_manager import PluginManager
 from qiime2.core.archive.archiver import Archiver
 
-from ..version_parser import _VERSION_MATCHER, parse_version
+from ..util import _VERSION_MATCHER, parse_version
 
 
 @contextlib.contextmanager

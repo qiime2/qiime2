@@ -10,7 +10,7 @@ from networkx.classes.reportviews import NodeView
 import zipfile
 
 from . import _checksum_validator
-from ._archive_parser import (
+from .archive_parser import (
     Config, ParserResults, ProvNode, Parser, ArchiveParser
 )
 from .util import UUID, get_root_uuid

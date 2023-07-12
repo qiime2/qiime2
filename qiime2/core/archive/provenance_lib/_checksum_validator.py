@@ -5,8 +5,7 @@ import warnings
 import zipfile
 from typing import Optional, Tuple
 
-from .util import get_root_uuid
-from .version_parser import parse_version
+from .util import get_root_uuid, parse_version
 
 from qiime2.core.util import md5sum_directory_zip
 
