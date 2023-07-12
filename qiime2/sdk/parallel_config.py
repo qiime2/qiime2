@@ -114,6 +114,8 @@ def _setup_parallel(config_fp=None):
 
 
 def _cleanup_parallel():
+    """Ask parsl to cleanup and then remove the currently active dfk
+    """
     PARALLEL_CONFIG.dfk.cleanup()
     parsl.clear()
 
@@ -143,6 +145,8 @@ def get_config_from_dict(config_dict):
 
 
 def _finalize_setup(parallel_config, mapping):
+    """Finish loading the config and setting up our threadlocal
+    """
     PARALLEL_CONFIG.dfk = parsl.load(parallel_config)
 
     PARALLEL_CONFIG.parallel_config = parallel_config
@@ -282,8 +286,9 @@ def _check_env(cls):
             f"Do not instantiate the class '{cls}' when not testing")
 
 
-# Used to test config loading behavior when outside of a conda environment
 class _MASK_CONDA_ENV_():
+    """Used to test config loading behavior when outside of a conda environment
+    """
     def __init__(self):
         _check_env(self.__class__)
 
