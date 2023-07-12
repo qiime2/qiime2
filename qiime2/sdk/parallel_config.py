@@ -121,6 +121,10 @@ def get_config(fp):
     with open(fp, 'r') as fh:
         config_dict = tomlkit.load(fh)
 
+    return get_config_from_dict(config_dict)
+
+
+def get_config_from_dict(config_dict):
     parallel_config_dict = config_dict.get('parsl')
     mapping = parallel_config_dict.pop('executor_mapping', {})
 
