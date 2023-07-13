@@ -375,7 +375,7 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertEqual('init_result_collection', obs1.source)
         self.assertEqual('action', obs2.source)
 
-        self.assertEqual('int_collection', obs1.variable.name)
+        self.assertEqual('ints', obs1.variable.name)
         self.assertEqual('out', obs2.variable[0].name)
 
         self.assertEqual('result_collection', obs1.variable.var_type)

@@ -645,6 +645,7 @@ class UsageVariable:
         ----------
         path : str
             The relative path in a result's /data/ directory to check.
+
         expression : str
             The regular expression to evaluate for a line within `path`.
 
@@ -661,7 +662,26 @@ class UsageVariable:
         ...     use.UsageOutputNames(out='bar4')
         ... )
         >>> bar.assert_has_line_matching('mapping.tsv', r'foo\\s42')
-        """
+        ...
+        >>> # A factory which will be used in the example to generate data.
+        >>> def factory():
+        ...     import qiime2
+        ...     # This type is only available during testing.
+        ...     # A real example would use a real type.
+        ...     a = qiime2.ResultCollection(
+        ...         {'Foo': qiime2.Artifact.import_data('SingleInt', 1),
+        ...          'Bar': qiime2.Artifact.import_data('SingleInt', 2)})
+        ...     return a
+        ...
+        >>> int_collection = use.init_result_collection('int_collection', factory)
+        >>> bar, = use.action(
+        ...     use.UsageAction(plugin_id='dummy_plugin',
+        ...                     action_id='dict_of_ints'),
+        ...     use.UsageInputs(ints=int_collection),
+        ...     use.UsageOutputNames(output='bar6')
+        ... )
+        >>> bar.assert_has_line_matching('bar6/Foo.qza', r'1')
+        """  # noqa: E501
         pass
 
     def assert_output_type(self, semantic_type: str, key: str = None):
@@ -1605,7 +1625,8 @@ class DiagnosticUsage(Usage):
 class ExecutionUsageVariable(UsageVariable):
     """A specialized implementation for :class:`ExecutionUsage`."""
     def assert_has_line_matching(self, path, expression):
-        assert_usage_var_type(self, 'artifact', 'visualization')
+        assert_usage_var_type(self, 'artifact', 'visualization',
+                              'result_collection')
 
         data = self.value
 
