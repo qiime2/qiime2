@@ -236,8 +236,17 @@ class ParallelConfig():
         PARALLEL_CONFIG.action_executor_mapping = self.backup_map
 
 
+def _check_env(cls):
+    if 'QIIMETEST' not in os.environ:
+        raise ValueError(
+            f"Do not instantiate the class '{cls}' when not testing")
+
+
 # Used to test config loading behavior when outside of a conda environment
 class _MASK_CONDA_ENV_():
+    def __init__(self):
+        _check_env(self.__class__)
+
     def __enter__(self):
         global CONDA_PREFIX, VENDORED_FP
 
