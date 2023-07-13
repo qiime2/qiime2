@@ -13,9 +13,9 @@ import appdirs
 import tomlkit
 import threading
 import importlib
+import pkg_resources
 
 from parsl.config import Config
-
 
 PARALLEL_CONFIG = threading.local()
 PARALLEL_CONFIG.parallel_config = None
@@ -41,23 +41,6 @@ VENDORED_CONFIG = {
         }
     }
 
-# As near as I can tell, loading a config with a HighThroughputExecutor leaks
-# open sockets. This leads to issues (especially on osx) with "too many open
-# files" errors while running the test, so this test config with no
-# HighThroughputExecutor was created to mitigate that scenario. This config is
-# only to be used in tests that do not specifically need to test multiple
-# different executors
-_TEST_CONFIG_ = {
-    'parsl': {
-        'strategy': 'None',
-        'executors': [
-            {'class': 'ThreadPoolExecutor', 'label': 'default',
-                'max_threads': 1},
-            {'class': '_TEST_EXECUTOR_', 'label': 'test',
-                'max_threads': 1}
-            ]
-        }
-    }
 
 # Directs keys in the config whose values need to be objects to the module that
 # contains the class they need to instantiate
@@ -75,21 +58,6 @@ module_paths = {
     'providers': 'parsl.providers'
 }
 
-VENDORED_FP = os.path.join(
-    os.environ.get('CONDA_PREFIX'), 'etc', 'qiime2_config.toml')
-VENDORED_CONFIG = {
-    'parsl': {
-        'strategy': 'None',
-        'executors': [
-            {'class': 'ThreadPoolExecutor', 'label': 'default',
-             'max_threads': max(psutil.cpu_count() - 1, 1)},
-            {'class': 'HighThroughputExecutor', 'label': 'htex',
-             'max_workers': max(psutil.cpu_count() - 1, 1),
-             'provider': {'class': 'LocalProvider'}}
-            ]
-        }
-    }
-
 
 def setup_parallel(config_fp=None):
     """Sets the parsl config and action executor mapping from a file at a given
@@ -98,11 +66,6 @@ def setup_parallel(config_fp=None):
     """
     config = PARALLEL_CONFIG.parallel_config
     mapping = PARALLEL_CONFIG.action_executor_mapping
-
-    if os.environ.get('QIIMETEST') is not None and parallel_config is None:
-        parallel_config, mapping = get_config_from_dict(_TEST_CONFIG_)
-        _finalize_setup(parallel_config, mapping)
-        return
 
     # If we don't have a filepath or a currently existing config then get the
     # path to the vendored one. We do not want to get the vendored path if they
@@ -164,15 +127,11 @@ def get_mapping(config_dict):
     return config_dict.pop('executor_mapping', {})
 
 
-def _finalize_setup(parallel_config, mapping):
-    PARALLEL_CONFIG.dfk = parsl.load(parallel_config)
-
-    PARALLEL_CONFIG.parallel_config = parallel_config
-    if mapping != {}:
-        PARALLEL_CONFIG.action_executor_mapping = mapping
-
-
 def _get_vendored_config():
+    if 'QIIMETEST' in os.environ:
+        return pkg_resources.resource_filename(
+            'qiime2.sdk.tests', 'data/test_config.toml')
+
     # 1. Check envvar
     config_fp = os.environ.get('QIIME2_CONFIG')
 
@@ -289,3 +248,21 @@ class ParallelConfig():
         """
         PARALLEL_CONFIG.parallel_config = self.backup_config
         PARALLEL_CONFIG.action_executor_mapping = self.backup_map
+
+
+def _check_env(cls):
+    if 'QIIMETEST' not in os.environ:
+        raise ValueError(
+            f"Do not instantiate the class '{cls}' when not testing")
+
+
+class _TEST_EXECUTOR_(parsl.executors.threads.ThreadPoolExecutor):
+    """We needed multiple kinds of executor to ensure we were mapping things
+    correctly, but the HighThroughputExecutor was leaking sockets, so we avoid
+    creating those during the tests because so many sockets were being opened
+    that we were getting "Too many open files" errors, so this gets used as the
+    second executor type."""
+
+    def __init__(self, *args, **kwargs):
+        _check_env(self.__class__)
+        super(_TEST_EXECUTOR_, self).__init__(*args, **kwargs)
