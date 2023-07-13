@@ -220,7 +220,7 @@ class TestConfig(unittest.TestCase):
             self.method.parallel(self.art)
 
     def test_no_vendored_fp(self):
-        with _MaskCondaEnv():
+        with _MASK_CONDA_ENV_):
             with self.cache:
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
