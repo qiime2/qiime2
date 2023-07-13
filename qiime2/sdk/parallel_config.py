@@ -82,7 +82,6 @@ def setup_parallel(config_fp=None):
         # already have a loaded config
         if config_dict == {} and PARALLEL_CONFIG.parallel_config is None:
             config_fp = _get_vendored_config()
-<<<<<<< HEAD
             config_dict = get_config(config_fp)
 
         # Now if we actually have a config dict, we want to load the config. We
@@ -91,16 +90,6 @@ def setup_parallel(config_fp=None):
         if config_dict != {}:
             processed_config = _process_config(config_dict)
             config = Config(**processed_config)
-=======
-            parallel_config, _ = get_config(config_fp)
-    # If we do not have a config_fp or loaded config here, then they did not
-    # give us an fp and _get_vendored config returned None, so as a last resort
-    # we load the VENDORED_CONFIG directly
-    elif config_fp is None and PARALLEL_CONFIG.parallel_config is None:
-        parallel_config_dict = VENDORED_CONFIG.get('parsl')
-        processed_parallel_config_dict = _process_config(parallel_config_dict)
-        parallel_config = parsl.Config(**processed_parallel_config_dict)
->>>>>>> df43986... Refactor behavior with no conda env and test
 
     # We only want to clear the config if the config we are trying to load is
     # actually different. If we clear the config then load the same config
@@ -138,30 +127,6 @@ def get_mapping(config_dict):
 
 
 def _get_vendored_config():
-<<<<<<< HEAD
-    conda_prefix = os.environ.get('CONDA_PREFIX')
-
-    if conda_prefix is None:
-        VENDORED_FP = None
-    else:
-        VENDORED_FP = os.path.join(
-            os.environ.get('CONDA_PREFIX'), 'etc', 'qiime2_config.toml')
-
-    VENDORED_CONFIG = {
-        'parsl': {
-            'strategy': 'None',
-            'executors': [
-                {'class': 'ThreadPoolExecutor', 'label': 'default',
-                'max_threads': max(psutil.cpu_count() - 1, 1)},
-                {'class': 'HighThroughputExecutor', 'label': 'htex',
-                'max_workers': max(psutil.cpu_count() - 1, 1),
-                'provider': {'class': 'LocalProvider'}}
-                ]
-            }
-        }
-
-=======
->>>>>>> df43986... Refactor behavior with no conda env and test
     # 1. Check envvar
     config_fp = os.environ.get('QIIME2_CONFIG')
 
