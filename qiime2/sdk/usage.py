@@ -636,7 +636,8 @@ class UsageVariable:
         """
         return self.name
 
-    def assert_has_line_matching(self, path: str, expression: str):
+    def assert_has_line_matching(self, path: str, expression: str,
+                                 key: str = None):
         """Communicate that the result of this variable should match a regex.
 
         The default implementation is to do nothing.
@@ -648,6 +649,10 @@ class UsageVariable:
 
         expression : str
             The regular expression to evaluate for a line within `path`.
+
+        key : str
+            The key to match against a given semantic type
+            if the output is a ResultCollection.
 
         Note
         ----
@@ -673,14 +678,17 @@ class UsageVariable:
         ...          'Bar': qiime2.Artifact.import_data('SingleInt', 2)})
         ...     return a
         ...
-        >>> int_collection = use.init_result_collection('int_collection', factory)
+        >>> int_collection = use.init_result_collection('int_collection6', factory)
         >>> bar, = use.action(
         ...     use.UsageAction(plugin_id='dummy_plugin',
         ...                     action_id='dict_of_ints'),
         ...     use.UsageInputs(ints=int_collection),
-        ...     use.UsageOutputNames(output='bar6')
+        ...     use.UsageOutputNames(output='bar5')
         ... )
-        >>> bar.assert_has_line_matching('bar6/Foo.qza', r'1')
+        >>> bar.assert_has_line_matching('file1.txt', r'1', 'Foo')
+        >>> bar.assert_has_line_matching('file1.txt', r'2', 'Bar')
+        >>> bar.assert_has_line_matching('file2.txt', r'1', 'Foo')
+        >>> bar.assert_has_line_matching('file2.txt', r'2', 'Bar')
         """  # noqa: E501
         pass
 
@@ -708,7 +716,7 @@ class UsageVariable:
         ...     use.UsageAction(plugin_id='dummy_plugin',
         ...                     action_id='params_only_method'),
         ...     use.UsageInputs(name='foo', age=42),
-        ...     use.UsageOutputNames(out='bar5')
+        ...     use.UsageOutputNames(out='bar6')
         ... )
         >>> bar.assert_output_type('Mapping')
         ...
@@ -722,12 +730,12 @@ class UsageVariable:
         ...          'Bar': qiime2.Artifact.import_data('SingleInt', 2)})
         ...     return a
         ...
-        >>> int_collection = use.init_result_collection('int_collection', factory)
+        >>> int_collection = use.init_result_collection('int_collection7', factory)
         >>> bar, = use.action(
         ...     use.UsageAction(plugin_id='dummy_plugin',
         ...                     action_id='dict_of_ints'),
         ...     use.UsageInputs(ints=int_collection),
-        ...     use.UsageOutputNames(output='bar6')
+        ...     use.UsageOutputNames(output='bar7')
         ... )
         >>> bar.assert_output_type(semantic_type='SingleInt', key='Foo')
         ...
@@ -1624,11 +1632,27 @@ class DiagnosticUsage(Usage):
 
 class ExecutionUsageVariable(UsageVariable):
     """A specialized implementation for :class:`ExecutionUsage`."""
-    def assert_has_line_matching(self, path, expression):
+
+    # Utility method for key handling within result collections
+    def _collection_key_util(self, data, key):
+        if self.var_type != 'result_collection':
+            raise TypeError("Key can only be provided for output of type"
+                            " result_collection. Output of type %s was"
+                            " provided." % (self.var_type))
+        if key not in data.keys():
+            raise ValueError("Provided key %s not found in output" % (key))
+
+        data = data[key]
+        return data
+
+    def assert_has_line_matching(self, path, expression, key=None):
         assert_usage_var_type(self, 'artifact', 'visualization',
                               'result_collection')
 
         data = self.value
+
+        if key:
+            data = self._collection_key_util(data=data, key=key)
 
         hits = sorted(data._archiver.data_dir.glob(path))
         if len(hits) != 1:
@@ -1646,14 +1670,7 @@ class ExecutionUsageVariable(UsageVariable):
         name = self.name
 
         if key:
-            if self.var_type != 'result_collection':
-                raise TypeError("Key can only be provided for output of type"
-                                " result_collection. Output of type %s was"
-                                " provided." % (self.var_type))
-            if key not in data.keys():
-                raise ValueError("Provided key %s not found in output" % (key))
-
-            data = data[key]
+            data = self._collection_key_util(data=data, key=key)
             name = "%s[%s]" % (self.name, key)
 
         if str(data.type) != str(semantic_type):
