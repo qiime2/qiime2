@@ -22,15 +22,24 @@ from qiime2.core.util import load_action_yaml
 from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, ParallelConfig,
-                                        setup_parallel, get_config)
+                                        get_config)
 
 
 class TestConfig(unittest.TestCase):
-    def setUp(self):
-        # Ensure default state prior to test
-        PARALLEL_CONFIG.parallel_config = None
-        PARALLEL_CONFIG.action_executor_mapping = {}
+    # Get actions
+    plugin = get_dummy_plugin()
+    pipeline = plugin.pipelines['resumable_pipeline']
+    method = plugin.methods['list_of_ints']
 
+    # Expected provenance based on executors
+    tpool_expected = [{
+        'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'}, {
+        'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'}]
+    htex_expected = [{
+        'type': 'parsl', 'parsl_type': 'HighThroughputExecutor'}, {
+        'type': 'parsl', 'parsl_type': 'HighThroughputExecutor'}]
+
+    def setUp(self):
         # Create configs
         self.tpool_default = parsl.Config(
             executors=[
@@ -121,13 +130,6 @@ class TestConfig(unittest.TestCase):
             strategy='none',
         )
 
-        self.tpool_expected = [{
-            'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'}, {
-            'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'}]
-        self.htex_expected = [{
-            'type': 'parsl', 'parsl_type': 'HighThroughputExecutor'}, {
-            'type': 'parsl', 'parsl_type': 'HighThroughputExecutor'}]
-
     def tearDown(self):
         self.test_dir.cleanup()
 
@@ -142,7 +144,7 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
-        config, mapping= get_config(self.config_fp)
+        config, mapping = get_config(self.config_fp)
 
         with self.cache:
             with ParallelConfig(config, mapping):
@@ -158,7 +160,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def test_mapping_only_config(self):
-        _, mapping= get_config(self.config_fp)
+        _, mapping = get_config(self.config_fp)
 
         with self.cache:
             with ParallelConfig(action_executor_mapping=mapping):
