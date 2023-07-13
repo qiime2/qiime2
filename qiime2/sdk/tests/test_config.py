@@ -21,8 +21,14 @@ from qiime2 import Artifact, Cache
 from qiime2.core.util import load_action_yaml
 from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
+<<<<<<< HEAD
 from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, ParallelConfig,
                                         setup_parallel)
+=======
+from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, _MaskCondaEnv,
+                                        ParallelConfig, setup_parallel,
+                                        get_config)
+>>>>>>> df43986... Refactor behavior with no conda env and test
 
 
 class TestConfig(unittest.TestCase):
@@ -218,6 +224,20 @@ class TestConfig(unittest.TestCase):
         with self.assertRaisesRegex(
                 ValueError, 'Only pipelines may be run in parallel'):
             self.method.parallel(self.art)
+
+    def test_no_vendored_fp(self):
+        with _MaskCondaEnv():
+            with self.cache:
+                future = self.pipeline.parallel(self.art, self.art)
+                list_return, dict_return = future._result()
+
+            list_execution_contexts = self._load_alias_execution_contexts(
+                list_return)
+            dict_execution_contexts = self._load_alias_execution_contexts(
+                dict_return)
+
+            self.assertEqual(list_execution_contexts, self.tpool_expected)
+            self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def _load_alias_execution_contexts(self, collection):
         execution_contexts = []
