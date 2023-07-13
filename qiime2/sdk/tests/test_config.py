@@ -21,14 +21,8 @@ from qiime2 import Artifact, Cache
 from qiime2.core.util import load_action_yaml
 from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
-<<<<<<< HEAD
-from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, ParallelConfig,
-                                        setup_parallel)
-=======
 from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, _MaskCondaEnv,
-                                        ParallelConfig, setup_parallel,
-                                        get_config)
->>>>>>> df43986... Refactor behavior with no conda env and test
+                                        ParallelConfig, setup_parallel)
 
 
 class TestConfig(unittest.TestCase):
