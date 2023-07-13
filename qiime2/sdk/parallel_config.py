@@ -237,7 +237,7 @@ class ParallelConfig():
 
 
 # Used to test config loading behavior when outside of a conda environment
-class _MASK_CONDA_ENV_):
+class _MASK_CONDA_ENV_():
     def __enter__(self):
         global CONDA_PREFIX, VENDORED_FP
 
