@@ -21,10 +21,6 @@ PARALLEL_CONFIG = threading.local()
 PARALLEL_CONFIG.parallel_config = None
 PARALLEL_CONFIG.action_executor_mapping = {}
 
-# We write a default config to a location in the conda env if there is an
-# active conda env. If there is not an active conda env (most likely because we
-# are using Docker) then the path we want to write the default to will not
-# exist, so we will not write a default, we will just load it from memory
 CONDA_PREFIX = os.environ.get('CONDA_PREFIX', '')
 VENDORED_FP = os.path.join(CONDA_PREFIX, 'etc', 'qiime2_config.toml')
 
