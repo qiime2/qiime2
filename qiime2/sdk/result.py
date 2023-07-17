@@ -548,7 +548,7 @@ class ResultCollection:
         if collection is None:
             self.collection = {}
         elif isinstance(collection, dict):
-            if any(not isinstance(key, str) for key in collection.keys()):
+            if not all(isinstance(key, str) for key in collection.keys()):
                 raise TypeError('All ResultCollection keys must be strings')
 
             self.collection = collection
