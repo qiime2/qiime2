@@ -78,8 +78,6 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
 
         name = self.to_interface_name()
 
-        # TODO: we expect a syntax error to occur here, need to ensure that
-        # this fails if not a string, and potentially update to "%s[%r]"
         if key:
             name = "%s[%s]" % (name, key)
 
