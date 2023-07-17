@@ -88,7 +88,7 @@ def setup_parallel(config_fp=None):
             processed_config = _process_config(config_dict)
             config = parsl.Config(**processed_config)
     # If we do not have a config_fp or loaded config here, then they did not
-    # give us an fp and _get_vendored config returned None, so as a last resort
+    # give us an fp and _get_vendored_config returned None, so as a last resort
     # we load the VENDORED_CONFIG directly.
     elif config_fp is None and PARALLEL_CONFIG.parallel_config is None:
         config_dict = VENDORED_CONFIG.get('parsl')
