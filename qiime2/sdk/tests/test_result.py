@@ -582,6 +582,11 @@ class TestResultCollection(unittest.TestCase):
                             "order file but does not exist"):
             ResultCollection.load(self.output_fp)
 
+    def test_collection_non_str_keys(self):
+        with self.assertRaisesRegex(
+                TypeError, 'All ResultCollection keys must be strings'):
+            ResultCollection({1: 0})
+
 
 if __name__ == '__main__':
     unittest.main()
