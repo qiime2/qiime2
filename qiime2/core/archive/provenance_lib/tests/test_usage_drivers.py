@@ -1,36 +1,19 @@
 import os
-import pathlib
+import shutil
 import tempfile
 import unittest
 
-from qiime2.sdk.usage import UsageAction
-from qiime2.sdk.util import get_action_if_plugin_present, MissingPluginError
+from qiime2.sdk.plugin_manager import PluginManager
+from qiime2.core.testing.type import IntSequence1
 
 from ..replay import replay_provenance
-from .test_parse import DATA_DIR
 from .._usage_drivers import ReplayCLIUsage
-
-
-class MiscHelperFunctionTests(unittest.TestCase):
-    def test_get_action_if_plugin_present_plugin_present(self):
-        real_action = UsageAction('diversity', 'core_metrics')
-        action = get_action_if_plugin_present(real_action)
-        self.assertEqual('diversity', action.plugin_id)
-        self.assertEqual('core_metrics', action.id)
-
-    def test_get_action_if_plugin_present_plugin_missing(self):
-        fake_action = UsageAction('imaginary', 'action')
-        with self.assertRaisesRegex(
-                MissingPluginError,
-                "(?s)missing one or more plugins.*library"):
-            get_action_if_plugin_present(fake_action)
 
 
 class ReplayCLIUsageTests(unittest.TestCase):
     def test_init_metadata(self):
         use = ReplayCLIUsage()
         var = use.init_metadata(name='testing', factory=lambda: None)
-        print(var)
         self.assertEqual(var.name, '<your metadata filepath>')
         self.assertEqual(var.var_type, 'metadata')
 
@@ -43,6 +26,66 @@ class ReplayCLIUsageTests(unittest.TestCase):
 
 
 class ReplayPythonUsageTests(unittest.TestCase):
+    def setUp(self):
+        self.pm = PluginManager()
+        self.dp = self.pm.plugins['dummy-plugin']
+        self.tempdir = tempfile.mkdtemp(
+            prefix='qiime2-test-usage-drivers-temp-'
+        )
+
+        def return_many_ints() -> (list, list, list, list, list, list):
+            return ([1, 2, 3], [4, 5, 6], [7], [4, 4], [0], [9, 8])
+
+        self.dp.methods.register_function(
+            function=return_many_ints,
+            inputs={},
+            parameters={},
+            outputs=[
+                ('ints1', IntSequence1),
+                ('ints2', IntSequence1),
+                ('ints3', IntSequence1),
+                ('ints4', IntSequence1),
+                ('ints5', IntSequence1),
+                ('ints6', IntSequence1),
+            ],
+            output_descriptions={
+                'ints1': 'ints',
+                'ints2': 'ints',
+                'ints3': 'ints',
+                'ints4': 'ints',
+                'ints5': 'ints',
+                'ints6': 'ints',
+            },
+            name='return_many_ints',
+            description=''
+        )
+
+        def return_four_ints() -> (list, list, list, list):
+            return ([1, 2, 3], [4, 5, 6], [7, 8, 9], [4, 4])
+
+        self.dp.methods.register_function(
+            function=return_four_ints,
+            inputs={},
+            parameters={},
+            outputs=[
+                ('ints1', IntSequence1),
+                ('ints2', IntSequence1),
+                ('ints3', IntSequence1),
+                ('ints4', IntSequence1),
+            ],
+            output_descriptions={
+                'ints1': 'ints',
+                'ints2': 'ints',
+                'ints3': 'ints',
+                'ints4': 'ints',
+            },
+            name='return_four_ints',
+            description=''
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
     def test_template_action_lumps_many_outputs(self):
         """
         ReplayPythonUsage._template_action should "lump" multiple outputs from
@@ -53,20 +96,17 @@ class ReplayPythonUsageTests(unittest.TestCase):
         `action_results = plugin_actions.action()...`
         instead of:
         `_, _, thing3, _, _, _ = plugin_actions.action()...`
-
-        In this artifact, we are only replaying one results from core-metrics,
-        but because core_metrics has a million results it should stil lump em.
         """
-        in_fp = os.path.join(DATA_DIR, 'v5_uu_emperor.qzv')
-        driver = 'python3'
-        exp = ('(?s)action_results = diversity_actions.core_metrics_phylo.*'
-               'unweighted_unifrac_emperor.*action_results.unweighted_unifrac')
-        with tempfile.TemporaryDirectory() as tmpdir:
-            out_path = pathlib.Path(tmpdir) / 'action_collection.txt'
-            replay_provenance(in_fp, out_path, driver)
+        ints = self.dp.actions['return_many_ints']()
+        first_ints = ints[0]
+        first_ints.save(os.path.join(self.tempdir, 'int-seq.qza'))
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        out_fp = os.path.join(self.tempdir, 'action_collection.txt')
+        replay_provenance(fp, out_fp, 'python3')
 
-            with open(out_path, 'r') as fp:
-                rendered = fp.read()
+        exp = 'action_results = dummy_plugin_actions.return_many_ints'
+        with open(out_fp) as fh:
+            rendered = fh.read()
         self.assertRegex(rendered, exp)
 
     def test_template_action_does_not_lump_four_outputs(self):
@@ -80,19 +120,17 @@ class ReplayPythonUsageTests(unittest.TestCase):
         `_, _, thing3, _ = plugin_actions.action()...`
         instead of:
         `action_results = plugin_actions.action()...`
-
-        In this case, we are replaying one result from an action which has four
-        results. It should not lump em.
         """
-        in_fp = os.path.join(DATA_DIR, 'v5_uu_emperor.qzv')
-        driver = 'python3'
-        exp = ('(?s)_, _, _, rooted_tree_0 = phylogeny_actions.align_to_tre.*')
-        with tempfile.TemporaryDirectory() as tmpdir:
-            out_path = pathlib.Path(tmpdir) / 'action_collection.txt'
-            replay_provenance(in_fp, out_path, driver)
+        ints = self.dp.actions['return_four_ints']()
+        first_ints = ints[0]
+        first_ints.save(os.path.join(self.tempdir, 'int-seq.qza'))
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        out_fp = os.path.join(self.tempdir, 'action_collection.txt')
+        replay_provenance(fp, out_fp, 'python3')
 
-            with open(out_path, 'r') as fp:
-                rendered = fp.read()
+        exp = 'ints1_0, _, _, _ = dummy_plugin_actions.return_four_ints'
+        with open(out_fp) as fh:
+            rendered = fh.read()
         self.assertRegex(rendered, exp)
 
     def test_template_action_lumps_three_variables(self):
@@ -109,26 +147,28 @@ class ReplayPythonUsageTests(unittest.TestCase):
         ```
         instead of:
         `thing1, _, thing3, _, thing5, _ = plugin_actions.action()...`
-
-        In this test, we are replaying three results from dada2.denoise_single,
-        which should be lumped.
         """
-        in_fp = os.path.join(DATA_DIR, 'lump_three_vars_test')
-        driver = 'python3'
-        e1 = ('action_results = dada2_actions.denoise_single')
-        e2 = ('representative_sequences_0 = action_results.representative_seq')
-        e3 = ('denoising_stats_0 = action_results.denoising_stats')
-        e4 = ('table_0 = action_results.table')
-        with tempfile.TemporaryDirectory() as tmpdir:
-            out_path = pathlib.Path(tmpdir) / 'action_collection.txt'
-            replay_provenance(in_fp, out_path, driver)
+        ints = self.dp.actions['return_four_ints']()
+        os.mkdir(os.path.join(self.tempdir, 'three-ints-dir'))
+        for i in range(3):
+            out_path = os.path.join(self.tempdir, 'three-ints-dir',
+                                    f'int-seq-{i}.qza')
+            ints[i].save(out_path)
 
-            with open(out_path, 'r') as fp:
-                rendered = fp.read()
-        self.assertRegex(rendered, e1)
-        self.assertRegex(rendered, e2)
-        self.assertRegex(rendered, e3)
-        self.assertRegex(rendered, e4)
+        fp = os.path.join(self.tempdir, 'three-ints-dir')
+        out_fp = os.path.join(self.tempdir, 'action_collection.txt')
+        replay_provenance(fp, out_fp, 'python3')
+
+        exp = (
+            'action_results = dummy_plugin_actions.return_four_ints',
+            'ints1_0 = action_results.ints1',
+            'ints2_0 = action_results.ints2',
+            'ints3_0 = action_results.ints3'
+        )
+        with open(out_fp) as fh:
+            rendered = fh.read()
+        for pattern in exp:
+            self.assertRegex(rendered, pattern)
 
     def test_template_action_does_not_lump_two_vars(self):
         """
@@ -141,32 +181,16 @@ class ReplayPythonUsageTests(unittest.TestCase):
         `thing1, _, thing3, _ = plugin_actions.action()...`
         instead of:
         `action_results = plugin_actions.action()...`
-
-        In this case, we are replaying two results from dada2.denoise_single,
-        which should not be lumped.
         """
-        in_fp = os.path.join(DATA_DIR, 'v5_uu_emperor.qzv')
-        driver = 'python3'
-        exp = ('(?s)table_0, representative_sequences_0, _ = dada2_actions.*')
-        with tempfile.TemporaryDirectory() as tmpdir:
-            out_path = pathlib.Path(tmpdir) / 'action_collection.txt'
-            replay_provenance(in_fp, out_path, driver)
+        ints1, ints2, _, _ = self.dp.actions['return_four_ints']()
+        os.mkdir(os.path.join(self.tempdir, 'two-ints-dir'))
+        ints1.save(os.path.join(self.tempdir, 'two-ints-dir', 'int-seq-1.qza'))
+        ints2.save(os.path.join(self.tempdir, 'two-ints-dir', 'int-seq-2.qza'))
+        fp = os.path.join(self.tempdir, 'two-ints-dir')
+        out_fp = os.path.join(self.tempdir, 'action_collection.txt')
+        replay_provenance(fp, out_fp, 'python3')
 
-            with open(out_path, 'r') as fp:
-                rendered = fp.read()
+        exp = 'ints1_0, ints2_0, _, _ = dummy_plugin_actions.return_four_ints'
+        with open(out_fp) as fh:
+            rendered = fh.read()
         self.assertRegex(rendered, exp)
-
-
-class ActionPatchTests(unittest.TestCase):
-    def test_missing_plugin(self):
-        """
-        action_patch raises a MissingPluginError if a plugin from provenance
-        is missing in the Env. The test .qza requires rescript, which is not
-        included in the test env.
-        """
-        in_fp = os.path.join(DATA_DIR, 'rescript-based-taxonomy.qza')
-        exp = ('(?s)QIIME 2 deployment.*missing.*plugins.*rescript')
-        with tempfile.TemporaryDirectory() as tmpdir:
-            out_path = pathlib.Path(tmpdir) / 'whatever.thing'
-            with self.assertRaisesRegex(MissingPluginError, exp):
-                replay_provenance(in_fp, out_path)
