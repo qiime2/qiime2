@@ -80,27 +80,6 @@ def build_footer(dag: ProvDAG, boundary: str) -> List:
     return footer
 
 
-class ReplayPythonUsageVariable(ArtifactAPIUsageVariable):
-    def to_interface_name(self):
-        if self.var_type == 'format':
-            return self.name
-
-        parts = {
-            'artifact': [self.name],
-            'visualization': [self.name, 'viz'],
-            'metadata': [self.name, 'md'],
-            'column': [self.name],
-            # No format here - it shouldn't be possible to make it this far
-        }[self.var_type]
-        var_name = '_'.join(parts)
-        # NOTE: unlike the parent method, this does not guarantee valid python
-        # identifiers, because it allows <>. We get more human-readable no-prov
-        # node names. Alternately, we could replace < and > with e.g. ___,
-        # which is unlikely to occur and is still a valid python identifier
-        var_name = re.sub(r'[^a-zA-Z0-9_<>]|^(?=\d)', '_', var_name)
-        return self.repr_raw_variable_name(var_name)
-
-
 class ReplayPythonUsage(ArtifactAPIUsage):
     shebang = '#!/usr/bin/env python'
     header_boundary = '# ' + ('-' * 77)
@@ -279,7 +258,7 @@ class ReplayPythonUsage(ArtifactAPIUsage):
         return imported_var
 
     def usage_variable(self, name, factory, var_type):
-        return ReplayPythonUsageVariable(name, factory, var_type, self)
+        return ArtifactAPIUsageVariable(name, factory, var_type, self)
 
     class repr_raw_variable_name:
         # allows us to repr col name without enclosing quotes
