@@ -380,6 +380,11 @@ class PluginManager:
             if semantic_type <= artifact_class_record.semantic_type:
                 return artifact_class_record.format
 
+        # TODO: We need a good way to tell if a semantic type is registered but
+        # does not have a directory format. The previous error was causing a
+        # lot of confusion, but this one is also not entirely accurate.
+        #
+        # Reference: https://github.com/qiime2/qiime2/issues/514
         raise TypeError(
             "Semantic type %r is not a registered semantic type."
             % semantic_type)
