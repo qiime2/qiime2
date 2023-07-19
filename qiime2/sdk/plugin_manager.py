@@ -381,5 +381,5 @@ class PluginManager:
                 return artifact_class_record.format
 
         raise TypeError(
-            "Semantic type %r does not have a compatible directory format."
+            "Semantic type %r is not a registered semantic type."
             % semantic_type)
