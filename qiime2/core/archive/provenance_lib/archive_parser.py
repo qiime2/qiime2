@@ -115,23 +115,21 @@ class ProvNode:
         ProvDAG and its extensions should use the networkx.DiGraph itself to
         work with ancestry when possible.
         """
-        self._artifacts_passed_as_md: List[Dict[str, str]]
-
         if not self.has_provenance:
             return None
 
         inputs = self.action._action_details.get('inputs')
         parents = []
         if inputs is not None:
-            # Inputs are a list of single-item dicts, so we have to
+            # Inputs are a list of single-item dicts
             for input in inputs:
-                name, value = next(iter(input.items()))
-                # value is usually a uuid, but may be a collection of uuids.
+                (name, value), = input.items()
+                # value is usually a uuid, but may be a collection of uuids
                 # the following are specced in qiime2/core/type/collection
                 if type(value) in (set, list, tuple):
                     for i in range(len(value)):
                         # Make these unique in case the single-item dicts get
-                        # merged into a single dict downstream.
+                        # merged into a single dict downstream
                         unq_name = f'{name}_{i}'
                         parents.append({unq_name: value[i]})
                 elif value is not None:
@@ -140,6 +138,7 @@ class ProvNode:
                     # skip None-by-default optional inputs
                     # covered by test_parents_for_table_with_optional_input
                     pass  # pragma: no cover
+
         return parents + self._artifacts_passed_as_md
 
     def __init__(self, cfg: Config, zf: zipfile.ZipFile,
@@ -558,21 +557,23 @@ class ParserV0(ArchiveParser):
            which wouldn't otherwise have them.
         """
         dag = nx.DiGraph()
-        nbunch = [
-            (n_id, dict(
-                node_data=archive_contents[n_id],
-                has_provenance=archive_contents[n_id].has_provenance,
-                )) for n_id in archive_contents]
-        dag.add_nodes_from(nbunch)
+        nodes = []
+        for node_id, node in archive_contents.items():
+            node_info = {
+                'node_data': node,
+                'has_provenance': node.has_provenance
+            }
+            nodes.append((node_id,  node_info))
+        dag.add_nodes_from(nodes)
 
-        ebunch = []
+        edges = []
         for node_id, attrs in dag.nodes(data=True):
             if parents := attrs['node_data']._parents:
                 for parent in parents:
                     # parent is a single-item {type: uuid} dict
-                    parent_uuid = next(iter(parent.values()))
-                    ebunch.append((parent_uuid, node_id))
-        dag.add_edges_from(ebunch)
+                    parent_uuid, = parent.values()
+                    edges.append((parent_uuid, node_id))
+        dag.add_edges_from(edges)
 
         for node_id, attrs in dag.nodes(data=True):
             if attrs.get('node_data') is None:

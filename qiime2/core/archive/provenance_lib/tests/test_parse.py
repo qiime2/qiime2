@@ -4,6 +4,7 @@ import io
 import networkx as nx
 import os
 import pathlib
+import shutil
 import tempfile
 import unittest
 import warnings
@@ -11,6 +12,9 @@ import zipfile
 
 from networkx import DiGraph
 from networkx.classes.reportviews import NodeView
+
+from qiime2 import Artifact
+from qiime2.sdk.plugin_manager import PluginManager
 
 from .._checksum_validator import ChecksumDiff, ValidationCode
 from ..parse import (
@@ -109,8 +113,19 @@ TEST_DATA = {
 
 
 class ProvDAGTests(unittest.TestCase):
-    # Remove the character limit when reporting failing tests for this class
-    maxDiff = None
+    def setUp(self):
+        self.pm = PluginManager()
+        self.dp = self.pm.plugins['dummy-plugin']
+        self.tempdir = tempfile.mkdtemp(prefix='qiime2-test-parse-temp-')
+
+        self.int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
+        self.int_seq2 = Artifact.import_data('IntSequence2', [20, 30])
+        concat_ints = self.dp.actions['concatenate_ints']
+        self.concated_ints, = concat_ints(self.int_seq, self.int_seq,
+                                          self.int_seq2, 9, 0)
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
 
     @classmethod
     def setUpClass(cls):
@@ -123,29 +138,53 @@ class ProvDAGTests(unittest.TestCase):
                 cls.dags[archive_version] = ProvDAG(
                     str(TEST_DATA[archive_version]['qzv_fp']))
 
-    # This should only trigger if something fails in setup or above
-    # e.g. if a ProvDag fails to initialize
-    def test_smoke(self):
-        self.assertTrue(True)
+    def test_number_of_nodes(self):
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        self.int_seq.save(fp)
+        dag = ProvDAG(fp)
+        self.assertEqual(len(dag.nodes), 1)
 
-    def test_terminal_uuid_correct(self):
-        for dag_version in self.dags:
-            self.assertEqual(len(self.dags[dag_version].terminal_uuids), 1)
-            # This is deterministic because there is one uuid in the set:
-            terminal_uuid, *_ = self.dags[dag_version].terminal_uuids
-            self.assertEqual(terminal_uuid, TEST_DATA[dag_version]['uuid'])
+        fp = os.path.join(self.tempdir, 'concated_ints.qza')
+        self.concated_ints.save(fp)
+        dag = ProvDAG(fp)
+        self.assertEqual(len(dag.nodes), 3)
+
+    def test_number_of_terminal_nodes(self):
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        self.int_seq.save(fp)
+        dag = ProvDAG(fp)
+        self.assertEqual(len(dag.terminal_nodes), 1)
+
+        fp = os.path.join(self.tempdir, 'concated_ints.qza')
+        self.concated_ints.save(fp)
+        dag = ProvDAG(fp)
+        self.assertEqual(len(dag.terminal_nodes), 1)
+
+        fp = os.path.join(self.tempdir, 'two-ints')
+        os.mkdir(fp)
+        self.int_seq.save(os.path.join(fp, 'int-seq1.qza'))
+        self.int_seq2.save(os.path.join(fp, 'int-seq2.qza'))
+        dag = ProvDAG(fp)
+        self.assertEqual(len(dag.terminal_nodes), 2)
+
+        fp = os.path.join(self.tempdir, 'int-and-concated-ints')
+        os.mkdir(fp)
+        self.int_seq.save(os.path.join(fp, 'int-seq1.qza'))
+        self.concated_ints.save(os.path.join(fp, 'concated-ints.qza'))
+        dag = ProvDAG(fp)
+        self.assertEqual(len(dag.terminal_nodes), 1)
 
     def test_root_node_is_archive_root(self):
-        for dag_version in self.dags:
-            with zipfile.ZipFile(TEST_DATA[dag_version]['qzv_fp']) as zf:
-                all_filenames = zf.namelist()
-                root_md_fnames = filter(is_root_provnode_data, all_filenames)
-                root_md_fps = [pathlib.Path(fp) for fp in root_md_fnames]
-                exp_node = ProvNode(Config(), zf, root_md_fps)
-                self.assertEqual(len(self.dags[dag_version].terminal_uuids), 1)
-                # This is deterministic because there is one uuid in the set:
-                act_terminal_node, *_ = self.dags[dag_version].terminal_nodes
-                self.assertEqual(exp_node, act_terminal_node)
+        fp = os.path.join(self.tempdir, 'concated-ints.qza')
+        self.concated_ints.save(fp)
+        dag = ProvDAG(fp)
+        with zipfile.ZipFile(fp) as zf:
+            all_filenames = zf.namelist()
+            root_filenames = filter(is_root_provnode_data, all_filenames)
+            root_filepaths = [pathlib.Path(fp) for fp in root_filenames]
+            exp_node = ProvNode(Config(), zf, root_filepaths)
+            act_terminal_node, *_ = dag.terminal_nodes
+            self.assertEqual(exp_node, act_terminal_node)
 
     def test_number_of_actions(self):
         for dag_version in self.dags:

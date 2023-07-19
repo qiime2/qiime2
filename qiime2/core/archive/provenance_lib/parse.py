@@ -58,7 +58,7 @@ class ProvDAG:
         be None. When multiple artifacts are unioned, this field prefers
         ChecksumDiffs over Nonetypes, which will be dropped. For this reason,
         provenance_is_valid is a more reliable indicator of provenance validity
-        thank checksum_diff.
+        than checksum_diff.
 
     ## Methods
 
