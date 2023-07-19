@@ -11,12 +11,12 @@ import warnings
 import zipfile
 
 from networkx import DiGraph
-from networkx.classes.reportviews import NodeView
 
 from qiime2 import Artifact
 from qiime2.sdk.plugin_manager import PluginManager
+from qiime2.core.archive.archiver import ChecksumDiff
 
-from .._checksum_validator import ChecksumDiff, ValidationCode
+from .._checksum_validator import ValidationCode
 from ..parse import (
     ProvDAG, UnparseableDataError, DirectoryParser, EmptyParser, ProvDAGParser,
     archive_not_parsed, select_parser, parse_provenance,
@@ -187,127 +187,149 @@ class ProvDAGTests(unittest.TestCase):
             self.assertEqual(exp_node, act_terminal_node)
 
     def test_number_of_actions(self):
-        for dag_version in self.dags:
-            self.assertEqual(len(self.dags[dag_version]),
-                             TEST_DATA[dag_version]['n_res'])
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        self.int_seq.save(fp)
+        dag = ProvDAG(fp)
+        self.assertEqual(dag.dag.number_of_edges(), 0)
+
+        fp = os.path.join(self.tempdir, 'concated-ints.qza')
+        self.concated_ints.save(fp)
+        dag = ProvDAG(fp)
+        self.assertEqual(dag.dag.number_of_edges(), 2)
 
     def test_nonexistent_fp(self):
-        fn = 'not_a_filepath.qza'
-        fp = os.path.join(DATA_DIR, fn)
-        with self.assertRaisesRegex(
-            UnparseableDataError,
-                f'FileNotFoundError.*ArchiveParser.*{fn}'):
+        fp = os.path.join(self.tempdir, 'does-not-exist.qza')
+        err_msg = f'FileNotFoundError.*ArchiveParser.*{fp}'
+        with self.assertRaisesRegex(UnparseableDataError, err_msg):
             ProvDAG(fp)
 
     def test_insufficient_permissions(self):
-        fn = 'not_a_zip.txt'
-        fp = os.path.join(DATA_DIR, fn)
-        # HACK: git can't commit a file with 0 read perms, so...
+        fp = os.path.join(self.tempdir, 'wrong-permissions.qza')
+        self.int_seq.save(fp)
         os.chmod(fp, 0o000)
-        with self.assertRaisesRegex(
-            UnparseableDataError,
-                f"PermissionError.*ArchiveParser.*denied.*{fn}"):
+        err_msg = f'PermissionError.*ArchiveParser.*denied.*{fp}'
+        with self.assertRaisesRegex(UnparseableDataError, err_msg):
             ProvDAG(fp)
-        os.chmod(fp, 0o644)
 
-    def test_not_a_zip_archive(self):
-        fp = os.path.join(DATA_DIR, 'not_a_zip.txt')
-        with self.assertRaisesRegex(
-            UnparseableDataError,
-                "zipfile.BadZipFile.*ArchiveParser.*File is not a zip file"):
+        os.chmod(fp, 0o123)
+        err_msg = f'PermissionError.*ArchiveParser.*denied.*{fp}'
+        with self.assertRaisesRegex(UnparseableDataError, err_msg):
+            ProvDAG(fp)
+
+    def test_not_a_zip_file(self):
+        fp = os.path.join(self.tempdir, 'not-a-zip.txt')
+        with open(fp, 'w') as fh:
+            fh.write("This is just a text file.")
+
+        err_msg = 'zipfile.BadZipFile.*ArchiveParser.*File is not a zip file'
+        with self.assertRaisesRegex(UnparseableDataError, err_msg):
             ProvDAG(fp)
 
     def test_has_digraph(self):
-        for dag_version in self.dags:
-            self.assertIsInstance(self.dags[dag_version].dag, DiGraph)
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        self.int_seq.save(fp)
+        dag = ProvDAG(fp)
+        self.assertIsInstance(dag.dag, DiGraph)
 
-    def test_has_nodes(self):
-        for dag_version in self.dags:
-            self.assertIn(TEST_DATA[dag_version]['uuid'],
-                          self.dags[dag_version].nodes)
+        fp = os.path.join(self.tempdir, 'concated-ints.qza')
+        self.concated_ints.save(fp)
+        dag = ProvDAG(fp)
+        self.assertIsInstance(dag.dag, DiGraph)
 
     def test_dag_attributes(self):
-        for vz in self.dags:
-            self.assertEqual(len(self.dags[vz].terminal_uuids), 1)
-            # This is deterministic because there is one uuid in the set:
-            terminal_uuid, *_ = self.dags[vz].terminal_uuids
-            self.assertEqual(terminal_uuid,
-                             TEST_DATA[vz]['uuid'])
-            terminal_node, *_ = self.dags[vz].terminal_nodes
-            self.assertEqual(type(terminal_node), ProvNode)
-            self.assertEqual(terminal_node._uuid, TEST_DATA[vz]['uuid'])
-            self.assertEqual(self.dags[vz].provenance_is_valid,
-                             TEST_DATA[vz]['prov_is_valid'])
-            self.assertEqual(self.dags[vz].checksum_diff,
-                             TEST_DATA[vz]['checksum'])
-            self.assertEqual(type(self.dags[vz].nodes), NodeView)
-            # Node count acts as a proxy test for completeness here
-            self.assertEqual(len(self.dags[vz].nodes), TEST_DATA[vz]['n_res'])
-            self.assertEqual(type(self.dags[vz].dag), DiGraph)
-            self.assertEqual(len(self.dags[vz]),
-                             TEST_DATA[vz]['n_res'])
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        self.int_seq.save(fp)
+        dag = ProvDAG(fp)
 
-    def test_v5_root_node_attributes(self):
-        dag = self.dags['5']
-        root_uuid = TEST_DATA['5']['uuid']
-        root_node = dag.get_node_data(root_uuid)
-        # Check node at the dag level
-        self.assertTrue(dag.node_has_provenance(root_uuid))
-        # Check inner node attribute is the same
-        self.assertTrue(root_node.has_provenance)
-        self.assertEqual(type(root_node), ProvNode)
-        # Smoke-test that this is actually the node we're looking for
-        # Node attributes are tested properly in ProvNodeTests
-        self.assertEqual(root_node._uuid, root_uuid)
+        terminal_node, *_ = dag.terminal_nodes
+        self.assertIsInstance(terminal_node, ProvNode)
 
-    def test_V5_has_edges(self):
-        self.assertTrue(self.dags['5'].has_edge(
-            '89af91c0-033d-4e30-8ac4-f29a3b407dc1',
-            'ffb7cee3-2f1f-4988-90cc-efd5184ef003'))
-        self.assertTrue(self.dags['5'].has_edge(
-            'bce3d09b-e296-4f2b-9af4-834db6412429',
-            'ffb7cee3-2f1f-4988-90cc-efd5184ef003'))
+        self.assertEqual(dag.provenance_is_valid, ValidationCode.VALID)
 
-    def test_repr(self):
-        for dag_vzn in self.dags:
-            uuid = TEST_DATA[dag_vzn]['uuid']
-            self.assertRegex(repr(self.dags[dag_vzn]),
-                             (f'ProvDAG.*Artifacts.*{uuid}'))
+        empty_checksum_diff = ChecksumDiff(added={}, removed={}, changed={})
+        self.assertEqual(dag.checksum_diff, empty_checksum_diff)
 
-    def test_str(self):
-        for dag_vzn in self.dags:
-            uuid = TEST_DATA[dag_vzn]['uuid']
-            self.assertRegex(repr(self.dags[dag_vzn]),
-                             (f'ProvDAG.*Artifacts.*{uuid}'))
+    def test_node_action_names(self):
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        self.int_seq.save(fp)
+        dag = ProvDAG(fp)
+        int_seq_node, *_ = dag.terminal_nodes
+        self.assertEqual(int_seq_node.action.action_name, 'import')
 
-    def test_eq_identity(self):
-        self.assertEqual(self.dags['5'], self.dags['5'])
+        fp = os.path.join(self.tempdir, 'concated-ints.qza')
+        self.concated_ints.save(fp)
+        dag = ProvDAG(fp)
+        concated_ints_node, *_ = dag.terminal_nodes
+        self.assertEqual(concated_ints_node.action.action_name,
+                         'concatenate_ints')
 
-    def test_eq_same_origin_data_but_not_identity(self):
-        dag_5_rebuilt = ProvDAG(str(TEST_DATA['5']['qzv_fp']))
-        self.assertEqual(self.dags['5'], dag_5_rebuilt)
+    def test_has_correct_edges(self):
+        fp = os.path.join(self.tempdir, 'concated-ints.qza')
+        self.concated_ints.save(fp)
+        dag = ProvDAG(fp)
 
-    def test_not_eq(self):
-        dag_5_copied = ProvDAG(self.dags['5'])
-        self.assertIsNot(dag_5_copied, self.dags['5'])
+        for node in dag.nodes:
+            prov_node = dag.get_node_data(node)
+            if prov_node.action.action_name == 'concatenate_ints':
+                concated_ints_node = prov_node
+            elif prov_node.action.action_name == 'import':
+                if prov_node.type == 'IntSequence1':
+                    int_seq_node = prov_node
+                elif prov_node.type == 'IntSequence2':
+                    int_seq2_node = prov_node
 
-        # Test same nodes, different types are not equal
-        self.assertNotEqual(dag_5_copied, dag_5_copied.dag)
+        edges = dag.dag.edges
+        self.assertIn((int_seq_node._uuid, concated_ints_node._uuid), edges)
+        self.assertIn((int_seq2_node._uuid, concated_ints_node._uuid), edges)
+        self.assertNotIn((int_seq_node._uuid, int_seq2_node._uuid), edges)
+        self.assertNotIn((concated_ints_node._uuid, int_seq_node._uuid), edges)
 
-        # Test with different lengths
-        dag_5_copied.dag.remove_node(TEST_DATA['5']['uuid'])
-        self.assertNotEqual(self.dags['5'], dag_5_copied)
+    def test_dag_repr(self):
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        self.int_seq.save(fp)
+        dag = ProvDAG(fp)
+        int_seq_node, *_ = dag.terminal_nodes
+        uuid = int_seq_node._uuid
 
-        # Test with same lengths but mismatched nodes
-        dag_5_copied.dag.add_node(
-            'this_node_is_not_in_the_original_but_satisfies_len_requirement')
-        self.assertNotEqual(self.dags['5'], dag_5_copied)
+        exp_repr = f'ProvDAG.*Artifacts.*{uuid}'
+        self.assertRegex(repr(dag), exp_repr)
 
-    def test_iter(self):
-        # Just a smoke test
-        dag5 = self.dags['5']
-        iterable = iter(dag5)
-        self.assertEqual(next(iterable), TEST_DATA['5']['uuid'])
+    def test_node_repr(self):
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        self.int_seq.save(fp)
+        dag = ProvDAG(fp)
+        int_seq_node, *_ = dag.terminal_nodes
+        uuid = int_seq_node._uuid
+        type_ = int_seq_node.type
+        format_ = int_seq_node.format
+
+        exp_repr = f'(?s)UUID.*{uuid}.*Type:.*{type_}.*Data Format:.*{format_}'
+        self.assertRegex(repr(int_seq_node), exp_repr)
+
+    def test_dag_eq(self):
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        self.int_seq.save(fp)
+        dag = ProvDAG(fp)
+        self.assertEqual(dag, dag)
+        self.assertEqual(ProvDAG(fp), ProvDAG(fp))
+
+        int_seq_dag = dag
+        fp = os.path.join(self.tempdir, 'int-seq2.qza')
+        self.int_seq2.save(fp)
+        int_seq2_dag = ProvDAG(fp)
+        # because they are isomorphic
+        self.assertEqual(int_seq_dag, int_seq2_dag)
+
+    def test_dag_not_eq(self):
+        fp = os.path.join(self.tempdir, 'int-seq.qza')
+        self.int_seq.save(fp)
+        int_seq_dag = ProvDAG(fp)
+
+        fp = os.path.join(self.tempdir, 'concated-ints.qza')
+        self.concated_ints.save(fp)
+        concated_ints_dag = ProvDAG(fp)
+
+        self.assertNotEqual(int_seq_dag, concated_ints_dag)
 
     def test_v5_captures_full_history(self):
         nodes = self.dags['5'].nodes
