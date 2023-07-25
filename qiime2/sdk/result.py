@@ -548,15 +548,24 @@ class ResultCollection:
         if collection is None:
             self.collection = {}
         elif isinstance(collection, dict):
+            if not all(isinstance(key, str) for key in collection.keys()):
+                raise TypeError('All ResultCollection keys must be strings')
+
             self.collection = collection
         else:
-            self.collection = {k: v for k, v in enumerate(collection)}
+            self.collection = {str(k): v for k, v in enumerate(collection)}
+
+    def __contains__(self, item):
+        return item in self.collection
 
     def __eq__(self, other):
         if isinstance(other, dict):
             return self.collection == other
-
-        return self.collection == other.collection
+        elif isinstance(other, ResultCollection):
+            return self.collection == other.collection
+        else:
+            raise TypeError(f"Equality between '{type(other)}' and "
+                            "ResultCollection is undefined.")
 
     def __len__(self):
         return len(self.collection)
