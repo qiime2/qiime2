@@ -451,7 +451,8 @@ class UsageOutputs(sdk.Results):
 
 VAR_TYPES = ('artifact', 'result_collection', 'visualization',
              'metadata', 'column', 'format')
-T_VAR_TYPES = Literal['artifact', 'visualization', 'metadata', 'column', 'format']
+T_VAR_TYPES = Literal['artifact', 'result_collection', 'visualization',
+                      'metadata', 'column', 'format']
 
 
 class UsageVariable:
