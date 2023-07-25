@@ -451,8 +451,7 @@ class UsageOutputs(sdk.Results):
 
 VAR_TYPES = ('artifact', 'result_collection', 'visualization',
              'metadata', 'column', 'format')
-T_VAR_TYPES = Literal['artifact', 'visualization', 'metadata', 'column',
-                      'format']
+T_VAR_TYPES = Literal['artifact', 'visualization', 'metadata', 'column', 'format']
 
 
 class UsageVariable:
@@ -1651,6 +1650,9 @@ class ExecutionUsageVariable(UsageVariable):
 
         data = self.value
 
+        if key is not None:
+            key = str(key)
+
         if key:
             data = self._collection_key_util(data=data, key=key)
 
@@ -1668,6 +1670,9 @@ class ExecutionUsageVariable(UsageVariable):
     def assert_output_type(self, semantic_type, key=None):
         data = self.value
         name = self.name
+
+        if key is not None:
+            key = str(key)
 
         if key:
             data = self._collection_key_util(data=data, key=key)
