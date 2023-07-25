@@ -1,9 +1,11 @@
 from contextlib import redirect_stdout
 import copy
+from dataclasses import dataclass
 import io
 import networkx as nx
 import os
 import pathlib
+import random
 import shutil
 import tempfile
 import unittest
@@ -112,21 +114,18 @@ TEST_DATA = {
     }
 
 
+@dataclass
+class TestArtifact:
+    name: str
+    artifact: Artifact
+    uuid: str
+    filepath: str
+    dag: ProvDAG
+    archive_version: int = 6
+    is_valid: bool = True
+
+
 class ProvDAGTests(unittest.TestCase):
-    def setUp(self):
-        self.pm = PluginManager()
-        self.dp = self.pm.plugins['dummy-plugin']
-        self.tempdir = tempfile.mkdtemp(prefix='qiime2-test-parse-temp-')
-
-        self.int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
-        self.int_seq2 = Artifact.import_data('IntSequence2', [20, 30])
-        concat_ints = self.dp.actions['concatenate_ints']
-        self.concated_ints, = concat_ints(self.int_seq, self.int_seq,
-                                          self.int_seq2, 9, 0)
-
-    def tearDown(self):
-        shutil.rmtree(self.tempdir)
-
     @classmethod
     def setUpClass(cls):
         cls.dags = dict()
@@ -138,64 +137,115 @@ class ProvDAGTests(unittest.TestCase):
                 cls.dags[archive_version] = ProvDAG(
                     str(TEST_DATA[archive_version]['qzv_fp']))
 
-    def test_number_of_nodes(self):
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        self.int_seq.save(fp)
-        dag = ProvDAG(fp)
-        self.assertEqual(len(dag.nodes), 1)
+    def save_artifact_to_dir(self, artifact, directory):
+        dir_fp = os.path.join(self.tempdir, directory)
+        try:
+            os.mkdir(dir_fp)
+        except FileExistsError:
+            pass
 
-        fp = os.path.join(self.tempdir, 'concated_ints.qza')
-        self.concated_ints.save(fp)
-        dag = ProvDAG(fp)
-        self.assertEqual(len(dag.nodes), 3)
+        fp = os.path.join(dir_fp, f'{artifact.name}.qza')
+        artifact.artifact.save(fp)
+        return dir_fp
+
+    def setUp(self):
+        self.pm = PluginManager()
+        self.dp = self.pm.plugins['dummy-plugin']
+        self.tempdir = tempfile.mkdtemp(prefix='qiime2-test-parse-temp-')
+
+        class TestArtifacts:
+            # for attaching test artifacts
+            pass
+
+        # artifacts with no action provenance (except import)
+        single_int = Artifact.import_data('SingleInt', 0)
+        int_seq1 = Artifact.import_data('IntSequence1', [1, 1, 2])
+        int_seq2 = Artifact.import_data('IntSequence2', [3, 5])
+        mapping1 = Artifact.import_data('Mapping', {'a': 8, 'b': 13})
+        mapping2 = Artifact.import_data('Mapping', {'c': 21, 'd': 54})
+
+        for artifact, name in zip(
+            [single_int, int_seq1, int_seq2, mapping1, mapping2],
+            ['single_int', 'int_seq1', 'int_seq2', 'mapping1', 'mapping2']
+        ):
+            fp = os.path.join(self.tempdir, f'{name}.qza')
+            artifact.save(fp)
+            test_artifact = TestArtifact(
+                name, artifact, str(artifact.uuid), fp, ProvDAG(fp)
+            )
+            setattr(TestArtifacts, name, test_artifact)
+
+        concat_ints = self.dp.actions['concatenate_ints']
+        split_ints = self.dp.actions['split_ints']
+        merge_mappings = self.dp.actions['merge_mappings']
+        # to be used
+        # identity_with_metadata = self.dp.actions['identity_with_metadata']
+
+        # artifacts with some simple actions in their provenance
+        concated_ints, = concat_ints(int_seq1, int_seq1, int_seq2, 7, 13)
+        splitted_ints, _ = split_ints(int_seq2)
+        merged_mappings, = merge_mappings(mapping1, mapping2)
+
+        for artifact, name in zip(
+            [concated_ints, splitted_ints, merged_mappings],
+            ['concated_ints', 'splitted_ints', 'merged_mappings']
+        ):
+            fp = os.path.join(self.tempdir, f'{name}.qza')
+            artifact.save(fp)
+            test_artifact = TestArtifact(
+                name, artifact, str(artifact.uuid), fp, ProvDAG(fp)
+            )
+            setattr(TestArtifacts, name, test_artifact)
+
+        # more complex provenances ...
+
+        self.tas = TestArtifacts
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    def test_number_of_nodes(self):
+        num_single_int_nodes = len(self.tas.single_int.dag.nodes)
+        self.assertEqual(num_single_int_nodes, 1)
+
+        num_int_seq1_nodes = len(self.tas.int_seq1.dag.nodes)
+        self.assertEqual(num_int_seq1_nodes, 1)
+
+        num_concated_ints_nodes = len(self.tas.concated_ints.dag.nodes)
+        self.assertEqual(num_concated_ints_nodes, 3)
 
     def test_number_of_terminal_nodes(self):
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        self.int_seq.save(fp)
-        dag = ProvDAG(fp)
-        self.assertEqual(len(dag.terminal_nodes), 1)
+        num_int_seq1_term_nodes = len(self.tas.int_seq1.dag.terminal_nodes)
+        self.assertEqual(num_int_seq1_term_nodes, 1)
 
-        fp = os.path.join(self.tempdir, 'concated_ints.qza')
-        self.concated_ints.save(fp)
-        dag = ProvDAG(fp)
-        self.assertEqual(len(dag.terminal_nodes), 1)
+        num_concated_ints_term_nodes = \
+            len(self.tas.concated_ints.dag.terminal_nodes)
+        self.assertEqual(num_concated_ints_term_nodes, 1)
 
-        fp = os.path.join(self.tempdir, 'two-ints')
-        os.mkdir(fp)
-        self.int_seq.save(os.path.join(fp, 'int-seq1.qza'))
-        self.int_seq2.save(os.path.join(fp, 'int-seq2.qza'))
-        dag = ProvDAG(fp)
+        self.save_artifact_to_dir(self.tas.int_seq1, 'two-ints')
+        dir_fp = self.save_artifact_to_dir(self.tas.int_seq2, 'two-ints')
+        dag = ProvDAG(dir_fp)
         self.assertEqual(len(dag.terminal_nodes), 2)
 
-        fp = os.path.join(self.tempdir, 'int-and-concated-ints')
-        os.mkdir(fp)
-        self.int_seq.save(os.path.join(fp, 'int-seq1.qza'))
-        self.concated_ints.save(os.path.join(fp, 'concated-ints.qza'))
-        dag = ProvDAG(fp)
+        self.save_artifact_to_dir(self.tas.int_seq1, 'int-and-concated-ints')
+        dir_fp = self.save_artifact_to_dir(self.tas.concated_ints,
+                                           'int-and-concated-ints')
+        dag = ProvDAG(dir_fp)
         self.assertEqual(len(dag.terminal_nodes), 1)
 
     def test_root_node_is_archive_root(self):
-        fp = os.path.join(self.tempdir, 'concated-ints.qza')
-        self.concated_ints.save(fp)
-        dag = ProvDAG(fp)
-        with zipfile.ZipFile(fp) as zf:
+        with zipfile.ZipFile(self.tas.concated_ints.filepath) as zf:
             all_filenames = zf.namelist()
             root_filenames = filter(is_root_provnode_data, all_filenames)
             root_filepaths = [pathlib.Path(fp) for fp in root_filenames]
             exp_node = ProvNode(Config(), zf, root_filepaths)
-            act_terminal_node, *_ = dag.terminal_nodes
+            act_terminal_node, *_ = self.tas.concated_ints.dag.terminal_nodes
             self.assertEqual(exp_node, act_terminal_node)
 
     def test_number_of_actions(self):
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        self.int_seq.save(fp)
-        dag = ProvDAG(fp)
-        self.assertEqual(dag.dag.number_of_edges(), 0)
+        self.assertEqual(self.tas.int_seq1.dag.dag.number_of_edges(), 0)
 
-        fp = os.path.join(self.tempdir, 'concated-ints.qza')
-        self.concated_ints.save(fp)
-        dag = ProvDAG(fp)
-        self.assertEqual(dag.dag.number_of_edges(), 2)
+        self.assertEqual(self.tas.concated_ints.dag.dag.number_of_edges(), 2)
 
     def test_nonexistent_fp(self):
         fp = os.path.join(self.tempdir, 'does-not-exist.qza')
@@ -204,8 +254,7 @@ class ProvDAGTests(unittest.TestCase):
             ProvDAG(fp)
 
     def test_insufficient_permissions(self):
-        fp = os.path.join(self.tempdir, 'wrong-permissions.qza')
-        self.int_seq.save(fp)
+        fp = self.tas.int_seq1.filepath
         os.chmod(fp, 0o000)
         err_msg = f'PermissionError.*ArchiveParser.*denied.*{fp}'
         with self.assertRaisesRegex(UnparseableDataError, err_msg):
@@ -226,21 +275,12 @@ class ProvDAGTests(unittest.TestCase):
             ProvDAG(fp)
 
     def test_has_digraph(self):
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        self.int_seq.save(fp)
-        dag = ProvDAG(fp)
-        self.assertIsInstance(dag.dag, DiGraph)
+        self.assertIsInstance(self.tas.int_seq1.dag.dag, DiGraph)
 
-        fp = os.path.join(self.tempdir, 'concated-ints.qza')
-        self.concated_ints.save(fp)
-        dag = ProvDAG(fp)
-        self.assertIsInstance(dag.dag, DiGraph)
+        self.assertIsInstance(self.tas.concated_ints.dag.dag, DiGraph)
 
     def test_dag_attributes(self):
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        self.int_seq.save(fp)
-        dag = ProvDAG(fp)
-
+        dag = self.tas.int_seq1.dag
         terminal_node, *_ = dag.terminal_nodes
         self.assertIsInstance(terminal_node, ProvNode)
 
@@ -250,380 +290,220 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(dag.checksum_diff, empty_checksum_diff)
 
     def test_node_action_names(self):
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        self.int_seq.save(fp)
-        dag = ProvDAG(fp)
-        int_seq_node, *_ = dag.terminal_nodes
-        self.assertEqual(int_seq_node.action.action_name, 'import')
+        int_seq1_node, *_ = self.tas.int_seq1.dag.terminal_nodes
+        self.assertEqual(int_seq1_node.action.action_name, 'import')
 
-        fp = os.path.join(self.tempdir, 'concated-ints.qza')
-        self.concated_ints.save(fp)
-        dag = ProvDAG(fp)
-        concated_ints_node, *_ = dag.terminal_nodes
+        concated_ints_node, *_ = self.tas.concated_ints.dag.terminal_nodes
         self.assertEqual(concated_ints_node.action.action_name,
                          'concatenate_ints')
 
     def test_has_correct_edges(self):
-        fp = os.path.join(self.tempdir, 'concated-ints.qza')
-        self.concated_ints.save(fp)
-        dag = ProvDAG(fp)
+        edges = self.tas.concated_ints.dag.dag.edges
 
-        for node in dag.nodes:
-            prov_node = dag.get_node_data(node)
-            if prov_node.action.action_name == 'concatenate_ints':
-                concated_ints_node = prov_node
-            elif prov_node.action.action_name == 'import':
-                if prov_node.type == 'IntSequence1':
-                    int_seq_node = prov_node
-                elif prov_node.type == 'IntSequence2':
-                    int_seq2_node = prov_node
-
-        edges = dag.dag.edges
-        self.assertIn((int_seq_node._uuid, concated_ints_node._uuid), edges)
-        self.assertIn((int_seq2_node._uuid, concated_ints_node._uuid), edges)
-        self.assertNotIn((int_seq_node._uuid, int_seq2_node._uuid), edges)
-        self.assertNotIn((concated_ints_node._uuid, int_seq_node._uuid), edges)
+        self.assertIn(
+            (self.tas.int_seq1.uuid, self.tas.concated_ints.uuid), edges
+        )
+        self.assertIn(
+            (self.tas.int_seq2.uuid, self.tas.concated_ints.uuid), edges
+        )
+        self.assertNotIn(
+            (self.tas.int_seq1.uuid, self.tas.int_seq2.uuid), edges
+        )
+        self.assertNotIn(
+            (self.tas.concated_ints.uuid, self.tas.int_seq1.uuid), edges
+        )
 
     def test_dag_repr(self):
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        self.int_seq.save(fp)
-        dag = ProvDAG(fp)
-        int_seq_node, *_ = dag.terminal_nodes
-        uuid = int_seq_node._uuid
-
-        exp_repr = f'ProvDAG.*Artifacts.*{uuid}'
-        self.assertRegex(repr(dag), exp_repr)
+        exp_repr = f'ProvDAG.*Artifacts.*{self.tas.int_seq1.uuid}'
+        self.assertRegex(repr(self.tas.int_seq1.dag), exp_repr)
 
     def test_node_repr(self):
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        self.int_seq.save(fp)
-        dag = ProvDAG(fp)
-        int_seq_node, *_ = dag.terminal_nodes
-        uuid = int_seq_node._uuid
-        type_ = int_seq_node.type
-        format_ = int_seq_node.format
+        int_seq1_node, *_ = self.tas.int_seq1.dag.terminal_nodes
+        uuid = int_seq1_node._uuid
+        type_ = int_seq1_node.type
+        format_ = int_seq1_node.format
 
         exp_repr = f'(?s)UUID.*{uuid}.*Type:.*{type_}.*Data Format:.*{format_}'
-        self.assertRegex(repr(int_seq_node), exp_repr)
+        self.assertRegex(repr(int_seq1_node), exp_repr)
 
     def test_dag_eq(self):
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        self.int_seq.save(fp)
-        dag = ProvDAG(fp)
+        dag = self.tas.int_seq1.dag
         self.assertEqual(dag, dag)
+
+        fp = self.tas.int_seq1.filepath
         self.assertEqual(ProvDAG(fp), ProvDAG(fp))
 
-        int_seq_dag = dag
-        fp = os.path.join(self.tempdir, 'int-seq2.qza')
-        self.int_seq2.save(fp)
-        int_seq2_dag = ProvDAG(fp)
         # because they are isomorphic
-        self.assertEqual(int_seq_dag, int_seq2_dag)
+        self.assertEqual(self.tas.int_seq1.dag, self.tas.int_seq2.dag)
 
     def test_dag_not_eq(self):
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        self.int_seq.save(fp)
-        int_seq_dag = ProvDAG(fp)
+        self.assertNotEqual(self.tas.int_seq1.dag, self.tas.concated_ints.dag)
 
-        fp = os.path.join(self.tempdir, 'concated-ints.qza')
-        self.concated_ints.save(fp)
-        concated_ints_dag = ProvDAG(fp)
+    def test_captures_full_history(self):
+        concat_ints = self.dp.actions['concatenate_ints']
 
-        self.assertNotEqual(int_seq_dag, concated_ints_dag)
+        next_concated_ints = self.tas.concated_ints.artifact
+        iterations = random.randint(1, 10)
+        for _ in range(iterations):
+            next_concated_ints, = concat_ints(next_concated_ints,
+                                              next_concated_ints,
+                                              self.tas.int_seq2.artifact,
+                                              4, 6)
 
-    def test_v5_captures_full_history(self):
-        nodes = self.dags['5'].nodes
-        self.assertEqual(len(nodes), 15)
-        node_list = ['ffb7cee3-2f1f-4988-90cc-efd5184ef003',
-                     '0af08fa8-48b7-4c6a-83c6-e0f766156343',
-                     '3b7d36ff-37ab-4ac2-958b-6a547d442bcf',
-                     '7ecf8954-e49a-4605-992e-99fcee397935',
-                     '9cc3281a-fefb-408e-8cf0-10637a06d84a',
-                     '025e723d-b367-4812-820a-ae8bf8b80af4',
-                     '83a80bfd-8954-4571-8fc7-ac9e8435156e',
-                     '89af91c0-033d-4e30-8ac4-f29a3b407dc1',
-                     '99fa3670-aa1a-45f6-ba8e-803c976a1163',
-                     '430a6575-86b3-4cf6-b72e-0f7fce3ed342',
-                     'a35830e1-4535-47c6-aa23-be295a57ee1c',
-                     'aea3994b-0888-41c1-8e8c-69f6615d07cf',
-                     'bce3d09b-e296-4f2b-9af4-834db6412429',
-                     'd32a5ea6-1ca1-4635-b522-2253568ae35b',
-                     'f20cecd6-9f82-4bde-a013-eb327612dc4d',
-                     ]
-        self.assertEqual(len(nodes), 15)
-        self.assertEqual(set(nodes), set(node_list))
+        fp = os.path.join(self.tempdir, 'very-concated-ints.qza')
+        next_concated_ints.save(fp)
+        dag = ProvDAG(fp)
+        # iterations + o.g. concated_ints + o.g. int_seq + o.g. int_seq2
+        self.assertEqual(len(dag), iterations + 3)
 
-        # Terminal/alias node
-        root_parents = [
-            {'table': '89af91c0-033d-4e30-8ac4-f29a3b407dc1'},
-            {'phylogeny': 'bce3d09b-e296-4f2b-9af4-834db6412429'}]
-        self.assertEqual(nodes[node_list[0]]['node_data']._parents,
-                         root_parents)
-        # non-alias node
-        n1_parents = [{'table': '89af91c0-033d-4e30-8ac4-f29a3b407dc1'},
-                      ]
-        self.assertEqual(nodes[node_list[1]]['node_data']._parents,
-                         n1_parents)
-        # some other nodes
-        n2_parents = [{'tree': 'd32a5ea6-1ca1-4635-b522-2253568ae35b'},
-                      ]
-        self.assertEqual(nodes[node_list[2]]['node_data']._parents,
-                         n2_parents)
-        n3_parents = [{'demultiplexed_seqs':
-                       '99fa3670-aa1a-45f6-ba8e-803c976a1163'}]
-        self.assertEqual(nodes[node_list[3]]['node_data']._parents,
-                         n3_parents)
-        # import node
-        n10_parents = []
-        self.assertEqual(nodes[node_list[10]]['node_data']._parents,
-                         n10_parents)
+    # TODO: tests of get_outer_provenance_nodes with pipelines involved,
+    # TODO: because these are supposedly discluded
+    def test_get_outer_provenance_nodes(self):
+        fp = os.path.join(self.tempdir, 'disconnected-provenances')
+        os.mkdir(fp)
+        self.tas.concated_ints.artifact.save(
+            os.path.join(fp, 'concated-ints.qza'))
+        unattached_int_seq = Artifact.import_data('IntSequence1', [8, 8])
+        unattached_int_seq.save(os.path.join(fp, 'unattached-int-seq.qza'))
+        dag = ProvDAG(fp)
 
-    def test_v5_get_outer_provenance_nodes(self):
-        exp = {'ffb7cee3-2f1f-4988-90cc-efd5184ef003',
-               'bce3d09b-e296-4f2b-9af4-834db6412429',
-               '89af91c0-033d-4e30-8ac4-f29a3b407dc1',
-               '7ecf8954-e49a-4605-992e-99fcee397935',
-               '99fa3670-aa1a-45f6-ba8e-803c976a1163',
-               'a35830e1-4535-47c6-aa23-be295a57ee1c',
-               }
-        root_uuid = TEST_DATA['5']['uuid']
-        actual = self.dags['5'].get_outer_provenance_nodes(root_uuid)
+        actual = dag.get_outer_provenance_nodes(self.tas.concated_ints.uuid)
+        exp = {
+            self.tas.concated_ints.uuid,
+            self.tas.int_seq1.uuid,
+            self.tas.int_seq2.uuid
+        }
         self.assertEqual(actual, exp)
 
-    def test_v5_relabel_nodes(self):
-        # This function modifies labels in place by default,
-        # so create a local ProvDAG to protect our test data
-        dag = ProvDAG(str(TEST_DATA['5']['qzv_fp']))
-        # Test new node names
-        exp_nodes = ['ffb7cee3',
-                     '0af08fa8',
-                     '3b7d36ff',
-                     '7ecf8954',
-                     '9cc3281a',
-                     '025e723d',
-                     '83a80bfd',
-                     '89af91c0',
-                     '99fa3670',
-                     '430a6575',
-                     'a35830e1',
-                     'aea3994b',
-                     'bce3d09b',
-                     'd32a5ea6',
-                     'f20cecd6',
-                     ]
-        new_labels = {node: node[:8] for node in dag.nodes}
+    def test_relabel_nodes(self):
+        dag = ProvDAG(self.tas.concated_ints.filepath)
+
+        exp_nodes = ['Harry', 'Ron', 'Hermione']
+        new_labels = {}
+        for node, exp_node in zip(dag.nodes, exp_nodes):
+            new_labels[node] = exp_node
         dag.relabel_nodes(new_labels)
-        # Have all nodes been relabeled as expected?
-        for node in exp_nodes:
-            self.assertIn(node, dag.nodes)
-        # Are the UUIDs stored in the ProvNode payloads updated correctly?
+
+        # have all nodes been relabeled as expected?
+        for exp_node in exp_nodes:
+            self.assertIn(exp_node, dag.nodes)
+
+        # are the UUIDs stored in the ProvNode payloads updated correctly?
         for node in dag.nodes:
             self.assertEqual(node, dag.get_node_data(node)._uuid)
-        self.assertEqual(dag._terminal_uuids, None)
 
-        # Confirm terminal_uuids state is consistent with the relabeled node
-        # names
-        self.assertEqual(len(dag.terminal_uuids), 1)
-        # This is deterministic because there is one uuid in the set:
-        terminal_uuid, *_ = dag.terminal_uuids
-        self.assertEqual(terminal_uuid, exp_nodes[0])
+    def test_relabel_nodes_with_copy(self):
+        dag = self.tas.concated_ints.dag
+        exp_nodes = ['Harry', 'Ron', 'Hermione']
+        new_labels = {}
+        for node, exp_node in zip(dag.nodes, exp_nodes):
+            new_labels[node] = exp_node
+        copied_dag = dag.relabel_nodes(new_labels, copy=True)
 
-    def test_v5_relabel_nodes_with_copy(self):
-        exp_nodes = ['ffb7cee3',
-                     '0af08fa8',
-                     '3b7d36ff',
-                     '7ecf8954',
-                     '9cc3281a',
-                     '025e723d',
-                     '83a80bfd',
-                     '89af91c0',
-                     '99fa3670',
-                     '430a6575',
-                     'a35830e1',
-                     'aea3994b',
-                     'bce3d09b',
-                     'd32a5ea6',
-                     'f20cecd6',
-                     ]
-        new_labels = {node: node[:8] for node in self.dags['5'].nodes}
-        new_dag = self.dags['5'].relabel_nodes(new_labels, copy=True)
-        # Have all nodes been relabeled as expected?
-        for node in exp_nodes:
-            self.assertIn(node, new_dag.nodes)
-        # Are the UUIDs stored in the ProvNode payloads updated correctly?
-        for node in new_dag.nodes:
-            self.assertEqual(node, new_dag.get_node_data(node)._uuid)
-        self.assertEqual(set(exp_nodes), set(new_dag.nodes))
-        self.assertEqual(new_dag._terminal_uuids, None)
+        self.assertIsInstance(copied_dag, ProvDAG)
 
-        # Confirm terminal_uuids state is consistent with the relabeled node
-        # names
-        self.assertEqual(len(new_dag.terminal_uuids), 1)
-        # This is deterministic because there is one uuid in the set:
-        terminal_uuid, *_ = new_dag.terminal_uuids
-        self.assertEqual(terminal_uuid, exp_nodes[0])
+        # have all nodes been relabeled as expected?
+        for exp_node in exp_nodes:
+            self.assertIn(exp_node, copied_dag.nodes)
 
-    def test_v5_collapsed_view(self):
-        exp_nodes = {'ffb7cee3-2f1f-4988-90cc-efd5184ef003',
-                     'bce3d09b-e296-4f2b-9af4-834db6412429',
-                     '89af91c0-033d-4e30-8ac4-f29a3b407dc1',
-                     '7ecf8954-e49a-4605-992e-99fcee397935',
-                     '99fa3670-aa1a-45f6-ba8e-803c976a1163',
-                     'a35830e1-4535-47c6-aa23-be295a57ee1c',
-                     }
-        view = self.dags['5'].collapsed_view
+        # are the UUIDs stored in the ProvNode payloads updated correctly?
+        for node in copied_dag.nodes:
+            self.assertEqual(node, copied_dag.get_node_data(node)._uuid)
+
+    # TODO: again, test this for pipelines
+    def test_collapsed_view(self):
+        view = self.tas.concated_ints.dag.collapsed_view
         self.assertIsInstance(view, DiGraph)
-        self.assertEqual(len(view), 6)
-        for node in exp_nodes:
-            self.assertIn(node, view.nodes)
+        self.assertEqual(len(view), 3)
+
+        exp_nodes = [
+            self.tas.concated_ints.uuid,
+            self.tas.int_seq1.uuid,
+            self.tas.int_seq2.uuid
+        ]
+        for exp_node in exp_nodes:
+            self.assertIn(exp_node, view.nodes)
 
     def test_invalid_provenance(self):
         """
         Mangle an intact v5 Archive so that its checksums.md5 is invalid,
         and then build a ProvDAG with it to confirm the ProvDAG constructor
         handles broken checksums appropriately
-
-        Specifically:
-        - remove the root `<uuid>/metadata.yaml`
-        - add a new file called '<uuid>/tamper.txt`
-        - overwrite `<uuid>/data/index.html` with '999\n'
-
-        Modified from test_checksum_validator.test_checksums_mismatch
         """
-        original_archive = TEST_DATA['5']['qzv_fp']
-        drop_file = pathlib.Path('data') / 'emperor.html'
-        root_uuid = TEST_DATA['5']['uuid']
-        fp_pfx = pathlib.Path(root_uuid)
+        uuid = self.tas.int_seq1.uuid
         with generate_archive_with_file_removed(
-            qzv_fp=original_archive,
-            root_uuid=root_uuid,
-                file_to_drop=drop_file) as chopped_archive:
+            self.tas.int_seq1.filepath,
+            uuid,
+            os.path.join('data', 'ints.txt')
+        ) as altered_archive:
+            new_fp = os.path.join(uuid, 'data', 'tamper.txt')
+            overwrite_fp = os.path.join(uuid, 'provenance', 'citations.bib')
+            with zipfile.ZipFile(altered_archive, 'a') as zf:
+                zf.writestr(new_fp, 'added file')
 
-            # We'll also add a new file
-            with zipfile.ZipFile(chopped_archive, 'a') as zf:
-                new_fn = str(fp_pfx / 'tamper.txt')
-                zf.writestr(new_fn, 'extra file')
-                # and overwrite an existing file with junk
-                extant_fn = str(fp_pfx / 'data' / 'index.html')
+                with zf.open(overwrite_fp, 'w') as fh:
+                    fh.write(b'999\n')
 
-                # we expect a warning that we're overwriting the filename
-                # this CM stops the warning from propagating up to stderr/out
-                with self.assertWarnsRegex(UserWarning, 'Duplicate name'):
-                    with zf.open(extant_fn, 'w') as myfile:
-                        myfile.write(b'999\n')
-
-            # Is our bad-checksums warning message correct?
-            uuid = TEST_DATA['5']['uuid']
             expected = ('(?s)'
-                        f'Checksums are invalid for Archive {uuid}.*\n'
-                        'Archive may be corrupt.*\n'
-                        'Files added.*tamper.*296583.*\n'
-                        'Files removed.*emperor.*c42b3.*\n'
-                        'Files changed.*data.*index.*065031.*f47bc3.*'
+                        f'Checksums are invalid for Archive {uuid}.*'
+                        'Archive may be corrupt.*'
+                        'Files added.*tamper.txt.*'
+                        'Files removed.*ints.txt.*'
+                        'Files changed.*provenance.*citations.bib.*'
                         )
+
             with self.assertWarnsRegex(UserWarning, expected):
-                a_dag = ProvDAG(chopped_archive)
+                dag = ProvDAG(altered_archive)
 
-            # Have we set provenance_is_valid correctly?
-            self.assertEqual(a_dag.provenance_is_valid,
-                             ValidationCode.INVALID)
+            self.assertEqual(dag.provenance_is_valid, ValidationCode.INVALID)
 
-            # Is the diff correct?
-            diff = a_dag.checksum_diff
-            self.assertEqual(list(diff.removed.keys()),
-                             ['data/emperor.html'])
-            self.assertEqual(
-                diff.added,
-                {'tamper.txt': '296583001b00d2b811b5871b19e0ad28'})
-            self.assertEqual(
-                diff.changed,
-                {'data/index.html': ('065031e17943cd0780f197874c4f011e',
-                                     'f47bc36040d5c7db08e4b3a457dcfbb2')
-                 })
+            diff = dag.checksum_diff
+            self.assertEqual(list(diff.removed.keys()), ['data/ints.txt'])
+            self.assertEqual(list(diff.added.keys()), ['data/tamper.txt'])
+            self.assertEqual(list(diff.changed.keys()),
+                             ['provenance/citations.bib'])
 
-    def test_v5_archive_has_invalid_checksums(self):
-        """
-        Remove a file from an intact v5 Archive so that its checksums.md5 is
-        invalid, and then build a ProvDAG with it to confirm the ProvDAG
-        constructor handles broken checksums appropriately
-        """
-        drop_file = pathlib.Path('data') / 'index.html'
+    def test_missing_checksums_md5(self):
+        uuid = self.tas.single_int.uuid
         with generate_archive_with_file_removed(
-            qzv_fp=TEST_DATA['5']['qzv_fp'],
-            root_uuid=TEST_DATA['5']['uuid'],
-                file_to_drop=drop_file) as chopped_archive:
-
-            # Is our bad-checksums warning message correct?
-            uuid = TEST_DATA['5']['uuid']
-            expected = (f'(?s)Checksums are invalid for Archive {uuid}.*')
-            with self.assertWarnsRegex(UserWarning, expected):
-                a_dag = ProvDAG(chopped_archive)
-
-            # Have we set provenance_is_valid correctly?
-            self.assertEqual(a_dag.provenance_is_valid,
-                             ValidationCode.INVALID)
-
-            # Is the diff correct?
-            diff = a_dag.checksum_diff
-            self.assertEqual(list(diff.removed.keys()),
-                             ['data/index.html'])
-            self.assertEqual(diff.added, {})
-            self.assertEqual(diff.changed, {})
-
-    def test_v5_with_missing_checksums_md5(self):
-        drop_file = pathlib.Path('checksums.md5')
-        with generate_archive_with_file_removed(
-            qzv_fp=TEST_DATA['5']['qzv_fp'],
-            root_uuid=TEST_DATA['5']['uuid'],
-                file_to_drop=drop_file) as chopped_archive:
-
-            # Is our bad-checksums warning message correct?
-            uuid = TEST_DATA['5']['uuid']
+            self.tas.single_int.filepath,
+            uuid,
+            'checksums.md5'
+        ) as altered_archive:
             expected = (f'no item.*{uuid}.*Archive may be corrupt')
             with self.assertWarnsRegex(UserWarning, expected):
-                a_dag = ProvDAG(chopped_archive)
+                dag = ProvDAG(altered_archive)
 
-            # Have we set provenance_is_valid correctly?
-            self.assertEqual(a_dag.provenance_is_valid,
-                             ValidationCode.INVALID)
+            self.assertEqual(dag.provenance_is_valid, ValidationCode.INVALID)
 
-            # Is the diff correct?
-            diff = a_dag.checksum_diff
+            diff = dag.checksum_diff
             self.assertEqual(diff, None)
 
-    def test_ProvDAG_error_if_missing_node_files(self):
-        pfx = 'provenance/artifacts/'
-        for archive_version in TEST_DATA:
-            # V0 doesn't have root nodes
-            if archive_version == '0':
-                continue
-            root_uuid = TEST_DATA[archive_version]['uuid']
-            node_uuid = TEST_DATA[archive_version]['nonroot_node']
-            parser = TEST_DATA[archive_version]['parser']
-            fnames = parser.expected_files_in_all_nodes
-            for name in fnames:
-                drop_file = pathlib.Path(pfx) / node_uuid / name
+    def test_error_if_missing_node_files(self):
+        path_prefix = os.path.join('provenance', 'artifacts')
+        root_uuid = self.tas.concated_ints.uuid
+        for removed_file in [
+            'metadata.yaml',
+            'citations.bib',
+            'VERSION',
+            'action/action.yaml'
+        ]:
+            for uuid in [self.tas.int_seq1.uuid, self.tas.int_seq2.uuid]:
                 with generate_archive_with_file_removed(
-                    qzv_fp=TEST_DATA[archive_version]['qzv_fp'],
-                    root_uuid=root_uuid,
-                        file_to_drop=drop_file) as chopped_archive:
+                    self.tas.concated_ints.filepath,
+                    root_uuid,
+                    os.path.join(path_prefix, uuid, removed_file)
+                ) as altered_archive:
+                    if removed_file == 'action/action.yaml':
+                        file = 'action.yaml'
+                    else:
+                        file = removed_file
 
-                    # Fudging this to match what the user sees - 'action.yaml'
-                    if name == 'action/action.yaml':
-                        name = 'action.yaml'
-                    fn = 'mangled.qzv'
                     expected = (
-                        f"(?s)Malformed.*{name}.*{node_uuid}.*"
-                        f"{fn}.*corrupt"
+                        f'(?s)Malformed.*{file}.*{uuid}.*corrupt.*'
                     )
                     with self.assertRaisesRegex(ValueError, expected):
-                        # Only v5 warns on this, so an assert would be clunky
-                        with warnings.catch_warnings():
-                            warnings.filterwarnings(
-                                'ignore',
-                                f'Checksums.*invalid.*{root_uuid}',
-                                UserWarning)
-                            ProvDAG(chopped_archive)
+                        ProvDAG(altered_archive)
 
     def test_mixed_v0_v1_archive(self):
         mixed_archive_fp = os.path.join(DATA_DIR, 'mixed_v0_v1_uu_emperor.qzv')
