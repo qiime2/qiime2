@@ -278,7 +278,6 @@ class ProvDAG:
         new_dag = ProvDAG()
         new_dag.dag = nx.compose_all((dag.dag for dag in dags))
 
-        # Capture starter values we can accrete/compare to
         new_dag._parsed_artifact_uuids = dags[0]._parsed_artifact_uuids
         new_dag._provenance_is_valid = dags[0]._provenance_is_valid
         new_dag._checksum_diff = dags[0].checksum_diff
@@ -286,15 +285,19 @@ class ProvDAG:
         for dag in dags[1:]:
             new_dag._parsed_artifact_uuids = new_dag._parsed_artifact_uuids \
                                              .union(dag._parsed_artifact_uuids)
+
+            # provenance of union is only valid if provenances of all members
+            # are valid
             new_dag._provenance_is_valid = min(new_dag.provenance_is_valid,
                                                dag.provenance_is_valid)
-            # Min of a bool is False, so we can:
+
             new_dag.cfg.parse_study_metadata = min(
                 new_dag.cfg.parse_study_metadata,
                 dag.cfg.parse_study_metadata)
             new_dag.cfg.perform_checksum_validation = min(
                 new_dag.cfg.perform_checksum_validation,
                 dag.cfg.perform_checksum_validation)
+
             # Here we retain as much data as possible, preferencing any
             # ChecksumDiff over None. This might mean we keep a clean/empty
             # ChecksumDiff and drop None, used to indicate a missing
@@ -306,7 +309,6 @@ class ProvDAG:
             if new_dag.checksum_diff is None:
                 new_dag._checksum_diff = dag.checksum_diff
             else:
-                # Neither ChecksumDiff is None
                 new_dag.checksum_diff.added.update(dag.checksum_diff.added)
                 new_dag.checksum_diff.removed.update(dag.checksum_diff.removed)
                 new_dag.checksum_diff.changed.update(dag.checksum_diff.changed)
