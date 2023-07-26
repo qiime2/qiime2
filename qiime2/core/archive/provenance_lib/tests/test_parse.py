@@ -1,5 +1,4 @@
 from contextlib import redirect_stdout
-import copy
 from dataclasses import dataclass
 import io
 import networkx as nx
@@ -122,7 +121,6 @@ class TestArtifact:
     filepath: str
     dag: ProvDAG
     archive_version: int = 6
-    is_valid: bool = True
 
 
 class ProvDAGTests(unittest.TestCase):
@@ -152,6 +150,14 @@ class ProvDAGTests(unittest.TestCase):
         self.pm = PluginManager()
         self.dp = self.pm.plugins['dummy-plugin']
         self.tempdir = tempfile.mkdtemp(prefix='qiime2-test-parse-temp-')
+
+        # TODO: move versioned artifacts into root of data dir once everything
+        # TODO: else is gone
+        self.datadir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'data',
+            'versioned-artifacts'
+        )
 
         class TestArtifacts:
             # for attaching test artifacts
@@ -183,12 +189,16 @@ class ProvDAGTests(unittest.TestCase):
 
         # artifacts with some simple actions in their provenance
         concated_ints, = concat_ints(int_seq1, int_seq1, int_seq2, 7, 13)
+        other_concated_ints, = concat_ints(int_seq1, int_seq1, int_seq2,
+                                           81, 64)
         splitted_ints, _ = split_ints(int_seq2)
         merged_mappings, = merge_mappings(mapping1, mapping2)
 
         for artifact, name in zip(
-            [concated_ints, splitted_ints, merged_mappings],
-            ['concated_ints', 'splitted_ints', 'merged_mappings']
+            [concated_ints, other_concated_ints, splitted_ints,
+             merged_mappings],
+            ['concated_ints', 'other_concated_ints', 'splitted_ints',
+             'merged_mappings']
         ):
             fp = os.path.join(self.tempdir, f'{name}.qza')
             artifact.save(fp)
@@ -196,6 +206,30 @@ class ProvDAGTests(unittest.TestCase):
                 name, artifact, str(artifact.uuid), fp, ProvDAG(fp)
             )
             setattr(TestArtifacts, name, test_artifact)
+
+        # import old artifact versions
+        for version in range(1, 7):
+            dirname = f'concated-ints-v{version}'
+            versioned_artifact_dir = os.path.join(self.datadir, dirname)
+
+            temp_zf_path = os.path.join(self.tempdir, 'temp.zip')
+            zf = zipfile.ZipFile(temp_zf_path, 'w', zipfile.ZIP_DEFLATED)
+            for root, dirs, files in os.walk(versioned_artifact_dir):
+                for file in files:
+                    filepath = os.path.join(root, file)
+                    zf.write(
+                        filepath,
+                        os.path.relpath(filepath, versioned_artifact_dir)
+                    )
+            zf.close()
+
+            filename = f'{dirname}.qza'
+            a = Artifact.load(temp_zf_path)
+            fp = os.path.join(self.tempdir, filename)
+            a.save(fp)
+            name = filename.replace('-', '_').replace('.qza', '')
+            ta = TestArtifact(name, a, str(a.uuid), fp, ProvDAG(fp))
+            setattr(TestArtifacts, name, ta)
 
         # create archive with missing checksums.md5
         with generate_archive_with_file_removed(
@@ -549,33 +583,6 @@ class ProvDAGTests(unittest.TestCase):
             self.assertEqual(dag, copied)
             self.assertIsNot(dag, copied)
 
-    # --- union class used to start here --- #
-    @classmethod
-    def setUpUnionClass(cls):
-        """
-        Because union is copy-only, we can create our test data once here,
-        and union it to our hearts' content.
-        """
-        cls.v3_dag = ProvDAG(str(TEST_DATA['3']['qzv_fp']))
-        cls.v4_dag = ProvDAG(str(TEST_DATA['4']['qzv_fp']))
-        cls.v5_qzv = ProvDAG(str(TEST_DATA['5']['qzv_fp']))
-        cls.v5_table = ProvDAG(os.path.join(DATA_DIR, 'v5_table.qza'))
-
-        cls.v3_uuid = TEST_DATA['3']['uuid']
-        cls.v4_uuid = TEST_DATA['4']['uuid']
-        cls.qzv_uuid = TEST_DATA['5']['uuid']
-        cls.table_uuid = '89af91c0-033d-4e30-8ac4-f29a3b407dc1'
-
-        drop_file = pathlib.Path('checksums.md5')
-        with generate_archive_with_file_removed(
-            qzv_fp=TEST_DATA['5']['qzv_fp'],
-            root_uuid=TEST_DATA['5']['uuid'],
-                file_to_drop=drop_file) as chopped_archive:
-            # we can't assert in a classmethod, so capture all warnings and
-            # assert in test_setup_warnings
-            with warnings.catch_warnings(record=True) as cls.w:
-                cls.bad_dag = ProvDAG(chopped_archive)
-
     def test_union_zero_or_one_dags(self):
         with self.assertRaisesRegex(ValueError, "pass.*two ProvDAGs"):
             ProvDAG.union([])
@@ -668,11 +675,8 @@ class ProvDAGTests(unittest.TestCase):
                          'ProvDAG representing these Artifacts.*'
                          f'{self.tas.single_int.uuid}')
 
-        # The ChecksumDiff==None from the tinkered dag gets ignored...
         self.assertEqual(unioned_dag.checksum_diff, ChecksumDiff({}, {}, {}))
 
-        # ...but this should make clear that the provenance is bad
-        # (or that the user opted out of validation)
         self.assertEqual(unioned_dag.provenance_is_valid,
                          ValidationCode.INVALID)
 
@@ -694,175 +698,172 @@ class ProvDAGTests(unittest.TestCase):
         # Both DAGs have NoneType checksum_diffs, so the ChecksumDiff==None
         self.assertEqual(unioned_dag.checksum_diff, None)
 
-        # ...but this should make clear that the provenance is bad
-        # (or that the user opted out of validation)
         self.assertEqual(unioned_dag.provenance_is_valid,
                          ValidationCode.INVALID)
 
         self.assertEqual(
             nx.number_weakly_connected_components(unioned_dag.dag), 1)
 
-    def test_one_dag_is_true_superset(self):
+    def test_dag_is_superset(self):
         """
-        Tests union of three dags, where one dag is a true superset of the
+        Tests union of three dags, where one dag is a proper superset of the
         others. We expect three _parsed_artifact_uuids, one terminal uuid,
         and one weakly_connected_component.
         """
-        v5_tree = ProvDAG(os.path.join(DATA_DIR, 'v5_rooted_tree.qza'))
-        tree_uuid = 'bce3d09b-e296-4f2b-9af4-834db6412429'
-        unmodified_dag = copy.copy(self.v5_qzv.dag)
-        unioned_dag = ProvDAG.union([self.v5_qzv, self.v5_table, v5_tree])
+        unioned_dag = ProvDAG.union([
+            self.tas.concated_ints.dag,
+            self.tas.int_seq1.dag,
+            self.tas.int_seq2.dag
+        ])
 
-        self.assertIn(self.qzv_uuid, unioned_dag._parsed_artifact_uuids)
-        self.assertIn(self.table_uuid, unioned_dag._parsed_artifact_uuids)
-        self.assertIn(tree_uuid, unioned_dag._parsed_artifact_uuids)
+        self.assertIn(self.tas.int_seq1.uuid,
+                      unioned_dag._parsed_artifact_uuids)
+        self.assertIn(self.tas.int_seq2.uuid,
+                      unioned_dag._parsed_artifact_uuids)
+        self.assertIn(self.tas.concated_ints.uuid,
+                      unioned_dag._parsed_artifact_uuids)
         self.assertEqual(len(unioned_dag._parsed_artifact_uuids), 3)
 
         self.assertEqual(len(unioned_dag.terminal_uuids), 1)
-        self.assertEqual(unioned_dag.terminal_uuids, {self.qzv_uuid})
+        self.assertEqual(unioned_dag.terminal_uuids,
+                         {self.tas.concated_ints.uuid})
 
         self.assertEqual(
             nx.number_weakly_connected_components(unioned_dag.dag), 1)
 
-        # G == H tests identity of objects in memory, so we need
-        # is_isomorphic
-        self.assertTrue(nx.is_isomorphic(unmodified_dag, unioned_dag.dag))
-        self.assertEqual(self.v5_qzv, unioned_dag)
+        # == tests identity of objects in memory, so we need is_isomorphic
+        self.assertTrue(nx.is_isomorphic(self.tas.concated_ints.dag.dag,
+                                         unioned_dag.dag))
+        self.assertEqual(self.tas.concated_ints.dag, unioned_dag)
 
     def test_three_artifacts_two_terminal_uuids(self):
         """
-        Tests union of three dags, where the v5_qzv is downstream of the table,
-        but not downstream of the unrooted tree. We expect three
+        Tests union of four dags, where two artifacts have shared parents but
+        no direct relationship with eachother. We expect four
         _parsed_artifact_uuids, two terminal uuids, and one
         weakly_connected_component.
         """
-        v5_unr_tree = ProvDAG(os.path.join(DATA_DIR, 'v5_unrooted_tree.qza'))
-        tree_uuid = '12e012d5-b01c-40b7-b825-a17f0478a02f'
+        unioned_dag = ProvDAG.union([
+            self.tas.int_seq1.dag,
+            self.tas.int_seq2.dag,
+            self.tas.concated_ints.dag,
+            self.tas.other_concated_ints.dag
+        ])
 
-        unioned_dag = ProvDAG.union([self.v5_qzv, self.v5_table, v5_unr_tree])
-
-        self.assertIn(self.qzv_uuid, unioned_dag._parsed_artifact_uuids)
-        self.assertIn(self.table_uuid, unioned_dag._parsed_artifact_uuids)
-        self.assertIn(tree_uuid, unioned_dag._parsed_artifact_uuids)
-        self.assertEqual(len(unioned_dag._parsed_artifact_uuids), 3)
+        self.assertIn(self.tas.int_seq1.uuid,
+                      unioned_dag._parsed_artifact_uuids)
+        self.assertIn(self.tas.int_seq2.uuid,
+                      unioned_dag._parsed_artifact_uuids)
+        self.assertIn(self.tas.concated_ints.uuid,
+                      unioned_dag._parsed_artifact_uuids)
+        self.assertIn(self.tas.other_concated_ints.uuid,
+                      unioned_dag._parsed_artifact_uuids)
+        self.assertEqual(len(unioned_dag._parsed_artifact_uuids), 4)
 
         self.assertEqual(len(unioned_dag.terminal_uuids), 2)
-        self.assertEqual(unioned_dag.terminal_uuids,
-                         set([self.qzv_uuid, tree_uuid]))
+        self.assertEqual(
+            unioned_dag.terminal_uuids,
+            {self.tas.concated_ints.uuid, self.tas.other_concated_ints.uuid}
+        )
 
         self.assertEqual(
             nx.number_weakly_connected_components(unioned_dag.dag), 1)
 
-    def test_graphs_same_analysis_missing_artifacts(self):
+    def test_one_analysis_two_artifacts(self):
         """
-        In this set of test archives, both .qzvs are derived from the same
-        feature table, so should produce one connected DAG even though we are
-        missing the rarefied_table.qza used to create the rarefied_table.qzv
+        In this set of test archives, both artifacts are derived from the same
+        parents, so should produce one connected DAG even though we are
+        missing the parent artifacts used to create them
         """
-        rar_qzv = ProvDAG(os.path.join(DATA_DIR, 'v5_rarefied_table.qzv'))
-        rar_uuid = '79a0d2ea-ea01-40c0-a4a4-0beab7c1f244'
+        unioned_dag = ProvDAG.union([
+            self.tas.concated_ints.dag,
+            self.tas.other_concated_ints.dag
+        ])
 
-        unioned_dag = ProvDAG.union([self.v5_qzv, self.v5_table, rar_qzv])
-
-        self.assertIn(self.qzv_uuid, unioned_dag._parsed_artifact_uuids)
-        self.assertIn(self.table_uuid, unioned_dag._parsed_artifact_uuids)
-        self.assertIn(rar_uuid, unioned_dag._parsed_artifact_uuids)
-        self.assertEqual(len(unioned_dag._parsed_artifact_uuids), 3)
+        self.assertIn(self.tas.concated_ints.uuid,
+                      unioned_dag._parsed_artifact_uuids)
+        self.assertIn(self.tas.other_concated_ints.uuid,
+                      unioned_dag._parsed_artifact_uuids)
+        self.assertEqual(len(unioned_dag._parsed_artifact_uuids), 2)
 
         self.assertEqual(len(unioned_dag.terminal_uuids), 2)
-        self.assertEqual(unioned_dag.terminal_uuids, {self.qzv_uuid, rar_uuid})
+        self.assertEqual(
+            unioned_dag.terminal_uuids,
+            {self.tas.concated_ints.uuid, self.tas.other_concated_ints.uuid}
+        )
 
         self.assertEqual(
             nx.number_weakly_connected_components(unioned_dag.dag), 1)
-
-
-class ProvDAGTestsNoChecksumValidation(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.no_checksum_dags = dict()
-        for archive_version in TEST_DATA:
-            # supress warning from parsing provenance for a v0 provDag
-            uuid = TEST_DATA['0']['uuid']
-            with warnings.catch_warnings():
-                warnings.filterwarnings('ignore',  f'Art.*{uuid}.*prior')
-                cls.no_checksum_dags[archive_version] = ProvDAG(
-                    str(TEST_DATA[archive_version]['qzv_fp']),
-                    validate_checksums=False)
-
-    # This should only trigger if something fails in setup or above
-    # e.g. if a ProvDag fails to initialize
-    def test_smoke(self):
-        self.assertTrue(True)
 
     def test_no_checksum_validation_on_intact_artifact(self):
-        dags = self.no_checksum_dags
-        for vz in dags:
-            self.assertEqual(len(dags[vz].terminal_uuids), 1)
-            # This is deterministic because there is one uuid in the set:
-            terminal_uuid, *_ = dags[vz].terminal_uuids
-            self.assertEqual(terminal_uuid,
-                             TEST_DATA[vz]['uuid'])
-            # Node count acts as a proxy test for completeness here
-            self.assertEqual(len(dags[vz]),
-                             TEST_DATA[vz]['n_res'])
-            self.assertEqual(dags[vz].provenance_is_valid,
-                             ValidationCode.VALIDATION_OPTOUT)
-            self.assertEqual(dags[vz].checksum_diff, None)
+        no_validation_dag = ProvDAG(self.tas.concated_ints.filepath,
+                                    validate_checksums=False)
 
-    def test_no_checksum_missing_checksums_md5(self):
-        drop_file = pathlib.Path('checksums.md5')
+        self.assertEqual(len(no_validation_dag.terminal_uuids), 1)
+        terminal_uuid, *_ = no_validation_dag.terminal_uuids
+        self.assertEqual(terminal_uuid, self.tas.concated_ints.uuid)
+
+        self.assertEqual(len(no_validation_dag), 3)
+        self.assertEqual(no_validation_dag.provenance_is_valid,
+                         ValidationCode.VALIDATION_OPTOUT)
+        self.assertEqual(no_validation_dag.checksum_diff, None)
+
+    def test_no_checksum_validation_missing_checksums_md5(self):
         with generate_archive_with_file_removed(
-            qzv_fp=TEST_DATA['5']['qzv_fp'],
-            root_uuid=TEST_DATA['5']['uuid'],
-                file_to_drop=drop_file) as chopped_archive:
+            self.tas.concated_ints.filepath,
+            self.tas.concated_ints.uuid,
+            'checksums.md5'
+        ) as altered_archive:
+            dag = ProvDAG(altered_archive, validate_checksums=False)
 
-            a_dag = ProvDAG(chopped_archive, validate_checksums=False)
-
-            # Have we set provenance_is_valid correctly?
             self.assertEqual(
-                a_dag.provenance_is_valid, ValidationCode.VALIDATION_OPTOUT)
+                dag.provenance_is_valid, ValidationCode.VALIDATION_OPTOUT)
 
-            # Is the diff correct?
-            diff = a_dag.checksum_diff
-            self.assertEqual(diff, None)
+            self.assertEqual(dag.checksum_diff, None)
 
     def test_no_checksum_validation_missing_node_files(self):
-        pfx = 'provenance/artifacts/'
-        for archive_version in TEST_DATA:
-            # V0 doesn't have root nodes
-            if archive_version == '0':
-                continue
-            root_uuid = TEST_DATA[archive_version]['uuid']
-            node_uuid = TEST_DATA[archive_version]['nonroot_node']
-            parser = TEST_DATA[archive_version]['parser']
-            fnames = parser.expected_files_in_all_nodes
-            for name in fnames:
-                drop_file = pathlib.Path(pfx) / node_uuid / name
+        path_prefix = os.path.join('provenance', 'artifacts')
+        root_uuid = self.tas.concated_ints.uuid
+        for removed_file in [
+            'metadata.yaml',
+            'citations.bib',
+            'VERSION',
+            'action/action.yaml'
+        ]:
+            for uuid in [self.tas.int_seq1.uuid, self.tas.int_seq2.uuid]:
                 with generate_archive_with_file_removed(
-                    qzv_fp=TEST_DATA[archive_version]['qzv_fp'],
-                    root_uuid=root_uuid,
-                        file_to_drop=drop_file) as chopped_archive:
+                    self.tas.concated_ints.filepath,
+                    root_uuid,
+                    os.path.join(path_prefix, uuid, removed_file)
+                ) as altered_archive:
+                    if removed_file == 'action/action.yaml':
+                        file = 'action.yaml'
+                    else:
+                        file = removed_file
 
-                    # Fudging this to match what the user sees - 'action.yaml'
-                    if name == 'action/action.yaml':
-                        name = 'action.yaml'
-                    fn = 'mangled.qzv'
                     expected = (
-                        f"(?s)Malformed.*{name}.*{node_uuid}.*"
-                        f"{fn}.*corrupt"
+                        f'(?s)Malformed.*{file}.*{uuid}.*corrupt.*'
                     )
                     with self.assertRaisesRegex(ValueError, expected):
-                        ProvDAG(chopped_archive, validate_checksums=False)
+                        ProvDAG(altered_archive, validate_checksums=False)
 
 
 class EmptyParserTests(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp(prefix='qiime2-test-parse-temp-')
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
     def test_get_parser(self):
         parser = EmptyParser.get_parser(None)
         self.assertIsInstance(parser, EmptyParser)
 
     def test_get_parser_input_data_not_none(self):
-        fn = 'not_a_zip.txt'
-        fp = os.path.join(DATA_DIR, fn)
+        fn = 'not-a-zip.txt'
+        fp = os.path.join(self.tempdir, fn)
+        with open(fp, 'w') as fh:
+            fh.write('some text\n')
         with self.assertRaisesRegex(
                 TypeError, f"EmptyParser.*{fn} is not None"):
             EmptyParser.get_parser(fp)
@@ -892,6 +893,13 @@ class ProvDAGParserTests(unittest.TestCase):
                 cls.dags[archive_version] = ProvDAG(
                     str(TEST_DATA[archive_version]['qzv_fp']))
 
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp(prefix='qiime2-test-parse-temp-')
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    # TODO: make artifacts of all versions, then test
     def test_get_parser(self):
         for version in TEST_DATA:
             parser = ProvDAGParser.get_parser(self.dags[version])

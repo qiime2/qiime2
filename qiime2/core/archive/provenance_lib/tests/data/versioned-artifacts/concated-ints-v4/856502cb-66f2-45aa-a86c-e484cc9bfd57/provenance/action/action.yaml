@@ -1,0 +1,86 @@
+execution:
+    uuid: 386b6893-db57-4b71-8133-d44dcacafd07
+    runtime:
+        start: 2023-07-26T15:28:51.561876-07:00
+        end: 2023-07-26T15:28:51.569243-07:00
+        duration: 7367 microseconds
+
+action:
+    type: method
+    plugin: !ref 'environment:plugins:dummy-plugin'
+    action: concatenate_ints
+    inputs:
+    -   ints1: a2465031-c2f6-4596-93ea-184a3602e460
+    -   ints2: a2465031-c2f6-4596-93ea-184a3602e460
+    -   ints3: c0888e03-83a6-4a21-b9b4-378f3e3f8341
+    parameters:
+    -   int1: 7
+    -   int2: 100
+    output-name: concatenated_ints
+    citations:
+    - !cite 'action|dummy-plugin:0.0.0-dev|method:concatenate_ints|0'
+
+transformers:
+    inputs:
+        ints1:
+        -   from: IntSequenceDirectoryFormat
+            to: builtins:list
+            plugin: !ref 'environment:plugins:dummy-plugin'
+            citations:
+            - !cite 'view|dummy-plugin:0.0.0-dev|IntSequenceDirectoryFormat|0'
+        ints2:
+        -   from: IntSequenceDirectoryFormat
+            to: builtins:list
+            plugin: !ref 'environment:plugins:dummy-plugin'
+            citations:
+            - !cite 'view|dummy-plugin:0.0.0-dev|IntSequenceDirectoryFormat|0'
+        ints3:
+        -   from: IntSequenceV2DirectoryFormat
+            to: builtins:list
+            plugin: !ref 'environment:plugins:dummy-plugin'
+    output:
+    -   from: builtins:list
+        to: IntSequenceDirectoryFormat
+        plugin: !ref 'environment:plugins:dummy-plugin'
+        citations:
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceDirectoryFormat|0'
+        - !cite 'view|dummy-plugin:0.0.0-dev|IntSequenceDirectoryFormat|0'
+
+environment:
+    platform: macosx-10.9-x86_64
+    python: |-
+        3.6.13 |Anaconda, Inc.| (default, Feb 23 2021, 12:58:59)
+        [GCC Clang 10.0.0 ]
+    framework:
+        version: 2018.6.0
+        website: https://qiime2.org
+        citations:
+        - !cite 'framework|qiime2:2018.6.0|0'
+    plugins:
+        dummy-plugin:
+            version: 0.0.0-dev
+            website: https://github.com/qiime2/qiime2
+            citations:
+            - !cite 'plugin|dummy-plugin:0.0.0-dev|0'
+            - !cite 'plugin|dummy-plugin:0.0.0-dev|1'
+    python-packages:
+        zipp: 3.6.0
+        wheel: 0.37.1
+        tzlocal: '4.2'
+        tzdata: '2023.3'
+        six: 1.16.0
+        setuptools: 58.0.4
+        qiime2: 2018.6.0
+        PyYAML: 6.0.1
+        pytz: '2023.3'
+        pytz-deprecation-shim: 0.1.0.post0
+        python-dateutil: 2.8.2
+        pyparsing: 3.1.0
+        pip: 21.2.2
+        pandas: 1.1.5
+        numpy: 1.19.5
+        importlib-resources: 5.4.0
+        decorator: 5.1.1
+        certifi: 2021.5.30
+        bibtexparser: 1.4.0
+        backports.zoneinfo: 0.2.1
