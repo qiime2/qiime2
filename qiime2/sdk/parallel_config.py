@@ -65,8 +65,8 @@ def setup_parallel(config_fp=None):
 
     # If we don't have a filepath or a currently existing config then get the
     # path to the vendored one. We do not want to get the vendored path if they
-    # have a pre-existing config because we do not want to overwrite an exiting
-    # config with the vendored one
+    # have a pre-existing config because we do not want to overwrite an
+    # existing config with the vendored one
     if config_fp is None and PARALLEL_CONFIG.parallel_config is None:
         config_fp = _get_vendored_config()
 
