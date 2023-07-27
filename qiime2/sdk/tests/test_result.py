@@ -587,6 +587,22 @@ class TestResultCollection(unittest.TestCase):
                 TypeError, 'All ResultCollection keys must be strings'):
             ResultCollection({1: 0})
 
+    def test_invalid_key_init(self):
+        with self.assertRaisesRegex(
+                KeyError,
+                'ResultCollection keys may only contain the following'
+                ' characters:.*'):
+            ResultCollection({'not a valid key': 0})
+
+    def test_invalid_key_added(self):
+        collection = ResultCollection()
+
+        with self.assertRaisesRegex(
+                KeyError,
+                'ResultCollection keys may only contain the following'
+                ' characters:.*'):
+            collection['not a valid key'] = 0
+
 
 if __name__ == '__main__':
     unittest.main()
