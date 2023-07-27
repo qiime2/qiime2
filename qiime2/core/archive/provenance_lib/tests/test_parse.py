@@ -167,8 +167,8 @@ class ProvDAGTests(unittest.TestCase):
         single_int = Artifact.import_data('SingleInt', 0)
         int_seq1 = Artifact.import_data('IntSequence1', [1, 1, 2])
         int_seq2 = Artifact.import_data('IntSequence2', [3, 5])
-        mapping1 = Artifact.import_data('Mapping', {'a': 8, 'b': 13})
-        mapping2 = Artifact.import_data('Mapping', {'c': 21, 'd': 54})
+        mapping1 = Artifact.import_data('Mapping', {'a': 42})
+        mapping2 = Artifact.import_data('Mapping', {'c': 8, 'd': 13})
 
         for artifact, name in zip(
             [single_int, int_seq1, int_seq2, mapping1, mapping2],
@@ -181,9 +181,9 @@ class ProvDAGTests(unittest.TestCase):
             )
             setattr(TestArtifacts, name, test_artifact)
 
-        concat_ints = self.dp.actions['concatenate_ints']
-        split_ints = self.dp.actions['split_ints']
-        merge_mappings = self.dp.actions['merge_mappings']
+        concat_ints = self.dp.methods['concatenate_ints']
+        split_ints = self.dp.methods['split_ints']
+        merge_mappings = self.dp.methods['merge_mappings']
         # to be used
         # identity_with_metadata = self.dp.actions['identity_with_metadata']
 
@@ -194,13 +194,22 @@ class ProvDAGTests(unittest.TestCase):
         splitted_ints, _ = split_ints(int_seq2)
         merged_mappings, = merge_mappings(mapping1, mapping2)
 
+        # create artifact with pipeline provenance
+        typical_pipeline = self.dp.pipelines['typical_pipeline']
+        _, _, _, pipeline_viz, _ = typical_pipeline(int_seq1, mapping1, False)
+
         for artifact, name in zip(
             [concated_ints, other_concated_ints, splitted_ints,
-             merged_mappings],
+             merged_mappings, pipeline_viz],
             ['concated_ints', 'other_concated_ints', 'splitted_ints',
-             'merged_mappings']
+             'merged_mappings', 'pipeline_viz']
         ):
-            fp = os.path.join(self.tempdir, f'{name}.qza')
+            if name == 'pipeline_viz':
+                ext = '.qzv'
+            else:
+                ext = '.qza'
+
+            fp = os.path.join(self.tempdir, f'{name}{ext}')
             artifact.save(fp)
             test_artifact = TestArtifact(
                 name, artifact, str(artifact.uuid), fp, ProvDAG(fp)
@@ -254,6 +263,12 @@ class ProvDAGTests(unittest.TestCase):
         num_concated_ints_nodes = len(self.tas.concated_ints.dag.nodes)
         self.assertEqual(num_concated_ints_nodes, 3)
 
+    def test_number_of_nodes_pipeline(self):
+        # input int-seq, input mapping, pipeline output viz, aliased viz,
+        # split int-seq
+        num_pipeline_viz_nodes = len(self.tas.pipeline_viz.dag.nodes)
+        self.assertEqual(num_pipeline_viz_nodes, 5)
+
     def test_number_of_terminal_nodes(self):
         num_int_seq1_term_nodes = len(self.tas.int_seq1.dag.terminal_nodes)
         self.assertEqual(num_int_seq1_term_nodes, 1)
@@ -273,6 +288,10 @@ class ProvDAGTests(unittest.TestCase):
         dag = ProvDAG(dir_fp)
         self.assertEqual(len(dag.terminal_nodes), 1)
 
+    def test_number_of_terminal_nodes_pipeline(self):
+        num_pipeline_viz_term_nodes = len(self.tas.int_seq1.dag.terminal_nodes)
+        self.assertEqual(num_pipeline_viz_term_nodes, 1)
+
     def test_root_node_is_archive_root(self):
         with zipfile.ZipFile(self.tas.concated_ints.filepath) as zf:
             all_filenames = zf.namelist()
@@ -286,6 +305,14 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(self.tas.int_seq1.dag.dag.number_of_edges(), 0)
 
         self.assertEqual(self.tas.concated_ints.dag.dag.number_of_edges(), 2)
+
+    def test_number_of_actions_pipeline(self):
+        # (1) one edge from input intseq to pipeline output viz
+        # (2) one edge from input mapping to pipeline output viz
+        # (3) one edge from input intseq to left split int
+        # (4) one edge from left split int to true output viz, of which
+        # pipeline output viz is an alias
+        self.assertEqual(self.tas.pipeline_viz.dag.dag.number_of_edges(), 4)
 
     def test_nonexistent_fp(self):
         fp = os.path.join(self.tempdir, 'does-not-exist.qza')
@@ -336,6 +363,11 @@ class ProvDAGTests(unittest.TestCase):
         concated_ints_node, *_ = self.tas.concated_ints.dag.terminal_nodes
         self.assertEqual(concated_ints_node.action.action_name,
                          'concatenate_ints')
+
+    def test_node_action_names_pipeline(self):
+        pipeline_viz_node, *_ = self.tas.pipeline_viz.dag.terminal_nodes
+        self.assertEqual(pipeline_viz_node.action.action_name,
+                         'typical_pipeline')
 
     def test_has_correct_edges(self):
         edges = self.tas.concated_ints.dag.dag.edges
@@ -396,8 +428,6 @@ class ProvDAGTests(unittest.TestCase):
         # iterations + o.g. concated_ints + o.g. int_seq + o.g. int_seq2
         self.assertEqual(len(dag), iterations + 3)
 
-    # TODO: tests of get_outer_provenance_nodes with pipelines involved,
-    # TODO: because these are supposedly discluded
     def test_get_outer_provenance_nodes(self):
         fp = os.path.join(self.tempdir, 'disconnected-provenances')
         os.mkdir(fp)
@@ -412,6 +442,16 @@ class ProvDAGTests(unittest.TestCase):
             self.tas.concated_ints.uuid,
             self.tas.int_seq1.uuid,
             self.tas.int_seq2.uuid
+        }
+        self.assertEqual(actual, exp)
+
+    def test_get_outer_provenance_nodes_pipeline(self):
+        dag = self.tas.pipeline_viz.dag
+        actual = dag.get_outer_provenance_nodes(self.tas.pipeline_viz.uuid)
+        exp = {
+            self.tas.pipeline_viz.uuid,
+            self.tas.int_seq1.uuid,
+            self.tas.mapping1.uuid
         }
         self.assertEqual(actual, exp)
 
@@ -450,7 +490,6 @@ class ProvDAGTests(unittest.TestCase):
         for node in copied_dag.nodes:
             self.assertEqual(node, copied_dag.get_node_data(node)._uuid)
 
-    # TODO: again, test this for pipelines
     def test_collapsed_view(self):
         view = self.tas.concated_ints.dag.collapsed_view
         self.assertIsInstance(view, DiGraph)
@@ -460,6 +499,19 @@ class ProvDAGTests(unittest.TestCase):
             self.tas.concated_ints.uuid,
             self.tas.int_seq1.uuid,
             self.tas.int_seq2.uuid
+        ]
+        for exp_node in exp_nodes:
+            self.assertIn(exp_node, view.nodes)
+
+    def test_collapsed_view_pipeline(self):
+        view = self.tas.pipeline_viz.dag.collapsed_view
+        self.assertIsInstance(view, DiGraph)
+        self.assertEqual(len(view), 3)
+
+        exp_nodes = [
+            self.tas.pipeline_viz.uuid,
+            self.tas.int_seq1.uuid,
+            self.tas.mapping1.uuid
         ]
         for exp_node in exp_nodes:
             self.assertIn(exp_node, view.nodes)
