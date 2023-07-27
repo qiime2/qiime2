@@ -228,7 +228,7 @@ class ProvDAGTests(unittest.TestCase):
             fp = os.path.join(self.tempdir, filename)
             a.save(fp)
             name = filename.replace('-', '_').replace('.qza', '')
-            ta = TestArtifact(name, a, str(a.uuid), fp, ProvDAG(fp))
+            ta = TestArtifact(name, a, str(a.uuid), fp, ProvDAG(fp), version)
             setattr(TestArtifacts, name, ta)
 
         # create archive with missing checksums.md5
