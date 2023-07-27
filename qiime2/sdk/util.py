@@ -124,5 +124,5 @@ def actions_by_input_type(string):
 
 def validate_result_collection_key(key):
     if not bool(re.match('^[a-zA-Z0-9+-_.]+$', key)):
-        raise KeyError('Result Collection keys may only contain the following'
+        raise KeyError('ResultCollection keys may only contain the following'
                        ' characters: A-Z, a-z, 0-9, +, -, _, and .')
