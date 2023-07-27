@@ -216,11 +216,14 @@ class ProvDAGTests(unittest.TestCase):
             )
             setattr(TestArtifacts, name, test_artifact)
 
-        # import old artifact versions
-        for version in range(1, 7):
-            dirname = f'concated-ints-v{version}'
-            versioned_artifact_dir = os.path.join(self.datadir, dirname)
+        # import dummy artifacts for versions [0, 6]
+        for version in range(0, 7):
+            if version == 0:
+                dirname = 'table-v0'
+            else:
+                dirname = f'concated-ints-v{version}'
 
+            versioned_artifact_dir = os.path.join(self.datadir, dirname)
             temp_zf_path = os.path.join(self.tempdir, 'temp.zip')
             zf = zipfile.ZipFile(temp_zf_path, 'w', zipfile.ZIP_DEFLATED)
             for root, dirs, files in os.walk(versioned_artifact_dir):
@@ -233,11 +236,21 @@ class ProvDAGTests(unittest.TestCase):
             zf.close()
 
             filename = f'{dirname}.qza'
-            a = Artifact.load(temp_zf_path)
             fp = os.path.join(self.tempdir, filename)
-            a.save(fp)
+
+            if version == 0:
+                shutil.copy(temp_zf_path, fp)
+                a = None
+            else:
+                a = Artifact.load(temp_zf_path)
+                a.save(fp)
+
+            dag = ProvDAG(fp)
+            uuid, *_ = dag.terminal_nodes
+            assert len(dag.terminal_nodes) == 1
+
             name = filename.replace('-', '_').replace('.qza', '')
-            ta = TestArtifact(name, a, str(a.uuid), fp, ProvDAG(fp), version)
+            ta = TestArtifact(name, a, uuid, fp, dag, version)
             setattr(TestArtifacts, name, ta)
 
         # create archive with missing checksums.md5
@@ -536,13 +549,14 @@ class ProvDAGTests(unittest.TestCase):
                 with zf.open(overwrite_fp, 'w') as fh:
                     fh.write(b'999\n')
 
-            expected = ('(?s)'
-                        f'Checksums are invalid for Archive {uuid}.*'
-                        'Archive may be corrupt.*'
-                        'Files added.*tamper.txt.*'
-                        'Files removed.*ints.txt.*'
-                        'Files changed.*provenance.*citations.bib.*'
-                        )
+            expected = (
+                '(?s)'
+                f'Checksums are invalid for Archive {uuid}.*'
+                'Archive may be corrupt.*'
+                'Files added.*tamper.txt.*'
+                'Files removed.*ints.txt.*'
+                'Files changed.*provenance.*citations.bib.*'
+            )
 
             with self.assertWarnsRegex(UserWarning, expected):
                 dag = ProvDAG(altered_archive)
