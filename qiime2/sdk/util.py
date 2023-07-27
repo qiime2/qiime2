@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import re
+
 import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.type.parse as _parse
@@ -118,3 +120,9 @@ def actions_by_input_type(string):
                 commands.append((pg, actions))
 
     return commands
+
+
+def validate_result_collection_key(key):
+    if not bool(re.match('^[a-zA-Z0-9+-_.]+$', key)):
+        raise KeyError('Result Collection keys may only contain the following'
+                       ' characters: A-Z, a-z, 0-9, +, -, _, and .')

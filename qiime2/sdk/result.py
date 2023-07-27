@@ -6,7 +6,6 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import re
 import os
 import shutil
 import warnings
@@ -553,7 +552,7 @@ class ResultCollection:
                 raise TypeError('All ResultCollection keys must be strings')
 
             for key in collection.keys():
-                _validate_result_collection_key(key)
+                qiime2.sdk.util.validate_result_collection_key(key)
 
             self.collection = collection
         else:
@@ -578,7 +577,7 @@ class ResultCollection:
         yield self.collection.__iter__()
 
     def __setitem__(self, key, item):
-        _validate_result_collection_key(key)
+        qiime2.sdk.util.validate_result_collection_key(key)
         self.collection[key] = item
 
     def __getitem__(self, key):
@@ -633,9 +632,3 @@ class ResultCollection:
         """ Noop to provide standardized interface with ProxyResultCollection.
         """
         return self
-
-
-def _validate_result_collection_key(key):
-    if not bool(re.match('^[a-zA-Z0-9+-_.]+$', key)):
-        raise KeyError('Result Collection keys may only contain the following'
-                       ' characters: A-Z, a-z, 0-9, +, -, _, and .')
