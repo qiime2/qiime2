@@ -140,5 +140,5 @@ def validate_result_collection_keys(*args):
     if len(invalid_keys) > 0:
         raise KeyError('Invalid key(s) provided for ResultCollection. '
                        'ResultCollection keys may only contain the following '
-                       'characters: A-Z, a-z, 0-9, +, -, _, and .\n'
-                       f'The offending key(s) are: {", ".join(invalid_keys)}')
+                       'characters: A-Z, a-z, 0-9, +, -, ., and _. '
+                       f'Offending keys include: {", ".join(invalid_keys)}')
