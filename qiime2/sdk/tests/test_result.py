@@ -591,7 +591,7 @@ class TestResultCollection(unittest.TestCase):
         with self.assertRaisesRegex(
                 KeyError,
                 'ResultCollection keys may only contain the following'
-                ' characters:.*'):
+                ' characters:.*valid key'):
             ResultCollection({'not a valid key': 0})
 
     def test_invalid_key_added(self):
@@ -600,7 +600,7 @@ class TestResultCollection(unittest.TestCase):
         with self.assertRaisesRegex(
                 KeyError,
                 'ResultCollection keys may only contain the following'
-                ' characters:.*'):
+                ' characters:.*valid key'):
             collection['not a valid key'] = 0
 
 
