@@ -122,7 +122,23 @@ def actions_by_input_type(string):
     return commands
 
 
-def validate_result_collection_key(key):
-    if not bool(re.match('^[a-zA-Z0-9+-_.]+$', key)):
-        raise KeyError('ResultCollection keys may only contain the following'
-                       ' characters: A-Z, a-z, 0-9, +, -, _, and .')
+def validate_result_collection_keys(*args):
+    """Validate one or more strings intended for use as ResultCollection keys.
+
+    This can be called on one or more keys provided as arguments:
+    qiime2.sdk.util.validate_result_collection_keys('@', 'a1@')
+
+    Or on a list, by unpacking it in the call:
+    l = ['@', 'a1@']
+    qiime2.sdk.util.validate_result_collection_keys(*l)
+    """
+    invalid_keys = []
+    for key in args:
+        if bool(re.search(r'[^\w+-.]', key)):
+            invalid_keys.append(key)
+
+    if len(invalid_keys) > 0:
+        raise KeyError('Invalid key(s) provided for ResultCollection. '
+                       'ResultCollection keys may only contain the following '
+                       'characters: A-Z, a-z, 0-9, +, -, _, and .\n'
+                       f'The offending key(s) are: {", ".join(invalid_keys)}')
