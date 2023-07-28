@@ -118,3 +118,7 @@ def actions_by_input_type(string):
                 commands.append((pg, actions))
 
     return commands
+
+
+def view_collection(collection, view_type):
+    return {k: v.view(view_type) for k, v in collection.items()}
