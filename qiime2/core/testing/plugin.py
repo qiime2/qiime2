@@ -888,7 +888,7 @@ dummy_plugin.pipelines.register_function(
     parameters={},
     outputs=[('output', Collection[Mapping])],
     name='Returns de facto ResultCollection',
-    description='Takes noting and returns de facto ResultCollection'
+    description='Takes nothing and returns de facto ResultCollection'
 )
 
 dummy_plugin.pipelines.register_function(
