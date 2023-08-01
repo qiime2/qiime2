@@ -8,7 +8,6 @@ import random
 import shutil
 import tempfile
 import unittest
-import warnings
 import zipfile
 
 from networkx import DiGraph
@@ -123,33 +122,11 @@ class TestArtifact:
     archive_version: int = 6
 
 
-class ProvDAGTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.dags = dict()
-        for archive_version in TEST_DATA:
-            # supress warning from parsing provenance for a v0 provDag
-            uuid = TEST_DATA['0']['uuid']
-            with warnings.catch_warnings():
-                warnings.filterwarnings('ignore',  f'Art.*{uuid}.*prior')
-                cls.dags[archive_version] = ProvDAG(
-                    str(TEST_DATA[archive_version]['qzv_fp']))
-
-    def save_artifact_to_dir(self, artifact, directory):
-        dir_fp = os.path.join(self.tempdir, directory)
-        try:
-            os.mkdir(dir_fp)
-        except FileExistsError:
-            pass
-
-        fp = os.path.join(dir_fp, f'{artifact.name}.qza')
-        artifact.artifact.save(fp)
-        return dir_fp
-
-    def setUp(self):
+class TestArtifacts:
+    def __init__(self):
         self.pm = PluginManager()
         self.dp = self.pm.plugins['dummy-plugin']
-        self.tempdir = tempfile.mkdtemp(prefix='qiime2-test-parse-temp-')
+        self.tempdir = tempfile.mkdtemp(prefix='qiime2-dummy-artifacts-temp-')
 
         # TODO: move versioned artifacts into root of data dir once everything
         # TODO: else is gone
@@ -158,10 +135,6 @@ class ProvDAGTests(unittest.TestCase):
             'data',
             'versioned-artifacts'
         )
-
-        class TestArtifacts:
-            # for attaching test artifacts
-            pass
 
         # artifacts with no action provenance (except import)
         single_int = Artifact.import_data('SingleInt', 0)
@@ -179,7 +152,7 @@ class ProvDAGTests(unittest.TestCase):
             test_artifact = TestArtifact(
                 name, artifact, str(artifact.uuid), fp, ProvDAG(fp)
             )
-            setattr(TestArtifacts, name, test_artifact)
+            setattr(self, name, test_artifact)
 
         concat_ints = self.dp.methods['concatenate_ints']
         split_ints = self.dp.methods['split_ints']
@@ -214,7 +187,7 @@ class ProvDAGTests(unittest.TestCase):
             test_artifact = TestArtifact(
                 name, artifact, str(artifact.uuid), fp, ProvDAG(fp)
             )
-            setattr(TestArtifacts, name, test_artifact)
+            setattr(self, name, test_artifact)
 
         # import dummy artifacts for versions [0, 6]
         for version in range(0, 7):
@@ -252,20 +225,40 @@ class ProvDAGTests(unittest.TestCase):
 
             name = filename.replace('-', '_').replace('.qza', '')
             ta = TestArtifact(name, a, uuid, fp, dag, version)
-            setattr(TestArtifacts, name, ta)
+            setattr(self, name, ta)
 
         # create archive with missing checksums.md5
         with generate_archive_with_file_removed(
-            TestArtifacts.single_int.filepath,
-            TestArtifacts.single_int.uuid,
+            self.single_int.filepath,
+            self.single_int.uuid,
             'checksums.md5'
         ) as altered_archive:
             self.dag_missing_md5 = ProvDAG(altered_archive)
 
-        self.tas = TestArtifacts
-
-    def tearDown(self):
+    def free(self):
         shutil.rmtree(self.tempdir)
+
+
+class ProvDAGTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
+    def save_artifact_to_dir(self, artifact, directory):
+        dir_fp = os.path.join(self.tempdir, directory)
+        try:
+            os.mkdir(dir_fp)
+        except FileExistsError:
+            pass
+
+        fp = os.path.join(dir_fp, f'{artifact.name}.qza')
+        artifact.artifact.save(fp)
+        return dir_fp
 
     def test_number_of_nodes(self):
         num_single_int_nodes = len(self.tas.single_int.dag.nodes)
@@ -336,7 +329,9 @@ class ProvDAGTests(unittest.TestCase):
             ProvDAG(fp)
 
     def test_insufficient_permissions(self):
-        fp = self.tas.int_seq1.filepath
+        fp = os.path.join(self.tempdir, 'int-seq-1-permissions-copy.qza')
+        self.tas.int_seq1.artifact.save(fp)
+
         os.chmod(fp, 0o000)
         err_msg = f'PermissionError.*ArchiveParser.*denied.*{fp}'
         with self.assertRaisesRegex(UnparseableDataError, err_msg):
@@ -427,7 +422,7 @@ class ProvDAGTests(unittest.TestCase):
         self.assertNotEqual(self.tas.int_seq1.dag, self.tas.concated_ints.dag)
 
     def test_captures_full_history(self):
-        concat_ints = self.dp.actions['concatenate_ints']
+        concat_ints = self.tas.dp.actions['concatenate_ints']
 
         next_concated_ints = self.tas.concated_ints.artifact
         iterations = random.randint(1, 10)
@@ -733,8 +728,8 @@ class ProvDAGTests(unittest.TestCase):
             nx.number_weakly_connected_components(unioned_dag.dag), 3)
 
     def test_union_self_missing_checksums_md5(self):
-        unioned_dag = ProvDAG.union([self.dag_missing_md5,
-                                    self.tas.single_int.dag])
+        unioned_dag = ProvDAG.union([self.tas.dag_missing_md5,
+                                     self.tas.single_int.dag])
 
         self.assertRegex(repr(unioned_dag),
                          'ProvDAG representing these Artifacts.*'
@@ -757,7 +752,7 @@ class ProvDAGTests(unittest.TestCase):
         checksums.md5 but the calling ProvDAG is not
         """
         unioned_dag = ProvDAG.union([self.tas.single_int.dag,
-                                    self.dag_missing_md5])
+                                     self.tas.dag_missing_md5])
 
         self.assertRegex(repr(unioned_dag),
                          'ProvDAG representing these Artifacts.*'
@@ -776,8 +771,8 @@ class ProvDAGTests(unittest.TestCase):
         Tests unions of v5 dags where both artifacts are missing their
         checksums.md5 files.
         """
-        unioned_dag = ProvDAG.union([self.dag_missing_md5,
-                                    self.dag_missing_md5])
+        unioned_dag = ProvDAG.union([self.tas.dag_missing_md5,
+                                     self.tas.dag_missing_md5])
 
         self.assertRegex(repr(unioned_dag),
                          'ProvDAG representing these Artifacts.*'
@@ -1026,43 +1021,39 @@ class EmptyParserTests(unittest.TestCase):
 class ProvDAGParserTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.dags = dict()
-        for archive_version in TEST_DATA:
-            # supress warning from parsing provenance for a v0 provDag
-            uuid = TEST_DATA['0']['uuid']
-            with warnings.catch_warnings():
-                warnings.filterwarnings('ignore',  f'Art.*{uuid}.*prior')
-                cls.dags[archive_version] = ProvDAG(
-                    str(TEST_DATA[archive_version]['qzv_fp']))
+        cls.tas = TestArtifacts()
 
-    def setUp(self):
-        self.tempdir = tempfile.mkdtemp(prefix='qiime2-test-parse-temp-')
+        cls.all_archive_versions = [
+            cls.tas.table_v0, cls.tas.concated_ints_v1,
+            cls.tas.concated_ints_v2, cls.tas.concated_ints_v3,
+            cls.tas.concated_ints_v4, cls.tas.concated_ints_v5,
+            cls.tas.concated_ints_v6
+        ]
 
-    def tearDown(self):
-        shutil.rmtree(self.tempdir)
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
 
-    # TODO: make artifacts of all versions, then test
     def test_get_parser(self):
-        for version in TEST_DATA:
-            parser = ProvDAGParser.get_parser(self.dags[version])
+        for archive in self.all_archive_versions:
+            parser = ProvDAGParser.get_parser(archive.dag)
             self.assertIsInstance(parser, ProvDAGParser)
 
     def test_get_parser_input_data_not_a_provdag(self):
         fn = 'not_a_zip.txt'
-        fp = os.path.join(DATA_DIR, fn)
+        fp = os.path.join(self.tas.tempdir, fn)
         with self.assertRaisesRegex(
                 TypeError, f"ProvDAGParser.*{fn} is not a ProvDAG"):
             ProvDAGParser.get_parser(fp)
 
     def test_parse_a_provdag(self):
         parser = ProvDAGParser()
-        for dag in self.dags.values():
+        for archive in self.all_archive_versions:
+            dag = archive.dag
             parsed = parser.parse_prov(Config(), dag)
             self.assertIsInstance(parsed, ParserResults)
             self.assertEqual(parsed.parsed_artifact_uuids,
                              dag._parsed_artifact_uuids)
-            # NOTE: networkx thinks about graph equality in terms of object
-            # identity, so we must use nx.is_isomorphic to confirm "equality"
             self.assertTrue(nx.is_isomorphic(parsed.prov_digraph, dag.dag))
             self.assertEqual(parsed.provenance_is_valid,
                              dag.provenance_is_valid)
