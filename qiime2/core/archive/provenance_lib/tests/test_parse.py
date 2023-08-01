@@ -21,7 +21,6 @@ from ..parse import (
     ProvDAG, UnparseableDataError, DirectoryParser, EmptyParser, ProvDAGParser,
     archive_not_parsed, select_parser, parse_provenance,
 )
-from ..util import UUID
 from ..archive_parser import (
     ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5, ParserV6,
     Config, ProvNode, ParserResults, ArchiveParser,
@@ -1106,52 +1105,58 @@ class SelectParserTests(unittest.TestCase):
             ParserV6
         ]
         for archive, parser in zip(self.all_archive_versions, parsers):
-            fp = archive.filepath
-            handler = select_parser(fp)
+            handler = select_parser(archive.filepath)
             self.assertEqual(type(handler), parser)
 
 
 class ParseProvenanceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
         cls.cfg = Config()
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
     def test_parse_with_artifact_parser(self):
-        uuid = TEST_DATA['5']['uuid']
-        qzv_fp = TEST_DATA['5']['qzv_fp']
-        parser_results = parse_provenance(self.cfg, qzv_fp)
+        uuid = self.tas.concated_ints.uuid
+        fp = self.tas.concated_ints.filepath
+        parser_results = parse_provenance(self.cfg, fp)
+
         self.assertIsInstance(parser_results, ParserResults)
         p_a_uuids = parser_results.parsed_artifact_uuids
         self.assertIsInstance(p_a_uuids, set)
-        self.assertIsInstance(next(iter(p_a_uuids)), UUID)
-        self.assertEqual(len(parser_results.prov_digraph), 15)
+        self.assertIsInstance(next(iter(p_a_uuids)), str)
+        self.assertEqual(len(parser_results.prov_digraph), 3)
         self.assertIn(uuid, parser_results.prov_digraph)
         self.assertIsInstance(
             parser_results.prov_digraph.nodes[uuid]['node_data'],
             ProvNode)
         self.assertEqual(parser_results.provenance_is_valid,
-                         TEST_DATA['5']['prov_is_valid'])
+                         ValidationCode.VALID)
         self.assertEqual(parser_results.checksum_diff,
-                         TEST_DATA['5']['checksum'])
+                         ChecksumDiff({}, {}, {}))
 
     def test_parse_with_provdag_parser(self):
-        uuid = TEST_DATA['5']['uuid']
-        qzv_fp = TEST_DATA['5']['qzv_fp']
-        starter = ProvDAG(qzv_fp)
-        parser_results = parse_provenance(self.cfg, starter)
+        uuid = self.tas.concated_ints.uuid
+        dag = self.tas.concated_ints.dag
+        parser_results = parse_provenance(self.cfg, dag)
+
         self.assertIsInstance(parser_results, ParserResults)
         p_a_uuids = parser_results.parsed_artifact_uuids
         self.assertIsInstance(p_a_uuids, set)
-        self.assertIsInstance(next(iter(p_a_uuids)), UUID)
-        self.assertEqual(len(parser_results.prov_digraph), 15)
+        self.assertIsInstance(next(iter(p_a_uuids)), str)
+        self.assertEqual(len(parser_results.prov_digraph), 3)
         self.assertIn(uuid, parser_results.prov_digraph)
         self.assertIsInstance(
             parser_results.prov_digraph.nodes[uuid]['node_data'],
             ProvNode)
         self.assertEqual(parser_results.provenance_is_valid,
-                         TEST_DATA['5']['prov_is_valid'])
+                         ValidationCode.VALID)
         self.assertEqual(parser_results.checksum_diff,
-                         TEST_DATA['5']['checksum'])
+                         ChecksumDiff({}, {}, {}))
 
     def test_parse_with_empty_parser(self):
         res = parse_provenance(self.cfg, None)
@@ -1164,34 +1169,39 @@ class ParseProvenanceTests(unittest.TestCase):
 
     def test_parse_with_directory_parser(self):
         # Non-recursive
-        dir_fp = pathlib.Path(DATA_DIR) / 'parse_dir_test'
-        res = parse_provenance(self.cfg, dir_fp)
+        parse_dir_fp = os.path.join(self.tempdir, 'parse_dir')
+        os.mkdir(parse_dir_fp)
+        concated_ints_path = os.path.join(parse_dir_fp, 'concated-ints.qza')
+        shutil.copy(self.tas.concated_ints.filepath, concated_ints_path)
+
+        res = parse_provenance(self.cfg, parse_dir_fp)
         self.assertEqual(self.cfg.recurse, False)
         self.assertIsInstance(res, ParserResults)
-        v5_uu_id = 'ffb7cee3-2f1f-4988-90cc-efd5184ef003'
-        self.assertEqual(res.parsed_artifact_uuids, {v5_uu_id})
-        self.assertEqual(len(res.prov_digraph), 15)
-        self.assertEqual(res.provenance_is_valid,
-                         TEST_DATA['5']['prov_is_valid'])
-        self.assertEqual(res.checksum_diff, TEST_DATA['5']['checksum'])
+        concated_ints_uuid = self.tas.concated_ints.uuid
+        self.assertEqual(res.parsed_artifact_uuids, {concated_ints_uuid})
+        self.assertEqual(len(res.prov_digraph), 3)
+        self.assertEqual(res.provenance_is_valid, ValidationCode.VALID)
+        self.assertEqual(res.checksum_diff, ChecksumDiff({}, {}, {}))
 
         # Recursive
+        inner_dir_path = os.path.join(parse_dir_fp, 'inner-dir')
+        os.mkdir(inner_dir_path)
+        mapping_path = os.path.join(inner_dir_path, 'mapping1.qza')
+        shutil.copy(self.tas.mapping1.filepath, mapping_path)
+
         self.cfg.recurse = True
         self.assertEqual(self.cfg.recurse, True)
-        res = parse_provenance(self.cfg, dir_fp)
+        res = parse_provenance(self.cfg, parse_dir_fp)
         self.assertIsInstance(res, ParserResults)
-        v5_unr_tree_id = '12e012d5-b01c-40b7-b825-a17f0478a02f'
-        v5_tbl_id = '89af91c0-033d-4e30-8ac4-f29a3b407dc1'
-        v5_uu_id = 'ffb7cee3-2f1f-4988-90cc-efd5184ef003'
+        mapping_uuid = self.tas.mapping1.uuid
         self.assertEqual(res.parsed_artifact_uuids,
-                         {v5_tbl_id, v5_unr_tree_id, v5_uu_id})
-        self.assertEqual(len(res.prov_digraph), 16)
-        self.assertEqual(res.provenance_is_valid,
-                         TEST_DATA['5']['prov_is_valid'])
-        self.assertEqual(res.checksum_diff, TEST_DATA['5']['checksum'])
+                         {concated_ints_uuid, mapping_uuid})
+        self.assertEqual(len(res.prov_digraph), 4)
+        self.assertEqual(res.provenance_is_valid, ValidationCode.VALID)
+        self.assertEqual(res.checksum_diff, ChecksumDiff({}, {}, {}))
 
     def test_parse_with_directory_parser_bad_dir_path(self):
-        dir_fp = pathlib.Path(DATA_DIR) / 'fake_dir'
+        dir_fp = os.path.join(self.tempdir, 'fake_dir')
         with self.assertRaisesRegex(UnparseableDataError, 'not a valid dir'):
             parse_provenance(self.cfg, dir_fp)
 
@@ -1204,7 +1214,7 @@ class ParseProvenanceTests(unittest.TestCase):
             "DirectoryParser.*expects a directory.*"
             "ProvDAGParser.*is not a ProvDAG.*"
             "EmptyParser.*is not None"
-                ):
+        ):
             select_parser(input_data)
 
 
