@@ -23,7 +23,7 @@ from ..parse import (
 )
 from ..util import UUID
 from ..archive_parser import (
-    ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
+    ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5, ParserV6,
     Config, ProvNode, ParserResults, ArchiveParser,
 )
 
@@ -1061,12 +1061,27 @@ class ProvDAGParserTests(unittest.TestCase):
 
 
 class SelectParserTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+
+        cls.all_archive_versions = [
+            cls.tas.table_v0, cls.tas.concated_ints_v1,
+            cls.tas.concated_ints_v2, cls.tas.concated_ints_v3,
+            cls.tas.concated_ints_v4, cls.tas.concated_ints_v5,
+            cls.tas.concated_ints_v6
+        ]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
     def test_correct_parser_type(self):
         empty = select_parser(None)
         self.assertIsInstance(empty, EmptyParser)
 
-        test_arch_fp = TEST_DATA['5']['qzv_fp']
-        archive = select_parser(test_arch_fp)
+        archive = select_parser(self.tas.concated_ints.filepath)
         self.assertIsInstance(archive, ArchiveParser)
 
         dag = ProvDAG()
@@ -1074,7 +1089,9 @@ class SelectParserTests(unittest.TestCase):
         self.assertIsInstance(pdag, ProvDAGParser)
 
         # check dir_fp as fp
-        dir_fp = pathlib.Path(DATA_DIR) / 'parse_dir_test'
+        test_dir = os.path.join(self.tempdir, 'parse_dir_test')
+        os.mkdir(test_dir)
+        dir_fp = pathlib.Path(test_dir)
         dir_p = select_parser(dir_fp)
         self.assertIsInstance(dir_p, DirectoryParser)
 
@@ -1084,10 +1101,14 @@ class SelectParserTests(unittest.TestCase):
         self.assertIsInstance(dir_p, DirectoryParser)
 
     def test_correct_archive_parser_version(self):
-        for arch_ver in TEST_DATA:
-            qzv_fp = TEST_DATA[arch_ver]['qzv_fp']
-            handler = select_parser(qzv_fp)
-            self.assertIsInstance(handler, TEST_DATA[arch_ver]['parser'])
+        parsers = [
+            ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
+            ParserV6
+        ]
+        for archive, parser in zip(self.all_archive_versions, parsers):
+            fp = archive.filepath
+            handler = select_parser(fp)
+            self.assertEqual(type(handler), parser)
 
 
 class ParseProvenanceTests(unittest.TestCase):
