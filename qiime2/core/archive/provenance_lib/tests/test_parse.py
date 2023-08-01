@@ -246,8 +246,9 @@ class ProvDAGTests(unittest.TestCase):
                 a.save(fp)
 
             dag = ProvDAG(fp)
-            uuid, *_ = dag.terminal_nodes
             assert len(dag.terminal_nodes) == 1
+            terminal_node, *_ = dag.terminal_nodes
+            uuid = terminal_node._uuid
 
             name = filename.replace('-', '_').replace('.qza', '')
             ta = TestArtifact(name, a, uuid, fp, dag, version)
@@ -610,6 +611,42 @@ class ProvDAGTests(unittest.TestCase):
                     )
                     with self.assertRaisesRegex(ValueError, expected):
                         ProvDAG(altered_archive)
+
+    def test_v0_archive(self):
+        dag = self.tas.table_v0.dag
+        uuid = self.tas.table_v0.uuid
+
+        self.assertEqual(dag.provenance_is_valid,
+                         ValidationCode.PREDATES_CHECKSUMS)
+        self.assertEqual(dag.node_has_provenance(uuid), False)
+
+    def test_v1_archive(self):
+        dag = self.tas.concated_ints_v1.dag
+        uuid = self.tas.concated_ints_v1.uuid
+
+        self.assertEqual(dag.provenance_is_valid,
+                         ValidationCode.PREDATES_CHECKSUMS)
+        self.assertEqual(dag.node_has_provenance(uuid), True)
+
+    def test_v4_archive(self):
+        dag = self.tas.concated_ints_v4.dag
+        uuid = self.tas.concated_ints_v4.uuid
+
+        self.assertEqual(dag.provenance_is_valid,
+                         ValidationCode.PREDATES_CHECKSUMS)
+        self.assertEqual(dag.node_has_provenance(uuid), True)
+
+        with zipfile.ZipFile(self.tas.concated_ints_v4.filepath) as zf:
+            citations_path = os.path.join(uuid, 'provenance', 'citations.bib')
+            self.assertIn(citations_path, zf.namelist())
+
+    def test_v5_archive(self):
+        dag = self.tas.concated_ints_v5.dag
+        uuid = self.tas.concated_ints_v5.uuid
+
+        self.assertEqual(dag.provenance_is_valid,
+                         ValidationCode.VALID)
+        self.assertEqual(dag.node_has_provenance(uuid), True)
 
     # TODO
     def test_mixed_v0_v1_archive(self):
