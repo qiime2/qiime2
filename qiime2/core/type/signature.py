@@ -367,7 +367,6 @@ class PipelineSignature:
         """ Coerce parameter to be appropriate for callable
         """
         view_type = spec.view_type
-        # raise ValueError(f'{view_type}\n{param}')
 
         if view_type == dict and isinstance(param, list):
             param = self._list_to_dict(param)
