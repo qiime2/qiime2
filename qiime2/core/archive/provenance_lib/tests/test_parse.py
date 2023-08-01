@@ -303,7 +303,8 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(len(dag.terminal_nodes), 1)
 
     def test_number_of_terminal_nodes_pipeline(self):
-        num_pipeline_viz_term_nodes = len(self.tas.int_seq1.dag.terminal_nodes)
+        num_pipeline_viz_term_nodes = \
+            len(self.tas.pipeline_viz.dag.terminal_nodes)
         self.assertEqual(num_pipeline_viz_term_nodes, 1)
 
     def test_root_node_is_archive_root(self):
@@ -648,21 +649,6 @@ class ProvDAGTests(unittest.TestCase):
                          ValidationCode.VALID)
         self.assertEqual(dag.node_has_provenance(uuid), True)
 
-    # TODO
-    def test_mixed_v0_v1_archive(self):
-        mixed_archive_fp = os.path.join(DATA_DIR, 'mixed_v0_v1_uu_emperor.qzv')
-        v1_uuid = TEST_DATA['1']['uuid']
-        v0_uuid = '9f6a0f3e-22e6-4c39-8733-4e672919bbc7'
-
-        with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'):
-            dag = ProvDAG(mixed_archive_fp)
-            self.assertEqual(dag.node_has_provenance(v1_uuid), True)
-            self.assertEqual(dag.get_node_data(v1_uuid)._uuid, v1_uuid)
-
-            self.assertEqual(dag.node_has_provenance(v0_uuid), False)
-            self.assertEqual(dag.get_node_data(v0_uuid), None)
-
     def test_artifact_passed_as_metadata_archive(self):
         dag = self.tas.mapping1.dag
         uuid = self.tas.mapping1.uuid
@@ -705,7 +691,6 @@ class ProvDAGTests(unittest.TestCase):
             repr(unioned_dag),
             f'ProvDAG representing these Artifacts.*{uuid}')
 
-    # TODO: test unions with different archive versions
     def test_union_two(self):
         unioned_dag = ProvDAG.union([self.tas.single_int.dag,
                                      self.tas.int_seq2.dag])
@@ -806,6 +791,60 @@ class ProvDAGTests(unittest.TestCase):
 
         self.assertEqual(
             nx.number_weakly_connected_components(unioned_dag.dag), 1)
+
+    def test_union_v0_v1_archives(self):
+        unioned_dag = ProvDAG.union([self.tas.table_v0.dag,
+                                     self.tas.concated_ints_v1.dag])
+
+        self.assertIn(f'{self.tas.table_v0.uuid}', repr(unioned_dag))
+        self.assertIn(f'{self.tas.concated_ints_v1.uuid}', repr(unioned_dag))
+
+        self.assertEqual(unioned_dag.provenance_is_valid,
+                         ValidationCode.PREDATES_CHECKSUMS)
+
+        self.assertEqual(
+            nx.number_weakly_connected_components(unioned_dag.dag), 2)
+
+        self.assertFalse(
+            unioned_dag.node_has_provenance(self.tas.table_v0.uuid))
+        self.assertTrue(
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v1.uuid))
+
+    def test_union_v1_v5_archives(self):
+        unioned_dag = ProvDAG.union([self.tas.concated_ints_v1.dag,
+                                     self.tas.concated_ints_v5.dag])
+
+        self.assertIn(f'{self.tas.concated_ints_v1.uuid}', repr(unioned_dag))
+        self.assertIn(f'{self.tas.concated_ints_v5.uuid}', repr(unioned_dag))
+
+        self.assertEqual(unioned_dag.provenance_is_valid,
+                         ValidationCode.PREDATES_CHECKSUMS)
+
+        self.assertEqual(
+            nx.number_weakly_connected_components(unioned_dag.dag), 2)
+
+        self.assertTrue(
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v1.uuid))
+        self.assertTrue(
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v5.uuid))
+
+    def test_union_v5_v6_archives(self):
+        unioned_dag = ProvDAG.union([self.tas.concated_ints_v5.dag,
+                                     self.tas.concated_ints_v6.dag])
+
+        self.assertIn(f'{self.tas.concated_ints_v5.uuid}', repr(unioned_dag))
+        self.assertIn(f'{self.tas.concated_ints_v6.uuid}', repr(unioned_dag))
+
+        self.assertEqual(unioned_dag.provenance_is_valid,
+                         ValidationCode.VALID)
+
+        self.assertEqual(
+            nx.number_weakly_connected_components(unioned_dag.dag), 2)
+
+        self.assertTrue(
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v5.uuid))
+        self.assertTrue(
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v6.uuid))
 
     def test_dag_is_superset(self):
         """
