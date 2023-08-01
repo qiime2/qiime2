@@ -386,5 +386,6 @@ class PluginManager:
         #
         # Reference: https://github.com/qiime2/qiime2/issues/514
         raise TypeError(
-            "Semantic type %r is not a registered semantic type."
+            "Semantic type %r is invalid, either because it doesn't have a "
+            "compatible directory format, or because it's not registered."
             % semantic_type)
