@@ -584,14 +584,15 @@ class TestResultCollection(unittest.TestCase):
 
     def test_collection_non_str_keys(self):
         with self.assertRaisesRegex(
-                TypeError, 'All ResultCollection keys must be strings'):
+                KeyError, 'ResultCollection keys must be strings and may only '
+                'contain the following characters:.*1'):
             ResultCollection({1: 0})
 
     def test_invalid_key_init(self):
         with self.assertRaisesRegex(
                 KeyError,
-                'ResultCollection keys may only contain the following'
-                ' characters:.*valid key'):
+                'ResultCollection keys must be strings and may only contain '
+                'the following characters:.*valid key'):
             ResultCollection({'not a valid key': 0})
 
     def test_invalid_key_added(self):
@@ -599,8 +600,8 @@ class TestResultCollection(unittest.TestCase):
 
         with self.assertRaisesRegex(
                 KeyError,
-                'ResultCollection keys may only contain the following'
-                ' characters:.*valid key'):
+                'ResultCollection keys must be strings and may only contain '
+                'the following characters:.*valid key'):
             collection['not a valid key'] = 0
 
 
