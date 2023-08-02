@@ -247,7 +247,7 @@ def parse_primitive(t, value):
     if homogeneous:
         all_matching = False
         for member in allowed:
-            if all(type(x) == _COERCION_MAPPER[member].pytype
+            if all(type(x) is _COERCION_MAPPER[member].pytype
                    for x in result):
                 all_matching = True
                 break
