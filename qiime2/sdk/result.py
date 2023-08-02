@@ -548,8 +548,7 @@ class ResultCollection:
         if collection is None:
             self.collection = {}
         elif isinstance(collection, dict):
-            if not all(isinstance(key, str) for key in collection.keys()):
-                raise TypeError('All ResultCollection keys must be strings')
+            qiime2.sdk.util.validate_result_collection_keys(*collection.keys())
 
             self.collection = collection
         else:
@@ -574,6 +573,7 @@ class ResultCollection:
         yield self.collection.__iter__()
 
     def __setitem__(self, key, item):
+        qiime2.sdk.util.validate_result_collection_keys(key)
         self.collection[key] = item
 
     def __getitem__(self, key):

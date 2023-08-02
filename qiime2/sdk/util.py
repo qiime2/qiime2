@@ -6,6 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import re
+
 import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.type.parse as _parse
@@ -118,6 +120,29 @@ def actions_by_input_type(string):
                 commands.append((pg, actions))
 
     return commands
+
+
+def validate_result_collection_keys(*args):
+    """Validate one or more strings intended for use as ResultCollection keys.
+
+    This can be called on one or more keys provided as arguments:
+    qiime2.sdk.util.validate_result_collection_keys('@', 'a1@')
+
+    Or on a list, by unpacking it in the call:
+    l = ['@', 'a1@']
+    qiime2.sdk.util.validate_result_collection_keys(*l)
+    """
+    invalid_keys = []
+    for key in args:
+        if not isinstance(key, str) or bool(re.search(r'[^\w+-.]', key)):
+            invalid_keys.append(key)
+
+    if len(invalid_keys) > 0:
+        raise KeyError('Invalid key(s) provided for ResultCollection. '
+                       'ResultCollection keys must be strings and may only '
+                       'contain the following characters: A-Z, a-z, 0-9, +, '
+                       '-, ., and _. Offending keys include: '
+                       f'{", ".join(map(str, invalid_keys))}')
 
 
 def view_collection(collection, view_type):
