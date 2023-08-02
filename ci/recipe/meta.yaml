@@ -37,7 +37,7 @@ test:
   requires:
     - pytest
     - tornado
-    - notebook
+    - notebook <7
 
   imports:
     - qiime2
