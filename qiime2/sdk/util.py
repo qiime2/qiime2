@@ -134,14 +134,15 @@ def validate_result_collection_keys(*args):
     """
     invalid_keys = []
     for key in args:
-        if bool(re.search(r'[^\w+-.]', key)):
+        if not isinstance(key, str) or bool(re.search(r'[^\w+-.]', key)):
             invalid_keys.append(key)
 
     if len(invalid_keys) > 0:
         raise KeyError('Invalid key(s) provided for ResultCollection. '
-                       'ResultCollection keys may only contain the following '
-                       'characters: A-Z, a-z, 0-9, +, -, ., and _. '
-                       f'Offending keys include: {", ".join(invalid_keys)}')
+                       'ResultCollection keys must be strings and may only '
+                       'contain the following characters: A-Z, a-z, 0-9, +, '
+                       '-, ., and _. Offending keys include: '
+                       f'{", ".join(map(str, invalid_keys))}')
 
 
 def view_collection(collection, view_type):
