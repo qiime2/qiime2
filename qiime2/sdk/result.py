@@ -170,8 +170,8 @@ class Result:
         # ensure (as best as we can) that the UUIDs we are comparing are linked
         # to the same type of QIIME 2 object.
         return (
-            type(self) == type(other) and
-            self.uuid == other.uuid
+            type(self) is type(other) and
+            self.uuid is other.uuid
         )
 
     def __ne__(self, other):
