@@ -19,7 +19,7 @@ from qiime2.core.archive.archiver import ChecksumDiff
 from .._checksum_validator import ValidationCode
 from ..parse import (
     ProvDAG, UnparseableDataError, DirectoryParser, EmptyParser, ProvDAGParser,
-    archive_not_parsed, select_parser, parse_provenance,
+    select_parser, parse_provenance,
 )
 from ..archive_parser import (
     ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5, ParserV6,
@@ -29,86 +29,6 @@ from ..archive_parser import (
 from .testing_utilities import (
     is_root_provnode_data, generate_archive_with_file_removed,
 )
-
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
-TEST_DATA = {
-    '0': {'parser': ParserV0,
-          'av': '0',
-          'fwv': '2.0.5',
-          'uuid': '0b8b47bd-f2f8-4029-923c-0e37a68340c3',
-          'n_res': 1,
-          'qzv_fp': os.path.join(DATA_DIR, 'v0_uu_emperor.qzv'),
-          'has_prov': False,
-          'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
-          'checksum': None,
-          },
-    '1': {'parser': ParserV1,
-          'av': '1',
-          'fwv': '2.0.6',
-          'uuid': '0b8b47bd-f2f8-4029-923c-0e37a68340c3',
-          'nonroot_node': '60cde83c-180d-40cb-87c9-b9363f23f796',
-          'n_res': 10,
-          'qzv_fp': os.path.join(DATA_DIR, 'v1_uu_emperor.qzv'),
-          'has_prov': True,
-          'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
-          'checksum': None,
-          },
-    '2a': {'parser': ParserV2,
-           'av': '2',
-           'fwv': '2017.9.0',
-           'uuid': '219c4bdf-f2b1-4b3f-b66a-08de8a4d17ca',
-           'nonroot_node': '512ced83-cc8b-4bed-8c22-a829e8fc89a2',
-           'n_res': 10,
-           'qzv_fp': os.path.join(DATA_DIR, 'v2a_uu_emperor.qzv'),
-           'has_prov': True,
-           'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
-           'checksum': None,
-           },
-    '2b': {'parser': ParserV2,
-           'av': '2',
-           'fwv': '2017.10.0',
-           'uuid': '8abf8dee-0047-4a7f-9826-e66893182978',
-           'nonroot_node': '10ebb316-169e-422c-8fb9-423e131fe42f',
-           'n_res': 14,
-           'qzv_fp': os.path.join(DATA_DIR, 'v2b_uu_emperor.qzv'),
-           'has_prov': True,
-           'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
-           'checksum': None,
-           },
-    '3': {'parser': ParserV3,
-          'av': '3',
-          'fwv': '2017.12.0',
-          'uuid': '3544061c-6e2f-4328-8345-754416828cb5',
-          'nonroot_node': '32c222f5-d991-4168-bca2-d305513e258f',
-          'n_res': 14,
-          'qzv_fp': os.path.join(DATA_DIR, 'v3_uu_emperor.qzv'),
-          'has_prov': True,
-          'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
-          'checksum': None,
-          },
-    '4': {'parser': ParserV4,
-          'av': '4',
-          'fwv': '2018.4.0',
-          'uuid': '91c2189a-2d2e-4d53-98ee-659caaf6ffc2',
-          'nonroot_node': '48c153b4-314c-4249-88a3-020f5444a76f',
-          'n_res': 14,
-          'qzv_fp': os.path.join(DATA_DIR, 'v4_uu_emperor.qzv'),
-          'has_prov': True,
-          'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
-          'checksum': None,
-          },
-    '5': {'parser': ParserV5,
-          'av': '5',
-          'fwv': '2018.11.0',
-          'uuid': 'ffb7cee3-2f1f-4988-90cc-efd5184ef003',
-          'nonroot_node': '3b7d36ff-37ab-4ac2-958b-6a547d442bcf',
-          'n_res': 15,
-          'qzv_fp': os.path.join(DATA_DIR, 'v5_uu_emperor.qzv'),
-          'has_prov': True,
-          'prov_is_valid': ValidationCode.VALID,
-          'checksum': ChecksumDiff({}, {}, {}),
-          },
-    }
 
 
 @dataclass
@@ -128,7 +48,7 @@ class TestArtifacts:
         self.tempdir = tempfile.mkdtemp(prefix='qiime2-dummy-artifacts-temp-')
 
         # TODO: move versioned artifacts into root of data dir once everything
-        # TODO: else is gone
+        # else is gone
         self.datadir = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             'data',
@@ -1219,101 +1139,122 @@ class ParseProvenanceTests(unittest.TestCase):
 
 
 class DirectoryParserTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+        cls.cfg = Config()
+
+        parse_dir_fp = os.path.join(cls.tempdir, 'parse-dir')
+        os.mkdir(parse_dir_fp)
+        concated_ints_path = os.path.join(parse_dir_fp, 'concated-ints.qza')
+        shutil.copy(cls.tas.concated_ints.filepath, concated_ints_path)
+        int_seq_path = os.path.join(parse_dir_fp, 'int-seq1.qza')
+        shutil.copy(cls.tas.int_seq1.filepath, int_seq_path)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
     def test_parse_empty_dir(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with self.assertRaisesRegex(ValueError,
-                                        f"No .qza or .qzv files.*{tmpdir}"):
-                ProvDAG(tmpdir)
+        empty_dir_path = os.path.join(self.tempdir, 'empty-dir')
+        os.mkdir(empty_dir_path)
+
+        with self.assertRaisesRegex(
+            ValueError, f"No .qza or .qzv files.*{empty_dir_path}"
+        ):
+            ProvDAG(empty_dir_path)
 
     def test_directory_parser_works_regardless_trailing_slash(self):
-        dag = ProvDAG(DATA_DIR + '/parse_dir_test/')
-        dag2 = ProvDAG(DATA_DIR + '/parse_dir_test')
+        dag = ProvDAG(self.tempdir + '/parse-dir')
+        dag2 = ProvDAG(self.tempdir + '/parse-dir/')
         self.assertEqual(dag, dag2)
 
     def test_directory_parser_captures_all_parsed_artifact_uuids(self):
         """
-        This test dir contains a feature table, an unrooted tree, and a viz.
-        The feature table is a true subset of the viz, and is not re-parsed as
-        implemented.
+        The test dir contains a concatenated ints artifact and an int sequence.
+        The concatenated ints artifact is a true subset of the int sequence,
+        and is not re-parsed as implemented.
 
-        The unrooted tree is a terminal node, but shares some ancestors with
-        the others. It must be parsed, though its shared parents don't.
-
-        The resulting dag should be aware of all three user-passed artifacts,
-        regardless of whether we actually parse the v5_table
+        The resulting dag should be aware of both user-passed artifacts,
+        regardless of whether we actually parse the int sequence.
         """
-        dag = ProvDAG(DATA_DIR + '/parse_dir_test/', recurse=True)
-        v5_tbl_id = '89af91c0-033d-4e30-8ac4-f29a3b407dc1'
-        v5_uu_id = 'ffb7cee3-2f1f-4988-90cc-efd5184ef003'
-        v5_unr_tree_id = '12e012d5-b01c-40b7-b825-a17f0478a02f'
-        self.assertEqual(dag._parsed_artifact_uuids,
-                         {v5_tbl_id, v5_uu_id, v5_unr_tree_id})
-
-    def test_archive_not_parsed(self):
-        mixed_archive_fp = os.path.join(DATA_DIR, 'mixed_v0_v1_uu_emperor.qzv')
-        v1_uuid = TEST_DATA['1']['uuid']
-        v0_uuid = '9f6a0f3e-22e6-4c39-8733-4e672919bbc7'
-        with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'):
-            dag = ProvDAG(mixed_archive_fp)
-        # Never parsed
-        self.assertTrue(archive_not_parsed(root_id='not even an id', dag=dag))
-        # Only parsed as a !no-provenance parent
-        self.assertTrue(archive_not_parsed(v0_uuid, dag))
-        # Actually parsed
-        self.assertFalse(archive_not_parsed(v1_uuid, dag))
+        dag = ProvDAG(self.tempdir + '/parse-dir/', recurse=True)
+        self.assertEqual(
+            dag._parsed_artifact_uuids,
+            {self.tas.concated_ints.uuid, self.tas.int_seq1.uuid}
+        )
 
     def test_directory_parser_idempotent_with_parse_and_union(self):
         # Non-recursive
-        base_dir = os.path.join(DATA_DIR, 'parse_dir_test')
-        inner_dir = os.path.join(base_dir, 'inner')
-        dir_dag = ProvDAG(inner_dir)
-        # parse files separately, then union
-        tbl = ProvDAG(os.path.join(inner_dir, 'v5_table.qza'))
-        tree = ProvDAG(os.path.join(inner_dir, 'v5_unrooted_tree.qza'))
-        union_dag = ProvDAG.union([tbl, tree])
-        self.assertEqual(dir_dag, union_dag)
+        concated_ints_path = os.path.join(self.tempdir, 'parse-dir',
+                                          'concated-ints.qza')
+        int_seq_path = os.path.join(self.tempdir, 'parse-dir', 'int-seq1.qza')
+        concated_ints_dag = ProvDAG(concated_ints_path)
+        int_seq_dag = ProvDAG(int_seq_path)
+        union_dag = ProvDAG.union([concated_ints_dag, int_seq_dag])
+        parse_dir_path = os.path.join(self.tempdir, 'parse-dir')
+        dir_dag = ProvDAG(parse_dir_path)
+        self.assertEqual(union_dag, dir_dag)
 
         # Recursive
-        base_dir = os.path.join(DATA_DIR, 'parse_dir_test')
-        inner_dir = os.path.join(base_dir, 'inner')
-        dir_dag = ProvDAG(base_dir, recurse=True)
-        # parse files separately, then union
-        tbl = ProvDAG(os.path.join(inner_dir, 'v5_table.qza'))
-        tree = ProvDAG(os.path.join(inner_dir, 'v5_unrooted_tree.qza'))
-        viz = ProvDAG(os.path.join(base_dir, 'v5_uu_emperor.qzv'))
-        union_dag = ProvDAG.union([tbl, tree, viz])
-        self.assertEqual(dir_dag, union_dag)
+        inner_dir = os.path.join(self.tempdir, 'parse-dir', 'inner-dir')
+        os.mkdir(inner_dir)
+        mapping_path = os.path.join(inner_dir, 'mapping1.qza')
+        shutil.copy(self.tas.mapping1.filepath, mapping_path)
+
+        mapping_dag = ProvDAG(mapping_path)
+        inner_dir_union_dag = ProvDAG.union([
+            concated_ints_dag, int_seq_dag, mapping_dag
+        ])
+        recursive_dir_dag = ProvDAG(parse_dir_path, recurse=True)
+        self.assertEqual(inner_dir_union_dag, recursive_dir_dag)
 
     def test_directory_parser_multiple_imports(self):
-        base_dir = os.path.join(DATA_DIR, 'multiple_imports_test')
-        inner_dir = os.path.join(base_dir, 'duplicated_inner')
-        inner_dir_dag = ProvDAG(inner_dir)
-        s1_id = '4f6794e7-0e34-46d9-9a48-3fbc7900430e'
-        s2_id = 'b4fd43fb-91c3-45f6-9672-7cf8fd90bc0b'
-        self.assertEqual(len(inner_dir_dag), 2)
-        self.assertIn(s1_id, inner_dir_dag.dag)
-        self.assertIn(s2_id, inner_dir_dag.dag)
+        outer_path = os.path.join(self.tempdir, 'mutliple-import-outer')
+        os.mkdir(outer_path)
+        inner_path = os.path.join(outer_path, 'inner')
+        os.mkdir(inner_path)
 
-        # Despite the two pairs of duplicate files with different names,
-        # this DAG should be identical to the inner.
-        dir_dag = ProvDAG(base_dir)
-        self.assertEqual(len(inner_dir_dag), 2)
-        self.assertIn(s1_id, inner_dir_dag.dag)
-        self.assertIn(s2_id, inner_dir_dag.dag)
+        shutil.copy(self.tas.mapping1.filepath,
+                    os.path.join(outer_path, 'mapping1.qza'))
+        shutil.copy(self.tas.mapping2.filepath,
+                    os.path.join(outer_path, 'mapping2.qza'))
+        shutil.copy(self.tas.mapping1.filepath,
+                    os.path.join(inner_path, 'duplicate-mapping1.qza'))
+        shutil.copy(self.tas.mapping2.filepath,
+                    os.path.join(inner_path, 'duplicate-mapping2.qza'))
 
-        self.assertEqual(dir_dag, inner_dir_dag)
+        inner_dag = ProvDAG(inner_path)
+        self.assertEqual(len(inner_dag), 2)
+        self.assertIn(self.tas.mapping1.uuid, inner_dag.dag)
+        self.assertIn(self.tas.mapping2.uuid, inner_dag.dag)
+
+        outer_dag = ProvDAG(outer_path)
+        self.assertEqual(len(inner_dag), 2)
+        self.assertIn(self.tas.mapping1.uuid, outer_dag.dag)
+        self.assertIn(self.tas.mapping2.uuid, outer_dag.dag)
+        self.assertEqual(inner_dag, outer_dag)
+
+        recursive_outer_dag = ProvDAG(outer_path, recurse=True)
+        self.assertEqual(len(inner_dag), 2)
+        self.assertIn(self.tas.mapping1.uuid, recursive_outer_dag.dag)
+        self.assertIn(self.tas.mapping2.uuid, recursive_outer_dag.dag)
+        self.assertEqual(inner_dag, outer_dag, recursive_outer_dag)
 
     def test_verbose(self):
         buffer = io.StringIO()
-        tbl = 'parse_dir_test/inner/v5_table.qza'
-        viz = 'parse_dir_test/v5_uu_emperor.qzv'
-        tree = 'parse_dir_test/inner/v5_unrooted_tree.qza'
+        concated_ints = 'parse-dir/concated-ints.qza'
+        int_seq = 'parse-dir/int-seq1.qza'
         with redirect_stdout(buffer):
-            dag = ProvDAG(os.path.join(DATA_DIR, 'parse_dir_test'),
-                          verbose=True, recurse=True)
+            dag = ProvDAG(
+                os.path.join(self.tempdir, 'parse-dir'),
+                verbose=True,
+                recurse=True
+            )
+
         self.assertEqual(dag.cfg.verbose, True)
+
         stdout_log = buffer.getvalue()
-        self.assertRegex(stdout_log, f"parsing.*{tbl}")
-        self.assertRegex(stdout_log, f"parsing.*{viz}")
-        self.assertRegex(stdout_log, f"parsing.*{tree}")
+        self.assertRegex(stdout_log, f'parsing.*{concated_ints}')
+        self.assertRegex(stdout_log, f'parsing.*{int_seq}')
