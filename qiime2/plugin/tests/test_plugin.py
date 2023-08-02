@@ -93,7 +93,8 @@ class TestPlugin(unittest.TestCase):
                           'resumable_pipeline',
                           'resumable_varied_pipeline',
                           'resumable_nested_varied_pipeline',
-                          'internal_fail_pipeline', 'list_pipeline',
+                          'internal_fail_pipeline', 'de_facto_list_pipeline',
+                          'de_facto_dict_pipeline', 'list_pipeline',
                           'collection_pipeline', 'failing_pipeline',
                           'docstring_order_method',
                           'constrained_input_visualization',
@@ -104,7 +105,7 @@ class TestPlugin(unittest.TestCase):
                           'deprecated_method', 'union_inputs',
                           'unioned_primitives',
                           'type_match_list_and_set',
-                          'list_of_ints', 'dict_of_ints',
+                          'list_of_ints', 'dict_of_ints', 'returns_int',
                           'collection_inner_union', 'collection_outer_union',
                           'dict_params', 'list_params', 'varied_method',
                           })
@@ -139,7 +140,8 @@ class TestPlugin(unittest.TestCase):
                           'deprecated_method', 'union_inputs',
                           'unioned_primitives',
                           'type_match_list_and_set', 'list_of_ints',
-                          'dict_of_ints', 'collection_inner_union',
+                          'dict_of_ints', 'returns_int',
+                          'collection_inner_union',
                           'collection_outer_union', 'dict_params',
                           'list_params', 'varied_method',
                           })
@@ -165,7 +167,8 @@ class TestPlugin(unittest.TestCase):
                           'resumable_pipeline',
                           'resumable_varied_pipeline',
                           'resumable_nested_varied_pipeline',
-                          'internal_fail_pipeline', 'list_pipeline',
+                          'internal_fail_pipeline', 'de_facto_list_pipeline',
+                          'de_facto_dict_pipeline', 'list_pipeline',
                           'collection_pipeline', 'failing_pipeline'})
         for pipeline in pipelines.values():
             self.assertIsInstance(pipeline, qiime2.sdk.Pipeline)

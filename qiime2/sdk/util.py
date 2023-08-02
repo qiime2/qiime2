@@ -142,3 +142,7 @@ def validate_result_collection_keys(*args):
                        'ResultCollection keys may only contain the following '
                        'characters: A-Z, a-z, 0-9, +, -, ., and _. '
                        f'Offending keys include: {", ".join(invalid_keys)}')
+
+
+def view_collection(collection, view_type):
+    return {k: v.view(view_type) for k, v in collection.items()}
