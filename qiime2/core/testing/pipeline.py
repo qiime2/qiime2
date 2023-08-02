@@ -224,10 +224,10 @@ def de_facto_dict_pipeline(ctx, kwarg=False, non_proxies=False):
     ints = {}
     for i in range(num_ints):
         ints_ret, = returns_int(i)
-        ints[i + 1] = ints_ret
+        ints[str(i + 1)] = ints_ret
 
     if non_proxies:
-        ints[num_ints + 2] = ctx.make_artifact(SingleInt, num_ints + 1)
+        ints[str(num_ints + 2)] = ctx.make_artifact(SingleInt, num_ints + 1)
 
     if kwarg:
         ret, = dict_of_ints(ints=ints)
