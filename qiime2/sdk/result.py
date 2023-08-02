@@ -169,8 +169,8 @@ class Result:
         # different type that happens to have a `.uuid` property. We want to
         # ensure (as best as we can) that the UUIDs we are comparing are linked
         # to the same type of QIIME 2 object.
-        return (  # noqa: E721
-            type(self) == type(other) and
+        return (
+            type(self) is type(other) and
             self.uuid == other.uuid
         )
 
