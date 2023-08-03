@@ -21,8 +21,9 @@ from qiime2 import Artifact, Cache
 from qiime2.core.util import load_action_yaml
 from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
-from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, ParallelConfig,
-                                        get_config)
+
+from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, _MASK_CONDA_ENV_,
+                                        ParallelConfig, get_config)
 
 
 class TestConfig(unittest.TestCase):
@@ -133,6 +134,10 @@ class TestConfig(unittest.TestCase):
     def tearDown(self):
         self.test_dir.cleanup()
 
+        # Ensure default state post test
+        PARALLEL_CONFIG.parallel_config = None
+        PARALLEL_CONFIG.action_executor_mapping = {}
+
     def get_data_path(self, filename):
         return pkg_resources.resource_filename('qiime2.sdk.tests',
                                                'data/%s' % filename)
@@ -237,6 +242,21 @@ class TestConfig(unittest.TestCase):
         with self.assertRaisesRegex(
                 ValueError, 'Only pipelines may be run in parallel'):
             self.method.parallel(self.art)
+
+    def test_no_vendored_fp(self):
+        with ParallelConfig():
+            with _MASK_CONDA_ENV_():
+                with self.cache:
+                    future = self.pipeline.parallel(self.art, self.art)
+                    list_return, dict_return = future._result()
+
+            list_execution_contexts = self._load_alias_execution_contexts(
+                list_return)
+            dict_execution_contexts = self._load_alias_execution_contexts(
+                dict_return)
+
+            self.assertEqual(list_execution_contexts, self.tpool_expected)
+            self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def _load_alias_execution_contexts(self, collection):
         execution_contexts = []

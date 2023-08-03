@@ -225,7 +225,7 @@ class Choices(_PrimitivePredicateBase):
         return hash(type(self)) ^ hash(frozenset(self.choices))
 
     def __eq__(self, other):
-        return (type(self) == type(other)
+        return (type(self) is type(other)
                 and set(self.choices) == set(other.choices))
 
     def __repr__(self):

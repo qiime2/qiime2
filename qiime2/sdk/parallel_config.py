@@ -19,6 +19,26 @@ PARALLEL_CONFIG.dfk = None
 PARALLEL_CONFIG.parallel_config = None
 PARALLEL_CONFIG.action_executor_mapping = {}
 
+# We write a default config to a location in the conda env if there is an
+# active conda env. If there is not an active conda env (most likely because we
+# are using Docker) then the path we want to write the default to will not
+# exist, so we will not write a default, we will just load it from memory
+CONDA_PREFIX = os.environ.get('CONDA_PREFIX', '')
+VENDORED_FP = os.path.join(CONDA_PREFIX, 'etc', 'qiime2_config.toml')
+
+VENDORED_CONFIG = {
+    'parsl': {
+        'strategy': 'None',
+        'executors': [
+            {'class': 'ThreadPoolExecutor', 'label': 'default',
+                'max_threads': max(psutil.cpu_count() - 1, 1)},
+            {'class': 'HighThroughputExecutor', 'label': 'htex',
+                'max_workers': max(psutil.cpu_count() - 1, 1),
+                'provider': {'class': 'LocalProvider'}}
+            ]
+        }
+    }
+
 # Directs keys in the config whose values need to be objects to the module that
 # contains the class they need to instantiate
 module_paths = {
@@ -35,21 +55,6 @@ module_paths = {
     'providers': 'parsl.providers'
 }
 
-VENDORED_FP = os.path.join(
-    os.environ.get('CONDA_PREFIX'), 'etc', 'qiime2_config.toml')
-VENDORED_CONFIG = {
-    'parsl': {
-        'strategy': 'None',
-        'executors': [
-            {'class': 'ThreadPoolExecutor', 'label': 'default',
-             'max_threads': max(psutil.cpu_count() - 1, 1)},
-            {'class': 'HighThroughputExecutor', 'label': 'htex',
-             'max_workers': max(psutil.cpu_count() - 1, 1),
-             'provider': {'class': 'LocalProvider'}}
-            ]
-        }
-    }
-
 
 def _setup_parallel(config_fp=None):
     """Sets the parsl config and action executor mapping from a file at a given
@@ -61,15 +66,15 @@ def _setup_parallel(config_fp=None):
 
     # If we don't have a filepath or a currently existing config then get the
     # path to the vendored one. We do not want to get the vendored path if they
-    # have a pre-existing config because we do not want to overwrite an exiting
-    # config with the vendored one
+    # have a pre-existing config because we do not want to overwrite an
+    # existing config with the vendored one
     if config_fp is None and PARALLEL_CONFIG.parallel_config is None:
         config_fp = _get_vendored_config()
 
     if config_fp is not None:
         parallel_config, mapping = get_config(config_fp)
 
-        # If config_dict is empty now, they gave a file that only contained a
+        # If we don't have a config now, they gave a file that only contained a
         # mapping, so we want to load a default config assuming they do not
         # already have a loaded config
         if parallel_config is None and PARALLEL_CONFIG.parallel_config is None:
@@ -83,7 +88,6 @@ def _finalize_setup(parallel_config, mapping):
     """Finish loading the config and setting up our threadlocal
     """
     PARALLEL_CONFIG.dfk = parsl.load(parallel_config)
-
     PARALLEL_CONFIG.parallel_config = parallel_config
     if mapping != {}:
         PARALLEL_CONFIG.action_executor_mapping = mapping
@@ -139,13 +143,14 @@ def _get_vendored_config():
         elif os.path.exists(fp_ := os.path.join(
                 appdirs.site_config_dir('qiime2'), 'qiime2_config.toml')):
             config_fp = fp_
+        # NOTE: These next two are dependent on us being in a conda environment
         # 4. Check in conda env
         # ~/miniconda3/env/{env_name}/conf
-        elif os.path.exists(fp_ := VENDORED_FP):
+        elif CONDA_PREFIX != '' and os.path.exists(fp_ := VENDORED_FP):
             config_fp = fp_
         # 5. Write the vendored config to the vendored location and use
         # that
-        else:
+        elif CONDA_PREFIX != '':
             with open(VENDORED_FP, 'w') as fh:
                 tomlkit.dump(VENDORED_CONFIG, fh)
             config_fp = VENDORED_FP
@@ -231,3 +236,30 @@ class ParallelConfig():
         PARALLEL_CONFIG.dfk = None
         PARALLEL_CONFIG.parallel_config = None
         PARALLEL_CONFIG.action_executor_mapping = {}
+
+
+def _check_env(cls):
+    if 'QIIMETEST' not in os.environ:
+        raise ValueError(
+            f"Do not instantiate the class '{cls}' when not testing")
+
+
+# Used to test config loading behavior when outside of a conda environment
+class _MASK_CONDA_ENV_():
+    def __init__(self):
+        _check_env(self.__class__)
+
+    def __enter__(self):
+        global CONDA_PREFIX, VENDORED_FP
+
+        self.old_prefix = CONDA_PREFIX
+        self.old_fp = VENDORED_FP
+
+        CONDA_PREFIX = ''
+        VENDORED_FP = None
+
+    def __exit__(self, *args):
+        global CONDA_PREFIX, VENDORED_FP
+
+        CONDA_PREFIX = self.old_prefix
+        VENDORED_FP = self.old_fp

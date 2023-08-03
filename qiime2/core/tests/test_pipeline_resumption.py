@@ -156,7 +156,7 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertEqual(identity_uuid, complete_identity_uuid)
             self.assertEqual(viz_uuid, complete_viz_uuid)
 
-    def test_resumable_pipeline_parsl(self):
+    def test_resumable_pipeline_parallel(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():
@@ -227,7 +227,7 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertEqual(identity_uuid, complete_identity_uuid)
             self.assertEqual(viz_uuid, complete_viz_uuid)
 
-    def test_resumable_pipeline_artifact_varies_parsl(self):
+    def test_resumable_pipeline_artifact_varies_parallel(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():
@@ -299,7 +299,7 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertEqual(identity_uuid, complete_identity_uuid)
             self.assertEqual(viz_uuid, complete_viz_uuid)
 
-    def test_resumable_pipeline_collection_varies_parsl(self):
+    def test_resumable_pipeline_collection_varies_parallel(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():
@@ -371,7 +371,7 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertEqual(identity_uuid, complete_identity_uuid)
             self.assertEqual(viz_uuid, complete_viz_uuid)
 
-    def test_resumable_pipeline_str_varies_parsl(self):
+    def test_resumable_pipeline_str_varies_parallel(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():
@@ -443,7 +443,7 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertNotEqual(identity_uuid, complete_identity_uuid)
             self.assertEqual(viz_uuid, complete_viz_uuid)
 
-    def test_resumable_pipeline_md_varies_parsl(self):
+    def test_resumable_pipeline_md_varies_parallel(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():
@@ -518,7 +518,7 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertEqual(identity_uuid, complete_identity_uuid)
             self.assertEqual(viz_uuid, complete_viz_uuid)
 
-    def test_nested_resumable_pipeline_parsl(self):
+    def test_nested_resumable_pipeline_parallel(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():

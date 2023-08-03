@@ -170,7 +170,7 @@ class Result:
         # ensure (as best as we can) that the UUIDs we are comparing are linked
         # to the same type of QIIME 2 object.
         return (
-            type(self) == type(other) and
+            type(self) is type(other) and
             self.uuid == other.uuid
         )
 
@@ -548,15 +548,23 @@ class ResultCollection:
         if collection is None:
             self.collection = {}
         elif isinstance(collection, dict):
+            qiime2.sdk.util.validate_result_collection_keys(*collection.keys())
+
             self.collection = collection
         else:
-            self.collection = {k: v for k, v in enumerate(collection)}
+            self.collection = {str(k): v for k, v in enumerate(collection)}
+
+    def __contains__(self, item):
+        return item in self.collection
 
     def __eq__(self, other):
         if isinstance(other, dict):
             return self.collection == other
-
-        return self.collection == other.collection
+        elif isinstance(other, ResultCollection):
+            return self.collection == other.collection
+        else:
+            raise TypeError(f"Equality between '{type(other)}' and "
+                            "ResultCollection is undefined.")
 
     def __len__(self):
         return len(self.collection)
@@ -565,6 +573,7 @@ class ResultCollection:
         yield self.collection.__iter__()
 
     def __setitem__(self, key, item):
+        qiime2.sdk.util.validate_result_collection_keys(key)
         self.collection[key] = item
 
     def __getitem__(self, key):

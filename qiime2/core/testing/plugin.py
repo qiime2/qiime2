@@ -46,7 +46,7 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      optional_artifacts_method, long_description_method,
                      docstring_order_method, variadic_input_method,
                      unioned_primitives, type_match_list_and_set, union_inputs,
-                     list_of_ints, dict_of_ints, varied_method,
+                     list_of_ints, dict_of_ints, returns_int, varied_method,
                      collection_inner_union, collection_outer_union,
                      dict_params, list_params)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
@@ -56,7 +56,8 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        pipelines_in_pipeline, resumable_pipeline,
                        resumable_varied_pipeline,
                        resumable_nested_varied_pipeline,
-                       internal_fail_pipeline, list_pipeline,
+                       internal_fail_pipeline, de_facto_list_pipeline,
+                       de_facto_dict_pipeline, list_pipeline,
                        collection_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
@@ -834,6 +835,36 @@ dummy_plugin.pipelines.register_function(
 )
 
 dummy_plugin.pipelines.register_function(
+    function=de_facto_list_pipeline,
+    inputs={},
+    parameters={
+        'kwarg': Bool,
+        'non_proxies': Bool
+    },
+    outputs=[
+        ('output', Collection[SingleInt]),
+    ],
+    name='Pipeline that creates a de facto list of artifacts.',
+    description=('This pipeline is supposed to be run in parallel to assert '
+                 'that we can handle a de facto list of proxies.')
+)
+
+dummy_plugin.pipelines.register_function(
+    function=de_facto_dict_pipeline,
+    inputs={},
+    parameters={
+        'kwarg': Bool,
+        'non_proxies': Bool
+    },
+    outputs=[
+        ('output', Collection[SingleInt]),
+    ],
+    name='Pipeline that creates a de facto dict of artifacts.',
+    description=('This pipeline is supposed to be run in parallel to assert '
+                 'that we can handle a de facto dict of proxies.')
+)
+
+dummy_plugin.pipelines.register_function(
     function=list_pipeline,
     inputs={'ints': List[IntSequence1]},
     parameters={},
@@ -914,6 +945,19 @@ dummy_plugin.methods.register_function(
     output_descriptions={
         'output': 'Reversed Collection of ints'
     }
+)
+
+dummy_plugin.methods.register_function(
+    function=returns_int,
+    inputs={},
+    parameters={
+        'int': Int
+    },
+    outputs=[
+        ('output', SingleInt)
+    ],
+    name='Returns int',
+    description='Just returns an int',
 )
 
 dummy_plugin.methods.register_function(
