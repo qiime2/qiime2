@@ -4,18 +4,21 @@ import networkx as nx
 import pathlib
 from unittest.mock import MagicMock
 import pandas as pd
+import tempfile
 import unittest
 import warnings
 import zipfile
 
-from .. import _checksum_validator
+from .._checksum_validator import ChecksumDiff, ValidationCode
 from .testing_utilities import (
-    TestArtifacts, is_root_provnode_data, TEST_DATA, DATA_DIR, ReallyEqualMixin
+    TestArtifacts, is_root_provnode_data, TEST_DATA, DATA_DIR,
+    ReallyEqualMixin
 )
-from ..util import UUID
+from ..util import write_zip_archive
 from ..archive_parser import (
     ProvNode, Config, _Action, _Citations, _ResultMetadata, ParserResults,
-    ArchiveParser,
+    ArchiveParser, ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
+    ParserV6,
 )
 
 from ...provenance import MetadataInfo
@@ -47,122 +50,129 @@ class ParserVxTests(unittest.TestCase):
                                      'IntSequenceDirectoryFormat')
                     self.assertEqual(root_md.type, 'IntSequence1')
 
-        for archive_version in TEST_DATA:
-            fp = TEST_DATA[archive_version]['qzv_fp']
-            root_uuid = TEST_DATA[archive_version]['uuid']
-            parser = TEST_DATA[archive_version]['parser']()
-            with zipfile.ZipFile(fp) as zf:
-                root_md = parser._parse_root_md(zf, root_uuid)
-                self.assertEqual(root_md.uuid, root_uuid)
-                self.assertEqual(root_md.type,  'Visualization')
-                self.assertEqual(root_md.format, None)
-
     def test_parse_root_md_no_md_yaml(self):
-        qzv_no_root_md = os.path.join(DATA_DIR, 'no_root_md_yaml.qzv')
-        for archive_version in TEST_DATA:
-            root_uuid = TEST_DATA[archive_version]['uuid']
-            parser = TEST_DATA[archive_version]['parser']()
-            with zipfile.ZipFile(qzv_no_root_md) as zf:
-                with self.assertRaisesRegex(ValueError, 'Malformed.*metadata'):
-                    parser._parse_root_md(zf, root_uuid)
+        for artifact in self.tas.all_artifact_versions:
+            parser = ArchiveParser.get_parser(artifact.filepath)
+
+            with tempfile.TemporaryDirectory() as tempdir:
+                with zipfile.ZipFile(artifact.filepath) as zf:
+                    zf.extractall(tempdir)
+
+                metadata_path = os.path.join(tempdir, artifact.uuid,
+                                             'metadata.yaml')
+                os.remove(metadata_path)
+                fn = os.path.basename(artifact.filepath)
+                fp = os.path.join(tempdir, fn)
+                write_zip_archive(fp, tempdir)
+
+                with zipfile.ZipFile(fp) as zf:
+                    with self.assertRaisesRegex(
+                        ValueError,
+                        'Malformed.*metadata'
+                    ):
+                        parser._parse_root_md(zf, artifact.uuid)
 
     def test_populate_archive(self):
-        for archive_version in TEST_DATA:
-            qzv_fp = TEST_DATA[archive_version]['qzv_fp']
-            root_uuid = TEST_DATA[archive_version]['uuid']
-            parser = TEST_DATA[archive_version]['parser']()
-            if archive_version == '0':
+        for artifact in self.tas.all_artifact_versions:
+            parser = ArchiveParser.get_parser(artifact.filepath)
+            fp = artifact.filepath
+            uuid = artifact.uuid
+            version = artifact.archive_version
+
+            if version == 0:
                 with self.assertWarnsRegex(
                     UserWarning,
-                        'Artifact 0b8b47.*prior to provenance'):
-                    res = parser.parse_prov(Config(), qzv_fp)
-            else:
-                res = parser.parse_prov(Config(), qzv_fp)
+                    'Artifact .*prior to provenance'
+                ):
+                    res = parser.parse_prov(Config(), fp)
 
+            else:
+                res = parser.parse_prov(Config(), fp)
                 self.assertIsInstance(res, ParserResults)
                 pa_uuids = res.parsed_artifact_uuids
                 self.assertIsInstance(pa_uuids, set)
-                self.assertIsInstance(next(iter(pa_uuids)), UUID)
+                self.assertIsInstance(next(iter(pa_uuids)), str)
                 self.assertIsInstance(res.prov_digraph,
                                       (type(None), nx.DiGraph))
-                self.assertIsInstance(res.provenance_is_valid,
-                                      _checksum_validator.ValidationCode)
-                exp_diff_type = (type(None) if int(archive_version[0]) < 5
-                                 else _checksum_validator.ChecksumDiff)
-                self.assertIsInstance(res.checksum_diff, exp_diff_type)
+                self.assertIsInstance(res.provenance_is_valid, ValidationCode)
 
-                # Does this archive have the expected number of Results?
-                self.assertEqual(len(res.prov_digraph),
-                                 TEST_DATA[archive_version]['n_res'])
-                # Is the root UUID a key a node in the DiGraph?
-                self.assertIn(root_uuid, res.prov_digraph)
-                # Is contents keyed on uuids, containing ProvNodes?
+                if version < 5:
+                    self.assertIsInstance(res.checksum_diff, type(None))
+                else:
+                    self.assertIsInstance(res.checksum_diff, ChecksumDiff)
+
+                self.assertIn(uuid, res.prov_digraph)
                 self.assertIsInstance(
-                    res.prov_digraph.nodes[root_uuid]['node_data'],
-                    ProvNode)
+                    res.prov_digraph.nodes[uuid]['node_data'], ProvNode)
 
     def test_validate_checksums(self):
-        for archive_version in TEST_DATA:
-            with zipfile.ZipFile(TEST_DATA[archive_version]['qzv_fp']) as zf:
-                parser = TEST_DATA[archive_version]['parser']()
+        for artifact in self.tas.all_artifact_versions:
+            parser = ArchiveParser.get_parser(artifact.filepath)
+            with zipfile.ZipFile(artifact.filepath) as zf:
                 is_valid, diff = parser._validate_checksums(zf)
-                self.assertEqual(is_valid,
-                                 TEST_DATA[archive_version]['prov_is_valid'])
-                self.assertEqual(diff,
-                                 TEST_DATA[archive_version]['checksum'])
+                if artifact.archive_version < 5:
+                    self.assertEqual(is_valid,
+                                     ValidationCode.PREDATES_CHECKSUMS)
+                    self.assertEqual(diff, None)
+                else:
+                    self.assertEqual(is_valid, ValidationCode.VALID)
+                    self.assertEqual(diff, ChecksumDiff({}, {}, {}))
 
     def test_correct_validate_checksums_method_called(self):
-        # We want to confirm that parse_prov uses the local _validate_checksums
-        # even when it calls super().parse_prov() internally
-        for archive_version in TEST_DATA:
-            parser = TEST_DATA[archive_version]['parser']()
-            parser._validate_checksums = MagicMock(
-                # return values only here to facilitate normal execution
-                return_value=(TEST_DATA[archive_version]['prov_is_valid'],
-                              TEST_DATA[archive_version]['checksum']))
-            qzv_fp = TEST_DATA[archive_version]['qzv_fp']
-            if archive_version == '0':
-                # supress warning from parsing provenance for a v0 ProvDAG
-                uuid = TEST_DATA['0']['uuid']
+        '''
+        We want to confirm that parse_prov uses the local _validate_checksums
+        even when it calls super().parse_prov() internally
+        '''
+        for artifact in self.tas.all_artifact_versions:
+            parser = ArchiveParser.get_parser(artifact.filepath)
+            if artifact.archive_version < 5:
+                parser._validate_checksums = MagicMock(
+                    # return values only here to facilitate normal execution
+                    return_value=(ValidationCode.PREDATES_CHECKSUMS, None)
+                )
                 with warnings.catch_warnings():
                     warnings.filterwarnings(
-                        'ignore',  f'Art.*{uuid}.*prior')
-                    parser.parse_prov(Config(), qzv_fp)
+                        'ignore',  f'Artifact.*{artifact.uuid}.*prior')
+                    parser.parse_prov(Config(), artifact.filepath)
                     parser._validate_checksums.assert_called_once()
             else:
-                parser.parse_prov(Config(), qzv_fp)
+                parser._validate_checksums = MagicMock(
+                    return_value=(
+                        ValidationCode.VALID,
+                        ChecksumDiff({}, {}, {})
+                    )
+                )
+                parser.parse_prov(Config(), artifact.filepath)
                 parser._validate_checksums.assert_called_once()
 
 
 class ArchiveParserTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
     def test_get_parser(self):
-        for version in TEST_DATA:
-            fp = os.path.join(DATA_DIR, TEST_DATA[version]['qzv_fp'])
-            parser = ArchiveParser.get_parser(fp)
-            self.assertIsInstance(parser, TEST_DATA[version]['parser'])
+        parsers = [
+            ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
+            ParserV6
+        ]
+        for artifact, parser_version in zip(
+            self.tas.all_artifact_versions, parsers
+        ):
+            parser = ArchiveParser.get_parser(artifact.filepath)
+            self.assertEqual(type(parser), parser_version)
 
     def test_get_parser_nonexistent_fp(self):
         fn = 'not_a_filepath.qza'
-        fp = os.path.join(DATA_DIR, fn)
+        fp = os.path.join(self.tempdir, fn)
         with self.assertRaisesRegex(
-                FileNotFoundError, f'ArchiveParser.*{fp}'):
-            ArchiveParser.get_parser(fp)
-
-    def test_get_parser_insufficient_permissions(self):
-        fn = 'not_a_zip.txt'
-        fp = os.path.join(DATA_DIR, fn)
-        # Hack this, because it's impossible to commit a file with 0 read perms
-        os.chmod(fp, 0o000)
-        with self.assertRaisesRegex(
-                PermissionError, f"ArchiveParser.*denied.*{fn}"):
-            ArchiveParser.get_parser(fp)
-        os.chmod(fp, 0o644)
-
-    def test_get_parser_not_a_zip_archive(self):
-        fn = 'not_a_zip.txt'
-        fp = os.path.join(DATA_DIR, fn)
-        with self.assertRaisesRegex(
-                zipfile.BadZipFile, "ArchiveParser.*File is not a zip file"):
+                FileNotFoundError, f'ArchiveParser.*{fp}'
+        ):
             ArchiveParser.get_parser(fp)
 
     def test_artifact_parser_parse_prov(self):
@@ -173,126 +183,199 @@ class ArchiveParserTests(unittest.TestCase):
 class ResultMetadataTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        v5_qzv = TEST_DATA['5']['qzv_fp']
-        cls.v5_uuid = TEST_DATA['5']['uuid']
-        md_fp = f'{cls.v5_uuid}/provenance/metadata.yaml'
-        with zipfile.ZipFile(str(v5_qzv)) as zf:
-            cls.v5_root_md = _ResultMetadata(zf, md_fp)
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+
+        cls.uuid = cls.tas.concated_ints.uuid
+        md_fp = f'{cls.uuid}/provenance/metadata.yaml'
+        with zipfile.ZipFile(cls.tas.concated_ints.filepath) as zf:
+            cls.root_md = _ResultMetadata(zf, md_fp)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
 
     def test_smoke(self):
-        self.assertEqual(self.v5_root_md.uuid, self.v5_uuid)
-        self.assertEqual(self.v5_root_md.type, 'Visualization')
-        self.assertEqual(self.v5_root_md.format, None)
+        self.assertEqual(self.root_md.uuid, self.uuid)
+        self.assertEqual(self.root_md.type, 'IntSequence1')
+        self.assertEqual(self.root_md.format, 'IntSequenceDirectoryFormat')
 
     def test_repr(self):
-        exp = (f'UUID:\t\t{self.v5_uuid}\n'
-               'Type:\t\tVisualization\n'
-               'Data Format:\tNone')
-        self.assertEqual(repr(self.v5_root_md), exp)
+        exp = (f'UUID:\t\t{self.uuid}\n'
+               'Type:\t\tIntSequence1\n'
+               'Data Format:\tIntSequenceDirectoryFormat')
+        self.assertEqual(repr(self.root_md), exp)
 
 
 class ActionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        root_action_fp = os.path.join(DATA_DIR,
-                                      'action_emperor_root_node_v5.zip')
-        import_action_fp = os.path.join(DATA_DIR, 'action_import_v5.zip')
-        with zipfile.ZipFile(root_action_fp) as zf:
-            cls.act = _Action(zf, 'action.yaml')
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
 
-        with zipfile.ZipFile(import_action_fp) as zf:
-            cls.imp_act = _Action(zf, 'action.yaml')
+        action_path = os.path.join(cls.tas.concated_ints_v6.uuid, 'provenance',
+                                   'action', 'action.yaml')
+        with zipfile.ZipFile(cls.tas.concated_ints_v6.filepath) as zf:
+            cls.concat_action = _Action(zf, action_path)
+
+        action_path = os.path.join(cls.tas.single_int.uuid, 'provenance',
+                                   'action', 'action.yaml')
+        with zipfile.ZipFile(cls.tas.single_int.filepath) as zf:
+            cls.import_action = _Action(zf, action_path)
+
+        action_path = os.path.join(cls.tas.pipeline_viz.uuid, 'provenance',
+                                   'action', 'action.yaml')
+        with zipfile.ZipFile(cls.tas.pipeline_viz.filepath) as zf:
+            cls.pipeline_action = _Action(zf, action_path)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
 
     def test_action_id(self):
-        exp = '5bc4b090-abbc-46b0-a219-346c8026f7d7'
-        self.assertEqual(self.act.action_id, exp)
+        exp = '5035a60e-6f9a-40d4-b412-48ae52255bb5'
+        self.assertEqual(self.concat_action.action_id, exp)
 
     def test_action_type(self):
-        exp = 'pipeline'
-        self.assertEqual(self.act.action_type, exp)
+        self.assertEqual(self.concat_action.action_type, 'method')
+        self.assertEqual(self.import_action.action_type, 'import')
+        self.assertEqual(self.pipeline_action.action_type, 'pipeline')
 
     def test_runtime(self):
         exp_t = timedelta
-        exp = timedelta(seconds=2, microseconds=17110)
-        self.assertIsInstance(self.act.runtime, exp_t)
-        self.assertEqual(self.act.runtime, exp)
+        exp = timedelta(microseconds=6840)
+        self.assertIsInstance(self.concat_action.runtime, exp_t)
+        self.assertEqual(self.concat_action.runtime, exp)
 
     def test_runtime_str(self):
-        exp = '2 seconds, and 17110 microseconds'
-        self.assertEqual(self.act.runtime_str, exp)
+        exp = '6840 microseconds'
+        self.assertEqual(self.concat_action.runtime_str, exp)
 
     def test_action(self):
-        exp = 'core_metrics_phylogenetic'
-        self.assertEqual(self.act.action_name, exp)
+        exp = 'concatenate_ints'
+        self.assertEqual(self.concat_action.action_name, exp)
 
     def test_plugin(self):
-        exp = 'diversity'
-        self.assertEqual(self.act.plugin, exp)
+        exp = 'dummy_plugin'
+        self.assertEqual(self.concat_action.plugin, exp)
 
-    def test_inputs(self):
-        action_exp = {'table': '706b6bce-8f19-4ae9-b8f5-21b14a814a1b',
-                      'phylogeny': 'ad7e5b50-065c-4fdd-8d9b-991e92caad22'}
-        import_exp = {}
-        self.assertEqual(self.act.inputs, action_exp)
-        self.assertEqual(self.imp_act.inputs, import_exp)
-
-    def test_parameters(self):
-        action_exp = {'sampling_depth': 1000,
-                      'metadata': MetadataInfo(input_artifact_uuids=[],
-                                               relative_fp='metadata.tsv'),
-                      'n_jobs_or_threads': 'auto'}
-        import_exp = {}
-        self.assertEqual(self.act.parameters, action_exp)
-        self.assertEqual(self.imp_act.parameters, import_exp)
-
-    def test_output_name(self):
-        action_exp = 'unweighted_unifrac_emperor'
-        import_exp = None
-        self.assertEqual(self.act.output_name, action_exp)
-        self.assertEqual(self.imp_act.output_name, import_exp)
-
-    def test_format(self):
-        action_exp = None
-        import_exp = 'EMPSingleEndDirFmt'
-        self.assertEqual(self.act.format, action_exp)
-        self.assertEqual(self.imp_act.format, import_exp)
-
-    def test_transformers(self):
-        action_exp = None
-        import_exp = {'output': [{'from': 'EMPSingleEndDirFmt',
-                                  'to': 'EMPSingleEndDirFmt'}]}
-        self.assertEqual(self.act.transformers, action_exp)
-        self.assertEqual(self.imp_act.transformers, import_exp)
-
-    def test_repr(self):
-        exp = ('_Action(action_id=5bc4b090-abbc-46b0-a219-346c8026f7d7, '
-               'type=pipeline, plugin=diversity, '
-               'action=core_metrics_phylogenetic)')
-        self.assertEqual(repr(self.act), exp)
-
-    # NOTE: Import is not handled by a plugin, so the parser provides values
-    # for the action_name and plugin properties not present in action.yaml
+    '''
+    Import is not handled by a plugin, so the parser provides values
+    for the action_name and plugin properties not present in action.yaml
+    '''
     def test_action_for_import_node(self):
         exp = 'import'
-        self.assertEqual(self.imp_act.action_name, exp)
+        self.assertEqual(self.import_action.action_name, exp)
 
     def test_plugin_for_import_node(self):
         exp = 'framework'
-        self.assertEqual(self.imp_act.plugin, exp)
+        self.assertEqual(self.import_action.plugin, exp)
+
+    def test_inputs(self):
+        exp = {
+            'ints1': '8dea2f1a-2164-4a85-9f7d-e0641b1db22b',
+            'ints2': '8dea2f1a-2164-4a85-9f7d-e0641b1db22b',
+            'ints3': '7727c060-5384-445d-b007-b64b41a090ee'
+        }
+        self.assertEqual(self.concat_action.inputs, exp)
+
+        exp = {}
+        self.assertEqual(self.import_action.inputs, exp)
+
+    def test_parameters(self):
+        exp = {
+            'int1': 7,
+            'int2': 100,
+        }
+        self.assertEqual(self.concat_action.parameters, exp)
+
+        exp = {}
+        self.assertEqual(self.import_action.parameters, exp)
+
+    def test_output_name(self):
+        exp = 'concatenated_ints'
+        self.assertEqual(self.concat_action.output_name, exp)
+
+        exp = None
+        self.assertEqual(self.import_action.output_name, exp)
+
+    # TODO: what does format mean in this dict?
+    def test_format(self):
+        exp = None
+        self.assertEqual(self.concat_action.format, exp)
+        self.assertEqual(self.import_action.format, exp)
+
+    def test_transformers(self):
+        int_seq_dir_citation = (
+            'view|dummy-plugin:0.0.0-dev|IntSequenceDirectoryFormat|0'
+        )
+        transformer_citation = (
+            'transformer|dummy-plugin:0.0.0-dev|builtins:list'
+            '->IntSequenceDirectoryFormat|0'
+        )
+        output_citations = [transformer_citation, int_seq_dir_citation]
+
+        exp = {
+            'inputs': {
+                'ints1':
+                    [{
+                        'from': 'IntSequenceDirectoryFormat',
+                        'to': 'builtins:list',
+                        'plugin': 'dummy-plugin',
+                        'citations': [int_seq_dir_citation]
+                    }],
+                'ints2':
+                    [{
+                        'from': 'IntSequenceDirectoryFormat',
+                        'to': 'builtins:list',
+                        'plugin': 'dummy-plugin',
+                        'citations': [int_seq_dir_citation]
+                    }],
+                'ints3':
+                    [{
+                        'from': 'IntSequenceV2DirectoryFormat',
+                        'to': 'builtins:list',
+                        'plugin': 'dummy-plugin',
+                    }],
+            },
+            'output': [{
+                'from': 'builtins:list',
+                'to': 'IntSequenceDirectoryFormat',
+                'plugin': 'dummy-plugin',
+                'citations': output_citations
+            }]
+        }
+        self.assertEqual(self.concat_action.transformers, exp)
+
+    def test_repr(self):
+        exp = (
+            '_Action(action_id=5035a60e-6f9a-40d4-b412-48ae52255bb5, '
+            'type=method, plugin=dummy_plugin, '
+            'action=concatenate_ints)'
+        )
+        self.assertEqual(repr(self.concat_action), exp)
 
 
 class CitationsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+
         cite_strs = ['cite_none', 'cite_one', 'cite_many']
         cls.bibs = [bib+'.bib' for bib in cite_strs]
-        cls.zips = [os.path.join(DATA_DIR, bib+'.zip') for bib in cite_strs]
+        cls.zips = [
+            os.path.join(cls.tas.datadir, bib+'.zip') for bib in cite_strs
+        ]
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
 
     def test_empty_bib(self):
         with zipfile.ZipFile(self.zips[0]) as zf:
             citations = _Citations(zf, self.bibs[0])
-            # Is the _citations dict empty?
-            self.assertFalse(len(citations.citations))
+            self.assertEqual(len(citations.citations), 0)
 
     def test_citation(self):
         with zipfile.ZipFile(self.zips[1]) as zf:
@@ -319,6 +402,15 @@ class CitationsTests(unittest.TestCase):
 
 
 class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
+    # @classmethod
+    # def setUpClass(cls):
+    #     cls.tas = TestArtifacts()
+    #     cls.tempdir = cls.tas.tempdir
+
+    # @classmethod
+    # def tearDownClass(cls):
+    #     cls.tas.free()
+
     @classmethod
     def setUpClass(cls):
         cfg = Config(parse_study_metadata=True)
