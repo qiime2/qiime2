@@ -382,7 +382,7 @@ class PluginManager:
 
         # TODO: We need a good way to tell if a semantic type is registered but
         # does not have a directory format. The previous error was causing a
-        # lot of confusion, but this one is also not entirely accurate.
+        # lot of confusion.
         #
         # Reference: https://github.com/qiime2/qiime2/issues/514
         raise TypeError(
