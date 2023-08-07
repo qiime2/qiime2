@@ -13,6 +13,7 @@ import appdirs
 import tomlkit
 import threading
 import importlib
+import pkg_resources
 
 PARALLEL_CONFIG = threading.local()
 PARALLEL_CONFIG.parallel_config = None
@@ -131,6 +132,10 @@ def get_mapping(config_dict):
 
 
 def _get_vendored_config():
+    if 'QIIMETEST' in os.environ:
+        return pkg_resources.resource_filename(
+            'qiime2.sdk.tests', 'data/test_config.toml')
+
     # 1. Check envvar
     config_fp = os.environ.get('QIIME2_CONFIG')
 
@@ -192,11 +197,25 @@ def _process_key(key, value):
     """
     # Our key needs to point to some object.
     if key in module_paths:
+        # Get the module our class is from
         module = importlib.import_module(module_paths[key])
-        cls = getattr(module, value.pop('class'))
+
+        _type = value['class']
+        if _type == '_TEST_EXECUTOR_':
+            # Only used for tests
+            cls = _TEST_EXECUTOR_
+        else:
+            # Get the class we need to instantiate
+            cls = getattr(module, value['class'])
+
+        # Get the kwargs we need to pass to the class constructor
         kwargs = {}
         for k, v in value.items():
-            kwargs[k] = _process_key(k, v)
+            # We already handled this key
+            if k != 'class':
+                kwargs[k] = _process_key(k, v)
+
+        # Instantiate the class
         return cls(**kwargs)
     # Our key points to primitive data
     else:
@@ -240,6 +259,18 @@ def _check_env(cls):
     if 'QIIMETEST' not in os.environ:
         raise ValueError(
             f"Do not instantiate the class '{cls}' when not testing")
+
+
+class _TEST_EXECUTOR_(parsl.executors.threads.ThreadPoolExecutor):
+    """We needed multiple kinds of executor to ensure we were mapping things
+    correctly, but the HighThroughputExecutor was leaking sockets, so we avoid
+    creating those during the tests because so many sockets were being opened
+    that we were getting "Too many open files" errors, so this gets used as the
+    second executor type."""
+
+    def __init__(self, *args, **kwargs):
+        _check_env(self.__class__)
+        super(_TEST_EXECUTOR_, self).__init__(*args, **kwargs)
 
 
 # Used to test config loading behavior when outside of a conda environment
