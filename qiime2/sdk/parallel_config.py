@@ -1,4 +1,3 @@
-# ----------------------------------------------------------------------------
 # Copyright (c) 2016-2022, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
@@ -7,13 +6,13 @@
 # ----------------------------------------------------------------------------
 
 import os
-import parsl
 import psutil
 import appdirs
-import tomlkit
 import threading
 import importlib
-import pkg_resources
+
+import parsl
+import tomlkit
 
 PARALLEL_CONFIG = threading.local()
 PARALLEL_CONFIG.dfk = None
@@ -40,6 +39,24 @@ VENDORED_CONFIG = {
         }
     }
 
+# As near as I can tell, loading a config with a HighThroughputExecutor leaks
+# open sockets. This leads to issues (especially on osx) with "too many open
+# files" errors while running the test, so this test config with no
+# HighThroughputExecutor was created to mitigate that scenario. This config is
+# only to be used in tests that do not specifically need to test multiple
+# different executors
+_TEST_CONFIG_ = {
+    'parsl': {
+        'strategy': 'None',
+        'executors': [
+            {'class': 'ThreadPoolExecutor', 'label': 'default',
+                'max_threads': 1},
+            {'class': '_TEST_EXECUTOR_', 'label': 'test',
+                'max_threads': 1}
+            ]
+        }
+    }
+
 # Directs keys in the config whose values need to be objects to the module that
 # contains the class they need to instantiate
 module_paths = {
@@ -57,39 +74,37 @@ module_paths = {
 }
 
 
-def _setup_parallel(config_fp=None):
-    """Sets the parsl config and action executor mapping from a file at a given
-    path or looks through several default paths if no path is provided and
-    loads a vendored config as a last resort
+def _setup_parallel():
+    """Sets the parsl config and action executor mapping to the values set on
+    the thread local
     """
     parallel_config = PARALLEL_CONFIG.parallel_config
     mapping = PARALLEL_CONFIG.action_executor_mapping
 
-    # If we don't have a filepath or a currently existing config then get the
-    # path to the vendored one. We do not want to get the vendored path if they
-    # have a pre-existing config because we do not want to overwrite an
-    # existing config with the vendored one
-    if config_fp is None and PARALLEL_CONFIG.parallel_config is None:
-        config_fp = _get_vendored_config()
-
-    if config_fp is not None:
-        parallel_config, mapping = get_config(config_fp)
-
-        # If we don't have a config now, they gave a file that only contained a
-        # mapping, so we want to load a default config assuming they do not
-        # already have a loaded config
-        if parallel_config is None and PARALLEL_CONFIG.parallel_config is None:
+    # If we are running tests, get the test config not the normal one
+    if os.environ.get('QIIMETEST') is not None and parallel_config is None:
+        parallel_config, _mapping = get_config_from_dict(_TEST_CONFIG_)
+    else:
+        # If we don't have a currently existing config then get the path to the
+        # vendored one. We do not want to get the vendored path if they have a
+        # pre-existing config because we do not want to overwrite an existing
+        # config with the vendored one
+        if PARALLEL_CONFIG.parallel_config is None:
             config_fp = _get_vendored_config()
-            parallel_config, = get_config(config_fp)
 
-    _finalize_setup(parallel_config, mapping)
+            # If we are not in a conda environment, we may not get an fp back
+            # (because the vendored fp uses the conda prefix), so we load from
+            # the vendored dict. Otherwise we load from the vendored file
+            if config_fp is not None:
+                parallel_config, _mapping = get_config_from_file(config_fp)
+            else:
+                parallel_config, mapping = \
+                    get_config_from_dict(VENDORED_CONFIG)
 
-
-def _finalize_setup(parallel_config, mapping):
-    """Finish loading the config and setting up our threadlocal
-    """
     PARALLEL_CONFIG.dfk = parsl.load(parallel_config)
+
     PARALLEL_CONFIG.parallel_config = parallel_config
+    # If they did not supply a mapping, set the vendored one
     if mapping != {}:
         PARALLEL_CONFIG.action_executor_mapping = mapping
 
@@ -101,11 +116,11 @@ def _cleanup_parallel():
     parsl.clear()
 
 
-def get_config(fp):
+def get_config_from_file(config_fp):
     """Takes a config filepath and determines if the file exists and if so if
     it contains parsl config info.
     """
-    with open(fp, 'r') as fh:
+    with open(config_fp, 'r') as fh:
         config_dict = tomlkit.load(fh)
 
     return get_config_from_dict(config_dict)
@@ -117,8 +132,6 @@ def get_config_from_dict(config_dict):
 
     processed_parallel_config_dict = _process_config(parallel_config_dict)
 
-    # They could have given us a file that contained a mapping but no config.
-    # This is technically valid.
     if processed_parallel_config_dict != {}:
         parallel_config = parsl.Config(**processed_parallel_config_dict)
     else:
@@ -128,10 +141,6 @@ def get_config_from_dict(config_dict):
 
 
 def _get_vendored_config():
-    if 'QIIMETEST' in os.environ:
-        return pkg_resources.resource_filename(
-            'qiime2.sdk.tests', 'data/test_config.toml')
-
     # 1. Check envvar
     config_fp = os.environ.get('QIIME2_CONFIG')
 
@@ -263,20 +272,9 @@ def _check_env(cls):
             f"Do not instantiate the class '{cls}' when not testing")
 
 
-class _TEST_EXECUTOR_(parsl.executors.threads.ThreadPoolExecutor):
-    """We needed multiple kinds of executor to ensure we were mapping things
-    correctly, but the HighThroughputExecutor was leaking sockets, so we avoid
-    creating those during the tests because so many sockets were being opened
-    that we were getting "Too many open files" errors, so this gets used as the
-    second executor type."""
-
-    def __init__(self, *args, **kwargs):
-        _check_env(self.__class__)
-        super(_TEST_EXECUTOR_, self).__init__(*args, **kwargs)
-
-
-# Used to test config loading behavior when outside of a conda environment
 class _MASK_CONDA_ENV_():
+    """Used to test config loading behavior when outside of a conda environment
+    """
     def __init__(self):
         _check_env(self.__class__)
 
@@ -294,3 +292,15 @@ class _MASK_CONDA_ENV_():
 
         CONDA_PREFIX = self.old_prefix
         VENDORED_FP = self.old_fp
+
+
+class _TEST_EXECUTOR_(parsl.executors.threads.ThreadPoolExecutor):
+    """We needed multiple kinds of executor to ensure we were mapping things
+    correctly, but the HighThroughputExecutor was leaking sockets, so we avoid
+    creating those during the tests because so many sockets were being opened
+    that we were getting "Too many open files" errors, so this gets used as the
+    second executor type."""
+
+    def __init__(self, *args, **kwargs):
+        _check_env(self.__class__)
+        super(_TEST_EXECUTOR_, self).__init__(*args, **kwargs)

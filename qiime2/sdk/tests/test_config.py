@@ -20,7 +20,7 @@ from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, _TEST_EXECUTOR_,
                                         _MASK_CONDA_ENV_, ParallelConfig,
-                                        get_config)
+                                        get_config_from_file)
 
 
 class TestConfig(unittest.TestCase):
@@ -38,22 +38,7 @@ class TestConfig(unittest.TestCase):
         'type': 'parsl', 'parsl_type': '_TEST_EXECUTOR_'}]
 
     def setUp(self):
-        # Create configs
-        self.tpool_default = parsl.Config(
-            executors=[
-                ThreadPoolExecutor(
-                    max_threads=1,
-                    label='default'
-                ),
-                _TEST_EXECUTOR_(
-                    max_threads=1,
-                    label='test'
-                )
-            ],
-            # AdHoc Clusters should not be setup with scaling strategy.
-            strategy='none',
-        )
-
+        # Create config
         self.test_default = parsl.Config(
             executors=[
                 ThreadPoolExecutor(
@@ -95,13 +80,13 @@ class TestConfig(unittest.TestCase):
                                                'data/%s' % filename)
 
     def test_default_config(self):
-        with ParallelConfig(self.tpool_default):
+        with ParallelConfig():
             self.assertIsInstance(
                 PARALLEL_CONFIG.parallel_config, parsl.Config)
             self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
-        config, mapping = get_config(self.mapping_config_fp)
+        config, mapping = get_config_from_file(self.mapping_config_fp)
 
         with self.cache:
             with ParallelConfig(config, mapping):
@@ -117,7 +102,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def test_mapping_only_config(self):
-        _, mapping = get_config(self.mapping_only_config_fp)
+        _, mapping = get_config_from_file(self.mapping_only_config_fp)
 
         with self.cache:
             with ParallelConfig(action_executor_mapping=mapping):
@@ -136,7 +121,7 @@ class TestConfig(unittest.TestCase):
         mapping = {'list_of_ints': 'test'}
 
         with self.cache:
-            with ParallelConfig(self.tpool_default, mapping):
+            with ParallelConfig(action_executor_mapping=mapping):
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
 
@@ -186,7 +171,7 @@ class TestConfig(unittest.TestCase):
         with self.cache:
             with self.assertRaisesRegex(
                     ValueError, 'cannot nest ParallelConfigs'):
-                with ParallelConfig(self.tpool_default):
+                with ParallelConfig():
                     with ParallelConfig(self.test_default):
                         pass
 
@@ -196,8 +181,8 @@ class TestConfig(unittest.TestCase):
             self.method.parallel(self.art)
 
     def test_no_vendored_fp(self):
-        with ParallelConfig():
-            with _MASK_CONDA_ENV_():
+        with _MASK_CONDA_ENV_():
+            with ParallelConfig():
                 with self.cache:
                     future = self.pipeline.parallel(self.art, self.art)
                     list_return, dict_return = future._result()
