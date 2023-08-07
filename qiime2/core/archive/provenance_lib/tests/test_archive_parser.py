@@ -9,8 +9,9 @@ import warnings
 import zipfile
 
 from .. import _checksum_validator
-from .testing_utilities import is_root_provnode_data
-from .test_parse import TEST_DATA, DATA_DIR
+from .testing_utilities import (
+    TestArtifacts, is_root_provnode_data, TEST_DATA, DATA_DIR, ReallyEqualMixin
+)
 from ..util import UUID
 from ..archive_parser import (
     ProvNode, Config, _Action, _Citations, _ResultMetadata, ParserResults,
@@ -18,11 +19,34 @@ from ..archive_parser import (
 )
 
 from ...provenance import MetadataInfo
-from .testing_utilities import ReallyEqualMixin
 
 
 class ParserVxTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
     def test_parse_root_md(self):
+        for artifact in self.tas.all_artifact_versions:
+            fp = artifact.filepath
+            uuid = artifact.uuid
+            parser = ArchiveParser.get_parser(fp)
+            with zipfile.ZipFile(fp) as zf:
+                root_md = parser._parse_root_md(zf, uuid)
+                self.assertEqual(root_md.uuid, uuid)
+                if artifact == self.tas.table_v0:
+                    self.assertEqual(root_md.format, 'BIOMV210DirFmt')
+                    self.assertEqual(root_md.type, 'FeatureTable[Frequency]')
+                else:
+                    self.assertEqual(root_md.format,
+                                     'IntSequenceDirectoryFormat')
+                    self.assertEqual(root_md.type, 'IntSequence1')
+
         for archive_version in TEST_DATA:
             fp = TEST_DATA[archive_version]['qzv_fp']
             root_uuid = TEST_DATA[archive_version]['uuid']

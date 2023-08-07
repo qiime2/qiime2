@@ -8,11 +8,16 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Generator
 
+from ..archive_parser import (
+    ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5
+)
+from .._checksum_validator import ValidationCode
 from ..parse import ProvDAG
 from ..util import UUID
 
 from qiime2 import Artifact
 from qiime2.sdk.plugin_manager import PluginManager
+from qiime2.core.archive.archiver import ChecksumDiff
 
 
 @dataclass
@@ -138,8 +143,97 @@ class TestArtifacts:
         ) as altered_archive:
             self.dag_missing_md5 = ProvDAG(altered_archive)
 
+    @property
+    def all_artifact_versions(self):
+        return (
+            self.table_v0, self.concated_ints_v1, self.concated_ints_v2,
+            self.concated_ints_v3, self.concated_ints_v4,
+            self.concated_ints_v5, self.concated_ints_v6,
+        )
+
     def free(self):
         shutil.rmtree(self.tempdir)
+
+
+DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
+TEST_DATA = {
+    '0': {'parser': ParserV0,
+          'av': '0',
+          'fwv': '2.0.5',
+          'uuid': '0b8b47bd-f2f8-4029-923c-0e37a68340c3',
+          'n_res': 1,
+          'qzv_fp': os.path.join(DATA_DIR, 'v0_uu_emperor.qzv'),
+          'has_prov': False,
+          'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
+          'checksum': None,
+          },
+    '1': {'parser': ParserV1,
+          'av': '1',
+          'fwv': '2.0.6',
+          'uuid': '0b8b47bd-f2f8-4029-923c-0e37a68340c3',
+          'nonroot_node': '60cde83c-180d-40cb-87c9-b9363f23f796',
+          'n_res': 10,
+          'qzv_fp': os.path.join(DATA_DIR, 'v1_uu_emperor.qzv'),
+          'has_prov': True,
+          'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
+          'checksum': None,
+          },
+    '2a': {'parser': ParserV2,
+           'av': '2',
+           'fwv': '2017.9.0',
+           'uuid': '219c4bdf-f2b1-4b3f-b66a-08de8a4d17ca',
+           'nonroot_node': '512ced83-cc8b-4bed-8c22-a829e8fc89a2',
+           'n_res': 10,
+           'qzv_fp': os.path.join(DATA_DIR, 'v2a_uu_emperor.qzv'),
+           'has_prov': True,
+           'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
+           'checksum': None,
+           },
+    '2b': {'parser': ParserV2,
+           'av': '2',
+           'fwv': '2017.10.0',
+           'uuid': '8abf8dee-0047-4a7f-9826-e66893182978',
+           'nonroot_node': '10ebb316-169e-422c-8fb9-423e131fe42f',
+           'n_res': 14,
+           'qzv_fp': os.path.join(DATA_DIR, 'v2b_uu_emperor.qzv'),
+           'has_prov': True,
+           'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
+           'checksum': None,
+           },
+    '3': {'parser': ParserV3,
+          'av': '3',
+          'fwv': '2017.12.0',
+          'uuid': '3544061c-6e2f-4328-8345-754416828cb5',
+          'nonroot_node': '32c222f5-d991-4168-bca2-d305513e258f',
+          'n_res': 14,
+          'qzv_fp': os.path.join(DATA_DIR, 'v3_uu_emperor.qzv'),
+          'has_prov': True,
+          'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
+          'checksum': None,
+          },
+    '4': {'parser': ParserV4,
+          'av': '4',
+          'fwv': '2018.4.0',
+          'uuid': '91c2189a-2d2e-4d53-98ee-659caaf6ffc2',
+          'nonroot_node': '48c153b4-314c-4249-88a3-020f5444a76f',
+          'n_res': 14,
+          'qzv_fp': os.path.join(DATA_DIR, 'v4_uu_emperor.qzv'),
+          'has_prov': True,
+          'prov_is_valid': ValidationCode.PREDATES_CHECKSUMS,
+          'checksum': None,
+          },
+    '5': {'parser': ParserV5,
+          'av': '5',
+          'fwv': '2018.11.0',
+          'uuid': 'ffb7cee3-2f1f-4988-90cc-efd5184ef003',
+          'nonroot_node': '3b7d36ff-37ab-4ac2-958b-6a547d442bcf',
+          'n_res': 15,
+          'qzv_fp': os.path.join(DATA_DIR, 'v5_uu_emperor.qzv'),
+          'has_prov': True,
+          'prov_is_valid': ValidationCode.VALID,
+          'checksum': ChecksumDiff({}, {}, {}),
+          },
+    }
 
 
 class CustomAssertions(unittest.TestCase):

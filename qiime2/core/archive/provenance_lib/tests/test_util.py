@@ -2,8 +2,7 @@ import pathlib
 import unittest
 import zipfile
 
-from .test_parse import TEST_DATA
-from .testing_utilities import CustomAssertions
+from .testing_utilities import CustomAssertions, TEST_DATA
 from ..util import get_root_uuid, get_nonroot_uuid, camel_to_snake
 
 
