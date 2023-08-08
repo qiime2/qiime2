@@ -15,7 +15,7 @@ from .._checksum_validator import ValidationCode
 from ..parse import ProvDAG
 from ..util import UUID
 
-from qiime2 import Artifact
+from qiime2 import Artifact, Metadata
 from qiime2.sdk.plugin_manager import PluginManager
 from qiime2.core.archive.archiver import ChecksumDiff
 
@@ -38,13 +38,23 @@ class TestArtifacts:
 
         # TODO: move versioned artifacts into root of data dir once everything
         # else is gone
+        # NOTE: 'versioned-artifacts/' now holds other stuff that I want
+        # to keep around
         self.datadir = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
             'data',
             'versioned-artifacts'
         )
 
-        # artifacts with no action provenance (except import)
+        self.init_import_artifacts()
+        self.init_action_artifacts()
+        self.init_all_version_artifacts()
+        self.init_no_checksum_dag()
+
+    def init_import_artifacts(self):
+        '''
+        artifacts with only import in their provenance
+        '''
         single_int = Artifact.import_data('SingleInt', 0)
         int_seq1 = Artifact.import_data('IntSequence1', [1, 1, 2])
         int_seq2 = Artifact.import_data('IntSequence2', [3, 5])
@@ -62,28 +72,45 @@ class TestArtifacts:
             )
             setattr(self, name, test_artifact)
 
+    def init_action_artifacts(self):
+        '''
+        artifacts that have at least one non-import action in their provenance
+        '''
         concat_ints = self.dp.methods['concatenate_ints']
         split_ints = self.dp.methods['split_ints']
         merge_mappings = self.dp.methods['merge_mappings']
-        # to be used
-        # identity_with_metadata = self.dp.actions['identity_with_metadata']
+        identity_with_metadata = self.dp.actions['identity_with_metadata']
 
-        # artifacts with some simple actions in their provenance
-        concated_ints, = concat_ints(int_seq1, int_seq1, int_seq2, 7, 13)
-        other_concated_ints, = concat_ints(int_seq1, int_seq1, int_seq2,
-                                           81, 64)
-        splitted_ints, _ = split_ints(int_seq2)
-        merged_mappings, = merge_mappings(mapping1, mapping2)
+        concated_ints, = concat_ints(
+            self.int_seq1.artifact, self.int_seq1.artifact,
+            self.int_seq2.artifact, 7, 13
+        )
+        other_concated_ints, = concat_ints(
+            self.int_seq1.artifact, self.int_seq1.artifact,
+            self.int_seq2.artifact, 81, 64
+        )
+        splitted_ints, _ = split_ints(self.int_seq2.artifact)
+        merged_mappings, = merge_mappings(
+            self.mapping1.artifact, self.mapping2.artifact
+        )
+        int_seq_with_md, = identity_with_metadata(
+            self.int_seq1.artifact, self.mapping1.artifact.view(Metadata)
+        )
+        concated_ints_with_md, = concat_ints(
+            self.int_seq1.artifact, int_seq_with_md, self.int_seq2.artifact,
+            81, 64
+        )
 
-        # create artifact with pipeline provenance
         typical_pipeline = self.dp.pipelines['typical_pipeline']
-        _, _, _, pipeline_viz, _ = typical_pipeline(int_seq1, mapping1, False)
+        _, _, _, pipeline_viz, _ = typical_pipeline(
+            self.int_seq1.artifact, self.mapping1.artifact, False
+        )
 
         for artifact, name in zip(
             [concated_ints, other_concated_ints, splitted_ints,
-             merged_mappings, pipeline_viz],
+             merged_mappings, pipeline_viz, concated_ints_with_md],
             ['concated_ints', 'other_concated_ints', 'splitted_ints',
-             'merged_mappings', 'pipeline_viz']
+             'merged_mappings', 'pipeline_viz', 'concated_ints_with_md']
         ):
             if name == 'pipeline_viz':
                 ext = '.qzv'
@@ -97,7 +124,12 @@ class TestArtifacts:
             )
             setattr(self, name, test_artifact)
 
-        # import dummy artifacts for versions [0, 6]
+    def init_all_version_artifacts(self):
+        '''
+        import artifacts for all archive versions (0-6), which are stored
+        uncompressed in the test data directory--necessary because we can not
+        make artifacts of non-current versions on the fly
+        '''
         for version in range(0, 7):
             if version == 0:
                 dirname = 'table-v0'
@@ -135,7 +167,10 @@ class TestArtifacts:
             ta = TestArtifact(name, a, uuid, fp, dag, version)
             setattr(self, name, ta)
 
-        # create archive with missing checksums.md5
+    def init_no_checksum_dag(self):
+        '''
+        create archive with missing checksums.md5
+        '''
         with generate_archive_with_file_removed(
             self.single_int.filepath,
             self.single_int.uuid,
