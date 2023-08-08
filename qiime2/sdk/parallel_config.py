@@ -95,7 +95,7 @@ def _setup_parallel():
             if config_fp is not None:
                 _parallel_config, _mapping = get_config_from_file(config_fp)
             else:
-                _parallel_config, mapping = \
+                _parallel_config, _mapping = \
                     get_config_from_dict(VENDORED_CONFIG)
 
     # If they did not supply a parallel_config, set the vendored one
