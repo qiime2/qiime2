@@ -83,30 +83,30 @@ def _setup_parallel():
 
     # If we are running tests, get the test config not the normal one
     if os.environ.get('QIIMETEST') is not None and parallel_config is None:
-        parallel_config, _mapping = get_config_from_dict(_TEST_CONFIG_)
+        _parallel_config, _mapping = get_config_from_dict(_TEST_CONFIG_)
     else:
-        # If we don't have a currently existing config then get the path to the
-        # vendored one. We do not want to get the vendored path if they have a
-        # pre-existing config because we do not want to overwrite an existing
-        # config with the vendored one
-        if PARALLEL_CONFIG.parallel_config is None:
+        # If they did not already supply a config, we get the vendored one
+        if parallel_config is None:
             config_fp = _get_vendored_config()
 
             # If we are not in a conda environment, we may not get an fp back
             # (because the vendored fp uses the conda prefix), so we load from
             # the vendored dict. Otherwise we load from the vendored file
             if config_fp is not None:
-                parallel_config, _mapping = get_config_from_file(config_fp)
+                _parallel_config, _mapping = get_config_from_file(config_fp)
             else:
-                parallel_config, mapping = \
+                _parallel_config, mapping = \
                     get_config_from_dict(VENDORED_CONFIG)
 
-    PARALLEL_CONFIG.dfk = parsl.load(parallel_config)
+    # If they did not supply a parallel_config, set the vendored one
+    if parallel_config is None:
+        PARALLEL_CONFIG.parallel_config = _parallel_config
 
-    PARALLEL_CONFIG.parallel_config = parallel_config
     # If they did not supply a mapping, set the vendored one
-    if mapping != {}:
-        PARALLEL_CONFIG.action_executor_mapping = mapping
+    if mapping is {}:
+        PARALLEL_CONFIG.action_executor_mapping = _mapping
+
+    PARALLEL_CONFIG.dfk = parsl.load(PARALLEL_CONFIG.parallel_config)
 
 
 def _cleanup_parallel():
