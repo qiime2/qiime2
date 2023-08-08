@@ -195,6 +195,17 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(list_execution_contexts, self.tpool_expected)
             self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
+    def test_no_config(self):
+        with self.assertRaisesRegex(RuntimeError, 'Must first load config'):
+            self.pipeline.parallel(self.art, self.art)
+
+    def test_config_unset(self):
+        with ParallelConfig():
+            self.pipeline.parallel(self.art, self.art)
+
+        with self.assertRaisesRegex(RuntimeError, 'Must first load config'):
+            self.pipeline.parallel(self.art, self.art)
+
     def _load_alias_execution_contexts(self, collection):
         execution_contexts = []
 
