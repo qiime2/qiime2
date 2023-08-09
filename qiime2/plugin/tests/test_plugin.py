@@ -94,7 +94,8 @@ class TestPlugin(unittest.TestCase):
                           'resumable_varied_pipeline',
                           'resumable_nested_varied_pipeline',
                           'internal_fail_pipeline', 'de_facto_list_pipeline',
-                          'de_facto_dict_pipeline', 'list_pipeline',
+                          'de_facto_dict_pipeline',
+                          'de_facto_collection_pipeline', 'list_pipeline',
                           'collection_pipeline', 'failing_pipeline',
                           'docstring_order_method',
                           'constrained_input_visualization',
@@ -168,7 +169,8 @@ class TestPlugin(unittest.TestCase):
                           'resumable_varied_pipeline',
                           'resumable_nested_varied_pipeline',
                           'internal_fail_pipeline', 'de_facto_list_pipeline',
-                          'de_facto_dict_pipeline', 'list_pipeline',
+                          'de_facto_dict_pipeline',
+                          'de_facto_collection_pipeline', 'list_pipeline',
                           'collection_pipeline', 'failing_pipeline'})
         for pipeline in pipelines.values():
             self.assertIsInstance(pipeline, qiime2.sdk.Pipeline)

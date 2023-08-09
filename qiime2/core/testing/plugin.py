@@ -57,8 +57,8 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        resumable_varied_pipeline,
                        resumable_nested_varied_pipeline,
                        internal_fail_pipeline, de_facto_list_pipeline,
-                       de_facto_dict_pipeline, list_pipeline,
-                       collection_pipeline, pointless_pipeline,
+                       de_facto_dict_pipeline, de_facto_collection_pipeline,
+                       list_pipeline, collection_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
 
@@ -880,6 +880,15 @@ dummy_plugin.pipelines.register_function(
     outputs=[('output', Collection[SingleInt])],
     name='Takes a collection and returns a collection',
     description='Takes a collection and returns a collection'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=de_facto_collection_pipeline,
+    inputs={},
+    parameters={},
+    outputs=[('output', Collection[Mapping])],
+    name='Returns de facto ResultCollection',
+    description='Takes nothing and returns de facto ResultCollection'
 )
 
 dummy_plugin.pipelines.register_function(
