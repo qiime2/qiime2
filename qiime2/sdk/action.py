@@ -726,12 +726,19 @@ class Pipeline(Action):
         coerced_outputs = []
 
         for output in outputs:
+            # Handle proxy outputs
             if isinstance(output, Proxy):
                 output = output.result()
 
+            # Handle collection outputs
             if isinstance(output, dict) or \
                     isinstance(output, list):
                 output = qiime2.sdk.ResultCollection(output)
+
+                # Handle proxies as elements of collections
+                for key, value in output.items():
+                    if isinstance(value, Proxy):
+                        output[key] = value.result()
 
             coerced_outputs.append(output)
 
