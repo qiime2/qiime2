@@ -1640,8 +1640,8 @@ class ExecutionUsageVariable(UsageVariable):
 
     # Utility method for key handling within result collections
     def _collection_key_util(self, data, key):
-        if (self.var_type !=
-                'artifact_collection' or 'visualization_collection'):
+        if self.var_type != ('artifact_collection' or
+                             'visualization_collection'):
             raise TypeError("Key can only be provided for output of type"
                             " artifact_collection or visualization_collection."
                             " Output of type %s was provided."

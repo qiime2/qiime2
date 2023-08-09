@@ -277,15 +277,15 @@ output4, = dummy_plugin_actions.optional_artifacts_method(
 
         self.assertEqual(exp, use.render())
 
-    def test_result_collection_dict_of_ints(self):
+    def test_artifact_collection_dict_of_ints(self):
         action = self.plugin.actions['dict_of_ints']
         use = ArtifactAPIUsage()
         action.examples['collection_dict_of_ints'](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
-out_collection, = dummy_plugin_actions.dict_of_ints(
-    ints=ints_collection,
+out_artifact_collection, = dummy_plugin_actions.dict_of_ints(
+    ints=ints_artifact_collection,
 )"""
 
         self.assertEqual(exp, use.render())

@@ -363,7 +363,7 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertTrue(obs4.variable[0].is_deferred)
         self.assertTrue(obs5.variable[0].is_deferred)
 
-    def test_result_collection_list_of_ints(self):
+    def test_artifact_collection_list_of_ints(self):
         action = self.plugin.actions['list_of_ints']
         use = usage.DiagnosticUsage()
         action.examples['collection_list_of_ints'](use)
@@ -435,7 +435,7 @@ class TestExecutionUsage(TestCaseUsage):
         self.assertIsInstance(single_int2.value, Artifact)
         self.assertIsInstance(out.value, Artifact)
 
-    def test_result_collection_list_of_ints(self):
+    def test_artifact_collection_list_of_ints(self):
         use = usage.ExecutionUsage()
         action = self.plugin.actions['list_of_ints']
         action.examples['collection_list_of_ints'](use)
