@@ -54,8 +54,8 @@ def assert_usage_var_type(usage_variable, *valid_types):
     ----------
     usage_variable : `qiime2.sdk.usage.UsageVariable`
         The usage variable to test.
-    *valid_types : 'artifact', 'result_collection', 'visualization',
-                   'metadata', 'column', 'format'
+    *valid_types : 'artifact', 'artifact_collection', 'visualization',
+                   'visualization_collection', 'metadata', 'column', 'format'
         The valid variable types to expect.
 
     Raises
@@ -315,7 +315,8 @@ class UsageInputs:
 
         def mapped(v):
             if isinstance(v, UsageVariable):
-                assert_usage_var_type(v, 'artifact', 'result_collection',
+                assert_usage_var_type(v, 'artifact', 'artifact_collection',
+                                      'visualization_collection',
                                       'metadata', 'column')
                 v = function(v)
             return v
@@ -449,9 +450,10 @@ class UsageOutputs(sdk.Results):
     pass
 
 
-VAR_TYPES = ('artifact', 'result_collection', 'visualization',
-             'metadata', 'column', 'format')
-T_VAR_TYPES = Literal['artifact', 'result_collection', 'visualization',
+VAR_TYPES = ('artifact', 'artifact_collection', 'visualization',
+             'visualization_collection', 'metadata', 'column', 'format')
+T_VAR_TYPES = Literal['artifact', 'artifact_collection', 'visualization',
+                      'visualization_collection',
                       'metadata', 'column', 'format']
 
 
@@ -481,8 +483,8 @@ class UsageVariable:
             point).
         factory : Callable[[], Any]
             A function which will return a realized value of `var_type`.
-        var_type : 'artifact', 'result_collection', 'visualization',
-                   'metadata', 'column', 'format'
+        var_type : 'artifact', 'artifact_collection', 'visualization',
+                   'visualization_collection', 'metadata', 'column', 'format'
             The type of value which will be returned by the factory.
             Most are self-explanatory, but "format" indicates that the factory
             produces a QIIME 2 file format or directory format, which is used
@@ -516,9 +518,9 @@ class UsageVariable:
         For use by interface drivers only (and rarely at that).
         Do not use in a written usage example.
         """
-        self.var_type: Literal['artifact', 'result_collection',
-                               'visualization', 'metadata',
-                               'column', 'format'] = var_type
+        self.var_type: Literal['artifact', 'artifact_collection',
+                               'visualization', 'visualization_collection',
+                               'metadata', 'column', 'format'] = var_type
         """The general type of this variable.
 
         Warning
@@ -943,9 +945,9 @@ class Usage:
         ...
         >>> int_seq_collection = use.init_result_collection('int_seq_collection', factory)
         >>> int_seq_collection
-        <ExecutionUsageVariable name='int_seq_collection', var_type='result_collection'>
+        <ExecutionUsageVariable name='int_seq_collection', var_type='artifact_collection'>
         """  # noqa: E501
-        return self._usage_variable(name, factory, 'result_collection')
+        return self._usage_variable(name, factory, 'artifact_collection')
 
     def init_metadata(self, name: str,
                       factory: Callable[[], qiime2.Metadata]) -> UsageVariable:
@@ -1511,7 +1513,10 @@ class Usage:
             if is_visualization_type(qiime_type):
                 var_type = 'visualization'
             elif is_collection_type(qiime_type):
-                var_type = 'result_collection'
+                if 'Visualization' in str(qiime_type):
+                    var_type = 'visualization_collection'
+                else:
+                    var_type = 'artifact_collection'
             elif is_semantic_type(qiime_type):
                 var_type = 'artifact'
             else:
@@ -1635,10 +1640,12 @@ class ExecutionUsageVariable(UsageVariable):
 
     # Utility method for key handling within result collections
     def _collection_key_util(self, data, key):
-        if self.var_type != 'result_collection':
+        if (self.var_type !=
+                'artifact_collection' or 'visualization_collection'):
             raise TypeError("Key can only be provided for output of type"
-                            " result_collection. Output of type %s was"
-                            " provided." % (self.var_type))
+                            " artifact_collection or visualization_collection."
+                            " Output of type %s was provided."
+                            % (self.var_type))
         if key not in data.keys():
             raise ValueError("Provided key %s not found in output" % (key))
 
@@ -1647,7 +1654,8 @@ class ExecutionUsageVariable(UsageVariable):
 
     def assert_has_line_matching(self, path, expression, key=None):
         assert_usage_var_type(self, 'artifact', 'visualization',
-                              'result_collection')
+                              'artifact_collection',
+                              'visualization_collection')
 
         data = self.value
 

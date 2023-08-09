@@ -41,8 +41,9 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
 
         parts = {
             'artifact': [self.name],
-            'result_collection': [self.name, 'collection'],
+            'artifact_collection': [self.name, 'artifact_collection'],
             'visualization': [self.name, 'viz'],
+            'visualization_collection': [self.name, 'viz_collection'],
             'metadata': [self.name, 'md'],
             'column': [self.name, 'mdc'],
             # No format here - it shouldn't be possible to make it this far

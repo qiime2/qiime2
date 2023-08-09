@@ -378,8 +378,8 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertEqual('ints', obs1.variable.name)
         self.assertEqual('out', obs2.variable[0].name)
 
-        self.assertEqual('result_collection', obs1.variable.var_type)
-        self.assertEqual('result_collection', obs2.variable[0].var_type)
+        self.assertEqual('artifact_collection', obs1.variable.var_type)
+        self.assertEqual('artifact_collection', obs2.variable[0].var_type)
 
         self.assertTrue(obs1.variable.is_deferred)
         self.assertTrue(obs2.variable[0].is_deferred)
