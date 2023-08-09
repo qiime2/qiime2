@@ -162,8 +162,8 @@ class TestPipeline(unittest.TestCase):
         de_facto_collection_pipeline = \
             self.plugin.pipelines['de_facto_collection_pipeline']
 
-        result = de_facto_collection_pipeline.parallel()
-        result = result._result()
+        with qiime2.sdk.parallel_config.ParallelConfig():
+            result = de_facto_collection_pipeline.parallel()._result()
 
         self.assertEqual(len(result), 1)
 
