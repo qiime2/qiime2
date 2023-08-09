@@ -21,7 +21,6 @@ import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import (LateBindingAttribute, DropFirstParameter,
                               tuplize, create_collection_name)
-from qiime2.sdk.parallel_config import setup_parallel
 from qiime2.sdk.proxy import Proxy
 
 
@@ -467,7 +466,6 @@ class Action(metaclass=abc.ABCMeta):
             if not isinstance(self, Pipeline):
                 raise ValueError('Only pipelines may be run in parallel')
 
-            setup_parallel()
             return self._bind_parsl(qiime2.sdk.Context(parallel=True), *args,
                                     **kwargs)
 

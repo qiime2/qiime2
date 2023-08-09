@@ -12,7 +12,6 @@ import unittest
 import pkg_resources
 
 import parsl
-from parsl import Config
 from parsl.executors.threads import ThreadPoolExecutor
 
 from qiime2 import Artifact, Cache
@@ -21,7 +20,7 @@ from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, _TEST_EXECUTOR_,
                                         _MASK_CONDA_ENV_, ParallelConfig,
-                                        setup_parallel)
+                                        get_config_from_file)
 
 
 class TestConfig(unittest.TestCase):
@@ -39,10 +38,7 @@ class TestConfig(unittest.TestCase):
         'type': 'parsl', 'parsl_type': '_TEST_EXECUTOR_'}]
 
     def setUp(self):
-        # Ensure default state prior to test
-        PARALLEL_CONFIG.parallel_config = None
-        PARALLEL_CONFIG.action_executor_mapping = {}
-
+        # Create config
         self.test_default = parsl.Config(
             executors=[
                 ThreadPoolExecutor(
@@ -84,18 +80,34 @@ class TestConfig(unittest.TestCase):
                                                'data/%s' % filename)
 
     def test_default_config(self):
-        setup_parallel()
-
-        # Assert modified state
-        self.assertIsInstance(PARALLEL_CONFIG.parallel_config, Config)
-        self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
+        with ParallelConfig():
+            self.assertIsInstance(
+                PARALLEL_CONFIG.parallel_config, parsl.Config)
+            self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
-        setup_parallel(self.mapping_config_fp)
+        config, mapping = get_config_from_file(self.mapping_config_fp)
 
         with self.cache:
-            future = self.pipeline.parallel(self.art, self.art)
-            list_return, dict_return = future._result()
+            with ParallelConfig(config, mapping):
+                future = self.pipeline.parallel(self.art, self.art)
+                list_return, dict_return = future._result()
+
+        list_execution_contexts = self._load_alias_execution_contexts(
+            list_return)
+        dict_execution_contexts = self._load_alias_execution_contexts(
+            dict_return)
+
+        self.assertEqual(list_execution_contexts, self.test_expected)
+        self.assertEqual(dict_execution_contexts, self.tpool_expected)
+
+    def test_mapping_only_config(self):
+        _, mapping = get_config_from_file(self.mapping_only_config_fp)
+
+        with self.cache:
+            with ParallelConfig(action_executor_mapping=mapping):
+                future = self.pipeline.parallel(self.art, self.art)
+                list_return, dict_return = future._result()
 
         list_execution_contexts = self._load_alias_execution_contexts(
             list_return)
@@ -157,37 +169,11 @@ class TestConfig(unittest.TestCase):
 
     def test_nested_configs(self):
         with self.cache:
-            with ParallelConfig():
-                with ParallelConfig(self.test_default):
-                    with ParallelConfig(
-                            action_executor_mapping={'list_of_ints': 'tpool'}):
-                        with self.assertRaisesRegex(KeyError, 'tpool'):
-                            future = self.pipeline.parallel(self.art, self.art)
-                            list_return, dict_return = future._result()
-
-                    future = self.pipeline.parallel(self.art, self.art)
-                    list_return, dict_return = future._result()
-
-                    list_execution_contexts = \
-                        self._load_alias_execution_contexts(list_return)
-                    dict_execution_contexts = \
-                        self._load_alias_execution_contexts(dict_return)
-
-                    self.assertEqual(
-                        list_execution_contexts, self.test_expected)
-                    self.assertEqual(
-                        dict_execution_contexts, self.test_expected)
-
-                future = self.pipeline.parallel(self.art, self.art)
-                list_return, dict_return = future._result()
-
-                list_execution_contexts = self._load_alias_execution_contexts(
-                    list_return)
-                dict_execution_contexts = self._load_alias_execution_contexts(
-                    dict_return)
-
-                self.assertEqual(list_execution_contexts, self.tpool_expected)
-                self.assertEqual(dict_execution_contexts, self.tpool_expected)
+            with self.assertRaisesRegex(
+                    ValueError, 'cannot nest ParallelConfigs'):
+                with ParallelConfig():
+                    with ParallelConfig(self.test_default):
+                        pass
 
     def test_parallel_non_pipeline(self):
         with self.assertRaisesRegex(
@@ -196,9 +182,10 @@ class TestConfig(unittest.TestCase):
 
     def test_no_vendored_fp(self):
         with _MASK_CONDA_ENV_():
-            with self.cache:
-                future = self.pipeline.parallel(self.art, self.art)
-                list_return, dict_return = future._result()
+            with ParallelConfig():
+                with self.cache:
+                    future = self.pipeline.parallel(self.art, self.art)
+                    list_return, dict_return = future._result()
 
             list_execution_contexts = self._load_alias_execution_contexts(
                 list_return)
@@ -207,6 +194,17 @@ class TestConfig(unittest.TestCase):
 
             self.assertEqual(list_execution_contexts, self.tpool_expected)
             self.assertEqual(dict_execution_contexts, self.tpool_expected)
+
+    def test_no_config(self):
+        with self.assertRaisesRegex(RuntimeError, 'Must first load config'):
+            self.pipeline.parallel(self.art, self.art)
+
+    def test_config_unset(self):
+        with ParallelConfig():
+            self.pipeline.parallel(self.art, self.art)
+
+        with self.assertRaisesRegex(RuntimeError, 'Must first load config'):
+            self.pipeline.parallel(self.art, self.art)
 
     def _load_alias_execution_contexts(self, collection):
         execution_contexts = []

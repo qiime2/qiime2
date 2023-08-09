@@ -162,8 +162,8 @@ class TestPipeline(unittest.TestCase):
         de_facto_collection_pipeline = \
             self.plugin.pipelines['de_facto_collection_pipeline']
 
-        result = de_facto_collection_pipeline.parallel()
-        result = result._result()
+        with qiime2.sdk.parallel_config.ParallelConfig():
+            result = de_facto_collection_pipeline.parallel()._result()
 
         self.assertEqual(len(result), 1)
 
@@ -266,7 +266,9 @@ class TestPipeline(unittest.TestCase):
 
         exp = {'0': 0, '1': 1, '2': 2}
 
-        ret = pipeline.parallel()._result()
+        with qiime2.sdk.parallel_config.ParallelConfig():
+            ret = pipeline.parallel()._result()
+
         obs = qiime2.sdk.util.view_collection(ret.output, int)
 
         self.assertEqual(obs, exp)
@@ -286,7 +288,9 @@ class TestPipeline(unittest.TestCase):
 
         exp = {'0': 0, '1': 1, '2': 2}
 
-        ret = pipeline.parallel(kwarg=True)._result()
+        with qiime2.sdk.parallel_config.ParallelConfig():
+            ret = pipeline.parallel(kwarg=True)._result()
+
         obs = qiime2.sdk.util.view_collection(ret.output, int)
 
         self.assertEqual(obs, exp)
@@ -306,7 +310,9 @@ class TestPipeline(unittest.TestCase):
 
         exp = {'1': 0, '2': 1, '3': 2}
 
-        ret = pipeline.parallel()._result()
+        with qiime2.sdk.parallel_config.ParallelConfig():
+            ret = pipeline.parallel()._result()
+
         obs = qiime2.sdk.util.view_collection(ret.output, int)
 
         self.assertEqual(obs, exp)
@@ -326,7 +332,9 @@ class TestPipeline(unittest.TestCase):
 
         exp = {'1': 0, '2': 1, '3': 2}
 
-        ret = pipeline.parallel(kwarg=True)._result()
+        with qiime2.sdk.parallel_config.ParallelConfig():
+            ret = pipeline.parallel(kwarg=True)._result()
+
         obs = qiime2.sdk.util.view_collection(ret.output, int)
 
         self.assertEqual(obs, exp)
@@ -371,28 +379,32 @@ class TestPipeline(unittest.TestCase):
 
         with self.assertRaisesRegex(
                 ValueError, 'Collection has mixed proxies and artifacts.*'):
-            pipeline.parallel(non_proxies=True)._result()
+            with qiime2.sdk.parallel_config.ParallelConfig():
+                pipeline.parallel(non_proxies=True)._result()
 
     def test_fail_de_facto_list_kwarg_mixed(self):
         pipeline = self.plugin.pipelines['de_facto_list_pipeline']
 
         with self.assertRaisesRegex(
                 ValueError, 'Collection has mixed proxies and artifacts.*'):
-            pipeline.parallel(kwarg=True, non_proxies=True)._result()
+            with qiime2.sdk.parallel_config.ParallelConfig():
+                pipeline.parallel(kwarg=True, non_proxies=True)._result()
 
     def test_fail_de_facto_dict_arg_mixed(self):
         pipeline = self.plugin.pipelines['de_facto_dict_pipeline']
 
         with self.assertRaisesRegex(
                 ValueError, 'Collection has mixed proxies and artifacts.*'):
-            pipeline.parallel(non_proxies=True)._result()
+            with qiime2.sdk.parallel_config.ParallelConfig():
+                pipeline.parallel(non_proxies=True)._result()
 
     def test_fail_de_facto_dict_kwarg_mixed(self):
         pipeline = self.plugin.pipelines['de_facto_dict_pipeline']
 
         with self.assertRaisesRegex(
                 ValueError, 'Collection has mixed proxies and artifacts.*'):
-            pipeline.parallel(kwarg=True, non_proxies=True)._result()
+            with qiime2.sdk.parallel_config.ParallelConfig():
+                pipeline.parallel(kwarg=True, non_proxies=True)._result()
 
 
 if __name__ == '__main__':

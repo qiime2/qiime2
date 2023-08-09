@@ -4,7 +4,7 @@ strategy = "None"
 [[parsl.executors]]
 class = "ThreadPoolExecutor"
 label = "default"
-max_threads = 6
+max_threads = 1
 
 [[parsl.executors]]
 class = "_TEST_EXECUTOR_"
