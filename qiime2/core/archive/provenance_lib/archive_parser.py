@@ -131,7 +131,12 @@ class ProvNode:
                         # Make these unique in case the single-item dicts get
                         # merged into a single dict downstream
                         unq_name = f'{name}_{i}'
-                        parents.append({unq_name: value[i]})
+                        if type(value[i]) == dict:
+                            # value is in this case a single item dict
+                            v, = value[i].values()
+                        else:
+                            v = value[i]
+                        parents.append({unq_name: v})
                 elif value is not None:
                     parents.append({name: value})
                 else:
