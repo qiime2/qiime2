@@ -611,6 +611,27 @@ class ResultCollection:
         # Do this to give us a unified API with Result.save
         return directory
 
+    def _save_galaxy_(self, directory):
+        """Saves a collection of QIIME 2 Results into a given directory without
+           an order file. This is to be used by q2galaxy where an order file
+           will be interpreted as another dataset in the collection which is
+           not desirable
+
+           NOTE: The directory given must not exist
+        """
+        if os.path.exists(directory):
+            raise ValueError(f"The given directory '{directory}' already "
+                             "exists. A new directory must be given to save "
+                             "the collection to.")
+
+        os.makedirs(directory)
+        for name, result in self.collection.items():
+            result_fp = os.path.join(directory, name)
+            result.save(result_fp)
+
+        # Do this to give us a unified API with Result.save
+        return directory
+
     def keys(self):
         return self.collection.keys()
 
