@@ -589,6 +589,13 @@ class ResultCollection:
 
         return qiime2.core.type.Collection[inner_type]
 
+    @property
+    def extension(self):
+        if str(self.type) == 'Collection[Visualization]':
+            return '.qzv'
+
+        return '.qza'
+
     def save(self, directory):
         """Saves a collection of QIIME 2 Results into a given directory with
            an order file.
