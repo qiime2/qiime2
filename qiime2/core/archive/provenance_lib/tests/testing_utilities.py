@@ -15,7 +15,7 @@ from .._checksum_validator import ValidationCode
 from ..parse import ProvDAG
 from ..util import UUID
 
-from qiime2 import Artifact, Metadata
+from qiime2 import Artifact, Metadata, ResultCollection
 from qiime2.sdk.plugin_manager import PluginManager
 from qiime2.core.archive.archiver import ChecksumDiff
 
@@ -56,14 +56,16 @@ class TestArtifacts:
         artifacts with only import in their provenance
         '''
         single_int = Artifact.import_data('SingleInt', 0)
+        single_int2 = Artifact.import_data('SingleInt', 7)
         int_seq1 = Artifact.import_data('IntSequence1', [1, 1, 2])
         int_seq2 = Artifact.import_data('IntSequence2', [3, 5])
         mapping1 = Artifact.import_data('Mapping', {'a': 42})
         mapping2 = Artifact.import_data('Mapping', {'c': 8, 'd': 13})
 
         for artifact, name in zip(
-            [single_int, int_seq1, int_seq2, mapping1, mapping2],
-            ['single_int', 'int_seq1', 'int_seq2', 'mapping1', 'mapping2']
+            [single_int, single_int2, int_seq1, int_seq2, mapping1, mapping2],
+            ['single_int', 'single_int2', 'int_seq1', 'int_seq2', 'mapping1',
+             'mapping2']
         ):
             fp = os.path.join(self.tempdir, f'{name}.qza')
             artifact.save(fp)
@@ -80,6 +82,9 @@ class TestArtifacts:
         split_ints = self.dp.methods['split_ints']
         merge_mappings = self.dp.methods['merge_mappings']
         identity_with_metadata = self.dp.actions['identity_with_metadata']
+        dict_of_ints = self.dp.actions['dict_of_ints']
+        optional_artifacts_method = \
+            self.dp.actions['optional_artifacts_method']
 
         concated_ints, = concat_ints(
             self.int_seq1.artifact, self.int_seq1.artifact,
@@ -93,6 +98,8 @@ class TestArtifacts:
         merged_mappings, = merge_mappings(
             self.mapping1.artifact, self.mapping2.artifact
         )
+
+        # artifact with input artifact viewed as metadata
         int_seq_with_md, = identity_with_metadata(
             self.int_seq1.artifact, self.mapping1.artifact.view(Metadata)
         )
@@ -101,6 +108,23 @@ class TestArtifacts:
             81, 64
         )
 
+        # artifact with input collection
+        ints_dict = {
+            'int1': self.single_int.artifact,
+            'int2': self.single_int2.artifact,
+        }
+        ints_collection = ResultCollection(ints_dict)
+        ints_from_collection, = dict_of_ints(ints_collection)
+        int_from_collection = ints_from_collection['int1']
+        print(type(int_from_collection))
+        print(int_from_collection.type)
+
+        # artifact with optional inputs left to default None
+        int_seq_optional_input, = optional_artifacts_method(
+            self.int_seq1.artifact, 8
+        )
+
+        # artifact from pipeline
         typical_pipeline = self.dp.pipelines['typical_pipeline']
         _, _, _, pipeline_viz, _ = typical_pipeline(
             self.int_seq1.artifact, self.mapping1.artifact, False
@@ -108,9 +132,11 @@ class TestArtifacts:
 
         for artifact, name in zip(
             [concated_ints, other_concated_ints, splitted_ints,
-             merged_mappings, pipeline_viz, concated_ints_with_md],
+             merged_mappings, pipeline_viz, concated_ints_with_md,
+             int_from_collection, int_seq_optional_input],
             ['concated_ints', 'other_concated_ints', 'splitted_ints',
-             'merged_mappings', 'pipeline_viz', 'concated_ints_with_md']
+             'merged_mappings', 'pipeline_viz', 'concated_ints_with_md',
+             'int_from_collection', 'int_seq_optional_input']
         ):
             if name == 'pipeline_viz':
                 ext = '.qzv'
@@ -284,16 +310,14 @@ def is_root_provnode_data(fp):
     and VERSION fps with which we can construct a ProvNode
     """
     # Handle provenance files...
-    if 'provenance' in fp and 'artifacts' not in fp \
-        and ('action.yaml' in fp or
-             'citations.bib' in fp
-             ):
-        return True
+    if 'provenance' in fp and 'artifacts' not in fp:
+        if 'action.yaml' in fp or 'citations.bib' in fp:
+            return True
 
     # then handle files available at root, which require a cast
-    if pathlib.Path(fp).parts[1] in ('VERSION',
-                                     'metadata.yaml',
-                                     'checksums.md5'):
+    if pathlib.Path(fp).parts[1] in (
+        'VERSION', 'metadata.yaml', 'checksums.md5'
+    ):
         return True
 
 
