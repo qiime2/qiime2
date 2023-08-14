@@ -116,8 +116,6 @@ class TestArtifacts:
         ints_collection = ResultCollection(ints_dict)
         ints_from_collection, = dict_of_ints(ints_collection)
         int_from_collection = ints_from_collection['int1']
-        print(type(int_from_collection))
-        print(int_from_collection.type)
 
         # artifact with optional inputs left to default None
         int_seq_optional_input, = optional_artifacts_method(
