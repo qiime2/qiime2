@@ -455,6 +455,7 @@ VAR_TYPES = ('artifact', 'artifact_collection', 'visualization',
 T_VAR_TYPES = Literal['artifact', 'artifact_collection', 'visualization',
                       'visualization_collection',
                       'metadata', 'column', 'format']
+COLLECTION_VAR_TYPES = ('artifact_collection', 'visualization_collection')
 
 
 class UsageVariable:
@@ -466,6 +467,7 @@ class UsageVariable:
     """
     DEFERRED = object()
     VAR_TYPES = VAR_TYPES
+    COLLECTION_VAR_TYPES = COLLECTION_VAR_TYPES
 
     def __init__(self, name: str, factory: Callable[[], Any],
                  var_type: T_VAR_TYPES, usage: 'Usage'):
@@ -1513,7 +1515,7 @@ class Usage:
             if is_visualization_type(qiime_type):
                 var_type = 'visualization'
             elif is_collection_type(qiime_type):
-                if 'Visualization' in str(qiime_type):
+                if str(qiime_type) == 'Collection[Visualization]':
                     var_type = 'visualization_collection'
                 else:
                     var_type = 'artifact_collection'
@@ -1640,8 +1642,7 @@ class ExecutionUsageVariable(UsageVariable):
 
     # Utility method for key handling within result collections
     def _collection_key_util(self, data, key):
-        collection_types = ('artifact_collection', 'visualization_collection')
-        if self.var_type not in collection_types:
+        if self.var_type not in self.COLLECTION_VAR_TYPES:
             raise TypeError("Key can only be provided for output of type"
                             " artifact_collection or visualization_collection."
                             " Output of type %s was provided."
