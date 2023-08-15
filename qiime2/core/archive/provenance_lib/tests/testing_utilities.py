@@ -50,6 +50,7 @@ class TestArtifacts:
         self.init_action_artifacts()
         self.init_all_version_artifacts()
         self.init_no_checksum_dag()
+        self.init_artifact_no_output_names_in_provenance()
 
     def init_import_artifacts(self):
         '''
@@ -162,15 +163,7 @@ class TestArtifacts:
 
             versioned_artifact_dir = os.path.join(self.datadir, dirname)
             temp_zf_path = os.path.join(self.tempdir, 'temp.zip')
-            zf = zipfile.ZipFile(temp_zf_path, 'w', zipfile.ZIP_DEFLATED)
-            for root, dirs, files in os.walk(versioned_artifact_dir):
-                for file in files:
-                    filepath = os.path.join(root, file)
-                    zf.write(
-                        filepath,
-                        os.path.relpath(filepath, versioned_artifact_dir)
-                    )
-            zf.close()
+            write_zip_file(temp_zf_path, versioned_artifact_dir)
 
             filename = f'{dirname}.qza'
             fp = os.path.join(self.tempdir, filename)
@@ -190,6 +183,28 @@ class TestArtifacts:
             name = filename.replace('-', '_').replace('.qza', '')
             ta = TestArtifact(name, a, uuid, fp, dag, version)
             setattr(self, name, ta)
+
+    def init_artifact_no_output_names_in_provenance(self):
+        '''
+        The action.yaml files for the left and right int artifacts have been
+        had their `output-name` sections removed
+        '''
+        dirname = 'concated-ints-no-output-names'
+        artifact_dir = os.path.join(self.datadir, dirname)
+        temp_zf_path = os.path.join(self.tempdir, 'temp.zip')
+        write_zip_file(temp_zf_path, artifact_dir)
+
+        filename = f'{dirname}.qza'
+        fp = os.path.join(self.tempdir, filename)
+        shutil.copy(temp_zf_path, fp)
+
+        a = Artifact.load(fp)
+        dag = ProvDAG(fp)
+        terminal_node, *_ = dag.terminal_nodes
+        uuid = terminal_node._uuid
+        name = filename.replace('-', '_').replace('.qza', '')
+        ta = TestArtifact(name, a, uuid, fp, dag, 6)
+        setattr(self, name, ta)
 
     def init_no_checksum_dag(self):
         '''
@@ -212,6 +227,18 @@ class TestArtifacts:
 
     def free(self):
         shutil.rmtree(self.tempdir)
+
+
+def write_zip_file(zfp, unzipped_dir):
+    zf = zipfile.ZipFile(zfp, 'w', zipfile.ZIP_DEFLATED)
+    for root, dirs, files in os.walk(unzipped_dir):
+        for file in files:
+            filepath = os.path.join(root, file)
+            zf.write(
+                filepath,
+                os.path.relpath(filepath, unzipped_dir)
+            )
+    zf.close()
 
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
