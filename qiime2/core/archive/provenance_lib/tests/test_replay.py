@@ -27,7 +27,9 @@ from ..replay import (
     replay_supplement,
     SUPPORTED_USAGE_DRIVERS,
     )
-from .testing_utilities import CustomAssertions, DATA_DIR, TEST_DATA
+from .testing_utilities import (
+    CustomAssertions, DATA_DIR, TEST_DATA, TestArtifacts
+)
 from ..util import camel_to_snake
 from ...provenance import MetadataInfo
 
@@ -41,9 +43,6 @@ class UsageVarsDictTests(unittest.TestCase):
         unique_val = 'some_prime'
         ns = UsageVarsDict({'123': collision_val})
         self.assertEqual(ns.data, {'123': 'emp_single_end_sequences_0'})
-
-        # We can update w/ multiple values. Also, if the same value has been
-        # repatedly added to the namespace, we expect n to increment each time.
         ns.update({'456': collision_val, 'unique': unique_val})
         self.assertEqual(ns['456'], 'emp_single_end_sequences_1')
         self.assertEqual(ns['unique'], 'some_prime_0')
@@ -52,32 +51,41 @@ class UsageVarsDictTests(unittest.TestCase):
 
     def test_get_key(self):
         ns = UsageVarsDict({'123': 'some_name'})
-        # some_name is uniquified to some_name_0
         self.assertEqual('123', ns.get_key('some_name_0'))
-        with self.assertRaisesRegex(KeyError,
-                                    "passed value 'fake_key' does not exist"):
+        with self.assertRaisesRegex(
+            KeyError, "passed value 'fake_key' does not exist"
+        ):
             ns.get_key('fake_key')
 
 
 class NamespaceCollectionTests(unittest.TestCase):
-    def test_add_usage_var_flow(self):
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
+    def test_add_usage_var_workflow(self):
         """
         Smoke tests a common workflow with this data structure
-        - Create a unique variable name by adding to .usg_vars_namespace
+        - Create a unique variable name by adding to .usg_var_namespace
         - Create a UsageVariable with that name
         - use the name to get the UUID (when we have Results, we have no UUIDs)
         - add the correctly-named UsageVariable to .usg_vars
         """
         use = Usage()
-        uuid = '89af91c0-033d-4e30-8ac4-f29a3b407dc1'
-        base_name = 'v5_table'
+        uuid = self.tas.concated_ints.uuid
+        base_name = 'concated_ints'
         exp_name = base_name + '_0'
         ns = NamespaceCollections()
         ns.usg_var_namespace.update({uuid: base_name})
         self.assertEqual(ns.usg_var_namespace[uuid], exp_name)
 
         def factory():  # pragma: no cover
-            return Artifact.load(os.path.join(DATA_DIR, 'v5_table.qza'))
+            return Artifact.load(self.tas.concated_ints.filepath)
         u_var = use.init_artifact(ns.usg_var_namespace[uuid], factory)
         self.assertEqual(u_var.name, exp_name)
 
@@ -90,104 +98,119 @@ class NamespaceCollectionTests(unittest.TestCase):
 
 
 class ReplayProvenanceTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
     def test_replay_from_fp(self):
-        in_fn = TEST_DATA['5']['qzv_fp']
         with tempfile.TemporaryDirectory() as tmpdir:
             out_fp = pathlib.Path(tmpdir) / 'rendered.txt'
             out_fn = str(out_fp)
+            in_fn = self.tas.concated_ints_with_md.filepath
             replay_provenance(in_fn, out_fn, 'python3')
 
             self.assertTrue(out_fp.is_file())
 
             with open(out_fn, 'r') as fp:
                 rendered = fp.read()
+
             self.assertIn('from qiime2 import Artifact', rendered)
             self.assertIn('from qiime2 import Metadata', rendered)
             self.assertIn(
-                'import qiime2.plugins.dada2.actions as dada2_actions',
-                rendered)
-            self.assertIn('emp_single_end_sequences_0 = Artifact.import_data(',
-                          rendered)
-
+                'import qiime2.plugins.dummy_plugin.actions as '
+                'dummy_plugin_actions',
+                rendered
+            )
+            self.assertIn('mapping_0 = Artifact.import_data(', rendered)
             self.assertRegex(rendered,
                              'The following command.*additional metadata')
-            self.assertIn('barcodes_0_md = Metadata.load', rendered)
-            self.assertIn('barcodes_0_md.get_column(', rendered)
-            self.assertIn('dada2_actions.denoise_single', rendered)
-            self.assertIn('phylogeny_actions.align_to_tree_mafft_fasttree',
+            self.assertIn('mapping_0.view(Metadata)', rendered)
+            self.assertIn('dummy_plugin_actions.identity_with_metadata',
                           rendered)
-            self.assertIn('diversity_actions.core_metrics_phylogenetic',
-                          rendered)
+            self.assertIn('dummy_plugin_actions.concatenate_ints', rendered)
 
     def test_replay_from_fp_use_md_without_parse(self):
-        in_fp = TEST_DATA['5']['qzv_fp']
+        in_fp = self.tas.concated_ints.filepath
         with self.assertRaisesRegex(
-                ValueError, "Metadata not parsed for replay. Re-run"):
+                ValueError, "Metadata not parsed for replay. Re-run"
+        ):
             replay_provenance(
-                in_fp, 'unused_fp', 'python3', parse_metadata=False,
-                use_recorded_metadata=True)
+                in_fp, 'unused_fp', 'python3',
+                parse_metadata=False, use_recorded_metadata=True
+            )
 
     def test_replay_dump_md_without_parse(self):
-        in_fp = TEST_DATA['5']['qzv_fp']
+        in_fp = self.tas.concated_ints.filepath
         with self.assertRaisesRegex(
-                ValueError, "(?s)Metadata not parsed,.*dump_recorded_met"):
+                ValueError, "(?s)Metadata not parsed,.*dump_recorded_meta"
+        ):
             replay_provenance(
-                in_fp, 'unused_fp', 'python3', parse_metadata=False,
-                dump_recorded_metadata=True)
+                in_fp, 'unused_fp', 'python3',
+                parse_metadata=False, dump_recorded_metadata=True
+            )
 
     def test_replay_md_out_fp_without_parse(self):
-        in_fp = TEST_DATA['5']['qzv_fp']
+        in_fp = self.tas.concated_ints.filepath
         with self.assertRaisesRegex(
-                ValueError, "(?s)Metadata not parsed,.*not.*metadata output"):
+                ValueError, "(?s)Metadata not parsed,.*not.*metadata output"
+        ):
             replay_provenance(
                 in_fp, 'unused_fp', 'python3', parse_metadata=False,
                 dump_recorded_metadata=False,
-                md_out_fp='/user/dumb/some_filepath')
+                md_out_fp='/user/dumb/some_filepath'
+            )
 
     def test_replay_use_md_without_dump_md(self):
-        in_fp = TEST_DATA['5']['qzv_fp']
+        in_fp = self.tas.concated_ints.filepath
         with self.assertRaisesRegex(
                 NotImplementedError,
-                "(?s)uses.*metadata.*must.*written to disk"):
+                "(?s)uses.*metadata.*must.*written to disk"
+        ):
             replay_provenance(
                 in_fp, 'unused_fp', 'python3', use_recorded_metadata=True,
-                dump_recorded_metadata=False)
+                dump_recorded_metadata=False
+            )
 
     def test_replay_from_provdag(self):
-        v5_dag = ProvDAG(TEST_DATA['5']['qzv_fp'])
         with tempfile.TemporaryDirectory() as tmpdir:
-            out_path = pathlib.Path(tmpdir) / 'rendered.txt'
-            replay_provenance(v5_dag, out_path, 'python3')
+            out_fp = pathlib.Path(tmpdir) / 'rendered.txt'
+            out_fn = str(out_fp)
+            dag = self.tas.concated_ints_with_md.dag
+            replay_provenance(dag, out_fn, 'python3')
 
-            self.assertTrue(out_path.is_file())
+            self.assertTrue(out_fp.is_file())
 
-            with open(out_path, 'r') as fp:
+            with open(out_fn, 'r') as fp:
                 rendered = fp.read()
+
             self.assertIn('from qiime2 import Artifact', rendered)
             self.assertIn('from qiime2 import Metadata', rendered)
             self.assertIn(
-                'import qiime2.plugins.dada2.actions as dada2_actions',
-                rendered)
-            self.assertIn('emp_single_end_sequences_0 = Artifact.import_data(',
-                          rendered)
-
+                'import qiime2.plugins.dummy_plugin.actions as '
+                'dummy_plugin_actions',
+                rendered
+            )
+            self.assertIn('mapping_0 = Artifact.import_data(', rendered)
             self.assertRegex(rendered,
                              'The following command.*additional metadata')
-            self.assertIn('barcodes_0_md = Metadata.load', rendered)
-            self.assertIn('barcodes_0_md.get_column(', rendered)
-            self.assertIn('dada2_actions.denoise_single', rendered)
-            self.assertIn('phylogeny_actions.align_to_tree_mafft_fasttree',
+            self.assertIn('mapping_0.view(Metadata)', rendered)
+            self.assertIn('dummy_plugin_actions.identity_with_metadata',
                           rendered)
-            self.assertIn('diversity_actions.core_metrics_phylogenetic',
-                          rendered)
+            self.assertIn('dummy_plugin_actions.concatenate_ints', rendered)
 
     def test_replay_from_provdag_use_md_without_parse(self):
-        v5_dag = ProvDAG(TEST_DATA['5']['qzv_fp'],
-                         validate_checksums=False,
-                         parse_metadata=False)
+        dag = ProvDAG(self.tas.concated_ints_with_md.filepath,
+                      validate_checksums=False,
+                      parse_metadata=False)
         with self.assertRaisesRegex(
-                ValueError, "Metadata not parsed for replay"):
-            replay_provenance(v5_dag, 'unused', 'python3',
+                ValueError, "Metadata not parsed for replay"
+        ):
+            replay_provenance(dag, 'unused', 'python3',
                               use_recorded_metadata=True)
 
     def test_replay_from_provdag_ns_collision(self):
@@ -196,72 +219,91 @@ class ReplayProvenanceTests(unittest.TestCase):
         filtered-table, so is a good check for namespace collisions if
         we're not uniquifying variable names properly.
         """
-        dag = ProvDAG(os.path.join(DATA_DIR, 'ns_collisions.qza'))
+        with tempfile.TemporaryDirectory() as tempdir:
+            self.tas.concated_ints.artifact.save(
+                os.path.join(tempdir, 'c1.qza'))
+            self.tas.other_concated_ints.artifact.save(
+                os.path.join(tempdir, 'c2.qza'))
+            dag = ProvDAG(tempdir)
+
         drivers = ['python3', 'cli']
-        exp = ['filtered_table_0', 'filtered_table_1', 'filtered_table_2']
+        exp = ['concatenated_ints_0', 'concatenated_ints_1']
         for driver in drivers:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                out_path = pathlib.Path(tmpdir) / 'ns_coll.txt'
+            with tempfile.TemporaryDirectory() as tempdir:
+                out_path = pathlib.Path(tempdir) / 'ns_coll.txt'
                 replay_provenance(dag, out_path, driver)
 
                 with open(out_path, 'r') as fp:
                     rendered = fp.read()
-                    for tbl in exp:
+                    for name in exp:
                         if driver == 'cli':
-                            tbl = tbl.replace('_', '-')
-                        self.assertIn(tbl, rendered)
+                            name = name.replace('_', '-')
+                        self.assertIn(name, rendered)
 
-    def test_replay_optional_param_is_none_big(self):
-        """
-        This artifact fails because it has optional metadata columns, which
-        default to None. These values are dumped as `- col-name: null`,
-        and loaded in the parser as None. The metadata column handler in
-        CLIUsage expects a value it can unpack, so None blows it up here
-        https://github.com/qiime2/q2cli/blob
-        /aee8a154513f5e49cd7de714a341a6bb915f5f49/q2cli/core/usage.py#L293
-        build_action_usage needs to deal with that appropriately.
-        """
-        dag = ProvDAG(os.path.join(DATA_DIR, 'heatmap2.qzv'))
-        drivers = ['python3', 'cli']
-        exp = {
-            'python3':
-                'heatmap_0_viz.*sample_classifier_actions.heatmap',
-            'cli': '(?s)qiime sample-classifier heatmap.*'
-                   '--o-heatmap heatmap-0.qzv'}
-        for driver in drivers:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                out_path = pathlib.Path(tmpdir) / 'ns_coll.txt'
-                replay_provenance(dag, out_path, driver)
+    def test_replay_optional_param_is_none(self):
+        dag = self.tas.int_seq_optional_input.dag
+        with tempfile.TemporaryDirectory() as tempdir:
+            out_path = pathlib.Path(tempdir) / 'ns_coll.txt'
 
-                with open(out_path, 'r') as fp:
-                    rendered = fp.read()
-            self.assertRegex(rendered, exp[driver])
+            replay_provenance(dag, out_path, 'python3')
+            with open(out_path, 'r') as fp:
+                rendered = fp.read()
+            self.assertIn('ints=int_sequence1_0', rendered)
+            self.assertIn('num1=', rendered)
+            self.assertNotIn('optional1=', rendered)
+            self.assertNotIn('num2=', rendered)
 
+            replay_provenance(dag, out_path, 'cli')
+            with open(out_path, 'r') as fp:
+                rendered = fp.read()
+            self.assertIn('--i-ints int-sequence1-0.qza', rendered)
+            self.assertIn('--p-num1', rendered)
+            self.assertNotIn('--i-optional1', rendered)
+            self.assertNotIn('--p-num2', rendered)
+
+    # TODO: not working after removing `action_patch`, need to remember why
+    # we thought that wasn't an issue
     def test_replay_untracked_output_names(self):
         """
-        In this artifact, the first three nodes don't track output names. As
+        In this artifact, some nodes don't track output names. As
         a result, replay could fail when Usage.action tries to look up the
         output-name for those results in the plugin manager's record of the
         actual action's signature. We've monkeypatched Usage.action here to
         allow replay to proceed.
         """
-        dag = ProvDAG(os.path.join(DATA_DIR, 'heatmap.qzv'))
-        drivers = ['python3', 'cli']
+        dag = self.tas.concated_ints_no_output_names.dag
         # If we rendered the final action correctly, then nothing blew up.
-        exp = {
-            'python3':
-                '(?s)action_results.*classifier_actions.classify_samples.*'
-                'heatmap_0_viz = action_results.heatmap',
-            'cli': '(?s)qiime sample-classifier classify-samples.*'
-                   '--o-heatmap heatmap-0.qzv'}
-        for driver in drivers:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                out_path = pathlib.Path(tmpdir) / 'ns_coll.txt'
-                replay_provenance(dag, out_path, driver)
+        with tempfile.TemporaryDirectory() as tempdir:
+            out_path = pathlib.Path(tempdir) / 'ns_coll.txt'
 
-                with open(out_path, 'r') as fp:
-                    rendered = fp.read()
-            self.assertRegex(rendered, exp[driver])
+            replay_provenance(dag, out_path, 'python3')
+            with open(out_path, 'r') as fp:
+                rendered = fp.read()
+            self.assertIn('dummy_plugin_actions.concatenate_ints', rendered)
+
+            replay_provenance(dag, out_path, 'cli')
+            with open(out_path, 'r') as fp:
+                rendered = fp.read()
+            self.assertIn('concatenate_ints', rendered)
+            self.assertIn('--o-concatenated-ints', rendered)
+
+        # dag = ProvDAG(os.path.join(DATA_DIR, 'heatmap.qzv'))
+        # drivers = ['python3', 'cli']
+        # # If we rendered the final action correctly, then nothing blew up.
+        # exp = {
+        #     'python3':
+        #         '(?s)action_results.*classifier_actions.classify_samples.*'
+        #         'heatmap_0_viz = action_results.heatmap',
+        #     'cli': '(?s)qiime sample-classifier classify-samples.*'
+        #            '--o-heatmap heatmap-0.qzv'}
+        # for driver in drivers:
+        #     with tempfile.TemporaryDirectory() as tmpdir:
+        #         out_path = pathlib.Path(tmpdir) / 'ns_coll.txt'
+        #         replay_provenance(dag, out_path, driver)
+
+        #         with open(out_path, 'r') as fp:
+        #             rendered = fp.read()
+        #     self.assertRegex(rendered, exp[driver])
 
 
 class ReplayProvDAGDirectoryTests(unittest.TestCase):
