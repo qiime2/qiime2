@@ -24,7 +24,7 @@ from qiime2.sdk import PluginManager
 from qiime2.sdk.usage import UsageVariable
 
 
-@dataclass(frozen=False)
+@dataclass
 class ReplayConfig():
     """
     fields:
@@ -62,7 +62,7 @@ class ReplayConfig():
     md_out_fp: FileName = ''
 
 
-@dataclass(frozen=False)
+@dataclass
 class ActionCollections():
     """
     std_actions are all normal, provenance-tracked q2 actions, arranged like:
@@ -141,7 +141,7 @@ class UsageVarsDict(UserDict):
         super().__setitem__(key, f'<{self.data[key]}>')
 
 
-@dataclass(frozen=False)
+@dataclass
 class NamespaceCollections:
     usg_var_namespace: UsageVarsDict = field(default_factory=UsageVarsDict)
     usg_vars: Dict[UUID, UsageVariable] = field(default_factory=dict)
@@ -241,10 +241,9 @@ def group_by_action(dag: ProvDAG, nodes: Iterator[UUID]) -> ActionCollections:
         if dag.node_has_provenance(node_id):
             data = dag.get_node_data(node_id)
             action_id = data.action._execution_details['uuid']
-            # neither imports nor older archive versions track output-names
-            if (o_n := data.action.output_name) is not None:
-                output_name = o_n
-            else:
+
+            output_name = data.action.output_name
+            if output_name is None:
                 output_name = camel_to_snake(data.type)
 
             try:
@@ -253,6 +252,7 @@ def group_by_action(dag: ProvDAG, nodes: Iterator[UUID]) -> ActionCollections:
                 actions.std_actions[action_id] = {node_id: output_name}
         else:
             actions.no_provenance_nodes.append(node_id)
+
     return actions
 
 
@@ -351,7 +351,7 @@ def build_action_usage(node: ProvNode,
                        action_id: UUID,
                        cfg: ReplayConfig):
     """
-    Adds an action usage example to use for some ProvNode.
+    Adds an action usage example to `use` for some ProvNode.
     Returns nothing, modifying the passed usage instance in place.
 
     use.action(
@@ -426,6 +426,7 @@ def build_action_usage(node: ProvNode,
                     md = init_md_from_artifacts(param_val, ns, cfg)
 
             param_val = md
+
         inputs.update({param_name: param_val})
 
     usg_var = cfg.use.action(
