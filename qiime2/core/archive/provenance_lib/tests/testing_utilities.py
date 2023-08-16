@@ -131,11 +131,13 @@ class TestArtifacts:
 
         for artifact, name in zip(
             [concated_ints, other_concated_ints, splitted_ints,
-             merged_mappings, pipeline_viz, concated_ints_with_md,
-             int_from_collection, int_seq_optional_input],
+             merged_mappings, pipeline_viz, int_seq_with_md,
+             concated_ints_with_md, int_from_collection,
+             int_seq_optional_input],
             ['concated_ints', 'other_concated_ints', 'splitted_ints',
-             'merged_mappings', 'pipeline_viz', 'concated_ints_with_md',
-             'int_from_collection', 'int_seq_optional_input']
+             'merged_mappings', 'pipeline_viz', 'int_seq_with_md',
+             'concated_ints_with_md', 'int_from_collection',
+             'int_seq_optional_input']
         ):
             if name == 'pipeline_viz':
                 ext = '.qzv'

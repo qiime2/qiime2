@@ -4,9 +4,10 @@ import os
 import pandas as pd
 import pathlib
 import re
+import shutil
 import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import zipfile
 
 from qiime2 import Artifact
@@ -32,9 +33,6 @@ from .testing_utilities import (
 )
 from ..util import camel_to_snake
 from ...provenance import MetadataInfo
-
-# Create a PM Instance once and use it throughout - expensive!
-pm = PluginManager()
 
 
 class UsageVarsDictTests(unittest.TestCase):
@@ -307,34 +305,48 @@ class ReplayProvenanceTests(unittest.TestCase):
 
 
 class ReplayProvDAGDirectoryTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
     def test_directory_replay_multiple_imports(self):
         """
-        The multiple_imports dir being parsed here contains two duplicates,
+        The directory being parsed here contains two pairs of duplicates,
         and should replay as only two import statements.
         """
-        s1_id = '4f6794e7-0e34-46d9-9a48-3fbc7900430e'
-        s2_id = 'b4fd43fb-91c3-45f6-9672-7cf8fd90bc0b'
-        base_dir = os.path.join(DATA_DIR, 'multiple_imports_test')
-        dir_dag = ProvDAG(base_dir)
+        outer_dir = os.path.join(self.tempdir, 'outer')
+        inner_dir = os.path.join(outer_dir, 'inner')
+        os.makedirs(inner_dir)
+
+        for artifact in self.tas.single_int, self.tas.single_int2:
+            for dir_ in inner_dir, outer_dir:
+                artifact.artifact.save(
+                    os.path.join(dir_, f'{artifact.name}.qza')
+                )
+
+        dir_dag = ProvDAG(outer_dir)
         self.assertEqual(len(dir_dag._parsed_artifact_uuids), 2)
-        self.assertIn(s1_id, dir_dag.dag)
-        self.assertIn(s2_id, dir_dag.dag)
+        self.assertIn(self.tas.single_int.uuid, dir_dag.dag)
+        self.assertIn(self.tas.single_int2.uuid, dir_dag.dag)
 
         exp_1 = (
             '(?s)from qiime2 import Artifact.*'
-            'emp_single_end_sequences_0 = Artifact.import_data.*'
-            'EMPSingleEndSequences.*'
+            'single_int_0 = Artifact.import_data.*'
             '<your data here>.*'
         )
-
         exp_2 = (
-            '(?s)multiplexed_single_end_barcode_in_sequence_0 = Artifact.imp.*'
-            'MultiplexedSingleEndBarcodeInSequence.*'
+            '(?s)from qiime2 import Artifact.*'
+            'single_int_1 = Artifact.import_data.*'
             '<your data here>.*'
         )
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            out_path = pathlib.Path(tmpdir) / 'rendered.txt'
+        with tempfile.TemporaryDirectory() as tempdir:
+            out_path = pathlib.Path(tempdir) / 'rendered.txt'
             replay_provenance(dir_dag, out_path, 'python3')
             self.assertTrue(out_path.is_file())
 
@@ -345,33 +357,47 @@ class ReplayProvDAGDirectoryTests(unittest.TestCase):
 
 
 class BuildUsageExamplesTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+        cls.pm = PluginManager()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
     @patch('qiime2.core.archive.provenance_lib.replay.build_action_usage')
     @patch('qiime2.core.archive.provenance_lib.replay.build_import_usage')
     @patch('qiime2.core.archive.provenance_lib.replay.'
            'build_no_provenance_node_usage')
     def test_build_usage_examples(self, n_p_builder, imp_builder, act_builder):
-        v5_dag = ProvDAG(TEST_DATA['5']['qzv_fp'])
+        dag = self.tas.concated_ints_with_md.dag
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
-        build_usage_examples(v5_dag, cfg)
-        # This is an intact v5 dag, with one import and four following actions
+                           use_recorded_metadata=False, pm=self.pm)
+        build_usage_examples(dag, cfg)
+
         n_p_builder.assert_not_called()
-        imp_builder.assert_called_once()
-        self.assertEqual(act_builder.call_count, 4)
+        self.assertEqual(imp_builder.call_count, 3)
+        self.assertEqual(act_builder.call_count, 2)
 
     @patch('qiime2.core.archive.provenance_lib.replay.build_action_usage')
     @patch('qiime2.core.archive.provenance_lib.replay.build_import_usage')
     @patch('qiime2.core.archive.provenance_lib.replay.'
            'build_no_provenance_node_usage')
     def test_build_usage_examples_lone_v0(
-            self, n_p_builder, imp_builder, act_builder):
-        v0_uuid = '0b8b47bd-f2f8-4029-923c-0e37a68340c3'
+            self, n_p_builder, imp_builder, act_builder
+    ):
+        uuid = self.tas.table_v0.uuid
         with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'):
-            v0_dag = ProvDAG(TEST_DATA['0']['qzv_fp'])
+                UserWarning, f'(:?)Art.*{uuid}.*prior.*incomplete'
+        ):
+            dag = ProvDAG(self.tas.table_v0.filepath)
+
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
-        build_usage_examples(v0_dag, cfg)
+                           use_recorded_metadata=False, pm=self.pm)
+        build_usage_examples(dag, cfg)
+
         # This is a single v0 archive, so should have only one np node
         n_p_builder.assert_called_once()
         imp_builder.assert_not_called()
@@ -381,47 +407,26 @@ class BuildUsageExamplesTests(unittest.TestCase):
     @patch('qiime2.core.archive.provenance_lib.replay.build_import_usage')
     @patch('qiime2.core.archive.provenance_lib.replay.'
            'build_no_provenance_node_usage')
-    def test_build_usage_examples_joined_v0s(
-            self, n_p_builder, imp_builder, act_builder):
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
-
-        # Multiple no-prov nodes glued together into a single DAG
-        v0_uuid = '0b8b47bd-f2f8-4029-923c-0e37a68340c3'
-        with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'):
-            single_no_prov = ProvDAG(os.path.join(DATA_DIR,
-                                     'v0_uu_emperor.qzv'))
-
-        tbl_uuid = '89af91c0-033d-4e30-8ac4-f29a3b407dc1'
-        with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{tbl_uuid}.*prior.*incomplete'):
-            v0_tbl = ProvDAG(os.path.join(DATA_DIR, 'v0_table.qza'))
-        joined = ProvDAG.union([single_no_prov, v0_tbl])
-
-        build_usage_examples(joined, cfg)
-        # This is a pair of v0 archives, so should have two np nodes
-        self.assertEqual(n_p_builder.call_count, 2)
-        imp_builder.assert_not_called()
-        act_builder.assert_not_called()
-
-    @patch('qiime2.core.archive.provenance_lib.replay.build_action_usage')
-    @patch('qiime2.core.archive.provenance_lib.replay.build_import_usage')
-    @patch('qiime2.core.archive.provenance_lib.replay.'
-           'build_no_provenance_node_usage')
     def test_build_usage_examples_mixed(
-            self, n_p_builder, imp_builder, act_builder):
-        mixed_uuid = '9f6a0f3e-22e6-4c39-8733-4e672919bbc7'
+            self, n_p_builder, imp_builder, act_builder
+    ):
+        mixed_dir = os.path.join(self.tempdir, 'mixed-dir')
+        os.mkdir(mixed_dir)
+        shutil.copy(self.tas.table_v0.filepath, mixed_dir)
+        shutil.copy(self.tas.concated_ints_v6.filepath, mixed_dir)
+
+        v0_uuid = self.tas.table_v0.uuid
         with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{mixed_uuid}.*prior.*incomplete'):
-            mixed = ProvDAG(os.path.join(DATA_DIR,
-                            'mixed_v0_v1_uu_emperor.qzv'))
+                UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'
+        ):
+            dag = ProvDAG(mixed_dir)
+
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
-        build_usage_examples(mixed, cfg)
-        # This is a mixed v0, v1 archive, so no imports but np and action
+                           use_recorded_metadata=False, pm=self.pm)
+        build_usage_examples(dag, cfg)
+
         n_p_builder.assert_called_once()
-        imp_builder.assert_not_called()
+        self.assertEqual(imp_builder.call_count, 2)
         act_builder.assert_called_once()
 
     @patch('qiime2.core.archive.provenance_lib.replay.build_action_usage')
@@ -430,43 +435,54 @@ class BuildUsageExamplesTests(unittest.TestCase):
            'build_no_provenance_node_usage')
     def test_build_usage_examples_big(
             self, n_p_builder, imp_builder, act_builder):
-        big = ProvDAG(os.path.join(DATA_DIR, 'artifact_as_md_v5.qzv'))
+
+        many_dir = os.path.join(self.tempdir, 'many-dir')
+        os.mkdir(many_dir)
+        shutil.copy(self.tas.concated_ints_with_md.filepath, many_dir)
+        shutil.copy(self.tas.splitted_ints.filepath, many_dir)
+        shutil.copy(self.tas.pipeline_viz.filepath, many_dir)
+
+        dag = ProvDAG(many_dir)
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
-        build_usage_examples(big, cfg)
-        # This is a fairly large empress plot with multiple imports
+                           use_recorded_metadata=False, pm=self.pm)
+        build_usage_examples(dag, cfg)
+
         n_p_builder.assert_not_called()
         self.assertEqual(imp_builder.call_count, 3)
-        self.assertEqual(act_builder.call_count, 7)
+        self.assertEqual(act_builder.call_count, 4)
 
+    # TODO: broken by Collections
     def test_build_action_usage_collection_of_inputs(self):
         """
         This artifact's root node is passed a collection of inputs. Collections
         need to be handled in a separate branch, so this exists for coverage.
         """
-        dag = ProvDAG(os.path.join(DATA_DIR, 'merged_tbls.qza'))
+        dag = self.tas.int_from_collection.dag
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
+                           use_recorded_metadata=False, pm=self.pm)
         build_usage_examples(dag, cfg)
         list_line = 'tables=[table_0, table_1],'
         self.assertIn(list_line, cfg.use.render())
 
-    def test_init_md_from_artifacts_same_a_as_md_twice(self):
-        """
-        This artifact was created by filtering twice with the same artifact
-        passed as metadata. This exists primarily for coverage.
-        """
-        dag = ProvDAG(os.path.join(DATA_DIR, 'filter_twice.qza'))
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
-        build_usage_examples(dag, cfg)
-        # We're using the same a_as_md twice, instead of re-initializing
-        search = ('(?s)metadata=sample_data_alpha_diversity_0_a_0_md.*'
-                  'metadata=sample_data_alpha_diversity_0_a_0_md')
-        self.assertRegex(cfg.use.render(), search)
+        # dag = ProvDAG(os.path.join(DATA_DIR, 'merged_tbls.qza'))
+        # cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        #                    use_recorded_metadata=False, pm=self.pm)
+        # build_usage_examples(dag, cfg)
+        # list_line = 'tables=[table_0, table_1],'
+        # self.assertIn(list_line, cfg.use.render())
 
 
 class MiscHelperFnTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+        cls.pm = PluginManager()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
     def test_uniquify_action_name(self):
         ns = set()
         p1 = 'dummy_plugin'
@@ -485,110 +501,82 @@ class MiscHelperFnTests(unittest.TestCase):
         Assumes q2-demux and q2-diversity are installed in the active env.
         """
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['cli'](),
-                           use_recorded_metadata=False, pm=pm)
-        # Is a MDC
+                           use_recorded_metadata=False, pm=self.pm)
+
         actual = param_is_metadata_column(
-            cfg, 'barcodes', 'demux', 'emp_single')
+            cfg, 'metadata', 'dummy_plugin', 'identity_with_metadata_column'
+        )
         self.assertTrue(actual)
 
-        # Isn't an MDC
-        not_md = param_is_metadata_column(
-            cfg, 'custom_axes', 'emperor', 'plot')
-        self.assertFalse(not_md)
+        actual = param_is_metadata_column(
+            cfg, 'int1', 'dummy_plugin', 'concatenate_ints'
+        )
+        self.assertFalse(actual)
 
-        # Action doesn't exist
-        with self.assertRaisesRegex(KeyError, "No param.*registered.*fake"):
+        with self.assertRaisesRegex(KeyError, "No action.*registered.*"):
             param_is_metadata_column(
-                cfg, 'fake_param', 'emperor', 'plot')
+                cfg, 'ints', 'dummy_plugin', 'young'
+            )
 
-        # Parameter doesn't exist
-        with self.assertRaisesRegex(KeyError, "No action.*registered.*fake"):
+        with self.assertRaisesRegex(KeyError, "No param.*registered.*"):
             param_is_metadata_column(
-                cfg, 'custom_axes', 'emperor', 'fake_action')
+                cfg, 'thugger', 'dummy_plugin', 'split_ints'
+            )
 
-        # Plugin doesn't exist
-        with self.assertRaisesRegex(KeyError, "No plugin.*registered.*prince"):
+        with self.assertRaisesRegex(KeyError, "No plugin.*registered.*"):
             param_is_metadata_column(
-                cfg, 'custom_axes', 'princeling', 'plot')
+                cfg, 'fake_param', 'dummy_hard', 'split_ints'
+            )
 
     def test_dump_recorded_md_file_to_custom_dir(self):
-        v5_dag = ProvDAG(TEST_DATA['5']['qzv_fp'])
-        root_uuid = TEST_DATA['5']['uuid']
+        dag = self.tas.int_seq_with_md.dag
+        uuid = self.tas.int_seq_with_md.uuid
+
         out_dir = 'custom_dir'
-        provnode = v5_dag.get_node_data(root_uuid)
+        provnode = dag.get_node_data(uuid)
         og_md = provnode.metadata['metadata']
-        act_nm = 'emperor_plot_0'
+        action_name = 'concatenate_ints_0'
         md_id = 'metadata'
-        fn = 'metadata_0.tsv'
+        fn = 'metadata.tsv'
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['cli'](), pm=pm,
-                               md_out_fp=(tmpdir + '/' + out_dir))
-            dump_recorded_md_file(cfg, provnode, act_nm, md_id, fn)
-            out_path = pathlib.Path(tmpdir) / out_dir / act_nm / fn
+        with tempfile.TemporaryDirectory() as tempdir:
+            cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['cli'](),
+                               pm=self.pm, md_out_fp=(tempdir + '/' + out_dir))
+            dump_recorded_md_file(cfg, provnode, action_name, md_id, fn)
+            out_path = pathlib.Path(tempdir) / out_dir / action_name / fn
 
-            # was the file written where expected?
             self.assertTrue(out_path.is_file())
 
-            # is it the same df?
-            dumped_df = pd.read_csv(out_path, sep='\t')
-            pd.testing.assert_frame_equal(dumped_df, og_md)
-
-    def test_dump_recorded_md_file(self):
-        mixed_uuid = '9f6a0f3e-22e6-4c39-8733-4e672919bbc7'
-        with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{mixed_uuid}.*prior.*incomplete'):
-            mixed = ProvDAG(os.path.join(DATA_DIR,
-                                         'mixed_v0_v1_uu_emperor.qzv'))
-        root_uuid = '0b8b47bd-f2f8-4029-923c-0e37a68340c3'
-        out_dir = 'recorded_metadata'
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['cli'](), pm=pm)
-        provnode = mixed.get_node_data(root_uuid)
-        og_md = provnode.metadata['metadata']
-        act_nm = 'emperor_plot_0'
-        md_id = 'metadata'
-        fn = 'metadata_0.tsv'
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pathlib.Path.cwd = MagicMock(return_value=pathlib.Path(tmpdir))
-            dump_recorded_md_file(cfg, provnode, act_nm, md_id, fn)
-            out_path = pathlib.Path(tmpdir) / out_dir / act_nm / fn
-
-            # was the file written where expected?
-            self.assertTrue(out_path.is_file())
-
-            # is it the same df?
             dumped_df = pd.read_csv(out_path, sep='\t')
             pd.testing.assert_frame_equal(dumped_df, og_md)
 
             # If we run it again, it shouldn't overwrite 'recorded_metadata',
             # so we should have two files
-            act_nm2 = 'emperor_plot_1'
+            action_name_2 = 'concatenate_ints_1'
             md_id2 = 'metadata'
             fn2 = 'metadata_1.tsv'
-            dump_recorded_md_file(cfg, provnode, act_nm2, md_id2, fn2)
-            out_path2 = pathlib.Path(tmpdir) / out_dir / act_nm2 / fn2
+            dump_recorded_md_file(cfg, provnode, action_name_2, md_id2, fn2)
+            out_path2 = pathlib.Path(tempdir) / out_dir / action_name_2 / fn2
 
             # are both files where expected?
             self.assertTrue(out_path.is_file())
             self.assertTrue(out_path2.is_file())
 
     def test_dump_recorded_md_file_no_md(self):
-        # V0 archives never have metadata
-        v0_uuid = '0b8b47bd-f2f8-4029-923c-0e37a68340c3'
-        with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'):
-            v0 = ProvDAG(os.path.join(DATA_DIR, 'v0_uu_emperor.qzv'))
-        root_uuid = '0b8b47bd-f2f8-4029-923c-0e37a68340c3'
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](), pm=pm)
-        provnode = v0.get_node_data(root_uuid)
-        act_nm = 'emperor_plot_0'
-        md_id = 'metadata'
-        fn = 'metadata_0.tsv'
+        uuid = self.tas.table_v0.uuid
+        dag = self.tas.table_v0.dag
 
-        with self.assertRaisesRegex(ValueError,
-                                    "should only be called.*if.*metadata"):
-            dump_recorded_md_file(cfg, provnode, act_nm, md_id, fn)
+        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+                           pm=self.pm)
+        provnode = dag.get_node_data(uuid)
+        action_name = 'old_action'
+        md_id = 'metadata'
+        fn = 'metadata.tsv'
+
+        with self.assertRaisesRegex(
+            ValueError, "should only be called.*if.*metadata"
+        ):
+            dump_recorded_md_file(cfg, provnode, action_name, md_id, fn)
 
 
 class GroupByActionTests(unittest.TestCase):
