@@ -8,7 +8,7 @@
 
 import pandas as pd
 
-from qiime2 import Artifact, Metadata
+from qiime2 import Artifact, Metadata, ResultCollection
 
 from .type import IntSequence1, IntSequence2, Mapping, SingleInt
 
@@ -23,6 +23,11 @@ def ints2_factory():
 
 def ints3_factory():
     return Artifact.import_data(IntSequence2, [6, 7, 8])
+
+
+def artifact_collection_factory():
+    return ResultCollection({'Foo': Artifact.import_data(SingleInt, 1),
+                             'Bar': Artifact.import_data(SingleInt, 2)})
 
 
 def mapping1_factory():
@@ -235,3 +240,27 @@ def optional_inputs(use):
         use.UsageInputs(ints=ints, optional1=output3, num1=3, num2=4),
         use.UsageOutputNames(output='output4'),
     )
+
+
+def collection_list_of_ints(use):
+    ints = use.init_result_collection('ints', artifact_collection_factory)
+
+    out, = use.action(
+                use.UsageAction(plugin_id='dummy_plugin',
+                                action_id='list_of_ints'),
+                use.UsageInputs(ints=ints),
+                use.UsageOutputNames(output='out'),
+    )
+
+
+def collection_dict_of_ints(use):
+    ints = use.init_result_collection('ints', artifact_collection_factory)
+
+    out, = use.action(
+                use.UsageAction(plugin_id='dummy_plugin',
+                                action_id='dict_of_ints'),
+                use.UsageInputs(ints=ints),
+                use.UsageOutputNames(output='out'),
+    )
+
+    out.assert_output_type(semantic_type='SingleInt', key='Foo')

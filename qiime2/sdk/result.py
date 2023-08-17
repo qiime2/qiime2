@@ -589,6 +589,13 @@ class ResultCollection:
 
         return qiime2.core.type.Collection[inner_type]
 
+    @property
+    def extension(self):
+        if str(self.type) == 'Collection[Visualization]':
+            return '.qzv'
+
+        return '.qza'
+
     def save(self, directory):
         """Saves a collection of QIIME 2 Results into a given directory with
            an order file.
@@ -607,6 +614,28 @@ class ResultCollection:
                 result_fp = os.path.join(directory, name)
                 result.save(result_fp)
                 fh.write(f'{name}\n')
+
+        # Do this to give us a unified API with Result.save
+        return directory
+
+    def save_unordered(self, directory):
+        """Saves a collection of QIIME 2 Results into a given directory without
+           an order file. This is used by q2galaxy where an order file will be
+           interpreted as another dataset in the collection which is not
+           desirable
+
+           NOTE: The directory given must not exist
+        """
+        if os.path.exists(directory):
+            raise ValueError(f"The given directory '{directory}' already "
+                             "exists. A new directory must be given to save "
+                             "the collection to.")
+
+        os.makedirs(directory)
+
+        for name, result in self.collection.items():
+            result_fp = os.path.join(directory, name)
+            result.save(result_fp)
 
         # Do this to give us a unified API with Result.save
         return directory
