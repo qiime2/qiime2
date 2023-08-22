@@ -62,11 +62,11 @@ class TestArtifacts:
         mapping1 = Artifact.import_data('Mapping', {'a': 42})
         mapping2 = Artifact.import_data('Mapping', {'c': 8, 'd': 13})
 
-        for artifact, name in zip(
-            [single_int, single_int2, int_seq1, int_seq2, mapping1, mapping2],
-            ['single_int', 'single_int2', 'int_seq1', 'int_seq2', 'mapping1',
-             'mapping2']
+        for name in (
+            'single_int', 'single_int2', 'int_seq1', 'int_seq2', 'mapping1',
+            'mapping2'
         ):
+            artifact = locals()[name]
             fp = os.path.join(self.tempdir, f'{name}.qza')
             artifact.save(fp)
             test_artifact = TestArtifact(
@@ -82,6 +82,8 @@ class TestArtifacts:
         split_ints = self.dp.methods['split_ints']
         merge_mappings = self.dp.methods['merge_mappings']
         identity_with_metadata = self.dp.actions['identity_with_metadata']
+        identity_with_metadata_column = \
+            self.dp.actions['identity_with_metadata_column']
         dict_of_ints = self.dp.actions['dict_of_ints']
         optional_artifacts_method = \
             self.dp.actions['optional_artifacts_method']
@@ -99,13 +101,21 @@ class TestArtifacts:
             self.mapping1.artifact, self.mapping2.artifact
         )
 
-        # artifact with input artifact viewed as metadata
+        # artifacts with input artifact viewed as metadata
         int_seq_with_md, = identity_with_metadata(
             self.int_seq1.artifact, self.mapping1.artifact.view(Metadata)
         )
         concated_ints_with_md, = concat_ints(
             self.int_seq1.artifact, int_seq_with_md, self.int_seq2.artifact,
             81, 64
+        )
+        int_seq_with_md_column, = identity_with_metadata_column(
+            self.int_seq1.artifact,
+            self.mapping2.artifact.view(Metadata).get_column('c')
+        )
+        concated_ints_with_md_column, = concat_ints(
+            self.int_seq1.artifact, int_seq_with_md_column,
+            self.int_seq2.artifact, 69, 2001
         )
 
         # artifact with input collection
@@ -128,16 +138,13 @@ class TestArtifacts:
             self.int_seq1.artifact, self.mapping1.artifact, False
         )
 
-        for artifact, name in zip(
-            [concated_ints, other_concated_ints, splitted_ints,
-             merged_mappings, pipeline_viz, int_seq_with_md,
-             concated_ints_with_md, int_from_collection,
-             int_seq_optional_input],
-            ['concated_ints', 'other_concated_ints', 'splitted_ints',
-             'merged_mappings', 'pipeline_viz', 'int_seq_with_md',
-             'concated_ints_with_md', 'int_from_collection',
-             'int_seq_optional_input']
+        for name in (
+            'concated_ints', 'other_concated_ints', 'splitted_ints',
+            'merged_mappings', 'pipeline_viz', 'int_seq_with_md',
+            'concated_ints_with_md', 'concated_ints_with_md_column',
+            'int_from_collection', 'int_seq_optional_input'
         ):
+            artifact = locals()[name]
             if name == 'pipeline_viz':
                 ext = '.qzv'
             else:
@@ -201,7 +208,7 @@ class TestArtifacts:
         return (
             self.table_v0, self.concated_ints_v1, self.concated_ints_v2,
             self.concated_ints_v3, self.concated_ints_v4,
-            self.concated_ints_v5, self.concated_ints_v6,
+            self.concated_ints_v5, self.concated_ints_v6
         )
 
     def free(self):
