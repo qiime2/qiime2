@@ -417,25 +417,6 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
                 cls.nodes[str(artifact.archive_version)] = \
                     ProvNode(cfg, zf, root_md_fps)
 
-        '''
-        # Build a minimal node in which Artifacts are passed as metadata
-        # NOTE: This file breaks some assumptions about qzas for simplicity.
-        # e.g. it doesn't contain provenance data for its results passed as md
-        # and may need to be replaced if these nodes adopt new behavior.
-        filename = pathlib.Path('minimal_v4_artifact_as_md.zip')
-        # This manufactured v4 test archive "happens" to have the same root
-        # UUID as the standard v5 archive
-        pfx = pathlib.Path(TEST_DATA['5']['uuid'])
-        artifact_as_md_fp = os.path.join(DATA_DIR, filename)
-        with zipfile.ZipFile(artifact_as_md_fp) as zf:
-            cls.art_as_md_node = ProvNode(
-                cfg,
-                zf,
-                [pfx / 'VERSION',
-                 pfx / 'metadata.yaml',
-                 pfx / 'provenance/action/action.yaml']
-                )
-        '''
         with zipfile.ZipFile(cls.tas.concated_ints_with_md.filepath) as zf:
             root_node_id = cls.tas.concated_ints_with_md.uuid
             all_filenames = zf.namelist()
