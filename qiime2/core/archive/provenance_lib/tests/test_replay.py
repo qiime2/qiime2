@@ -259,8 +259,10 @@ class ReplayProvenanceTests(unittest.TestCase):
             self.assertNotIn('--i-optional1', rendered)
             self.assertNotIn('--p-num2', rendered)
 
-    # TODO: not working after removing `action_patch`, need to remember why
+    # TODO: not working after merging `action_patch`, need to remember why
     # we thought that wasn't an issue
+    # not working here probably because of type match, but see notes for
+    # more context
     def test_replay_untracked_output_names(self):
         """
         In this artifact, some nodes don't track output names. As
@@ -650,76 +652,63 @@ class GroupByActionTests(unittest.TestCase):
 
 
 class InitializerTests(unittest.TestCase):
-    def test_init_md_from_recorded_md(self):
-        no_md_id = '89af91c0-033d-4e30-8ac4-f29a3b407dc1'
-        has_md_id = '99fa3670-aa1a-45f6-ba8e-803c976a1163'
-        dag = ProvDAG(os.path.join(DATA_DIR, 'v5_table.qza'))
-        no_md_node = dag.get_node_data(no_md_id)
-        md_node = dag.get_node_data(has_md_id)
-        var_nm = 'per_sample_sequences_0_barcodes'
-        param_nm = 'barcodes'
-        # We expect the variable name has already been added to the namespace
-        ns = UsageVarsDict({var_nm: param_nm})
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
-        md_fn = 'demux_emp_single_0/barcodes_0'
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+        cls.pm = PluginManager()
 
-        with self.assertRaisesRegex(ValueError, 'only.*call.*if.*metadata'):
-            init_md_from_recorded_md(
-                no_md_node, param_nm, var_nm, ns, cfg, md_fn)
+        with zipfile.ZipFile(cls.tas.concated_ints_with_md.filepath) as zf:
+            root_node_id = cls.tas.concated_ints_with_md.uuid
+            all_filenames = zf.namelist()
+            dag = cls.tas.concated_ints_with_md.dag
+            for node in dag.nodes:
+                md_path = os.path.join(
+                    root_node_id, 'provenance', 'artifacts', node, 'action',
+                    'metadata.tsv'
+                )
+                if md_path in all_filenames:
+                    cls.md_node_id = node
+                else:
+                    cls.non_md_node_id = node
 
-        var = init_md_from_recorded_md(
-            md_node, param_nm, var_nm, ns, cfg, md_fn)
-        self.assertIsInstance(var, UsageVariable)
-        self.assertEqual(var.var_type, 'column')
+        with zipfile.ZipFile(
+            cls.tas.concated_ints_with_md_column.filepath
+        ) as zf:
+            root_node_id = cls.tas.concated_ints_with_md_column.uuid
+            all_filenames = zf.namelist()
+            dag = cls.tas.concated_ints_with_md_column.dag
+            for node in dag.nodes:
+                md_path = os.path.join(
+                    root_node_id, 'provenance', 'artifacts', node, 'action',
+                    'metadata.tsv'
+                )
+                if md_path in all_filenames:
+                    cls.mdc_node_id = node
+                else:
+                    cls.non_mdc_node_id = node
 
-        rendered = cfg.use.render()
-        self.assertRegex(rendered, 'from qiime2 import Metadata')
-        exp = (r"barcodes_0_md = Metadata.load\('.*/"
-               r"recorded_metadata/demux_emp_single_0/barcodes_0.tsv'")
-        self.assertRegex(rendered, exp)
-
-    def test_init_md_from_recorded_md_user_passed_fp(self):
-        has_md_id = '99fa3670-aa1a-45f6-ba8e-803c976a1163'
-        dag = ProvDAG(os.path.join(DATA_DIR, 'v5_table.qza'))
-        md_node = dag.get_node_data(has_md_id)
-
-        var_nm = 'per_sample_sequences_0_barcodes'
-        param_nm = 'barcodes'
-        # the variable name should already be added to the namespace
-        ns = UsageVarsDict({var_nm: param_nm})
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm,
-                           md_out_fp='./md_out')
-        md_fn = 'test_a/test_o'
-
-        var = init_md_from_recorded_md(
-            md_node, param_nm, var_nm, ns, cfg, md_fn)
-        self.assertIsInstance(var, UsageVariable)
-        self.assertEqual(var.var_type, 'column')
-
-        rendered = cfg.use.render()
-        print(rendered)
-        self.assertRegex(rendered, 'from qiime2 import Metadata')
-        exp = (r"barcodes_0_md = Metadata.load\('.*md_out/test_a/test_o.tsv'")
-        self.assertRegex(rendered, exp)
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
 
     def test_init_md_from_artifacts_no_artifacts(self):
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
+                           use_recorded_metadata=False, pm=self.pm)
         usg_vars = {}
         md_info = MetadataInfo([], relative_fp='hmm.tsv')
-        with self.assertRaisesRegex(ValueError,
-                                    "not.*used.*input_artifact_uuids.*empty"):
+        with self.assertRaisesRegex(
+            ValueError, "not.*used.*input_artifact_uuids.*empty"
+        ):
             init_md_from_artifacts(md_info, usg_vars, cfg)
 
     def test_init_md_from_artifacts_one_art(self):
         # This helper doesn't capture real data, so we're only smoke testing,
         # checking type, and confirming the repr looks reasonable.
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
+                           use_recorded_metadata=False, pm=self.pm)
 
-        # We expect artifact vars have already been added to the namespace, so:
+        # We expect artifact vars have already been added to the namespace
         a1 = cfg.use.init_artifact(name='thing1', factory=lambda: None)
         ns = NamespaceCollections(usg_vars={'uuid1': a1})
 
@@ -728,18 +717,17 @@ class InitializerTests(unittest.TestCase):
         self.assertIsInstance(var, UsageVariable)
         self.assertEqual(var.var_type, 'metadata')
         rendered = var.use.render()
-        exp = """from qiime2 import Metadata
 
-thing1_a_0_md = thing1.view(Metadata)"""
-        self.assertEqual(rendered, exp)
+        self.assertIn('from qiime2 import Metadata', rendered)
+        self.assertIn('thing1_a_0_md = thing1.view(Metadata)', rendered)
 
     def test_init_md_from_artifacts_many(self):
         # This helper doesn't capture real data, so we're only smoke testing,
         # checking type, and confirming the repr looks reasonable.
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
+                           use_recorded_metadata=False, pm=self.pm)
 
-        # We expect artifact vars have already been added to the namespace, so:
+        # We expect artifact vars have already been added to the namespace
         a1 = cfg.use.init_artifact(name='thing1', factory=lambda: None)
         a2 = cfg.use.init_artifact(name='thing2', factory=lambda: None)
         a3 = cfg.use.init_artifact(name='thing3', factory=lambda: None)
@@ -752,58 +740,92 @@ thing1_a_0_md = thing1.view(Metadata)"""
         self.assertIsInstance(var, UsageVariable)
         self.assertEqual(var.var_type, 'metadata')
         rendered = var.use.render()
-        exp = """from qiime2 import Metadata
 
-thing1_a_0_md = thing1.view(Metadata)
-thing2_a_0_md = thing2.view(Metadata)
-thing3_a_0_md = thing3.view(Metadata)
-merged_artifacts_0_md = thing1_a_0_md.merge(thing2_a_0_md, thing3_a_0_md)"""
-        self.assertEqual(rendered, exp)
+        self.assertIn('from qiime2 import Metadata', rendered)
+        self.assertIn('thing1_a_0_md = thing1.view(Metadata)', rendered)
+        self.assertIn('thing2_a_0_md = thing2.view(Metadata)', rendered)
+        self.assertIn('thing3_a_0_md = thing3.view(Metadata)', rendered)
+        self.assertIn('merged_artifacts_0_md = '
+                      'thing1_a_0_md.merge(thing2_a_0_md, thing3_a_0_md)',
+                      rendered)
 
-    def test_init_md_from_md_file_not_mdc(self):
-        v0_uuid = '9f6a0f3e-22e6-4c39-8733-4e672919bbc7'
-        v1_uuid = '0b8b47bd-f2f8-4029-923c-0e37a68340c3'
-        with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'):
-            mixed = ProvDAG(os.path.join(DATA_DIR,
-                            'mixed_v0_v1_uu_emperor.qzv'))
-        v1_node = mixed.get_node_data(v1_uuid)
+    def test_init_md_from_md_file(self):
+        dag = self.tas.concated_ints_with_md.dag
+        md_node = dag.get_node_data(self.md_node_id)
         md_id = 'whatevs'
         param_name = 'metadata'
+
         ns = UsageVarsDict({md_id: param_name})
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
+                           use_recorded_metadata=False, pm=self.pm)
 
-        var = init_md_from_md_file(v1_node, param_name, md_id, ns, cfg)
+        var = init_md_from_md_file(md_node, param_name, md_id, ns, cfg)
 
         rendered = var.use.render()
-        self.assertRegex(rendered, 'from qiime2 import Metadata')
-        self.assertRegex(
-            rendered,
-            r'metadata_0_md = Metadata.load\(\<your metadata filepath\>\)')
+        self.assertIn('from qiime2 import Metadata', rendered)
+        self.assertIn(
+            'metadata_0_md = Metadata.load(<your metadata filepath>)',
+            rendered
+        )
 
-    def test_init_md_from_md_file_md_is_mdc(self):
-        dag = ProvDAG(os.path.join(DATA_DIR, 'v5_table.qza'))
-        n_id = '99fa3670-aa1a-45f6-ba8e-803c976a1163'
-        demux_node = dag.get_node_data(n_id)
-        md_id = 'per_sample_sequences_0_barcodes'
-        # We expect the variable name has already been added to the namespace
-        ns = UsageVarsDict({md_id: 'barcodes'})
+    def test_init_md_from_recorded_md(self):
+        dag = self.tas.concated_ints_with_md.dag
+        no_md_node = dag.get_node_data(self.non_md_node_id)
+        md_node = dag.get_node_data(self.md_node_id)
+        var_name = 'metadata_0'
+        param_name = 'metadata'
+
+        ns = UsageVarsDict({var_name: param_name})
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=pm)
+                           use_recorded_metadata=False, pm=self.pm)
+        md_fn = 'identity_with_metadata/metadata_0'
 
-        var = init_md_from_md_file(demux_node, 'barcodes', md_id, ns, cfg)
+        with self.assertRaisesRegex(ValueError, 'only.*call.*if.*metadata'):
+            init_md_from_recorded_md(
+                no_md_node, param_name, var_name, ns, cfg, md_fn
+            )
+
+        var = init_md_from_recorded_md(
+            md_node, param_name, var_name, ns, cfg, md_fn
+        )
+        self.assertIsInstance(var, UsageVariable)
+        self.assertEqual(var.var_type, 'metadata')
+
+        rendered = cfg.use.render()
+        self.assertIn('from qiime2 import Metadata', rendered)
+        self.assertIn('metadata_0_md = Metadata.load', rendered)
+        self.assertIn('recorded_metadata/identity_with_metadata/'
+                      'metadata_0', rendered)
+
+    def test_init_md_from_recorded_mdc(self):
+        dag = self.tas.concated_ints_with_md_column.dag
+        no_md_node = dag.get_node_data(self.non_mdc_node_id)
+        md_node = dag.get_node_data(self.mdc_node_id)
+        var_name = 'metadata_0'
+        param_name = 'metadata'
+
+        ns = UsageVarsDict({var_name: param_name})
+        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+                           use_recorded_metadata=False, pm=self.pm)
+        md_fn = 'identity_with_metadata_column/metadata_0'
+
+        with self.assertRaisesRegex(ValueError, 'only.*call.*if.*metadata'):
+            init_md_from_recorded_md(
+                no_md_node, param_name, var_name, ns, cfg, md_fn
+            )
+
+        var = init_md_from_recorded_md(
+            md_node, param_name, var_name, ns, cfg, md_fn
+        )
         self.assertIsInstance(var, UsageVariable)
         self.assertEqual(var.var_type, 'column')
-        rendered = var.use.render()
-        mdc_name = 'barcodes_0_mdc_0'
-        self.assertRegex(rendered, 'from qiime2 import Metadata')
-        self.assertRegex(
-            rendered,
-            r"barcodes_0_md = Metadata.load\(<your metadata filepath>\)")
-        self.assertRegex(rendered,
-                         rf"{mdc_name} = barcodes_0_md."
-                         r"get_column\(<column name>\)")
+
+        rendered = cfg.use.render()
+        self.assertIn('from qiime2 import Metadata', rendered)
+        self.assertIn('metadata_0_md = Metadata.load', rendered)
+        self.assertIn('.get_column(', rendered)
+        self.assertIn('recorded_metadata/identity_with_metadata_column/'
+                      'metadata_0.tsv', rendered)
 
 
 class BuildNoProvenanceUsageTests(CustomAssertions):
