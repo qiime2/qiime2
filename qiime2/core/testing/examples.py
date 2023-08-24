@@ -243,7 +243,7 @@ def optional_inputs(use):
 
 
 def collection_list_of_ints(use):
-    ints = use.init_result_collection('ints', artifact_collection_factory)
+    ints = use.init_artifact_collection('ints', artifact_collection_factory)
 
     out, = use.action(
                 use.UsageAction(plugin_id='dummy_plugin',
@@ -254,7 +254,7 @@ def collection_list_of_ints(use):
 
 
 def collection_dict_of_ints(use):
-    ints = use.init_result_collection('ints', artifact_collection_factory)
+    ints = use.init_artifact_collection('ints', artifact_collection_factory)
 
     out, = use.action(
                 use.UsageAction(plugin_id='dummy_plugin',

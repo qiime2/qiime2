@@ -682,7 +682,7 @@ class UsageVariable:
         ...          'Bar': qiime2.Artifact.import_data('SingleInt', 2)})
         ...     return a
         ...
-        >>> int_collection = use.init_result_collection('int_collection6', factory)
+        >>> int_collection = use.init_artifact_collection('int_collection6', factory)
         >>> bar, = use.action(
         ...     use.UsageAction(plugin_id='dummy_plugin',
         ...                     action_id='dict_of_ints'),
@@ -734,7 +734,7 @@ class UsageVariable:
         ...          'Bar': qiime2.Artifact.import_data('SingleInt', 2)})
         ...     return a
         ...
-        >>> int_collection = use.init_result_collection('int_collection7', factory)
+        >>> int_collection = use.init_artifact_collection('int_collection7', factory)
         >>> bar, = use.action(
         ...     use.UsageAction(plugin_id='dummy_plugin',
         ...                     action_id='dict_of_ints'),
@@ -910,10 +910,10 @@ class Usage:
         """
         return self._usage_variable(name, factory, 'artifact')
 
-    def init_result_collection(
+    def init_artifact_collection(
         self, name: str,
             factory: Callable[[], qiime2.ResultCollection]) -> UsageVariable:
-        """Communicate that a result collection will be needed.
+        """Communicate that a result collection containing artifacts will be needed.
 
         Driver implementations may use this to intialize data for an example.
 
@@ -923,7 +923,7 @@ class Usage:
             The canonical name of the variable to be returned.
         factory : Callable which returns :class:`qiime2.sdk.ResultCollection`
             A function which takes no parameters, and returns
-            a result collection.
+            a result collection that contains artifacts.
             This function may do anything internally to create
             the result collection.
 
@@ -945,7 +945,7 @@ class Usage:
         ...          'Bar': qiime2.Artifact.import_data('IntSequence1', [4, 5, 6])})
         ...     return a
         ...
-        >>> int_seq_collection = use.init_result_collection('int_seq_collection', factory)
+        >>> int_seq_collection = use.init_artifact_collection('int_seq_collection', factory)
         >>> int_seq_collection
         <ExecutionUsageVariable name='int_seq_collection', var_type='artifact_collection'>
         """  # noqa: E501
@@ -1585,9 +1585,9 @@ class DiagnosticUsage(Usage):
         self._append_record('init_artifact', variable)
         return variable
 
-    def init_result_collection(self, name, factory):
-        variable = super().init_result_collection(name, factory)
-        self._append_record('init_result_collection', variable)
+    def init_artifact_collection(self, name, factory):
+        variable = super().init_artifact_collection(name, factory)
+        self._append_record('init_artifact_collection', variable)
         return variable
 
     def init_metadata(self, name, factory):
@@ -1752,8 +1752,8 @@ class ExecutionUsage(Usage):
 
         return variable
 
-    def init_result_collection(self, name, factory):
-        variable = super().init_result_collection(name, factory)
+    def init_artifact_collection(self, name, factory):
+        variable = super().init_artifact_collection(name, factory)
 
         variable.execute()
         self._recorder[variable.name] = variable
