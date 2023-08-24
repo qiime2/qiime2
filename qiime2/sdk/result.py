@@ -222,6 +222,8 @@ class Result:
 
         # This accounts for edge cases in the filename extension
         # and ensures that there is only a single period in the ext.
+        # Caste to str incase we received a pathlib.Path or similar
+        filepath = str(filepath)
         filepath = filepath.rstrip('.')
         ext = '.' + ext.lstrip('.')
 
