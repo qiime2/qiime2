@@ -49,6 +49,7 @@ class TestArtifacts:
         self.init_import_artifacts()
         self.init_action_artifacts()
         self.init_all_version_artifacts()
+        self.init_artifact_with_md_in_provenance()
         self.init_no_checksum_dag()
 
     def init_import_artifacts(self):
@@ -105,10 +106,6 @@ class TestArtifacts:
         int_seq_with_md, = identity_with_metadata(
             self.int_seq1.artifact, self.mapping1.artifact.view(Metadata)
         )
-        concated_ints_with_md, = concat_ints(
-            self.int_seq1.artifact, int_seq_with_md, self.int_seq2.artifact,
-            81, 64
-        )
         int_seq_with_md_column, = identity_with_metadata_column(
             self.int_seq1.artifact,
             self.mapping2.artifact.view(Metadata).get_column('c')
@@ -141,8 +138,8 @@ class TestArtifacts:
         for name in (
             'concated_ints', 'other_concated_ints', 'splitted_ints',
             'merged_mappings', 'pipeline_viz', 'int_seq_with_md',
-            'concated_ints_with_md', 'concated_ints_with_md_column',
-            'int_from_collection', 'int_seq_optional_input'
+            'concated_ints_with_md_column', 'int_from_collection',
+            'int_seq_optional_input'
         ):
             artifact = locals()[name]
             if name == 'pipeline_viz':
@@ -191,6 +188,23 @@ class TestArtifacts:
             name = filename.replace('-', '_').replace('.qza', '')
             ta = TestArtifact(name, a, uuid, fp, dag, version)
             setattr(self, name, ta)
+
+    def init_artifact_with_md_in_provenance(self):
+        dirname = 'concated-ints-with-md'
+        artifact_dir = os.path.join(self.datadir, dirname)
+        temp_zf_path = os.path.join(self.tempdir, 'temp.zip')
+        write_zip_file(temp_zf_path, artifact_dir)
+        filename = f'{dirname}.qza'
+        fp = os.path.join(self.tempdir, filename)
+        a = Artifact.load(temp_zf_path)
+        a.save(fp)
+
+        dag = ProvDAG(fp)
+        terminal_node, *_ = dag.terminal_nodes
+        uuid = terminal_node._uuid
+        name = filename.replace('-', '_').replace('.qza', '')
+        ta = TestArtifact(name, a, uuid, fp, dag, 6)
+        setattr(self, name, ta)
 
     def init_no_checksum_dag(self):
         '''
