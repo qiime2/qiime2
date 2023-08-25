@@ -216,6 +216,12 @@ class TestCache(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'valid Python identifier'):
             self.cache.create_pool('1')
 
+    def test_kebab_key(self):
+        self.cache.save(self.art1, '-kebab-case-key-')
+
+        artifact = self.cache.load('-kebab-case-key-')
+        artifact.validate()
+
     def test_remove_locks(self):
         """Create some locks then see if we can remove them
         """

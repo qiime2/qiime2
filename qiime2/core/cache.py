@@ -805,11 +805,15 @@ class Cache:
             this to ensure no one creates keys that cause issues when we try to
             load them.
         """
-        if not key.isidentifier():
-            raise ValueError('Key must be a valid Python identifier. Python '
-                             'identifier rules may be found here '
-                             'https://www.askpython.com/python/'
-                             'python-identifiers-rules-best-practices')
+        # We require keys to be valid Python identifiers with the single caveat
+        # that they may also contain dashes
+        validation_key = key.replace('-', '_')
+        if not validation_key.isidentifier():
+            raise ValueError("Keys may contain '-' characters but must "
+                             "otherwise be valid Python identifiers. Python "
+                             "identifier rules may be found here "
+                             "https://www.askpython.com/python/"
+                             "python-identifiers-rules-best-practices")
 
         key_fp = self.keys / key
 
