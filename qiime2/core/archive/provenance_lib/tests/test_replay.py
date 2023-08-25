@@ -1071,76 +1071,50 @@ class BuildActionUsageTests(CustomAssertions):
         self.assertIn('--p-int1 7', rendered)
         self.assertIn(f'--o-concatenated-ints {out_name}', rendered)
 
-    # TODO
     def test_build_action_usage_recorded_md(self):
-        plugin = 'emperor'
-        action = 'plot'
-        md_param = 'metadata'
-        act_id = 'c147dfbc-139a-4db0-ac17-b11948247f93'
-        pcoa_id = '9f6a0f3e-22e6-4c39-8733-4e672919bbc7'
-        n_id = '0b8b47bd-f2f8-4029-923c-0e37a68340c3'
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=True, pm=self.pm)
-        import_var = ArtifactAPIUsageVariable(
-            'pcoa', lambda: None, 'artifact', cfg.use)
-        ns = NamespaceCollections()
-        ns.usg_vars = {pcoa_id: import_var}
-        mixed_uuid = '9f6a0f3e-22e6-4c39-8733-4e672919bbc7'
-        with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{mixed_uuid}.*prior.*incomplete'):
-            dag = ProvDAG(os.path.join(DATA_DIR, 'mixed_v0_v1_uu_emperor.qzv'))
-        node = dag.get_node_data(n_id)
-        # This is a v1 node, so we don't have an output name. use type.
-        out_name_raw = node.type.lower()
-        acts = ActionCollections(std_actions={act_id:
-                                              {n_id: out_name_raw}})
-        unq_var_nm = out_name_raw + '_0'
-        build_action_usage(node, ns, acts.std_actions, act_id, cfg)
-        rendered = cfg.use.render()
-        vars = ns.usg_vars
-        out_name = vars[n_id].to_interface_name()
-
-        self.assertIsInstance(vars[n_id], UsageVariable)
-        self.assertEqual(vars[n_id].var_type, 'visualization')
-        self.assertEqual(vars[n_id].name, unq_var_nm)
-
-        self.assertRegex(rendered, "from qiime2 import Metadata")
-        self.assertRegex(
-            rendered, f"import.*{plugin}.actions as {plugin}_actions")
-
-        md_name = f'{md_param}_0_md'
-        self.assertRegex(rendered,
-                         rf'{md_name} = Metadata.load\(.*metadata_0.tsv')
-
-        self.assertRegex(rendered,
-                         rf'{out_name}, = {plugin}_actions.{action}\(')
-        self.assertRegex(rendered, f'pcoa.*{vars[pcoa_id].name}')
-        self.assertRegex(rendered, f'metadata.*{md_name}')
-        self.assertRegex(rendered, "custom_axis='DaysSinceExperimentStart'")
-
-    # TODO
-    @patch('qiime2.core.archive.provenance_lib.replay.init_md_from_artifacts')
-    def test_build_action_usage_md_from_artifacts(self, patch):
-        act_id = '59798956-9261-40f3-b70f-fc5059e379f5'
-        n_id = '75f035ac-33fb-4d1c-bdcd-63ae1d564056'
-        sd_act_id = '7862c023-13d4-4cd5-a9db-c92507055d25'
-        sd_id = 'a42ea02f-8c40-432c-9b88-e602f6cd3787'
-        dag = ProvDAG(os.path.join(DATA_DIR, 'md_tabulated_from_art.qzv'))
+        action = 'identity_with_metadata'
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
                            use_recorded_metadata=False, pm=self.pm)
-        sd_var = ArtifactAPIUsageVariable(
-            'sample_data_alpha_diversity_0', lambda: None, 'artifact', cfg.use)
+
+        action_uuid = '8dae7a81-83ce-48db-9313-6e3131b0933c'
+        node_uuid = 'be472b56-d205-43ee-8180-474da575c4d5'
+
+        dag = self.tas.concated_ints_with_md.dag
+        node = dag.get_node_data(node_uuid)
+
         ns = NamespaceCollections()
-        ns.usg_vars = {sd_id: sd_var}
-        node = dag.get_node_data(n_id)
-        out_name_raw = node.action.output_name
-        acts = ActionCollections(std_actions={act_id: {n_id: out_name_raw},
-                                              sd_act_id: {sd_id: 'smpl_data'}})
-        build_action_usage(node, ns, acts.std_actions, act_id, cfg)
-        patch.assert_called_once_with(
-            MetadataInfo(
-                input_artifact_uuids=['a42ea02f-8c40-432c-9b88-e602f6cd3787'],
-                relative_fp='input.tsv'), ns, cfg)
+        mapping_var = CLIUsageVariable(
+            'imported_mapping_0', lambda: None, 'artifact', cfg.use
+        )
+        intseq_var_1 = CLIUsageVariable(
+            'imported_ints_0', lambda: None, 'artifact', cfg.use
+        )
+        intseq_var_2 = CLIUsageVariable(
+            'imported_ints_1', lambda: None, 'artifact', cfg.use
+        )
+        mapping_import_uuid = '8f71b73d-b028-4cbc-9894-738bdfe718bf'
+        intseq_import_uuid_1 = '0bb6d731-155a-4dd0-8a1e-98827bc4e0bf'
+        intseq_import_uuid_2 = 'e6b37bae-3a14-40f7-87b4-52cf5c7c7a1d'
+        ns.usg_vars = {
+            mapping_import_uuid: mapping_var,
+            intseq_import_uuid_1: intseq_var_1,
+            intseq_import_uuid_2: intseq_var_2,
+        }
+
+        actions = ActionCollections(
+            std_actions={action_uuid: {node_uuid: 'out'}}
+        )
+        build_action_usage(node, ns, actions.std_actions, action_uuid, cfg)
+        rendered = cfg.use.render()
+        vars = ns.usg_vars
+
+        self.assertIsInstance(vars[node_uuid], UsageVariable)
+        self.assertEqual(vars[node_uuid].var_type, 'artifact')
+        self.assertEqual(vars[node_uuid].name, 'out_0')
+
+        self.assertIn('from qiime2 import Metadata', rendered)
+        self.assertIn('.view(Metadata)', rendered)
+        self.assertIn(f'.{action}(', rendered)
 
 
 class BibContentTests(unittest.TestCase):
@@ -1210,7 +1184,8 @@ class CitationsTests(unittest.TestCase):
             'booktitle': ' Proceedings of the 9th Python in Science Conferen',
             'author': ' Wes McKinney ',
             'ENTRYTYPE': 'inproceedings',
-            'ID': 'view|types:2021.2.0|pandas.core.series:Series|0'}
+            'ID': 'view|types:2021.2.0|pandas.core.series:Series|0'
+        }
 
         df_20 = {
             'year': ' 2010 ',
@@ -1220,7 +1195,8 @@ class CitationsTests(unittest.TestCase):
             'booktitle': ' Proceedings of the 9th Python in Science Conferen',
             'author': ' Wes McKinney ',
             'ENTRYTYPE': 'inproceedings',
-            'ID': 'view|types:2020.2.0|pandas.core.frame:DataFrame|0'}
+            'ID': 'view|types:2020.2.0|pandas.core.frame:DataFrame|0'
+        }
 
         deduped = dedupe_citations([series_21, df_20])
         self.assertEqual(len(deduped), 1)
@@ -1243,7 +1219,8 @@ class CitationsTests(unittest.TestCase):
                       ', Jorg and Glockner, Frank Oliver',
             'ENTRYTYPE': 'article',
             'ID': 'action|rescript:2020.6.0+3.g772294c|'
-                  'method:parse_silva_taxonomy|0'}
+                  'method:parse_silva_taxonomy|0'
+        }
         s1 = {
             'year': '2013',
             'volume': '41',
@@ -1258,67 +1235,76 @@ class CitationsTests(unittest.TestCase):
                       ' Peplies, Jorg and Glockner, Frank Oliver',
             'ENTRYTYPE': 'article',
             'ID': 'action|rescript:2020.6.0+3.g772294c|'
-                  'method:parse_silva_taxonomy|1'}
+                  'method:parse_silva_taxonomy|1'
+        }
         deduped = dedupe_citations([s0, s1])
         self.assertEqual(len(deduped), 2)
 
-    # TODO
-    def test_collect_citations_no_deduped(self):
-        dag = ProvDAG(TEST_DATA['5']['qzv_fp'])
-        exp_keys = {'framework|qiime2:2018.11.0|0',
-                    'action|feature-table:2018.11.0|method:rarefy|0',
-                    'view|types:2018.11.0|BIOMV210DirFmt|0',
-                    'view|types:2018.11.0|biom.table:Table|0',
-                    'plugin|dada2:2018.11.0|0',
-                    'action|alignment:2018.11.0|method:mafft|0',
-                    'action|diversity:2018.11.0|method:beta_phylogenetic|0',
-                    'action|diversity:2018.11.0|method:beta_phylogenetic|1',
-                    'action|diversity:2018.11.0|method:beta_phylogenetic|2',
-                    'action|diversity:2018.11.0|method:beta_phylogenetic|3',
-                    'action|diversity:2018.11.0|method:beta_phylogenetic|4',
-                    'view|types:2018.11.0|BIOMV210Format|0',
-                    'plugin|emperor:2018.11.0|0',
-                    'plugin|emperor:2018.11.0|1',
-                    'action|phylogeny:2018.11.0|method:fasttree|0',
-                    'action|alignment:2018.11.0|method:mask|0',
-                    }
+    def test_collect_citations_no_dedupe(self):
+        dag = self.tas.concated_ints_v6.dag
+        exp_keys = {
+            'framework|qiime2:2023.5.1|0',
+            'action|dummy-plugin:0.0.0-dev|method:concatenate_ints|0',
+            'plugin|dummy-plugin:0.0.0-dev|0',
+            'plugin|dummy-plugin:0.0.0-dev|1',
+            'view|dummy-plugin:0.0.0-dev|IntSequenceDirectoryFormat|0',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceDirectoryFormat|0',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|0',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|1',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|2',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|3',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|4',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|5',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|6',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|7',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|8',
+        }
         citations = collect_citations(dag, deduplicate=False)
         keys = set(citations.entries_dict.keys())
         self.assertEqual(len(keys), len(exp_keys))
         self.assertEqual(keys, exp_keys)
 
-    # TODO
-    def test_collect_deduped(self):
-        v5_tbl = ProvDAG(os.path.join(DATA_DIR, 'v5_table.qza'))
-        std_keys = {'framework|qiime2:2018.11.0|0',
-                    'view|types:2018.11.0|BIOMV210DirFmt|0',
-                    'view|types:2018.11.0|biom.table:Table|0',
-                    'plugin|dada2:2018.11.0|0'}
-        citations = collect_citations(v5_tbl, deduplicate=False)
-        keys = set(citations.entries_dict.keys())
-        self.assertEqual(len(keys), len(std_keys))
-        self.assertEqual(keys, std_keys)
+    def test_collect_citations_dedupe(self):
+        dag = self.tas.concated_ints_v6.dag
+        exp_keys = {
+            'framework|qiime2:2023.5.1|0',
+            'action|dummy-plugin:0.0.0-dev|method:concatenate_ints|0',
+            'plugin|dummy-plugin:0.0.0-dev|0',
+            'plugin|dummy-plugin:0.0.0-dev|1',
+            'view|dummy-plugin:0.0.0-dev|IntSequenceDirectoryFormat|0',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceDirectoryFormat|0',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|4',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|5',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|6',
+            'transformer|dummy-plugin:0.0.0-dev|'
+            'builtins:list->IntSequenceV2DirectoryFormat|8'
+        }
 
-        citations = collect_citations(v5_tbl, deduplicate=True)
+        citations = collect_citations(dag, deduplicate=True)
+        print(citations.entries_dict.keys())
         keys = set(citations.entries_dict.keys())
-        # Dedupe by DOI will drop one of the biom.table entries
-        self.assertEqual(len(keys), 3)
-        # We want to confirm each paper is present - it doesn't matter which
-        # biom entry is dropped.
-        lower_keys = [key.lower() for key in keys]
-        self.assertTrue(any('framework' in key for key in lower_keys))
-        self.assertTrue(any('dada2' in key for key in lower_keys))
-        self.assertTrue(any('biom' in key for key in lower_keys))
+        self.assertEqual(len(keys), len(exp_keys))
+        self.assertEqual(keys, exp_keys)
 
-    # TODO
     def test_collect_citations_no_prov(self):
-        v0_uuid = '9f6a0f3e-22e6-4c39-8733-4e672919bbc7'
-        with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'):
-            mixed = ProvDAG(os.path.join(DATA_DIR,
-                            'mixed_v0_v1_uu_emperor.qzv'))
+        dag = self.tas.table_v0.dag
+
         exp_keys = set()
-        citations = collect_citations(mixed)
+        citations = collect_citations(dag)
         keys = set(citations.entries_dict.keys())
         self.assertEqual(len(keys), 0)
         self.assertEqual(keys, exp_keys)
