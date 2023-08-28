@@ -28,7 +28,7 @@ from ..replay import (
     SUPPORTED_USAGE_DRIVERS,
     )
 from .testing_utilities import (
-    CustomAssertions, DATA_DIR, TEST_DATA, TestArtifacts
+    CustomAssertions, TestArtifacts
 )
 from ..util import camel_to_snake
 from ...provenance import MetadataInfo
@@ -449,7 +449,9 @@ class BuildUsageExamplesTests(unittest.TestCase):
         build_usage_examples(dag, cfg)
 
         n_p_builder.assert_not_called()
-        self.assertEqual(imp_builder.call_count, 3)
+        # concated_ints_with_md is loaded from disk so imports don't overlap
+        # with splitted_ints and pipeline_viz
+        self.assertEqual(imp_builder.call_count, 6)
         self.assertEqual(act_builder.call_count, 4)
 
     # TODO: broken by Collections
@@ -1309,48 +1311,31 @@ class CitationsTests(unittest.TestCase):
         self.assertEqual(len(keys), 0)
         self.assertEqual(keys, exp_keys)
 
-    # TODO
     def test_replay_citations(self):
-        dag = ProvDAG(TEST_DATA['5']['qzv_fp'])
-        exp_keys = ['framework|qiime2:2018.11.0|0',
-                    'action|feature-table:2018.11.0|method:rarefy|0',
-                    'view|types:2018.11.0|BIOMV210DirFmt|0',
-                    'plugin|dada2:2018.11.0|0',
-                    'action|alignment:2018.11.0|method:mafft|0',
-                    'action|diversity:2018.11.0|method:beta_phylogenetic|0',
-                    'action|diversity:2018.11.0|method:beta_phylogenetic|1',
-                    'action|diversity:2018.11.0|method:beta_phylogenetic|2',
-                    'action|diversity:2018.11.0|method:beta_phylogenetic|3',
-                    'action|diversity:2018.11.0|method:beta_phylogenetic|4',
-                    'plugin|emperor:2018.11.0|0',
-                    'plugin|emperor:2018.11.0|1',
-                    'action|phylogeny:2018.11.0|method:fasttree|0',
-                    'action|alignment:2018.11.0|method:mask|0',
-                    ]
-        with tempfile.TemporaryDirectory() as tmpdir:
-            out_fp = pathlib.Path(tmpdir) / 'citations.bib'
-            out_fn = str(out_fp)
-            replay_citations(dag, out_fn)
-            self.assertTrue(out_fp.is_file())
-            with open(out_fn, 'r') as fp:
+        dag = self.tas.concated_ints_v6.dag
+        exp_keys = {
+            'framework|qiime2:2023.5.1|0',
+            'action|dummy-plugin:0.0.0-dev|method:concatenate_ints|0',
+            'plugin|dummy-plugin:0.0.0-dev|0',
+            'plugin|dummy-plugin:0.0.0-dev|1',
+            'view|dummy-plugin:0.0.0-dev|IntSequenceDirectoryFormat|0',
+        }
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            out_fp = os.path.join(tempdir, 'citations.bib')
+            replay_citations(dag, out_fp)
+            with open(out_fp, 'r') as fp:
                 written = fp.read()
                 for key in exp_keys:
                     self.assertIn(key, written)
 
-    # TODO
     def test_replay_citations_no_prov(self):
-        v0_uuid = '9f6a0f3e-22e6-4c39-8733-4e672919bbc7'
-        with self.assertWarnsRegex(
-                UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'):
-            mixed = ProvDAG(os.path.join(DATA_DIR,
-                            'mixed_v0_v1_uu_emperor.qzv'))
+        dag = self.tas.table_v0.dag
         exp = "No citations were registered"
-        with tempfile.TemporaryDirectory() as tmpdir:
-            out_fp = pathlib.Path(tmpdir) / 'citations.bib'
-            out_fn = str(out_fp)
-            replay_citations(mixed, out_fn)
-            self.assertTrue(out_fp.is_file())
-            with open(out_fn, 'r') as fp:
+        with tempfile.TemporaryDirectory() as tempdir:
+            out_fp = os.path.join(tempdir, 'citations.bib')
+            replay_citations(dag, out_fp)
+            with open(out_fp, 'r') as fp:
                 written = fp.read()
                 self.assertIn(exp, written)
 
