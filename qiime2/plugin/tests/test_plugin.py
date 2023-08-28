@@ -109,6 +109,7 @@ class TestPlugin(unittest.TestCase):
                           'list_of_ints', 'dict_of_ints', 'returns_int',
                           'collection_inner_union', 'collection_outer_union',
                           'dict_params', 'list_params', 'varied_method',
+                          '_underscore_method'
                           })
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
@@ -144,7 +145,7 @@ class TestPlugin(unittest.TestCase):
                           'dict_of_ints', 'returns_int',
                           'collection_inner_union',
                           'collection_outer_union', 'dict_params',
-                          'list_params', 'varied_method',
+                          'list_params', 'varied_method', '_underscore_method'
                           })
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)
