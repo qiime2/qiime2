@@ -2,7 +2,7 @@ import pathlib
 import unittest
 import zipfile
 
-from .testing_utilities import CustomAssertions, TEST_DATA
+from .testing_utilities import CustomAssertions, TestArtifacts
 from ..util import get_root_uuid, get_nonroot_uuid, camel_to_snake
 
 
@@ -41,12 +41,30 @@ class CamelToSnakeTests(unittest.TestCase):
 
 
 class GetRootUUIDTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tas = TestArtifacts()
+        cls.tempdir = cls.tas.tempdir
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tas.free()
+
     def test_get_root_uuid(self):
-        for archive_version in TEST_DATA:
-            fp = TEST_DATA[archive_version]['qzv_fp']
-            exp = TEST_DATA[archive_version]['uuid']
-            with zipfile.ZipFile(fp) as zf:
-                self.assertEqual(exp, get_root_uuid(zf))
+        exp_root_uuids = {
+            '0': '89af91c0-033d-4e30-8ac4-f29a3b407dc1',
+            '1': '5b929500-e4d6-4d3f-8f5f-93fd95d1117d',
+            '2': 'e01f0484-40d4-420e-adcf-ca9be58ed1ee',
+            '3': 'aa960110-4069-4b7c-97a3-8a768875e515',
+            '4': '856502cb-66f2-45aa-a86c-e484cc9bfd57',
+            '5': '48af8384-2b0a-4b26-b85c-11b79c0d6ea6',
+            '6': '6facaf61-1676-45eb-ada0-d530be678b27',
+        }
+        for artifact, exp_uuid in zip(
+            self.tas.all_artifact_versions, exp_root_uuids.values()
+        ):
+            with zipfile.ZipFile(artifact.filepath) as zfh:
+                self.assertEqual(exp_uuid, get_root_uuid(zfh))
 
 
 class GetNonRootUUIDTests(unittest.TestCase):
