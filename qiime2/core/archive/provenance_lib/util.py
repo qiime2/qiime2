@@ -11,16 +11,9 @@ from typing import Optional, Tuple
 import qiime2
 from qiime2.core.archive import Archiver
 
-# Alias string as UUID so we can specify types more clearly
-UUID = str
-
-# Alias string as FileName because that's what some strings mean
-# FileNames are not path objects - just strings that describe paths
-FileName = str
-
 
 # NOTE: implemented as method on _Archive class
-def get_root_uuid(zf: zipfile.ZipFile) -> UUID:
+def get_root_uuid(zf: zipfile.ZipFile) -> str:
     """
     Returns the root UUID for a QIIME 2 Archive.
 
@@ -32,7 +25,7 @@ def get_root_uuid(zf: zipfile.ZipFile) -> UUID:
     return pathlib.Path(zf.namelist()[0]).parts[0]
 
 
-def get_nonroot_uuid(fp: pathlib.Path) -> UUID:
+def get_nonroot_uuid(fp: pathlib.Path) -> str:
     """
     For non-root provenance files, get the Result's uuid from the path
     (avoiding the root Result's UUID which is in all paths)

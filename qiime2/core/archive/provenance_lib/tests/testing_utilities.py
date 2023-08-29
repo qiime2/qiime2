@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from typing import Generator
 
 from ..parse import ProvDAG
-from ..util import UUID
 
 from qiime2 import Artifact, Metadata, ResultCollection
 from qiime2.sdk.plugin_manager import PluginManager
@@ -255,9 +254,9 @@ def is_root_provnode_data(fp):
 
 
 @contextmanager
-def generate_archive_with_file_removed(qzv_fp: str, root_uuid: UUID,
-                                       file_to_drop: pathlib.Path) -> \
-                                           Generator[pathlib.Path, None, None]:
+def generate_archive_with_file_removed(
+    qzv_fp: str, root_uuid: str, file_to_drop: pathlib.Path
+) -> Generator[pathlib.Path, None, None]:
     """
     Deleting files from zip archives is hard, so this makes a temporary
     copy of qzf_fp with fp_to_drop removed and returns a handle to this archive

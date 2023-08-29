@@ -12,12 +12,12 @@ from dataclasses import dataclass, field
 from typing import Dict, Iterator, List, Optional, Set, Union
 
 from .archive_parser import ProvNode
-from .parse import ProvDAG, UUID
+from .parse import ProvDAG
 from ._usage_drivers import (
     DRIVER_CHOICES, DRIVER_NAMES, SUPPORTED_USAGE_DRIVERS, Usage,
     build_header, build_footer
 )
-from .util import FileName, camel_to_snake
+from .util import camel_to_snake
 from ..provenance import MetadataInfo
 
 from qiime2.sdk import PluginManager
@@ -59,7 +59,7 @@ class ReplayConfig():
     header: bool = True
     verbose: bool = False
     dump_recorded_metadata: bool = True
-    md_out_fp: FileName = ''
+    md_out_fp: str = ''
 
 
 @dataclass
@@ -74,8 +74,8 @@ class ActionCollections():
     no_provenance_nodes can't be organized by action, and in some cases we
     don't know anything but UUID for them, so we can fit what we need in a list
     """
-    std_actions: Dict[UUID, Dict[UUID, str]] = field(default_factory=dict)
-    no_provenance_nodes: List[UUID] = field(default_factory=list)
+    std_actions: Dict[str, Dict[str, str]] = field(default_factory=dict)
+    no_provenance_nodes: List[str] = field(default_factory=list)
 
 
 class UsageVarsDict(UserDict):
@@ -100,7 +100,7 @@ class UsageVarsDict(UserDict):
     to maintain parity between variable names in this namespace and in the
     usage variable store. The keys in both stores, however, must match.
     """
-    def __setitem__(self, key: UUID, item: str) -> None:
+    def __setitem__(self, key: str, item: str) -> None:
         unique_item = self._uniquify(item)
         return super().__setitem__(key, unique_item)
 
@@ -134,7 +134,7 @@ class UsageVarsDict(UserDict):
                 return key
         raise KeyError(f"passed value '{value}' does not exist in this dict.")
 
-    def wrap_val_in_angle_brackets(self, key: UUID):
+    def wrap_val_in_angle_brackets(self, key: str):
         # TODO: Kinda unsafe. If we run it twice, it breaks uniquify.
         # Can we refactor this to behave like a repr instead of modifying the
         # value in the dict?
@@ -144,21 +144,23 @@ class UsageVarsDict(UserDict):
 @dataclass
 class NamespaceCollections:
     usg_var_namespace: UsageVarsDict = field(default_factory=UsageVarsDict)
-    usg_vars: Dict[UUID, UsageVariable] = field(default_factory=dict)
+    usg_vars: Dict[str, UsageVariable] = field(default_factory=dict)
     action_namespace: Set[str] = field(default_factory=set)
 
 
-def replay_provenance(payload: Union[FileName, ProvDAG],
-                      out_fp: FileName,
-                      usage_driver: DRIVER_CHOICES = 'python3',
-                      validate_checksums: bool = True,
-                      parse_metadata: bool = True,
-                      recurse: bool = False,
-                      use_recorded_metadata: bool = False,
-                      suppress_header: bool = False,
-                      verbose: bool = False,
-                      dump_recorded_metadata: bool = True,
-                      md_out_fp: FileName = '',):
+def replay_provenance(
+        payload: Union[str, ProvDAG],
+        out_fp: str,
+        usage_driver: DRIVER_CHOICES = 'python3',
+        validate_checksums: bool = True,
+        parse_metadata: bool = True,
+        recurse: bool = False,
+        use_recorded_metadata: bool = False,
+        suppress_header: bool = False,
+        verbose: bool = False,
+        dump_recorded_metadata: bool = True,
+        md_out_fp: str = ''
+):
     """
     Renders usage examples describing a ProvDAG, producing an interface-
     specific executable.
@@ -223,7 +225,7 @@ def replay_provenance(payload: Union[FileName, ProvDAG],
         out_fh.write(output)
 
 
-def group_by_action(dag: ProvDAG, nodes: Iterator[UUID]) -> ActionCollections:
+def group_by_action(dag: ProvDAG, nodes: Iterator[str]) -> ActionCollections:
     """
     Provenance is organized around outputs, but replay cares about actions.
     This groups the nodes from a DAG by action, returning an ActionCollections
@@ -278,10 +280,12 @@ def build_usage_examples(dag: ProvDAG, cfg: ReplayConfig):
             build_action_usage(n_data, usg_ns, std_actions, action_id, cfg)
 
 
-def build_no_provenance_node_usage(node: Optional[ProvNode],
-                                   uuid: UUID,
-                                   ns: NamespaceCollections,
-                                   cfg: ReplayConfig):
+def build_no_provenance_node_usage(
+        node: Optional[ProvNode],
+        uuid: str,
+        ns: NamespaceCollections,
+        cfg: ReplayConfig
+):
     """
     Given a ProvNode (with no provenance), does something useful with it.
     Returns nothing, modifying the passed usage instance in place.
@@ -316,9 +320,9 @@ def build_no_provenance_node_usage(node: Optional[ProvNode],
     cfg.use.comment(f"{uuid}   {ns.usg_vars[uuid].to_interface_name()}")
 
 
-def build_import_usage(node: ProvNode,
-                       ns: NamespaceCollections,
-                       cfg: ReplayConfig):
+def build_import_usage(
+        node: ProvNode, ns: NamespaceCollections, cfg: ReplayConfig
+):
     """
     Given a ProvNode, adds an import usage example for it, roughly
     resembling the following.
@@ -345,11 +349,13 @@ def build_import_usage(node: ProvNode,
     ns.usg_vars.update({node._uuid: use_var})
 
 
-def build_action_usage(node: ProvNode,
-                       ns: NamespaceCollections,
-                       std_actions: Dict[UUID, Dict[UUID, str]],
-                       action_id: UUID,
-                       cfg: ReplayConfig):
+def build_action_usage(
+    node: ProvNode,
+    ns: NamespaceCollections,
+    std_actions: Dict[str, Dict[str, str]],
+    action_id: str,
+    cfg: ReplayConfig
+):
     """
     Adds an action usage example to `use` for some ProvNode.
     Returns nothing, modifying the passed usage instance in place.
@@ -473,9 +479,14 @@ def _uniquify_output_names(ns: NamespaceCollections, raw_outputs) -> dict:
     return outputs
 
 
-def init_md_from_recorded_md(node: ProvNode, param_name: str, md_id: str,
-                             ns: UsageVarsDict, cfg: ReplayConfig,
-                             md_fn: FileName) -> UsageVariable:
+def init_md_from_recorded_md(
+        node: ProvNode,
+        param_name: str,
+        md_id: str,
+        ns: UsageVarsDict,
+        cfg: ReplayConfig,
+        md_fn: str
+) -> UsageVariable:
     """
     initializes and returns a Metadata UsageVariable with Metadata scraped
     and dumped to disk from provenance
@@ -512,9 +523,13 @@ def init_md_from_recorded_md(node: ProvNode, param_name: str, md_id: str,
     return md
 
 
-def init_md_from_md_file(node: ProvNode, param_name: str, md_id: str,
-                         ns: UsageVarsDict, cfg: ReplayConfig) -> \
-        UsageVariable:
+def init_md_from_md_file(
+        node: ProvNode,
+        param_name: str,
+        md_id: str,
+        ns: UsageVarsDict,
+        cfg: ReplayConfig
+) -> UsageVariable:
     """
     initializes and returns a Metadata UsageVariable with no real data,
     mimicking a user passing md as a .tsv file
@@ -530,9 +545,9 @@ def init_md_from_md_file(node: ProvNode, param_name: str, md_id: str,
     return md
 
 
-def init_md_from_artifacts(md_inf: MetadataInfo,
-                           ns: NamespaceCollections,
-                           cfg: ReplayConfig) -> UsageVariable:
+def init_md_from_artifacts(
+        md_inf: MetadataInfo, ns: NamespaceCollections, cfg: ReplayConfig
+) -> UsageVariable:
     """
     initializes and returns a Metadata UsageVariable with no real data,
     mimicking a user passing one or more QIIME 2 Artifacts as metadata
@@ -566,8 +581,13 @@ def init_md_from_artifacts(md_inf: MetadataInfo,
     return art_as_md
 
 
-def dump_recorded_md_file(cfg: ReplayConfig, node: ProvNode, action_name: str,
-                          md_id: str, fn: FileName):
+def dump_recorded_md_file(
+        cfg: ReplayConfig,
+        node: ProvNode,
+        action_name: str,
+        md_id: str,
+        fn: str
+):
     """
     Writes one metadata DataFrame passed to an action to .tsv
     Each action gets its own directory containing relevant md files.
@@ -745,8 +765,12 @@ def dedupe_citations(citations: List[Dict]) -> List[Dict]:
     return dd_cits
 
 
-def replay_citations(dag: ProvDAG, out_fp: FileName, deduplicate: bool = True,
-                     suppress_header: bool = False):
+def replay_citations(
+        dag: ProvDAG,
+        out_fp: str,
+        deduplicate: bool = True,
+        suppress_header: bool = False
+):
     """
     Writes a .bib file representing all unique citations from a ProvDAG to disk
     If `deduplicate`, refs will be heuristically deduplicated. e.g. by DOI
@@ -778,17 +802,18 @@ def replay_citations(dag: ProvDAG, out_fp: FileName, deduplicate: bool = True,
             bibfile.write('\n'.join(footer))
 
 
-def replay_supplement(payload: Union[FileName, ProvDAG],
-                      out_fp: FileName,
-                      validate_checksums: bool = True,
-                      parse_metadata: bool = True,
-                      use_recorded_metadata: bool = False,
-                      recurse: bool = False,
-                      deduplicate: bool = True,
-                      suppress_header: bool = False,
-                      verbose: bool = True,
-                      dump_recorded_metadata: bool = True,
-                      ):
+def replay_supplement(
+        payload: Union[str, ProvDAG],
+        out_fp: str,
+        validate_checksums: bool = True,
+        parse_metadata: bool = True,
+        use_recorded_metadata: bool = False,
+        recurse: bool = False,
+        deduplicate: bool = True,
+        suppress_header: bool = False,
+        verbose: bool = True,
+        dump_recorded_metadata: bool = True
+):
     """
     Produces a zipfile package of useful documentation for in silico
     reproducibility of some QIIME 2 Result(s) from a ProvDAG, a QIIME 2

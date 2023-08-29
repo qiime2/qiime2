@@ -26,7 +26,7 @@ from ..replay import (
     replay_provenance, uniquify_action_name, replay_citations,
     replay_supplement,
     SUPPORTED_USAGE_DRIVERS,
-    )
+)
 from .testing_utilities import (
     CustomAssertions, TestArtifacts
 )
