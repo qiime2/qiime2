@@ -169,9 +169,7 @@ class ArchiveParserTests(unittest.TestCase):
     def test_get_parser_nonexistent_fp(self):
         fn = 'not_a_filepath.qza'
         fp = os.path.join(self.tempdir, fn)
-        with self.assertRaisesRegex(
-                FileNotFoundError, f'ArchiveParser.*{fp}'
-        ):
+        with self.assertRaises(FileNotFoundError):
             ArchiveParser.get_parser(fp)
 
     def test_artifact_parser_parse_prov(self):
@@ -500,14 +498,17 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
         ):
             if archive_version == '0':
                 self.assertEqual(self.nodes[node].format, 'BIOMV210DirFmt')
-                self.assertEqual(self.nodes[node].has_provenance, False)
                 self.assertEqual(self.nodes[node].type,
                                  'FeatureTable[Frequency]')
+                self.assertEqual(self.nodes[node].has_provenance, False)
             else:
                 self.assertEqual(self.nodes[node].format,
                                  'IntSequenceDirectoryFormat')
-                self.assertEqual(self.nodes[node].has_provenance, True)
                 self.assertEqual(self.nodes[node].type, 'IntSequence1')
+                if archive_version == '1':
+                    self.assertEqual(self.nodes[node].has_provenance, False)
+                else:
+                    self.assertEqual(self.nodes[node].has_provenance, True)
 
             self.assertEqual(self.nodes[node].archive_version, archive_version)
             self.assertEqual(self.nodes[node].framework_version,

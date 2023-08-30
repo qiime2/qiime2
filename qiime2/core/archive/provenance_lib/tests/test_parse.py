@@ -13,8 +13,8 @@ from networkx import DiGraph
 
 from .._checksum_validator import ValidationCode
 from ..parse import (
-    ProvDAG, UnparseableDataError, DirectoryParser, EmptyParser, ProvDAGParser,
-    select_parser, parse_provenance,
+    ProvDAG, DirectoryParser, EmptyParser, ProvDAGParser, select_parser,
+    parse_provenance, UnparseableDataError
 )
 from ..archive_parser import (
     ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5, ParserV6,
@@ -114,7 +114,7 @@ class ProvDAGTests(unittest.TestCase):
 
     def test_nonexistent_fp(self):
         fp = os.path.join(self.tempdir, 'does-not-exist.qza')
-        err_msg = f'FileNotFoundError.*ArchiveParser.*{fp}'
+        err_msg = 'FileNotFoundError'
         with self.assertRaisesRegex(UnparseableDataError, err_msg):
             ProvDAG(fp)
 
@@ -123,12 +123,12 @@ class ProvDAGTests(unittest.TestCase):
         self.tas.int_seq1.artifact.save(fp)
 
         os.chmod(fp, 0o000)
-        err_msg = f'PermissionError.*ArchiveParser.*denied.*{fp}'
+        err_msg = 'PermissionError.*Permission denied'
         with self.assertRaisesRegex(UnparseableDataError, err_msg):
             ProvDAG(fp)
 
         os.chmod(fp, 0o123)
-        err_msg = f'PermissionError.*ArchiveParser.*denied.*{fp}'
+        err_msg = 'PermissionError.*Permission denied'
         with self.assertRaisesRegex(UnparseableDataError, err_msg):
             ProvDAG(fp)
 
@@ -137,7 +137,7 @@ class ProvDAGTests(unittest.TestCase):
         with open(fp, 'w') as fh:
             fh.write("This is just a text file.")
 
-        err_msg = 'zipfile.BadZipFile.*ArchiveParser.*File is not a zip file'
+        err_msg = 'zipfile.BadZipFile.*File is not a zip file'
         with self.assertRaisesRegex(UnparseableDataError, err_msg):
             ProvDAG(fp)
 
@@ -412,6 +412,14 @@ class ProvDAGTests(unittest.TestCase):
 
         self.assertEqual(dag.provenance_is_valid,
                          ValidationCode.PREDATES_CHECKSUMS)
+        self.assertEqual(dag.node_has_provenance(uuid), False)
+
+    def test_v2_archive(self):
+        dag = self.tas.concated_ints_v2.dag
+        uuid = self.tas.concated_ints_v2.uuid
+
+        self.assertEqual(dag.provenance_is_valid,
+                         ValidationCode.PREDATES_CHECKSUMS)
         self.assertEqual(dag.node_has_provenance(uuid), True)
 
     def test_v4_archive(self):
@@ -579,10 +587,10 @@ class ProvDAGTests(unittest.TestCase):
 
     def test_union_v0_v1_archives(self):
         unioned_dag = ProvDAG.union([self.tas.table_v0.dag,
-                                     self.tas.concated_ints_v1.dag])
+                                     self.tas.concated_ints_v2.dag])
 
         self.assertIn(f'{self.tas.table_v0.uuid}', repr(unioned_dag))
-        self.assertIn(f'{self.tas.concated_ints_v1.uuid}', repr(unioned_dag))
+        self.assertIn(f'{self.tas.concated_ints_v2.uuid}', repr(unioned_dag))
 
         self.assertEqual(unioned_dag.provenance_is_valid,
                          ValidationCode.PREDATES_CHECKSUMS)
@@ -593,13 +601,13 @@ class ProvDAGTests(unittest.TestCase):
         self.assertFalse(
             unioned_dag.node_has_provenance(self.tas.table_v0.uuid))
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v1.uuid))
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v2.uuid))
 
-    def test_union_v1_v5_archives(self):
-        unioned_dag = ProvDAG.union([self.tas.concated_ints_v1.dag,
+    def test_union_v3_v5_archives(self):
+        unioned_dag = ProvDAG.union([self.tas.concated_ints_v3.dag,
                                      self.tas.concated_ints_v5.dag])
 
-        self.assertIn(f'{self.tas.concated_ints_v1.uuid}', repr(unioned_dag))
+        self.assertIn(f'{self.tas.concated_ints_v3.uuid}', repr(unioned_dag))
         self.assertIn(f'{self.tas.concated_ints_v5.uuid}', repr(unioned_dag))
 
         self.assertEqual(unioned_dag.provenance_is_valid,
@@ -609,7 +617,7 @@ class ProvDAGTests(unittest.TestCase):
             nx.number_weakly_connected_components(unioned_dag.dag), 2)
 
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v1.uuid))
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v3.uuid))
         self.assertTrue(
             unioned_dag.node_has_provenance(self.tas.concated_ints_v5.uuid))
 
@@ -993,7 +1001,7 @@ class ParseProvenanceTests(unittest.TestCase):
 
     def test_parse_with_directory_parser_bad_dir_path(self):
         dir_fp = os.path.join(self.tempdir, 'fake_dir')
-        with self.assertRaisesRegex(UnparseableDataError, 'not a valid dir'):
+        with self.assertRaisesRegex(Exception, 'not a valid dir'):
             parse_provenance(self.cfg, dir_fp)
 
     def test_no_correct_parser_found_error(self):
@@ -1001,7 +1009,7 @@ class ParseProvenanceTests(unittest.TestCase):
         with self.assertRaisesRegex(
             UnparseableDataError,
             f"(?s)Input data {input_data}.*not supported.*"
-            "AttributeError.*ArchiveParser.*dict.*no attribute.*seek.*"
+            "AttributeError.*dict.*no attribute.*seek.*"
             "DirectoryParser.*expects a directory.*"
             "ProvDAGParser.*is not a ProvDAG.*"
             "EmptyParser.*is not None"

@@ -475,9 +475,9 @@ def parse_provenance(cfg: Config, payload: Any) -> ParserResults:
 
 
 def select_parser(payload: Any) -> Parser:
-    """
-    Selects a parser that can_handle some given payload.
-    """
+    '''
+    Attempts to find a parser that can handle some given payload. Raises
+    '''
     _PARSER_TYPE_REGISTRY = [
         ArchiveParser,
         DirectoryParser,
@@ -486,7 +486,8 @@ def select_parser(payload: Any) -> Parser:
     ]
 
     accepted_data_types = [
-        parser.accepted_data_types for parser in _PARSER_TYPE_REGISTRY]
+        parser.accepted_data_types for parser in _PARSER_TYPE_REGISTRY
+    ]
 
     optional_parser = None
     errors = []
@@ -497,37 +498,18 @@ def select_parser(payload: Any) -> Parser:
                 return optional_parser
         except Exception as e:
             errors.append(e)
-    # If we finish the loop without a parser that can_handle, raise errors
-    else:
-        # Errors are only raised if no working parser is found,
-        # so we can always raise unparseable_err if we raise errors.
-        unparseable_err_msg = (
-                    f"Input data {payload} is not supported.\n"
-                    "Parsers are available for the following data types: "
-                    f"{accepted_data_types}")
-        raise UnparseableDataError(unparseable_err_msg, errors)
+
+    err_msg = (
+        f'Input data {payload} is not supported.\n'
+        'Parsers are available for the following data types: '
+        f'{accepted_data_types}.\n'
+        'The following errors were caught while trying to identify a parser '
+        'that can_handle this input data:\n'
+    )
+    for e in errors:
+        err_msg += str(type(e)) + str(e) + '\n'
+    raise UnparseableDataError(err_msg)
 
 
 class UnparseableDataError(Exception):
-    """
-    A specialized exception aggregator designed to deal more neatly with the
-    fact that we may raise many different errors while attempting to identify
-    a parser than can_handle our data.
-    """
-
-    def __init__(self, msg, aggregated_exceptions=None):
-        self.message = msg
-        self.exceptions = aggregated_exceptions
-
-    def __repr__(self):
-        msg = self.message + "\n"
-
-        if self.exceptions is not None:
-            msg += ("\nThe following errors were caught while trying to "
-                    "identify a parser that can_handle this input data:")
-        for e in self.exceptions:
-            msg += ("\n- " + str(type(e))[7:-2] + str(e))
-
-        return (msg)
-
-    __str__ = __repr__
+    pass
