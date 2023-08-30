@@ -1653,6 +1653,29 @@ class Pool:
         return set(os.listdir(self.path))
 
     def create_index(self):
+        """Indexes all artifacts in this cache's data directory mapping the
+        QIIME 2 invocations that made the given artifacts to the given
+        artifacts in a dictionary with the following structure:
+
+        {
+            HashableInvocation(plugin_action=f'{plugin}:{action}',
+                               arguments=[input_uuids + parameters]): {
+                output1_name: output1_uuid,
+                output2_name: output2_uuid,
+                ...
+            },
+            ...
+        }
+
+        Where the output uuids are the uuids of the artifacts in the actual
+        data directory. This information is parsed out of these artifacts'
+        provenance.
+
+        This index is used for pipeline resumption. We can tell if an artifact
+        in the cache was created by an invocation of a pipeline that is
+        identical to the one we are currently executing and take that cached
+        artifact instead of recreating it.
+        """
         # Keep track of all invocations -> outputs
         self.index = {}
 
@@ -1682,12 +1705,46 @@ class Pool:
                     self.index[invocation], action['output-name'], _uuid)
 
     def _add_index_output(self, outputs, name, value):
+        """Adds a given output to the cache's index under the invocation that
+        created it. Dispatches to _add_collection_index_output for output
+        collections.
+
+
+        Parameters
+        ----------
+        outputs : dict
+            A dictionary mapping the names of the outputs of the given
+            invocation to their uuids.
+        name : str
+            The name of the output we are indexing.
+        value : str
+            The value of the output we are indexing
+
+        Note
+        ----
+        Modifies the output dictionary in place
+        """
         if isinstance(name, list):
             self._add_collection_index_output(outputs, name, value)
         else:
             outputs[name] = value
 
     def _add_collection_index_output(self, outputs, name, value):
+        """Adds a given output collection to the cache's index under the
+        invocation that created it.
+
+        Parameters
+        ----------
+        outputs : dict
+            A dictionary mapping the names of the outputs of the given
+            invocation to their uuids.
+        name : tuple
+            The name of the output, the key for this element in the output
+            collection, the index of this element in the output collection in
+            the form of index/num_elements.
+        value : str
+            The uuid of this element in the output collection.
+        """
         output_name, item_name, idx_out_of = name
         idx, total = idx_out_of.split('/')
 
