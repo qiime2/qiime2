@@ -268,7 +268,7 @@ tm = object
 
 
 class MEGALock(tm):
-    """ We need to lock out other processes with flufl, but we also need to
+    """We need to lock out other processes with flufl, but we also need to
     lock out other threads with a Python thread lock (because parsl
     threadpools), so we put them together in one MEGALock(tm)
     """
