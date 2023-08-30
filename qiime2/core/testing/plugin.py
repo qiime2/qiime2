@@ -48,7 +48,7 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      unioned_primitives, type_match_list_and_set, union_inputs,
                      list_of_ints, dict_of_ints, returns_int, varied_method,
                      collection_inner_union, collection_outer_union,
-                     dict_params, list_params)
+                     dict_params, list_params, _underscore_method)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -1073,6 +1073,18 @@ dummy_plugin.methods.register_function(
     name='Takes and returns a combination of colletions and non collections',
     description='Takes and returns a combination of colletions and non'
                 ' collections'
+)
+
+dummy_plugin.methods.register_function(
+    function=_underscore_method,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('int', SingleInt)
+    ],
+    name='Starts with an underscore',
+    description='Exists to test that the cli does not render actions that'
+                ' start with an underscore by default'
 )
 
 import_module('qiime2.core.testing.mapped')
