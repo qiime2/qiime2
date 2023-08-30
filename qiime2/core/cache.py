@@ -1681,6 +1681,13 @@ class Pool:
 
         with self.cache.lock:
             for _uuid in self.get_data():
+                # Make sure the process that indexed this artifact will still
+                # have access to it if it is otherwise removed from the cache
+                # by retaining a reference to it in our process pool
+                alias = self.cache.process_pool._alias(_uuid)
+                self.cache.process_pool._make_symlink(_uuid, alias)
+
+                # Get action.yaml from this artifact's provenance
                 path = self.cache.data / _uuid
                 action_yaml = load_action_yaml(path)
                 action = action_yaml['action']
