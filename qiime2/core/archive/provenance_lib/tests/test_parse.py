@@ -363,7 +363,10 @@ class ProvDAGTests(unittest.TestCase):
             uuid,
             'checksums.md5'
         ) as altered_archive:
-            expected = (f'no item.*{uuid}.*Archive may be corrupt')
+            expected = (
+                'The checksums.md5 file is missing from the archive.*'
+                'Archive may be corrupt'
+            )
             with self.assertWarnsRegex(UserWarning, expected):
                 dag = ProvDAG(altered_archive)
 

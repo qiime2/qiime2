@@ -9,7 +9,7 @@ from qiime2.core.archive.archiver import ChecksumDiff
 from qiime2.sdk.plugin_manager import PluginManager
 
 from .._checksum_validator import validate_checksums, ValidationCode
-from ..util import monkeypatch_archive_version, write_zip_archive
+from ..util import write_zip_archive
 
 
 class ValidateChecksumTests(unittest.TestCase):
@@ -23,7 +23,7 @@ class ValidateChecksumTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
-    def test_validate_checksums_valid(self):
+    def test_validate_checksums(self):
         int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
         fp = os.path.join(self.tempdir, 'int-seq.qza')
         int_seq.save(fp)
@@ -33,25 +33,15 @@ class ValidateChecksumTests(unittest.TestCase):
         self.assertEqual(is_valid, ValidationCode.VALID)
         self.assertEqual(diff, ChecksumDiff({}, {}, {}))
 
-        fp = os.path.join(self.tempdir, 'int-seq-av2.qza')
-        with monkeypatch_archive_version('1'):
-            int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
-            int_seq.save(fp)
-
-        with zipfile.ZipFile(fp) as zf:
-            is_valid, diff = validate_checksums(zf)
-        self.assertEqual(is_valid, ValidationCode.VALID)
-        self.assertEqual(diff, ChecksumDiff({}, {}, {}))
-
     def test_validate_checksums_invalid(self):
-        """
+        '''
         Mangle an intact v5 Archive so that its checksums.md5 is invalid,
         and then confirm that we're catching all the changes we've made
         Specifically:
         - remove the root `<uuid>/metadata.yaml`
         - add a new file called '<uuid>/tamper.txt`
         - overwrite `<uuid>/provenance/citations.bib`
-        """
+        '''
         int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
         fp = os.path.join(self.tempdir, 'int-seq-altered.qza')
         int_seq.save(fp)
