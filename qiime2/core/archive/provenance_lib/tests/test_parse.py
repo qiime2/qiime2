@@ -1008,11 +1008,11 @@ class ParseProvenanceTests(unittest.TestCase):
         input_data = {'this': 'is not parseable'}
         with self.assertRaisesRegex(
             UnparseableDataError,
-            f"(?s)Input data {input_data}.*not supported.*"
-            "AttributeError.*dict.*no attribute.*seek.*"
-            "DirectoryParser.*expects a directory.*"
-            "ProvDAGParser.*is not a ProvDAG.*"
-            "EmptyParser.*is not None"
+            f'(?s)Input data {input_data}.*not supported.*'
+            'ArchiveParser expects a string or pathlib.PosixPath.*'
+            'DirectoryParser.*expects a directory.*'
+            'ProvDAGParser.*is not a ProvDAG.*'
+            'EmptyParser.*is not None'
         ):
             select_parser(input_data)
 

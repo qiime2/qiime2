@@ -9,7 +9,7 @@ from zipfile import ZipFile
 from dataclasses import dataclass
 from datetime import timedelta
 from io import BytesIO
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import bibtexparser as bp
 import networkx as nx
@@ -66,7 +66,9 @@ class ParserResults():
         been 1) added 2) removed or 3) changed in the archive since the
         archive was checksummed.
         None if no checksum validation was perfomed, e.g. when opted out or
-        impossible because archive version did not support checksums.
+        impossible because archive version did not support checksums, or when
+        checksums.md5 missing from archive where it was expected.
+        Interpretable only in conjunction with provenance_is_valid.
     '''
     parsed_artifact_uuids: Set[str]
     prov_digraph: nx.DiGraph
@@ -187,16 +189,13 @@ class ProvNode:
             self,
             cfg: Config,
             zf: ZipFile,
-            fps_for_this_result: List[pathlib.Path]
+            node_fps: List[pathlib.Path]
     ):
         '''
-        Constructs a ProvNode from a zipfile and some filepaths.
-
-        This constructor is intentionally flexible, and will parse any
-        files handed to it. It is the responsibility of the ParserVx classes to
-        decide what files need to be passed.
+        Constructs a ProvNode from a zipfile and the collected
+        provenance-relevant filepaths for a single result within it.
         '''
-        for fp in fps_for_this_result:
+        for fp in node_fps:
             if fp.name == 'VERSION':
                 self._archive_version, self._framework_version = \
                     parse_version(zf, fp)
@@ -237,8 +236,9 @@ class ProvNode:
         Returns
         -------
         tuple of (all_metadata, artifacts_as_metadata)
-            Where all_metadata is a dict of {parameter_name: relative_filename}
-            and artifacts_as_metadata is a list of single-items dict of the
+            Where all_metadata is a dict of
+            {parameter_name: filename}.
+            Where artifacts_as_metadata is a list of single-items dict of the
             structure {'artifact_passed_as_metadata': <uuid>}.
 
         Notes
@@ -432,7 +432,7 @@ class _Citations:
 
     def __repr__(self):
         keys = list(self.citations.keys())
-        return (f"Citations({keys})")
+        return f'Citations({keys})'
 
 
 class _ResultMetadata:
@@ -457,32 +457,32 @@ class Parser(metaclass=abc.ABCMeta):
     @classmethod
     @abc.abstractmethod
     def get_parser(cls, artifact_data: Any) -> 'Parser':
-        """
+        '''
         Return the appropriate Parser if this Parser type can handle the data
         passed in.
 
         Should raise an appropriate exception if this Parser cannot handle the
         data.
-        """
+        '''
 
     @abc.abstractmethod
     def parse_prov(self, cfg: Config, data: Any) -> ParserResults:
-        """
-        Parse provenance returning a ParserResults
-        """
+        '''
+        Parse provenance to return a ParserResults.
+        '''
 
 
 class ArchiveParser(Parser):
-    accepted_data_types = "a path to a file (a string) or a file-like object"
+    accepted_data_types = 'a path to a file (a string) or a file-like object'
 
     @classmethod
-    def get_parser(cls, artifact_path: str) -> Parser:
+    def get_parser(cls, artifact: Union[str, pathlib.PosixPath]) -> Parser:
         '''
         Returns the correct archive format parser for a zip archive.
 
         Parameters
         ----------
-        artifact_data : str
+        artifact_data : str or pathlib.PosixPath
             A path to a zipped archive.
 
         Returns
@@ -491,25 +491,25 @@ class ArchiveParser(Parser):
             An ArchiveParser object for the version of the artifact. One of
             ParserV[0-6].
         '''
-        try:
-            if os.path.isdir(artifact_path):
-                raise ValueError(
-                    "ArchiveParser expects a file, not a directory."
-                )
-        except TypeError:
-            pass
+        if type(artifact) == pathlib.PosixPath:
+            artifact = str(artifact)
+        if type(artifact) != str:
+            raise TypeError(
+                'ArchiveParser expects a string or pathlib.PosixPath path to '
+                f'an archive, not an object of type {str(type(artifact))}.'
+            )
+        if os.path.isdir(artifact):
+            raise ValueError('ArchiveParser expects a file, not a directory.')
 
         try:
-            # By trying to open artifact_data directly, we get more
-            # informative errors than with `if zipfile.is_zipfile():`
-            with ZipFile(artifact_path, 'r') as zf:
+            with ZipFile(artifact, 'r') as zf:
                 archive_version, _ = parse_version(zf)
             return FORMAT_REGISTRY[archive_version]()
         except KeyError as e:
-            raise type(e)(
-                f'While trying to parse artifact {artifact_path}, '
-                'corresponding parser not found for version '
-                f'{archive_version}: {str(e)}'
+            raise KeyError(
+                f'While trying to parse artifact {artifact}, '
+                'a corresponding parser was not found for archive version '
+                f'{archive_version}: {str(e)}.'
             )
 
     def parse_prov(cls, cfg: Config, data: Any) -> ParserResults:
@@ -519,16 +519,16 @@ class ArchiveParser(Parser):
 
 
 class ParserV0(ArchiveParser):
-    """
+    '''
     Parser for V0 archives. V0 archives have no ancestral provenance.
-    """
+    '''
     # These are files we expect will be present in every QIIME2 archive with
     # this format. "Optional" filenames (like Metadata, which may or may
     # not be present in an archive) should not be included here.
     expected_files_root_only = tuple()
     expected_files_all_nodes = ('metadata.yaml', 'VERSION')
 
-    def parse_prov(self, cfg: Config, archive_data: str) -> ParserResults:
+    def parse_prov(self, cfg: Config, archive: str) -> ParserResults:
         '''
         Parses an artifact's provenance into a directed acyclic graph.
 
@@ -540,8 +540,8 @@ class ParserV0(ArchiveParser):
         archive. However, because the corresponding action.yaml does not track
         output names, when two outputs share the same semantic type, it is not
         possible to untangle provenance. Instead of wrangling with this and
-        in consideration of the expected rarity of v1 archives at the time
-        of writing, it was decided to treat v1 archives as v0 archives.
+        in consideration of the expected rarity of v1 archives, it was decided
+        to treat v1 archives as v0 archives.
 
         Parameters
         ----------
@@ -550,7 +550,7 @@ class ParserV0(ArchiveParser):
             checksum validation, whether to parse study metadata, whether to
             recursively parse nested directories, and whether to enable verbose
             mode.
-        archive_data : str
+        archive : str
             A path to the artifact to be parsed.
 
         Returns
@@ -560,7 +560,7 @@ class ParserV0(ArchiveParser):
             networkx graph, the provenance-is-valid flag, and the
             checksum diff.
         '''
-        with ZipFile(archive_data) as zf:
+        with ZipFile(archive) as zf:
             if cfg.perform_checksum_validation:
                 provenance_is_valid, checksum_diff = \
                     self._validate_checksums(zf)
@@ -618,8 +618,10 @@ class ParserV0(ArchiveParser):
         '''
         root_md_fp = os.path.join(root_uuid, 'metadata.yaml')
         if root_md_fp not in zf.namelist():
-            raise ValueError('Malformed Archive: root metadata.yaml file '
-                             f'misplaced or nonexistent in {zf.filename}')
+            raise ValueError(
+                'Malformed Archive: root metadata.yaml file '
+                f'misplaced or nonexistent in {zf.filename}'
+            )
         return _ResultMetadata(zf, root_md_fp)
 
     def _validate_checksums(
@@ -688,17 +690,13 @@ class ParserV0(ArchiveParser):
                     edges.append((parent_uuid, node_uuid))
         dag.add_edges_from(edges)
 
-        # for _, attrs in dag.nodes(data=True):
-        #     if attrs.get('node_data') is None:
-        #         attrs['has_provenance'] = False
-        #         attrs['node_data'] = None
-
         return dag
 
     def _get_provenance_fps(self, zf: ZipFile) -> List[pathlib.Path]:
         '''
         Collect filepaths of all provenance-relevant files in an archive.
-        Relevant is defined by `self.expected_files_all_nodes`.
+        Relevant is defined by `self.expected_files_all_nodes` and
+        `self.expected_files_root_only` (which is empty).
 
         Parameters
         ----------
@@ -737,49 +735,77 @@ class ParserV0(ArchiveParser):
             some node.
         prov_fps : list of pathlib.Path
             All provenance-relevant filepaths in the archive.
+
+        Raises
+        ------
+        ValueError
+            If there are expected provenance-relevant files missing from
+            a node.
         '''
-        error_contents = "Malformed Archive: "
+        error_contents = 'Malformed Archive: '
         root_uuid = get_root_uuid(zf)
         for fp in expected_node_fps:
             if fp not in prov_fps:
                 node_uuid = get_nonroot_uuid(fp)
                 error_contents += (
-                    f"{fp.name} file for node {node_uuid} "
-                    f"misplaced or nonexistent in {zf.filename}.\n"
+                    f'{fp.name} file for node {node_uuid} '
+                    f'misplaced or nonexistent in {zf.filename}.\n'
                 )
                 error_contents += (
-                    f"Archive {root_uuid} may be corrupt "
-                    "or provenance may be false."
+                    f'Archive {root_uuid} may be corrupt '
+                    'or provenance may be false.'
                 )
                 raise ValueError(error_contents)
 
 
 class ParserV1(ParserV0):
-    """
+    '''
     Parser for V1 archives. Although action.yaml was introduced for this
     archive version, we are pretending that it was introduced in V2 because of
     difficulties untangling provenance without output names. V1 archives are
     treated as having no provenance, like V0 archives.
-    """
+    '''
     expected_files_root_only = ParserV0.expected_files_root_only
     expected_files_all_nodes = ParserV0.expected_files_all_nodes
 
 
 class ParserV2(ParserV1):
-    """
-    Parser for V2 archives. Directory structure identical to V1, action.yaml
-    changes to support Pipelines.
-    """
+    '''
+    Parser for V2 archives. Introduces action/action.yaml to provenance.
+    Directory structure identical to V1, action.yaml changes to support
+    Pipelines.
+    '''
     expected_files_root_only = ParserV1.expected_files_root_only
     expected_files_all_nodes = (
         *ParserV1.expected_files_all_nodes, 'action/action.yaml'
     )
 
-    def parse_prov(self, cfg: Config, archive_data: str) -> ParserResults:
-        """
-        Parses provenance data for one Archive.
-        """
-        with ZipFile(archive_data) as zf:
+    def parse_prov(self, cfg: Config, archive: str) -> ParserResults:
+        '''
+        Parses an artifact's provenance into a directed acyclic graph.
+
+        For each artifact in provenance, gathers all corresponding
+        provenance-relevant files and constructs a ProvNode. Once all
+        ProvNodes are constructed, creates the provenance graph.
+
+        Parameters
+        ----------
+        cfg : Config
+            A dataclass that stores four boolean flags: whether to perform
+            checksum validation, whether to parse study metadata, whether to
+            recursively parse nested directories, and whether to enable verbose
+            mode.
+        archive_data : str
+            A path to the artifact to be parsed.
+
+        Returns
+        -------
+        ParserResults
+            A dataclass that stores the parsed artifact uuids, the parsed
+            networkx graph, the provenance-is-valid flag, and the
+            checksum diff.
+        '''
+        with ZipFile(archive) as zf:
             if cfg.perform_checksum_validation:
                 provenance_is_valid, checksum_diff = \
                     self._validate_checksums(zf)
@@ -861,10 +887,10 @@ class ParserV2(ParserV1):
 
 
 class ParserV3(ParserV2):
-    """
+    '''
     Parser for V3 archives. Directory structure identical to V1 & V2,
-    action.yaml now supports variadic inputs, so !set tags in action.yaml
-    """
+    action.yaml now supports variadic inputs, so !set tags in action.yaml.
+    '''
     expected_files_root_only = ParserV2.expected_files_root_only
     expected_files_all_nodes = ParserV2.expected_files_all_nodes
 
@@ -881,36 +907,47 @@ class ParserV4(ParserV3):
 
 
 class ParserV5(ParserV4):
-    """
+    '''
     Parser for V5 archives. Adds checksum validation with checksums.md5.
-    """
+    '''
     expected_files_root_only = ('checksums.md5', )
     expected_files_all_nodes = ParserV4.expected_files_all_nodes
-
-    def parse_prov(self, cfg: Config, archive_data: str) -> ParserResults:
-        """
-        Parses provenance data for one Archive, applying the local
-        _validate_checksums() method to the v1 parser
-        """
-        return super().parse_prov(cfg, archive_data)
 
     def _validate_checksums(
             self, zf: ZipFile
     ) -> Tuple[ValidationCode, Optional[ChecksumDiff]]:
-        """
-        With v5, we can actually validate checksums, so use checksum_validator
-        to return:
-        - provenance_is_valid: bool
-        - checksum_diff: Optional[ChecksumDiff], where None only if
-            checksums.md5 is missing
-        """
+        '''
+        Checksum support added for v5, so perform checksum validation.
+
+        Parameters
+        ----------
+        zf : ZipFile
+            The zipfile object representation of the parsed archive.
+
+        Returns
+        -------
+        tuple of (ValidationCode, ChecksumDiff or None)
+            Where ValidationCode is one of valid, invalid, predates checksums,
+            optout.
+            Where ChecksumDiff contains filepaths of all changed, added, and
+            removed files since last checksumming.
+            If checksums.md5 is missing from archive the archive, an invalid
+            code is returned and a ChecksumDiff of None is returned.
+
+        Notes
+        -----
+        Because a ChecksumDiff of None here has a different interpetation
+        than in pre-V5 archive parsers, the ChecksumDiff should only be
+        intepreted in conjuction with the ValidationCode.
+        '''
         return validate_checksums(zf)
 
 
 class ParserV6(ParserV5):
-    """
-    Parser for V6 archives.
-    """
+    '''
+    Parser for V6 archives. Adds support for output collections, adds
+    execution_context field to action.yaml.
+    '''
     expected_files_root_only = ParserV5.expected_files_root_only
     expected_files_all_nodes = ParserV5.expected_files_all_nodes
 
