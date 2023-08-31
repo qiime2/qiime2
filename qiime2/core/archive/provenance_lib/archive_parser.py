@@ -33,8 +33,7 @@ class Config():
     parse_study_metadata : bool
         Whether to parse study metadata stored in provenance.
     recurse : bool
-        Whether to recursively parse nested directories containing parseable
-        artifacts.
+        Whether to recursively parse nested directories that contain artifacts.
     verbose : bool
         Whether to print status messages to stdout during processing.
     '''
@@ -144,11 +143,11 @@ class ProvNode:
     def _parents(self) -> Optional[List[Dict[str, str]]]:
         '''
         A list of single-item {Type: UUID} dicts describing this
-        action's inputs, and including Artifacts passed as Metadata parameters.
+        action's inputs, including Artifacts passed as Metadata parameters.
 
-        Returns [] if this "action" is an Import.
+        Returns [] if this action is an Import.
 
-        NOTE: This property is "private" because it is slightly unsafe,
+        NOTE: This property is private because it is slightly unsafe,
         reporting original node IDs that are not updated if the user renames
         nodes using the networkx API instead of ProvDAG.relabel_nodes.
         ProvDAG and its extensions should use the networkx.DiGraph itself to
@@ -170,7 +169,6 @@ class ProvNode:
                         # Make these unique in case the single-item dicts get
                         # merged into a single dict downstream
                         if type(value[i]) == dict:
-                            # value[i] is in this case a single item dict
                             unq_name, = value[i].keys()
                             v, = value[i].values()
                         else:
@@ -181,8 +179,7 @@ class ProvNode:
                     parents.append({name: value})
                 else:
                     # skip None-by-default optional inputs
-                    # covered by test_parents_for_table_with_optional_input
-                    pass  # pragma: no cover
+                    pass
 
         return parents + self._artifacts_passed_as_md
 
@@ -192,13 +189,13 @@ class ProvNode:
             zf: ZipFile,
             fps_for_this_result: List[pathlib.Path]
     ):
-        """
+        '''
         Constructs a ProvNode from a zipfile and some filepaths.
 
         This constructor is intentionally flexible, and will parse any
         files handed to it. It is the responsibility of the ParserVx classes to
         decide what files need to be passed.
-        """
+        '''
         for fp in fps_for_this_result:
             if fp.name == 'VERSION':
                 self._archive_version, self._framework_version = \
@@ -220,86 +217,83 @@ class ProvNode:
                 self._metadata = self._parse_metadata(zf, all_metadata_fps)
 
     def _get_metadata_from_Action(
-        self, action_details: Dict[str, List]) \
-            -> Tuple[Dict[str, str], List[Dict[str, str]]]:
-        """
+        self, action_details: Dict[str, List]
+    ) -> Tuple[Dict[str, str], List[Dict[str, str]]]:
+        '''
         Gathers data related to Metadata and MetadataColumn-based metadata
-        files from an in-memory representation of an action.yaml file.
+        files from the parsed action.yaml file.
 
-        Specifically:
+        Captures filepath and parameter-name data for all study metadata
+        files, so that these can be located for parsing, and then associated
+        with the correct parameters during replay. It captures uuids for all
+        artifacts passed to this action as metadata so they can be included as
+        parents of this node.
 
-        - it captures filepath and parameter-name data for _all_
-        metadata files, so that these can be located for parsing, and then
-        associated with the correct parameters during replay.
+        Parameters
+        ----------
+        action_details : dict
+            The parsed dictionary of the `action` section from action.yaml.
 
-        - it captures uuids for all artifacts passed to this action as
-        metadata so they can be included as parents of this node.
+        Returns
+        -------
+        tuple of (all_metadata, artifacts_as_metadata)
+            Where all_metadata is a dict of {parameter_name: relative_filename}
+            and artifacts_as_metadata is a list of single-items dict of the
+            structure {'artifact_passed_as_metadata': <uuid>}.
 
-        Returns a two-tuple (all_metadata, artifacts_as_metadata) where:
-        - all-metadata conforms to {parameter_name: relative_filename}
-        - artifacts_as_metadata is a list of single-item dictionaries
-        conforming to [{'artifact_passed_as_metadata': <uuid>}, ...]
-
-        Input data looks like this:
-
-        {'action': {'parameters': [{'some_param': 'foo'},
-                                   {'arbitrary_metadata_name':
-                                    {'input_artifact_uuids': [],
-                                     'relative_fp': 'sample_metadata.tsv'}},
-                                   {'other_metadata':
-                                    {'input_artifact_uuids': ['4154...301b4'],
-                                     'relative_fp': 'feature_metadata.tsv'}},
-                                   ]
-                    }}
-
-        as loaded from this YAML:
-
-        action:
-            parameters:
-            -   some_param: 'foo'
-            -   arbitrary_metadata_name: !metadata 'sample_metadata.tsv'
-            -   other_metadata: !metadata '4154...301b4:feature_metadata.tsv'
-
-        NOTE: When Artifacts are passed as Metadata, they are captured in
-        action.py's action['parameters'], rather than in action['inputs'] with
-        the other Artifacts. As a result, Semantic Type data is not captured.
-        This function returns a hardcoded filler 'Type' for all UUIDs
-        discovered here: 'artifact_passed_as_metadata'. This will not match the
-        actual Type of the parent Artifact, but the properties of provenance
-        DiGraphs make this irrelevant. Because Artifacts passed as Metadata
-        retain their provenance, downstream Artifacts are linked to their
-        "real" parent Artifact nodes, which have accurate Type information.
-        The filler type is moot.
-        """
+        Notes
+        -----
+        When Artifacts are passed as Metadata, they are captured in
+        action['parameters'], rather than in action['inputs'] with the other
+        Artifacts. Semantic Type data is thus not captured. This function
+        returns a filler 'Type' for all UUIDs discovered here:
+        'artifact_passed_as_metadata'. Because Artifacts passed (viewed) as
+        Metadata retain their provenance, downstream Artifacts are linked to
+        their real parent Artifact nodes with the proper Type information.
+        '''
         all_metadata = dict()
         artifacts_as_metadata = []
         if (all_params := action_details.get('parameters')) is not None:
             for param in all_params:
-                param_val = next(iter(param.values()))
+                param_val, = param.values()
                 if isinstance(param_val, MetadataInfo):
-                    param_name = next(iter(param))
+                    param_name, = param.keys()
                     md_fp = param_val.relative_fp
                     all_metadata.update({param_name: md_fp})
 
                     artifacts_as_metadata += [
                         {'artifact_passed_as_metadata': uuid} for uuid in
-                        param_val.input_artifact_uuids]
+                        param_val.input_artifact_uuids
+                    ]
 
         return all_metadata, artifacts_as_metadata
 
-    def _parse_metadata(self, zf: ZipFile,
-                        metadata_fps: Dict[str, str]) -> \
-            Dict[str, pd.DataFrame]:
-        """
+    def _parse_metadata(
+        self, zf: ZipFile, metadata_fps: Dict[str, str]
+    ) -> Dict[str, pd.DataFrame]:
+        '''
         Parses all metadata files captured from Metadata and MetadataColumns
         (identifiable by !metadata tags) into pd.DataFrames.
 
-        Returns an empty dict if there is no metadata.
+        Parameters
+        ----------
+        zf : ZipFile
+            The zipfile object of the archive.
+        metadata_fps : dict
+            A dict of parameter names to metadata filenames for metadata
+            paramters.
 
-        In the future, we may need a simple type that can hold the name of the
-        original associated parameter, the type (MetadataColumn or Metadata),
-        and the appropriate Series or Dataframe respectively.
-        """
+        Returns
+        -------
+        dict
+            A dict of parameter names to a dataframe object that is loaded
+            from the corresponding metadata file.
+
+            An empty dict if there is no metadata.
+        '''
+        if metadata_fps == {}:
+            return {}
+
         root_uuid = get_root_uuid(zf)
         pfx = pathlib.Path(root_uuid) / 'provenance'
         if root_uuid == self._uuid:
@@ -309,10 +303,10 @@ class ProvNode:
 
         all_md = dict()
         for param_name in metadata_fps:
-            filename = str(pfx / metadata_fps[param_name])
-            with zf.open(filename) as myfile:
-                df = pd.read_csv(BytesIO(myfile.read()), sep='\t')
-                all_md.update({param_name: df})
+            filepath = str(pfx / metadata_fps[param_name])
+            with zf.open(filepath) as fh:
+                df = pd.read_csv(BytesIO(fh.read()), sep='\t')
+                all_md[param_name] = df
 
         return all_md
 
@@ -325,70 +319,63 @@ class ProvNode:
         return hash(self._uuid)
 
     def __eq__(self, other) -> bool:
-        return (self.__class__ == other.__class__
-                and self._uuid == other._uuid
-                )
+        return (
+            self.__class__ == other.__class__ and self._uuid == other._uuid
+        )
 
 
 class _Action:
-    """ Provenance data from action.yaml for a single QIIME 2 Result """
+    '''Provenance data from action.yaml for a single QIIME2 Result.'''
 
     @property
     def action_id(self) -> str:
-        """ the UUID assigned to this Action (not its Results) """
+        '''The UUID of the Action itself.'''
         return self._execution_details['uuid']
 
     @property
     def action_type(self) -> str:
-        """
-        The type of Action represented (e.g. Method, Pipeline, etc. )
-        Returns Import if an import - this is a useful sentinel for deciding
-        what type of action we're parsing (Action vs import)
-        """
+        '''
+        The type of Action represented e.g. Method, Pipeline, et al.
+        '''
         return self._action_details['type']
 
     @property
     def runtime(self) -> timedelta:
-        """
-        The elapsed run time of the Action, as a datetime object
-        """
+        '''The elapsed run time of the Action, as a datetime object.'''
         end = self._execution_details['runtime']['end']
         start = self._execution_details['runtime']['start']
         return end - start
 
     @property
     def runtime_str(self) -> str:
-        """
-        The elapsed run time of the Action, in Seconds and microseconds
-        """
+        ''' The elapsed run time of the Action in seconds and microseconds.'''
         return self._execution_details['runtime']['duration']
 
     @property
     def action_name(self) -> str:
-        """
-        The name of the action itself. Returns 'import' if this is an import.
-        """
-        action_name = self._action_details.get('action')
+        '''
+        The name of the action itself. Imports return 'import'.
+        '''
         if self.action_type == 'import':
-            action_name = 'import'
-        return action_name
+            return 'import'
+        return self._action_details.get('action')
 
     @property
     def plugin(self) -> str:
-        """
+        '''
         The plugin which executed this Action. Returns 'framework' if this is
         an import.
-        """
-        plugin = self._action_details.get('plugin')
+        '''
         if self.action_type == 'import':
-            plugin = 'framework'
-        # This plugin id will be sent to the PM during replay, so python-style
-        plugin = plugin.replace('-', '_')
-        return plugin
+            return 'framework'
 
+        plugin = self._action_details.get('plugin')
+        return plugin.replace('-', '_')
+
+    # TODO: is this okay for Collections?
     @property
     def inputs(self) -> dict:
-        """ returns a dict of artifact inputs to this action """
+        '''Returns a dict of artifact inputs to this action.'''
         inputs = self._action_details.get('inputs')
         results = {}
         if inputs is not None:
@@ -398,7 +385,7 @@ class _Action:
 
     @property
     def parameters(self) -> dict:
-        """ returns a dict of parameters passed to this action """
+        '''Returns a dict of parameters passed to this action.'''
         params = self._action_details.get('parameters')
         results = {}
         if params is not None:
@@ -406,49 +393,39 @@ class _Action:
                 results.update(item.items())
         return results
 
+    # TODO: probably not okay for Collections.
     @property
     def output_name(self) -> Optional[str]:
-        """
-        Returns the output name for the node that owns this action.yaml
-        note that a QIIME 2 action may have multiple outputs not represented
-        here.
-        """
+        '''Returns the output name of the node.'''
         return self._action_details.get('output-name')
 
     @property
     def format(self) -> Optional[str]:
-        """
-        Returns this action's format field if any.
-        Expected with actions of type import, maybe no others?
-        """
+        '''Returns this action's format field if any.'''
         return self._action_details.get('format')
 
     @property
     def transformers(self) -> Optional[Dict]:
-        """
-        Returns this action's transformers dictionary if any.
-        """
+        '''Returns this action's transformers dictionary if any.'''
         return self._action_dict.get('transformers')
 
     def __init__(self, zf: ZipFile, fp: str):
         self._action_dict = yaml.safe_load(zf.read(fp))
         self._action_details = self._action_dict['action']
         self._execution_details = self._action_dict['execution']
-        self._env_details = self._action_dict['environment']
 
     def __repr__(self):
-        return (f"_Action(action_id={self.action_id}, type={self.action_type},"
-                f" plugin={self.plugin}, action={self.action_name})")
+        return (
+            f'_Action(action_id={self.action_id}, type={self.action_type},'
+            f' plugin={self.plugin}, action={self.action_name})'
+        )
 
 
 class _Citations:
-    """
-    citations for a single QIIME 2 Result, as a dict of citation dicts keyed
+    '''
+    Citations for a single QIIME2 Result, as a dict of citation dicts keyed
     on the citation's bibtex ID.
-
-    This ID is also stored in the value dicts, making it straightforward to
-    convert these back to BibDatabase objects e.g. list(self.citations.values()
-    """
+    '''
     def __init__(self, zf: ZipFile, fp: str):
         bib_db = bp.loads(zf.read(fp))
         self.citations = bib_db.get_entry_dict()
@@ -459,7 +436,7 @@ class _Citations:
 
 
 class _ResultMetadata:
-    """ Basic metadata about a single QIIME 2 Result from metadata.yaml """
+    '''Basic metadata about a single QIIME2 Result from metadata.yaml.'''
     def __init__(self, zf: ZipFile, md_fp: str):
         _md_dict = yaml.safe_load(zf.read(md_fp))
         self.uuid = _md_dict['uuid']
@@ -467,9 +444,11 @@ class _ResultMetadata:
         self.format = _md_dict['format']
 
     def __repr__(self):
-        return (f"UUID:\t\t{self.uuid}\n"
-                f"Type:\t\t{self.type}\n"
-                f"Data Format:\t{self.format}")
+        return (
+            f'UUID:\t\t{self.uuid}\n'
+            f'Type:\t\t{self.type}\n'
+            f'Data Format:\t{self.format}'
+        )
 
 
 class Parser(metaclass=abc.ABCMeta):
@@ -596,12 +575,19 @@ class ParserV0(ArchiveParser):
                 UserWarning
             )
 
-            prov_data_fps = []
+            exp_node_fps = []
             for fp in self.expected_files_all_nodes:
-                prov_data_fps.append(pathlib.Path(root_uuid) / fp)
+                exp_node_fps.append(pathlib.Path(root_uuid) / fp)
+
+            prov_fps = self._get_provenance_fps(zf)
+            self._assert_expected_files_present(
+                zf, exp_node_fps, prov_fps
+            )
+            # we have confirmed that all expected fps for this node exist
+            node_fps = exp_node_fps
 
             nodes = {}
-            nodes[root_uuid] = ProvNode(cfg, zf, prov_data_fps)
+            nodes[root_uuid] = ProvNode(cfg, zf, node_fps)
             graph = self._digraph_from_archive_contents(nodes)
 
         return ParserResults(
@@ -709,6 +695,64 @@ class ParserV0(ArchiveParser):
 
         return dag
 
+    def _get_provenance_fps(self, zf: ZipFile) -> List[pathlib.Path]:
+        '''
+        Collect filepaths of all provenance-relevant files in an archive.
+        Relevant is defined by `self.expected_files_all_nodes`.
+
+        Parameters
+        ----------
+        zf : ZipFile
+            The zipfile object of the archive.
+
+        Returns
+        -------
+        list of pathlib.Path
+            Filepaths relative to root of zipfile for each file of interest.
+        '''
+        fps = []
+        for fp in zf.namelist():
+            for expected_filename in self.expected_files_all_nodes:
+                if expected_filename in fp:
+                    fps.append(pathlib.Path(fp))
+
+        return fps
+
+    def _assert_expected_files_present(
+            self,
+            zf: ZipFile,
+            expected_node_fps: List[pathlib.Path],
+            prov_fps: List[pathlib.Path],
+    ):
+        '''
+        Makes sure that all expected files for a given node are present in an
+        archive. Raises a ValueError if not.
+
+        Parameters
+        ----------
+        zf : ZipFile
+            The zipfile object representing an archive.
+        expected_node_fps : list of pathlib.Path
+            The filepaths that are expected to be present in the zipfile for
+            some node.
+        prov_fps : list of pathlib.Path
+            All provenance-relevant filepaths in the archive.
+        '''
+        error_contents = "Malformed Archive: "
+        root_uuid = get_root_uuid(zf)
+        for fp in expected_node_fps:
+            if fp not in prov_fps:
+                node_uuid = get_nonroot_uuid(fp)
+                error_contents += (
+                    f"{fp.name} file for node {node_uuid} "
+                    f"misplaced or nonexistent in {zf.filename}.\n"
+                )
+                error_contents += (
+                    f"Archive {root_uuid} may be corrupt "
+                    "or provenance may be false."
+                )
+                raise ValueError(error_contents)
+
 
 class ParserV1(ParserV0):
     """
@@ -786,41 +830,6 @@ class ParserV2(ParserV1):
             provenance_is_valid,
             checksum_diff
         )
-
-    def _assert_expected_files_present(
-            self,
-            zf: ZipFile,
-            expected_node_fps: List[pathlib.Path],
-            prov_fps: List[pathlib.Path],
-    ):
-        '''
-        Makes sure that all expected files for a given node are present in an
-        archive. Raises a ValueError if not.
-
-        Parameters
-        ----------
-        zf : ZipFile
-            The zipfile object representing an archive.
-        expected_node_fps : list of pathlib.Path
-            The filepaths that are expected to be present in the zipfile for
-            some node.
-        prov_fps : list of pathlib.Path
-            All provenance-relevant filepaths in the archive.
-        '''
-        error_contents = "Malformed Archive: "
-        root_uuid = get_root_uuid(zf)
-        for fp in expected_node_fps:
-            if fp not in prov_fps:
-                node_uuid = get_nonroot_uuid(fp)
-                error_contents += (
-                    f"{fp.name} file for node {node_uuid} "
-                    f"misplaced or nonexistent in {zf.filename}.\n"
-                )
-                error_contents += (
-                    f"Archive {root_uuid} may be corrupt "
-                    "or provenance may be false."
-                )
-                raise ValueError(error_contents)
 
     def _get_provenance_fps(self, zf: ZipFile) -> List[pathlib.Path]:
         '''
