@@ -255,41 +255,6 @@ class ProvDAGTests(unittest.TestCase):
         }
         self.assertEqual(actual, exp)
 
-    def test_relabel_nodes(self):
-        dag = ProvDAG(self.tas.concated_ints.filepath)
-
-        exp_nodes = ['Harry', 'Ron', 'Hermione']
-        new_labels = {}
-        for node, exp_node in zip(dag.nodes, exp_nodes):
-            new_labels[node] = exp_node
-        dag.relabel_nodes(new_labels)
-
-        # have all nodes been relabeled as expected?
-        for exp_node in exp_nodes:
-            self.assertIn(exp_node, dag.nodes)
-
-        # are the UUIDs stored in the ProvNode payloads updated correctly?
-        for node in dag.nodes:
-            self.assertEqual(node, dag.get_node_data(node)._uuid)
-
-    def test_relabel_nodes_with_copy(self):
-        dag = self.tas.concated_ints.dag
-        exp_nodes = ['Harry', 'Ron', 'Hermione']
-        new_labels = {}
-        for node, exp_node in zip(dag.nodes, exp_nodes):
-            new_labels[node] = exp_node
-        copied_dag = dag.relabel_nodes(new_labels, copy=True)
-
-        self.assertIsInstance(copied_dag, ProvDAG)
-
-        # have all nodes been relabeled as expected?
-        for exp_node in exp_nodes:
-            self.assertIn(exp_node, copied_dag.nodes)
-
-        # are the UUIDs stored in the ProvNode payloads updated correctly?
-        for node in copied_dag.nodes:
-            self.assertEqual(node, copied_dag.get_node_data(node)._uuid)
-
     def test_collapsed_view(self):
         view = self.tas.concated_ints.dag.collapsed_view
         self.assertIsInstance(view, DiGraph)
@@ -317,11 +282,11 @@ class ProvDAGTests(unittest.TestCase):
             self.assertIn(exp_node, view.nodes)
 
     def test_invalid_provenance(self):
-        """
+        '''
         Mangle an intact v5 Archive so that its checksums.md5 is invalid,
         and then build a ProvDAG with it to confirm the ProvDAG constructor
         handles broken checksums appropriately
-        """
+        '''
         uuid = self.tas.int_seq1.uuid
         with generate_archive_with_file_removed(
             self.tas.int_seq1.filepath,
@@ -405,32 +370,36 @@ class ProvDAGTests(unittest.TestCase):
         dag = self.tas.table_v0.dag
         uuid = self.tas.table_v0.uuid
 
-        self.assertEqual(dag.provenance_is_valid,
-                         ValidationCode.PREDATES_CHECKSUMS)
+        self.assertEqual(
+            dag.provenance_is_valid, ValidationCode.PREDATES_CHECKSUMS
+        )
         self.assertEqual(dag.node_has_provenance(uuid), False)
 
     def test_v1_archive(self):
         dag = self.tas.concated_ints_v1.dag
         uuid = self.tas.concated_ints_v1.uuid
 
-        self.assertEqual(dag.provenance_is_valid,
-                         ValidationCode.PREDATES_CHECKSUMS)
+        self.assertEqual(
+            dag.provenance_is_valid, ValidationCode.PREDATES_CHECKSUMS
+        )
         self.assertEqual(dag.node_has_provenance(uuid), False)
 
     def test_v2_archive(self):
         dag = self.tas.concated_ints_v2.dag
         uuid = self.tas.concated_ints_v2.uuid
 
-        self.assertEqual(dag.provenance_is_valid,
-                         ValidationCode.PREDATES_CHECKSUMS)
+        self.assertEqual(
+            dag.provenance_is_valid, ValidationCode.PREDATES_CHECKSUMS
+        )
         self.assertEqual(dag.node_has_provenance(uuid), True)
 
     def test_v4_archive(self):
         dag = self.tas.concated_ints_v4.dag
         uuid = self.tas.concated_ints_v4.uuid
 
-        self.assertEqual(dag.provenance_is_valid,
-                         ValidationCode.PREDATES_CHECKSUMS)
+        self.assertEqual(
+            dag.provenance_is_valid, ValidationCode.PREDATES_CHECKSUMS
+        )
         self.assertEqual(dag.node_has_provenance(uuid), True)
 
         with zipfile.ZipFile(self.tas.concated_ints_v4.filepath) as zf:
@@ -441,8 +410,7 @@ class ProvDAGTests(unittest.TestCase):
         dag = self.tas.concated_ints_v5.dag
         uuid = self.tas.concated_ints_v5.uuid
 
-        self.assertEqual(dag.provenance_is_valid,
-                         ValidationCode.VALID)
+        self.assertEqual(dag.provenance_is_valid, ValidationCode.VALID)
         self.assertEqual(dag.node_has_provenance(uuid), True)
 
     def test_artifact_passed_as_metadata_archive(self):
@@ -485,23 +453,29 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(unioned_dag.provenance_is_valid, ValidationCode.VALID)
         self.assertRegex(
             repr(unioned_dag),
-            f'ProvDAG representing these Artifacts.*{uuid}')
+            f'ProvDAG representing the provenance.*Artifacts.*{uuid}'
+        )
 
     def test_union_two(self):
-        unioned_dag = ProvDAG.union([self.tas.single_int.dag,
-                                     self.tas.int_seq2.dag])
+        unioned_dag = ProvDAG.union(
+            [self.tas.single_int.dag, self.tas.int_seq2.dag])
 
-        self.assertEqual({self.tas.single_int.uuid, self.tas.int_seq2.uuid},
-                         unioned_dag._parsed_artifact_uuids)
+        self.assertEqual(
+            {self.tas.single_int.uuid, self.tas.int_seq2.uuid},
+            unioned_dag._parsed_artifact_uuids
+        )
         self.assertEqual(unioned_dag.provenance_is_valid, ValidationCode.VALID)
 
         rep = repr(unioned_dag)
-        self.assertRegex(rep, 'ProvDAG representing these Artifacts {')
+        self.assertRegex(
+            rep, 'ProvDAG representing the provenance.*Artifacts.'
+        )
         self.assertRegex(rep, f'{self.tas.single_int.uuid}')
         self.assertRegex(rep, f'{self.tas.int_seq2.uuid}')
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 2)
+            nx.number_weakly_connected_components(unioned_dag.dag), 2
+        )
 
     def test_union_many(self):
         unioned_dag = ProvDAG.union([
@@ -520,167 +494,202 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(unioned_dag.provenance_is_valid, ValidationCode.VALID)
 
         rep = repr(unioned_dag)
-        self.assertRegex(rep, 'ProvDAG representing these Artifacts {')
+        self.assertRegex(
+            rep, 'ProvDAG representing the provenance.*Artifacts.*'
+        )
         self.assertRegex(rep, f'{self.tas.single_int.uuid}')
         self.assertRegex(rep, f'{self.tas.int_seq1.uuid}')
         self.assertRegex(rep, f'{self.tas.mapping1.uuid}')
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 3)
+            nx.number_weakly_connected_components(unioned_dag.dag), 3
+        )
 
     def test_union_self_missing_checksums_md5(self):
-        unioned_dag = ProvDAG.union([self.tas.dag_missing_md5,
-                                     self.tas.single_int.dag])
+        unioned_dag = ProvDAG.union(
+            [self.tas.dag_missing_md5, self.tas.single_int.dag]
+        )
 
-        self.assertRegex(repr(unioned_dag),
-                         'ProvDAG representing these Artifacts.*'
-                         f'{self.tas.single_int.uuid}')
+        self.assertRegex(
+            repr(unioned_dag),
+            'ProvDAG representing the provenance.*Artifacts.*'
+            f'{self.tas.single_int.uuid}'
+        )
 
         # The ChecksumDiff==None from the tinkered dag gets ignored...
         self.assertEqual(unioned_dag.checksum_diff, ChecksumDiff({}, {}, {}))
 
         # ...but this should make clear that the provenance is bad
         # (or that the user opted out of validation)
-        self.assertEqual(unioned_dag.provenance_is_valid,
-                         ValidationCode.INVALID)
+        self.assertEqual(
+            unioned_dag.provenance_is_valid, ValidationCode.INVALID)
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 1)
+            nx.number_weakly_connected_components(unioned_dag.dag), 1
+        )
 
     def test_union_other_missing_checksums_md5(self):
-        """
+        '''
         Tests unions of v5 dags where the other ProvDAG is missing its
         checksums.md5 but the calling ProvDAG is not
-        """
+        '''
         unioned_dag = ProvDAG.union([self.tas.single_int.dag,
                                      self.tas.dag_missing_md5])
 
         self.assertRegex(repr(unioned_dag),
-                         'ProvDAG representing these Artifacts.*'
+                         'ProvDAG representing the provenance.*Artifacts.*'
                          f'{self.tas.single_int.uuid}')
 
         self.assertEqual(unioned_dag.checksum_diff, ChecksumDiff({}, {}, {}))
 
-        self.assertEqual(unioned_dag.provenance_is_valid,
-                         ValidationCode.INVALID)
+        self.assertEqual(
+            unioned_dag.provenance_is_valid, ValidationCode.INVALID
+        )
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 1)
+            nx.number_weakly_connected_components(unioned_dag.dag), 1
+        )
 
     def test_union_both_missing_checksums_md5(self):
-        """
+        '''
         Tests unions of v5 dags where both artifacts are missing their
         checksums.md5 files.
-        """
-        unioned_dag = ProvDAG.union([self.tas.dag_missing_md5,
-                                     self.tas.dag_missing_md5])
+        '''
+        unioned_dag = ProvDAG.union(
+            [self.tas.dag_missing_md5, self.tas.dag_missing_md5])
 
-        self.assertRegex(repr(unioned_dag),
-                         'ProvDAG representing these Artifacts.*'
-                         f'{self.tas.single_int.uuid}')
+        self.assertRegex(
+            repr(unioned_dag),
+            'ProvDAG representing the provenance.*Artifacts.*'
+            f'{self.tas.single_int.uuid}'
+        )
 
         # Both DAGs have NoneType checksum_diffs, so the ChecksumDiff==None
         self.assertEqual(unioned_dag.checksum_diff, None)
 
-        self.assertEqual(unioned_dag.provenance_is_valid,
-                         ValidationCode.INVALID)
+        self.assertEqual(
+            unioned_dag.provenance_is_valid, ValidationCode.INVALID
+        )
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 1)
+            nx.number_weakly_connected_components(unioned_dag.dag), 1
+        )
 
     def test_union_v0_v1_archives(self):
-        unioned_dag = ProvDAG.union([self.tas.table_v0.dag,
-                                     self.tas.concated_ints_v2.dag])
+        unioned_dag = ProvDAG.union(
+            [self.tas.table_v0.dag, self.tas.concated_ints_v2.dag]
+        )
 
         self.assertIn(f'{self.tas.table_v0.uuid}', repr(unioned_dag))
         self.assertIn(f'{self.tas.concated_ints_v2.uuid}', repr(unioned_dag))
 
-        self.assertEqual(unioned_dag.provenance_is_valid,
-                         ValidationCode.PREDATES_CHECKSUMS)
+        self.assertEqual(
+            unioned_dag.provenance_is_valid, ValidationCode.PREDATES_CHECKSUMS
+        )
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 2)
+            nx.number_weakly_connected_components(unioned_dag.dag), 2
+        )
 
         self.assertFalse(
-            unioned_dag.node_has_provenance(self.tas.table_v0.uuid))
+            unioned_dag.node_has_provenance(self.tas.table_v0.uuid)
+        )
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v2.uuid))
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v2.uuid)
+        )
 
     def test_union_v3_v5_archives(self):
-        unioned_dag = ProvDAG.union([self.tas.concated_ints_v3.dag,
-                                     self.tas.concated_ints_v5.dag])
+        unioned_dag = ProvDAG.union(
+            [self.tas.concated_ints_v3.dag, self.tas.concated_ints_v5.dag]
+        )
 
         self.assertIn(f'{self.tas.concated_ints_v3.uuid}', repr(unioned_dag))
         self.assertIn(f'{self.tas.concated_ints_v5.uuid}', repr(unioned_dag))
 
-        self.assertEqual(unioned_dag.provenance_is_valid,
-                         ValidationCode.PREDATES_CHECKSUMS)
+        self.assertEqual(
+            unioned_dag.provenance_is_valid,
+            ValidationCode.PREDATES_CHECKSUMS
+        )
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 2)
+            nx.number_weakly_connected_components(unioned_dag.dag), 2
+        )
 
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v3.uuid))
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v3.uuid)
+        )
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v5.uuid))
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v5.uuid)
+        )
 
     def test_union_v5_v6_archives(self):
-        unioned_dag = ProvDAG.union([self.tas.concated_ints_v5.dag,
-                                     self.tas.concated_ints_v6.dag])
+        unioned_dag = ProvDAG.union(
+            [self.tas.concated_ints_v5.dag, self.tas.concated_ints_v6.dag]
+        )
 
         self.assertIn(f'{self.tas.concated_ints_v5.uuid}', repr(unioned_dag))
         self.assertIn(f'{self.tas.concated_ints_v6.uuid}', repr(unioned_dag))
 
-        self.assertEqual(unioned_dag.provenance_is_valid,
-                         ValidationCode.VALID)
+        self.assertEqual(
+            unioned_dag.provenance_is_valid, ValidationCode.VALID
+        )
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 2)
+            nx.number_weakly_connected_components(unioned_dag.dag), 2
+        )
 
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v5.uuid))
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v5.uuid)
+        )
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v6.uuid))
+            unioned_dag.node_has_provenance(self.tas.concated_ints_v6.uuid)
+        )
 
     def test_dag_is_superset(self):
-        """
+        '''
         Tests union of three dags, where one dag is a proper superset of the
         others. We expect three _parsed_artifact_uuids, one terminal uuid,
         and one weakly_connected_component.
-        """
+        '''
         unioned_dag = ProvDAG.union([
             self.tas.concated_ints.dag,
             self.tas.int_seq1.dag,
             self.tas.int_seq2.dag
         ])
 
-        self.assertIn(self.tas.int_seq1.uuid,
-                      unioned_dag._parsed_artifact_uuids)
-        self.assertIn(self.tas.int_seq2.uuid,
-                      unioned_dag._parsed_artifact_uuids)
-        self.assertIn(self.tas.concated_ints.uuid,
-                      unioned_dag._parsed_artifact_uuids)
+        self.assertIn(
+            self.tas.int_seq1.uuid, unioned_dag._parsed_artifact_uuids
+        )
+        self.assertIn(
+            self.tas.int_seq2.uuid, unioned_dag._parsed_artifact_uuids
+        )
+        self.assertIn(
+            self.tas.concated_ints.uuid, unioned_dag._parsed_artifact_uuids
+        )
         self.assertEqual(len(unioned_dag._parsed_artifact_uuids), 3)
 
         self.assertEqual(len(unioned_dag.terminal_uuids), 1)
-        self.assertEqual(unioned_dag.terminal_uuids,
-                         {self.tas.concated_ints.uuid})
+        self.assertEqual(
+            unioned_dag.terminal_uuids, {self.tas.concated_ints.uuid}
+        )
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 1)
+            nx.number_weakly_connected_components(unioned_dag.dag), 1
+        )
 
         # == tests identity of objects in memory, so we need is_isomorphic
-        self.assertTrue(nx.is_isomorphic(self.tas.concated_ints.dag.dag,
-                                         unioned_dag.dag))
+        self.assertTrue(
+            nx.is_isomorphic(self.tas.concated_ints.dag.dag, unioned_dag.dag)
+        )
         self.assertEqual(self.tas.concated_ints.dag, unioned_dag)
 
     def test_three_artifacts_two_terminal_uuids(self):
-        """
+        '''
         Tests union of four dags, where two artifacts have shared parents but
         no direct relationship with eachother. We expect four
         _parsed_artifact_uuids, two terminal uuids, and one
         weakly_connected_component.
-        """
+        '''
         unioned_dag = ProvDAG.union([
             self.tas.int_seq1.dag,
             self.tas.int_seq2.dag,
@@ -688,14 +697,19 @@ class ProvDAGTests(unittest.TestCase):
             self.tas.other_concated_ints.dag
         ])
 
-        self.assertIn(self.tas.int_seq1.uuid,
-                      unioned_dag._parsed_artifact_uuids)
-        self.assertIn(self.tas.int_seq2.uuid,
-                      unioned_dag._parsed_artifact_uuids)
-        self.assertIn(self.tas.concated_ints.uuid,
-                      unioned_dag._parsed_artifact_uuids)
-        self.assertIn(self.tas.other_concated_ints.uuid,
-                      unioned_dag._parsed_artifact_uuids)
+        self.assertIn(
+            self.tas.int_seq1.uuid, unioned_dag._parsed_artifact_uuids
+        )
+        self.assertIn(
+            self.tas.int_seq2.uuid, unioned_dag._parsed_artifact_uuids
+        )
+        self.assertIn(
+            self.tas.concated_ints.uuid, unioned_dag._parsed_artifact_uuids
+        )
+        self.assertIn(
+            self.tas.other_concated_ints.uuid,
+            unioned_dag._parsed_artifact_uuids
+        )
         self.assertEqual(len(unioned_dag._parsed_artifact_uuids), 4)
 
         self.assertEqual(len(unioned_dag.terminal_uuids), 2)
@@ -705,23 +719,27 @@ class ProvDAGTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 1)
+            nx.number_weakly_connected_components(unioned_dag.dag), 1
+        )
 
     def test_one_analysis_two_artifacts(self):
-        """
+        '''
         In this set of test archives, both artifacts are derived from the same
         parents, so should produce one connected DAG even though we are
         missing the parent artifacts used to create them
-        """
+        '''
         unioned_dag = ProvDAG.union([
             self.tas.concated_ints.dag,
             self.tas.other_concated_ints.dag
         ])
 
-        self.assertIn(self.tas.concated_ints.uuid,
-                      unioned_dag._parsed_artifact_uuids)
-        self.assertIn(self.tas.other_concated_ints.uuid,
-                      unioned_dag._parsed_artifact_uuids)
+        self.assertIn(
+            self.tas.concated_ints.uuid, unioned_dag._parsed_artifact_uuids
+        )
+        self.assertIn(
+            self.tas.other_concated_ints.uuid,
+            unioned_dag._parsed_artifact_uuids
+        )
         self.assertEqual(len(unioned_dag._parsed_artifact_uuids), 2)
 
         self.assertEqual(len(unioned_dag.terminal_uuids), 2)
@@ -731,19 +749,23 @@ class ProvDAGTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 1)
+            nx.number_weakly_connected_components(unioned_dag.dag), 1
+        )
 
     def test_no_checksum_validation_on_intact_artifact(self):
-        no_validation_dag = ProvDAG(self.tas.concated_ints.filepath,
-                                    validate_checksums=False)
+        no_validation_dag = ProvDAG(
+            self.tas.concated_ints.filepath, validate_checksums=False
+        )
 
         self.assertEqual(len(no_validation_dag.terminal_uuids), 1)
         terminal_uuid, *_ = no_validation_dag.terminal_uuids
         self.assertEqual(terminal_uuid, self.tas.concated_ints.uuid)
 
         self.assertEqual(len(no_validation_dag), 3)
-        self.assertEqual(no_validation_dag.provenance_is_valid,
-                         ValidationCode.VALIDATION_OPTOUT)
+        self.assertEqual(
+            no_validation_dag.provenance_is_valid,
+            ValidationCode.VALIDATION_OPTOUT
+        )
         self.assertEqual(no_validation_dag.checksum_diff, None)
 
     def test_no_checksum_validation_missing_checksums_md5(self):
@@ -755,7 +777,8 @@ class ProvDAGTests(unittest.TestCase):
             dag = ProvDAG(altered_archive, validate_checksums=False)
 
             self.assertEqual(
-                dag.provenance_is_valid, ValidationCode.VALIDATION_OPTOUT)
+                dag.provenance_is_valid, ValidationCode.VALIDATION_OPTOUT
+            )
 
             self.assertEqual(dag.checksum_diff, None)
 
@@ -779,9 +802,7 @@ class ProvDAGTests(unittest.TestCase):
                     else:
                         file = removed_file
 
-                    expected = (
-                        f'(?s)Malformed.*{file}.*{uuid}.*corrupt.*'
-                    )
+                    expected = (f'(?s)Malformed.*{file}.*{uuid}.*corrupt.*')
                     with self.assertRaisesRegex(ValueError, expected):
                         ProvDAG(altered_archive, validate_checksums=False)
 
@@ -803,13 +824,14 @@ class EmptyParserTests(unittest.TestCase):
         with open(fp, 'w') as fh:
             fh.write('some text\n')
         with self.assertRaisesRegex(
-                TypeError, f"EmptyParser.*{fn} is not None"):
+            TypeError, f"EmptyParser.*{fn} is not None"
+        ):
             EmptyParser.get_parser(fp)
 
     def test_parse_a_nonetype(self):
-        """
+        '''
         tests that we can actually create empty ProvDAGs
-        """
+        '''
         parser = EmptyParser()
         parsed = parser.parse_prov(Config(), None)
         self.assertIsInstance(parsed, ParserResults)
@@ -824,19 +846,12 @@ class ProvDAGParserTests(unittest.TestCase):
     def setUpClass(cls):
         cls.tas = TestArtifacts()
 
-        cls.all_archive_versions = [
-            cls.tas.table_v0, cls.tas.concated_ints_v1,
-            cls.tas.concated_ints_v2, cls.tas.concated_ints_v3,
-            cls.tas.concated_ints_v4, cls.tas.concated_ints_v5,
-            cls.tas.concated_ints_v6
-        ]
-
     @classmethod
     def tearDownClass(cls):
         cls.tas.free()
 
     def test_get_parser(self):
-        for archive in self.all_archive_versions:
+        for archive in self.tas.all_artifact_versions:
             parser = ProvDAGParser.get_parser(archive.dag)
             self.assertIsInstance(parser, ProvDAGParser)
 
@@ -849,15 +864,17 @@ class ProvDAGParserTests(unittest.TestCase):
 
     def test_parse_a_provdag(self):
         parser = ProvDAGParser()
-        for archive in self.all_archive_versions:
+        for archive in self.tas.all_artifact_versions:
             dag = archive.dag
             parsed = parser.parse_prov(Config(), dag)
             self.assertIsInstance(parsed, ParserResults)
-            self.assertEqual(parsed.parsed_artifact_uuids,
-                             dag._parsed_artifact_uuids)
+            self.assertEqual(
+                parsed.parsed_artifact_uuids, dag._parsed_artifact_uuids
+            )
             self.assertTrue(nx.is_isomorphic(parsed.prov_digraph, dag.dag))
-            self.assertEqual(parsed.provenance_is_valid,
-                             dag.provenance_is_valid)
+            self.assertEqual(
+                parsed.provenance_is_valid, dag.provenance_is_valid
+            )
             self.assertEqual(parsed.checksum_diff, dag.checksum_diff)
 
 
@@ -866,13 +883,6 @@ class SelectParserTests(unittest.TestCase):
     def setUpClass(cls):
         cls.tas = TestArtifacts()
         cls.tempdir = cls.tas.tempdir
-
-        cls.all_archive_versions = [
-            cls.tas.table_v0, cls.tas.concated_ints_v1,
-            cls.tas.concated_ints_v2, cls.tas.concated_ints_v3,
-            cls.tas.concated_ints_v4, cls.tas.concated_ints_v5,
-            cls.tas.concated_ints_v6
-        ]
 
     @classmethod
     def tearDownClass(cls):
@@ -906,7 +916,7 @@ class SelectParserTests(unittest.TestCase):
             ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
             ParserV6
         ]
-        for archive, parser in zip(self.all_archive_versions, parsers):
+        for archive, parser in zip(self.tas.all_artifact_versions, parsers):
             handler = select_parser(archive.filepath)
             self.assertEqual(type(handler), parser)
 
@@ -935,11 +945,14 @@ class ParseProvenanceTests(unittest.TestCase):
         self.assertIn(uuid, parser_results.prov_digraph)
         self.assertIsInstance(
             parser_results.prov_digraph.nodes[uuid]['node_data'],
-            ProvNode)
-        self.assertEqual(parser_results.provenance_is_valid,
-                         ValidationCode.VALID)
-        self.assertEqual(parser_results.checksum_diff,
-                         ChecksumDiff({}, {}, {}))
+            ProvNode
+        )
+        self.assertEqual(
+            parser_results.provenance_is_valid, ValidationCode.VALID
+        )
+        self.assertEqual(
+            parser_results.checksum_diff, ChecksumDiff({}, {}, {})
+        )
 
     def test_parse_with_provdag_parser(self):
         uuid = self.tas.concated_ints.uuid
@@ -954,18 +967,20 @@ class ParseProvenanceTests(unittest.TestCase):
         self.assertIn(uuid, parser_results.prov_digraph)
         self.assertIsInstance(
             parser_results.prov_digraph.nodes[uuid]['node_data'],
-            ProvNode)
-        self.assertEqual(parser_results.provenance_is_valid,
-                         ValidationCode.VALID)
-        self.assertEqual(parser_results.checksum_diff,
-                         ChecksumDiff({}, {}, {}))
+            ProvNode
+        )
+        self.assertEqual(
+            parser_results.provenance_is_valid, ValidationCode.VALID
+        )
+        self.assertEqual(
+            parser_results.checksum_diff, ChecksumDiff({}, {}, {})
+        )
 
     def test_parse_with_empty_parser(self):
         res = parse_provenance(self.cfg, None)
         self.assertIsInstance(res, ParserResults)
         self.assertEqual(res.parsed_artifact_uuids, set())
-        self.assertTrue(
-            nx.is_isomorphic(res.prov_digraph, nx.DiGraph()))
+        self.assertTrue(nx.is_isomorphic(res.prov_digraph, nx.DiGraph()))
         self.assertEqual(res.provenance_is_valid, ValidationCode.VALID)
         self.assertEqual(res.checksum_diff, None)
 
@@ -996,8 +1011,9 @@ class ParseProvenanceTests(unittest.TestCase):
         res = parse_provenance(self.cfg, parse_dir_fp)
         self.assertIsInstance(res, ParserResults)
         mapping_uuid = self.tas.mapping1.uuid
-        self.assertEqual(res.parsed_artifact_uuids,
-                         {concated_ints_uuid, mapping_uuid})
+        self.assertEqual(
+            res.parsed_artifact_uuids, {concated_ints_uuid, mapping_uuid}
+        )
         self.assertEqual(len(res.prov_digraph), 4)
         self.assertEqual(res.provenance_is_valid, ValidationCode.VALID)
         self.assertEqual(res.checksum_diff, ChecksumDiff({}, {}, {}))
@@ -1043,7 +1059,7 @@ class DirectoryParserTests(unittest.TestCase):
         os.mkdir(empty_dir_path)
 
         with self.assertRaisesRegex(
-            ValueError, f"No .qza or .qzv files.*{empty_dir_path}"
+            ValueError, f'No .qza or .qzv files.*{empty_dir_path}'
         ):
             ProvDAG(empty_dir_path)
 
@@ -1053,14 +1069,14 @@ class DirectoryParserTests(unittest.TestCase):
         self.assertEqual(dag, dag2)
 
     def test_directory_parser_captures_all_parsed_artifact_uuids(self):
-        """
+        '''
         The test dir contains a concatenated ints artifact and an int sequence.
         The concatenated ints artifact is a true subset of the int sequence,
         and is not re-parsed as implemented.
 
         The resulting dag should be aware of both user-passed artifacts,
         regardless of whether we actually parse the int sequence.
-        """
+        '''
         dag = ProvDAG(self.tempdir + '/parse-dir/', recurse=True)
         self.assertEqual(
             dag._parsed_artifact_uuids,
@@ -1069,8 +1085,9 @@ class DirectoryParserTests(unittest.TestCase):
 
     def test_directory_parser_idempotent_with_parse_and_union(self):
         # Non-recursive
-        concated_ints_path = os.path.join(self.tempdir, 'parse-dir',
-                                          'concated-ints.qza')
+        concated_ints_path = os.path.join(
+            self.tempdir, 'parse-dir', 'concated-ints.qza'
+        )
         int_seq_path = os.path.join(self.tempdir, 'parse-dir', 'int-seq1.qza')
         concated_ints_dag = ProvDAG(concated_ints_path)
         int_seq_dag = ProvDAG(int_seq_path)
@@ -1098,14 +1115,22 @@ class DirectoryParserTests(unittest.TestCase):
         inner_path = os.path.join(outer_path, 'inner')
         os.mkdir(inner_path)
 
-        shutil.copy(self.tas.mapping1.filepath,
-                    os.path.join(outer_path, 'mapping1.qza'))
-        shutil.copy(self.tas.mapping2.filepath,
-                    os.path.join(outer_path, 'mapping2.qza'))
-        shutil.copy(self.tas.mapping1.filepath,
-                    os.path.join(inner_path, 'duplicate-mapping1.qza'))
-        shutil.copy(self.tas.mapping2.filepath,
-                    os.path.join(inner_path, 'duplicate-mapping2.qza'))
+        shutil.copy(
+            self.tas.mapping1.filepath,
+            os.path.join(outer_path, 'mapping1.qza')
+        )
+        shutil.copy(
+            self.tas.mapping2.filepath,
+            os.path.join(outer_path, 'mapping2.qza')
+        )
+        shutil.copy(
+            self.tas.mapping1.filepath,
+            os.path.join(inner_path, 'duplicate-mapping1.qza')
+        )
+        shutil.copy(
+            self.tas.mapping2.filepath,
+            os.path.join(inner_path, 'duplicate-mapping2.qza')
+        )
 
         inner_dag = ProvDAG(inner_path)
         self.assertEqual(len(inner_dag), 2)
