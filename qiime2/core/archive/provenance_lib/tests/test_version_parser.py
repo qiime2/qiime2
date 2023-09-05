@@ -10,10 +10,11 @@ from qiime2 import Artifact
 from qiime2.sdk.plugin_manager import PluginManager
 from qiime2.core.archive.archiver import Archiver
 
-from ..util import (
-    _VERSION_MATCHER, parse_version, monkeypatch_archive_version,
-    monkeypatch_framework_version, write_zip_archive
+from .testing_utilities import (
+    write_zip_archive, monkeypatch_archive_version,
+    monkeypatch_framework_version
 )
+from ..util import _VERSION_MATCHER, parse_version
 
 
 class TestVersionParser(unittest.TestCase):

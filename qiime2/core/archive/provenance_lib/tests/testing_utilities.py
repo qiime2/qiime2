@@ -3,14 +3,16 @@ import pathlib
 import shutil
 import tempfile
 import unittest
-import zipfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Generator
+from zipfile import ZipFile, ZIP_DEFLATED
 
 from ..parse import ProvDAG
 
+import qiime2
 from qiime2 import Artifact, Metadata, ResultCollection
+from qiime2.core.archive import Archiver
 from qiime2.sdk.plugin_manager import PluginManager
 
 
@@ -218,13 +220,12 @@ class TestArtifacts:
 
 
 def write_zip_file(zfp, unzipped_dir):
-    zf = zipfile.ZipFile(zfp, 'w', zipfile.ZIP_DEFLATED)
+    zf = ZipFile(zfp, 'w', ZIP_DEFLATED)
     for root, dirs, files in os.walk(unzipped_dir):
         for file in files:
             filepath = os.path.join(root, file)
             zf.write(
-                filepath,
-                os.path.relpath(filepath, unzipped_dir)
+                filepath, os.path.relpath(filepath, unzipped_dir)
             )
     zf.close()
 
@@ -237,10 +238,10 @@ class CustomAssertions(unittest.TestCase):
 
 
 def is_root_provnode_data(fp):
-    """
+    '''
     a filter predicate which returns metadata, action, citation,
     and VERSION fps with which we can construct a ProvNode
-    """
+    '''
     # Handle provenance files...
     if 'provenance' in fp and 'artifacts' not in fp:
         if 'action.yaml' in fp or 'citations.bib' in fp:
@@ -272,8 +273,8 @@ def generate_archive_with_file_removed(
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_arc = pathlib.Path(tmpdir) / 'mangled.qzv'
         fp_pfx = pathlib.Path(root_uuid)
-        zin = zipfile.ZipFile(qzv_fp, 'r')
-        zout = zipfile.ZipFile(str(tmp_arc), 'w')
+        zin = ZipFile(qzv_fp, 'r')
+        zout = ZipFile(str(tmp_arc), 'w')
         for item in zin.infolist():
             buffer = zin.read(item.filename)
             drop_filename = str(fp_pfx / file_to_drop)
@@ -282,6 +283,35 @@ def generate_archive_with_file_removed(
         zout.close()
         zin.close()
         yield tmp_arc
+
+
+@contextmanager
+def monkeypatch_archive_version(patch_version):
+    try:
+        og_version = Archiver.CURRENT_FORMAT_VERSION
+        Archiver.CURRENT_FORMAT_VERSION = patch_version
+        yield
+    finally:
+        Archiver.CURRENT_FORMAT_VERSION = og_version
+
+
+@contextmanager
+def monkeypatch_framework_version(patch_version):
+    try:
+        og_version = qiime2.__version__
+        qiime2.__version__ = patch_version
+        yield
+    finally:
+        qiime2.__version__ = og_version
+
+
+def write_zip_archive(zfp, unzipped_dir):
+    with ZipFile(zfp, 'w') as zf:
+        for root, dirs, files in os.walk(unzipped_dir):
+            for file in files:
+                path = os.path.join(root, file)
+                archive_name = os.path.relpath(path, start=unzipped_dir)
+                zf.write(path, arcname=archive_name)
 
 
 class ReallyEqualMixin(object):

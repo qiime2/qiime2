@@ -198,7 +198,7 @@ class ProvNode:
         for fp in node_fps:
             if fp.name == 'VERSION':
                 self._archive_version, self._framework_version = \
-                    parse_version(zf, fp)
+                    parse_version(zf)
             elif fp.name == 'metadata.yaml':
                 self._result_md = _ResultMetadata(zf, str(fp))
             elif fp.name == 'action.yaml':

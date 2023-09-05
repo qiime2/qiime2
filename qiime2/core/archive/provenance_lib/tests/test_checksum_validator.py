@@ -9,7 +9,7 @@ from qiime2.core.archive.archiver import ChecksumDiff
 from qiime2.sdk.plugin_manager import PluginManager
 
 from .._checksum_validator import validate_checksums, ValidationCode
-from ..util import write_zip_archive
+from .testing_utilities import write_zip_archive
 
 
 class ValidateChecksumTests(unittest.TestCase):
