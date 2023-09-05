@@ -263,7 +263,7 @@ class ProvDAG:
                     next_dag.checksum_diff.changed
                 )
 
-        # make union._terminal_uuids be recalculated
+        # make union._terminal_uuids be recalculated on next access
         union_dag._terminal_uuids = None
         return union_dag
 
@@ -271,8 +271,8 @@ class ProvDAG:
         '''
         Performs depth-first traversal of a node's ancestors. Skips over nodes
         that are interior to a pipeline because pipeline output nodes point to
-        the pipeline's inputs as parents and provide an alias to the node
-        that represents the direct provenance.
+        the pipeline's inputs as parents not their direct parents inside
+        the pipeline.
 
         Parameters
         ----------
@@ -291,6 +291,7 @@ class ProvDAG:
         return nodes
 
 
+# TODO: can this get nuked?
 class EmptyParser(Parser):
     '''
     Creates empty ProvDAGs.
@@ -306,6 +307,10 @@ class EmptyParser(Parser):
             raise TypeError(f' in EmptyParser: {artifact_data} is not None.')
 
     def parse_prov(self, cfg: Config, data: None) -> ParserResults:
+        '''
+        Returns a static ParserResults with empty parsed_artifact_uuids,
+        an empty graph, a valid ValidationCode, and a None ChecksumDiff.
+        '''
         return ParserResults(
             parsed_artifact_uuids=set(),
             prov_digraph=nx.DiGraph(),
@@ -419,8 +424,8 @@ class DirectoryParser(Parser):
 
 def archive_not_parsed(root_uuid: str, dag: ProvDAG) -> bool:
     '''
-    Checks if the archive with root_uuid has not been parsed into dag
-    which means it's either not in the dag at all, or added only as a
+    Checks if the archive with root_uuid has not already been parsed into dag
+    which is defined as either not in the dag at all, or added only as a
     !no-provenance parent uuid.
 
     Parameters
@@ -454,24 +459,82 @@ class ProvDAGParser(Parser):
 
     @classmethod
     def get_parser(cls, artifact_data: Any) -> Parser:
+        '''
+        Returns ProvDAGParser if appropriate.
+
+        Parameters
+        ----------
+        artifact_data : Any
+            Hopefully a ProvDAG but may be a different type during searches for
+            the proper Parser.
+
+        Returns
+        -------
+        ProvDAGParser
+            An instance of ProvDAGParser if artifact_data is a ProvDAG.
+
+        Raises
+        ------
+        TypeError
+            If artifact_data is not a ProvDAG.
+        '''
         if isinstance(artifact_data, ProvDAG):
             return ProvDAGParser()
         else:
             raise TypeError(
-                f" in ProvDAGParser: {artifact_data} is not a ProvDAG")
+                f' in ProvDAGParser: {artifact_data} is not a ProvDAG.'
+            )
 
-    def parse_prov(self, cfg: Config, pdag: ProvDAG) -> ParserResults:
+    def parse_prov(self, cfg: Config, dag: ProvDAG) -> ParserResults:
+        '''
+        Parses a ProvDAG returning a ParserResults by deep copying existing
+        attributes that live on the ProvDAG and make up a ParserResults.
+
+        Parameters
+        ----------
+        cfg : Config
+            Ignored because a ProvDAG is not being constructed from scratch.
+            Present for inheritance purposes.
+        dag : ProvDAG
+            The ProvDAG to parse, read: copy attributes from.
+
+        Returns
+        -------
+        ParserResults
+            A dataclass that stores the parsed artifact uuids, the parsed
+            networkx graph, the provenance-is-valid flag, and the
+            checksum diff.
+        '''
         return ParserResults(
-            copy.deepcopy(pdag._parsed_artifact_uuids),
-            copy.deepcopy(pdag.dag),
-            copy.deepcopy(pdag.provenance_is_valid),
-            copy.deepcopy(pdag.checksum_diff),
+            copy.deepcopy(dag._parsed_artifact_uuids),
+            copy.deepcopy(dag.dag),
+            copy.deepcopy(dag.provenance_is_valid),
+            copy.deepcopy(dag.checksum_diff),
         )
 
 
 def parse_provenance(cfg: Config, payload: Any) -> ParserResults:
     '''
     Parses some data payload into a ParserResults object ingestible by ProvDAG.
+
+    Parameters
+    ----------
+    cfg : Config
+        A dataclass that stores four boolean flags: whether to perform
+        checksum validation, whether to parse study metadata, whether to
+        recursively parse nested directories, and whether to enable verbose
+        mode.
+    payload : Any
+        The payload to attempt to parse, commonly a path to an archive or
+        directory containing archives.
+
+    Returns
+    -------
+    ParserResults
+        A dataclass that stores the parsed artifact uuids, the parsed
+        networkx graph, the provenance-is-valid flag, and the
+        checksum diff.
+
     '''
     parser = select_parser(payload)
     return parser.parse_prov(cfg, payload)
@@ -480,12 +543,27 @@ def parse_provenance(cfg: Config, payload: Any) -> ParserResults:
 def select_parser(payload: Any) -> Parser:
     '''
     Attempts to find a parser that can handle some given payload.
+
+    Parameters
+    ----------
+    payload : Any
+        The payload for which to find a parser.
+
+    Returns
+    -------
+    Parser
+        The appropriate Parser for the payload type.
+
+    Raises
+    ------
+    UnparseableDataError
+        If no appropriate parser could be found for the payload.
     '''
     _PARSER_TYPE_REGISTRY = [
         ArchiveParser,
         DirectoryParser,
         ProvDAGParser,
-        EmptyParser,
+        EmptyParser
     ]
 
     accepted_data_types = [
