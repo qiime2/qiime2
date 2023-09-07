@@ -79,7 +79,6 @@ def validate_checksums(
 
     checksum_diff = diff_checksums(zf)
     if checksum_diff != ChecksumDiff({}, {}, {}):
-        print('entered')
         root_uuid = get_root_uuid(zf)
         warnings.warn(
             f'Checksums are invalid for Archive {root_uuid}\n'
