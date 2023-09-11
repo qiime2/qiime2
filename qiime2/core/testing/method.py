@@ -150,6 +150,10 @@ def dict_of_ints(ints: int) -> int:
     return ints
 
 
+def returns_int(int: int) -> int:
+    return int
+
+
 def collection_inner_union(ints: list) -> list:
     return [[0]]
 
@@ -175,3 +179,7 @@ def varied_method(ints1: int, ints2: list, int1: int, string: str) -> \
     assert isinstance(int1, int)
     assert isinstance(string, str)
     return ints1, ints2, int1
+
+
+def _underscore_method() -> int:
+    return 42

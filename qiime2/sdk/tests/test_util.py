@@ -11,6 +11,8 @@ import unittest
 import qiime2
 import qiime2.sdk
 
+from qiime2.sdk.util import validate_result_collection_keys
+
 
 class TestUtil(unittest.TestCase):
     def test_artifact_actions(self):
@@ -50,6 +52,39 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(len(obs), 1)
         self.assertEqual(obs[0][0], exp[0][0])
         self.assertCountEqual(obs[0][1], exp[0][1])
+
+    def test_validate_result_collection_keys_valid(self):
+
+        self.assertEqual(validate_result_collection_keys('a'), None)
+
+        good_keys = ['-', '+', '.', '_', 'a', 'x', 'A', 'X', '0', '9',
+                     '90XAxa_.+-']
+        self.assertEqual(validate_result_collection_keys(*good_keys), None)
+
+    def test_validate_result_collection_keys_invalid(self):
+        with self.assertRaisesRegex(KeyError,
+                                    "Invalid.*: @"):
+            validate_result_collection_keys('@')
+
+        with self.assertRaisesRegex(KeyError,
+                                    "Invalid.*: @, a1@"):
+            validate_result_collection_keys('@', 'a1@')
+
+        with self.assertRaisesRegex(KeyError,
+                                    "Invalid.*: @, a1@"):
+            keys = ['@', 'a1@']
+            validate_result_collection_keys(*keys)
+
+        with self.assertRaisesRegex(KeyError,
+                                    "Invalid.*: @, a1@"):
+            validate_result_collection_keys(
+                'good-key', '@', 'a1@')
+
+        bad_keys = ['he llo', ' ', '!', '?']
+        for key in bad_keys:
+            with self.assertRaisesRegex(KeyError,
+                                        f"Invalid.*: {key}"):
+                validate_result_collection_keys(key)
 
 
 if __name__ == '__main__':

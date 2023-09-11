@@ -582,6 +582,28 @@ class TestResultCollection(unittest.TestCase):
                             "order file but does not exist"):
             ResultCollection.load(self.output_fp)
 
+    def test_collection_non_str_keys(self):
+        with self.assertRaisesRegex(
+                KeyError, 'ResultCollection keys must be strings and may only '
+                'contain the following characters:.*1'):
+            ResultCollection({1: 0})
+
+    def test_invalid_key_init(self):
+        with self.assertRaisesRegex(
+                KeyError,
+                'ResultCollection keys must be strings and may only contain '
+                'the following characters:.*valid key'):
+            ResultCollection({'not a valid key': 0})
+
+    def test_invalid_key_added(self):
+        collection = ResultCollection()
+
+        with self.assertRaisesRegex(
+                KeyError,
+                'ResultCollection keys must be strings and may only contain '
+                'the following characters:.*valid key'):
+            collection['not a valid key'] = 0
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -21,7 +21,6 @@ import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import (LateBindingAttribute, DropFirstParameter,
                               tuplize, create_collection_name)
-from qiime2.sdk.parallel_config import setup_parallel
 from qiime2.sdk.proxy import Proxy
 
 
@@ -36,7 +35,8 @@ def _subprocess_apply(action, ctx, args, kwargs):
         return results
 
 
-def _run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
+def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
+                      inputs=[]):
     """This is what the parsl app itself actually runs. It's basically just a
     wrapper around our QIIME 2 action. When this is initially called, args and
     kwargs may contain proxies that reference futures in inputs. By the time
@@ -48,31 +48,22 @@ def _run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
     Results object. We need to take singular Result objects off of that Results
     object and map them to the correct inputs for the action we want to call.
     """
-    remapped_kwargs = {}
-    for key, value in kwargs.items():
-        if isinstance(value, Proxy):
-            # We were hacky and set _future_ to be the index of this artifact
-            # in the inputs list
-            resolved_result = inputs[value._future_]
-            remapped_kwargs[key] = value._get_element_(resolved_result)
-        else:
-            remapped_kwargs[key] = value
+    args = []
+    for arg in mapped_args:
+        unmapped = _unmap_arg(arg, inputs)
+        args.append(unmapped)
 
-    remapped_args = []
-    for arg in args:
-        if isinstance(arg, Proxy):
-            # Same as above with the hackiness
-            resolved_result = inputs[arg._future_]
-            remapped_args.append(arg._get_element_(resolved_result))
-        else:
-            remapped_args.append(arg)
+    kwargs = {}
+    for key, value in mapped_kwargs.items():
+        unmapped = _unmap_arg(value, inputs)
+        kwargs[key] = unmapped
 
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
     with ctx.cache:
         exe = action._bind(
             lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
-        results = exe(*remapped_args, **remapped_kwargs)
+        results = exe(*args, **kwargs)
 
         # If we are running a pipeline, we need to create a future here because
         # the parsl join app the pipeline was running in is expected to return
@@ -82,6 +73,83 @@ def _run_parsl_action(action, ctx, execution_ctx, args, kwargs, inputs=[]):
             return _create_future(results)
 
         return results
+
+
+def _map_arg(arg, futures):
+    """ Map a proxy artifact for input to a parsl action
+    """
+
+    # We add this future to the list and create a new proxy with its index as
+    # its future.
+    if isinstance(arg, Proxy):
+        futures.append(arg._future_)
+        mapped = arg.__class__(len(futures) - 1, arg._selector_)
+    # We do the above but for all elements in the collection
+    elif isinstance(arg, list) and _is_all_proxies(arg):
+        mapped = []
+
+        for proxy in arg:
+            futures.append(proxy._future_)
+            mapped.append(proxy.__class__(len(futures) - 1, proxy._selector_))
+    elif isinstance(arg, dict) and _is_all_proxies(arg):
+        mapped = {}
+
+        for key, value in arg.items():
+            futures.append(value._future_)
+            mapped[key] = value.__class__(len(futures) - 1, value._selector_)
+    # We just have a real artifact and don't need to map
+    else:
+        mapped = arg
+
+    return mapped
+
+
+def _unmap_arg(arg, inputs):
+    """ Unmap a proxy artifact given to a parsl action
+    """
+
+    # We were hacky and set _future_ to be the index of this artifact in the
+    # inputs list
+    if isinstance(arg, Proxy):
+        resolved_result = inputs[arg._future_]
+        unmapped = arg._get_element_(resolved_result)
+    # If we got a collection of proxies as the input we were even hackier and
+    # added each proxy to the inputs list individually while having a list of
+    # their indices in the args.
+    elif isinstance(arg, list) and _is_all_proxies(arg):
+        unmapped = []
+
+        for proxy in arg:
+            resolved_result = inputs[proxy._future_]
+            unmapped.append(proxy._get_element_(resolved_result))
+    elif isinstance(arg, dict) and _is_all_proxies(arg):
+        unmapped = {}
+
+        for key, value in arg.items():
+            resolved_result = inputs[value._future_]
+            unmapped[key] = value._get_element_(resolved_result)
+    # We didn't have a proxy at all
+    else:
+        unmapped = arg
+
+    return unmapped
+
+
+def _is_all_proxies(collection):
+    """ Returns whether the collection is all proxies or all artifacts.
+        Raises a ValueError if there is a mix.
+    """
+    if isinstance(collection, dict):
+        collection = list(collection.values())
+
+    if all(isinstance(elem, Proxy) for elem in collection):
+        return True
+
+    if any(isinstance(elem, Proxy) for elem in collection):
+        raise ValueError("Collection has mixed proxies and artifacts. "
+                         "This is not allowed.")
+
+    return False
 
 
 @python_app
@@ -333,8 +401,8 @@ class Action(metaclass=abc.ABCMeta):
 
     def _bind_parsl(self, ctx, *args, **kwargs):
         futures = []
-        remapped_args = []
-        remapped_kwargs = {}
+        mapped_args = []
+        mapped_kwargs = {}
 
         # If this is the first time we called _bind_parsl on a pipeline, the
         # first argument will be the callable for the pipeline which we do not
@@ -353,20 +421,12 @@ class Action(metaclass=abc.ABCMeta):
         # last action that might not be resolved yet because Parsl may be
         # queueing the next action before the last one has completed.
         for arg in args:
-            if isinstance(arg, Proxy):
-                futures.append(arg._future_)
-                remapped_args.append(arg.__class__(len(futures) - 1,
-                                                   arg._selector_))
-            else:
-                remapped_args.append(arg)
+            mapped = _map_arg(arg, futures)
+            mapped_args.append(mapped)
 
         for key, value in kwargs.items():
-            if isinstance(value, Proxy):
-                futures.append(value._future_)
-                remapped_kwargs[key] = value.__class__(len(futures) - 1,
-                                                       value._selector_)
-            else:
-                remapped_kwargs[key] = value
+            mapped = _map_arg(value, futures)
+            mapped_kwargs[key] = mapped
 
         # If the user specified a particular executor for a this action
         # determine that here
@@ -383,7 +443,7 @@ class Action(metaclass=abc.ABCMeta):
             # in the parsl main thread
             future = join_app()(
                     _run_parsl_action)(self, ctx, execution_ctx,
-                                       remapped_args, remapped_kwargs,
+                                       mapped_args, mapped_kwargs,
                                        inputs=futures)
         else:
             execution_ctx['parsl_type'] = \
@@ -391,11 +451,9 @@ class Action(metaclass=abc.ABCMeta):
             future = python_app(
                 executors=[executor])(
                     _run_parsl_action)(self, ctx, execution_ctx,
-                                       remapped_args, remapped_kwargs,
+                                       mapped_args, mapped_kwargs,
                                        inputs=futures)
 
-        # This bit that creates user_input now exists in three places. Here,
-        # _bind, and deffered_action. So that's not great.
         collated_input = self.signature.collate_inputs(*args, **kwargs)
         output_types = self.signature.solve_output(**collated_input)
 
@@ -408,7 +466,6 @@ class Action(metaclass=abc.ABCMeta):
             if not isinstance(self, Pipeline):
                 raise ValueError('Only pipelines may be run in parallel')
 
-            setup_parallel()
             return self._bind_parsl(qiime2.sdk.Context(parallel=True), *args,
                                     **kwargs)
 
@@ -669,12 +726,19 @@ class Pipeline(Action):
         coerced_outputs = []
 
         for output in outputs:
+            # Handle proxy outputs
             if isinstance(output, Proxy):
                 output = output.result()
 
+            # Handle collection outputs
             if isinstance(output, dict) or \
                     isinstance(output, list):
                 output = qiime2.sdk.ResultCollection(output)
+
+                # Handle proxies as elements of collections
+                for key, value in output.items():
+                    if isinstance(value, Proxy):
+                        output[key] = value.result()
 
             coerced_outputs.append(output)
 

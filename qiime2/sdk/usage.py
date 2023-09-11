@@ -42,7 +42,9 @@ import re
 
 import qiime2
 from qiime2 import sdk
-from qiime2.core.type import is_semantic_type, is_visualization_type
+from qiime2.core.type import (
+    is_semantic_type, is_visualization_type, is_collection_type
+)
 from qiime2.sdk.util import camel_to_snake, get_action_if_plugin_present
 
 
@@ -53,7 +55,8 @@ def assert_usage_var_type(usage_variable, *valid_types):
     ----------
     usage_variable : `qiime2.sdk.usage.UsageVariable`
         The usage variable to test.
-    *valid_types : 'artifact', 'visualization', 'metadata', 'column', 'format'
+    *valid_types : 'artifact', 'artifact_collection', 'visualization',
+                   'visualization_collection', 'metadata', 'column', 'format'
         The valid variable types to expect.
 
     Raises
@@ -313,7 +316,9 @@ class UsageInputs:
 
         def mapped(v):
             if isinstance(v, UsageVariable):
-                assert_usage_var_type(v, 'artifact', 'metadata', 'column')
+                assert_usage_var_type(v, 'artifact', 'artifact_collection',
+                                      'visualization_collection',
+                                      'metadata', 'column')
                 v = function(v)
             return v
 
@@ -446,9 +451,12 @@ class UsageOutputs(sdk.Results):
     pass
 
 
-VAR_TYPES = ('artifact', 'visualization', 'metadata', 'column', 'format')
-T_VAR_TYPES = Literal['artifact', 'visualization', 'metadata', 'column',
-                      'format']
+VAR_TYPES = ('artifact', 'artifact_collection', 'visualization',
+             'visualization_collection', 'metadata', 'column', 'format')
+T_VAR_TYPES = Literal['artifact', 'artifact_collection', 'visualization',
+                      'visualization_collection',
+                      'metadata', 'column', 'format']
+COLLECTION_VAR_TYPES = ('artifact_collection', 'visualization_collection')
 
 
 class UsageVariable:
@@ -460,6 +468,7 @@ class UsageVariable:
     """
     DEFERRED = object()
     VAR_TYPES = VAR_TYPES
+    COLLECTION_VAR_TYPES = COLLECTION_VAR_TYPES
 
     def __init__(self, name: str, factory: Callable[[], Any],
                  var_type: T_VAR_TYPES, usage: 'Usage'):
@@ -477,7 +486,8 @@ class UsageVariable:
             point).
         factory : Callable[[], Any]
             A function which will return a realized value of `var_type`.
-        var_type : 'artifact', 'visualization', 'metadata', 'column', 'format'
+        var_type : 'artifact', 'artifact_collection', 'visualization',
+                   'visualization_collection', 'metadata', 'column', 'format'
             The type of value which will be returned by the factory.
             Most are self-explanatory, but "format" indicates that the factory
             produces a QIIME 2 file format or directory format, which is used
@@ -511,8 +521,9 @@ class UsageVariable:
         For use by interface drivers only (and rarely at that).
         Do not use in a written usage example.
         """
-        self.var_type: Literal['artifact', 'visualization', 'metadata',
-                               'column', 'format'] = var_type
+        self.var_type: Literal['artifact', 'artifact_collection',
+                               'visualization', 'visualization_collection',
+                               'metadata', 'column', 'format'] = var_type
         """The general type of this variable.
 
         Warning
@@ -630,7 +641,8 @@ class UsageVariable:
         """
         return self.name
 
-    def assert_has_line_matching(self, path: str, expression: str):
+    def assert_has_line_matching(self, path: str, expression: str,
+                                 key: str = None):
         """Communicate that the result of this variable should match a regex.
 
         The default implementation is to do nothing.
@@ -639,8 +651,13 @@ class UsageVariable:
         ----------
         path : str
             The relative path in a result's /data/ directory to check.
+
         expression : str
             The regular expression to evaluate for a line within `path`.
+
+        key : str
+            The key to match against a given semantic type
+            if the output is a ResultCollection.
 
         Note
         ----
@@ -655,10 +672,32 @@ class UsageVariable:
         ...     use.UsageOutputNames(out='bar4')
         ... )
         >>> bar.assert_has_line_matching('mapping.tsv', r'foo\\s42')
-        """
+        ...
+        >>> # A factory which will be used in the example to generate data.
+        >>> def factory():
+        ...     import qiime2
+        ...     # This type is only available during testing.
+        ...     # A real example would use a real type.
+        ...     a = qiime2.ResultCollection(
+        ...         {'Foo': qiime2.Artifact.import_data('SingleInt', 1),
+        ...          'Bar': qiime2.Artifact.import_data('SingleInt', 2)})
+        ...     return a
+        ...
+        >>> int_collection = use.init_result_collection('int_collection6', factory)
+        >>> bar, = use.action(
+        ...     use.UsageAction(plugin_id='dummy_plugin',
+        ...                     action_id='dict_of_ints'),
+        ...     use.UsageInputs(ints=int_collection),
+        ...     use.UsageOutputNames(output='bar5')
+        ... )
+        >>> bar.assert_has_line_matching('file1.txt', r'1', 'Foo')
+        >>> bar.assert_has_line_matching('file1.txt', r'2', 'Bar')
+        >>> bar.assert_has_line_matching('file2.txt', r'1', 'Foo')
+        >>> bar.assert_has_line_matching('file2.txt', r'2', 'Bar')
+        """  # noqa: E501
         pass
 
-    def assert_output_type(self, semantic_type: str):
+    def assert_output_type(self, semantic_type: str, key: str = None):
         """Communicate that this variable should have a given semantic type.
 
         The default implementation is to do nothing.
@@ -667,6 +706,10 @@ class UsageVariable:
         ----------
         semantic_type : QIIME 2 Semantic Type or str
             The semantic type to match.
+
+        key : str
+            The key to match against a given semantic type
+            if the output is a ResultCollection.
 
         Note
         ----
@@ -678,10 +721,30 @@ class UsageVariable:
         ...     use.UsageAction(plugin_id='dummy_plugin',
         ...                     action_id='params_only_method'),
         ...     use.UsageInputs(name='foo', age=42),
-        ...     use.UsageOutputNames(out='bar5')
+        ...     use.UsageOutputNames(out='bar6')
         ... )
         >>> bar.assert_output_type('Mapping')
-        """
+        ...
+        >>> # A factory which will be used in the example to generate data.
+        >>> def factory():
+        ...     import qiime2
+        ...     # This type is only available during testing.
+        ...     # A real example would use a real type.
+        ...     a = qiime2.ResultCollection(
+        ...         {'Foo': qiime2.Artifact.import_data('SingleInt', 1),
+        ...          'Bar': qiime2.Artifact.import_data('SingleInt', 2)})
+        ...     return a
+        ...
+        >>> int_collection = use.init_result_collection('int_collection7', factory)
+        >>> bar, = use.action(
+        ...     use.UsageAction(plugin_id='dummy_plugin',
+        ...                     action_id='dict_of_ints'),
+        ...     use.UsageInputs(ints=int_collection),
+        ...     use.UsageOutputNames(output='bar7')
+        ... )
+        >>> bar.assert_output_type(semantic_type='SingleInt', key='Foo')
+        ...
+        """  # noqa: E501
         pass
 
 
@@ -847,6 +910,47 @@ class Usage:
         <ExecutionUsageVariable name='my_artifact', var_type='artifact'>
         """
         return self._usage_variable(name, factory, 'artifact')
+
+    def init_result_collection(
+        self, name: str,
+            factory: Callable[[], qiime2.ResultCollection]) -> UsageVariable:
+        """Communicate that a result collection will be needed.
+
+        Driver implementations may use this to intialize data for an example.
+
+        Parameters
+        ----------
+        name : str
+            The canonical name of the variable to be returned.
+        factory : Callable which returns :class:`qiime2.sdk.ResultCollection`
+            A function which takes no parameters, and returns
+            a result collection.
+            This function may do anything internally to create
+            the result collection.
+
+        Returns
+        -------
+        UsageVariable
+            This particular return class can be changed by a driver which
+            overrides :meth:`usage_variable`.
+
+        Examples
+        --------
+        >>> # A factory which will be used in the example to generate data.
+        >>> def factory():
+        ...     import qiime2
+        ...     # This type is only available during testing.
+        ...     # A real example would use a real type.
+        ...     a = qiime2.ResultCollection(
+        ...         {'Foo': qiime2.Artifact.import_data('IntSequence1', [1, 2, 3]),
+        ...          'Bar': qiime2.Artifact.import_data('IntSequence1', [4, 5, 6])})
+        ...     return a
+        ...
+        >>> int_seq_collection = use.init_result_collection('int_seq_collection', factory)
+        >>> int_seq_collection
+        <ExecutionUsageVariable name='int_seq_collection', var_type='artifact_collection'>
+        """  # noqa: E501
+        return self._usage_variable(name, factory, 'artifact_collection')
 
     def init_metadata(self, name: str,
                       factory: Callable[[], qiime2.Metadata]) -> UsageVariable:
@@ -1428,6 +1532,11 @@ class Usage:
 
             if is_visualization_type(qiime_type):
                 var_type = 'visualization'
+            elif is_collection_type(qiime_type):
+                if str(qiime_type) == 'Collection[Visualization]':
+                    var_type = 'visualization_collection'
+                else:
+                    var_type = 'artifact_collection'
             elif is_semantic_type(qiime_type):
                 var_type = 'artifact'
             else:
@@ -1494,6 +1603,11 @@ class DiagnosticUsage(Usage):
         self._append_record('init_artifact', variable)
         return variable
 
+    def init_result_collection(self, name, factory):
+        variable = super().init_result_collection(name, factory)
+        self._append_record('init_result_collection', variable)
+        return variable
+
     def init_metadata(self, name, factory):
         variable = super().init_metadata(name, factory)
         self._append_record('init_metadata', variable)
@@ -1543,10 +1657,32 @@ class DiagnosticUsage(Usage):
 
 class ExecutionUsageVariable(UsageVariable):
     """A specialized implementation for :class:`ExecutionUsage`."""
-    def assert_has_line_matching(self, path, expression):
-        assert_usage_var_type(self, 'artifact', 'visualization')
+
+    # Utility method for key handling within result collections
+    def _collection_key_util(self, data, key):
+        if self.var_type not in self.COLLECTION_VAR_TYPES:
+            raise TypeError("Key can only be provided for output of type"
+                            " artifact_collection or visualization_collection."
+                            " Output of type %s was provided."
+                            % (self.var_type))
+        if key not in data.keys():
+            raise ValueError("Provided key %s not found in output" % (key))
+
+        data = data[key]
+        return data
+
+    def assert_has_line_matching(self, path, expression, key=None):
+        assert_usage_var_type(self, 'artifact', 'visualization',
+                              'artifact_collection',
+                              'visualization_collection')
 
         data = self.value
+
+        if key is not None:
+            key = str(key)
+
+        if key:
+            data = self._collection_key_util(data=data, key=key)
 
         hits = sorted(data._archiver.data_dir.glob(path))
         if len(hits) != 1:
@@ -1559,13 +1695,21 @@ class ExecutionUsageVariable(UsageVariable):
             raise AssertionError('Expression %r not found in %s.' %
                                  (expression, path))
 
-    def assert_output_type(self, semantic_type):
+    def assert_output_type(self, semantic_type, key=None):
         data = self.value
+        name = self.name
+
+        if key is not None:
+            key = str(key)
+
+        if key:
+            data = self._collection_key_util(data=data, key=key)
+            name = "%s[%s]" % (self.name, key)
 
         if str(data.type) != str(semantic_type):
             raise AssertionError("Output %r has type %s, which does not match"
                                  " expected output type of %s"
-                                 % (self.name, data.type, semantic_type))
+                                 % (name, data.type, semantic_type))
 
 
 class ExecutionUsage(Usage):
@@ -1620,6 +1764,14 @@ class ExecutionUsage(Usage):
 
     def init_artifact(self, name, factory):
         variable = super().init_artifact(name, factory)
+
+        variable.execute()
+        self._recorder[variable.name] = variable
+
+        return variable
+
+    def init_result_collection(self, name, factory):
+        variable = super().init_result_collection(name, factory)
 
         variable.execute()
         self._recorder[variable.name] = variable

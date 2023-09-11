@@ -46,9 +46,9 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      optional_artifacts_method, long_description_method,
                      docstring_order_method, variadic_input_method,
                      unioned_primitives, type_match_list_and_set, union_inputs,
-                     list_of_ints, dict_of_ints, varied_method,
+                     list_of_ints, dict_of_ints, returns_int, varied_method,
                      collection_inner_union, collection_outer_union,
-                     dict_params, list_params)
+                     dict_params, list_params, _underscore_method)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -56,8 +56,9 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        pipelines_in_pipeline, resumable_pipeline,
                        resumable_varied_pipeline,
                        resumable_nested_varied_pipeline,
-                       internal_fail_pipeline, list_pipeline,
-                       collection_pipeline, pointless_pipeline,
+                       internal_fail_pipeline, de_facto_list_pipeline,
+                       de_facto_dict_pipeline, de_facto_collection_pipeline,
+                       list_pipeline, collection_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
 
@@ -67,7 +68,8 @@ from .examples import (concatenate_ints_simple, concatenate_ints_complex,
                        identity_with_metadata_merging,
                        identity_with_metadata_column_get_mdc,
                        variadic_input_simple, optional_inputs,
-                       comments_only_factory,
+                       comments_only_factory, collection_list_of_ints,
+                       collection_dict_of_ints,
                        )
 
 
@@ -834,6 +836,36 @@ dummy_plugin.pipelines.register_function(
 )
 
 dummy_plugin.pipelines.register_function(
+    function=de_facto_list_pipeline,
+    inputs={},
+    parameters={
+        'kwarg': Bool,
+        'non_proxies': Bool
+    },
+    outputs=[
+        ('output', Collection[SingleInt]),
+    ],
+    name='Pipeline that creates a de facto list of artifacts.',
+    description=('This pipeline is supposed to be run in parallel to assert '
+                 'that we can handle a de facto list of proxies.')
+)
+
+dummy_plugin.pipelines.register_function(
+    function=de_facto_dict_pipeline,
+    inputs={},
+    parameters={
+        'kwarg': Bool,
+        'non_proxies': Bool
+    },
+    outputs=[
+        ('output', Collection[SingleInt]),
+    ],
+    name='Pipeline that creates a de facto dict of artifacts.',
+    description=('This pipeline is supposed to be run in parallel to assert '
+                 'that we can handle a de facto dict of proxies.')
+)
+
+dummy_plugin.pipelines.register_function(
     function=list_pipeline,
     inputs={'ints': List[IntSequence1]},
     parameters={},
@@ -849,6 +881,15 @@ dummy_plugin.pipelines.register_function(
     outputs=[('output', Collection[SingleInt])],
     name='Takes a collection and returns a collection',
     description='Takes a collection and returns a collection'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=de_facto_collection_pipeline,
+    inputs={},
+    parameters={},
+    outputs=[('output', Collection[Mapping])],
+    name='Returns de facto ResultCollection',
+    description='Takes nothing and returns de facto ResultCollection'
 )
 
 dummy_plugin.pipelines.register_function(
@@ -913,7 +954,21 @@ dummy_plugin.methods.register_function(
     },
     output_descriptions={
         'output': 'Reversed Collection of ints'
-    }
+    },
+    examples={'collection_list_of_ints': collection_list_of_ints}
+)
+
+dummy_plugin.methods.register_function(
+    function=returns_int,
+    inputs={},
+    parameters={
+        'int': Int
+    },
+    outputs=[
+        ('output', SingleInt)
+    ],
+    name='Returns int',
+    description='Just returns an int',
 )
 
 dummy_plugin.methods.register_function(
@@ -932,7 +987,8 @@ dummy_plugin.methods.register_function(
     },
     output_descriptions={
         'output': 'Collection of ints'
-    }
+    },
+    examples={'collection_dict_of_ints': collection_dict_of_ints}
 )
 
 dummy_plugin.methods.register_function(
@@ -1017,6 +1073,18 @@ dummy_plugin.methods.register_function(
     name='Takes and returns a combination of colletions and non collections',
     description='Takes and returns a combination of colletions and non'
                 ' collections'
+)
+
+dummy_plugin.methods.register_function(
+    function=_underscore_method,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('int', SingleInt)
+    ],
+    name='Starts with an underscore',
+    description='Exists to test that the cli does not render actions that'
+                ' start with an underscore by default'
 )
 
 import_module('qiime2.core.testing.mapped')

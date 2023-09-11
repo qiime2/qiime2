@@ -170,7 +170,7 @@ class Result:
         # ensure (as best as we can) that the UUIDs we are comparing are linked
         # to the same type of QIIME 2 object.
         return (
-            type(self) == type(other) and
+            type(self) is type(other) and
             self.uuid == other.uuid
         )
 
@@ -222,6 +222,8 @@ class Result:
 
         # This accounts for edge cases in the filename extension
         # and ensures that there is only a single period in the ext.
+        # Caste to str incase we received a pathlib.Path or similar
+        filepath = str(filepath)
         filepath = filepath.rstrip('.')
         ext = '.' + ext.lstrip('.')
 
@@ -548,15 +550,23 @@ class ResultCollection:
         if collection is None:
             self.collection = {}
         elif isinstance(collection, dict):
+            qiime2.sdk.util.validate_result_collection_keys(*collection.keys())
+
             self.collection = collection
         else:
-            self.collection = {k: v for k, v in enumerate(collection)}
+            self.collection = {str(k): v for k, v in enumerate(collection)}
+
+    def __contains__(self, item):
+        return item in self.collection
 
     def __eq__(self, other):
         if isinstance(other, dict):
             return self.collection == other
-
-        return self.collection == other.collection
+        elif isinstance(other, ResultCollection):
+            return self.collection == other.collection
+        else:
+            raise TypeError(f"Equality between '{type(other)}' and "
+                            "ResultCollection is undefined.")
 
     def __len__(self):
         return len(self.collection)
@@ -565,6 +575,7 @@ class ResultCollection:
         yield self.collection.__iter__()
 
     def __setitem__(self, key, item):
+        qiime2.sdk.util.validate_result_collection_keys(key)
         self.collection[key] = item
 
     def __getitem__(self, key):
@@ -579,6 +590,13 @@ class ResultCollection:
             v.type for v in self.collection.values()).normalize()
 
         return qiime2.core.type.Collection[inner_type]
+
+    @property
+    def extension(self):
+        if str(self.type) == 'Collection[Visualization]':
+            return '.qzv'
+
+        return '.qza'
 
     def save(self, directory):
         """Saves a collection of QIIME 2 Results into a given directory with
@@ -598,6 +616,28 @@ class ResultCollection:
                 result_fp = os.path.join(directory, name)
                 result.save(result_fp)
                 fh.write(f'{name}\n')
+
+        # Do this to give us a unified API with Result.save
+        return directory
+
+    def save_unordered(self, directory):
+        """Saves a collection of QIIME 2 Results into a given directory without
+           an order file. This is used by q2galaxy where an order file will be
+           interpreted as another dataset in the collection which is not
+           desirable
+
+           NOTE: The directory given must not exist
+        """
+        if os.path.exists(directory):
+            raise ValueError(f"The given directory '{directory}' already "
+                             "exists. A new directory must be given to save "
+                             "the collection to.")
+
+        os.makedirs(directory)
+
+        for name, result in self.collection.items():
+            result_fp = os.path.join(directory, name)
+            result.save(result_fp)
 
         # Do this to give us a unified API with Result.save
         return directory

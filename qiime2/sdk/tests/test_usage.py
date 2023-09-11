@@ -13,7 +13,7 @@ import tempfile
 from qiime2.core.testing.util import get_dummy_plugin
 import qiime2.core.testing.examples as examples
 from qiime2.sdk import usage, action, UninitializedPluginManagerError
-from qiime2 import Metadata, Artifact
+from qiime2 import Metadata, Artifact, ResultCollection
 
 
 class TestCaseUsage(unittest.TestCase):
@@ -363,6 +363,27 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertTrue(obs4.variable[0].is_deferred)
         self.assertTrue(obs5.variable[0].is_deferred)
 
+    def test_artifact_collection_list_of_ints(self):
+        action = self.plugin.actions['list_of_ints']
+        use = usage.DiagnosticUsage()
+        action.examples['collection_list_of_ints'](use)
+
+        self.assertEqual(2, len(use.render()))
+
+        obs1, obs2 = use.render()
+
+        self.assertEqual('init_result_collection', obs1.source)
+        self.assertEqual('action', obs2.source)
+
+        self.assertEqual('ints', obs1.variable.name)
+        self.assertEqual('out', obs2.variable[0].name)
+
+        self.assertEqual('artifact_collection', obs1.variable.var_type)
+        self.assertEqual('artifact_collection', obs2.variable[0].var_type)
+
+        self.assertTrue(obs1.variable.is_deferred)
+        self.assertTrue(obs2.variable[0].is_deferred)
+
 
 class TestExecutionUsage(TestCaseUsage):
     def test_basic(self):
@@ -413,6 +434,16 @@ class TestExecutionUsage(TestCaseUsage):
         self.assertIsInstance(single_int1.value, Artifact)
         self.assertIsInstance(single_int2.value, Artifact)
         self.assertIsInstance(out.value, Artifact)
+
+    def test_artifact_collection_list_of_ints(self):
+        use = usage.ExecutionUsage()
+        action = self.plugin.actions['list_of_ints']
+        action.examples['collection_list_of_ints'](use)
+
+        ints, out = use.render().values()
+
+        self.assertIsInstance(ints.value, ResultCollection)
+        self.assertIsInstance(out.value, ResultCollection)
 
     def test_init_artifact_from_url_error(self):
         use = usage.ExecutionUsage()

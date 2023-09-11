@@ -13,6 +13,7 @@ import unittest
 import uuid
 
 import qiime2.plugin
+from qiime2.sdk.util import view_collection
 from qiime2.core.type import MethodSignature, Int
 from qiime2.sdk import Artifact, Method, Results, ResultCollection
 
@@ -605,8 +606,8 @@ class TestMethod(unittest.TestCase):
         self.assertIsInstance(list_out.output, ResultCollection)
         self.assertIsInstance(dict_out.output, ResultCollection)
 
-        view_list_out = self._view_collection(list_out.output, int)
-        view_dict_out = self._view_collection(dict_out.output, int)
+        view_list_out = view_collection(list_out.output, int)
+        view_dict_out = view_collection(dict_out.output, int)
 
         self.assertEqual(view_list_out, expected)
         self.assertEqual(view_dict_out, expected)
@@ -633,8 +634,8 @@ class TestMethod(unittest.TestCase):
         self.assertIsInstance(list_out.output, ResultCollection)
         self.assertIsInstance(dict_out.output, ResultCollection)
 
-        view_list_out = self._view_collection(list_out.output, int)
-        view_dict_out = self._view_collection(dict_out.output, int)
+        view_list_out = view_collection(list_out.output, int)
+        view_dict_out = view_collection(dict_out.output, int)
 
         self.assertEqual(view_list_out, expected_list)
         self.assertEqual(view_dict_out, expected_dict)
@@ -678,8 +679,8 @@ class TestMethod(unittest.TestCase):
         self.assertIsInstance(list_out.output, ResultCollection)
         self.assertIsInstance(dict_out.output, ResultCollection)
 
-        view_list_out = self._view_collection(list_out.output, int)
-        view_dict_out = self._view_collection(dict_out.output, int)
+        view_list_out = view_collection(list_out.output, int)
+        view_dict_out = view_collection(dict_out.output, int)
 
         self.assertEqual(view_list_out, expected)
         self.assertEqual(view_dict_out, expected)
@@ -705,8 +706,8 @@ class TestMethod(unittest.TestCase):
         self.assertIsInstance(list_out.output, ResultCollection)
         self.assertIsInstance(dict_out.output, ResultCollection)
 
-        view_list_out = self._view_collection(list_out.output, int)
-        view_dict_out = self._view_collection(dict_out.output, int)
+        view_list_out = view_collection(list_out.output, int)
+        view_dict_out = view_collection(dict_out.output, int)
 
         self.assertEqual(view_list_out, expected_list)
         self.assertEqual(view_dict_out, expected_dict)
@@ -733,16 +734,13 @@ class TestMethod(unittest.TestCase):
         self.assertIsInstance(ints1_ret, ResultCollection)
         self.assertIsInstance(ints2_ret, ResultCollection)
 
-        view_ints1_ret = self._view_collection(ints1_ret, int)
-        view_ints2_ret = self._view_collection(ints2_ret, list)
+        view_ints1_ret = view_collection(ints1_ret, int)
+        view_ints2_ret = view_collection(ints2_ret, list)
         view_int1_ret = int1_ret.view(int)
 
         self.assertEqual(view_ints1_ret, ints1_expected)
         self.assertEqual(view_ints2_ret, ints2_expected)
         self.assertEqual(view_int1_ret, int1_expected)
-
-    def _view_collection(self, collection, view_type):
-        return {k: v.view(view_type) for k, v in collection.items()}
 
 
 exp_merge_calldoc = """\
