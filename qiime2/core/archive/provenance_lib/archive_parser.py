@@ -186,10 +186,10 @@ class ProvNode:
         return parents + self._artifacts_passed_as_md
 
     def __init__(
-            self,
-            cfg: Config,
-            zf: ZipFile,
-            node_fps: List[pathlib.Path]
+        self,
+        cfg: Config,
+        zf: ZipFile,
+        node_fps: List[pathlib.Path]
     ):
         '''
         Constructs a ProvNode from a zipfile and the collected
@@ -286,8 +286,8 @@ class ProvNode:
         Returns
         -------
         dict
-            A dict of parameter names to a dataframe object that is loaded
-            from the corresponding metadata file.
+            A dict of parameter names to dataframe objects that is loaded from
+            the corresponding metadata file.
 
             An empty dict if there is no metadata.
         '''
