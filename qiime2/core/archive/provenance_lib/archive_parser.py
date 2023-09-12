@@ -2,6 +2,7 @@ import abc
 import os
 import pandas as pd
 import pathlib
+import tempfile
 import yaml
 import warnings
 from zipfile import ZipFile
@@ -410,7 +411,12 @@ class _Action:
         return self._action_dict.get('transformers')
 
     def __init__(self, zf: ZipFile, fp: str):
-        self._action_dict = yaml.safe_load(zf.read(fp))
+        with tempfile.TemporaryDirectory() as tempdir:
+            zf.extractall(tempdir)
+            action_fp = os.path.join(tempdir, fp)
+            with open(action_fp) as fh:
+                self._action_dict = yaml.safe_load(fh)
+
         self._action_details = self._action_dict['action']
         self._execution_details = self._action_dict['execution']
 

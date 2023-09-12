@@ -1,25 +1,30 @@
+import os
+import tempfile
 import unittest
 import warnings
 import yaml
 
 from ...provenance import MetadataInfo
 
+from qiime2.core.util import md5sum
+
 
 class YamlConstructorTests(unittest.TestCase):
-    """
+    '''
     YAML Constructors are used to handle the custom YAML tags defined by the
     framework.
-
-    """
+    '''
     def test_unknown_tag(self):
-        """
+        '''
         Makes explicit the current handling of unimplemented custom tags. In
         future, we may want to deal with these more graciously (e.g. warn), but
-        for now we're going to fail fast
-        """
+        for now we're going to fail fast.
+        '''
         tag = r"!foo 'this is not an implemented tag'"
-        with self.assertRaisesRegex(yaml.constructor.ConstructorError,
-                                    'could not determine a constructor.*!foo'):
+        with self.assertRaisesRegex(
+            yaml.constructor.ConstructorError,
+            'could not determine a constructor.*!foo'
+        ):
             yaml.safe_load(tag)
 
     def test_citation_key_constructor(self):
@@ -45,32 +50,83 @@ class YamlConstructorTests(unittest.TestCase):
 
     def test_metadata_path_constructor(self):
         tag = r"!metadata 'metadata.tsv'"
-        actual = yaml.safe_load(tag)
-        self.assertEqual(actual, MetadataInfo([], 'metadata.tsv'))
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            md_fp = os.path.join(tempdir, 'metadata.tsv')
+            with open(md_fp, 'w') as fh:
+                fh.write('rows and columns and stuff')
+
+            action_fp = os.path.join(tempdir, 'action.yaml')
+            with open(action_fp, 'w') as fh:
+                fh.write(f'{tag}\n')
+
+            with open(action_fp, 'r') as fh:
+                actual = yaml.safe_load(fh)
+
+            md5sum_hash = md5sum(md_fp)
+
+        self.assertEqual(actual, MetadataInfo([], 'metadata.tsv', md5sum_hash))
 
     def test_metadata_path_constructor_one_Artifact_as_md(self):
         tag = r"!metadata '415409a4-stuff-e3eaba5301b4:feature_metadata.tsv'"
-        actual = yaml.safe_load(tag)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            md_fp = os.path.join(tempdir, 'feature_metadata.tsv')
+            with open(md_fp, 'w') as fh:
+                fh.write('rows and columns and stuff')
+
+            action_fp = os.path.join(tempdir, 'action.yaml')
+            with open(action_fp, 'w') as fh:
+                fh.write(f'{tag}\n')
+
+            with open(action_fp, 'r') as fh:
+                actual = yaml.safe_load(fh)
+
+            md5sum_hash = md5sum(md_fp)
+
         self.assertEqual(
             actual,
-            MetadataInfo(['415409a4-stuff-e3eaba5301b4'],
-                         'feature_metadata.tsv'))
+            MetadataInfo(
+                ['415409a4-stuff-e3eaba5301b4'],
+                'feature_metadata.tsv',
+                md5sum_hash
+            )
+        )
 
     def test_metadata_path_constructor_many_Artifacts_as_md(self):
-        tag = (r"!metadata '415409a4-stuff-e3eaba5301b4,"
-               r"12345-other-stuff-67890"
-               r":feature_metadata.tsv'")
-        actual = yaml.safe_load(tag)
+        tag = (
+            r"!metadata '415409a4-stuff-e3eaba5301b4,12345-other-stuff-67890"
+            r":feature_metadata.tsv'"
+        )
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            md_fp = os.path.join(tempdir, 'feature_metadata.tsv')
+            with open(md_fp, 'w') as fh:
+                fh.write('rows and columns and stuff')
+
+            action_fp = os.path.join(tempdir, 'action.yaml')
+            with open(action_fp, 'w') as fh:
+                fh.write(f'{tag}\n')
+
+            with open(action_fp, 'r') as fh:
+                actual = yaml.safe_load(fh)
+
+            md5sum_hash = md5sum(md_fp)
+
         self.assertEqual(
             actual,
-            MetadataInfo(['415409a4-stuff-e3eaba5301b4',
-                          '12345-other-stuff-67890'],
-                         'feature_metadata.tsv'))
+            MetadataInfo(
+                ['415409a4-stuff-e3eaba5301b4', '12345-other-stuff-67890'],
+                'feature_metadata.tsv',
+                md5sum_hash
+            )
+        )
 
     def test_no_provenance_constructor(self):
         tag = "!no-provenance '34b07e56-27a5-4f03-ae57-ff427b50aaa1'"
-        with self.assertWarnsRegex(UserWarning,
-                                   'Artifact 34b07e.*prior to provenance'):
+        with self.assertWarnsRegex(
+            UserWarning, 'Artifact 34b07e.*prior to provenance'
+        ):
             actual = yaml.safe_load(tag)
             self.assertEqual(actual, '34b07e56-27a5-4f03-ae57-ff427b50aaa1')
 

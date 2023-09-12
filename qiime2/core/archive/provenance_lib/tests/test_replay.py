@@ -697,7 +697,8 @@ class InitializerTests(unittest.TestCase):
         cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
                            use_recorded_metadata=False, pm=self.pm)
         usg_vars = {}
-        md_info = MetadataInfo([], relative_fp='hmm.tsv')
+        # create dummy hash '0', not relevant here
+        md_info = MetadataInfo([], 'hmm.tsv', '0')
         with self.assertRaisesRegex(
             ValueError, "not.*used.*input_artifact_uuids.*empty"
         ):
@@ -713,7 +714,8 @@ class InitializerTests(unittest.TestCase):
         a1 = cfg.use.init_artifact(name='thing1', factory=lambda: None)
         ns = NamespaceCollections(usg_vars={'uuid1': a1})
 
-        md_info = MetadataInfo(['uuid1'], relative_fp='hmm.tsv')
+        # create dummy hash '0', not relevant here
+        md_info = MetadataInfo(['uuid1'], 'hmm.tsv', '0')
         var = init_md_from_artifacts(md_info, ns, cfg)
         self.assertIsInstance(var, UsageVariable)
         self.assertEqual(var.var_type, 'metadata')
@@ -735,8 +737,8 @@ class InitializerTests(unittest.TestCase):
         ns = NamespaceCollections(
             usg_vars={'uuid1': a1, 'uuid2': a2, 'uuid3': a3})
 
-        md_info = MetadataInfo(['uuid1', 'uuid2', 'uuid3'],
-                               relative_fp='hmm.tsv')
+        # create dummy hash '0', not relevant here
+        md_info = MetadataInfo(['uuid1', 'uuid2', 'uuid3'], 'hmm.tsv', '0')
         var = init_md_from_artifacts(md_info, ns, cfg)
         self.assertIsInstance(var, UsageVariable)
         self.assertEqual(var.var_type, 'metadata')

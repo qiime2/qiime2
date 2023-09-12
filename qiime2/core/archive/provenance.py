@@ -18,6 +18,7 @@ import sys
 import warnings
 from datetime import datetime, timezone
 from typing import Any, List, NamedTuple, Set, Union
+from pathlib import Path
 
 import distutils
 import yaml
@@ -109,6 +110,7 @@ yaml.add_representer(ColorPrimitive, lambda dumper, data:
 yaml.add_representer(CitationKey, lambda dumper, data:
                      dumper.represent_scalar('!cite', data.key))
 
+
 def citation_key_constructor(loader, node) -> str:
     """
     A constructor for !cite yaml tags, returning a bibtex key as a str.
@@ -140,9 +142,20 @@ def color_constructor(loader, node) -> str:
 class MetadataInfo(NamedTuple):
     """
     A namedtuple representation of the data in one !metadata yaml tag.
+
+    Attributes
+    ----------
+    input_artifact_uuids : list of str
+        The uuids of any artifacts viewed as metadata.
+    relative_fp : str
+        The filepath of the metadata file relative to the action.yaml file.
+    md5sum_hash : str
+        The md5sum hash of the contents of the corresponding metadata file,
+        needed by qiime2.core.cache to tell if two metadata inputs are equal.
     """
     input_artifact_uuids: List[str]
     relative_fp: str
+    md5sum_hash: str
 
 
 def metadata_path_constructor(loader, node) -> MetadataInfo:
@@ -166,6 +179,13 @@ def metadata_path_constructor(loader, node) -> MetadataInfo:
     The metadata files (including "Artifact metadata") are saved in the same
     dir as `action.yaml`. The UUIDs listed must be incorporated into our
     provenance graph as parents, so are returned in list form.
+
+    NOTES
+    -----
+    Assumes `loader` has been passed a filehandle to an action.yaml file.
+    If instead of a filehandle e.g. file contents are passed, will break
+    because `loader.name` will no longer be a useful path that we can use
+    to find the corresponding metadata file.
     """
     raw = loader.construct_scalar(node)
     if ':' in raw:
@@ -174,7 +194,12 @@ def metadata_path_constructor(loader, node) -> MetadataInfo:
     else:
         artifact_uuids = []
         rel_fp = raw
-    return MetadataInfo(artifact_uuids, rel_fp)
+
+    action_fp = Path(loader.name)
+    metadata_fp = action_fp.parent / rel_fp
+    md5sum_hash = util.md5sum(metadata_fp)
+
+    return MetadataInfo(artifact_uuids, rel_fp, md5sum_hash)
 
 
 def no_provenance_constructor(loader, node) -> str:
@@ -238,7 +263,7 @@ CONSTRUCTOR_REGISTRY = {
     '!no-provenance': no_provenance_constructor,
     '!ref': ref_constructor,
     '!set': set_constructor,
-    }
+}
 
 for key in CONSTRUCTOR_REGISTRY:
     yaml.SafeLoader.add_constructor(key, CONSTRUCTOR_REGISTRY[key])

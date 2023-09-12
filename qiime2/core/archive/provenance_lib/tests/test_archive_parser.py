@@ -510,8 +510,10 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
                     self.assertEqual(self.nodes[node].has_provenance, True)
 
             self.assertEqual(self.nodes[node].archive_version, archive_version)
-            self.assertEqual(self.nodes[node].framework_version,
-                             framework_versions[archive_version])
+            self.assertEqual(
+                self.nodes[node].framework_version,
+                framework_versions[archive_version]
+            )
 
     def test_self_eq(self):
         self.assertReallyEqual(self.nodes['5'], self.nodes['5'])
@@ -554,8 +556,9 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
     def test_get_metadata_from_action(self):
         find_md = self.root_node_parse_md._get_metadata_from_Action
 
+        # create dummy hash '0', not relevant here
         md = MetadataInfo(
-            ['d5b4cf78-f5e2-44e0-aa24-66b02564e9f1'], 'metadata.tsv'
+            ['d5b4cf78-f5e2-44e0-aa24-66b02564e9f1'], 'metadata.tsv', '0'
         )
         action_details = {
             'parameters': [{'metadata': md}]
