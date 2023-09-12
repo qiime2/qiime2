@@ -27,10 +27,9 @@ from .parse import ProvDAG, archive_not_parsed
 from .replay import (
     replay_provenance, replay_citations, replay_supplement,
 )
-from .util import get_root_uuid, get_nonroot_uuid, camel_to_snake
+from .util import get_root_uuid, get_nonroot_uuid
 
 __all__ = [
     'ProvDAG', 'archive_not_parsed', 'get_root_uuid', 'get_nonroot_uuid',
-    'camel_to_snake', 'replay_provenance', 'replay_citations',
-    'replay_supplement',
+    'replay_provenance', 'replay_citations', 'replay_supplement',
 ]

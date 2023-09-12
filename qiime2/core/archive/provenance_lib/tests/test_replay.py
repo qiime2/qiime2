@@ -30,8 +30,9 @@ from ..replay import (
 from .testing_utilities import (
     CustomAssertions, TestArtifacts
 )
-from ..util import camel_to_snake
 from ...provenance import MetadataInfo
+
+from qiime2.sdk.util import camel_to_snake
 
 
 class UsageVarsDictTests(unittest.TestCase):

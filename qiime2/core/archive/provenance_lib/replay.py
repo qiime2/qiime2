@@ -16,11 +16,11 @@ from ._usage_drivers import (
     DRIVER_CHOICES, DRIVER_NAMES, SUPPORTED_USAGE_DRIVERS, Usage,
     build_header, build_footer
 )
-from .util import camel_to_snake
 from ..provenance import MetadataInfo
 
 from qiime2.sdk import PluginManager
 from qiime2.sdk.usage import UsageVariable
+from qiime2.sdk.util import camel_to_snake
 
 
 @dataclass

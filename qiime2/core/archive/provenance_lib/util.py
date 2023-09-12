@@ -44,26 +44,6 @@ def get_nonroot_uuid(fp: pathlib.Path) -> str:
     return fp.parts[-2]
 
 
-def camel_to_snake(name: str) -> str:
-    '''
-    Converts a camel case variable name to snake case.
-
-    Parameters
-    ----------
-    name : str
-        The camel case variable name.
-
-    Returns
-    -------
-    str
-        The converted variable name in snake case.
-    '''
-    # this will frequently be called on QIIME type expressions, so drop [ and ]
-    name = re.sub(r'[\[\]]', '', name)
-    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
-
-
 _VERSION_MATCHER = (
     r'QIIME 2\n'
     r'archive: [0-9]{1,2}$\n'
