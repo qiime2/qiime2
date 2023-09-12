@@ -11,15 +11,16 @@ import zipfile
 
 from .._checksum_validator import ChecksumDiff, ValidationCode
 from .testing_utilities import (
-    TestArtifacts, is_root_provnode_data, ReallyEqualMixin, write_zip_archive
+    TestArtifacts, is_root_provnode_data, write_zip_archive
 )
 from ..archive_parser import (
     ProvNode, Config, _Action, _Citations, _ResultMetadata, ParserResults,
     ArchiveParser, ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
     ParserV6,
 )
-
 from ...provenance import MetadataInfo
+
+from qiime2.core.testing.util import ReallyEqualMixin
 
 
 class ParserVxTests(unittest.TestCase):
