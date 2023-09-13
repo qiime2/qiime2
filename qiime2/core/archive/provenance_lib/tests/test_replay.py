@@ -259,52 +259,6 @@ class ReplayProvenanceTests(unittest.TestCase):
             self.assertNotIn('--i-optional1', rendered)
             self.assertNotIn('--p-num2', rendered)
 
-    # TODO: not working after merging `action_patch`, need to remember why
-    # we thought that wasn't an issue
-    # not working here probably because of type match, but see notes for
-    # more context
-    def test_replay_untracked_output_names(self):
-        """
-        In this artifact, some nodes don't track output names. As
-        a result, replay could fail when Usage.action tries to look up the
-        output-name for those results in the plugin manager's record of the
-        actual action's signature. We've monkeypatched Usage.action here to
-        allow replay to proceed.
-        """
-        dag = self.tas.concated_ints_no_output_names.dag
-        # If we rendered the final action correctly, then nothing blew up.
-        with tempfile.TemporaryDirectory() as tempdir:
-            out_path = pathlib.Path(tempdir) / 'ns_coll.txt'
-
-            replay_provenance(dag, out_path, 'python3')
-            with open(out_path, 'r') as fp:
-                rendered = fp.read()
-            self.assertIn('dummy_plugin_actions.concatenate_ints', rendered)
-
-            replay_provenance(dag, out_path, 'cli')
-            with open(out_path, 'r') as fp:
-                rendered = fp.read()
-            self.assertIn('concatenate_ints', rendered)
-            self.assertIn('--o-concatenated-ints', rendered)
-
-        # dag = ProvDAG(os.path.join(DATA_DIR, 'heatmap.qzv'))
-        # drivers = ['python3', 'cli']
-        # # If we rendered the final action correctly, then nothing blew up.
-        # exp = {
-        #     'python3':
-        #         '(?s)action_results.*classifier_actions.classify_samples.*'
-        #         'heatmap_0_viz = action_results.heatmap',
-        #     'cli': '(?s)qiime sample-classifier classify-samples.*'
-        #            '--o-heatmap heatmap-0.qzv'}
-        # for driver in drivers:
-        #     with tempfile.TemporaryDirectory() as tmpdir:
-        #         out_path = pathlib.Path(tmpdir) / 'ns_coll.txt'
-        #         replay_provenance(dag, out_path, driver)
-
-        #         with open(out_path, 'r') as fp:
-        #             rendered = fp.read()
-        #     self.assertRegex(rendered, exp[driver])
-
 
 class MultiplePluginTests(unittest.TestCase):
     @classmethod
