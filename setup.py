@@ -19,7 +19,8 @@ setup(
     packages=find_packages(),
     entry_points={
         'qiime2.plugins': [
-            'dummy-plugin=qiime2.core.testing.plugin:dummy_plugin'
+            'dummy-plugin=qiime2.core.testing.plugin:dummy_plugin',
+            'other-plugin=qiime2.core.archive.provenance_lib:other_plugin'
         ]
     },
     package_data={

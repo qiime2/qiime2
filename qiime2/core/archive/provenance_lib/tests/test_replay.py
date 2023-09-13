@@ -306,6 +306,59 @@ class ReplayProvenanceTests(unittest.TestCase):
         #     self.assertRegex(rendered, exp[driver])
 
 
+class MultiplePluginTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        from qiime2.sdk.plugin_manager import PluginManager
+        from qiime2 import Artifact
+
+        cls.pm = PluginManager()
+        cls.dp = cls.pm.plugins['dummy-plugin']
+        cls.op = cls.pm.plugins['other-plugin']
+        cls.tempdir = tempfile.mkdtemp(prefix='qiime2-other-plugin-temp-')
+
+        int_seq = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
+        concat_ints = cls.op.methods['concatenate_ints']
+        split_ints = cls.dp.methods['split_ints']
+
+        concated_ints, = concat_ints(
+            int_seq, int_seq, int_seq, 5, 6
+        )
+        cls.splitted_ints, _ = split_ints(concated_ints)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tempdir)
+
+    def test_multiple_plugins_in_provenance(self):
+        fp = os.path.join(self.tempdir, 'splitted_ints.qza')
+        self.splitted_ints.save(fp)
+        out_fp = os.path.join(self.tempdir, 'rendered.txt')
+
+        replay_provenance(fp, out_fp, 'python3')
+
+        with open(out_fp, 'r') as fp:
+            rendered = fp.read()
+
+        self.assertIn('from qiime2 import Artifact', rendered)
+        self.assertIn(
+            'import qiime2.plugins.dummy_plugin.actions as '
+            'dummy_plugin_actions',
+            rendered
+        )
+        self.assertIn(
+            'import qiime2.plugins.other_plugin.actions as '
+            'other_plugin_actions',
+            rendered
+        )
+        self.assertIn(
+            'dummy_plugin_actions.split_ints(', rendered
+        )
+        self.assertIn(
+            'other_plugin_actions.concatenate_ints(', rendered
+        )
+
+
 class ReplayProvDAGDirectoryTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
