@@ -259,6 +259,31 @@ class ReplayProvenanceTests(unittest.TestCase):
             self.assertNotIn('--i-optional1', rendered)
             self.assertNotIn('--p-num2', rendered)
 
+    # NOTE: remove once support for ResultCollections exists in usage drivers
+    def test_result_collections_not_suppported(self):
+        dag = self.tas.int_from_collection.dag
+        with tempfile.TemporaryDirectory() as tempdir:
+            out_path = pathlib.Path(tempdir) / 'rendered.txt'
+
+            with self.assertRaisesRegex(
+                ValueError,
+                'ResultCollection was returned.*not.*supported'
+            ):
+                replay_provenance(dag, out_path, 'python3')
+
+            # NOTE: we have to try a little harder to catch the exception
+            # raised when parsing inputs because there is no action in the
+            # dummy plyuin that takes a ResultCollection but doesn't return
+            # one and the `output-name` section always gets parsed before the
+            # `inputs` section
+            with self.assertRaisesRegex(
+                ValueError,
+                'ResultCollection as input.*not.*supported'
+            ):
+                for uuid in dag.nodes:
+                    node = dag.get_node_data(uuid)
+                    _ = node.action.inputs
+
 
 class MultiplePluginTests(unittest.TestCase):
     @classmethod
@@ -461,26 +486,6 @@ class BuildUsageExamplesTests(unittest.TestCase):
         # with splitted_ints and pipeline_viz
         self.assertEqual(imp_builder.call_count, 6)
         self.assertEqual(act_builder.call_count, 4)
-
-    # TODO: broken by Collections
-    def test_build_action_usage_collection_of_inputs(self):
-        """
-        This artifact's root node is passed a collection of inputs. Collections
-        need to be handled in a separate branch, so this exists for coverage.
-        """
-        dag = self.tas.int_from_collection.dag
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-                           use_recorded_metadata=False, pm=self.pm)
-        build_usage_examples(dag, cfg)
-        list_line = 'tables=[table_0, table_1],'
-        self.assertIn(list_line, cfg.use.render())
-
-        # dag = ProvDAG(os.path.join(DATA_DIR, 'merged_tbls.qza'))
-        # cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
-        #                    use_recorded_metadata=False, pm=self.pm)
-        # build_usage_examples(dag, cfg)
-        # list_line = 'tables=[table_0, table_1],'
-        # self.assertIn(list_line, cfg.use.render())
 
 
 class MiscHelperFnTests(unittest.TestCase):

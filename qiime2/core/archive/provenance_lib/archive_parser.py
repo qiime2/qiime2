@@ -373,15 +373,58 @@ class _Action:
         plugin = self._action_details.get('plugin')
         return plugin.replace('-', '_')
 
-    # TODO: is this okay for Collections?
     @property
     def inputs(self) -> dict:
-        '''Returns a dict of artifact inputs to this action.'''
+        '''
+        Creates a dict of artifact inputs to this action.
+
+        Returns
+        -------
+        dict
+            A mapping of input name to uuid for each input passed to the
+            corresponding action.
+
+        Raises
+        ------
+        ValueError
+            If an input ResultCollection is detected. These are detectable here
+            because typically the inputs section is structured as:
+
+            inputs:
+            - some_input_name: some_uuid
+            - some_other_input_name: some_other_uuid
+
+            but when a ResultCollection is an input it is structed as:
+
+            inputs:
+            - result_collection_name:
+                - some_key: some_uuid
+                - some_other_key: some_other_uuid
+
+            and thus is a different structure entirely.
+
+        Notes
+        -----
+            When support for ResultCollections exists, the erroring should
+            obviously be removed, and the way that items are added to `results`
+            might need to be rethought--should nested dicts be added, or should
+            ResultCollections be unpacked and and added piece by piece?
+        '''
         inputs = self._action_details.get('inputs')
         results = {}
         if inputs is not None:
             for item in inputs:
+                first_value = next(iter(item.values()))
+                if type(first_value) is list:
+                    msg = (
+                        'An action in provenance took a ResultCollection '
+                        'as input. Replay of ResultCollections is not '
+                        'currently supported.'
+                    )
+                    raise ValueError(msg)
+
                 results.update(item.items())
+
         return results
 
     @property
@@ -394,11 +437,45 @@ class _Action:
                 results.update(item.items())
         return results
 
-    # TODO: probably not okay for Collections.
     @property
     def output_name(self) -> Optional[str]:
-        '''Returns the output name of the node.'''
-        return self._action_details.get('output-name')
+        '''
+        Gets the output name of the node.
+
+        Returns
+        -------
+        str or None
+            The name of the output as parsed from action.yaml, or None if there
+            is no output-name section.
+
+        Raises
+        ------
+        ValueError
+            If the artifact comes from a ResultCollection. This is detectable
+            here because outputs from a ResultCollection look like:
+
+            output-name:
+            - output
+            - key
+            - position/total positions
+
+            and are thus a different structure entirely.
+
+        Notes
+        -----
+            The erroring should be removed when support for ResultCollections
+            are added.
+        '''
+        output_name = self._action_details.get('output-name')
+
+        if type(output_name) is list:
+            msg = (
+                'A ResultCollection was returned by an action in provenance. '
+                'Replay of ResultCollections are not currently supported.'
+            )
+            raise ValueError(msg)
+
+        return output_name
 
     @property
     def format(self) -> Optional[str]:
