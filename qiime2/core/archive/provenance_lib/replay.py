@@ -12,7 +12,7 @@ from typing import Dict, Iterator, List, Optional, Set, Union
 
 from .archive_parser import ProvNode
 from .parse import ProvDAG
-from ._usage_drivers import (
+from .usage_drivers import (
     DRIVER_CHOICES, DRIVER_NAMES, SUPPORTED_USAGE_DRIVERS, Usage,
     build_header, build_footer
 )

@@ -7,7 +7,7 @@ from qiime2.sdk.plugin_manager import PluginManager
 from qiime2.core.testing.type import IntSequence1
 
 from ..replay import replay_provenance
-from .._usage_drivers import ReplayCLIUsage
+from ..usage_drivers import ReplayCLIUsage
 
 
 class ReplayCLIUsageTests(unittest.TestCase):
