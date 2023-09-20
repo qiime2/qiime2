@@ -8,19 +8,16 @@ import shutil
 import tempfile
 from collections import UserDict
 from dataclasses import dataclass, field
-from typing import Dict, Iterator, List, Optional, Set, Union
+from typing import Dict, Iterator, List, Literal, Optional, Set, Union
 
 from .archive_parser import ProvNode
 from .parse import ProvDAG
-from .usage_drivers import (
-    DRIVER_CHOICES, DRIVER_NAMES, SUPPORTED_USAGE_DRIVERS, Usage,
-    build_header, build_footer
-)
+from .usage_drivers import Usage, build_header, build_footer
 from ..provenance import MetadataInfo
 
 from qiime2.sdk import PluginManager
 from qiime2.sdk.usage import UsageVariable
-from qiime2.sdk.util import camel_to_snake
+from qiime2.sdk.util import camel_to_snake, get_available_usage_drivers
 
 
 @dataclass
@@ -204,7 +201,7 @@ class NamespaceCollections:
 def replay_provenance(
     payload: Union[str, ProvDAG],
     out_fp: str,
-    usage_driver: DRIVER_CHOICES = 'python3',
+    usage_driver: Literal['python3', 'cli'] = 'python3',
     validate_checksums: bool = True,
     parse_metadata: bool = True,
     recurse: bool = False,
@@ -278,11 +275,19 @@ def replay_provenance(
             'use-recorded-metadata set to False.'
         )
 
+    available_drivers = get_available_usage_drivers()
+    if usage_driver not in available_drivers:
+        msg = (
+            f'The {usage_driver} usage driver is not available in the '
+            'current evnironment.'
+        )
+        raise ValueError(msg)
+
     dag = ProvDAG(
         payload, validate_checksums, parse_metadata, recurse, verbose
     )
     cfg = ReplayConfig(
-        use=SUPPORTED_USAGE_DRIVERS[usage_driver](),
+        use=available_drivers[usage_driver](),
         use_recorded_metadata=use_recorded_metadata,
         dump_recorded_metadata=dump_recorded_metadata,
         verbose=verbose, md_out_fp=md_out_fp
@@ -1200,7 +1205,8 @@ def replay_supplement(
             'cli': 'cli_replay.sh',
         }
 
-        for usage_driver in DRIVER_NAMES:
+        available_drivers = get_available_usage_drivers()
+        for usage_driver in available_drivers:
             md_out_fp = tempdir_path / 'recorded_metadata'
             rel_fp = filenames[usage_driver]
             tmp_fp = tempdir_path / rel_fp

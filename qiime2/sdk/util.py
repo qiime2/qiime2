@@ -7,6 +7,8 @@
 # ----------------------------------------------------------------------------
 
 import re
+from pkg_resources import iter_entry_points
+from typing import List, TYPE_CHECKING
 
 import qiime2.sdk
 import qiime2.core.type as qtype
@@ -16,6 +18,8 @@ from qiime2.core.type import (
     is_visualization_type, interrogate_collection_type, parse_primitive,
     is_union, is_metadata_column_type)
 
+if TYPE_CHECKING:
+    from qiime2.sdk.usage import UsageDriver
 
 __all__ = [
     'is_semantic_type', 'is_primitive_type', 'is_collection_type',
@@ -161,3 +165,20 @@ def validate_result_collection_keys(*args):
 
 def view_collection(collection, view_type):
     return {k: v.view(view_type) for k, v in collection.items()}
+
+
+def get_available_usage_drivers() -> List['UsageDriver']:
+    '''
+    Discovers all usage drivers registered under the entry point group
+    'qiime2.usage_drivers'.
+
+    Returns
+    -------
+    list of UsageDriver
+        The types of the available usage drivers, ready to be instantianted,
+        not usage driver instances themselves.
+    '''
+    return {
+        entry_point.name: entry_point.resolve() for entry_point in
+        iter_entry_points(group='qiime2.usage_drivers')
+    }
