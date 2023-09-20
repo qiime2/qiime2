@@ -108,7 +108,7 @@ class ReplayProvenanceTests(unittest.TestCase):
             out_fp = pathlib.Path(tmpdir) / 'rendered.txt'
             out_fn = str(out_fp)
             in_fn = self.tas.concated_ints_with_md.filepath
-            replay_provenance(in_fn, out_fn, 'python3')
+            replay_provenance(in_fn, out_fn, 'python3', md_out_fp=tmpdir)
 
             self.assertTrue(out_fp.is_file())
 
@@ -177,7 +177,7 @@ class ReplayProvenanceTests(unittest.TestCase):
             out_fp = pathlib.Path(tmpdir) / 'rendered.txt'
             out_fn = str(out_fp)
             dag = self.tas.concated_ints_with_md.dag
-            replay_provenance(dag, out_fn, 'python3')
+            replay_provenance(dag, out_fn, 'python3', md_out_fp=tmpdir)
 
             self.assertTrue(out_fp.is_file())
 
@@ -227,7 +227,7 @@ class ReplayProvenanceTests(unittest.TestCase):
         for driver in drivers:
             with tempfile.TemporaryDirectory() as tempdir:
                 out_path = pathlib.Path(tempdir) / 'ns_coll.txt'
-                replay_provenance(dag, out_path, driver)
+                replay_provenance(dag, out_path, driver, md_out_fp=tempdir)
 
                 with open(out_path, 'r') as fp:
                     rendered = fp.read()
@@ -241,7 +241,7 @@ class ReplayProvenanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             out_path = pathlib.Path(tempdir) / 'ns_coll.txt'
 
-            replay_provenance(dag, out_path, 'python3')
+            replay_provenance(dag, out_path, 'python3', md_out_fp=tempdir)
             with open(out_path, 'r') as fp:
                 rendered = fp.read()
             self.assertIn('ints=int_sequence1_0', rendered)
@@ -249,7 +249,7 @@ class ReplayProvenanceTests(unittest.TestCase):
             self.assertNotIn('optional1=', rendered)
             self.assertNotIn('num2=', rendered)
 
-            replay_provenance(dag, out_path, 'cli')
+            replay_provenance(dag, out_path, 'cli', md_out_fp=tempdir)
             with open(out_path, 'r') as fp:
                 rendered = fp.read()
             self.assertIn('--i-ints int-sequence1-0.qza', rendered)
@@ -267,7 +267,7 @@ class ReplayProvenanceTests(unittest.TestCase):
                 ValueError,
                 'ResultCollection was returned.*not.*supported'
             ):
-                replay_provenance(dag, out_path, 'python3')
+                replay_provenance(dag, out_path, 'python3', md_out_fp=tempdir)
 
             # NOTE: we have to try a little harder to catch the exception
             # raised when parsing inputs because there is no action in the
@@ -310,12 +310,13 @@ class MultiplePluginTests(unittest.TestCase):
     def test_multiple_plugins_in_provenance(self):
         fp = os.path.join(self.tempdir, 'splitted_ints.qza')
         self.splitted_ints.save(fp)
-        out_fp = os.path.join(self.tempdir, 'rendered.txt')
 
-        replay_provenance(fp, out_fp, 'python3')
+        with tempfile.TemporaryDirectory() as tempdir:
+            out_fp = os.path.join(tempdir, 'rendered.txt')
+            replay_provenance(fp, out_fp, 'python3', md_out_fp=tempdir)
 
-        with open(out_fp, 'r') as fp:
-            rendered = fp.read()
+            with open(out_fp, 'r') as fp:
+                rendered = fp.read()
 
         self.assertIn('from qiime2 import Artifact', rendered)
         self.assertIn(
@@ -379,7 +380,7 @@ class ReplayProvDAGDirectoryTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tempdir:
             out_path = pathlib.Path(tempdir) / 'rendered.txt'
-            replay_provenance(dir_dag, out_path, 'python3')
+            replay_provenance(dir_dag, out_path, 'python3', md_out_fp=tempdir)
             self.assertTrue(out_path.is_file())
 
             with open(out_path, 'r') as fp:
@@ -957,48 +958,53 @@ class BuildActionUsageTests(CustomAssertions):
 
     def test_build_action_usage_recorded_md(self):
         action = 'identity_with_metadata'
-        cfg = ReplayConfig(use=ReplayPythonUsage(),
-                           use_recorded_metadata=False, pm=self.pm)
+        with tempfile.TemporaryDirectory() as tempdir:
+            cfg = ReplayConfig(
+                use=ReplayPythonUsage(),
+                use_recorded_metadata=False,
+                pm=self.pm,
+                md_out_fp=tempdir
+            )
 
-        action_uuid = '8dae7a81-83ce-48db-9313-6e3131b0933c'
-        node_uuid = 'be472b56-d205-43ee-8180-474da575c4d5'
+            action_uuid = '8dae7a81-83ce-48db-9313-6e3131b0933c'
+            node_uuid = 'be472b56-d205-43ee-8180-474da575c4d5'
 
-        dag = self.tas.concated_ints_with_md.dag
-        node = dag.get_node_data(node_uuid)
+            dag = self.tas.concated_ints_with_md.dag
+            node = dag.get_node_data(node_uuid)
 
-        ns = NamespaceCollections()
-        mapping_var = CLIUsageVariable(
-            'imported_mapping_0', lambda: None, 'artifact', cfg.use
-        )
-        intseq_var_1 = CLIUsageVariable(
-            'imported_ints_0', lambda: None, 'artifact', cfg.use
-        )
-        intseq_var_2 = CLIUsageVariable(
-            'imported_ints_1', lambda: None, 'artifact', cfg.use
-        )
-        mapping_import_uuid = '8f71b73d-b028-4cbc-9894-738bdfe718bf'
-        intseq_import_uuid_1 = '0bb6d731-155a-4dd0-8a1e-98827bc4e0bf'
-        intseq_import_uuid_2 = 'e6b37bae-3a14-40f7-87b4-52cf5c7c7a1d'
-        ns.usg_vars = {
-            mapping_import_uuid: mapping_var,
-            intseq_import_uuid_1: intseq_var_1,
-            intseq_import_uuid_2: intseq_var_2,
-        }
+            ns = NamespaceCollections()
+            mapping_var = CLIUsageVariable(
+                'imported_mapping_0', lambda: None, 'artifact', cfg.use
+            )
+            intseq_var_1 = CLIUsageVariable(
+                'imported_ints_0', lambda: None, 'artifact', cfg.use
+            )
+            intseq_var_2 = CLIUsageVariable(
+                'imported_ints_1', lambda: None, 'artifact', cfg.use
+            )
+            mapping_import_uuid = '8f71b73d-b028-4cbc-9894-738bdfe718bf'
+            intseq_import_uuid_1 = '0bb6d731-155a-4dd0-8a1e-98827bc4e0bf'
+            intseq_import_uuid_2 = 'e6b37bae-3a14-40f7-87b4-52cf5c7c7a1d'
+            ns.usg_vars = {
+                mapping_import_uuid: mapping_var,
+                intseq_import_uuid_1: intseq_var_1,
+                intseq_import_uuid_2: intseq_var_2,
+            }
 
-        actions = ActionCollections(
-            std_actions={action_uuid: {node_uuid: 'out'}}
-        )
-        build_action_usage(node, ns, actions.std_actions, action_uuid, cfg)
-        rendered = cfg.use.render()
-        vars = ns.usg_vars
+            actions = ActionCollections(
+                std_actions={action_uuid: {node_uuid: 'out'}}
+            )
+            build_action_usage(node, ns, actions.std_actions, action_uuid, cfg)
+            rendered = cfg.use.render()
+            vars = ns.usg_vars
 
-        self.assertIsInstance(vars[node_uuid], UsageVariable)
-        self.assertEqual(vars[node_uuid].var_type, 'artifact')
-        self.assertEqual(vars[node_uuid].name, 'out_0')
+            self.assertIsInstance(vars[node_uuid], UsageVariable)
+            self.assertEqual(vars[node_uuid].var_type, 'artifact')
+            self.assertEqual(vars[node_uuid].name, 'out_0')
 
-        self.assertIn('from qiime2 import Metadata', rendered)
-        self.assertIn('.view(Metadata)', rendered)
-        self.assertIn(f'.{action}(', rendered)
+            self.assertIn('from qiime2 import Metadata', rendered)
+            self.assertIn('.view(Metadata)', rendered)
+            self.assertIn(f'.{action}(', rendered)
 
 
 class BibContentTests(unittest.TestCase):
