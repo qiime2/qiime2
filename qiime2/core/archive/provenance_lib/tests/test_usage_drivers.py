@@ -7,22 +7,6 @@ from qiime2.sdk.plugin_manager import PluginManager
 from qiime2.core.testing.type import IntSequence1
 
 from ..replay import replay_provenance
-from ..usage_drivers import ReplayCLIUsage
-
-
-class ReplayCLIUsageTests(unittest.TestCase):
-    def test_init_metadata(self):
-        use = ReplayCLIUsage()
-        var = use.init_metadata(name='testing', factory=lambda: None)
-        self.assertEqual(var.name, '<your metadata filepath>')
-        self.assertEqual(var.var_type, 'metadata')
-
-    def test_init_metadata_with_dumped_md_fn(self):
-        use = ReplayCLIUsage()
-        var = use.init_metadata(
-            name='testing', factory=lambda: None, dumped_md_fn='some_md')
-        self.assertEqual(var.var_type, 'metadata')
-        self.assertEqual(var.name, '"some_md.tsv"')
 
 
 class ReplayPythonUsageTests(unittest.TestCase):

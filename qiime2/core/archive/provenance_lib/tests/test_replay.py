@@ -1,7 +1,6 @@
 import bibtexparser as bp
 import networkx as nx
 import os
-import pandas as pd
 import pathlib
 import shutil
 import tempfile
@@ -22,14 +21,13 @@ from ..replay import (
     build_no_provenance_node_usage, build_import_usage, build_action_usage,
     build_usage_examples, collect_citations, dedupe_citations,
     dump_recorded_md_file, group_by_action, init_md_from_artifacts,
-    init_md_from_md_file, init_md_from_recorded_md, param_is_metadata_column,
-    replay_provenance, uniquify_action_name, replay_citations,
-    replay_supplement,
-    SUPPORTED_USAGE_DRIVERS,
+    init_md_from_md_file, init_md_from_recorded_md, replay_provenance,
+    uniquify_action_name, replay_citations, replay_supplement,
 )
 from .testing_utilities import (
     CustomAssertions, TestArtifacts
 )
+from ..usage_drivers import ReplayPythonUsage
 from ...provenance import MetadataInfo
 
 from qiime2.sdk.util import camel_to_snake
@@ -407,7 +405,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
            'build_no_provenance_node_usage')
     def test_build_usage_examples(self, n_p_builder, imp_builder, act_builder):
         dag = self.tas.concated_ints_with_md.dag
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
         build_usage_examples(dag, cfg)
 
@@ -428,7 +426,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
         ):
             dag = ProvDAG(self.tas.table_v0.filepath)
 
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
         build_usage_examples(dag, cfg)
 
@@ -455,7 +453,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
         ):
             dag = ProvDAG(mixed_dir)
 
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
         build_usage_examples(dag, cfg)
 
@@ -477,7 +475,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
         shutil.copy(self.tas.pipeline_viz.filepath, many_dir)
 
         dag = ProvDAG(many_dir)
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
         build_usage_examples(dag, cfg)
 
@@ -512,77 +510,11 @@ class MiscHelperFnTests(unittest.TestCase):
         duplicate = uniquify_action_name(p1, a1, ns)
         self.assertEqual(duplicate, 'dummy_plugin_action_jackson_1')
 
-    def test_param_is_metadata_col(self):
-        """
-        Assumes q2-demux and q2-diversity are installed in the active env.
-        """
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['cli'](),
-                           use_recorded_metadata=False, pm=self.pm)
-
-        actual = param_is_metadata_column(
-            cfg, 'metadata', 'dummy_plugin', 'identity_with_metadata_column'
-        )
-        self.assertTrue(actual)
-
-        actual = param_is_metadata_column(
-            cfg, 'int1', 'dummy_plugin', 'concatenate_ints'
-        )
-        self.assertFalse(actual)
-
-        with self.assertRaisesRegex(KeyError, "No action.*registered.*"):
-            param_is_metadata_column(
-                cfg, 'ints', 'dummy_plugin', 'young'
-            )
-
-        with self.assertRaisesRegex(KeyError, "No param.*registered.*"):
-            param_is_metadata_column(
-                cfg, 'thugger', 'dummy_plugin', 'split_ints'
-            )
-
-        with self.assertRaisesRegex(KeyError, "No plugin.*registered.*"):
-            param_is_metadata_column(
-                cfg, 'fake_param', 'dummy_hard', 'split_ints'
-            )
-
-    def test_dump_recorded_md_file_to_custom_dir(self):
-        dag = self.tas.int_seq_with_md.dag
-        uuid = self.tas.int_seq_with_md.uuid
-
-        out_dir = 'custom_dir'
-        provnode = dag.get_node_data(uuid)
-        og_md = provnode.metadata['metadata']
-        action_name = 'concatenate_ints_0'
-        md_id = 'metadata'
-        fn = 'metadata.tsv'
-
-        with tempfile.TemporaryDirectory() as tempdir:
-            cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['cli'](),
-                               pm=self.pm, md_out_fp=(tempdir + '/' + out_dir))
-            dump_recorded_md_file(cfg, provnode, action_name, md_id, fn)
-            out_path = pathlib.Path(tempdir) / out_dir / action_name / fn
-
-            self.assertTrue(out_path.is_file())
-
-            dumped_df = pd.read_csv(out_path, sep='\t')
-            pd.testing.assert_frame_equal(dumped_df, og_md)
-
-            # If we run it again, it shouldn't overwrite 'recorded_metadata',
-            # so we should have two files
-            action_name_2 = 'concatenate_ints_1'
-            md_id2 = 'metadata'
-            fn2 = 'metadata_1.tsv'
-            dump_recorded_md_file(cfg, provnode, action_name_2, md_id2, fn2)
-            out_path2 = pathlib.Path(tempdir) / out_dir / action_name_2 / fn2
-
-            # are both files where expected?
-            self.assertTrue(out_path.is_file())
-            self.assertTrue(out_path2.is_file())
-
     def test_dump_recorded_md_file_no_md(self):
         uuid = self.tas.table_v0.uuid
         dag = self.tas.table_v0.dag
 
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            pm=self.pm)
         provnode = dag.get_node_data(uuid)
         action_name = 'old_action'
@@ -707,7 +639,7 @@ class InitializerTests(unittest.TestCase):
         cls.tas.free()
 
     def test_init_md_from_artifacts_no_artifacts(self):
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
         usg_vars = {}
         # create dummy hash '0', not relevant here
@@ -720,7 +652,7 @@ class InitializerTests(unittest.TestCase):
     def test_init_md_from_artifacts_one_art(self):
         # This helper doesn't capture real data, so we're only smoke testing,
         # checking type, and confirming the repr looks reasonable.
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
 
         # We expect artifact vars have already been added to the namespace
@@ -740,7 +672,7 @@ class InitializerTests(unittest.TestCase):
     def test_init_md_from_artifacts_many(self):
         # This helper doesn't capture real data, so we're only smoke testing,
         # checking type, and confirming the repr looks reasonable.
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
 
         # We expect artifact vars have already been added to the namespace
@@ -772,7 +704,7 @@ class InitializerTests(unittest.TestCase):
         param_name = 'metadata'
 
         ns = UsageVarsDict({md_id: param_name})
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
 
         var = init_md_from_md_file(md_node, param_name, md_id, ns, cfg)
@@ -792,7 +724,7 @@ class InitializerTests(unittest.TestCase):
         param_name = 'metadata'
 
         ns = UsageVarsDict({var_name: param_name})
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
         md_fn = 'identity_with_metadata/metadata_0'
 
@@ -821,7 +753,7 @@ class InitializerTests(unittest.TestCase):
         param_name = 'metadata'
 
         ns = UsageVarsDict({var_name: param_name})
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
         md_fn = 'identity_with_metadata_column/metadata_0'
 
@@ -857,7 +789,7 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
 
     def test_build_no_provenance_node_usage_w_complete_node(self):
         ns = NamespaceCollections()
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
         uuid = self.tas.table_v0.uuid
         dag = self.tas.table_v0.dag
@@ -879,7 +811,7 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
 
     def test_build_no_provenance_node_usage_uuid_only_node(self):
         ns = NamespaceCollections()
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
 
         uuid = 'some-uuid'
@@ -901,7 +833,7 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
 
     def test_build_no_provenance_node_usage_many(self):
         ns = NamespaceCollections()
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
 
         # This function doesn't actually know about the DAG, so no need to join
@@ -947,7 +879,7 @@ class BuildImportUsageTests(CustomAssertions):
 
     def test_build_import_usage_python(self):
         ns = NamespaceCollections()
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
         dag = self.tas.concated_ints_v6.dag
         import_uuid = '8dea2f1a-2164-4a85-9f7d-e0641b1db22b'
@@ -967,28 +899,6 @@ class BuildImportUsageTests(CustomAssertions):
         self.assertRegex(rendered, import_node.type)
         self.assertRegex(rendered, '<your data here>')
 
-    def test_build_import_usage_cli(self):
-        ns = NamespaceCollections()
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['cli'](),
-                           use_recorded_metadata=False, pm=self.pm)
-        dag = self.tas.concated_ints_v6.dag
-        import_uuid = '8dea2f1a-2164-4a85-9f7d-e0641b1db22b'
-        import_node = dag.get_node_data(import_uuid)
-        c_to_s_type = camel_to_snake(import_node.type)
-        unq_var_nm = c_to_s_type + '_0'
-        build_import_usage(import_node, ns, cfg)
-        rendered = cfg.use.render()
-        vars = ns.usg_vars
-        out_name = vars[import_uuid].to_interface_name()
-
-        self.assertIsInstance(vars[import_uuid], UsageVariable)
-        self.assertEqual(vars[import_uuid].var_type, 'artifact')
-        self.assertEqual(vars[import_uuid].name, unq_var_nm)
-        self.assertRegex(rendered, r'qiime tools import \\')
-        self.assertRegex(rendered, f"  --type '{import_node.type}'")
-        self.assertRegex(rendered, "  --input-path <your data here>")
-        self.assertRegex(rendered, f"  --output-path {out_name}")
-
 
 class BuildActionUsageTests(CustomAssertions):
     @classmethod
@@ -1004,7 +914,7 @@ class BuildActionUsageTests(CustomAssertions):
     def test_build_action_usage_python(self):
         plugin = 'dummy_plugin'
         action = 'concatenate_ints'
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
 
         ns = NamespaceCollections()
@@ -1045,52 +955,9 @@ class BuildActionUsageTests(CustomAssertions):
             f'{out_name}, = dummy_plugin_actions.{action}(', rendered
         )
 
-    def test_build_action_usage_cli(self):
-        plugin = 'dummy-plugin'
-        action = 'concatenate-ints'
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['cli'](),
-                           use_recorded_metadata=False, pm=self.pm)
-
-        ns = NamespaceCollections()
-        import_var_1 = CLIUsageVariable(
-            'imported_ints_0', lambda: None, 'artifact', cfg.use
-        )
-        import_var_2 = CLIUsageVariable(
-            'imported_ints_1', lambda: None, 'artifact', cfg.use
-        )
-        import_uuid_1 = '8dea2f1a-2164-4a85-9f7d-e0641b1db22b'
-        import_uuid_2 = '7727c060-5384-445d-b007-b64b41a090ee'
-        ns.usg_vars = {
-            import_uuid_1: import_var_1,
-            import_uuid_2: import_var_2
-        }
-
-        dag = self.tas.concated_ints_v6.dag
-        action_uuid = '5035a60e-6f9a-40d4-b412-48ae52255bb5'
-        node_uuid = '6facaf61-1676-45eb-ada0-d530be678b27'
-        node = dag.get_node_data(node_uuid)
-        actions = ActionCollections(
-            std_actions={action_uuid: {node_uuid: 'concatenated_ints'}}
-        )
-        unique_var_name = node.action.output_name + '_0'
-        build_action_usage(node, ns, actions.std_actions, action_uuid, cfg)
-        rendered = cfg.use.render()
-        out_name = ns.usg_vars[node_uuid].to_interface_name()
-
-        vars = ns.usg_vars
-        self.assertIsInstance(vars[node_uuid], UsageVariable)
-        self.assertEqual(vars[node_uuid].var_type, 'artifact')
-        self.assertEqual(vars[node_uuid].name, unique_var_name)
-
-        self.assertIn(f'qiime {plugin} {action}', rendered)
-        self.assertIn('--i-ints1 imported-ints-0.qza', rendered)
-        self.assertIn('--i-ints3 imported-ints-1.qza', rendered)
-        self.assertIn('--p-int1 7', rendered)
-        self.assertIn(f'--o-concatenated-ints {out_name}', rendered)
-
     def test_build_action_usage_recorded_md(self):
         action = 'identity_with_metadata'
-        cfg = ReplayConfig(use=SUPPORTED_USAGE_DRIVERS['python3'](),
+        cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
 
         action_uuid = '8dae7a81-83ce-48db-9313-6e3131b0933c'
