@@ -1088,3 +1088,32 @@ dummy_plugin.methods.register_function(
 )
 
 import_module('qiime2.core.testing.mapped')
+
+
+other_plugin = Plugin(
+    name='other-plugin',
+    description='',
+    short_description='',
+    version='0.0.0-dev',
+    website='',
+    package='qiime2.core.archive.provenance_lib.tests',
+    user_support_text='',
+    citations=[]
+)
+other_plugin.methods.register_function(
+    function=concatenate_ints,
+    inputs={
+        'ints1': IntSequence1,
+        'ints2': IntSequence1,
+        'ints3': IntSequence1,
+    },
+    parameters={
+        'int1': Int,
+        'int2': Int
+    },
+    outputs={
+        'concatenated_ints': IntSequence1
+    },
+    name='Concatenate integers',
+    description='Some description'
+)

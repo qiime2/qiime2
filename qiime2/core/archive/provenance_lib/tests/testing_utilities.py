@@ -14,9 +14,6 @@ import qiime2
 from qiime2 import Artifact, Metadata, ResultCollection
 from qiime2.core.archive import Archiver
 from qiime2.sdk.plugin_manager import PluginManager
-from qiime2.plugin import Plugin, Int
-from qiime2.core.testing.type import IntSequence1
-from qiime2.core.testing.method import concatenate_ints
 
 
 @dataclass
@@ -315,32 +312,3 @@ def write_zip_archive(zfp, unzipped_dir):
                 path = os.path.join(root, file)
                 archive_name = os.path.relpath(path, start=unzipped_dir)
                 zf.write(path, arcname=archive_name)
-
-
-other_plugin = Plugin(
-    name='other-plugin',
-    description='',
-    short_description='',
-    version='0.0.0-dev',
-    website='',
-    package='qiime2.core.archive.provenance_lib.tests',
-    user_support_text='',
-    citations=[]
-)
-other_plugin.methods.register_function(
-    function=concatenate_ints,
-    inputs={
-        'ints1': IntSequence1,
-        'ints2': IntSequence1,
-        'ints3': IntSequence1,
-    },
-    parameters={
-        'int1': Int,
-        'int2': Int
-    },
-    outputs={
-        'concatenated_ints': IntSequence1
-    },
-    name='Concatenate integers',
-    description='Some description'
-)
