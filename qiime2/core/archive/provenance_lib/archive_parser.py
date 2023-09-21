@@ -171,7 +171,7 @@ class ProvNode:
                     for i in range(len(value)):
                         # Make these unique in case the single-item dicts get
                         # merged into a single dict downstream
-                        if type(value[i]) == dict:
+                        if type(value[i]) is dict:
                             unq_name, = value[i].keys()
                             v, = value[i].values()
                         else:
@@ -574,9 +574,9 @@ class ArchiveParser(Parser):
             An ArchiveParser object for the version of the artifact. One of
             ParserV[0-6].
         '''
-        if type(artifact) == pathlib.PosixPath:
+        if type(artifact) is pathlib.PosixPath:
             artifact = str(artifact)
-        if type(artifact) != str:
+        if type(artifact) is not str:
             raise TypeError(
                 'ArchiveParser expects a string or pathlib.PosixPath path to '
                 f'an archive, not an object of type {str(type(artifact))}.'
