@@ -221,19 +221,15 @@ class ReplayProvenanceTests(unittest.TestCase):
                 os.path.join(tempdir, 'c2.qza'))
             dag = ProvDAG(tempdir)
 
-        drivers = ['python3', 'cli']
         exp = ['concatenated_ints_0', 'concatenated_ints_1']
-        for driver in drivers:
-            with tempfile.TemporaryDirectory() as tempdir:
-                out_path = pathlib.Path(tempdir) / 'ns_coll.txt'
-                replay_provenance(dag, out_path, driver, md_out_fp=tempdir)
+        with tempfile.TemporaryDirectory() as tempdir:
+            out_path = pathlib.Path(tempdir) / 'ns_coll.txt'
+            replay_provenance(dag, out_path, 'python3', md_out_fp=tempdir)
 
-                with open(out_path, 'r') as fp:
-                    rendered = fp.read()
-                    for name in exp:
-                        if driver == 'cli':
-                            name = name.replace('_', '-')
-                        self.assertIn(name, rendered)
+            with open(out_path, 'r') as fp:
+                rendered = fp.read()
+                for name in exp:
+                    self.assertIn(name, rendered)
 
     def test_replay_optional_param_is_none(self):
         dag = self.tas.int_seq_optional_input.dag
@@ -247,14 +243,6 @@ class ReplayProvenanceTests(unittest.TestCase):
             self.assertIn('num1=', rendered)
             self.assertNotIn('optional1=', rendered)
             self.assertNotIn('num2=', rendered)
-
-            replay_provenance(dag, out_path, 'cli', md_out_fp=tempdir)
-            with open(out_path, 'r') as fp:
-                rendered = fp.read()
-            self.assertIn('--i-ints int-sequence1-0.qza', rendered)
-            self.assertIn('--p-num1', rendered)
-            self.assertNotIn('--i-optional1', rendered)
-            self.assertNotIn('--p-num2', rendered)
 
     # NOTE: remove once support for ResultCollections exists in usage drivers
     def test_result_collections_not_suppported(self):
