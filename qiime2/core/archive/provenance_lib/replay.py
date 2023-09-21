@@ -1060,7 +1060,7 @@ def dedupe_citations(citations: List[Dict]) -> List[Dict]:
                     'qiime2.core.archive.provenance_lib', '.'
                 )
                 root = os.path.abspath(root)
-                path = os.path.join(root, 'q2_citation.bib')
+                path = os.path.join(root, 'assets', 'q2_citation.bib')
                 with open(path) as bibtex_file:
                     q2_entry = bp.load(bibtex_file).entries.pop()
 
