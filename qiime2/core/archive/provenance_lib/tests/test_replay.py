@@ -11,7 +11,6 @@ import zipfile
 from qiime2 import Artifact
 from qiime2.sdk import PluginManager
 from qiime2.sdk.usage import Usage, UsageVariable
-from q2cli.core.usage import CLIUsageVariable
 from qiime2.plugins import ArtifactAPIUsageVariable
 
 from ..parse import ProvDAG
@@ -973,13 +972,13 @@ class BuildActionUsageTests(CustomAssertions):
             node = dag.get_node_data(node_uuid)
 
             ns = NamespaceCollections()
-            mapping_var = CLIUsageVariable(
+            mapping_var = ArtifactAPIUsageVariable(
                 'imported_mapping_0', lambda: None, 'artifact', cfg.use
             )
-            intseq_var_1 = CLIUsageVariable(
+            intseq_var_1 = ArtifactAPIUsageVariable(
                 'imported_ints_0', lambda: None, 'artifact', cfg.use
             )
-            intseq_var_2 = CLIUsageVariable(
+            intseq_var_2 = ArtifactAPIUsageVariable(
                 'imported_ints_1', lambda: None, 'artifact', cfg.use
             )
             mapping_import_uuid = '8f71b73d-b028-4cbc-9894-738bdfe718bf'
