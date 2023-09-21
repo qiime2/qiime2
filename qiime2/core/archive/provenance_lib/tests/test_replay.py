@@ -21,7 +21,7 @@ from ..replay import (
     build_usage_examples, collect_citations, dedupe_citations,
     dump_recorded_md_file, group_by_action, init_md_from_artifacts,
     init_md_from_md_file, init_md_from_recorded_md, replay_provenance,
-    uniquify_action_name, replay_citations, replay_supplement,
+    uniquify_action_name, replay_citations
 )
 from .testing_utilities import (
     CustomAssertions, TestArtifacts
@@ -1213,58 +1213,3 @@ class CitationsTests(unittest.TestCase):
             with open(out_fp, 'r') as fp:
                 written = fp.read()
                 self.assertIn(exp, written)
-
-
-class WriteReproducibilitySupplementTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
-        cls.pm = PluginManager()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.tas.free()
-
-    def test_replay_supplement_from_fp(self):
-        fp = self.tas.concated_ints_with_md.filepath
-        with tempfile.TemporaryDirectory() as tempdir:
-            out_fp = os.path.join(tempdir, 'supplement.zip')
-            replay_supplement(payload=fp, out_fp=out_fp)
-
-            self.assertTrue(zipfile.is_zipfile(out_fp))
-
-            exp = {
-                'python3_replay.py',
-                'cli_replay.sh',
-                'citations.bib',
-                'recorded_metadata/',
-                'recorded_metadata/dummy_plugin_identity_with_metadata_0/'
-                'metadata_0.tsv',
-            }
-            with zipfile.ZipFile(out_fp, 'r') as myzip:
-                namelist_set = set(myzip.namelist())
-                for item in exp:
-                    self.assertIn(item, namelist_set)
-
-    def test_replay_supplement_from_provdag(self):
-        dag = self.tas.concated_ints_with_md.dag
-
-        with tempfile.TemporaryDirectory() as tempdir:
-            out_fp = os.path.join(tempdir, 'supplement.zip')
-            replay_supplement(payload=dag, out_fp=out_fp)
-
-            self.assertTrue(zipfile.is_zipfile(out_fp))
-
-            exp = {
-                'python3_replay.py',
-                'cli_replay.sh',
-                'citations.bib',
-                'recorded_metadata/',
-                'recorded_metadata/dummy_plugin_identity_with_metadata_0/'
-                'metadata_0.tsv',
-            }
-            with zipfile.ZipFile(out_fp, 'r') as myzip:
-                namelist_set = set(myzip.namelist())
-                for item in exp:
-                    self.assertIn(item, namelist_set)
