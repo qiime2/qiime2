@@ -372,7 +372,7 @@ class TestDiagnosticUsage(TestCaseUsage):
 
         obs1, obs2 = use.render()
 
-        self.assertEqual('init_result_collection', obs1.source)
+        self.assertEqual('init_artifact_collection', obs1.source)
         self.assertEqual('action', obs2.source)
 
         self.assertEqual('ints', obs1.variable.name)

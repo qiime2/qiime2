@@ -181,8 +181,8 @@ class ArtifactAPIUsage(usage.Usage):
 
         return variable
 
-    def init_result_collection(self, name, factory):
-        variable = super().init_result_collection(name, factory)
+    def init_artifact_collection(self, name, factory):
+        variable = super().init_artifact_collection(name, factory)
 
         var_name = str(variable.to_interface_name())
         self.init_data_refs[var_name] = variable
