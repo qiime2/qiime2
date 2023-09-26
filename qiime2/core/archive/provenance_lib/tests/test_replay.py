@@ -26,7 +26,7 @@ from ..replay import (
     uniquify_action_name, replay_citations
 )
 from .testing_utilities import (
-    CustomAssertions, TestArtifacts
+    CustomAssertions, DummyArtifacts
 )
 from ..usage_drivers import ReplayPythonUsage
 from ...provenance import MetadataInfo
@@ -58,12 +58,12 @@ class UsageVarsDictTests(unittest.TestCase):
 class NamespaceCollectionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_add_usage_var_workflow(self):
@@ -75,7 +75,7 @@ class NamespaceCollectionTests(unittest.TestCase):
         - add the correctly-named UsageVariable to .usg_vars
         """
         use = Usage()
-        uuid = self.tas.concated_ints.uuid
+        uuid = self.das.concated_ints.uuid
         base_name = 'concated_ints'
         exp_name = base_name + '_0'
         ns = NamespaceCollections()
@@ -83,7 +83,7 @@ class NamespaceCollectionTests(unittest.TestCase):
         self.assertEqual(ns.usg_var_namespace[uuid], exp_name)
 
         def factory():  # pragma: no cover
-            return Artifact.load(self.tas.concated_ints.filepath)
+            return Artifact.load(self.das.concated_ints.filepath)
         u_var = use.init_artifact(ns.usg_var_namespace[uuid], factory)
         self.assertEqual(u_var.name, exp_name)
 
@@ -98,18 +98,18 @@ class NamespaceCollectionTests(unittest.TestCase):
 class ReplayProvenanceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_replay_from_fp(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             out_fp = pathlib.Path(tmpdir) / 'rendered.txt'
             out_fn = str(out_fp)
-            in_fn = self.tas.concated_ints_with_md.filepath
+            in_fn = self.das.concated_ints_with_md.filepath
             replay_provenance(in_fn, out_fn, 'python3', md_out_fp=tmpdir)
 
             self.assertTrue(out_fp.is_file())
@@ -133,7 +133,7 @@ class ReplayProvenanceTests(unittest.TestCase):
             self.assertIn('dummy_plugin_actions.concatenate_ints', rendered)
 
     def test_replay_from_fp_use_md_without_parse(self):
-        in_fp = self.tas.concated_ints.filepath
+        in_fp = self.das.concated_ints.filepath
         with self.assertRaisesRegex(
                 ValueError, "Metadata not parsed for replay. Re-run"
         ):
@@ -144,7 +144,7 @@ class ReplayProvenanceTests(unittest.TestCase):
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_replay_dump_md_without_parse(self):
-        in_fp = self.tas.concated_ints.filepath
+        in_fp = self.das.concated_ints.filepath
         with self.assertRaisesRegex(
                 ValueError, "(?s)Metadata not parsed,.*dump_recorded_meta"
         ):
@@ -154,7 +154,7 @@ class ReplayProvenanceTests(unittest.TestCase):
             )
 
     def test_replay_md_out_fp_without_parse(self):
-        in_fp = self.tas.concated_ints.filepath
+        in_fp = self.das.concated_ints.filepath
         with self.assertRaisesRegex(
                 ValueError, "(?s)Metadata not parsed,.*not.*metadata output"
         ):
@@ -165,7 +165,7 @@ class ReplayProvenanceTests(unittest.TestCase):
             )
 
     def test_replay_use_md_without_dump_md(self):
-        in_fp = self.tas.concated_ints.filepath
+        in_fp = self.das.concated_ints.filepath
         with self.assertRaisesRegex(
                 NotImplementedError,
                 "(?s)uses.*metadata.*must.*written to disk"
@@ -179,7 +179,7 @@ class ReplayProvenanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             out_fp = pathlib.Path(tmpdir) / 'rendered.txt'
             out_fn = str(out_fp)
-            dag = self.tas.concated_ints_with_md.dag
+            dag = self.das.concated_ints_with_md.dag
             replay_provenance(dag, out_fn, 'python3', md_out_fp=tmpdir)
 
             self.assertTrue(out_fp.is_file())
@@ -203,7 +203,7 @@ class ReplayProvenanceTests(unittest.TestCase):
             self.assertIn('dummy_plugin_actions.concatenate_ints', rendered)
 
     def test_replay_from_provdag_use_md_without_parse(self):
-        dag = ProvDAG(self.tas.concated_ints_with_md.filepath,
+        dag = ProvDAG(self.das.concated_ints_with_md.filepath,
                       validate_checksums=False,
                       parse_metadata=False)
         with self.assertRaisesRegex(
@@ -219,9 +219,9 @@ class ReplayProvenanceTests(unittest.TestCase):
         we're not uniquifying variable names properly.
         """
         with tempfile.TemporaryDirectory() as tempdir:
-            self.tas.concated_ints.artifact.save(
+            self.das.concated_ints.artifact.save(
                 os.path.join(tempdir, 'c1.qza'))
-            self.tas.other_concated_ints.artifact.save(
+            self.das.other_concated_ints.artifact.save(
                 os.path.join(tempdir, 'c2.qza'))
             dag = ProvDAG(tempdir)
 
@@ -236,7 +236,7 @@ class ReplayProvenanceTests(unittest.TestCase):
                     self.assertIn(name, rendered)
 
     def test_replay_optional_param_is_none(self):
-        dag = self.tas.int_seq_optional_input.dag
+        dag = self.das.int_seq_optional_input.dag
         with tempfile.TemporaryDirectory() as tempdir:
             out_path = pathlib.Path(tempdir) / 'ns_coll.txt'
 
@@ -250,7 +250,7 @@ class ReplayProvenanceTests(unittest.TestCase):
 
     # NOTE: remove once support for ResultCollections exists in usage drivers
     def test_result_collections_not_suppported(self):
-        dag = self.tas.int_from_collection.dag
+        dag = self.das.int_from_collection.dag
         with tempfile.TemporaryDirectory() as tempdir:
             out_path = pathlib.Path(tempdir) / 'rendered.txt'
 
@@ -331,12 +331,12 @@ class MultiplePluginTests(unittest.TestCase):
 class ReplayProvDAGDirectoryTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_directory_replay_multiple_imports(self):
@@ -348,7 +348,7 @@ class ReplayProvDAGDirectoryTests(unittest.TestCase):
         inner_dir = os.path.join(outer_dir, 'inner')
         os.makedirs(inner_dir)
 
-        for artifact in self.tas.single_int, self.tas.single_int2:
+        for artifact in self.das.single_int, self.das.single_int2:
             for dir_ in inner_dir, outer_dir:
                 artifact.artifact.save(
                     os.path.join(dir_, f'{artifact.name}.qza')
@@ -356,8 +356,8 @@ class ReplayProvDAGDirectoryTests(unittest.TestCase):
 
         dir_dag = ProvDAG(outer_dir)
         self.assertEqual(len(dir_dag._parsed_artifact_uuids), 2)
-        self.assertIn(self.tas.single_int.uuid, dir_dag.dag)
-        self.assertIn(self.tas.single_int2.uuid, dir_dag.dag)
+        self.assertIn(self.das.single_int.uuid, dir_dag.dag)
+        self.assertIn(self.das.single_int2.uuid, dir_dag.dag)
 
         exp_1 = (
             '(?s)from qiime2 import Artifact.*'
@@ -384,13 +384,13 @@ class ReplayProvDAGDirectoryTests(unittest.TestCase):
 class BuildUsageExamplesTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
         cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     @patch('qiime2.core.archive.provenance_lib.replay.build_action_usage')
     @patch('qiime2.core.archive.provenance_lib.replay.build_import_usage')
@@ -398,7 +398,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
            'build_no_provenance_node_usage')
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_build_usage_examples(self, n_p_builder, imp_builder, act_builder):
-        dag = self.tas.concated_ints_with_md.dag
+        dag = self.das.concated_ints_with_md.dag
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
         build_usage_examples(dag, cfg)
@@ -414,11 +414,11 @@ class BuildUsageExamplesTests(unittest.TestCase):
     def test_build_usage_examples_lone_v0(
             self, n_p_builder, imp_builder, act_builder
     ):
-        uuid = self.tas.table_v0.uuid
+        uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{uuid}.*prior.*incomplete'
         ):
-            dag = ProvDAG(self.tas.table_v0.filepath)
+            dag = ProvDAG(self.das.table_v0.filepath)
 
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
@@ -438,10 +438,10 @@ class BuildUsageExamplesTests(unittest.TestCase):
     ):
         mixed_dir = os.path.join(self.tempdir, 'mixed-dir')
         os.mkdir(mixed_dir)
-        shutil.copy(self.tas.table_v0.filepath, mixed_dir)
-        shutil.copy(self.tas.concated_ints_v6.filepath, mixed_dir)
+        shutil.copy(self.das.table_v0.filepath, mixed_dir)
+        shutil.copy(self.das.concated_ints_v6.filepath, mixed_dir)
 
-        v0_uuid = self.tas.table_v0.uuid
+        v0_uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'
         ):
@@ -464,9 +464,9 @@ class BuildUsageExamplesTests(unittest.TestCase):
 
         many_dir = os.path.join(self.tempdir, 'many-dir')
         os.mkdir(many_dir)
-        shutil.copy(self.tas.concated_ints_with_md.filepath, many_dir)
-        shutil.copy(self.tas.splitted_ints.filepath, many_dir)
-        shutil.copy(self.tas.pipeline_viz.filepath, many_dir)
+        shutil.copy(self.das.concated_ints_with_md.filepath, many_dir)
+        shutil.copy(self.das.splitted_ints.filepath, many_dir)
+        shutil.copy(self.das.pipeline_viz.filepath, many_dir)
 
         dag = ProvDAG(many_dir)
         cfg = ReplayConfig(use=ReplayPythonUsage(),
@@ -483,13 +483,13 @@ class BuildUsageExamplesTests(unittest.TestCase):
 class MiscHelperFnTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
         cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_uniquify_action_name(self):
         ns = set()
@@ -506,8 +506,8 @@ class MiscHelperFnTests(unittest.TestCase):
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_dump_recorded_md_file_no_md(self):
-        uuid = self.tas.table_v0.uuid
-        dag = self.tas.table_v0.dag
+        uuid = self.das.table_v0.uuid
+        dag = self.das.table_v0.dag
 
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            pm=self.pm)
@@ -525,18 +525,18 @@ class MiscHelperFnTests(unittest.TestCase):
 class GroupByActionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
         cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_gba_with_provenance(self):
         self.maxDiff = None
 
-        dag = self.tas.concated_ints_v6.dag
+        dag = self.das.concated_ints_v6.dag
         sorted_nodes = nx.topological_sort(dag.collapsed_view)
         actual = group_by_action(dag, sorted_nodes)
         exp = {
@@ -555,8 +555,8 @@ class GroupByActionTests(unittest.TestCase):
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_gba_no_provenance(self):
-        dag = self.tas.table_v0.dag
-        uuid = self.tas.table_v0.uuid
+        dag = self.das.table_v0.dag
+        uuid = self.das.table_v0.uuid
 
         sorted_nodes = nx.topological_sort(dag.collapsed_view)
         action_collections = group_by_action(dag, sorted_nodes)
@@ -566,10 +566,10 @@ class GroupByActionTests(unittest.TestCase):
     def test_gba_some_nodes_missing_provenance(self):
         mixed_dir = os.path.join(self.tempdir, 'mixed-dir')
         os.mkdir(mixed_dir)
-        shutil.copy(self.tas.table_v0.filepath, mixed_dir)
-        shutil.copy(self.tas.concated_ints_v6.filepath, mixed_dir)
+        shutil.copy(self.das.table_v0.filepath, mixed_dir)
+        shutil.copy(self.das.concated_ints_v6.filepath, mixed_dir)
 
-        v0_uuid = self.tas.table_v0.uuid
+        v0_uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'
         ):
@@ -596,14 +596,14 @@ class GroupByActionTests(unittest.TestCase):
 class InitializerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
         cls.pm = PluginManager()
 
-        with zipfile.ZipFile(cls.tas.concated_ints_with_md.filepath) as zf:
-            root_node_id = cls.tas.concated_ints_with_md.uuid
+        with zipfile.ZipFile(cls.das.concated_ints_with_md.filepath) as zf:
+            root_node_id = cls.das.concated_ints_with_md.uuid
             all_filenames = zf.namelist()
-            dag = cls.tas.concated_ints_with_md.dag
+            dag = cls.das.concated_ints_with_md.dag
             for node in dag.nodes:
                 md_path = os.path.join(
                     root_node_id, 'provenance', 'artifacts', node, 'action',
@@ -615,11 +615,11 @@ class InitializerTests(unittest.TestCase):
                     cls.non_md_node_id = node
 
         with zipfile.ZipFile(
-            cls.tas.concated_ints_with_md_column.filepath
+            cls.das.concated_ints_with_md_column.filepath
         ) as zf:
-            root_node_id = cls.tas.concated_ints_with_md_column.uuid
+            root_node_id = cls.das.concated_ints_with_md_column.uuid
             all_filenames = zf.namelist()
-            dag = cls.tas.concated_ints_with_md_column.dag
+            dag = cls.das.concated_ints_with_md_column.dag
             for node in dag.nodes:
                 md_path = os.path.join(
                     root_node_id, 'provenance', 'artifacts', node, 'action',
@@ -632,7 +632,7 @@ class InitializerTests(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_init_md_from_artifacts_no_artifacts(self):
         cfg = ReplayConfig(use=ReplayPythonUsage(),
@@ -695,7 +695,7 @@ class InitializerTests(unittest.TestCase):
                       rendered)
 
     def test_init_md_from_md_file(self):
-        dag = self.tas.concated_ints_with_md.dag
+        dag = self.das.concated_ints_with_md.dag
         md_node = dag.get_node_data(self.md_node_id)
         md_id = 'whatevs'
         param_name = 'metadata'
@@ -714,7 +714,7 @@ class InitializerTests(unittest.TestCase):
         )
 
     def test_init_md_from_recorded_md(self):
-        dag = self.tas.concated_ints_with_md.dag
+        dag = self.das.concated_ints_with_md.dag
         no_md_node = dag.get_node_data(self.non_md_node_id)
         md_node = dag.get_node_data(self.md_node_id)
         var_name = 'metadata_0'
@@ -743,7 +743,7 @@ class InitializerTests(unittest.TestCase):
                       'metadata_0', rendered)
 
     def test_init_md_from_recorded_mdc(self):
-        dag = self.tas.concated_ints_with_md_column.dag
+        dag = self.das.concated_ints_with_md_column.dag
         no_md_node = dag.get_node_data(self.non_mdc_node_id)
         md_node = dag.get_node_data(self.mdc_node_id)
         var_name = 'metadata_0'
@@ -776,20 +776,20 @@ class InitializerTests(unittest.TestCase):
 class BuildNoProvenanceUsageTests(CustomAssertions):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
         cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_build_no_provenance_node_usage_w_complete_node(self):
         ns = NamespaceCollections()
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
-        uuid = self.tas.table_v0.uuid
-        dag = self.tas.table_v0.dag
+        uuid = self.das.table_v0.uuid
+        dag = self.das.table_v0.dag
         v0_node = dag.get_node_data(uuid)
         build_no_provenance_node_usage(v0_node, uuid, ns, cfg)
 
@@ -837,8 +837,8 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
         )
 
         # This function doesn't actually know about the DAG, so no need to join
-        uuid = self.tas.table_v0.uuid
-        dag = self.tas.table_v0.dag
+        uuid = self.das.table_v0.uuid
+        dag = self.das.table_v0.dag
         v0_node = dag.get_node_data(uuid)
 
         dummy_node_uuid = uuid + '-dummy'
@@ -869,20 +869,20 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
 class BuildImportUsageTests(CustomAssertions):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
         cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_build_import_usage_python(self):
         ns = NamespaceCollections()
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
-        dag = self.tas.concated_ints_v6.dag
+        dag = self.das.concated_ints_v6.dag
         import_uuid = '8dea2f1a-2164-4a85-9f7d-e0641b1db22b'
         import_node = dag.get_node_data(import_uuid)
         c_to_s_type = camel_to_snake(import_node.type)
@@ -904,13 +904,13 @@ class BuildImportUsageTests(CustomAssertions):
 class BuildActionUsageTests(CustomAssertions):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
         cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_build_action_usage_python(self):
@@ -933,7 +933,7 @@ class BuildActionUsageTests(CustomAssertions):
             import_uuid_2: import_var_2
         }
 
-        dag = self.tas.concated_ints_v6.dag
+        dag = self.das.concated_ints_v6.dag
         action_uuid = '5035a60e-6f9a-40d4-b412-48ae52255bb5'
         node_uuid = '6facaf61-1676-45eb-ada0-d530be678b27'
         node = dag.get_node_data(node_uuid)
@@ -970,7 +970,7 @@ class BuildActionUsageTests(CustomAssertions):
             action_uuid = '8dae7a81-83ce-48db-9313-6e3131b0933c'
             node_uuid = 'be472b56-d205-43ee-8180-474da575c4d5'
 
-            dag = self.tas.concated_ints_with_md.dag
+            dag = self.das.concated_ints_with_md.dag
             node = dag.get_node_data(node_uuid)
 
             ns = NamespaceCollections()
@@ -1040,16 +1040,16 @@ class BibContentTests(unittest.TestCase):
 class CitationsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
         cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_dedupe_citations(self):
-        fn = os.path.join(self.tas.datadir, 'dupes.bib')
+        fn = os.path.join(self.das.datadir, 'dupes.bib')
         with open(fn) as bibtex_file:
             bib_db = bp.load(bibtex_file)
         deduped = dedupe_citations(bib_db.entries)
@@ -1132,7 +1132,7 @@ class CitationsTests(unittest.TestCase):
         self.assertEqual(len(deduped), 2)
 
     def test_collect_citations_no_dedupe(self):
-        dag = self.tas.concated_ints_v6.dag
+        dag = self.das.concated_ints_v6.dag
         exp_keys = {
             'framework|qiime2:2023.5.1|0',
             'action|dummy-plugin:0.0.0-dev|method:concatenate_ints|0',
@@ -1167,7 +1167,7 @@ class CitationsTests(unittest.TestCase):
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_collect_citations_dedupe(self):
-        dag = self.tas.concated_ints_v6.dag
+        dag = self.das.concated_ints_v6.dag
         exp_keys = {
             'framework|qiime2:2023.5.1|0',
             'action|dummy-plugin:0.0.0-dev|method:concatenate_ints|0',
@@ -1193,7 +1193,7 @@ class CitationsTests(unittest.TestCase):
         self.assertEqual(keys, exp_keys)
 
     def test_collect_citations_no_prov(self):
-        dag = self.tas.table_v0.dag
+        dag = self.das.table_v0.dag
 
         exp_keys = set()
         citations = collect_citations(dag)
@@ -1202,7 +1202,7 @@ class CitationsTests(unittest.TestCase):
         self.assertEqual(keys, exp_keys)
 
     def test_replay_citations(self):
-        dag = self.tas.concated_ints_v6.dag
+        dag = self.das.concated_ints_v6.dag
         exp_keys = {
             'framework|qiime2:2023.5.1|0',
             'action|dummy-plugin:0.0.0-dev|method:concatenate_ints|0',
@@ -1220,7 +1220,7 @@ class CitationsTests(unittest.TestCase):
                     self.assertIn(key, written)
 
     def test_replay_citations_no_prov(self):
-        dag = self.tas.table_v0.dag
+        dag = self.das.table_v0.dag
         exp = "No citations were registered"
         with tempfile.TemporaryDirectory() as tempdir:
             out_fp = os.path.join(tempdir, 'citations.bib')

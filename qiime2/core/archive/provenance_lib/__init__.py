@@ -21,10 +21,10 @@ from .replay import (
 )
 from .util import get_root_uuid, get_nonroot_uuid
 from .usage_drivers import ReplayPythonUsage
-from .tests.testing_utilities import TestArtifacts
+from .tests.testing_utilities import DummyArtifacts
 
 __all__ = [
     'ProvDAG', 'archive_not_parsed', 'get_root_uuid', 'get_nonroot_uuid',
     'replay_provenance', 'replay_citations', 'replay_supplement',
-    'ReplayPythonUsage', 'TestArtifacts'
+    'ReplayPythonUsage', 'DummyArtifacts'
 ]

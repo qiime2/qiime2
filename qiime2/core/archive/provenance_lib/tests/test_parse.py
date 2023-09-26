@@ -23,7 +23,7 @@ from ..archive_parser import (
 )
 
 from .testing_utilities import (
-    is_root_provnode_data, generate_archive_with_file_removed, TestArtifacts
+    is_root_provnode_data, generate_archive_with_file_removed, DummyArtifacts
 )
 
 from qiime2 import Artifact
@@ -33,12 +33,12 @@ from qiime2.core.archive.archiver import ChecksumDiff
 class ProvDAGTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def save_artifact_to_dir(self, artifact, directory):
         dir_fp = os.path.join(self.tempdir, directory)
@@ -52,58 +52,58 @@ class ProvDAGTests(unittest.TestCase):
         return dir_fp
 
     def test_number_of_nodes(self):
-        num_single_int_nodes = len(self.tas.single_int.dag.nodes)
+        num_single_int_nodes = len(self.das.single_int.dag.nodes)
         self.assertEqual(num_single_int_nodes, 1)
 
-        num_int_seq1_nodes = len(self.tas.int_seq1.dag.nodes)
+        num_int_seq1_nodes = len(self.das.int_seq1.dag.nodes)
         self.assertEqual(num_int_seq1_nodes, 1)
 
-        num_concated_ints_nodes = len(self.tas.concated_ints.dag.nodes)
+        num_concated_ints_nodes = len(self.das.concated_ints.dag.nodes)
         self.assertEqual(num_concated_ints_nodes, 3)
 
     def test_number_of_nodes_pipeline(self):
         # input int-seq, input mapping, pipeline output viz, aliased viz,
         # split int-seq
-        num_pipeline_viz_nodes = len(self.tas.pipeline_viz.dag.nodes)
+        num_pipeline_viz_nodes = len(self.das.pipeline_viz.dag.nodes)
         self.assertEqual(num_pipeline_viz_nodes, 5)
 
     def test_number_of_terminal_nodes(self):
-        num_int_seq1_term_nodes = len(self.tas.int_seq1.dag.terminal_nodes)
+        num_int_seq1_term_nodes = len(self.das.int_seq1.dag.terminal_nodes)
         self.assertEqual(num_int_seq1_term_nodes, 1)
 
         num_concated_ints_term_nodes = \
-            len(self.tas.concated_ints.dag.terminal_nodes)
+            len(self.das.concated_ints.dag.terminal_nodes)
         self.assertEqual(num_concated_ints_term_nodes, 1)
 
-        self.save_artifact_to_dir(self.tas.int_seq1, 'two-ints')
-        dir_fp = self.save_artifact_to_dir(self.tas.int_seq2, 'two-ints')
+        self.save_artifact_to_dir(self.das.int_seq1, 'two-ints')
+        dir_fp = self.save_artifact_to_dir(self.das.int_seq2, 'two-ints')
         dag = ProvDAG(dir_fp)
         self.assertEqual(len(dag.terminal_nodes), 2)
 
-        self.save_artifact_to_dir(self.tas.int_seq1, 'int-and-concated-ints')
-        dir_fp = self.save_artifact_to_dir(self.tas.concated_ints,
+        self.save_artifact_to_dir(self.das.int_seq1, 'int-and-concated-ints')
+        dir_fp = self.save_artifact_to_dir(self.das.concated_ints,
                                            'int-and-concated-ints')
         dag = ProvDAG(dir_fp)
         self.assertEqual(len(dag.terminal_nodes), 1)
 
     def test_number_of_terminal_nodes_pipeline(self):
         num_pipeline_viz_term_nodes = \
-            len(self.tas.pipeline_viz.dag.terminal_nodes)
+            len(self.das.pipeline_viz.dag.terminal_nodes)
         self.assertEqual(num_pipeline_viz_term_nodes, 1)
 
     def test_root_node_is_archive_root(self):
-        with zipfile.ZipFile(self.tas.concated_ints.filepath) as zf:
+        with zipfile.ZipFile(self.das.concated_ints.filepath) as zf:
             all_filenames = zf.namelist()
             root_filenames = filter(is_root_provnode_data, all_filenames)
             root_filepaths = [pathlib.Path(fp) for fp in root_filenames]
             exp_node = ProvNode(Config(), zf, root_filepaths)
-            act_terminal_node, *_ = self.tas.concated_ints.dag.terminal_nodes
+            act_terminal_node, *_ = self.das.concated_ints.dag.terminal_nodes
             self.assertEqual(exp_node, act_terminal_node)
 
     def test_number_of_actions(self):
-        self.assertEqual(self.tas.int_seq1.dag.dag.number_of_edges(), 0)
+        self.assertEqual(self.das.int_seq1.dag.dag.number_of_edges(), 0)
 
-        self.assertEqual(self.tas.concated_ints.dag.dag.number_of_edges(), 2)
+        self.assertEqual(self.das.concated_ints.dag.dag.number_of_edges(), 2)
 
     def test_number_of_actions_pipeline(self):
         # (1) one edge from input intseq to pipeline output viz
@@ -111,7 +111,7 @@ class ProvDAGTests(unittest.TestCase):
         # (3) one edge from input intseq to left split int
         # (4) one edge from left split int to true output viz, of which
         # pipeline output viz is an alias
-        self.assertEqual(self.tas.pipeline_viz.dag.dag.number_of_edges(), 4)
+        self.assertEqual(self.das.pipeline_viz.dag.dag.number_of_edges(), 4)
 
     def test_nonexistent_fp(self):
         fp = os.path.join(self.tempdir, 'does-not-exist.qza')
@@ -121,7 +121,7 @@ class ProvDAGTests(unittest.TestCase):
 
     def test_insufficient_permissions(self):
         fp = os.path.join(self.tempdir, 'int-seq-1-permissions-copy.qza')
-        self.tas.int_seq1.artifact.save(fp)
+        self.das.int_seq1.artifact.save(fp)
 
         os.chmod(fp, 0o000)
         err_msg = 'PermissionError.*Permission denied'
@@ -143,12 +143,12 @@ class ProvDAGTests(unittest.TestCase):
             ProvDAG(fp)
 
     def test_has_digraph(self):
-        self.assertIsInstance(self.tas.int_seq1.dag.dag, DiGraph)
+        self.assertIsInstance(self.das.int_seq1.dag.dag, DiGraph)
 
-        self.assertIsInstance(self.tas.concated_ints.dag.dag, DiGraph)
+        self.assertIsInstance(self.das.concated_ints.dag.dag, DiGraph)
 
     def test_dag_attributes(self):
-        dag = self.tas.int_seq1.dag
+        dag = self.das.int_seq1.dag
         terminal_node, *_ = dag.terminal_nodes
         self.assertIsInstance(terminal_node, ProvNode)
 
@@ -158,40 +158,40 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(dag.checksum_diff, empty_checksum_diff)
 
     def test_node_action_names(self):
-        int_seq1_node, *_ = self.tas.int_seq1.dag.terminal_nodes
+        int_seq1_node, *_ = self.das.int_seq1.dag.terminal_nodes
         self.assertEqual(int_seq1_node.action.action_name, 'import')
 
-        concated_ints_node, *_ = self.tas.concated_ints.dag.terminal_nodes
+        concated_ints_node, *_ = self.das.concated_ints.dag.terminal_nodes
         self.assertEqual(concated_ints_node.action.action_name,
                          'concatenate_ints')
 
     def test_node_action_names_pipeline(self):
-        pipeline_viz_node, *_ = self.tas.pipeline_viz.dag.terminal_nodes
+        pipeline_viz_node, *_ = self.das.pipeline_viz.dag.terminal_nodes
         self.assertEqual(pipeline_viz_node.action.action_name,
                          'typical_pipeline')
 
     def test_has_correct_edges(self):
-        edges = self.tas.concated_ints.dag.dag.edges
+        edges = self.das.concated_ints.dag.dag.edges
 
         self.assertIn(
-            (self.tas.int_seq1.uuid, self.tas.concated_ints.uuid), edges
+            (self.das.int_seq1.uuid, self.das.concated_ints.uuid), edges
         )
         self.assertIn(
-            (self.tas.int_seq2.uuid, self.tas.concated_ints.uuid), edges
+            (self.das.int_seq2.uuid, self.das.concated_ints.uuid), edges
         )
         self.assertNotIn(
-            (self.tas.int_seq1.uuid, self.tas.int_seq2.uuid), edges
+            (self.das.int_seq1.uuid, self.das.int_seq2.uuid), edges
         )
         self.assertNotIn(
-            (self.tas.concated_ints.uuid, self.tas.int_seq1.uuid), edges
+            (self.das.concated_ints.uuid, self.das.int_seq1.uuid), edges
         )
 
     def test_dag_repr(self):
-        exp_repr = f'ProvDAG.*Artifacts.*{self.tas.int_seq1.uuid}'
-        self.assertRegex(repr(self.tas.int_seq1.dag), exp_repr)
+        exp_repr = f'ProvDAG.*Artifacts.*{self.das.int_seq1.uuid}'
+        self.assertRegex(repr(self.das.int_seq1.dag), exp_repr)
 
     def test_node_repr(self):
-        int_seq1_node, *_ = self.tas.int_seq1.dag.terminal_nodes
+        int_seq1_node, *_ = self.das.int_seq1.dag.terminal_nodes
         uuid = int_seq1_node._uuid
         type_ = int_seq1_node.type
         format_ = int_seq1_node.format
@@ -200,27 +200,27 @@ class ProvDAGTests(unittest.TestCase):
         self.assertRegex(repr(int_seq1_node), exp_repr)
 
     def test_dag_eq(self):
-        dag = self.tas.int_seq1.dag
+        dag = self.das.int_seq1.dag
         self.assertEqual(dag, dag)
 
-        fp = self.tas.int_seq1.filepath
+        fp = self.das.int_seq1.filepath
         self.assertEqual(ProvDAG(fp), ProvDAG(fp))
 
         # because they are isomorphic
-        self.assertEqual(self.tas.int_seq1.dag, self.tas.int_seq2.dag)
+        self.assertEqual(self.das.int_seq1.dag, self.das.int_seq2.dag)
 
     def test_dag_not_eq(self):
-        self.assertNotEqual(self.tas.int_seq1.dag, self.tas.concated_ints.dag)
+        self.assertNotEqual(self.das.int_seq1.dag, self.das.concated_ints.dag)
 
     def test_captures_full_history(self):
-        concat_ints = self.tas.dp.actions['concatenate_ints']
+        concat_ints = self.das.dp.actions['concatenate_ints']
 
-        next_concated_ints = self.tas.concated_ints.artifact
+        next_concated_ints = self.das.concated_ints.artifact
         iterations = random.randint(1, 10)
         for _ in range(iterations):
             next_concated_ints, = concat_ints(next_concated_ints,
                                               next_concated_ints,
-                                              self.tas.int_seq2.artifact,
+                                              self.das.int_seq2.artifact,
                                               4, 6)
 
         fp = os.path.join(self.tempdir, 'very-concated-ints.qza')
@@ -232,52 +232,52 @@ class ProvDAGTests(unittest.TestCase):
     def test_get_outer_provenance_nodes(self):
         fp = os.path.join(self.tempdir, 'disconnected-provenances')
         os.mkdir(fp)
-        self.tas.concated_ints.artifact.save(
+        self.das.concated_ints.artifact.save(
             os.path.join(fp, 'concated-ints.qza'))
         unattached_int_seq = Artifact.import_data('IntSequence1', [8, 8])
         unattached_int_seq.save(os.path.join(fp, 'unattached-int-seq.qza'))
         dag = ProvDAG(fp)
 
-        actual = dag.get_outer_provenance_nodes(self.tas.concated_ints.uuid)
+        actual = dag.get_outer_provenance_nodes(self.das.concated_ints.uuid)
         exp = {
-            self.tas.concated_ints.uuid,
-            self.tas.int_seq1.uuid,
-            self.tas.int_seq2.uuid
+            self.das.concated_ints.uuid,
+            self.das.int_seq1.uuid,
+            self.das.int_seq2.uuid
         }
         self.assertEqual(actual, exp)
 
     def test_get_outer_provenance_nodes_pipeline(self):
-        dag = self.tas.pipeline_viz.dag
-        actual = dag.get_outer_provenance_nodes(self.tas.pipeline_viz.uuid)
+        dag = self.das.pipeline_viz.dag
+        actual = dag.get_outer_provenance_nodes(self.das.pipeline_viz.uuid)
         exp = {
-            self.tas.pipeline_viz.uuid,
-            self.tas.int_seq1.uuid,
-            self.tas.mapping1.uuid
+            self.das.pipeline_viz.uuid,
+            self.das.int_seq1.uuid,
+            self.das.mapping1.uuid
         }
         self.assertEqual(actual, exp)
 
     def test_collapsed_view(self):
-        view = self.tas.concated_ints.dag.collapsed_view
+        view = self.das.concated_ints.dag.collapsed_view
         self.assertIsInstance(view, DiGraph)
         self.assertEqual(len(view), 3)
 
         exp_nodes = [
-            self.tas.concated_ints.uuid,
-            self.tas.int_seq1.uuid,
-            self.tas.int_seq2.uuid
+            self.das.concated_ints.uuid,
+            self.das.int_seq1.uuid,
+            self.das.int_seq2.uuid
         ]
         for exp_node in exp_nodes:
             self.assertIn(exp_node, view.nodes)
 
     def test_collapsed_view_pipeline(self):
-        view = self.tas.pipeline_viz.dag.collapsed_view
+        view = self.das.pipeline_viz.dag.collapsed_view
         self.assertIsInstance(view, DiGraph)
         self.assertEqual(len(view), 3)
 
         exp_nodes = [
-            self.tas.pipeline_viz.uuid,
-            self.tas.int_seq1.uuid,
-            self.tas.mapping1.uuid
+            self.das.pipeline_viz.uuid,
+            self.das.int_seq1.uuid,
+            self.das.mapping1.uuid
         ]
         for exp_node in exp_nodes:
             self.assertIn(exp_node, view.nodes)
@@ -289,9 +289,9 @@ class ProvDAGTests(unittest.TestCase):
         and then build a ProvDAG with it to confirm the ProvDAG constructor
         handles broken checksums appropriately
         '''
-        uuid = self.tas.int_seq1.uuid
+        uuid = self.das.int_seq1.uuid
         with generate_archive_with_file_removed(
-            self.tas.int_seq1.filepath,
+            self.das.int_seq1.filepath,
             uuid,
             os.path.join('data', 'ints.txt')
         ) as altered_archive:
@@ -324,9 +324,9 @@ class ProvDAGTests(unittest.TestCase):
                              ['provenance/citations.bib'])
 
     def test_missing_checksums_md5(self):
-        uuid = self.tas.single_int.uuid
+        uuid = self.das.single_int.uuid
         with generate_archive_with_file_removed(
-            self.tas.single_int.filepath,
+            self.das.single_int.filepath,
             uuid,
             'checksums.md5'
         ) as altered_archive:
@@ -345,16 +345,16 @@ class ProvDAGTests(unittest.TestCase):
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_error_if_missing_node_files(self):
         path_prefix = os.path.join('provenance', 'artifacts')
-        root_uuid = self.tas.concated_ints.uuid
+        root_uuid = self.das.concated_ints.uuid
         for removed_file in [
             'metadata.yaml',
             'citations.bib',
             'VERSION',
             'action/action.yaml'
         ]:
-            for uuid in [self.tas.int_seq1.uuid, self.tas.int_seq2.uuid]:
+            for uuid in [self.das.int_seq1.uuid, self.das.int_seq2.uuid]:
                 with generate_archive_with_file_removed(
-                    self.tas.concated_ints.filepath,
+                    self.das.concated_ints.filepath,
                     root_uuid,
                     os.path.join(path_prefix, uuid, removed_file)
                 ) as altered_archive:
@@ -370,8 +370,8 @@ class ProvDAGTests(unittest.TestCase):
                         ProvDAG(altered_archive)
 
     def test_v0_archive(self):
-        dag = self.tas.table_v0.dag
-        uuid = self.tas.table_v0.uuid
+        dag = self.das.table_v0.dag
+        uuid = self.das.table_v0.uuid
 
         self.assertEqual(
             dag.provenance_is_valid, ValidationCode.PREDATES_CHECKSUMS
@@ -379,8 +379,8 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(dag.node_has_provenance(uuid), False)
 
     def test_v1_archive(self):
-        dag = self.tas.concated_ints_v1.dag
-        uuid = self.tas.concated_ints_v1.uuid
+        dag = self.das.concated_ints_v1.dag
+        uuid = self.das.concated_ints_v1.uuid
 
         self.assertEqual(
             dag.provenance_is_valid, ValidationCode.PREDATES_CHECKSUMS
@@ -388,8 +388,8 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(dag.node_has_provenance(uuid), False)
 
     def test_v2_archive(self):
-        dag = self.tas.concated_ints_v2.dag
-        uuid = self.tas.concated_ints_v2.uuid
+        dag = self.das.concated_ints_v2.dag
+        uuid = self.das.concated_ints_v2.uuid
 
         self.assertEqual(
             dag.provenance_is_valid, ValidationCode.PREDATES_CHECKSUMS
@@ -397,45 +397,45 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(dag.node_has_provenance(uuid), True)
 
     def test_v4_archive(self):
-        dag = self.tas.concated_ints_v4.dag
-        uuid = self.tas.concated_ints_v4.uuid
+        dag = self.das.concated_ints_v4.dag
+        uuid = self.das.concated_ints_v4.uuid
 
         self.assertEqual(
             dag.provenance_is_valid, ValidationCode.PREDATES_CHECKSUMS
         )
         self.assertEqual(dag.node_has_provenance(uuid), True)
 
-        with zipfile.ZipFile(self.tas.concated_ints_v4.filepath) as zf:
+        with zipfile.ZipFile(self.das.concated_ints_v4.filepath) as zf:
             citations_path = os.path.join(uuid, 'provenance', 'citations.bib')
             self.assertIn(citations_path, zf.namelist())
 
     def test_v5_archive(self):
-        dag = self.tas.concated_ints_v5.dag
-        uuid = self.tas.concated_ints_v5.uuid
+        dag = self.das.concated_ints_v5.dag
+        uuid = self.das.concated_ints_v5.uuid
 
         self.assertEqual(dag.provenance_is_valid, ValidationCode.VALID)
         self.assertEqual(dag.node_has_provenance(uuid), True)
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_artifact_passed_as_metadata_archive(self):
-        dag = self.tas.mapping1.dag
-        uuid = self.tas.mapping1.uuid
+        dag = self.das.mapping1.dag
+        uuid = self.das.mapping1.uuid
         self.assertEqual(dag.node_has_provenance(uuid), True)
         self.assertEqual(dag.get_node_data(uuid)._uuid, uuid)
         self.assertEqual(dag.get_node_data(uuid).type, 'Mapping')
 
     def test_artifact_with_collection_of_inputs(self):
-        dag = self.tas.merged_mappings.dag
-        uuid = self.tas.merged_mappings.uuid
+        dag = self.das.merged_mappings.dag
+        uuid = self.das.merged_mappings.uuid
         root_node = dag.get_node_data(uuid)
         self.assertEqual(root_node.type, 'Mapping')
 
-        exp_parents = {self.tas.mapping1.uuid, self.tas.mapping2.uuid}
+        exp_parents = {self.das.mapping1.uuid, self.das.mapping2.uuid}
         self.assertEqual(dag.predecessors(uuid), exp_parents)
 
     def test_provdag_initialized_from_provdag(self):
-        for dag in [self.tas.single_int.dag, self.tas.concated_ints.dag,
-                    self.tas.merged_mappings.dag]:
+        for dag in [self.das.single_int.dag, self.das.concated_ints.dag,
+                    self.das.merged_mappings.dag]:
             copied = ProvDAG(dag)
             self.assertEqual(dag, copied)
             self.assertIsNot(dag, copied)
@@ -445,11 +445,11 @@ class ProvDAGTests(unittest.TestCase):
             ProvDAG.union([])
 
         with self.assertRaisesRegex(ValueError, "pass.*two ProvDAGs"):
-            ProvDAG.union([self.tas.single_int.dag])
+            ProvDAG.union([self.das.single_int.dag])
 
     def test_union_identity(self):
-        dag = self.tas.single_int.dag
-        uuid = self.tas.single_int.uuid
+        dag = self.das.single_int.dag
+        uuid = self.das.single_int.uuid
         unioned_dag = ProvDAG.union([dag, dag])
 
         self.assertEqual(dag, unioned_dag)
@@ -462,10 +462,10 @@ class ProvDAGTests(unittest.TestCase):
 
     def test_union_two(self):
         unioned_dag = ProvDAG.union(
-            [self.tas.single_int.dag, self.tas.int_seq2.dag])
+            [self.das.single_int.dag, self.das.int_seq2.dag])
 
         self.assertEqual(
-            {self.tas.single_int.uuid, self.tas.int_seq2.uuid},
+            {self.das.single_int.uuid, self.das.int_seq2.uuid},
             unioned_dag._parsed_artifact_uuids
         )
         self.assertEqual(unioned_dag.provenance_is_valid, ValidationCode.VALID)
@@ -474,8 +474,8 @@ class ProvDAGTests(unittest.TestCase):
         self.assertRegex(
             rep, 'ProvDAG representing the provenance.*Artifacts.'
         )
-        self.assertRegex(rep, f'{self.tas.single_int.uuid}')
-        self.assertRegex(rep, f'{self.tas.int_seq2.uuid}')
+        self.assertRegex(rep, f'{self.das.single_int.uuid}')
+        self.assertRegex(rep, f'{self.das.int_seq2.uuid}')
 
         self.assertEqual(
             nx.number_weakly_connected_components(unioned_dag.dag), 2
@@ -483,15 +483,15 @@ class ProvDAGTests(unittest.TestCase):
 
     def test_union_many(self):
         unioned_dag = ProvDAG.union([
-            self.tas.single_int.dag,
-            self.tas.int_seq1.dag,
-            self.tas.mapping1.dag
+            self.das.single_int.dag,
+            self.das.int_seq1.dag,
+            self.das.mapping1.dag
         ])
         self.assertEqual(
             {
-                self.tas.single_int.uuid,
-                self.tas.int_seq1.uuid,
-                self.tas.mapping1.uuid
+                self.das.single_int.uuid,
+                self.das.int_seq1.uuid,
+                self.das.mapping1.uuid
             },
             unioned_dag._parsed_artifact_uuids
         )
@@ -501,9 +501,9 @@ class ProvDAGTests(unittest.TestCase):
         self.assertRegex(
             rep, 'ProvDAG representing the provenance.*Artifacts.*'
         )
-        self.assertRegex(rep, f'{self.tas.single_int.uuid}')
-        self.assertRegex(rep, f'{self.tas.int_seq1.uuid}')
-        self.assertRegex(rep, f'{self.tas.mapping1.uuid}')
+        self.assertRegex(rep, f'{self.das.single_int.uuid}')
+        self.assertRegex(rep, f'{self.das.int_seq1.uuid}')
+        self.assertRegex(rep, f'{self.das.mapping1.uuid}')
 
         self.assertEqual(
             nx.number_weakly_connected_components(unioned_dag.dag), 3
@@ -511,13 +511,13 @@ class ProvDAGTests(unittest.TestCase):
 
     def test_union_self_missing_checksums_md5(self):
         unioned_dag = ProvDAG.union(
-            [self.tas.dag_missing_md5, self.tas.single_int.dag]
+            [self.das.dag_missing_md5, self.das.single_int.dag]
         )
 
         self.assertRegex(
             repr(unioned_dag),
             'ProvDAG representing the provenance.*Artifacts.*'
-            f'{self.tas.single_int.uuid}'
+            f'{self.das.single_int.uuid}'
         )
 
         # The ChecksumDiff==None from the tinkered dag gets ignored...
@@ -537,12 +537,12 @@ class ProvDAGTests(unittest.TestCase):
         Tests unions of v5 dags where the other ProvDAG is missing its
         checksums.md5 but the calling ProvDAG is not
         '''
-        unioned_dag = ProvDAG.union([self.tas.single_int.dag,
-                                     self.tas.dag_missing_md5])
+        unioned_dag = ProvDAG.union([self.das.single_int.dag,
+                                     self.das.dag_missing_md5])
 
         self.assertRegex(repr(unioned_dag),
                          'ProvDAG representing the provenance.*Artifacts.*'
-                         f'{self.tas.single_int.uuid}')
+                         f'{self.das.single_int.uuid}')
 
         self.assertEqual(unioned_dag.checksum_diff, ChecksumDiff({}, {}, {}))
 
@@ -560,12 +560,12 @@ class ProvDAGTests(unittest.TestCase):
         checksums.md5 files.
         '''
         unioned_dag = ProvDAG.union(
-            [self.tas.dag_missing_md5, self.tas.dag_missing_md5])
+            [self.das.dag_missing_md5, self.das.dag_missing_md5])
 
         self.assertRegex(
             repr(unioned_dag),
             'ProvDAG representing the provenance.*Artifacts.*'
-            f'{self.tas.single_int.uuid}'
+            f'{self.das.single_int.uuid}'
         )
 
         # Both DAGs have NoneType checksum_diffs, so the ChecksumDiff==None
@@ -581,11 +581,11 @@ class ProvDAGTests(unittest.TestCase):
 
     def test_union_v0_v1_archives(self):
         unioned_dag = ProvDAG.union(
-            [self.tas.table_v0.dag, self.tas.concated_ints_v2.dag]
+            [self.das.table_v0.dag, self.das.concated_ints_v2.dag]
         )
 
-        self.assertIn(f'{self.tas.table_v0.uuid}', repr(unioned_dag))
-        self.assertIn(f'{self.tas.concated_ints_v2.uuid}', repr(unioned_dag))
+        self.assertIn(f'{self.das.table_v0.uuid}', repr(unioned_dag))
+        self.assertIn(f'{self.das.concated_ints_v2.uuid}', repr(unioned_dag))
 
         self.assertEqual(
             unioned_dag.provenance_is_valid, ValidationCode.PREDATES_CHECKSUMS
@@ -596,19 +596,19 @@ class ProvDAGTests(unittest.TestCase):
         )
 
         self.assertFalse(
-            unioned_dag.node_has_provenance(self.tas.table_v0.uuid)
+            unioned_dag.node_has_provenance(self.das.table_v0.uuid)
         )
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v2.uuid)
+            unioned_dag.node_has_provenance(self.das.concated_ints_v2.uuid)
         )
 
     def test_union_v3_v5_archives(self):
         unioned_dag = ProvDAG.union(
-            [self.tas.concated_ints_v3.dag, self.tas.concated_ints_v5.dag]
+            [self.das.concated_ints_v3.dag, self.das.concated_ints_v5.dag]
         )
 
-        self.assertIn(f'{self.tas.concated_ints_v3.uuid}', repr(unioned_dag))
-        self.assertIn(f'{self.tas.concated_ints_v5.uuid}', repr(unioned_dag))
+        self.assertIn(f'{self.das.concated_ints_v3.uuid}', repr(unioned_dag))
+        self.assertIn(f'{self.das.concated_ints_v5.uuid}', repr(unioned_dag))
 
         self.assertEqual(
             unioned_dag.provenance_is_valid,
@@ -620,19 +620,19 @@ class ProvDAGTests(unittest.TestCase):
         )
 
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v3.uuid)
+            unioned_dag.node_has_provenance(self.das.concated_ints_v3.uuid)
         )
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v5.uuid)
+            unioned_dag.node_has_provenance(self.das.concated_ints_v5.uuid)
         )
 
     def test_union_v5_v6_archives(self):
         unioned_dag = ProvDAG.union(
-            [self.tas.concated_ints_v5.dag, self.tas.concated_ints_v6.dag]
+            [self.das.concated_ints_v5.dag, self.das.concated_ints_v6.dag]
         )
 
-        self.assertIn(f'{self.tas.concated_ints_v5.uuid}', repr(unioned_dag))
-        self.assertIn(f'{self.tas.concated_ints_v6.uuid}', repr(unioned_dag))
+        self.assertIn(f'{self.das.concated_ints_v5.uuid}', repr(unioned_dag))
+        self.assertIn(f'{self.das.concated_ints_v6.uuid}', repr(unioned_dag))
 
         self.assertEqual(
             unioned_dag.provenance_is_valid, ValidationCode.VALID
@@ -643,10 +643,10 @@ class ProvDAGTests(unittest.TestCase):
         )
 
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v5.uuid)
+            unioned_dag.node_has_provenance(self.das.concated_ints_v5.uuid)
         )
         self.assertTrue(
-            unioned_dag.node_has_provenance(self.tas.concated_ints_v6.uuid)
+            unioned_dag.node_has_provenance(self.das.concated_ints_v6.uuid)
         )
 
     def test_dag_is_superset(self):
@@ -656,25 +656,25 @@ class ProvDAGTests(unittest.TestCase):
         and one weakly_connected_component.
         '''
         unioned_dag = ProvDAG.union([
-            self.tas.concated_ints.dag,
-            self.tas.int_seq1.dag,
-            self.tas.int_seq2.dag
+            self.das.concated_ints.dag,
+            self.das.int_seq1.dag,
+            self.das.int_seq2.dag
         ])
 
         self.assertIn(
-            self.tas.int_seq1.uuid, unioned_dag._parsed_artifact_uuids
+            self.das.int_seq1.uuid, unioned_dag._parsed_artifact_uuids
         )
         self.assertIn(
-            self.tas.int_seq2.uuid, unioned_dag._parsed_artifact_uuids
+            self.das.int_seq2.uuid, unioned_dag._parsed_artifact_uuids
         )
         self.assertIn(
-            self.tas.concated_ints.uuid, unioned_dag._parsed_artifact_uuids
+            self.das.concated_ints.uuid, unioned_dag._parsed_artifact_uuids
         )
         self.assertEqual(len(unioned_dag._parsed_artifact_uuids), 3)
 
         self.assertEqual(len(unioned_dag.terminal_uuids), 1)
         self.assertEqual(
-            unioned_dag.terminal_uuids, {self.tas.concated_ints.uuid}
+            unioned_dag.terminal_uuids, {self.das.concated_ints.uuid}
         )
 
         self.assertEqual(
@@ -683,9 +683,9 @@ class ProvDAGTests(unittest.TestCase):
 
         # == tests identity of objects in memory, so we need is_isomorphic
         self.assertTrue(
-            nx.is_isomorphic(self.tas.concated_ints.dag.dag, unioned_dag.dag)
+            nx.is_isomorphic(self.das.concated_ints.dag.dag, unioned_dag.dag)
         )
-        self.assertEqual(self.tas.concated_ints.dag, unioned_dag)
+        self.assertEqual(self.das.concated_ints.dag, unioned_dag)
 
     def test_three_artifacts_two_terminal_uuids(self):
         '''
@@ -695,23 +695,23 @@ class ProvDAGTests(unittest.TestCase):
         weakly_connected_component.
         '''
         unioned_dag = ProvDAG.union([
-            self.tas.int_seq1.dag,
-            self.tas.int_seq2.dag,
-            self.tas.concated_ints.dag,
-            self.tas.other_concated_ints.dag
+            self.das.int_seq1.dag,
+            self.das.int_seq2.dag,
+            self.das.concated_ints.dag,
+            self.das.other_concated_ints.dag
         ])
 
         self.assertIn(
-            self.tas.int_seq1.uuid, unioned_dag._parsed_artifact_uuids
+            self.das.int_seq1.uuid, unioned_dag._parsed_artifact_uuids
         )
         self.assertIn(
-            self.tas.int_seq2.uuid, unioned_dag._parsed_artifact_uuids
+            self.das.int_seq2.uuid, unioned_dag._parsed_artifact_uuids
         )
         self.assertIn(
-            self.tas.concated_ints.uuid, unioned_dag._parsed_artifact_uuids
+            self.das.concated_ints.uuid, unioned_dag._parsed_artifact_uuids
         )
         self.assertIn(
-            self.tas.other_concated_ints.uuid,
+            self.das.other_concated_ints.uuid,
             unioned_dag._parsed_artifact_uuids
         )
         self.assertEqual(len(unioned_dag._parsed_artifact_uuids), 4)
@@ -719,7 +719,7 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(len(unioned_dag.terminal_uuids), 2)
         self.assertEqual(
             unioned_dag.terminal_uuids,
-            {self.tas.concated_ints.uuid, self.tas.other_concated_ints.uuid}
+            {self.das.concated_ints.uuid, self.das.other_concated_ints.uuid}
         )
 
         self.assertEqual(
@@ -733,15 +733,15 @@ class ProvDAGTests(unittest.TestCase):
         missing the parent artifacts used to create them
         '''
         unioned_dag = ProvDAG.union([
-            self.tas.concated_ints.dag,
-            self.tas.other_concated_ints.dag
+            self.das.concated_ints.dag,
+            self.das.other_concated_ints.dag
         ])
 
         self.assertIn(
-            self.tas.concated_ints.uuid, unioned_dag._parsed_artifact_uuids
+            self.das.concated_ints.uuid, unioned_dag._parsed_artifact_uuids
         )
         self.assertIn(
-            self.tas.other_concated_ints.uuid,
+            self.das.other_concated_ints.uuid,
             unioned_dag._parsed_artifact_uuids
         )
         self.assertEqual(len(unioned_dag._parsed_artifact_uuids), 2)
@@ -749,7 +749,7 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(len(unioned_dag.terminal_uuids), 2)
         self.assertEqual(
             unioned_dag.terminal_uuids,
-            {self.tas.concated_ints.uuid, self.tas.other_concated_ints.uuid}
+            {self.das.concated_ints.uuid, self.das.other_concated_ints.uuid}
         )
 
         self.assertEqual(
@@ -758,12 +758,12 @@ class ProvDAGTests(unittest.TestCase):
 
     def test_no_checksum_validation_on_intact_artifact(self):
         no_validation_dag = ProvDAG(
-            self.tas.concated_ints.filepath, validate_checksums=False
+            self.das.concated_ints.filepath, validate_checksums=False
         )
 
         self.assertEqual(len(no_validation_dag.terminal_uuids), 1)
         terminal_uuid, *_ = no_validation_dag.terminal_uuids
-        self.assertEqual(terminal_uuid, self.tas.concated_ints.uuid)
+        self.assertEqual(terminal_uuid, self.das.concated_ints.uuid)
 
         self.assertEqual(len(no_validation_dag), 3)
         self.assertEqual(
@@ -774,8 +774,8 @@ class ProvDAGTests(unittest.TestCase):
 
     def test_no_checksum_validation_missing_checksums_md5(self):
         with generate_archive_with_file_removed(
-            self.tas.concated_ints.filepath,
-            self.tas.concated_ints.uuid,
+            self.das.concated_ints.filepath,
+            self.das.concated_ints.uuid,
             'checksums.md5'
         ) as altered_archive:
             dag = ProvDAG(altered_archive, validate_checksums=False)
@@ -788,16 +788,16 @@ class ProvDAGTests(unittest.TestCase):
 
     def test_no_checksum_validation_missing_node_files(self):
         path_prefix = os.path.join('provenance', 'artifacts')
-        root_uuid = self.tas.concated_ints.uuid
+        root_uuid = self.das.concated_ints.uuid
         for removed_file in [
             'metadata.yaml',
             'citations.bib',
             'VERSION',
             'action/action.yaml'
         ]:
-            for uuid in [self.tas.int_seq1.uuid, self.tas.int_seq2.uuid]:
+            for uuid in [self.das.int_seq1.uuid, self.das.int_seq2.uuid]:
                 with generate_archive_with_file_removed(
-                    self.tas.concated_ints.filepath,
+                    self.das.concated_ints.filepath,
                     root_uuid,
                     os.path.join(path_prefix, uuid, removed_file)
                 ) as altered_archive:
@@ -849,28 +849,28 @@ class EmptyParserTests(unittest.TestCase):
 class ProvDAGParserTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
+        cls.das = DummyArtifacts()
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_get_parser(self):
-        for archive in self.tas.all_artifact_versions:
+        for archive in self.das.all_artifact_versions:
             parser = ProvDAGParser.get_parser(archive.dag)
             self.assertIsInstance(parser, ProvDAGParser)
 
     def test_get_parser_input_data_not_a_provdag(self):
         fn = 'not_a_zip.txt'
-        fp = os.path.join(self.tas.tempdir, fn)
+        fp = os.path.join(self.das.tempdir, fn)
         with self.assertRaisesRegex(
                 TypeError, f"ProvDAGParser.*{fn} is not a ProvDAG"):
             ProvDAGParser.get_parser(fp)
 
     def test_parse_a_provdag(self):
         parser = ProvDAGParser()
-        for archive in self.tas.all_artifact_versions:
+        for archive in self.das.all_artifact_versions:
             dag = archive.dag
             parsed = parser.parse_prov(Config(), dag)
             self.assertIsInstance(parsed, ParserResults)
@@ -887,18 +887,18 @@ class ProvDAGParserTests(unittest.TestCase):
 class SelectParserTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_correct_parser_type(self):
         empty = select_parser(None)
         self.assertIsInstance(empty, EmptyParser)
 
-        archive = select_parser(self.tas.concated_ints.filepath)
+        archive = select_parser(self.das.concated_ints.filepath)
         self.assertIsInstance(archive, ArchiveParser)
 
         dag = ProvDAG()
@@ -923,7 +923,7 @@ class SelectParserTests(unittest.TestCase):
             ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
             ParserV6
         ]
-        for archive, parser in zip(self.tas.all_artifact_versions, parsers):
+        for archive, parser in zip(self.das.all_artifact_versions, parsers):
             handler = select_parser(archive.filepath)
             self.assertEqual(type(handler), parser)
 
@@ -931,17 +931,17 @@ class SelectParserTests(unittest.TestCase):
 class ParseProvenanceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
         cls.cfg = Config()
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_parse_with_artifact_parser(self):
-        uuid = self.tas.concated_ints.uuid
-        fp = self.tas.concated_ints.filepath
+        uuid = self.das.concated_ints.uuid
+        fp = self.das.concated_ints.filepath
         parser_results = parse_provenance(self.cfg, fp)
 
         self.assertIsInstance(parser_results, ParserResults)
@@ -962,8 +962,8 @@ class ParseProvenanceTests(unittest.TestCase):
         )
 
     def test_parse_with_provdag_parser(self):
-        uuid = self.tas.concated_ints.uuid
-        dag = self.tas.concated_ints.dag
+        uuid = self.das.concated_ints.uuid
+        dag = self.das.concated_ints.dag
         parser_results = parse_provenance(self.cfg, dag)
 
         self.assertIsInstance(parser_results, ParserResults)
@@ -996,12 +996,12 @@ class ParseProvenanceTests(unittest.TestCase):
         parse_dir_fp = os.path.join(self.tempdir, 'parse_dir')
         os.mkdir(parse_dir_fp)
         concated_ints_path = os.path.join(parse_dir_fp, 'concated-ints.qza')
-        shutil.copy(self.tas.concated_ints.filepath, concated_ints_path)
+        shutil.copy(self.das.concated_ints.filepath, concated_ints_path)
 
         res = parse_provenance(self.cfg, parse_dir_fp)
         self.assertEqual(self.cfg.recurse, False)
         self.assertIsInstance(res, ParserResults)
-        concated_ints_uuid = self.tas.concated_ints.uuid
+        concated_ints_uuid = self.das.concated_ints.uuid
         self.assertEqual(res.parsed_artifact_uuids, {concated_ints_uuid})
         self.assertEqual(len(res.prov_digraph), 3)
         self.assertEqual(res.provenance_is_valid, ValidationCode.VALID)
@@ -1011,13 +1011,13 @@ class ParseProvenanceTests(unittest.TestCase):
         inner_dir_path = os.path.join(parse_dir_fp, 'inner-dir')
         os.mkdir(inner_dir_path)
         mapping_path = os.path.join(inner_dir_path, 'mapping1.qza')
-        shutil.copy(self.tas.mapping1.filepath, mapping_path)
+        shutil.copy(self.das.mapping1.filepath, mapping_path)
 
         self.cfg.recurse = True
         self.assertEqual(self.cfg.recurse, True)
         res = parse_provenance(self.cfg, parse_dir_fp)
         self.assertIsInstance(res, ParserResults)
-        mapping_uuid = self.tas.mapping1.uuid
+        mapping_uuid = self.das.mapping1.uuid
         self.assertEqual(
             res.parsed_artifact_uuids, {concated_ints_uuid, mapping_uuid}
         )
@@ -1047,20 +1047,20 @@ class ParseProvenanceTests(unittest.TestCase):
 class DirectoryParserTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
         cls.cfg = Config()
 
         parse_dir_fp = os.path.join(cls.tempdir, 'parse-dir')
         os.mkdir(parse_dir_fp)
         concated_ints_path = os.path.join(parse_dir_fp, 'concated-ints.qza')
-        shutil.copy(cls.tas.concated_ints.filepath, concated_ints_path)
+        shutil.copy(cls.das.concated_ints.filepath, concated_ints_path)
         int_seq_path = os.path.join(parse_dir_fp, 'int-seq1.qza')
-        shutil.copy(cls.tas.int_seq1.filepath, int_seq_path)
+        shutil.copy(cls.das.int_seq1.filepath, int_seq_path)
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_parse_empty_dir(self):
         empty_dir_path = os.path.join(self.tempdir, 'empty-dir')
@@ -1089,7 +1089,7 @@ class DirectoryParserTests(unittest.TestCase):
         dag = ProvDAG(self.tempdir + '/parse-dir/', recurse=True)
         self.assertEqual(
             dag._parsed_artifact_uuids,
-            {self.tas.concated_ints.uuid, self.tas.int_seq1.uuid}
+            {self.das.concated_ints.uuid, self.das.int_seq1.uuid}
         )
 
     def test_directory_parser_idempotent_with_parse_and_union(self):
@@ -1109,7 +1109,7 @@ class DirectoryParserTests(unittest.TestCase):
         inner_dir = os.path.join(self.tempdir, 'parse-dir', 'inner-dir')
         os.mkdir(inner_dir)
         mapping_path = os.path.join(inner_dir, 'mapping1.qza')
-        shutil.copy(self.tas.mapping1.filepath, mapping_path)
+        shutil.copy(self.das.mapping1.filepath, mapping_path)
 
         mapping_dag = ProvDAG(mapping_path)
         inner_dir_union_dag = ProvDAG.union([
@@ -1125,37 +1125,37 @@ class DirectoryParserTests(unittest.TestCase):
         os.mkdir(inner_path)
 
         shutil.copy(
-            self.tas.mapping1.filepath,
+            self.das.mapping1.filepath,
             os.path.join(outer_path, 'mapping1.qza')
         )
         shutil.copy(
-            self.tas.mapping2.filepath,
+            self.das.mapping2.filepath,
             os.path.join(outer_path, 'mapping2.qza')
         )
         shutil.copy(
-            self.tas.mapping1.filepath,
+            self.das.mapping1.filepath,
             os.path.join(inner_path, 'duplicate-mapping1.qza')
         )
         shutil.copy(
-            self.tas.mapping2.filepath,
+            self.das.mapping2.filepath,
             os.path.join(inner_path, 'duplicate-mapping2.qza')
         )
 
         inner_dag = ProvDAG(inner_path)
         self.assertEqual(len(inner_dag), 2)
-        self.assertIn(self.tas.mapping1.uuid, inner_dag.dag)
-        self.assertIn(self.tas.mapping2.uuid, inner_dag.dag)
+        self.assertIn(self.das.mapping1.uuid, inner_dag.dag)
+        self.assertIn(self.das.mapping2.uuid, inner_dag.dag)
 
         outer_dag = ProvDAG(outer_path)
         self.assertEqual(len(inner_dag), 2)
-        self.assertIn(self.tas.mapping1.uuid, outer_dag.dag)
-        self.assertIn(self.tas.mapping2.uuid, outer_dag.dag)
+        self.assertIn(self.das.mapping1.uuid, outer_dag.dag)
+        self.assertIn(self.das.mapping2.uuid, outer_dag.dag)
         self.assertEqual(inner_dag, outer_dag)
 
         recursive_outer_dag = ProvDAG(outer_path, recurse=True)
         self.assertEqual(len(inner_dag), 2)
-        self.assertIn(self.tas.mapping1.uuid, recursive_outer_dag.dag)
-        self.assertIn(self.tas.mapping2.uuid, recursive_outer_dag.dag)
+        self.assertIn(self.das.mapping1.uuid, recursive_outer_dag.dag)
+        self.assertIn(self.das.mapping2.uuid, recursive_outer_dag.dag)
         self.assertEqual(inner_dag, outer_dag, recursive_outer_dag)
 
     def test_verbose(self):

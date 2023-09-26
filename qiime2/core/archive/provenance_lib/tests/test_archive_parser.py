@@ -12,7 +12,7 @@ import pytest
 
 from .._checksum_validator import ChecksumDiff, ValidationCode
 from .testing_utilities import (
-    TestArtifacts, is_root_provnode_data, write_zip_archive
+    DummyArtifacts, is_root_provnode_data, write_zip_archive
 )
 from ..archive_parser import (
     ProvNode, Config, _Action, _Citations, _ResultMetadata, ParserResults,
@@ -27,22 +27,22 @@ from qiime2.core.testing.util import ReallyEqualMixin
 class ParserVxTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_parse_root_md(self):
-        for artifact in self.tas.all_artifact_versions:
+        for artifact in self.das.all_artifact_versions:
             fp = artifact.filepath
             uuid = artifact.uuid
             parser = ArchiveParser.get_parser(fp)
             with zipfile.ZipFile(fp) as zf:
                 root_md = parser._parse_root_md(zf, uuid)
                 self.assertEqual(root_md.uuid, uuid)
-                if artifact == self.tas.table_v0:
+                if artifact == self.das.table_v0:
                     self.assertEqual(root_md.format, 'BIOMV210DirFmt')
                     self.assertEqual(root_md.type, 'FeatureTable[Frequency]')
                 else:
@@ -51,7 +51,7 @@ class ParserVxTests(unittest.TestCase):
                     self.assertEqual(root_md.type, 'IntSequence1')
 
     def test_parse_root_md_no_md_yaml(self):
-        for artifact in self.tas.all_artifact_versions:
+        for artifact in self.das.all_artifact_versions:
             parser = ArchiveParser.get_parser(artifact.filepath)
 
             with tempfile.TemporaryDirectory() as tempdir:
@@ -74,7 +74,7 @@ class ParserVxTests(unittest.TestCase):
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_populate_archive(self):
-        for artifact in self.tas.all_artifact_versions:
+        for artifact in self.das.all_artifact_versions:
             parser = ArchiveParser.get_parser(artifact.filepath)
             fp = artifact.filepath
             uuid = artifact.uuid
@@ -107,7 +107,7 @@ class ParserVxTests(unittest.TestCase):
                     res.prov_digraph.nodes[uuid]['node_data'], ProvNode)
 
     def test_validate_checksums(self):
-        for artifact in self.tas.all_artifact_versions:
+        for artifact in self.das.all_artifact_versions:
             parser = ArchiveParser.get_parser(artifact.filepath)
             with zipfile.ZipFile(artifact.filepath) as zf:
                 is_valid, diff = parser._validate_checksums(zf)
@@ -125,7 +125,7 @@ class ParserVxTests(unittest.TestCase):
         We want to confirm that parse_prov uses the local _validate_checksums
         even when it calls super().parse_prov() internally
         '''
-        for artifact in self.tas.all_artifact_versions:
+        for artifact in self.das.all_artifact_versions:
             parser = ArchiveParser.get_parser(artifact.filepath)
             if artifact.archive_version < 5:
                 parser._validate_checksums = MagicMock(
@@ -148,12 +148,12 @@ class ParserVxTests(unittest.TestCase):
 class ArchiveParserTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_get_parser(self):
         parsers = [
@@ -161,7 +161,7 @@ class ArchiveParserTests(unittest.TestCase):
             ParserV6
         ]
         for artifact, parser_version in zip(
-            self.tas.all_artifact_versions, parsers
+            self.das.all_artifact_versions, parsers
         ):
             parser = ArchiveParser.get_parser(artifact.filepath)
             self.assertEqual(type(parser), parser_version)
@@ -181,17 +181,17 @@ class ArchiveParserTests(unittest.TestCase):
 class ResultMetadataTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
-        cls.uuid = cls.tas.concated_ints.uuid
+        cls.uuid = cls.das.concated_ints.uuid
         md_fp = f'{cls.uuid}/provenance/metadata.yaml'
-        with zipfile.ZipFile(cls.tas.concated_ints.filepath) as zf:
+        with zipfile.ZipFile(cls.das.concated_ints.filepath) as zf:
             cls.root_md = _ResultMetadata(zf, md_fp)
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_smoke(self):
         self.assertEqual(self.root_md.uuid, self.uuid)
@@ -209,27 +209,27 @@ class ResultMetadataTests(unittest.TestCase):
 class ActionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
-        action_path = os.path.join(cls.tas.concated_ints_v6.uuid, 'provenance',
+        action_path = os.path.join(cls.das.concated_ints_v6.uuid, 'provenance',
                                    'action', 'action.yaml')
-        with zipfile.ZipFile(cls.tas.concated_ints_v6.filepath) as zf:
+        with zipfile.ZipFile(cls.das.concated_ints_v6.filepath) as zf:
             cls.concat_action = _Action(zf, action_path)
 
-        action_path = os.path.join(cls.tas.single_int.uuid, 'provenance',
+        action_path = os.path.join(cls.das.single_int.uuid, 'provenance',
                                    'action', 'action.yaml')
-        with zipfile.ZipFile(cls.tas.single_int.filepath) as zf:
+        with zipfile.ZipFile(cls.das.single_int.filepath) as zf:
             cls.import_action = _Action(zf, action_path)
 
-        action_path = os.path.join(cls.tas.pipeline_viz.uuid, 'provenance',
+        action_path = os.path.join(cls.das.pipeline_viz.uuid, 'provenance',
                                    'action', 'action.yaml')
-        with zipfile.ZipFile(cls.tas.pipeline_viz.filepath) as zf:
+        with zipfile.ZipFile(cls.das.pipeline_viz.filepath) as zf:
             cls.pipeline_action = _Action(zf, action_path)
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_action_id(self):
         exp = '5035a60e-6f9a-40d4-b412-48ae52255bb5'
@@ -359,18 +359,18 @@ class ActionTests(unittest.TestCase):
 class CitationsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
         cite_strs = ['cite_none', 'cite_one', 'cite_many']
         cls.bibs = [bib+'.bib' for bib in cite_strs]
         cls.zips = [
-            os.path.join(cls.tas.datadir, bib+'.zip') for bib in cite_strs
+            os.path.join(cls.das.datadir, bib+'.zip') for bib in cite_strs
         ]
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_empty_bib(self):
         with zipfile.ZipFile(self.zips[0]) as zf:
@@ -405,13 +405,13 @@ class CitationsTests(unittest.TestCase):
 class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
         # build root nodes for all archive format versions
         cfg = Config(parse_study_metadata=True)
         cls.nodes = {}
-        for artifact in cls.tas.all_artifact_versions:
+        for artifact in cls.das.all_artifact_versions:
             with zipfile.ZipFile(artifact.filepath) as zf:
                 all_filenames = zf.namelist()
                 root_md_fnames = filter(is_root_provnode_data, all_filenames)
@@ -419,10 +419,10 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
                 cls.nodes[str(artifact.archive_version)] = \
                     ProvNode(cfg, zf, root_md_fps)
 
-        with zipfile.ZipFile(cls.tas.concated_ints_with_md.filepath) as zf:
-            root_node_id = cls.tas.concated_ints_with_md.uuid
+        with zipfile.ZipFile(cls.das.concated_ints_with_md.filepath) as zf:
+            root_node_id = cls.das.concated_ints_with_md.uuid
             all_filenames = zf.namelist()
-            dag = cls.tas.concated_ints_with_md.dag
+            dag = cls.das.concated_ints_with_md.dag
             for node in dag.nodes:
                 md_path = os.path.join(
                     root_node_id, 'provenance', 'artifacts', node, 'action',
@@ -463,14 +463,14 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
             cls.root_node_dont_parse_md = ProvNode(cfg, zf, root_md_fps)
 
         # build a node with a collection as input
-        with zipfile.ZipFile(cls.tas.int_from_collection.filepath) as zf:
+        with zipfile.ZipFile(cls.das.int_from_collection.filepath) as zf:
             all_filenames = zf.namelist()
             root_md_fnames = filter(is_root_provnode_data, all_filenames)
             root_md_fps = [pathlib.Path(fp) for fp in root_md_fnames]
             cls.input_collection_node = ProvNode(cfg, zf, root_md_fps)
 
         # build a node with an optional input that defaults to None
-        with zipfile.ZipFile(cls.tas.int_seq_optional_input.filepath) as zf:
+        with zipfile.ZipFile(cls.das.int_seq_optional_input.filepath) as zf:
             all_filenames = zf.namelist()
             root_md_fnames = filter(is_root_provnode_data, all_filenames)
             root_md_fps = [pathlib.Path(fp) for fp in root_md_fnames]
@@ -478,7 +478,7 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     def test_smoke(self):
         self.assertTrue(True)
@@ -534,18 +534,18 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
         self.assertReallyNotEqual(self.nodes['5'], mock_node)
 
         # Matching UUIDs insufficient if classes differ
-        mock_node._uuid = self.tas.concated_ints_v5.uuid
+        mock_node._uuid = self.das.concated_ints_v5.uuid
         self.assertReallyNotEqual(self.nodes['5'], mock_node)
         mock_node.__class__ = ProvNode
         self.assertReallyEqual(self.nodes['5'], mock_node)
 
     def test_is_hashable(self):
-        exp_hash = hash(self.tas.concated_ints_v5.uuid)
+        exp_hash = hash(self.das.concated_ints_v5.uuid)
         self.assertReallyEqual(hash(self.nodes['5']), exp_hash)
 
     def test_str(self):
         for node_vzn, artifact in zip(
-            self.nodes, self.tas.all_artifact_versions
+            self.nodes, self.das.all_artifact_versions
         ):
             uuid = artifact.uuid
             self.assertRegex(str(self.nodes[node_vzn]),
@@ -553,7 +553,7 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
 
     def test_repr(self):
         for node_vzn, artifact in zip(
-            self.nodes, self.tas.all_artifact_versions
+            self.nodes, self.das.all_artifact_versions
         ):
             uuid = artifact.uuid
             self.assertRegex(repr(self.nodes[node_vzn]),
@@ -653,8 +653,8 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
         self.assertEqual(len(actual_parent_names), 2)
 
     def test_parents_for_import_node(self):
-        uuid = self.tas.single_int.uuid
-        with zipfile.ZipFile(self.tas.single_int.filepath) as zf:
+        uuid = self.das.single_int.uuid
+        with zipfile.ZipFile(self.das.single_int.filepath) as zf:
             required_fps = ('VERSION', 'metadata.yaml', 'action.yaml')
             import_node_fps = [
                 pathlib.Path(fp) for fp in zf.namelist()

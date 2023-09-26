@@ -119,7 +119,7 @@ class TestImports(unittest.TestCase):
             importlib.reload(qiime2.plugins.dummy_plugin)
 
 
-class TestArtifactAPIUsage(unittest.TestCase):
+class DummyArtifactAPIUsage(unittest.TestCase):
     def setUp(self):
         # TODO standardize temporary directories created by QIIME 2
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')

@@ -4,19 +4,19 @@ import zipfile
 
 import pytest
 
-from .testing_utilities import CustomAssertions, TestArtifacts
+from .testing_utilities import CustomAssertions, DummyArtifacts
 from ..util import get_root_uuid, get_nonroot_uuid
 
 
 class GetRootUUIDTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tas = TestArtifacts()
-        cls.tempdir = cls.tas.tempdir
+        cls.das = DummyArtifacts()
+        cls.tempdir = cls.das.tempdir
 
     @classmethod
     def tearDownClass(cls):
-        cls.tas.free()
+        cls.das.free()
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_get_root_uuid(self):
@@ -30,7 +30,7 @@ class GetRootUUIDTests(unittest.TestCase):
             '6': '6facaf61-1676-45eb-ada0-d530be678b27',
         }
         for artifact, exp_uuid in zip(
-            self.tas.all_artifact_versions, exp_root_uuids.values()
+            self.das.all_artifact_versions, exp_root_uuids.values()
         ):
             with zipfile.ZipFile(artifact.filepath) as zfh:
                 self.assertEqual(exp_uuid, get_root_uuid(zfh))

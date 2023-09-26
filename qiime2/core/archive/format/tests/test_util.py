@@ -17,7 +17,7 @@ from qiime2.core.archive.format.util import artifact_version
 from qiime2.sdk import Artifact
 
 
-class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
+class DummyArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
     def setUp(self):
         prefix = "qiime2-test-temp-"
         self.temp_dir = tempfile.TemporaryDirectory(prefix=prefix)

@@ -17,7 +17,7 @@ from qiime2.sdk.plugin_manager import PluginManager
 
 
 @dataclass
-class TestArtifact:
+class DummyArtifact:
     name: str
     artifact: Artifact
     uuid: str
@@ -26,7 +26,7 @@ class TestArtifact:
     archive_version: int = 6
 
 
-class TestArtifacts:
+class DummyArtifacts:
     def __init__(self):
         self.pm = PluginManager()
         self.dp = self.pm.plugins['dummy-plugin']
@@ -60,7 +60,7 @@ class TestArtifacts:
             artifact = locals()[name]
             fp = os.path.join(self.tempdir, f'{name}.qza')
             artifact.save(fp)
-            test_artifact = TestArtifact(
+            test_artifact = DummyArtifact(
                 name, artifact, str(artifact.uuid), fp, ProvDAG(fp)
             )
             setattr(self, name, test_artifact)
@@ -139,7 +139,7 @@ class TestArtifacts:
 
             fp = os.path.join(self.tempdir, f'{name}{ext}')
             artifact.save(fp)
-            test_artifact = TestArtifact(
+            test_artifact = DummyArtifact(
                 name, artifact, str(artifact.uuid), fp, ProvDAG(fp)
             )
             setattr(self, name, test_artifact)
@@ -176,8 +176,8 @@ class TestArtifacts:
             uuid = terminal_node._uuid
 
             name = filename.replace('-', '_').replace('.qza', '')
-            ta = TestArtifact(name, a, uuid, fp, dag, version)
-            setattr(self, name, ta)
+            da = DummyArtifact(name, a, uuid, fp, dag, version)
+            setattr(self, name, da)
 
     def init_artifact_with_md_in_provenance(self):
         dirname = 'concated-ints-with-md'
@@ -193,8 +193,8 @@ class TestArtifacts:
         terminal_node, *_ = dag.terminal_nodes
         uuid = terminal_node._uuid
         name = filename.replace('-', '_').replace('.qza', '')
-        ta = TestArtifact(name, a, uuid, fp, dag, 6)
-        setattr(self, name, ta)
+        da = DummyArtifact(name, a, uuid, fp, dag, 6)
+        setattr(self, name, da)
 
     def init_no_checksum_dag(self):
         '''
