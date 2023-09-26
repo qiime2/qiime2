@@ -15,8 +15,6 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-import pytest
-
 from qiime2 import Artifact
 from qiime2.sdk import PluginManager
 from qiime2.sdk.usage import Usage, UsageVariable
@@ -72,7 +70,6 @@ class NamespaceCollectionTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.das.free()
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_add_usage_var_workflow(self):
         """
         Smoke tests a common workflow with this data structure
@@ -149,7 +146,6 @@ class ReplayProvenanceTests(unittest.TestCase):
                 parse_metadata=False, use_recorded_metadata=True
             )
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_replay_dump_md_without_parse(self):
         in_fp = self.das.concated_ints.filepath
         with self.assertRaisesRegex(
@@ -345,7 +341,6 @@ class ReplayProvDAGDirectoryTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.das.free()
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_directory_replay_multiple_imports(self):
         """
         The directory being parsed here contains two pairs of duplicates,
@@ -403,7 +398,6 @@ class BuildUsageExamplesTests(unittest.TestCase):
     @patch('qiime2.core.archive.provenance_lib.replay.build_import_usage')
     @patch('qiime2.core.archive.provenance_lib.replay.'
            'build_no_provenance_node_usage')
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_build_usage_examples(self, n_p_builder, imp_builder, act_builder):
         dag = self.das.concated_ints_with_md.dag
         cfg = ReplayConfig(use=ReplayPythonUsage(),
@@ -511,7 +505,6 @@ class MiscHelperFnTests(unittest.TestCase):
         duplicate = uniquify_action_name(p1, a1, ns)
         self.assertEqual(duplicate, 'dummy_plugin_action_jackson_1')
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_dump_recorded_md_file_no_md(self):
         uuid = self.das.table_v0.uuid
         dag = self.das.table_v0.dag
@@ -560,7 +553,6 @@ class GroupByActionTests(unittest.TestCase):
         self.assertEqual(actual.std_actions, exp)
         self.assertEqual(actual.no_provenance_nodes, [])
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_gba_no_provenance(self):
         dag = self.das.table_v0.dag
         uuid = self.das.table_v0.uuid
@@ -672,7 +664,6 @@ class InitializerTests(unittest.TestCase):
         self.assertIn('from qiime2 import Metadata', rendered)
         self.assertIn('thing1_a_0_md = thing1.view(Metadata)', rendered)
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_init_md_from_artifacts_many(self):
         # This helper doesn't capture real data, so we're only smoke testing,
         # checking type, and confirming the repr looks reasonable.
@@ -835,7 +826,6 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
         exp_v0 = f'# {uuid}   _no_provenance_node_0_'
         self.assertRegex(rendered, exp_v0)
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_build_no_provenance_node_usage_many(self):
         ns = NamespaceCollections()
         cfg = ReplayConfig(
@@ -884,7 +874,6 @@ class BuildImportUsageTests(CustomAssertions):
     def tearDownClass(cls):
         cls.das.free()
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_build_import_usage_python(self):
         ns = NamespaceCollections()
         cfg = ReplayConfig(use=ReplayPythonUsage(),
@@ -919,7 +908,6 @@ class BuildActionUsageTests(CustomAssertions):
     def tearDownClass(cls):
         cls.das.free()
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_build_action_usage_python(self):
         plugin = 'dummy_plugin'
         action = 'concatenate_ints'
@@ -1172,7 +1160,6 @@ class CitationsTests(unittest.TestCase):
         self.assertEqual(len(keys), len(exp_keys))
         self.assertEqual(keys, exp_keys)
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_collect_citations_dedupe(self):
         dag = self.das.concated_ints_v6.dag
         exp_keys = {

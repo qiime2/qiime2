@@ -13,6 +13,7 @@ import unittest
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Generator
+import warnings
 from zipfile import ZipFile, ZIP_DEFLATED
 
 from ..parse import ProvDAG
@@ -177,7 +178,10 @@ class DummyArtifacts:
                 a = Artifact.load(temp_zf_path)
                 a.save(fp)
 
-            dag = ProvDAG(fp)
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore', category=UserWarning)
+                dag = ProvDAG(fp)
+
             assert len(dag.terminal_nodes) == 1
             terminal_node, *_ = dag.terminal_nodes
             uuid = terminal_node._uuid
@@ -207,12 +211,14 @@ class DummyArtifacts:
         '''
         create archive with missing checksums.md5
         '''
-        with generate_archive_with_file_removed(
-            self.single_int.filepath,
-            self.single_int.uuid,
-            'checksums.md5'
-        ) as altered_archive:
-            self.dag_missing_md5 = ProvDAG(altered_archive)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=UserWarning)
+            with generate_archive_with_file_removed(
+                self.single_int.filepath,
+                self.single_int.uuid,
+                'checksums.md5'
+            ) as altered_archive:
+                self.dag_missing_md5 = ProvDAG(altered_archive)
 
     @property
     def all_artifact_versions(self):

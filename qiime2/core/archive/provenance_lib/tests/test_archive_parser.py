@@ -179,7 +179,6 @@ class ArchiveParserTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             ArchiveParser.get_parser(fp)
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_artifact_parser_parse_prov(self):
         with self.assertRaisesRegex(NotImplementedError, "Use a subclass"):
             ArchiveParser().parse_prov(Config(), 'doesnotmatter.txt')
@@ -205,7 +204,6 @@ class ResultMetadataTests(unittest.TestCase):
         self.assertEqual(self.root_md.type, 'IntSequence1')
         self.assertEqual(self.root_md.format, 'IntSequenceDirectoryFormat')
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_repr(self):
         exp = (f'UUID:\t\t{self.uuid}\n'
                'Type:\t\tIntSequence1\n'
@@ -257,7 +255,6 @@ class ActionTests(unittest.TestCase):
         exp = '6840 microseconds'
         self.assertEqual(self.concat_action.runtime_str, exp)
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_action(self):
         exp = 'concatenate_ints'
         self.assertEqual(self.concat_action.action_name, exp)
@@ -306,7 +303,6 @@ class ActionTests(unittest.TestCase):
         exp = None
         self.assertEqual(self.import_action.output_name, exp)
 
-    # TODO: what does format mean in this dict?
     def test_format(self):
         exp = None
         self.assertEqual(self.concat_action.format, exp)
@@ -384,7 +380,6 @@ class CitationsTests(unittest.TestCase):
             citations = _Citations(zf, self.bibs[0])
             self.assertEqual(len(citations.citations), 0)
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_citation(self):
         with zipfile.ZipFile(self.zips[1]) as zf:
             exp = 'framework'
@@ -530,7 +525,6 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
     def test_self_eq(self):
         self.assertReallyEqual(self.nodes['5'], self.nodes['5'])
 
-    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_eq(self):
         # Mock has no matching UUID
         mock_node = MagicMock()
