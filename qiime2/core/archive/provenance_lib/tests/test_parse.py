@@ -1079,25 +1079,38 @@ class DirectoryParserTests(unittest.TestCase):
             ProvDAG(empty_dir_path)
 
     def test_directory_parser_works_regardless_trailing_slash(self):
-        dag = ProvDAG(self.tempdir + '/parse-dir')
-        dag2 = ProvDAG(self.tempdir + '/parse-dir/')
+        parse_dir = os.path.join(self.tempdir, 'parse-dir')
+        dag = ProvDAG(parse_dir)
+        dag2 = ProvDAG(parse_dir)
         self.assertEqual(dag, dag2)
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_directory_parser_captures_all_parsed_artifact_uuids(self):
         '''
         The test dir contains a concatenated ints artifact and an int sequence.
-        The concatenated ints artifact is a true subset of the int sequence,
-        and is not re-parsed as implemented.
-
-        The resulting dag should be aware of both user-passed artifacts,
-        regardless of whether we actually parse the int sequence.
+        Though the concatenated ints artifact contains the int sequence as one
+        of its parents, both should be present in _parsed_artifact_uuids
+        because both are considered terminal outputs of the analysis, because
+        both are present in the parsed directory.
         '''
-        dag = ProvDAG(self.tempdir + '/parse-dir/', recurse=True)
+        parse_dir = os.path.join(self.tempdir, 'parse-dir')
+        dag = ProvDAG(parse_dir, recurse=True)
         self.assertEqual(
             dag._parsed_artifact_uuids,
             {self.das.concated_ints.uuid, self.das.int_seq1.uuid}
         )
+
+    def test_directory_parser_handles_duplicates(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            shutil.copy(self.das.concated_ints.filepath, tempdir)
+            copy_path = os.path.join(tempdir, 'concated_ints_2.qza')
+            shutil.copy(self.das.concated_ints.filepath, copy_path)
+
+            both_dag = ProvDAG(tempdir)
+            self.assertEqual(len(both_dag._parsed_artifact_uuids), 1)
+
+            one_dag = ProvDAG(copy_path)
+            self.assertEqual(one_dag, both_dag)
 
     def test_directory_parser_idempotent_with_parse_and_union(self):
         # Non-recursive

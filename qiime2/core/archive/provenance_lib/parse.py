@@ -13,13 +13,11 @@ import networkx as nx
 import os
 from pathlib import Path
 from networkx.classes.reportviews import NodeView
-import zipfile
 
 from ._checksum_validator import ValidationCode, ChecksumDiff
 from .archive_parser import (
     Config, ParserResults, ProvNode, Parser, ArchiveParser
 )
-from .util import get_root_uuid
 
 
 class ProvDAG:
@@ -409,17 +407,14 @@ class DirectoryParser(Parser):
         for archive in artifacts_to_parse:
             if cfg.verbose:
                 print("parsing", archive)
-            with zipfile.ZipFile(archive) as zf:
-                root_id = get_root_uuid(zf)
-            if archive_not_parsed(root_id, dag):
-                dag = ProvDAG.union([
-                    dag,
-                    ProvDAG(
-                        archive,
-                        cfg.perform_checksum_validation,
-                        cfg.parse_study_metadata
-                    )
-                ])
+            dag = ProvDAG.union([
+                dag,
+                ProvDAG(
+                    archive,
+                    cfg.perform_checksum_validation,
+                    cfg.parse_study_metadata
+                )
+            ])
 
         return ParserResults(
             dag._parsed_artifact_uuids,
