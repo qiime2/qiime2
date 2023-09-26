@@ -6,8 +6,9 @@ from unittest.mock import MagicMock
 import pandas as pd
 import tempfile
 import unittest
-import warnings
 import zipfile
+
+import pytest
 
 from .._checksum_validator import ChecksumDiff, ValidationCode
 from .testing_utilities import (
@@ -71,6 +72,7 @@ class ParserVxTests(unittest.TestCase):
                     ):
                         parser._parse_root_md(zf, artifact.uuid)
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_populate_archive(self):
         for artifact in self.tas.all_artifact_versions:
             parser = ArchiveParser.get_parser(artifact.filepath)
@@ -117,6 +119,7 @@ class ParserVxTests(unittest.TestCase):
                     self.assertEqual(is_valid, ValidationCode.VALID)
                     self.assertEqual(diff, ChecksumDiff({}, {}, {}))
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_correct_validate_checksums_method_called(self):
         '''
         We want to confirm that parse_prov uses the local _validate_checksums
@@ -129,11 +132,8 @@ class ParserVxTests(unittest.TestCase):
                     # return values only here to facilitate normal execution
                     return_value=(ValidationCode.PREDATES_CHECKSUMS, None)
                 )
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        'ignore',  f'Artifact.*{artifact.uuid}.*prior')
-                    parser.parse_prov(Config(), artifact.filepath)
-                    parser._validate_checksums.assert_called_once()
+                parser.parse_prov(Config(), artifact.filepath)
+                parser._validate_checksums.assert_called_once()
             else:
                 parser._validate_checksums = MagicMock(
                     return_value=(
@@ -172,6 +172,7 @@ class ArchiveParserTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             ArchiveParser.get_parser(fp)
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_artifact_parser_parse_prov(self):
         with self.assertRaisesRegex(NotImplementedError, "Use a subclass"):
             ArchiveParser().parse_prov(Config(), 'doesnotmatter.txt')
@@ -197,6 +198,7 @@ class ResultMetadataTests(unittest.TestCase):
         self.assertEqual(self.root_md.type, 'IntSequence1')
         self.assertEqual(self.root_md.format, 'IntSequenceDirectoryFormat')
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_repr(self):
         exp = (f'UUID:\t\t{self.uuid}\n'
                'Type:\t\tIntSequence1\n'
@@ -248,6 +250,7 @@ class ActionTests(unittest.TestCase):
         exp = '6840 microseconds'
         self.assertEqual(self.concat_action.runtime_str, exp)
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_action(self):
         exp = 'concatenate_ints'
         self.assertEqual(self.concat_action.action_name, exp)
@@ -374,6 +377,7 @@ class CitationsTests(unittest.TestCase):
             citations = _Citations(zf, self.bibs[0])
             self.assertEqual(len(citations.citations), 0)
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_citation(self):
         with zipfile.ZipFile(self.zips[1]) as zf:
             exp = 'framework'
@@ -519,6 +523,7 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
     def test_self_eq(self):
         self.assertReallyEqual(self.nodes['5'], self.nodes['5'])
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_eq(self):
         # Mock has no matching UUID
         mock_node = MagicMock()

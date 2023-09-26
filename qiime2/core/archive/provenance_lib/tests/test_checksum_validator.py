@@ -4,6 +4,8 @@ import tempfile
 import unittest
 import zipfile
 
+import pytest
+
 from qiime2 import Artifact
 from qiime2.core.archive.archiver import ChecksumDiff
 from qiime2.sdk.plugin_manager import PluginManager
@@ -33,6 +35,7 @@ class ValidateChecksumTests(unittest.TestCase):
         self.assertEqual(is_valid, ValidationCode.VALID)
         self.assertEqual(diff, ChecksumDiff({}, {}, {}))
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_validate_checksums_invalid(self):
         '''
         Mangle an intact v5 Archive so that its checksums.md5 is invalid,
@@ -73,6 +76,7 @@ class ValidateChecksumTests(unittest.TestCase):
         self.assertEqual(list(diff.changed.keys()),
                          ['provenance/citations.bib'])
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_validate_checksums_checksums_missing(self):
         int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
         fp = os.path.join(self.tempdir, 'int-seq-missing-version.qza')

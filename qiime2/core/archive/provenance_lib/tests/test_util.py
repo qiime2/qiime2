@@ -2,6 +2,8 @@ import pathlib
 import unittest
 import zipfile
 
+import pytest
+
 from .testing_utilities import CustomAssertions, TestArtifacts
 from ..util import get_root_uuid, get_nonroot_uuid
 
@@ -16,6 +18,7 @@ class GetRootUUIDTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.tas.free()
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_get_root_uuid(self):
         exp_root_uuids = {
             '0': '89af91c0-033d-4e30-8ac4-f29a3b407dc1',

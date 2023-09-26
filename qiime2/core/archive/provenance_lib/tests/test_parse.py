@@ -10,6 +10,7 @@ from contextlib import redirect_stdout
 
 import networkx as nx
 from networkx import DiGraph
+import pytest
 
 from .._checksum_validator import ValidationCode
 from ..parse import (
@@ -281,6 +282,7 @@ class ProvDAGTests(unittest.TestCase):
         for exp_node in exp_nodes:
             self.assertIn(exp_node, view.nodes)
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_invalid_provenance(self):
         '''
         Mangle an intact v5 Archive so that its checksums.md5 is invalid,
@@ -340,6 +342,7 @@ class ProvDAGTests(unittest.TestCase):
             diff = dag.checksum_diff
             self.assertEqual(diff, None)
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_error_if_missing_node_files(self):
         path_prefix = os.path.join('provenance', 'artifacts')
         root_uuid = self.tas.concated_ints.uuid
@@ -413,6 +416,7 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(dag.provenance_is_valid, ValidationCode.VALID)
         self.assertEqual(dag.node_has_provenance(uuid), True)
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_artifact_passed_as_metadata_archive(self):
         dag = self.tas.mapping1.dag
         uuid = self.tas.mapping1.uuid
@@ -814,6 +818,7 @@ class EmptyParserTests(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_get_parser(self):
         parser = EmptyParser.get_parser(None)
         self.assertIsInstance(parser, EmptyParser)
@@ -850,6 +855,7 @@ class ProvDAGParserTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.tas.free()
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_get_parser(self):
         for archive in self.tas.all_artifact_versions:
             parser = ProvDAGParser.get_parser(archive.dag)
@@ -911,6 +917,7 @@ class SelectParserTests(unittest.TestCase):
         dir_p = select_parser(dir_fp_str)
         self.assertIsInstance(dir_p, DirectoryParser)
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_correct_archive_parser_version(self):
         parsers = [
             ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
@@ -1023,6 +1030,7 @@ class ParseProvenanceTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, 'not a valid dir'):
             parse_provenance(self.cfg, dir_fp)
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_no_correct_parser_found_error(self):
         input_data = {'this': 'is not parseable'}
         with self.assertRaisesRegex(
@@ -1068,6 +1076,7 @@ class DirectoryParserTests(unittest.TestCase):
         dag2 = ProvDAG(self.tempdir + '/parse-dir/')
         self.assertEqual(dag, dag2)
 
+    @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_directory_parser_captures_all_parsed_artifact_uuids(self):
         '''
         The test dir contains a concatenated ints artifact and an int sequence.
