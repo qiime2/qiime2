@@ -13,6 +13,7 @@ import pkg_resources
 
 import parsl
 from parsl.executors.threads import ThreadPoolExecutor
+from parsl.errors import NoDataFlowKernelError
 
 from qiime2 import Artifact, Cache
 from qiime2.core.util import load_action_yaml
@@ -196,14 +197,16 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def test_no_config(self):
-        with self.assertRaisesRegex(RuntimeError, 'Must first load config'):
+        with self.assertRaisesRegex(NoDataFlowKernelError,
+                                    'Must first load config'):
             self.pipeline.parallel(self.art, self.art)
 
     def test_config_unset(self):
         with ParallelConfig():
             self.pipeline.parallel(self.art, self.art)
 
-        with self.assertRaisesRegex(RuntimeError, 'Must first load config'):
+        with self.assertRaisesRegex(NoDataFlowKernelError,
+                                    'Must first load config'):
             self.pipeline.parallel(self.art, self.art)
 
     def _load_alias_execution_contexts(self, collection):
