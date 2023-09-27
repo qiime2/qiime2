@@ -24,7 +24,7 @@ from ..provenance import MetadataInfo
 
 from qiime2.sdk import PluginManager
 from qiime2.sdk.usage import Usage, UsageVariable
-from qiime2.sdk.util import camel_to_snake, get_available_usage_drivers
+from qiime2.sdk.util import camel_to_snake
 
 
 @dataclass
@@ -1151,6 +1151,7 @@ def replay_citations(
 
 
 def replay_supplement(
+    usage_drivers: List[Usage],
     payload: Union[str, ProvDAG],
     out_fp: str,
     validate_checksums: bool = True,
@@ -1177,6 +1178,9 @@ def replay_supplement(
 
     Parameters
     ----------
+    usage_drivers : list of Usage
+        The types of Usage drivers to use. Currently intended to consist of
+        `ReplayPythonUsage`, `ReplayCLIUsage`.
     payload : str or ProvDAG
         A filepath to an artifact or directory containing artifacts, or the
         ProvDAG to be parsed.
@@ -1209,15 +1213,18 @@ def replay_supplement(
     )
     with tempfile.TemporaryDirectory() as tempdir:
         tempdir_path = pathlib.Path(tempdir)
-        filenames = {
-            'python3': 'python3_replay.py',
-            'cli': 'cli_replay.sh',
+
+        drivers_to_filenames = {
+            'ReplayPythonUsage': 'python3_replay.py',
+            'ReplayCLIUsage': 'cli_replay.sh',
         }
 
-        available_drivers = get_available_usage_drivers()
-        for usage_driver in available_drivers:
+        for usage_driver in usage_drivers:
+            if usage_driver.__name__ not in drivers_to_filenames:
+                continue
+
+            rel_fp = drivers_to_filenames[usage_driver.__name__]
             md_out_fp = tempdir_path / 'recorded_metadata'
-            rel_fp = filenames[usage_driver]
             tmp_fp = tempdir_path / rel_fp
             replay_provenance(
                 usage_driver=usage_driver,
