@@ -15,15 +15,15 @@ import shutil
 import tempfile
 from collections import UserDict
 from dataclasses import dataclass, field
-from typing import Dict, Iterator, List, Literal, Optional, Set, Union
+from typing import Dict, Iterator, List, Optional, Set, Union
 
 from .archive_parser import ProvNode
 from .parse import ProvDAG
-from .usage_drivers import Usage, build_header, build_footer
+from .usage_drivers import build_header, build_footer
 from ..provenance import MetadataInfo
 
 from qiime2.sdk import PluginManager
-from qiime2.sdk.usage import UsageVariable
+from qiime2.sdk.usage import Usage, UsageVariable
 from qiime2.sdk.util import camel_to_snake, get_available_usage_drivers
 
 
@@ -206,9 +206,9 @@ class NamespaceCollections:
 
 
 def replay_provenance(
+    usage_driver: Usage,
     payload: Union[str, ProvDAG],
     out_fp: str,
-    usage_driver: Literal['python3', 'cli'] = 'python3',
     validate_checksums: bool = True,
     parse_metadata: bool = True,
     recurse: bool = False,
@@ -228,13 +228,14 @@ def replay_provenance(
 
     Parameters
     ----------
+    usage_driver : Usage
+        The type of Usage driver to be used. Currently intended to be either
+        `ReplayPythonUsage` or `ReplayCLIUsage`.
     payload : str or ProvDAG
         A filepath to an artifact or directory containing artifacts, or the
         ProvDAG to be parsed.
     out_fp : str
         The filepath at which to write the rendered executable.
-    usage_driver : one of 'python3', 'cli'
-        The interface to target.
     validate_checksums : bool
         Whether to perform checksum validation on the input artifact.
     parse_metadata : bool
@@ -282,19 +283,20 @@ def replay_provenance(
             'use-recorded-metadata set to False.'
         )
 
-    available_drivers = get_available_usage_drivers()
-    if usage_driver not in available_drivers:
-        msg = (
-            f'The {usage_driver} usage driver is not available in the '
-            'current evnironment.'
-        )
-        raise ValueError(msg)
+    # TODO: move to q2cli tools
+    # available_drivers = get_available_usage_drivers()
+    # if usage_driver not in available_drivers:
+    #     msg = (
+    #         f'The {usage_driver} usage driver is not available in the '
+    #         'current evnironment.'
+    #     )
+    #     raise ValueError(msg)
 
     dag = ProvDAG(
         payload, validate_checksums, parse_metadata, recurse, verbose
     )
     cfg = ReplayConfig(
-        use=available_drivers[usage_driver](),
+        use=usage_driver(),
         use_recorded_metadata=use_recorded_metadata,
         dump_recorded_metadata=dump_recorded_metadata,
         verbose=verbose, md_out_fp=md_out_fp
@@ -1218,9 +1220,9 @@ def replay_supplement(
             rel_fp = filenames[usage_driver]
             tmp_fp = tempdir_path / rel_fp
             replay_provenance(
+                usage_driver=usage_driver,
                 payload=dag,
                 out_fp=str(tmp_fp),
-                usage_driver=usage_driver,
                 use_recorded_metadata=use_recorded_metadata,
                 suppress_header=suppress_header,
                 verbose=verbose,

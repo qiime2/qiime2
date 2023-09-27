@@ -13,6 +13,7 @@ import unittest
 from qiime2.sdk.plugin_manager import PluginManager
 from qiime2.core.testing.type import IntSequence1
 
+from ..usage_drivers import ReplayPythonUsage
 from ..replay import replay_provenance
 
 
@@ -93,7 +94,7 @@ class ReplayPythonUsageTests(unittest.TestCase):
         first_ints.save(os.path.join(self.tempdir, 'int-seq.qza'))
         fp = os.path.join(self.tempdir, 'int-seq.qza')
         out_fp = os.path.join(self.tempdir, 'action_collection.txt')
-        replay_provenance(fp, out_fp, 'python3')
+        replay_provenance(ReplayPythonUsage, fp, out_fp)
 
         exp = 'action_results = dummy_plugin_actions.return_many_ints'
         with open(out_fp) as fh:
@@ -117,7 +118,7 @@ class ReplayPythonUsageTests(unittest.TestCase):
         first_ints.save(os.path.join(self.tempdir, 'int-seq.qza'))
         fp = os.path.join(self.tempdir, 'int-seq.qza')
         out_fp = os.path.join(self.tempdir, 'action_collection.txt')
-        replay_provenance(fp, out_fp, 'python3')
+        replay_provenance(ReplayPythonUsage, fp, out_fp)
 
         exp = 'ints1_0, _, _, _ = dummy_plugin_actions.return_four_ints'
         with open(out_fp) as fh:
@@ -148,7 +149,7 @@ class ReplayPythonUsageTests(unittest.TestCase):
 
         fp = os.path.join(self.tempdir, 'three-ints-dir')
         out_fp = os.path.join(self.tempdir, 'action_collection.txt')
-        replay_provenance(fp, out_fp, 'python3')
+        replay_provenance(ReplayPythonUsage, fp, out_fp)
 
         exp = (
             'action_results = dummy_plugin_actions.return_four_ints',
@@ -179,7 +180,7 @@ class ReplayPythonUsageTests(unittest.TestCase):
         ints2.save(os.path.join(self.tempdir, 'two-ints-dir', 'int-seq-2.qza'))
         fp = os.path.join(self.tempdir, 'two-ints-dir')
         out_fp = os.path.join(self.tempdir, 'action_collection.txt')
-        replay_provenance(fp, out_fp, 'python3')
+        replay_provenance(ReplayPythonUsage, fp, out_fp)
 
         exp = 'ints1_0, ints2_0, _, _ = dummy_plugin_actions.return_four_ints'
         with open(out_fp) as fh:
