@@ -283,15 +283,6 @@ def replay_provenance(
             'use-recorded-metadata set to False.'
         )
 
-    # TODO: move to q2cli tools
-    # available_drivers = get_available_usage_drivers()
-    # if usage_driver not in available_drivers:
-    #     msg = (
-    #         f'The {usage_driver} usage driver is not available in the '
-    #         'current evnironment.'
-    #     )
-    #     raise ValueError(msg)
-
     dag = ProvDAG(
         payload, validate_checksums, parse_metadata, recurse, verbose
     )
