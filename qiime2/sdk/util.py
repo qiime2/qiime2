@@ -8,7 +8,7 @@
 
 import re
 from pkg_resources import iter_entry_points
-from typing import List, TYPE_CHECKING
+from typing import Dict, TYPE_CHECKING
 
 import qiime2.sdk
 import qiime2.core.type as qtype
@@ -167,16 +167,17 @@ def view_collection(collection, view_type):
     return {k: v.view(view_type) for k, v in collection.items()}
 
 
-def get_available_usage_drivers() -> List['UsageDriver']:
+def get_available_usage_drivers() -> Dict[str, 'UsageDriver']:
     '''
     Discovers all usage drivers registered under the entry point group
     'qiime2.usage_drivers'.
 
     Returns
     -------
-    list of UsageDriver
-        The types of the available usage drivers, ready to be instantianted,
-        not usage driver instances themselves.
+    dict of entry point name -> UsageDriver
+        Where keys are the entry point names as registered in setup.py and the
+        values are types of the available usage drivers (not instances
+        themselves).
     '''
     return {
         entry_point.name: entry_point.resolve() for entry_point in
