@@ -36,7 +36,7 @@ def get_data_path(filename):
                                            'data/%s' % filename)
 
 
-class DummyArtifact(unittest.TestCase, ArchiveTestingMixin):
+class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
     def setUp(self):
         # Ignore the returned dummy plugin object, just run this to verify the
         # plugin exists as the tests rely on it being loaded.
