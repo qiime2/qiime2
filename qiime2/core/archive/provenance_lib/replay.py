@@ -1056,11 +1056,9 @@ def dedupe_citations(citations: List[Dict]) -> List[Dict]:
 
         if 'framework|qiime2' in citation_id:
             if not is_framework_cited:
-                root = pkg_resources.resource_filename(
-                    'qiime2.core.archive.provenance_lib', '.'
-                )
+                root = pkg_resources.resource_filename('qiime2', '.')
                 root = os.path.abspath(root)
-                path = os.path.join(root, 'assets', 'q2_citation.bib')
+                path = os.path.join(root, 'citations.bib')
                 with open(path) as bibtex_file:
                     q2_entry = bp.load(bibtex_file).entries.pop()
 
