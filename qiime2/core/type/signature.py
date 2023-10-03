@@ -14,6 +14,7 @@ import tempfile
 
 import qiime2.sdk
 import qiime2.core.type as qtype
+from qiime2.core.archive.provenance import MetadataInfo
 from .grammar import TypeExp, UnionExp
 from .meta import TypeVarExp
 from .collection import List, Set, Collection
@@ -763,6 +764,8 @@ class HashableInvocation():
                 collection.save(fp)
                 collection = md5sum(fp)
                 return collection
+        elif isinstance(collection, MetadataInfo):
+            return collection.md5sum_hash
         else:
             return collection
 

@@ -74,6 +74,7 @@ class TestPlugin(unittest.TestCase):
         actions = self.plugin.actions
 
         self.assertIsInstance(actions, types.MappingProxyType)
+
         self.assertEqual(actions.keys(),
                          {'merge_mappings', 'concatenate_ints', 'split_ints',
                           'most_common_viz', 'mapping_viz',
@@ -109,7 +110,8 @@ class TestPlugin(unittest.TestCase):
                           'list_of_ints', 'dict_of_ints', 'returns_int',
                           'collection_inner_union', 'collection_outer_union',
                           'dict_params', 'list_params', 'varied_method',
-                          '_underscore_method'
+                          '_underscore_method', 'return_four_ints',
+                          'return_many_ints'
                           })
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
@@ -145,7 +147,8 @@ class TestPlugin(unittest.TestCase):
                           'dict_of_ints', 'returns_int',
                           'collection_inner_union',
                           'collection_outer_union', 'dict_params',
-                          'list_params', 'varied_method', '_underscore_method'
+                          'list_params', 'varied_method', '_underscore_method',
+                          'return_four_ints', 'return_many_ints'
                           })
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)

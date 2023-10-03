@@ -1,0 +1,44 @@
+execution:
+    uuid: 28536786-c8f5-46c1-839c-8961c0747bdd
+    runtime:
+        start: 2023-07-26T15:20:54.661709-07:00
+        end: 2023-07-26T15:20:54.669409-07:00
+        duration: 7700 microseconds
+
+action:
+    type: method
+    plugin: !ref 'environment:plugins:dummy-plugin'
+    action: concatenate_ints
+    inputs:
+    -   ints1: c3905e60-2702-418a-8527-7e9b799f32eb
+    -   ints2: c3905e60-2702-418a-8527-7e9b799f32eb
+    -   ints3: cfea882d-0b50-44af-97d9-b0b71ecae73e
+    parameters:
+    -   int1: 7
+    -   int2: 100
+    output-name: concatenated_ints
+
+environment:
+    platform: macosx-10.6-x86_64
+    python: |-
+        3.5.6 |Anaconda, Inc.| (default, Aug 26 2018, 16:30:03)
+        [GCC 4.2.1 Compatible Clang 4.0.1 (tags/RELEASE_401/final)]
+    framework: 2018.2.0
+    plugins:
+        dummy-plugin:
+            version: 0.0.0-dev
+            website: https://github.com/qiime2/qiime2
+    python-packages:
+        wheel: 0.37.1
+        tzlocal: '2.1'
+        six: 1.16.0
+        setuptools: 40.2.0
+        qiime2: 2018.2.0
+        PyYAML: 5.3.1
+        pytz: '2023.3'
+        python-dateutil: 2.8.2
+        pip: 10.0.1
+        pandas: 0.25.3
+        numpy: 1.18.5
+        decorator: 5.1.1
+        certifi: 2020.6.20

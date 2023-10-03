@@ -15,6 +15,8 @@ import io
 import collections
 import uuid as _uuid
 import yaml
+import zipfile
+import pathlib
 
 import decorator
 
@@ -122,6 +124,18 @@ def md5sum(filepath):
     return md5.hexdigest()
 
 
+def md5sum_zip(zf: zipfile.ZipFile, filepath: str) -> str:
+    """
+    Given a ZipFile object and relative filepath within the zip archive,
+    returns the md5sum of the file
+    """
+    md5 = hashlib.md5()
+    with zf.open(filepath) as fh:
+        for chunk in iter(lambda: fh.read(io.DEFAULT_BUFFER_SIZE), b""):
+            md5.update(chunk)
+    return md5.hexdigest()
+
+
 def md5sum_directory(directory):
     directory = str(directory)
     sums = collections.OrderedDict()
@@ -133,6 +147,24 @@ def md5sum_directory(directory):
 
             path = os.path.join(root, file)
             sums[os.path.relpath(path, start=directory)] = md5sum(path)
+    return sums
+
+
+def md5sum_directory_zip(zf: zipfile.ZipFile) -> dict:
+    """
+    Returns a mapping of fp/checksum pairs for all files in zf.
+
+    The root dir has been removed from these filepaths. This mimics the output
+    in checksums.md5 (without sorted descent), but is not generalizable beyond
+    QIIME 2 archives.
+    """
+    sums = dict()
+    for file in zf.namelist():
+        fp = pathlib.Path(file)
+        if fp.name != 'checksums.md5':
+            file_parts = list(fp.parts)
+            fp_w_o_root_uuid = pathlib.Path(*(file_parts[1:]))
+            sums[str(fp_w_o_root_uuid)] = md5sum_zip(zf, file)
     return sums
 
 

@@ -45,10 +45,10 @@ class PluginManager:
         for entry_point in pkg_resources.iter_entry_points(
                 group=cls.entry_point_group):
             if 'QIIMETEST' in os.environ:
-                if entry_point.name == 'dummy-plugin':
+                if entry_point.name in ('dummy-plugin', 'other-plugin'):
                     yield entry_point
             else:
-                if entry_point.name != 'dummy-plugin':
+                if entry_point.name not in ('dummy-plugin', 'other-plugin'):
                     yield entry_point
 
     @classmethod

@@ -1,0 +1,64 @@
+execution:
+    uuid: f9e5cd62-e1e2-40e1-a9ed-f85f57411026
+    runtime:
+        start: 2023-07-26T15:29:30.745198-07:00
+        end: 2023-07-26T15:29:30.746705-07:00
+        duration: 1507 microseconds
+
+action:
+    type: import
+
+transformers:
+    output:
+    -   from: builtins:list
+        to: IntSequenceV2DirectoryFormat
+        plugin: !ref 'environment:plugins:dummy-plugin'
+        citations:
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceV2DirectoryFormat|0'
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceV2DirectoryFormat|1'
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceV2DirectoryFormat|2'
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceV2DirectoryFormat|3'
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceV2DirectoryFormat|4'
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceV2DirectoryFormat|5'
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceV2DirectoryFormat|6'
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceV2DirectoryFormat|7'
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceV2DirectoryFormat|8'
+
+environment:
+    platform: macosx-10.9-x86_64
+    python: |-
+        3.6.13 |Anaconda, Inc.| (default, Feb 23 2021, 12:58:59)
+        [GCC Clang 10.0.0 ]
+    framework:
+        version: 2018.11.0
+        website: https://qiime2.org
+        citations:
+        - !cite 'framework|qiime2:2018.11.0|0'
+    plugins:
+        dummy-plugin:
+            version: 0.0.0-dev
+            website: https://github.com/qiime2/qiime2
+            citations:
+            - !cite 'plugin|dummy-plugin:0.0.0-dev|0'
+            - !cite 'plugin|dummy-plugin:0.0.0-dev|1'
+    python-packages:
+        zipp: 3.6.0
+        wheel: 0.37.1
+        tzlocal: '4.2'
+        tzdata: '2023.3'
+        six: 1.16.0
+        setuptools: 58.0.4
+        qiime2: 2018.11.0
+        PyYAML: 6.0.1
+        pytz: '2023.3'
+        pytz-deprecation-shim: 0.1.0.post0
+        python-dateutil: 2.8.2
+        pyparsing: 3.1.0
+        pip: 21.2.2
+        pandas: 1.1.5
+        numpy: 1.19.5
+        importlib-resources: 5.4.0
+        decorator: 5.1.1
+        certifi: 2021.5.30
+        bibtexparser: 1.4.0
+        backports.zoneinfo: 0.2.1

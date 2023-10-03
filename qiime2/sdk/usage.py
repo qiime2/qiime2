@@ -42,9 +42,9 @@ import re
 
 import qiime2
 from qiime2 import sdk
-from qiime2.core.type import (is_semantic_type,
-                              is_visualization_type,
-                              is_collection_type)
+from qiime2.core.type import (
+    is_semantic_type, is_visualization_type, is_collection_type
+)
 
 
 def assert_usage_var_type(usage_variable, *valid_types):

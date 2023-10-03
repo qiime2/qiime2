@@ -7,6 +7,8 @@
 # ----------------------------------------------------------------------------
 
 import re
+from pkg_resources import iter_entry_points
+from typing import Dict, TYPE_CHECKING
 
 import qiime2.sdk
 import qiime2.core.type as qtype
@@ -16,6 +18,8 @@ from qiime2.core.type import (
     is_visualization_type, interrogate_collection_type, parse_primitive,
     is_union, is_metadata_column_type)
 
+if TYPE_CHECKING:
+    from qiime2.sdk.usage import UsageDriver
 
 __all__ = [
     'is_semantic_type', 'is_primitive_type', 'is_collection_type',
@@ -23,6 +27,20 @@ __all__ = [
     'type_from_ast', 'parse_primitive', 'parse_type', 'parse_format',
     'actions_by_input_type', 'is_union', 'is_metadata_column_type',
 ]
+
+
+def camel_to_snake(name: str) -> str:
+    """
+    There are more comprehensive and faster ways of doing this (incl compiling)
+    but it handles acronyms in semantic types nicely
+    e.g. EMPSingleEndSequences -> emp_single_end_sequences
+    c/o https://stackoverflow.com/a/1176023/9872253
+    """
+    # this will frequently be called on QIIME type expressions, so drop [ and ]
+    name = re.sub(r'[\[\]]', '', name)
+    # camel to snake
+    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
 
 
 def type_from_ast(ast, scope=None):
@@ -147,3 +165,21 @@ def validate_result_collection_keys(*args):
 
 def view_collection(collection, view_type):
     return {k: v.view(view_type) for k, v in collection.items()}
+
+
+def get_available_usage_drivers() -> Dict[str, 'UsageDriver']:
+    '''
+    Discovers all usage drivers registered under the entry point group
+    'qiime2.usage_drivers'.
+
+    Returns
+    -------
+    dict of entry point name -> UsageDriver
+        Where keys are the entry point names as registered in setup.py and the
+        values are types of the available usage drivers (not instances
+        themselves).
+    '''
+    return {
+        entry_point.name: entry_point.resolve() for entry_point in
+        iter_entry_points(group='qiime2.usage_drivers')
+    }

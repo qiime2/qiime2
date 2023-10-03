@@ -1,0 +1,31 @@
+execution:
+    uuid: 84428784-85be-46d9-a3c9-1b580e42eb74
+    runtime:
+        start: 2023-07-26T15:20:54.655949-07:00
+        end: 2023-07-26T15:20:54.658281-07:00
+        duration: 2332 microseconds
+
+action:
+    type: import
+
+environment:
+    platform: macosx-10.6-x86_64
+    python: |-
+        3.5.6 |Anaconda, Inc.| (default, Aug 26 2018, 16:30:03)
+        [GCC 4.2.1 Compatible Clang 4.0.1 (tags/RELEASE_401/final)]
+    framework: 2018.2.0
+    plugins: {}
+    python-packages:
+        wheel: 0.37.1
+        tzlocal: '2.1'
+        six: 1.16.0
+        setuptools: 40.2.0
+        qiime2: 2018.2.0
+        PyYAML: 5.3.1
+        pytz: '2023.3'
+        python-dateutil: 2.8.2
+        pip: 10.0.1
+        pandas: 0.25.3
+        numpy: 1.18.5
+        decorator: 5.1.1
+        certifi: 2020.6.20
