@@ -9,4 +9,4 @@ jobs:
   ci:
     uses: qiime2/distributions/.github/workflows/lib-ci-dev.yaml@dev
     with:
-      distro: core
+      distro: amplicon
