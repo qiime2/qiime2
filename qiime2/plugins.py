@@ -189,6 +189,35 @@ class ArtifactAPIUsage(usage.Usage):
 
         return variable
 
+    def construct_artifact_collection(self, name, members):
+        # make sure members is dict to avoid repeated type checking
+        if type(members) is list:
+            members = {str(i): member for i, member in enumerate(members)}
+
+        variable = super().construct_artifact_collection(name, members)
+
+        var_name = variable.to_interface_name()
+
+        str_namespace = {str(name) for name in self.namespace}
+        diff = set(member.name for member in members.values()) - str_namespace
+        if diff:
+            msg = (
+                f'{diff} not found in driver\'s namespace. Make sure '
+                'that all ResultCollection members have been properly '
+                'created.'
+            )
+            raise ValueError(msg)
+
+        lines = [f'{var_name} = ResultCollection({{']
+        for key, member in members.items():
+            lines.append(self.INDENT + f"'{key}': {member.name},")
+        lines.append('})')
+
+        self._update_imports(from_='qiime2', import_='ResultCollection')
+        self._add(lines)
+
+        return variable
+
     def init_format(self, name, factory, ext=None):
         if ext is not None:
             name = '%s.%s' % (name, ext.lstrip('.'))

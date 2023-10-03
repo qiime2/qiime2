@@ -1210,6 +1210,19 @@ class Usage:
             return artifact
         return self._usage_variable(name, factory, 'artifact')
 
+    def construct_artifact_collection(self, name, members):
+        def factory():
+            from qiime2 import ResultCollection
+            # NOTE: these usage variables are assumed to have been
+            # materialized at this point
+            members = {
+                key: member.value for key, member in members.items()
+            }
+
+            return ResultCollection(members)
+
+        return self._usage_variable(name, factory, 'artifact_collection')
+
     def merge_metadata(self, name: str,
                        *variables: UsageVariable) -> UsageVariable:
         """Communicate that these metadata should be merged.
