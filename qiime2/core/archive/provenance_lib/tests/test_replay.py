@@ -115,7 +115,7 @@ class ReplayProvenanceTests(unittest.TestCase):
             out_fn = str(out_fp)
             in_fn = self.das.concated_ints_with_md.filepath
             replay_provenance(
-                ReplayPythonUsage, in_fn, out_fn, md_out_dir=tmpdir
+                ReplayPythonUsage, in_fn, out_fn, md_out_fp=tmpdir
             )
 
             self.assertTrue(out_fp.is_file())
@@ -164,7 +164,7 @@ class ReplayProvenanceTests(unittest.TestCase):
                 dump_recorded_metadata=True
             )
 
-    def test_replay_md_out_dir_without_parse(self):
+    def test_replay_md_out_fp_without_parse(self):
         in_fp = self.das.concated_ints.filepath
         with self.assertRaisesRegex(
                 ValueError, "(?s)Metadata not parsed,.*not.*metadata output"
@@ -175,7 +175,7 @@ class ReplayProvenanceTests(unittest.TestCase):
                 'unused_fp',
                 parse_metadata=False,
                 dump_recorded_metadata=False,
-                md_out_dir='/user/dumb/some_filepath'
+                md_out_fp='/user/dumb/some_filepath'
             )
 
     def test_replay_use_md_without_dump_md(self):
@@ -197,8 +197,7 @@ class ReplayProvenanceTests(unittest.TestCase):
             out_fp = pathlib.Path(tmpdir) / 'rendered.txt'
             out_fn = str(out_fp)
             dag = self.das.concated_ints_with_md.dag
-            replay_provenance(ReplayPythonUsage, dag, out_fn,
-                              md_out_dir=tmpdir)
+            replay_provenance(ReplayPythonUsage, dag, out_fn, md_out_fp=tmpdir)
 
             self.assertTrue(out_fp.is_file())
 
@@ -248,7 +247,7 @@ class ReplayProvenanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             out_path = pathlib.Path(tempdir) / 'ns_coll.txt'
             replay_provenance(
-                 ReplayPythonUsage, dag, out_path, md_out_dir=tempdir
+                 ReplayPythonUsage, dag, out_path, md_out_fp=tempdir
             )
 
             with open(out_path, 'r') as fp:
@@ -262,7 +261,7 @@ class ReplayProvenanceTests(unittest.TestCase):
             out_path = pathlib.Path(tempdir) / 'ns_coll.txt'
 
             replay_provenance(
-                ReplayPythonUsage, dag, out_path, md_out_dir=tempdir
+                ReplayPythonUsage, dag, out_path, md_out_fp=tempdir
             )
             with open(out_path, 'r') as fp:
                 rendered = fp.read()
@@ -282,7 +281,7 @@ class ReplayProvenanceTests(unittest.TestCase):
                 'ResultCollection was returned.*not.*supported'
             ):
                 replay_provenance(
-                    ReplayPythonUsage, dag, out_path, md_out_dir=tempdir
+                    ReplayPythonUsage, dag, out_path, md_out_fp=tempdir
                 )
 
             # NOTE: we have to try a little harder to catch the exception
@@ -330,7 +329,7 @@ class MultiplePluginTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             out_fp = os.path.join(tempdir, 'rendered.txt')
             replay_provenance(
-                ReplayPythonUsage, fp, out_fp, md_out_dir=tempdir
+                ReplayPythonUsage, fp, out_fp, md_out_fp=tempdir
             )
 
             with open(out_fp, 'r') as fp:
@@ -399,7 +398,7 @@ class ReplayProvDAGDirectoryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             out_path = pathlib.Path(tempdir) / 'rendered.txt'
             replay_provenance(
-                ReplayPythonUsage, dir_dag, out_path, md_out_dir=tempdir
+                ReplayPythonUsage, dir_dag, out_path, md_out_fp=tempdir
             )
             self.assertTrue(out_path.is_file())
 
@@ -985,7 +984,7 @@ class BuildActionUsageTests(CustomAssertions):
                 use=ReplayPythonUsage(),
                 use_recorded_metadata=False,
                 pm=self.pm,
-                md_out_dir=tempdir
+                md_out_fp=tempdir
             )
 
             action_uuid = '8dae7a81-83ce-48db-9313-6e3131b0933c'
