@@ -189,12 +189,12 @@ class ArtifactAPIUsage(usage.Usage):
 
         return variable
 
-    def construct_artifact_collection(self, name, members):
+    def construct_collection(self, name, member_type, members):
         # make sure members is dict to avoid repeated type checking
         if type(members) is list:
             members = {str(i): member for i, member in enumerate(members)}
 
-        variable = super().construct_artifact_collection(name, members)
+        variable = super().construct_collection(name, member_type, members)
 
         var_name = variable.to_interface_name()
 
@@ -214,6 +214,18 @@ class ArtifactAPIUsage(usage.Usage):
         lines.append('})')
 
         self._update_imports(from_='qiime2', import_='ResultCollection')
+        self._add(lines)
+
+        return variable
+
+    def access_collection_member(self, name, collection, key):
+        variable = super().access_collection_member(
+            name, collection, key
+        )
+
+        lines = [
+            f"{name} = {collection.to_interface_name()}['{key}']"
+        ]
         self._add(lines)
 
         return variable

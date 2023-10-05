@@ -35,7 +35,7 @@ the doctest module. This should never be done in the real world.
 >>> builtins.use = ExecutionUsage()
 
 """
-from typing import Set, List, Literal, Any, Callable, Type
+from typing import Set, List, Literal, Any, Callable, Type, Union
 import dataclasses
 import functools
 import re
@@ -1210,7 +1210,56 @@ class Usage:
             return artifact
         return self._usage_variable(name, factory, 'artifact')
 
-    def construct_artifact_collection(self, name, members):
+    def construct_collection(
+        self, name: str, member_type: str, members: Union[dict, list]
+    ) -> UsageVariable:
+        '''
+        Return a UsageVariable of type artifact_collection given a list or dict
+        of its members.
+
+        Parameters
+        ----------
+        name : str
+            The name of the resulting variable.
+        member_type : str
+            One of 'artifact', 'visualization'. The types of the members in the
+            collection.
+        members: list or dict
+            The desired members of the ResultCollection.
+
+        Returns
+        -------
+        UsageVariale
+            Of type artifact_collection or viz_collection.
+
+        Examples
+        --------
+        >>> mapping = use.action(
+        ...     use.UsageAction('dummy_plugin', 'params_only_method'),
+        ...     use.UsageInputs(name='c', age=100),
+        ...     use.UsageOutputNames(out='mapping')
+        ... )
+        >>> mapping
+        <ExecutionUsageVariable name='mapping', var_type='artifact'>
+        >>> collection = use.construct_collection(
+        ...     'collection', 'artifact', {'a': mapping, 'b': mapping}
+        ... )
+        >>> collection
+        <ExecutionUsageVariable name='collection', var_type='artifact_collection'>
+        '''  # noqa: E501
+        if member_type not in ('artifact', 'visualization'):
+            msg = (
+                'Collections must be either of type artifact or of type '
+                f'visualization, not {member_type}.'
+            )
+            raise ValueError(msg)
+
+        if not all(
+            member.var_type == member_type for member in members.values()
+        ):
+            msg = 'Expected only artifacts in an artifact collection.'
+            raise ValueError(msg)
+
         def factory():
             from qiime2 import ResultCollection
             # NOTE: these usage variables are assumed to have been
@@ -1221,7 +1270,59 @@ class Usage:
 
             return ResultCollection(members)
 
-        return self._usage_variable(name, factory, 'artifact_collection')
+        if member_type == 'artifact':
+            return self._usage_variable(name, factory, 'artifact_collection')
+
+        return self._usage_variable(name, factory, 'viz_collection')
+
+    def access_collection_member(
+            self, name: str, collection: UsageVariable, key: str
+    ) -> UsageVariable:
+        '''
+        Accesses and returns a member of a ResultCollection as a UsageVariable.
+
+        Parameters
+        ----------
+        name : str
+            The name of the resulting variable.
+        artifact_collection : UsageVariable
+            The UsageVariable of type artifact_collection from which to access
+            the desired member.
+        key : str
+            The key of the desired member in the ResultCollection.
+
+        Returns
+        -------
+        UsageVariable
+            Of type artifact or visualization.
+
+        Examples
+        --------
+        >>> mapping = use.action(
+        ...     use.UsageAction('dummy_plugin', 'params_only_method'),
+        ...     use.UsageInputs(name='c', age=100),
+        ...     use.UsageOutputNames(out='mapping')
+        ... )
+        >>> mapping
+        <ExecutionUsageVariable name='mapping', var_type='artifact'>
+        >>> collection = use.construct_collection(
+        ...     'collection', 'artifact', {'a': mapping, 'b': mapping}
+        ... )
+        >>> collection
+        <ExecutionUsageVariable name='collection', var_type='artifact_collection'>
+        >>> first_member = access_collection_member(
+        ...     'first_member', collection, 'a'
+        ... )
+        >>> first_member
+        <ExecutionUsageVariable name='first_member', var_type='artifact'>
+        '''  # noqa: E501
+        def factory():
+            return collection.value[key]
+
+        if collection.var_type == 'artifact':
+            return self._usage_variable(name, factory, 'artifact')
+
+        return self._usage_variable(name, factory, 'visualization')
 
     def merge_metadata(self, name: str,
                        *variables: UsageVariable) -> UsageVariable:
