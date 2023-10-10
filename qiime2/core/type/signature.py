@@ -619,7 +619,8 @@ class PipelineSignature:
             inner = UnionExp(
                 (self._infer_type(key, v) for v in value.values()))
             return Collection[inner.normalize()]
-        if isinstance(value, qiime2.sdk.Artifact):
+        if isinstance(value, qiime2.sdk.Artifact) or \
+                isinstance(value, qiime2.sdk.proxy.ProxyArtifact):
             return value.type
         else:
             return infer_primitive_type(value)
