@@ -264,3 +264,26 @@ def collection_dict_of_ints(use):
     )
 
     out.assert_output_type(semantic_type='SingleInt', key='Foo')
+
+
+def construct_and_access_collection(use):
+    ints_a = use.init_artifact('ints_a', single_int1_factory)
+    ints_b = use.init_artifact('ints_b', single_int2_factory)
+
+    rc_in = use.construct_collection(
+        'rc_in', 'artifact', {'a': ints_a, 'b': ints_b}
+    )
+
+    rc_out, = use.action(
+        use.UsageAction(plugin_id='dummy_plugin', action_id='dict_of_ints'),
+        use.UsageInputs(ints=rc_in),
+        use.UsageOutputNames(output='rc_out')
+    )
+
+    ints_b = use.access_collection_member('ints_b', rc_out, 'b')
+
+    same_int = use.action(  # noqa: F841
+        use.UsageAction(plugin_id='dummy_plugin', action_id='returns_int'),
+        use.UsageInputs(int=ints_b),
+        use.UsageOutputNames(output='same_int')
+    )

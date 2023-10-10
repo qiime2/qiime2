@@ -1319,7 +1319,7 @@ class Usage:
         def factory():
             return collection.value[key]
 
-        if collection.var_type == 'artifact':
+        if collection.var_type == 'artifact_collection':
             return self._usage_variable(name, factory, 'artifact')
 
         return self._usage_variable(name, factory, 'visualization')
