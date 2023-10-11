@@ -417,13 +417,20 @@ class Cache:
             self.__init(path=path, process_pool_lifespan=process_pool_lifespan)
 
     def __init(self, path=None, process_pool_lifespan=45):
+        created_path = False
+        temp_cache_path = pathlib.Path(_get_temp_path())
+
         if path is not None:
             self.path = pathlib.Path(path)
         else:
-            self.path = pathlib.Path(_get_temp_path())
+            self.path = temp_cache_path
 
+        # We need this directory to exist so we can lock it, but we also want
+        # to keep track of whether we created it or not so if we didn't create
+        # it and it isn't a cache we can handle that
         if not os.path.exists(self.path):
             os.makedirs(self.path)
+            created_path = True
 
         self.lock = \
             MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
@@ -432,22 +439,27 @@ class Cache:
         # trying to create the same cache one of them can actually succeed at
         # creating the cache without interference from the other processes.
         with self.lock:
-            if not Cache.is_cache(self.path):
-                try:
+            # If the path already existed and wasn't a cache then we don't want
+            # to create the cache contents here
+            if os.path.exists(self.path) and not Cache.is_cache(self.path) \
+                    and not created_path:
+                # We own the temp_cache_path, so we can recreate it if there
+                # was something wrong with it
+                if self.path == temp_cache_path:
+                    warnings.warn(
+                        "Your temporary cache was found to be in an "
+                        "inconsistent state. It has been recreated.")
+                    set_permissions(self.path, USER_GROUP_RWX,
+                                    USER_GROUP_RWX, skip_root=True)
+                    self._remove_cache_contents()
                     self._create_cache_contents()
-                except FileExistsError as e:
-                    if path is None:
-                        warnings.warn(
-                            "Your temporary cache was found to be in an "
-                            "inconsistent state. It has been recreated.")
-                        set_permissions(self.path, USER_GROUP_RWX,
-                                        USER_GROUP_RWX, skip_root=True)
-                        self._remove_cache_contents()
-                        self._create_cache_contents()
-                    else:
-                        raise ValueError(
-                            f"Path: \'{self.path}\' already exists and is not "
-                            "a cache.") from e
+                # Otherwise just leave it alone
+                else:
+                    raise ValueError(f"Path: \'{self.path}\' already exists"
+                                     " and is not a cache.")
+            else:
+                if not Cache.is_cache(self.path):
+                    self._create_cache_contents()
 
         # Make our process pool.
         self.process_pool = self._create_process_pool()
@@ -462,7 +474,7 @@ class Cache:
 
         # Start thread that pokes things in the cache to ensure they aren't
         # culled for being too old (only if we are in a temp cache)
-        if path is None:
+        if path == temp_cache_path:
             self._thread_is_done = threading.Event()
             self._thread_destructor = \
                 weakref.finalize(self, self._thread_is_done.set)
