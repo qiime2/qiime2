@@ -431,13 +431,21 @@ class Cache:
         if not os.path.exists(self.path):
             # We could have another thread/process creating the cache at this
             # directory in which case the above check might say it does not
-            # exist then it could be created elsewhere before we get here
+            # exist then it could be created elsewhere before we get here. We
+            # cannot lock this, because we don't have a place to put the lock
+            # yet, and it isn't really a big enough deal to create a new lock
+            # elsewhere just for this because we don't really care if another
+            # instance makes the path out from under us
             try:
                 os.makedirs(self.path)
             except FileExistsError:
                 pass
-            else:
-                created_path = True
+
+            # We don't actually care if this is the specific thread/process
+            # that created the path, we only care that some instance of QIIME 2
+            # must  have just done it. Now any instance should treat it as a
+            # QIIME 2 created path
+            created_path = True
 
         self.lock = \
             MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
