@@ -468,7 +468,6 @@ class Cache:
                     warnings.warn(
                         "Your temporary cache was found to be in an "
                         "inconsistent state. It has been recreated.")
-                # Otherwise just leave it alone
                 else:
                     raise ValueError(f"Path: '{self.path}' already exists and"
                                      " is not a cache.")
@@ -476,7 +475,6 @@ class Cache:
                 self._create_cache_contents()
             # else: it was a cache with the contents already in it
 
-        # Make our process pool.
         self.process_pool = self._create_process_pool()
         # Lifespan is supplied in days and converted to seconds for internal
         # use
