@@ -432,7 +432,7 @@ class Cache:
             # We could have another thread/process creating the cache at this
             # directory in which case the above check might say it does not
             # exist then it could be created elsewhere before we get here. We
-            # cannot lock this, because we don't have a place to put the lock
+            # cannot lock this because we don't have a place to put the lock
             # yet, and it isn't really a big enough deal to create a new lock
             # elsewhere just for this because we don't really care if another
             # instance makes the path out from under us
