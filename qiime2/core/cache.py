@@ -434,9 +434,10 @@ class Cache:
             # exist then it could be created elsewhere before we get here
             try:
                 os.makedirs(self.path)
-                created_path = True
             except FileExistsError:
                 pass
+            else:
+                created_path = True
 
         self.lock = \
             MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
