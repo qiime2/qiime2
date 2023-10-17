@@ -461,11 +461,10 @@ class Cache:
                     self._create_cache_contents()
                 # Otherwise just leave it alone
                 else:
-                    raise ValueError(f"Path: \'{self.path}\' already exists"
-                                     " and is not a cache.")
-            else:
-                if not Cache.is_cache(self.path):
-                    self._create_cache_contents()
+                    raise ValueError(f"Path: '{self.path}' already exists and"
+                                     " is not a cache.")
+            elif not Cache.is_cache(self.path):
+                self._create_cache_contents()
 
         # Make our process pool.
         self.process_pool = self._create_process_pool()
