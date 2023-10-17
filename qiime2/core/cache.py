@@ -443,7 +443,7 @@ class Cache:
 
             # We don't actually care if this is the specific thread/process
             # that created the path, we only care that some instance of QIIME 2
-            # must  have just done it. Now any instance should treat it as a
+            # must have just done it. Now any instance should treat it as a
             # QIIME 2 created path
             created_path = True
 
