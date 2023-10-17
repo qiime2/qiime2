@@ -429,20 +429,26 @@ class Cache:
         # to keep track of whether we created it or not so if we didn't create
         # it and it isn't a cache we can handle that
         if not os.path.exists(self.path):
-            os.makedirs(self.path)
-            created_path = True
+            # We could have another thread/process creating the cache at this
+            # directory in which case the above check might say it does not
+            # exist then it could be created elsewhere before we get here
+            try:
+                os.makedirs(self.path)
+                created_path = True
+            except FileExistsError:
+                pass
 
         self.lock = \
             MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
 
         # We need to lock here to ensure that if we have multiple processes
         # trying to create the same cache one of them can actually succeed at
-        # creating the cache without interference from the other processes.
+        # creating the cache contents without interference from the other
+        # processes.
         with self.lock:
             # If the path already existed and wasn't a cache then we don't want
             # to create the cache contents here
-            if os.path.exists(self.path) and not Cache.is_cache(self.path) \
-                    and not created_path:
+            if Cache.is_cache(self.path) and not created_path:
                 # We own the temp_cache_path, so we can recreate it if there
                 # was something wrong with it
                 if self.path == temp_cache_path:
