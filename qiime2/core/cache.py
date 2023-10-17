@@ -448,7 +448,7 @@ class Cache:
         with self.lock:
             # If the path already existed and wasn't a cache then we don't want
             # to create the cache contents here
-            if Cache.is_cache(self.path) and not created_path:
+            if not Cache.is_cache(self.path) and not created_path:
                 # We own the temp_cache_path, so we can recreate it if there
                 # was something wrong with it
                 if self.path == temp_cache_path:
