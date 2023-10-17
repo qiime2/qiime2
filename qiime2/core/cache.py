@@ -474,6 +474,7 @@ class Cache:
                                      " is not a cache.")
             elif not Cache.is_cache(self.path):
                 self._create_cache_contents()
+            # else: it was a cache with the contents already in it
 
         # Make our process pool.
         self.process_pool = self._create_process_pool()
