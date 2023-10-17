@@ -461,13 +461,13 @@ class Cache:
                 # We own the temp_cache_path, so we can recreate it if there
                 # was something wrong with it
                 if self.path == temp_cache_path:
-                    warnings.warn(
-                        "Your temporary cache was found to be in an "
-                        "inconsistent state. It has been recreated.")
                     set_permissions(self.path, USER_GROUP_RWX,
                                     USER_GROUP_RWX, skip_root=True)
                     self._remove_cache_contents()
                     self._create_cache_contents()
+                    warnings.warn(
+                        "Your temporary cache was found to be in an "
+                        "inconsistent state. It has been recreated.")
                 # Otherwise just leave it alone
                 else:
                     raise ValueError(f"Path: '{self.path}' already exists and"
