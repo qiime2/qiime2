@@ -30,7 +30,6 @@ requirements:
     # importlib_resources 6.1.0 which is what we were using when this was
     # pinned. Pinning this to the version that was working for us was simpler
     # than digging around in importlib_resources to find a compatible version
-    # there
     - networkx =3.1
     - dill
     - psutil
