@@ -304,10 +304,7 @@ rc_in_artifact_collection = ResultCollection({
 rc_out_artifact_collection, = dummy_plugin_actions.dict_of_ints(
     ints=rc_in_artifact_collection,
 )
-ints_b = rc_out_artifact_collection['b']
-same_int, = dummy_plugin_actions.returns_int(
-    int=ints_b,
-)"""
+ints_b_from_collection = rc_out_artifact_collection['b']"""
 
         self.assertEqual(exp, use.render())
 

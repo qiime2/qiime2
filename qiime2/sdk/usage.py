@@ -1234,18 +1234,18 @@ class Usage:
 
         Examples
         --------
-        >>> mapping = use.action(
+        >>> mapping_1, = use.action(
         ...     use.UsageAction('dummy_plugin', 'params_only_method'),
         ...     use.UsageInputs(name='c', age=100),
-        ...     use.UsageOutputNames(out='mapping')
+        ...     use.UsageOutputNames(out='mapping_1')
         ... )
-        >>> mapping
-        <ExecutionUsageVariable name='mapping', var_type='artifact'>
-        >>> collection = use.construct_collection(
-        ...     'collection', 'artifact', {'a': mapping, 'b': mapping}
+        >>> mapping_1
+        <ExecutionUsageVariable name='mapping_1', var_type='artifact'>
+        >>> collection_1 = use.construct_collection(
+        ...     'collection_1', 'artifact', {'a': mapping_1, 'b': mapping_1}
         ... )
-        >>> collection
-        <ExecutionUsageVariable name='collection', var_type='artifact_collection'>
+        >>> collection_1
+        <ExecutionUsageVariable name='collection_1', var_type='artifact_collection'>
         '''  # noqa: E501
         if member_type not in ('artifact', 'visualization'):
             msg = (
@@ -1257,18 +1257,21 @@ class Usage:
         if not all(
             member.var_type == member_type for member in members.values()
         ):
-            msg = 'Expected only artifacts in an artifact collection.'
+            msg = (
+                'Expected either only artifacts or only visualizations in a '
+                'collection.'
+            )
             raise ValueError(msg)
 
         def factory():
             from qiime2 import ResultCollection
             # NOTE: these usage variables are assumed to have been
             # materialized at this point
-            members = {
+            members_dict = {
                 key: member.value for key, member in members.items()
             }
 
-            return ResultCollection(members)
+            return ResultCollection(members_dict)
 
         if member_type == 'artifact':
             return self._usage_variable(name, factory, 'artifact_collection')
@@ -1298,20 +1301,20 @@ class Usage:
 
         Examples
         --------
-        >>> mapping = use.action(
+        >>> mapping_2, = use.action(
         ...     use.UsageAction('dummy_plugin', 'params_only_method'),
         ...     use.UsageInputs(name='c', age=100),
-        ...     use.UsageOutputNames(out='mapping')
+        ...     use.UsageOutputNames(out='mapping_2')
         ... )
-        >>> mapping
-        <ExecutionUsageVariable name='mapping', var_type='artifact'>
-        >>> collection = use.construct_collection(
-        ...     'collection', 'artifact', {'a': mapping, 'b': mapping}
+        >>> mapping_2
+        <ExecutionUsageVariable name='mapping_2', var_type='artifact'>
+        >>> collection_2 = use.construct_collection(
+        ...     'collection_2', 'artifact', {'a': mapping_2, 'b': mapping_2}
         ... )
-        >>> collection
-        <ExecutionUsageVariable name='collection', var_type='artifact_collection'>
-        >>> first_member = access_collection_member(
-        ...     'first_member', collection, 'a'
+        >>> collection_2
+        <ExecutionUsageVariable name='collection_2', var_type='artifact_collection'>
+        >>> first_member = use.access_collection_member(
+        ...     'first_member', collection_2, 'a'
         ... )
         >>> first_member
         <ExecutionUsageVariable name='first_member', var_type='artifact'>

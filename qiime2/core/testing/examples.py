@@ -280,10 +280,6 @@ def construct_and_access_collection(use):
         use.UsageOutputNames(output='rc_out')
     )
 
-    ints_b = use.access_collection_member('ints_b', rc_out, 'b')
-
-    same_int = use.action(  # noqa: F841
-        use.UsageAction(plugin_id='dummy_plugin', action_id='returns_int'),
-        use.UsageInputs(int=ints_b),
-        use.UsageOutputNames(output='same_int')
+    ints_b_from_collection = use.access_collection_member(  # noqa: F841
+        'ints_b_from_collection', rc_out, 'b'
     )
