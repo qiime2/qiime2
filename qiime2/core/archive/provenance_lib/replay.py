@@ -55,7 +55,7 @@ class ReplayConfig():
         script.
     verbose : bool
         If True, progress is reported to stdout.
-    md_out_fp : str
+    md_out_dir : str
         The directory where caputred metadata should be written.
     '''
     use: Usage
@@ -66,7 +66,7 @@ class ReplayConfig():
     no_provenance_context_has_been_printed: bool = False
     header: bool = True
     verbose: bool = False
-    md_out_fp: str = ''
+    md_out_dir: str = ''
 
 
 @dataclass
@@ -216,7 +216,7 @@ def replay_provenance(
     suppress_header: bool = False,
     verbose: bool = False,
     dump_recorded_metadata: bool = True,
-    md_out_fp: str = ''
+    md_out_dir: str = ''
 ):
     '''
     Renders usage examples describing a ProvDAG, producing an interface-
@@ -251,7 +251,7 @@ def replay_provenance(
         Whether to print status messages during processing.
     dump_recorded_metadata : bool
         Whether to write the metadata recorded in provenance to disk.
-    md_out_fp : str
+    md_out_dir : str
         The directory in which to write the recorded metadata if desired.
     '''
     if type(payload) is ProvDAG:
@@ -268,7 +268,7 @@ def replay_provenance(
                 'Metadata not parsed, so cannot be written to disk. Re-run '
                 'with parse_metadata, or set dump_recorded_metadata to False.'
             )
-        if md_out_fp:
+        if md_out_dir:
             raise ValueError(
                 'Metadata not parsed, so cannot be written to disk. Re-run '
                 'with parse_metadata, or do not pass a metadata output '
@@ -290,7 +290,7 @@ def replay_provenance(
         use=usage_driver(),
         use_recorded_metadata=use_recorded_metadata,
         dump_recorded_metadata=dump_recorded_metadata,
-        verbose=verbose, md_out_fp=md_out_fp
+        verbose=verbose, md_out_dir=md_out_dir
     )
 
     build_usage_examples(dag, cfg)
@@ -554,8 +554,8 @@ def build_action_usage(
                         "to enable visual inspection.")
 
                 if not command_specific_md_context_has_been_printed:
-                    if cfg.md_out_fp:
-                        fp = f'{cfg.md_out_fp}/{plg_action_name}'
+                    if cfg.md_out_dir:
+                        fp = f'{cfg.md_out_dir}/{plg_action_name}'
                     else:
                         fp = f'./recorded_metadata/{plg_action_name}/'
 
@@ -700,8 +700,8 @@ def init_md_from_recorded_md(
         return Metadata(md_df)
 
     cwd = pathlib.Path.cwd()
-    if cfg.md_out_fp:
-        fn = str(cwd / cfg.md_out_fp / md_fn)
+    if cfg.md_out_dir:
+        fn = str(cwd / cfg.md_out_dir / md_fn)
     else:
         fn = str(cwd / 'recorded_metadata' / md_fn)
 
@@ -856,13 +856,13 @@ def dump_recorded_md_file(
             'This function should only be called if the node has metadata.'
         )
 
-    if cfg.md_out_fp:
-        md_out_fp_base = pathlib.Path(cfg.md_out_fp)
+    if cfg.md_out_dir:
+        md_out_dir_base = pathlib.Path(cfg.md_out_dir)
     else:
         cwd = pathlib.Path.cwd()
-        md_out_fp_base = cwd / 'recorded_metadata'
+        md_out_dir_base = cwd / 'recorded_metadata'
 
-    action_dir = md_out_fp_base / action_name
+    action_dir = md_out_dir_base / action_name
     action_dir.mkdir(parents=True, exist_ok=True)
 
     md_df = node.metadata[md_id]
@@ -1213,7 +1213,7 @@ def replay_supplement(
                 continue
 
             rel_fp = drivers_to_filenames[usage_driver.__name__]
-            md_out_fp = tempdir_path / 'recorded_metadata'
+            md_out_dir = tempdir_path / 'recorded_metadata'
             tmp_fp = tempdir_path / rel_fp
             replay_provenance(
                 usage_driver=usage_driver,
@@ -1223,7 +1223,7 @@ def replay_supplement(
                 suppress_header=suppress_header,
                 verbose=verbose,
                 dump_recorded_metadata=dump_recorded_metadata,
-                md_out_fp=md_out_fp
+                md_out_dir=md_out_dir
             )
             print(f'The {usage_driver} replay script was written to {rel_fp}.')
 
