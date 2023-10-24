@@ -400,6 +400,15 @@ class _Action:
             inputs:
             - some_input_name: some_uuid
             - some_other_input_name: some_other_uuid
+            (...)
+
+            or:
+
+            inputs:
+            - some_input_name:
+                - some_uuid
+                - some_other_uuid
+            (...)
 
             but when a ResultCollection is an input it is structed as:
 
@@ -407,6 +416,7 @@ class _Action:
             - result_collection_name:
                 - some_key: some_uuid
                 - some_other_key: some_other_uuid
+            (...)
 
             and thus is a different structure entirely.
 
@@ -422,7 +432,7 @@ class _Action:
         if inputs is not None:
             for item in inputs:
                 first_value = next(iter(item.values()))
-                if type(first_value) is list:
+                if type(first_value) is list and type(first_value[0]) is dict:
                     msg = (
                         'An action in provenance took a ResultCollection '
                         'as input. Replay of ResultCollections is not '
