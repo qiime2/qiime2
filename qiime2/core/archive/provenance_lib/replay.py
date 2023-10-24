@@ -16,7 +16,7 @@ import tempfile
 from uuid import uuid4
 from collections import UserDict
 from dataclasses import dataclass, field
-from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
+from typing import Dict, Iterator, List, Optional, Set, Union
 
 from .archive_parser import ProvNode
 from .parse import ProvDAG
@@ -218,7 +218,7 @@ class NamespaceCollections:
         }
 
         where the action-id and the output-name uniquely identify a result
-        collection that came from some action, the `collection_uuid` key stores 
+        collection that came from some action, the `collection_uuid` key stores
         a uuid for the entire collection needed for querying the
         `usg_var_namespace`, and the `artifacts` key stores all result
         collection members along with their keys so they can be accessed
@@ -227,12 +227,12 @@ class NamespaceCollections:
     usg_var_namespace: UsageVarsDict = field(default_factory=UsageVarsDict)
     usg_vars: Dict[str, UsageVariable] = field(default_factory=dict)
     action_namespace: Set[str] = field(default_factory=set)
-    result_collection_ns: Dict = field(default_factory=dict) 
+    result_collection_ns: Dict = field(default_factory=dict)
 
 
 @dataclass
 class ResultCollectionRecord:
-    usg_var_uuid: str
+    collection_uuid: str
     members: Dict[str, str]
 
 
@@ -327,7 +327,7 @@ def replay_provenance(
     result_collection_ns = make_result_collection_namespace(dag)
     ns = NamespaceCollections(result_collection_ns=result_collection_ns)
 
-    build_usage_examples(dag, cfg)
+    build_usage_examples(dag, cfg, ns)
     if not suppress_header:
         cfg.use.build_header()
         cfg.use.build_footer(dag)
@@ -339,6 +339,7 @@ def replay_provenance(
     with open(out_fp, mode='w') as out_fh:
         out_fh.write(output)
 
+
 def make_result_collection_namespace(dag: nx.digraph) -> dict:
     '''
     Constructs the result collections namespaces from the parsed digraph.
@@ -347,7 +348,7 @@ def make_result_collection_namespace(dag: nx.digraph) -> dict:
     ----------
     dag : nx.digraph
         The digraph representing the parsed provenance.
-    
+
     Returns
     -------
     dict
@@ -362,17 +363,19 @@ def make_result_collection_namespace(dag: nx.digraph) -> dict:
             # output result collection
             action_id = provnode.action.action_id
             output_name = provnode.action.output_name
-            if action_id not in rc_ns: 
+            if action_id not in rc_ns:
                 rc_ns[action_id] = {}
-            if output_name not in rc_ns[action_id]: 
+            if output_name not in rc_ns[action_id]:
                 artifacts = {provnode._uuid: rc_key}
                 rc_ns[action_id][output_name] = ResultCollectionRecord(
-                    usg_var_uuid = uuid4(), members=artifacts
+                    collection_uuid=str(uuid4()), members=artifacts
                 )
             else:
-               rc_ns[action_id][output_name].members[provnode._uuid] = rc_key 
+                rc_ns[action_id][output_name].members[provnode._uuid] = rc_key
 
-        # TODO: maybe handle input result collections here
+    # TODO: maybe handle input result collections here
+
+    return rc_ns
 
 
 def group_by_action(
@@ -415,6 +418,8 @@ def group_by_action(
             if node.action.result_collection_key:
                 # artifact is from result collection, we only want one
                 # entry per result collection
+                print(ns.result_collection_ns[action_id])
+                print(ns.result_collection_ns[action_id][output_name])
                 rc_record = ns.result_collection_ns[action_id][output_name]
                 node_id = rc_record.collection_uuid
 
@@ -445,7 +450,7 @@ def build_usage_examples(
         Info tracking usage and result collection namespaces.
     '''
     sorted_nodes = nx.topological_sort(dag.collapsed_view)
-    actions = group_by_action(dag, sorted_nodes)
+    actions = group_by_action(dag, sorted_nodes, ns)
 
     for node_id in actions.no_provenance_nodes:
         node = dag.get_node_data(node_id)
@@ -453,8 +458,17 @@ def build_usage_examples(
 
     for action_id in (std_actions := actions.std_actions):
         # we are replaying actions not nodes, so any associated node works
-        some_node_id = next(iter(std_actions[action_id]))
-        node = dag.get_node_data(some_node_id)
+        try:
+            some_node_id = next(iter(std_actions[action_id]))
+            node = dag.get_node_data(some_node_id)
+        except KeyError:
+            # we have result collection
+            some_output_name = next(iter(ns.result_collection_ns[action_id]))
+            some_node_id = next(iter(
+                ns.result_collection_ns[action_id][some_output_name].members
+            ))
+            node = dag.get_node_data(some_node_id)
+
         if node.action.action_type == 'import':
             build_import_usage(node, ns, cfg)
         else:
