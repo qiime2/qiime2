@@ -388,51 +388,74 @@ class _Action:
         Returns
         -------
         dict
-            A mapping of input name to uuid for each input passed to the
-            corresponding action.
+            A mapping of input name to the data type passed for that input
+            (either uuid, list of uuid, or dict), see below for details.
 
-        Raises
-        ------
-        ValueError
-            If an input ResultCollection is detected. These are detectable here
-            because typically the inputs section is structured as:
+        Notes
+        -----
+        One of three structures may be encoutered when parsing this section of
+        action.yaml, described below:
+
+        case 1:
 
             inputs:
             - some_input_name: some_uuid
             - some_other_input_name: some_other_uuid
+            (...)
+        
+        case 2:
 
-            but when a ResultCollection is an input it is structed as:
+            inputs:
+            - some_input_name: 
+                - some_uuid
+                - some_other_uuid
+            (...)
+
+        case 3 (result collection):
 
             inputs:
             - result_collection_name:
                 - some_key: some_uuid
                 - some_other_key: some_other_uuid
-
-            and thus is a different structure entirely.
-
-        Notes
-        -----
-            When support for ResultCollections exists, the erroring should
-            obviously be removed, and the way that items are added to `results`
-            might need to be rethought--should nested dicts be added, or should
-            ResultCollections be unpacked and and added piece by piece?
+            (...)
         '''
         inputs = self._action_details.get('inputs')
         results = {}
         if inputs is not None:
-            for item in inputs:
-                first_value = next(iter(item.values()))
-                if type(first_value) is list:
-                    msg = (
-                        'An action in provenance took a ResultCollection '
-                        'as input. Replay of ResultCollections is not '
-                        'currently supported.'
-                    )
-                    raise ValueError(msg)
+            for input_ in inputs:
+                nest_lvl_1 = next(iter(input_.values()))
+                if type(nest_lvl_1) is list and type(nest_lvl_1[0]) is dict:
+                    # result collection 
+                    rc = {}
+                    for member in nest_lvl_1:
+                        rc.update(member)
 
-                results.update(item.items())
+                    input_name = next(iter(input_))
+                    results.update({input_name: rc})
+                else:
+                    # not result collection
+                    results.update(input_)
 
         return results
+    
+    @property
+    def input_result_collections(self):
+        '''
+        Collects all result collections passed as inputs (if any). Used for
+        constructing the result collection namespace.
+
+        Returns
+        -------
+        list of str
+            A list of the names of the result collections passed as input.
+            The names are as registered in the method registration.
+        '''
+        result_collection_names = []
+        for key, value in self.inputs:
+            if type(value) is dict:
+                result_collection_names.append(key)
+                
+        return result_collection_names
 
     @property
     def parameters(self) -> dict:
@@ -454,35 +477,42 @@ class _Action:
         str or None
             The name of the output as parsed from action.yaml, or None if there
             is no output-name section.
-
-        Raises
-        ------
-        ValueError
-            If the artifact comes from a ResultCollection. This is detectable
-            here because outputs from a ResultCollection look like:
-
-            output-name:
-            - output
-            - key
-            - position/total positions
-
-            and are thus a different structure entirely.
-
-        Notes
-        -----
-            The erroring should be removed when support for ResultCollections
-            are added.
         '''
         output_name = self._action_details.get('output-name')
 
         if type(output_name) is list:
-            msg = (
-                'A ResultCollection was returned by an action in provenance. '
-                'Replay of ResultCollections are not currently supported.'
-            )
-            raise ValueError(msg)
+            output_name = output_name[0]
 
         return output_name
+
+    @property
+    def result_collection_key(self) -> Optional[str]:
+        '''
+        Gets the result collection key if the artifact is part of a result
+        collection.
+
+        Returns
+        -------
+        str
+            The result collection key if the artifact was output as part of
+            a result collection, none otherwise.  
+        
+        Notes
+        -----
+        We know if the artifact comes from a ResultCollection because
+        outputs from a ResultCollection look like:
+
+        output-name:
+        - output
+        - key
+        - position/total positions
+        '''
+        output_name = self._action_details.get('output-name')
+
+        if type(output_name) is not list:
+            return None
+
+        return output_name[1]
 
     @property
     def format(self) -> Optional[str]:

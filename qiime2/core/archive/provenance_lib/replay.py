@@ -13,9 +13,10 @@ import pathlib
 import pkg_resources
 import shutil
 import tempfile
+from uuid import uuid4
 from collections import UserDict
 from dataclasses import dataclass, field
-from typing import Dict, Iterator, List, Optional, Set, Union
+from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 from .archive_parser import ProvNode
 from .parse import ProvDAG
@@ -199,10 +200,40 @@ class NamespaceCollections:
     action_namespace : set of str
         A collection of unique action strings that look like
         `{plugin}_{action}_{sequential int}`.
+    result_collection_ns : dict
+        Used to keep track of result collection members during usage rendering.
+        Structure is as follows:
+
+        {
+            action-id: {
+                output-name: {
+                    'collection_uuid': uuid,
+                    'artifacts': {
+                        uuid: key-in-collection,
+                        (...),
+                    }
+                },
+                (...),
+            }
+        }
+
+        where the action-id and the output-name uniquely identify a result
+        collection that came from some action, the `collection_uuid` key stores 
+        a uuid for the entire collection needed for querying the
+        `usg_var_namespace`, and the `artifacts` key stores all result
+        collection members along with their keys so they can be accessed
+        properly.
     '''
     usg_var_namespace: UsageVarsDict = field(default_factory=UsageVarsDict)
     usg_vars: Dict[str, UsageVariable] = field(default_factory=dict)
     action_namespace: Set[str] = field(default_factory=set)
+    result_collection_ns: Dict = field(default_factory=dict) 
+
+
+@dataclass
+class ResultCollectionRecord:
+    usg_var_uuid: str
+    members: Dict[str, str]
 
 
 def replay_provenance(
@@ -293,6 +324,9 @@ def replay_provenance(
         verbose=verbose, md_out_dir=md_out_dir
     )
 
+    result_collection_ns = make_result_collection_namespace(dag)
+    ns = NamespaceCollections(result_collection_ns=result_collection_ns)
+
     build_usage_examples(dag, cfg)
     if not suppress_header:
         cfg.use.build_header()
@@ -305,8 +339,45 @@ def replay_provenance(
     with open(out_fp, mode='w') as out_fh:
         out_fh.write(output)
 
+def make_result_collection_namespace(dag: nx.digraph) -> dict:
+    '''
+    Constructs the result collections namespaces from the parsed digraph.
 
-def group_by_action(dag: ProvDAG, nodes: Iterator[str]) -> ActionCollections:
+    Parameters
+    ----------
+    dag : nx.digraph
+        The digraph representing the parsed provenance.
+    
+    Returns
+    -------
+    dict
+        A fleshed-out dict to be attached to
+        `NamsepaceCollections.result_collection_ns`.
+    '''
+    rc_ns = {}
+    for node in dag:
+        provnode = dag.get_node_data(node)
+        rc_key = provnode.action.result_collection_key
+        if rc_key:
+            # output result collection
+            action_id = provnode.action.action_id
+            output_name = provnode.action.output_name
+            if action_id not in rc_ns: 
+                rc_ns[action_id] = {}
+            if output_name not in rc_ns[action_id]: 
+                artifacts = {provnode._uuid: rc_key}
+                rc_ns[action_id][output_name] = ResultCollectionRecord(
+                    usg_var_uuid = uuid4(), members=artifacts
+                )
+            else:
+               rc_ns[action_id][output_name].members[provnode._uuid] = rc_key 
+
+        # TODO: maybe handle input result collections here
+
+
+def group_by_action(
+    dag: ProvDAG, nodes: Iterator[str], ns: NamespaceCollections
+) -> ActionCollections:
     '''
     This groups the nodes from a DAG by action, returning an ActionCollections
     aggregating the outputs related to each action.
@@ -324,6 +395,8 @@ def group_by_action(dag: ProvDAG, nodes: Iterator[str]) -> ActionCollections:
         The dag representation of parsed provenance.
     nodes : iterator of str
         An iterator over node uuids.
+    ns : NamespaceCollections
+        Info tracking usage and result collection namespaces.
 
     Returns
     -------
@@ -334,23 +407,31 @@ def group_by_action(dag: ProvDAG, nodes: Iterator[str]) -> ActionCollections:
     for node_id in nodes:
         if dag.node_has_provenance(node_id):
             node = dag.get_node_data(node_id)
-            action_id = node.action._execution_details['uuid']
-
+            action_id = node.action.action_id
             output_name = node.action.output_name
             if output_name is None:
                 output_name = camel_to_snake(node.type)
 
-            try:
-                actions.std_actions[action_id].update({node_id: output_name})
-            except KeyError:
+            if node.action.result_collection_key:
+                # artifact is from result collection, we only want one
+                # entry per result collection
+                rc_record = ns.result_collection_ns[action_id][output_name]
+                node_id = rc_record.collection_uuid
+
+            if action_id not in actions.std_actions:
                 actions.std_actions[action_id] = {node_id: output_name}
+            else:
+                # for result collections we overwrite this but don't care
+                actions.std_actions[action_id][node_id] = output_name
         else:
             actions.no_provenance_nodes.append(node_id)
 
     return actions
 
 
-def build_usage_examples(dag: ProvDAG, cfg: ReplayConfig):
+def build_usage_examples(
+    dag: ProvDAG, cfg: ReplayConfig, ns: NamespaceCollections
+):
     '''
     Builds a chained usage example representing the analysis `dag`.
 
@@ -360,23 +441,24 @@ def build_usage_examples(dag: ProvDAG, cfg: ReplayConfig):
        The dag representation of parsed provenance.
     cfg : ReplayConfig
         Replay configuration options.
+    ns : NamespaceCollections
+        Info tracking usage and result collection namespaces.
     '''
-    usg_ns = NamespaceCollections()
     sorted_nodes = nx.topological_sort(dag.collapsed_view)
     actions = group_by_action(dag, sorted_nodes)
 
     for node_id in actions.no_provenance_nodes:
         node = dag.get_node_data(node_id)
-        build_no_provenance_node_usage(node, node_id, usg_ns, cfg)
+        build_no_provenance_node_usage(node, node_id, ns, cfg)
 
     for action_id in (std_actions := actions.std_actions):
         # we are replaying actions not nodes, so any associated node works
         some_node_id = next(iter(std_actions[action_id]))
         node = dag.get_node_data(some_node_id)
         if node.action.action_type == 'import':
-            build_import_usage(node, usg_ns, cfg)
+            build_import_usage(node, ns, cfg)
         else:
-            build_action_usage(node, usg_ns, std_actions, action_id, cfg)
+            build_action_usage(node, ns, std_actions, action_id, cfg)
 
 
 def build_no_provenance_node_usage(
@@ -398,7 +480,7 @@ def build_no_provenance_node_usage(
     uuid : str
         The uuid of the node/result.
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     cfg : ReplayConfig
         Replay configuration options. Contains the modified usage driver.
     '''
@@ -453,7 +535,7 @@ def build_import_usage(
     node : ProvNode
         The imported node of interest.
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     cfg : ReplayConfig
         Replay configuration options. Contains the modified usage driver.
     '''
@@ -493,7 +575,7 @@ def build_action_usage(
     node : ProvNode
         The node the creating action of which is of interest.
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     std_actions : dict
         Expalained in ActionCollections.
     action_id : str
@@ -600,7 +682,7 @@ def _collect_action_inputs(ns: NamespaceCollections, node: ProvNode) -> dict:
     Parameters
     ----------
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     node : ProvNode
         The node the creating action of which's inputs are of interest.
 
@@ -609,6 +691,8 @@ def _collect_action_inputs(ns: NamespaceCollections, node: ProvNode) -> dict:
     dict
         Mapping input names to their corresponding usage variables.
     '''
+    # TODO: this might be where we need to detect an incoming result collection
+    #  that might not exist yet and create it before rendering the action
     inputs_dict = {}
     for input_name, uuids in node.action.inputs.items():
         # Some optional inputs take None as a default
@@ -634,7 +718,7 @@ def _uniquify_output_names(
     Parameters
     ----------
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     raw_outputs : dict
         Mapping of node uuid to output-name as seen in action.yaml.
 
@@ -773,7 +857,7 @@ def init_md_from_artifacts(
         uuids and `relative_fp` which is the filename of the metadata file.
         These are parsed from a !metadata tag in action.yaml.
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     cfg: ReplayConfig
         Replay configuration options. Contains the executing usage driver.
 
