@@ -83,15 +83,15 @@ class NamespaceCollectionTests(unittest.TestCase):
         base_name = 'concated_ints'
         exp_name = base_name + '_0'
         ns = NamespaceCollections()
-        ns.usg_var_namespace.update({uuid: base_name})
-        self.assertEqual(ns.usg_var_namespace[uuid], exp_name)
+        ns.poo.update({uuid: base_name})
+        self.assertEqual(ns.poo[uuid], exp_name)
 
         def factory():  # pragma: no cover
             return Artifact.load(self.das.concated_ints.filepath)
-        u_var = use.init_artifact(ns.usg_var_namespace[uuid], factory)
+        u_var = use.init_artifact(ns.poo[uuid], factory)
         self.assertEqual(u_var.name, exp_name)
 
-        actual_uuid = ns.usg_var_namespace.get_key(u_var.name)
+        actual_uuid = ns.poo.get_key(u_var.name)
         self.assertEqual(actual_uuid, uuid)
 
         ns.usg_vars[uuid] = u_var
@@ -818,7 +818,7 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
         build_no_provenance_node_usage(v0_node, uuid, ns, cfg)
 
         out_var_name = '<feature_table_frequency_0>'
-        self.assertEqual(ns.usg_var_namespace, {uuid: out_var_name})
+        self.assertEqual(ns.poo, {uuid: out_var_name})
 
         rendered = cfg.use.render()
         # Confirm the initial context comment is present once.
@@ -840,7 +840,7 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
         build_no_provenance_node_usage(node, uuid, ns, cfg)
 
         out_var_name = '<no-provenance-node_0>'
-        self.assertEqual(ns.usg_var_namespace, {uuid: out_var_name})
+        self.assertEqual(ns.poo, {uuid: out_var_name})
 
         rendered = cfg.use.render()
         # Confirm the initial context comment is present once.
@@ -869,11 +869,11 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
 
         build_no_provenance_node_usage(v0_node, uuid, ns, cfg)
         build_no_provenance_node_usage(dummy_node, dummy_node_uuid, ns, cfg)
-        self.assertIn(uuid, ns.usg_var_namespace)
-        self.assertIn(dummy_node_uuid, ns.usg_var_namespace)
-        self.assertEqual(ns.usg_var_namespace[uuid],
+        self.assertIn(uuid, ns.poo)
+        self.assertIn(dummy_node_uuid, ns.poo)
+        self.assertEqual(ns.poo[uuid],
                          '<feature_table_frequency_0>')
-        self.assertEqual(ns.usg_var_namespace[dummy_node_uuid],
+        self.assertEqual(ns.poo[dummy_node_uuid],
                          '<feature_table_frequency_1>')
 
         rendered = cfg.use.render()

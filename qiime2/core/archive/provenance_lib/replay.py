@@ -16,7 +16,7 @@ import tempfile
 from uuid import uuid4
 from collections import UserDict
 from dataclasses import dataclass, field
-from typing import Dict, Iterator, List, Optional, Set, Union
+from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 from .archive_parser import ProvNode
 from .parse import ProvDAG
@@ -228,6 +228,8 @@ class NamespaceCollections:
     usg_vars: Dict[str, UsageVariable] = field(default_factory=dict)
     action_namespace: Set[str] = field(default_factory=set)
     result_collection_ns: Dict = field(default_factory=dict)
+    rc_contents_to_rc_uuid: Dict = field(default_factory=dict)
+    artifact_uuid_to_rc_uuid: Dict = field(default_factory=dict)
 
 
 @dataclass
@@ -325,7 +327,13 @@ def replay_provenance(
     )
 
     result_collection_ns = make_result_collection_namespace(dag)
-    ns = NamespaceCollections(result_collection_ns=result_collection_ns)
+    artifact_uuid_to_rc_uuid, rc_contents_to_rc_uuid = \
+        make_result_collection_mappings(result_collection_ns)
+    ns = NamespaceCollections(
+        result_collection_ns=result_collection_ns,
+        artifact_uuid_to_rc_uuid=artifact_uuid_to_rc_uuid,
+        rc_contents_to_rc_uuid=rc_contents_to_rc_uuid
+    )
 
     build_usage_examples(dag, cfg, ns)
     if not suppress_header:
@@ -374,8 +382,58 @@ def make_result_collection_namespace(dag: nx.digraph) -> dict:
                 rc_ns[action_id][output_name].members[provnode._uuid] = rc_key
 
     # TODO: maybe handle input result collections here
-
     return rc_ns
+
+
+def make_result_collection_mappings(result_collection_ns: Dict) -> Tuple[Dict]:
+    '''
+    '''
+    a_to_c = {}  # artifact uuid -> collection uuid
+    c_to_c = {}  # hash of collection contents -> collection uuids
+    for action_id in result_collection_ns:
+        for output_name in result_collection_ns[action_id]:
+            record = result_collection_ns[action_id][output_name]
+            for uuid, key in record.members:
+                a_to_c[uuid] = (record.collection_uuid, key) 
+            hashed_contents, hashed_contents_with_keys = \
+                hash_result_collection(record.members) 
+            c_to_c[hashed_contents] = record.collection_uuid
+            c_to_c[hashed_contents_with_keys] = record.collection_uuid
+
+    return a_to_c, c_to_c
+
+
+def hash_result_collection(members: Dict) -> int:
+    '''
+    Hashes the contents of a result collection. Useful for finding
+    corresponding usage variables when rendering the replay of result
+    collections. Order of the input result collection is not taken into 
+    account (the result collections are ordered alphabetically by key).
+
+    Parameters
+    ----------
+    members : dict
+        The contents of a result collection, looks like:
+
+        {
+            'a': some-uuid,
+            'b': some-other-uuid,
+            (...)
+        }
+    
+    Returns
+    -------
+    tuple of int
+        The contents hashed on only artifact uuids and the contents hashed on
+        the keys and uuids.
+    '''
+    sorted_members = {key: members[key] for key in sorted(members)}
+    hashable_members = (value for _, value in sorted_members.items()) 
+    hashable_members_with_keys = (
+        (key, value) for key, value in sorted_members.items()
+    )
+
+    return hash(hashable_members), hash(hashable_members_with_keys)
 
 
 def group_by_action(
@@ -416,10 +474,6 @@ def group_by_action(
                 output_name = camel_to_snake(node.type)
 
             if node.action.result_collection_key:
-                # artifact is from result collection, we only want one
-                # entry per result collection
-                print(ns.result_collection_ns[action_id])
-                print(ns.result_collection_ns[action_id][output_name])
                 rc_record = ns.result_collection_ns[action_id][output_name]
                 node_id = rc_record.collection_uuid
 
@@ -709,16 +763,28 @@ def _collect_action_inputs(ns: NamespaceCollections, node: ProvNode) -> dict:
     #  that might not exist yet and create it before rendering the action
     inputs_dict = {}
     for input_name, uuids in node.action.inputs.items():
+        # in case of rc's `uuids` is dict of members
         # Some optional inputs take None as a default
         if uuids is not None:
             if type(uuids) is str:
+                # check if exists in usg var ns, else search for it in rc and
+                # render destructuring
                 uuid = uuids
                 inputs_dict.update({input_name: ns.usg_vars[uuid]})
-            else:  # it's a collection
+            elif type(uuids[0]) is str:
+                # list of inputs -- search for equivalent rc if not found,
+                # then follow algorithm for single str for each 
+
                 input_vars = []
                 for uuid in uuids:
                     input_vars.append(ns.usg_vars[uuid])
                 inputs_dict.update({input_name: input_vars})
+            elif type(uuids[0]) is dict:
+                # rc -- search for equivalent rc if not found then
+                # create new rc by for each member follow single str algorithm
+                # and create new rc and new usg variable (use.construct_rc)
+                pass
+
     return inputs_dict
 
 
