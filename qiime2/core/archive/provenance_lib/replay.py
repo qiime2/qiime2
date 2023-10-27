@@ -393,21 +393,24 @@ def make_result_collection_mappings(result_collection_ns: Dict) -> Tuple[Dict]:
     for action_id in result_collection_ns:
         for output_name in result_collection_ns[action_id]:
             record = result_collection_ns[action_id][output_name]
-            for uuid, key in record.members:
-                a_to_c[uuid] = (record.collection_uuid, key) 
-            hashed_contents, hashed_contents_with_keys = \
-                hash_result_collection(record.members) 
+            for uuid, key in record.members.items():
+                a_to_c[uuid] = (record.collection_uuid, key)
+
+            hashed_contents = hash_result_collection(record.members)
+            hashed_contents_with_keys = \
+                hash_result_collection_with_keys(record.members)
+
             c_to_c[hashed_contents] = record.collection_uuid
             c_to_c[hashed_contents_with_keys] = record.collection_uuid
 
     return a_to_c, c_to_c
 
 
-def hash_result_collection(members: Dict) -> int:
+def hash_result_collection_with_keys(members: Dict) -> int:
     '''
     Hashes the contents of a result collection. Useful for finding
     corresponding usage variables when rendering the replay of result
-    collections. Order of the input result collection is not taken into 
+    collections. Order of the input result collection is not taken into
     account (the result collections are ordered alphabetically by key).
 
     Parameters
@@ -420,20 +423,43 @@ def hash_result_collection(members: Dict) -> int:
             'b': some-other-uuid,
             (...)
         }
-    
+
     Returns
     -------
-    tuple of int
-        The contents hashed on only artifact uuids and the contents hashed on
-        the keys and uuids.
+    int
+        The hashed contents.
     '''
     sorted_members = {key: members[key] for key in sorted(members)}
-    hashable_members = (value for _, value in sorted_members.items()) 
     hashable_members_with_keys = (
         (key, value) for key, value in sorted_members.items()
     )
 
-    return hash(hashable_members), hash(hashable_members_with_keys)
+    return hash(hashable_members_with_keys)
+
+
+def hash_result_collection(members: Union[Dict, List]) -> int:
+    '''
+    Hashes a list of uuids. Useful for finding corresponding result collections
+    that may have been cast to list of uuids. If a dict is input it is first
+    converted to a list of values (uuids).
+
+    Parameters
+    ----------
+    members : dict or list
+        The contents of a result collection, either as a dict or list.
+
+    Returns
+    -------
+    int
+        The hashed contents.
+    '''
+    if type(members) is dict:
+        members = list(members.values())
+
+    sorted_members = list(sorted(members))
+    hashable_members = (uuid for uuid in sorted_members)
+
+    return hash(hashable_members)
 
 
 def group_by_action(
@@ -656,7 +682,7 @@ def build_action_usage(
     action = node.action.action_name
     plg_action_name = uniquify_action_name(plugin, action, ns.action_namespace)
 
-    inputs = _collect_action_inputs(ns, node)
+    inputs = _collect_action_inputs(cfg.use, ns, node)
 
     # Process outputs before params so we can access the unique output name
     # from the namespace when dumping metadata to files below
@@ -742,13 +768,17 @@ def build_action_usage(
         ns.usg_vars[uuid_key] = res
 
 
-def _collect_action_inputs(ns: NamespaceCollections, node: ProvNode) -> dict:
+def _collect_action_inputs(
+    use: Usage, ns: NamespaceCollections, node: ProvNode
+) -> dict:
     '''
     Returns a dict containing the action Inputs for a ProvNode.
     Dict structure: {input_name: input_var} or {input_name: [input_var1, ...]}.
 
     Parameters
     ----------
+    use : Usage
+        The currently executing usage driver.
     ns : NamespaceCollections
         Info tracking usage and result collection namespaces.
     node : ProvNode
@@ -759,31 +789,101 @@ def _collect_action_inputs(ns: NamespaceCollections, node: ProvNode) -> dict:
     dict
         Mapping input names to their corresponding usage variables.
     '''
-    # TODO: this might be where we need to detect an incoming result collection
-    #  that might not exist yet and create it before rendering the action
     inputs_dict = {}
     for input_name, uuids in node.action.inputs.items():
-        # in case of rc's `uuids` is dict of members
         # Some optional inputs take None as a default
         if uuids is not None:
             if type(uuids) is str:
-                # check if exists in usg var ns, else search for it in rc and
-                # render destructuring
                 uuid = uuids
-                inputs_dict.update({input_name: ns.usg_vars[uuid]})
-            elif type(uuids[0]) is str:
-                # list of inputs -- search for equivalent rc if not found,
-                # then follow algorithm for single str for each 
+                if uuid not in ns.usg_vars:
+                    # find in rc and render destructure
+                    collection_uuid, key = ns.artifact_uuid_to_rc_uuid[uuid]
+                    collection_name = ns.usg_vars[collection_uuid]
 
-                input_vars = []
-                for uuid in uuids:
-                    input_vars.append(ns.usg_vars[uuid])
-                inputs_dict.update({input_name: input_vars})
-            elif type(uuids[0]) is dict:
+                    ns.usg_var_namespace[uuid] = input_name
+                    var_name = ns.usg_var_namespace[uuid]
+                    usg_var = use.access_collection_member(
+                        var_name, collection_name, key
+                    )
+                    ns.usg_vars[uuid] = usg_var
+
+                inputs_dict.update({input_name: ns.usg_vars[uuid]})
+
+            # uuids is list of str
+            elif type(uuids) is list:
+                # may be rc cast to list so search for equivalent rc
+                # if not then follow algorithm for single str for each
+                uuids_hash = hash_result_collection(uuids)
+                collection_uuid = ns.rc_contents_to_rc_uuid.get(uuids_hash)
+                if collection_uuid:
+                    # corresponding rc found
+                    inputs_dict.update({
+                        input_name: ns.usg_vars[collection_uuid]
+                    })
+                else:
+                    # find each artifact
+                    input_vars = []
+                    for uuid in uuids:
+                        if uuid not in ns.usg_vars:
+                            # find in rc and render destructure
+                            collection_uuid, key = \
+                                ns.artifact_uuid_to_rc_uuid[uuid]
+                            collection_name = ns.usg_vars[collection_uuid]
+
+                            ns.usg_var_namespace[uuid] = input_name
+                            var_name = ns.usg_var_namespace[uuid]
+                            usg_var = use.access_collection_member(
+                                var_name, collection_name, key
+                            )
+                            ns.usg_vars[uuid] = usg_var
+
+                        input_vars.append(ns.usg_vars[uuid])
+
+                    inputs_dict.update({input_name: input_vars})
+
+            # then uuids is list of dict
+            elif type(uuids) is dict:
                 # rc -- search for equivalent rc if not found then
                 # create new rc by for each member follow single str algorithm
                 # and create new rc and new usg variable (use.construct_rc)
-                pass
+                rc = uuids
+                uuids_hash = hash_result_collection_with_keys(rc)
+                collection_uuid = ns.rc_contents_to_rc_uuid.get(uuids_hash)
+                if collection_uuid:
+                    # corresponding rc found
+                    inputs_dict.update({
+                        input_name: ns.usg_vars[collection_uuid]
+                    })
+                else:
+                    new_rc = {}
+                    for key, uuid in rc.items():
+                        if uuid not in ns.usg_vars:
+                            # find in rc, render destructure, make usg var
+                            collection_uuid, collection_key = \
+                                ns.artifact_uuid_to_rc_uuid[uuid]
+                            collection_name = ns.usg_vars[collection_uuid]
+
+                            ns.usg_var_namespace[uuid] = input_name
+                            var_name = ns.usg_var_namespace[uuid]
+                            usg_var = use.access_collection_member(
+                                var_name, collection_name, collection_key
+                            )
+                            ns.usg_vars[uuid] = usg_var
+                            new_rc[key] = usg_var
+                        else:
+                            new_rc[key] = ns.usg_vars[uuid]
+
+                    # make new rc usg var
+                    new_collection_uuid = uuid4()
+                    ns.usg_var_namespace[new_collection_uuid] = input_name
+                    var_name = ns.usg_var_namespace[new_collection_uuid]
+                    usg_var = use.construct_collection(
+                        var_name, 'artifact', new_rc
+                    )
+                    ns.usg_vars[new_collection_uuid] = usg_var
+                    inputs_dict.update({
+                        input_name: ns.usg_vars[new_collection_uuid]
+                    })
 
     return inputs_dict
 
