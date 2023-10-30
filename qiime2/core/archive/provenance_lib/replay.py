@@ -791,74 +791,63 @@ def _collect_action_inputs(
         Mapping input names to their corresponding usage variables.
     '''
     inputs_dict = {}
-    for input_name, uuids in node.action.inputs.items():
-        # Some optional inputs take None as a default
-        if uuids is not None:
-            if type(uuids) is str:
-                uuid = uuids
-                if uuid not in ns.usg_vars:
-                    ns.usg_vars[uuid] = _get_rc_member(
-                        use, ns, uuid, input_name)
+    for input_name, input in node.action.inputs.items():
+        # Received a single artifact
+        if type(input) is str:
+            if input not in ns.usg_vars:
+                ns.usg_vars[input] = _get_rc_member(use, ns, input, input_name)
 
-                inputs_dict.update({input_name: ns.usg_vars[uuid]})
+            resolved_input = ns.usg_vars[input]
+        # Received a list of artifacts
+        elif type(input) is list:
+            # may be rc cast to list so search for equivalent rc
+            # if not then follow algorithm for single str for each
+            input_hash = hash_result_collection(input)
+            if collection_uuid := ns.rc_contents_to_rc_uuid.get(input_hash):
+                # corresponding rc found
+                resolved_input = ns.usg_vars[collection_uuid]
+            else:
+                # find each artifact and assemble into a list
+                input_list = []
+                for input in input:
+                    if input not in ns.usg_vars:
+                        # We should track this artifact in the namespace
+                        ns.usg_vars[input] = _get_rc_member(
+                            use, ns, input, input_name)
 
-            # uuids is list of str
-            elif type(uuids) is list:
-                # may be rc cast to list so search for equivalent rc
-                # if not then follow algorithm for single str for each
-                uuids_hash = hash_result_collection(uuids)
-                collection_uuid = ns.rc_contents_to_rc_uuid.get(uuids_hash)
-                if collection_uuid:
-                    # corresponding rc found
-                    inputs_dict.update({
-                        input_name: ns.usg_vars[collection_uuid]
-                    })
-                else:
-                    # find each artifact
-                    input_vars = []
-                    for uuid in uuids:
-                        if uuid not in ns.usg_vars:
-                            ns.usg_vars[uuid] = _get_rc_member(
-                                use, ns, uuid, input_name)
+                    input_list.append(ns.usg_vars[input])
+                resolved_input = input_list
+        # Received a dict of artifacts (ResultCollection)
+        elif type(input) is dict:
+            # rc -- search for equivalent rc if not found then
+            # create new rc by for each member follow single str algorithm
+            # and create new rc and new usg variable (use.construct_rc)
+            rc = input
+            input_hash = hash_result_collection_with_keys(rc)
+            if collection_uuid := ns.rc_contents_to_rc_uuid.get(input_hash):
+                # corresponding rc found
+                resolved_input = ns.usg_vars[collection_uuid]
+            else:
+                # build up a new result collection
+                new_rc = {}
+                for key, input in rc.items():
+                    if input not in ns.usg_vars:
+                        ns.usg_vars[input] = _get_rc_member(
+                            use, ns, input, input_name)
 
-                        input_vars.append(ns.usg_vars[uuid])
+                    new_rc[key] = ns.usg_vars[input]
 
-                    inputs_dict.update({input_name: input_vars})
+                # make new rc usg var
+                new_collection_uuid = uuid4()
+                ns.usg_var_namespace[new_collection_uuid] = input_name
+                var_name = ns.usg_var_namespace[new_collection_uuid]
+                usg_var = use.construct_collection(
+                    var_name, 'artifact', new_rc
+                )
+                ns.usg_vars[new_collection_uuid] = usg_var
+                resolved_input = ns.usg_vars[new_collection_uuid]
 
-            # then uuids is list of dict
-            elif type(uuids) is dict:
-                # rc -- search for equivalent rc if not found then
-                # create new rc by for each member follow single str algorithm
-                # and create new rc and new usg variable (use.construct_rc)
-                rc = uuids
-                uuids_hash = hash_result_collection_with_keys(rc)
-                collection_uuid = ns.rc_contents_to_rc_uuid.get(uuids_hash)
-                if collection_uuid:
-                    # corresponding rc found
-                    inputs_dict.update({
-                        input_name: ns.usg_vars[collection_uuid]
-                    })
-                else:
-                    new_rc = {}
-                    for key, uuid in rc.items():
-                        if uuid not in ns.usg_vars:
-                            ns.usg_vars[uuid] = _get_rc_member(
-                                use, ns, uuid, input_name)
-                            new_rc[key] = usg_var
-                        else:
-                            new_rc[key] = ns.usg_vars[uuid]
-
-                    # make new rc usg var
-                    new_collection_uuid = uuid4()
-                    ns.usg_var_namespace[new_collection_uuid] = input_name
-                    var_name = ns.usg_var_namespace[new_collection_uuid]
-                    usg_var = use.construct_collection(
-                        var_name, 'artifact', new_rc
-                    )
-                    ns.usg_vars[new_collection_uuid] = usg_var
-                    inputs_dict.update({
-                        input_name: ns.usg_vars[new_collection_uuid]
-                    })
+        inputs_dict[input_name] = resolved_input
 
     return inputs_dict
 
