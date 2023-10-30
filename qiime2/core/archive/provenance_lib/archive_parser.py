@@ -402,11 +402,11 @@ class _Action:
             - some_input_name: some_uuid
             - some_other_input_name: some_other_uuid
             (...)
-        
+
         case 2:
 
             inputs:
-            - some_input_name: 
+            - some_input_name:
                 - some_uuid
                 - some_other_uuid
             (...)
@@ -425,7 +425,7 @@ class _Action:
             for input_ in inputs:
                 nest_lvl_1 = next(iter(input_.values()))
                 if type(nest_lvl_1) is list and type(nest_lvl_1[0]) is dict:
-                    # result collection 
+                    # result collection
                     rc = {}
                     for member in nest_lvl_1:
                         rc.update(member)
@@ -437,7 +437,7 @@ class _Action:
                     results.update(input_)
 
         return results
-    
+
     @property
     def input_result_collections(self):
         '''
@@ -454,7 +454,7 @@ class _Action:
         for key, value in self.inputs:
             if type(value) is dict:
                 result_collection_names.append(key)
-                
+
         return result_collection_names
 
     @property
@@ -495,8 +495,8 @@ class _Action:
         -------
         str
             The result collection key if the artifact was output as part of
-            a result collection, none otherwise.  
-        
+            a result collection, none otherwise.
+
         Notes
         -----
         We know if the artifact comes from a ResultCollection because
