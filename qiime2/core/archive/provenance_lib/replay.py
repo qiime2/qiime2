@@ -430,7 +430,7 @@ def hash_result_collection_with_keys(members: Dict) -> int:
         The hashed contents.
     '''
     sorted_members = {key: members[key] for key in sorted(members)}
-    hashable_members_with_keys = (
+    hashable_members_with_keys = tuple(
         (key, value) for key, value in sorted_members.items()
     )
 
@@ -457,7 +457,7 @@ def hash_result_collection(members: Union[Dict, List]) -> int:
         members = list(members.values())
 
     sorted_members = list(sorted(members))
-    hashable_members = (uuid for uuid in sorted_members)
+    hashable_members = tuple(uuid for uuid in sorted_members)
 
     return hash(hashable_members)
 
