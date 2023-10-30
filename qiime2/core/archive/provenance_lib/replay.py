@@ -791,38 +791,42 @@ def _collect_action_inputs(
         Mapping input names to their corresponding usage variables.
     '''
     inputs_dict = {}
-    for input_name, input in node.action.inputs.items():
+    for input_name, input_value in node.action.inputs.items():
+        # Currently we can only have a None as a default value, so we can skip
+        # this as it was not provided
+        if input_value is None:
+            continue
         # Received a single artifact
-        if type(input) is str:
-            if input not in ns.usg_vars:
-                ns.usg_vars[input] = _get_rc_member(use, ns, input, input_name)
+        if type(input_value) is str:
+            if input_value not in ns.usg_vars:
+                ns.usg_vars[input_value] = _get_rc_member(
+                    use, ns, input_value, input_name)
 
-            resolved_input = ns.usg_vars[input]
+            resolved_input = ns.usg_vars[input_value]
         # Received a list of artifacts
-        elif type(input) is list:
+        elif type(input_value) is list:
             # may be rc cast to list so search for equivalent rc
             # if not then follow algorithm for single str for each
-            input_hash = hash_result_collection(input)
+            input_hash = hash_result_collection(input_value)
             if collection_uuid := ns.rc_contents_to_rc_uuid.get(input_hash):
                 # corresponding rc found
                 resolved_input = ns.usg_vars[collection_uuid]
             else:
                 # find each artifact and assemble into a list
                 input_list = []
-                for input in input:
-                    if input not in ns.usg_vars:
-                        # We should track this artifact in the namespace
-                        ns.usg_vars[input] = _get_rc_member(
-                            use, ns, input, input_name)
+                for input_value in input_value:
+                    if input_value not in ns.usg_vars:
+                        ns.usg_vars[input_value] = _get_rc_member(
+                            use, ns, input_value, input_name)
 
-                    input_list.append(ns.usg_vars[input])
+                    input_list.append(ns.usg_vars[input_value])
                 resolved_input = input_list
         # Received a dict of artifacts (ResultCollection)
-        elif type(input) is dict:
+        elif type(input_value) is dict:
             # rc -- search for equivalent rc if not found then
             # create new rc by for each member follow single str algorithm
             # and create new rc and new usg variable (use.construct_rc)
-            rc = input
+            rc = input_value
             input_hash = hash_result_collection_with_keys(rc)
             if collection_uuid := ns.rc_contents_to_rc_uuid.get(input_hash):
                 # corresponding rc found
@@ -830,12 +834,12 @@ def _collect_action_inputs(
             else:
                 # build up a new result collection
                 new_rc = {}
-                for key, input in rc.items():
-                    if input not in ns.usg_vars:
-                        ns.usg_vars[input] = _get_rc_member(
-                            use, ns, input, input_name)
+                for key, input_value in rc.items():
+                    if input_value not in ns.usg_vars:
+                        ns.usg_vars[input_value] = _get_rc_member(
+                            use, ns, input_value, input_name)
 
-                    new_rc[key] = ns.usg_vars[input]
+                    new_rc[key] = ns.usg_vars[input_value]
 
                 # make new rc usg var
                 new_collection_uuid = uuid4()
@@ -846,6 +850,13 @@ def _collect_action_inputs(
                 )
                 ns.usg_vars[new_collection_uuid] = usg_var
                 resolved_input = ns.usg_vars[new_collection_uuid]
+        # If we ever mess with inputs again and add a new type here this should
+        # trip otherwise we should never see it
+        else:
+            msg = f"Got a '{input_value}' as input which is of type" \
+                  f" '{type(input_value)}'. Supported types are str, list," \
+                  " and dict."
+            raise ValueError(msg)
 
         inputs_dict[input_name] = resolved_input
 
@@ -853,6 +864,8 @@ def _collect_action_inputs(
 
 
 def _get_rc_member(use, ns, uuid, input_name):
+    '''
+    '''
     # find in rc and render destructure
     collection_uuid, key = ns.artifact_uuid_to_rc_uuid[uuid]
     collection_name = ns.usg_vars[collection_uuid]
