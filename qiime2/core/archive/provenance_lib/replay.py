@@ -374,12 +374,12 @@ def make_result_collection_namespace(dag: nx.digraph) -> dict:
             if action_id not in rc_ns:
                 rc_ns[action_id] = {}
             if output_name not in rc_ns[action_id]:
-                artifacts = {provnode._uuid: rc_key}
+                artifacts = {rc_key: provnode._uuid}
                 rc_ns[action_id][output_name] = ResultCollectionRecord(
                     collection_uuid=str(uuid4()), members=artifacts
                 )
             else:
-                rc_ns[action_id][output_name].members[provnode._uuid] = rc_key
+                rc_ns[action_id][output_name].members[rc_key] = provnode._uuid
 
     # TODO: maybe handle input result collections here
     return rc_ns
@@ -545,7 +545,8 @@ def build_usage_examples(
             # we have result collection
             some_output_name = next(iter(ns.result_collection_ns[action_id]))
             some_node_id = next(iter(
-                ns.result_collection_ns[action_id][some_output_name].members
+                ns.result_collection_ns[action_id][
+                    some_output_name].members.values()
             ))
             node = dag.get_node_data(some_node_id)
 
