@@ -275,7 +275,7 @@ class Archiver:
         # NOTE: add more archive formats as things change
         '0': 'qiime2.core.archive.format.v0:ArchiveFormat',
         '1': 'qiime2.core.archive.format.v1:ArchiveFormat',
-        '2': 'qiime2.coeare.archive.format.v2:ArchiveFormat',
+        '2': 'qiime2.core.archive.format.v2:ArchiveFormat',
         '3': 'qiime2.core.archive.format.v3:ArchiveFormat',
         '4': 'qiime2.core.archive.format.v4:ArchiveFormat',
         '5': 'qiime2.core.archive.format.v5:ArchiveFormat',
