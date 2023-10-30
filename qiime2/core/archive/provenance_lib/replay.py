@@ -797,16 +797,8 @@ def _collect_action_inputs(
             if type(uuids) is str:
                 uuid = uuids
                 if uuid not in ns.usg_vars:
-                    # find in rc and render destructure
-                    collection_uuid, key = ns.artifact_uuid_to_rc_uuid[uuid]
-                    collection_name = ns.usg_vars[collection_uuid]
-
-                    ns.usg_var_namespace[uuid] = input_name
-                    var_name = ns.usg_var_namespace[uuid]
-                    usg_var = use.access_collection_member(
-                        var_name, collection_name, key
-                    )
-                    ns.usg_vars[uuid] = usg_var
+                    ns.usg_vars[uuid] = _get_rc_member(
+                        use, ns, uuid, input_name)
 
                 inputs_dict.update({input_name: ns.usg_vars[uuid]})
 
@@ -826,17 +818,8 @@ def _collect_action_inputs(
                     input_vars = []
                     for uuid in uuids:
                         if uuid not in ns.usg_vars:
-                            # find in rc and render destructure
-                            collection_uuid, key = \
-                                ns.artifact_uuid_to_rc_uuid[uuid]
-                            collection_name = ns.usg_vars[collection_uuid]
-
-                            ns.usg_var_namespace[uuid] = input_name
-                            var_name = ns.usg_var_namespace[uuid]
-                            usg_var = use.access_collection_member(
-                                var_name, collection_name, key
-                            )
-                            ns.usg_vars[uuid] = usg_var
+                            ns.usg_vars[uuid] = _get_rc_member(
+                                use, ns, uuid, input_name)
 
                         input_vars.append(ns.usg_vars[uuid])
 
@@ -859,17 +842,8 @@ def _collect_action_inputs(
                     new_rc = {}
                     for key, uuid in rc.items():
                         if uuid not in ns.usg_vars:
-                            # find in rc, render destructure, make usg var
-                            collection_uuid, collection_key = \
-                                ns.artifact_uuid_to_rc_uuid[uuid]
-                            collection_name = ns.usg_vars[collection_uuid]
-
-                            ns.usg_var_namespace[uuid] = input_name
-                            var_name = ns.usg_var_namespace[uuid]
-                            usg_var = use.access_collection_member(
-                                var_name, collection_name, collection_key
-                            )
-                            ns.usg_vars[uuid] = usg_var
+                            ns.usg_vars[uuid] = _get_rc_member(
+                                use, ns, uuid, input_name)
                             new_rc[key] = usg_var
                         else:
                             new_rc[key] = ns.usg_vars[uuid]
@@ -887,6 +861,20 @@ def _collect_action_inputs(
                     })
 
     return inputs_dict
+
+
+def _get_rc_member(use, ns, uuid, input_name):
+    # find in rc and render destructure
+    collection_uuid, key = ns.artifact_uuid_to_rc_uuid[uuid]
+    collection_name = ns.usg_vars[collection_uuid]
+
+    ns.usg_var_namespace[uuid] = input_name
+    var_name = ns.usg_var_namespace[uuid]
+    usg_var = use.access_collection_member(
+        var_name, collection_name, key
+    )
+
+    return usg_var
 
 
 def _uniquify_output_names(
