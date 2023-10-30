@@ -271,33 +271,6 @@ class ReplayProvenanceTests(unittest.TestCase):
             self.assertNotIn('optional1=', rendered)
             self.assertNotIn('num2=', rendered)
 
-    # NOTE: remove once support for ResultCollections exists in usage drivers
-    def test_result_collections_not_suppported(self):
-        dag = self.das.int_from_collection.dag
-        with tempfile.TemporaryDirectory() as tempdir:
-            out_path = pathlib.Path(tempdir) / 'rendered.txt'
-
-            with self.assertRaisesRegex(
-                ValueError,
-                'ResultCollection was returned.*not.*supported'
-            ):
-                replay_provenance(
-                    ReplayPythonUsage, dag, out_path, md_out_dir=tempdir
-                )
-
-            # NOTE: we have to try a little harder to catch the exception
-            # raised when parsing inputs because there is no action in the
-            # dummy plyuin that takes a ResultCollection but doesn't return
-            # one and the `output-name` section always gets parsed before the
-            # `inputs` section
-            with self.assertRaisesRegex(
-                ValueError,
-                'ResultCollection as input.*not.*supported'
-            ):
-                for uuid in dag.nodes:
-                    node = dag.get_node_data(uuid)
-                    _ = node.action.inputs
-
 
 class MultiplePluginTests(unittest.TestCase):
     @classmethod
@@ -425,10 +398,11 @@ class BuildUsageExamplesTests(unittest.TestCase):
     @patch('qiime2.core.archive.provenance_lib.replay.'
            'build_no_provenance_node_usage')
     def test_build_usage_examples(self, n_p_builder, imp_builder, act_builder):
+        ns = NamespaceCollections()
         dag = self.das.concated_ints_with_md.dag
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
-        build_usage_examples(dag, cfg)
+        build_usage_examples(dag, cfg, ns)
 
         n_p_builder.assert_not_called()
         self.assertEqual(imp_builder.call_count, 3)
@@ -441,6 +415,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
     def test_build_usage_examples_lone_v0(
             self, n_p_builder, imp_builder, act_builder
     ):
+        ns = NamespaceCollections()
         uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{uuid}.*prior.*incomplete'
@@ -449,7 +424,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
 
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
-        build_usage_examples(dag, cfg)
+        build_usage_examples(dag, cfg, ns)
 
         # This is a single v0 archive, so should have only one np node
         n_p_builder.assert_called_once()
@@ -468,6 +443,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
         shutil.copy(self.das.table_v0.filepath, mixed_dir)
         shutil.copy(self.das.concated_ints_v6.filepath, mixed_dir)
 
+        ns = NamespaceCollections()
         v0_uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'
@@ -476,7 +452,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
 
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
-        build_usage_examples(dag, cfg)
+        build_usage_examples(dag, cfg, ns)
 
         n_p_builder.assert_called_once()
         self.assertEqual(imp_builder.call_count, 2)
@@ -495,10 +471,11 @@ class BuildUsageExamplesTests(unittest.TestCase):
         shutil.copy(self.das.splitted_ints.filepath, many_dir)
         shutil.copy(self.das.pipeline_viz.filepath, many_dir)
 
+        ns = NamespaceCollections()
         dag = ProvDAG(many_dir)
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
-        build_usage_examples(dag, cfg)
+        build_usage_examples(dag, cfg, ns)
 
         n_p_builder.assert_not_called()
         # concated_ints_with_md is loaded from disk so imports don't overlap
@@ -562,9 +539,10 @@ class GroupByActionTests(unittest.TestCase):
     def test_gba_with_provenance(self):
         self.maxDiff = None
 
+        ns = NamespaceCollections()
         dag = self.das.concated_ints_v6.dag
         sorted_nodes = nx.topological_sort(dag.collapsed_view)
-        actual = group_by_action(dag, sorted_nodes)
+        actual = group_by_action(dag, sorted_nodes, ns)
         exp = {
             'b49e497c-19b2-49f7-b9a2-0d837016c151': {
                 '8dea2f1a-2164-4a85-9f7d-e0641b1db22b': 'int_sequence1'
@@ -580,11 +558,12 @@ class GroupByActionTests(unittest.TestCase):
         self.assertEqual(actual.no_provenance_nodes, [])
 
     def test_gba_no_provenance(self):
+        ns = NamespaceCollections()
         dag = self.das.table_v0.dag
         uuid = self.das.table_v0.uuid
 
         sorted_nodes = nx.topological_sort(dag.collapsed_view)
-        action_collections = group_by_action(dag, sorted_nodes)
+        action_collections = group_by_action(dag, sorted_nodes, ns)
         self.assertEqual(action_collections.std_actions, {})
         self.assertEqual(action_collections.no_provenance_nodes, [uuid])
 
@@ -594,6 +573,7 @@ class GroupByActionTests(unittest.TestCase):
         shutil.copy(self.das.table_v0.filepath, mixed_dir)
         shutil.copy(self.das.concated_ints_v6.filepath, mixed_dir)
 
+        ns = NamespaceCollections()
         v0_uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'
@@ -601,7 +581,7 @@ class GroupByActionTests(unittest.TestCase):
             dag = ProvDAG(mixed_dir)
 
         sorted_nodes = nx.topological_sort(dag.collapsed_view)
-        action_collections = group_by_action(dag, sorted_nodes)
+        action_collections = group_by_action(dag, sorted_nodes, ns)
 
         exp = {
             'b49e497c-19b2-49f7-b9a2-0d837016c151': {
