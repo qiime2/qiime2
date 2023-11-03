@@ -393,7 +393,7 @@ def make_result_collection_mappings(result_collection_ns: Dict) -> Tuple[Dict]:
     for action_id in result_collection_ns:
         for output_name in result_collection_ns[action_id]:
             record = result_collection_ns[action_id][output_name]
-            for uuid, key in record.members.items():
+            for key, uuid in record.members.items():
                 a_to_c[uuid] = (record.collection_uuid, key)
 
             hashed_contents = hash_result_collection(record.members)
@@ -823,16 +823,14 @@ def _collect_action_inputs(
                 resolved_input = input_list
         # Received a dict of artifacts (ResultCollection)
         elif type(input_value) is dict:
-            # rc -- search for equivalent rc if not found then
-            # create new rc by for each member follow single str algorithm
-            # and create new rc and new usg variable (use.construct_rc)
+            # rc -- search for equivalent rc if not found then create new rc
             rc = input_value
             input_hash = hash_result_collection_with_keys(rc)
             if collection_uuid := ns.rc_contents_to_rc_uuid.get(input_hash):
                 # corresponding rc found
                 resolved_input = ns.usg_vars[collection_uuid]
             else:
-                # build up a new result collection
+                # build new rc
                 new_rc = {}
                 for key, input_value in rc.items():
                     if input_value not in ns.usg_vars:

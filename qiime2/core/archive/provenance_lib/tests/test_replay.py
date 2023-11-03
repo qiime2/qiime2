@@ -903,6 +903,243 @@ class BuildImportUsageTests(CustomAssertions):
         self.assertRegex(rendered, '<your data here>')
 
 
+class ReplayResultCollectionTests(CustomAssertions):
+    '''
+    One of three structures may be encoutered when parsing the inputs section
+    of action.yaml, described below:
+
+    case 1 (single artifact case):
+
+        inputs:
+        - some_input_name: some_uuid
+        - some_other_input_name: some_other_uuid
+        (...)
+
+        For the single artifact case we may find the artifact in the usage
+        variable namespace or it might only exist in a result collection.
+        - case 1a:
+            The artifact exists in the usage variable namespace so access it
+            from there, not from any result collection that may contain it.
+        - case 1b:
+            The artifact does not exist in the usage variable namespace so
+            find it in a result collection, destructure it, and then use the
+            destructured artifact.
+
+    case 2 (list of artifacts case):
+
+        inputs:
+        - some_input_name:
+            - some_uuid
+            - some_other_uuid
+        (...)
+
+        For the list of artifacts case the list contents may be equivalent to
+        an existing result collection, or it may not be.
+        - case 2a:
+            The list contents are not equivalent to any existing result
+            collection so for each member do either case 1a or 1b as described
+            above.
+        - case 2b:
+            The list contents are equivalent to an existing result collection
+            so pass in the result collection directly (which will be cast to
+            a list).
+
+    case 3 (result collection case):
+
+        inputs:
+        - result_collection_name:
+            - some_key: some_uuid
+            - some_other_key: some_other_uuid
+        (...)
+
+        For the result collection case an equivalent existing result collection
+        may exist or it may not.
+        - case 3a:
+            No equivalent result collection is found so for each member follow
+            case 1a or 1b as described above.
+        - case 3b:
+            An equivalent result collection is found so pass it in directly.
+
+    '''
+    @classmethod
+    def setUpClass(cls):
+        cls.pm = PluginManager()
+        cls.dp = cls.pm.plugins['dummy-plugin']
+
+        cls.single_int = Artifact.import_data('SingleInt', 0)
+        cls.dict_of_ints = cls.dp.methods['dict_of_ints']
+        cls.list_of_ints = cls.dp.methods['list_of_ints']
+
+    @classmethod
+    def tearDownClass(cls):
+        pass
+
+    def test_cases_1a_1b(self):
+        '''
+        The `single_int` usage variable is not found before the first call to
+        `optional_artifact_pipeline`, so it is accessed from the result
+        collection it belongs to (case 1b) and added to the usage variable
+        namespace. When we call `optional_artifact_pipeline` again it should
+        not destructure the result collection a second time but instead just
+        use the available usage variable that we added to the namespace
+        previously (case 1a).
+        '''
+        int_seq = Artifact.import_data('IntSequence1', [1, 1, 2])
+
+        opt_art_pipeline = self.dp.pipelines['optional_artifact_pipeline']
+
+        rc = {'int1': self.single_int}
+
+        rc_out, = self.dict_of_ints(rc)
+        int_destructured = rc_out['int1']
+        int_seq_out, = opt_art_pipeline(int_seq, int_destructured)
+        int_seq_out, = opt_art_pipeline(int_seq_out, int_destructured)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            in_fp = pathlib.Path(tempdir) / 'int_seq_out.qza'
+            int_seq_out.save(in_fp)
+            dag = ProvDAG(in_fp)
+
+            out_fp = pathlib.Path(tempdir) / 'rendered.txt'
+            out_fn = str(out_fp)
+            replay_provenance(ReplayPythonUsage, dag, out_fn)
+
+            with open(out_fp) as fh:
+                rendered = fh.read()
+
+        exp = '''\
+single_int_1 = output_0_artifact_collection['int1']
+ints_1, = dummy_plugin_actions.optional_artifact_pipeline(
+    int_sequence=int_sequence1_0,
+    single_int=single_int_1,
+)
+# SAVE: comment out the following with '# ' to skip saving Results to disk
+ints_1.save('ints_1')
+
+ints_2, = dummy_plugin_actions.optional_artifact_pipeline(
+    int_sequence=ints_1,
+    single_int=single_int_1,
+)
+'''
+        self.assertIn(exp, rendered)
+
+    def test_case_2a(self):
+        rc = {'int1': self.single_int, 'int2': self.single_int}
+        list_rc_out, = self.list_of_ints(rc)
+        int1_destructured = list_rc_out['0']
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            in_fp = pathlib.Path(tempdir) / 'int1_destructured.qza'
+            int1_destructured.save(in_fp)
+            dag = ProvDAG(in_fp)
+
+            out_fp = pathlib.Path(tempdir) / 'rendered.txt'
+            out_fn = str(out_fp)
+            replay_provenance(ReplayPythonUsage, dag, out_fn)
+
+            with open(out_fp) as fh:
+                rendered = fh.read()
+
+        exp = '''\
+output_0_artifact_collection, = dummy_plugin_actions.list_of_ints(
+    ints=[single_int_0, single_int_0],
+)
+'''
+        self.assertIn(exp, rendered)
+
+    def test_case_2b(self):
+        rc = {'int1': self.single_int}
+        rc_out, = self.dict_of_ints(rc)
+        list_rc_out, = self.list_of_ints(rc_out)
+        int1_destructured = list_rc_out['0']
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            in_fp = pathlib.Path(tempdir) / 'int1_destructured.qza'
+            int1_destructured.save(in_fp)
+            dag = ProvDAG(in_fp)
+
+            out_fp = pathlib.Path(tempdir) / 'rendered.txt'
+            out_fn = str(out_fp)
+            replay_provenance(ReplayPythonUsage, dag, out_fn)
+
+            with open(out_fp) as fh:
+                rendered = fh.read()
+
+        exp = '''\
+output_1_artifact_collection, = dummy_plugin_actions.list_of_ints(
+    ints=output_0_artifact_collection,
+)
+'''
+        self.assertIn(exp, rendered)
+
+    def test_case_3a(self):
+        '''
+        The `int1_destructured` artifact won't be found in the usage variable
+        namespace, while `self.single_int` will be, so assert that int1 is
+        destructured and `self.single_int` is just used as is because its
+        variable name is already available.
+        '''
+        rc1 = {'int1': self.single_int}
+        rc1_out, = self.dict_of_ints(rc1)
+        int1_destructured = rc1_out['int1']
+
+        rc2 = {'int1': int1_destructured, 'int2': self.single_int}
+        rc2_out, = self.dict_of_ints(rc2)
+        int3_destructured = rc2_out['int2']
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            in_fp = pathlib.Path(tempdir) / 'int2_destructured.qza'
+            int3_destructured.save(in_fp)
+            dag = ProvDAG(in_fp)
+
+            out_fp = pathlib.Path(tempdir) / 'rendered.txt'
+            out_fn = str(out_fp)
+            replay_provenance(ReplayPythonUsage, dag, out_fn)
+
+            with open(out_fp) as fh:
+                rendered = fh.read()
+
+        exp = '''\
+ints_1 = output_0_artifact_collection['int1']
+ints_2_artifact_collection = ResultCollection({
+    'int1': ints_1,
+    'int2': single_int_0,
+})
+output_1_artifact_collection, = dummy_plugin_actions.dict_of_ints(
+    ints=ints_2_artifact_collection,
+)
+'''
+        self.assertIn(exp, rendered)
+        self.assertREAppearsOnlyOnce(rendered, r'\[.*\]')
+
+    def test_case_3b(self):
+        rc = {'int1': self.single_int, 'int2': self.single_int}
+
+        rc_out, = self.dict_of_ints(rc)
+        rc_out_2, = self.dict_of_ints(rc_out)
+        int1_destructured = rc_out_2['int1']
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            in_fp = pathlib.Path(tempdir) / 'int1_destructured.qza'
+            int1_destructured.save(in_fp)
+            dag = ProvDAG(in_fp)
+
+            out_fp = pathlib.Path(tempdir) / 'rendered.txt'
+            out_fn = str(out_fp)
+            replay_provenance(ReplayPythonUsage, dag, out_fn)
+
+            with open(out_fp) as fh:
+                rendered = fh.read()
+
+        exp = '''\
+output_1_artifact_collection, = dummy_plugin_actions.dict_of_ints(
+    ints=output_0_artifact_collection,
+)
+'''
+        self.assertIn(exp, rendered)
+        self.assertREAppearsOnlyOnce(rendered, r'ResultCollection\(')
+
+
 class BuildActionUsageTests(CustomAssertions):
     @classmethod
     def setUpClass(cls):
