@@ -970,10 +970,6 @@ class ReplayResultCollectionTests(CustomAssertions):
         cls.dict_of_ints = cls.dp.methods['dict_of_ints']
         cls.list_of_ints = cls.dp.methods['list_of_ints']
 
-    @classmethod
-    def tearDownClass(cls):
-        pass
-
     def test_cases_1a_1b(self):
         '''
         The `single_int` usage variable is not found before the first call to
