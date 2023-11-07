@@ -1229,7 +1229,7 @@ class Usage:
 
         Returns
         -------
-        UsageVariale
+        UsageVariable
             Of type artifact_collection or viz_collection.
 
         Examples
@@ -1288,7 +1288,7 @@ class Usage:
         ----------
         name : str
             The name of the resulting variable.
-        artifact_collection : UsageVariable
+        collection : UsageVariable
             The UsageVariable of type artifact_collection from which to access
             the desired member.
         key : str
