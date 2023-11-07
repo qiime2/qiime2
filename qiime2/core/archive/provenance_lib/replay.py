@@ -1202,6 +1202,7 @@ def replay_supplement(
     )
     with tempfile.TemporaryDirectory() as tempdir:
         tempdir_path = pathlib.Path(tempdir)
+        arc_root = tempdir_path / pathlib.Path(out_fp).name
 
         drivers_to_filenames = {
             'ReplayPythonUsage': 'python3_replay.py',
@@ -1213,8 +1214,8 @@ def replay_supplement(
                 continue
 
             rel_fp = drivers_to_filenames[usage_driver.__name__]
-            md_out_dir = tempdir_path / 'recorded_metadata'
-            tmp_fp = tempdir_path / rel_fp
+            md_out_dir = arc_root / 'recorded_metadata'
+            tmp_fp = arc_root / rel_fp
             replay_provenance(
                 usage_driver=usage_driver,
                 payload=dag,
@@ -1227,7 +1228,7 @@ def replay_supplement(
             )
             print(f'The {usage_driver} replay script was written to {rel_fp}.')
 
-        citations_fp = tempdir_path / 'citations.bib'
+        citations_fp = arc_root / 'citations.bib'
         replay_citations(
             dag,
             out_fp=str(citations_fp),
@@ -1240,5 +1241,5 @@ def replay_supplement(
         if out_fp.suffix == '.zip':
             out_fp = out_fp.with_suffix('')
 
-        shutil.make_archive(out_fp, 'zip', tempdir)
+        shutil.make_archive(out_fp, 'zip', arc_root)
         print(f'The reproducibility package was written to {out_fp}.zip.')
