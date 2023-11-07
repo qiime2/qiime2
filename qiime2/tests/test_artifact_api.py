@@ -289,7 +289,7 @@ out_artifact_collection, = dummy_plugin_actions.dict_of_ints(
 
         self.assertEqual(exp, use.render())
 
-    def test_construct_collection(self):
+    def test_construct_and_access_collection(self):
         action = self.plugin.actions['dict_of_ints']
         use = ArtifactAPIUsage()
         action.examples['construct_and_access_collection'](use)
