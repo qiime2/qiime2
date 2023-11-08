@@ -60,18 +60,24 @@ _TEST_CONFIG_ = {
 
 # Directs keys in the config whose values need to be objects to the module that
 # contains the class they need to instantiate
+PARSL_CHANNEL = 'parsl.channels'
+PARSL_DATA_PROVIDER = 'parsl.data_provider'
+PARSL_EXECUTOR = 'parsl.executors'
+PARSL_LAUNCHER = 'parsl.launchers'
+PARSL_MONITORING = 'parsl.monitoring'
+PARSL_PROVIDER = 'parsl.providers'
 module_paths = {
-    'channel': 'parsl.channels',
-    'channels': 'parsl.channels',
-    'data_provider': 'parsl.data_provider',
-    'data_providers': 'parsl.data_provider',
-    'executor': 'parsl.executors',
-    'executors': 'parsl.executors',
-    'launcher': 'parsl.launcher',
-    'launchers': 'parsl.launcher',
-    'monitoring': 'parsl.monitoring',
-    'provider': 'parsl.providers',
-    'providers': 'parsl.providers'
+    'channel': PARSL_CHANNEL,
+    'channels': PARSL_CHANNEL,
+    'data_provider': PARSL_DATA_PROVIDER,
+    'data_providers': PARSL_DATA_PROVIDER,
+    'executor': PARSL_EXECUTOR,
+    'executors': PARSL_EXECUTOR,
+    'launcher': PARSL_LAUNCHER,
+    'launchers': PARSL_LAUNCHER,
+    'monitoring': PARSL_MONITORING,
+    'provider': PARSL_PROVIDER,
+    'providers': PARSL_PROVIDER
 }
 
 
