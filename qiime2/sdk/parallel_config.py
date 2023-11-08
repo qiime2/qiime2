@@ -207,8 +207,14 @@ def _process_key(key, value):
     correct data type or class instance to be used in instantiating a
     parsl.Config object.
     """
+    # Our key points to a list
+    if isinstance(value, list):
+        processed_value = []
+        for item in value:
+            processed_value.append(_process_key(key, item))
+        return processed_value
     # Our key needs to point to some object.
-    if key in module_paths:
+    elif key in module_paths:
         # Get the module our class is from
         module = importlib.import_module(module_paths[key])
 
