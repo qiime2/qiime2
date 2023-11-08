@@ -203,7 +203,7 @@ class TestConfig(unittest.TestCase):
         """
         config, mapping = get_config_from_file(self.all_modules_config_fp)
         # Just assert that we were able to parse the file and get a config out
-        # of it
+        # of
         with ParallelConfig(config, mapping):
             self.assertIsInstance(
                 PARALLEL_CONFIG.parallel_config, parsl.Config)
