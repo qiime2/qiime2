@@ -1226,7 +1226,10 @@ def replay_supplement(
                 dump_recorded_metadata=dump_recorded_metadata,
                 md_out_dir=md_out_dir
             )
-            print(f'The {usage_driver} replay script was written to {rel_fp}.')
+            print(
+                f'The {usage_driver.__name__} replay script was written to '
+                f'{rel_fp}.'
+            )
 
         citations_fp = arc_root / 'citations.bib'
         replay_citations(
