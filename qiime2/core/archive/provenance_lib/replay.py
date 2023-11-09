@@ -1202,7 +1202,8 @@ def replay_supplement(
     )
     with tempfile.TemporaryDirectory() as tempdir:
         tempdir_path = pathlib.Path(tempdir)
-        arc_root = tempdir_path / pathlib.Path(out_fp).name
+        arc_root = tempdir_path / pathlib.Path(out_fp).stem
+        os.makedirs(arc_root)
 
         drivers_to_filenames = {
             'ReplayPythonUsage': 'python3_replay.py',
