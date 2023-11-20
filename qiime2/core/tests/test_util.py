@@ -198,6 +198,30 @@ class TestMD5SumDirectory(unittest.TestCase):
                 ('foobarbaz.txt', '93b048d0202e4b06b658f3aef1e764d3')
             ]))
 
+    def test_single_file_md5sum_python(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fp = pathlib.Path(tempdir) / 'test.txt'
+            with open(fp, 'w') as fh:
+                fh.write('contents\n')
+
+            exp = 'e66545a2155380046fce3fdbd32a6b4f'
+            obs = util.md5sum_python(fp)
+
+            self.assertEqual(exp, obs)
+
+    def test_single_file_md5sum_native(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fp = pathlib.Path(tempdir) / 'test.txt'
+            with open(fp, 'w') as fh:
+                fh.write('contents\n')
+
+            exp = 'e66545a2155380046fce3fdbd32a6b4f'
+            try:
+                obs = util.md5sum_native(fp)
+                self.assertEqual(exp, obs)
+            except FileNotFoundError:
+                pass  # md5sum executable not available
+
     def test_single_file_nested(self):
         nested_dir = self.test_path / 'bar'
         nested_dir.mkdir()
