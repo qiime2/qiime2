@@ -1,6 +1,6 @@
 # qiime2 (the QIIME 2 framework)
 
-![](https://github.com/qiime2/qiime2/workflows/ci/badge.svg)
+![](https://github.com/qiime2/qiime2/workflows/ci-dev/badge.svg)
 
 Source code repository for the QIIME 2 framework.
 
