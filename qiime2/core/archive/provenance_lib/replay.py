@@ -1245,5 +1245,5 @@ def replay_supplement(
         if out_fp.suffix == '.zip':
             out_fp = out_fp.with_suffix('')
 
-        shutil.make_archive(out_fp, 'zip', arc_root)
+        shutil.make_archive(out_fp, 'zip', tempdir)
         print(f'The reproducibility package was written to {out_fp}.zip.')
