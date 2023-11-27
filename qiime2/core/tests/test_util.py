@@ -6,12 +6,15 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import shutil
 import unittest
 import tempfile
 import pathlib
 import collections
 import datetime
 import dateutil.relativedelta as relativedelta
+
+import pytest
 
 import qiime2.core.util as util
 from qiime2.core.testing.type import Foo, Bar, Baz
@@ -209,6 +212,10 @@ class TestMD5SumDirectory(unittest.TestCase):
 
             self.assertEqual(exp, obs)
 
+    @pytest.mark.skipif(
+        shutil.which('md5sum') is None,
+        reason='md5sum executable is required'
+    )
     def test_single_file_md5sum_native(self):
         with tempfile.TemporaryDirectory() as tempdir:
             fp = pathlib.Path(tempdir) / 'test.txt'
@@ -216,11 +223,8 @@ class TestMD5SumDirectory(unittest.TestCase):
                 fh.write('contents\n')
 
             exp = 'e66545a2155380046fce3fdbd32a6b4f'
-            try:
-                obs = util.md5sum_native(fp)
-                self.assertEqual(exp, obs)
-            except FileNotFoundError:
-                pass  # md5sum executable not available
+            obs = util.md5sum_native(fp)
+            self.assertEqual(exp, obs)
 
     def test_single_file_nested(self):
         nested_dir = self.test_path / 'bar'
