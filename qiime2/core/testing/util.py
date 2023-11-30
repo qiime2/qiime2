@@ -123,16 +123,3 @@ class PipelineError(Exception):
     """
     def __init__(self, uuids):
         self.uuids = uuids
-
-
-def assert_no_nans_in_tables(fh):
-    '''
-    Checks for NaNs present in any of the tables in the indicated file then
-    resets to the head of the file.
-    '''
-    from pandas import read_html
-
-    tables = read_html(fh)
-    for df in tables:
-        assert df.isnull().values.any() is False
-    fh.seek(0)

@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import unittest
+import pkg_resources
 
 import qiime2
 import qiime2.sdk
@@ -15,6 +16,10 @@ from qiime2.sdk.util import validate_result_collection_keys
 
 
 class TestUtil(unittest.TestCase):
+    def get_data_path(self, filename):
+        return pkg_resources.resource_filename('qiime2.sdk.tests',
+                                               'data/%s' % filename)
+
     def test_artifact_actions(self):
         obs = qiime2.sdk.util.actions_by_input_type(None)
         self.assertEqual(obs, [])
@@ -85,6 +90,19 @@ class TestUtil(unittest.TestCase):
             with self.assertRaisesRegex(KeyError,
                                         f"Invalid.*: {key}"):
                 validate_result_collection_keys(key)
+
+    def test_table_does_not_have_nans(self):
+        noNaN = self.get_data_path('no_nan.html')
+
+        with open(noNaN) as fh:
+            qiime2.sdk.util.assert_no_nans_in_tables(fh)
+
+    def test_table_has_nans(self):
+        hasNaN = self.get_data_path('has_nan.html')
+
+        with open(hasNaN) as fh:
+            with self.assertRaises(AssertionError):
+                qiime2.sdk.util.assert_no_nans_in_tables(fh)
 
 
 if __name__ == '__main__':
