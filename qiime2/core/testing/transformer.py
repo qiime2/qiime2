@@ -47,7 +47,7 @@ def _7(data: list) -> IntSequenceFormat:
     ff = IntSequenceFormat()
     with ff.open() as fh:
         for int_ in data:
-            fh.write('%d\n' % int_)
+            fh.write(f'{int_}\n')
     return ff
 
 
