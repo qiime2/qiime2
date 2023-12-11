@@ -592,3 +592,8 @@ class TestCache(unittest.TestCase):
         observed = _load_outputs(output)
 
         self.assertEqual(observed, expected)
+
+    def test_cache_existing_dir(self):
+        with self.assertRaisesRegex(
+                ValueError, f"Path: '{self.not_cache_path}' already exists"):
+            Cache(self.not_cache_path)
