@@ -68,6 +68,8 @@ class TestConfig(unittest.TestCase):
         self.mapping_config_fp = self.get_data_path('mapping_config.toml')
         self.mapping_only_config_fp = \
             self.get_data_path('mapping_only_config.toml')
+        self.complex_config_fp = \
+            self.get_data_path('complex_config.toml')
 
     def tearDown(self):
         self.test_dir.cleanup()
@@ -195,6 +197,16 @@ class TestConfig(unittest.TestCase):
 
             self.assertEqual(list_execution_contexts, self.tpool_expected)
             self.assertEqual(dict_execution_contexts, self.tpool_expected)
+
+    def test_load_complex_config(self):
+        """ Test that all parsl modules we currently map are correct
+        """
+        config, mapping = get_config_from_file(self.complex_config_fp)
+        # Just assert that we were able to parse the file and get a config out
+        with ParallelConfig(config, mapping):
+            self.assertIsInstance(
+                PARALLEL_CONFIG.parallel_config, parsl.Config)
+            self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_no_config(self):
         with self.assertRaisesRegex(NoDataFlowKernelError,

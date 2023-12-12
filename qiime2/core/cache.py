@@ -417,39 +417,64 @@ class Cache:
             self.__init(path=path, process_pool_lifespan=process_pool_lifespan)
 
     def __init(self, path=None, process_pool_lifespan=45):
+        created_path = False
+        temp_cache_path = pathlib.Path(_get_temp_path())
+
         if path is not None:
             self.path = pathlib.Path(path)
         else:
-            self.path = pathlib.Path(_get_temp_path())
+            self.path = temp_cache_path
 
+        # We need this directory to exist so we can lock it, but we also want
+        # to keep track of whether we created it or not so if we didn't create
+        # it and it isn't a cache we can handle that
         if not os.path.exists(self.path):
-            os.makedirs(self.path)
+            # We could have another thread/process creating the cache at this
+            # directory in which case the above check might say it does not
+            # exist then it could be created elsewhere before we get here. We
+            # cannot lock this because we don't have a place to put the lock
+            # yet, and it isn't really a big enough deal to create a new lock
+            # elsewhere just for this because we don't really care if another
+            # instance makes the path out from under us
+            try:
+                os.makedirs(self.path)
+            except FileExistsError:
+                pass
+
+            # We don't actually care if this is the specific thread/process
+            # that created the path, we only care that some instance of QIIME 2
+            # must have just done it. Now any instance should treat it as a
+            # QIIME 2 created path
+            created_path = True
 
         self.lock = \
             MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
 
         # We need to lock here to ensure that if we have multiple processes
         # trying to create the same cache one of them can actually succeed at
-        # creating the cache without interference from the other processes.
+        # creating the cache contents without interference from the other
+        # processes.
         with self.lock:
-            if not Cache.is_cache(self.path):
-                try:
+            # If the path already existed and wasn't a cache then we don't want
+            # to create the cache contents here
+            if not Cache.is_cache(self.path) and not created_path:
+                # We own the temp_cache_path, so we can recreate it if there
+                # was something wrong with it
+                if self.path == temp_cache_path:
+                    set_permissions(self.path, USER_GROUP_RWX,
+                                    USER_GROUP_RWX, skip_root=True)
+                    self._remove_cache_contents()
                     self._create_cache_contents()
-                except FileExistsError as e:
-                    if path is None:
-                        warnings.warn(
-                            "Your temporary cache was found to be in an "
-                            "inconsistent state. It has been recreated.")
-                        set_permissions(self.path, USER_GROUP_RWX,
-                                        USER_GROUP_RWX, skip_root=True)
-                        self._remove_cache_contents()
-                        self._create_cache_contents()
-                    else:
-                        raise ValueError(
-                            f"Path: \'{self.path}\' already exists and is not "
-                            "a cache.") from e
+                    warnings.warn(
+                        "Your temporary cache was found to be in an "
+                        "inconsistent state. It has been recreated.")
+                else:
+                    raise ValueError(f"Path: '{self.path}' already exists and"
+                                     " is not a cache.")
+            elif not Cache.is_cache(self.path):
+                self._create_cache_contents()
+            # else: it was a cache with the contents already in it
 
-        # Make our process pool.
         self.process_pool = self._create_process_pool()
         # Lifespan is supplied in days and converted to seconds for internal
         # use
@@ -462,7 +487,7 @@ class Cache:
 
         # Start thread that pokes things in the cache to ensure they aren't
         # culled for being too old (only if we are in a temp cache)
-        if path is None:
+        if path == temp_cache_path:
             self._thread_is_done = threading.Event()
             self._thread_destructor = \
                 weakref.finalize(self, self._thread_is_done.set)

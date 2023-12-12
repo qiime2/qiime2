@@ -1,0 +1,27 @@
+[parsl]
+strategy = "None"
+
+[[parsl.executors]]
+class = "HighThroughputExecutor"
+label = "default"
+max_workers = 10
+
+[parsl.executors.provider]
+class = "SlurmProvider"
+
+[parsl.executors.provider.launcher]
+class = "SrunLauncher"
+
+[parsl.executors.provider.channel]
+class = "LocalChannel"
+
+[[parsl.executors]]
+class = "HighThroughputExecutor"
+label = "other"
+max_workers = 10
+
+[parsl.executors.provider]
+class = "AdHocProvider"
+
+[[parsl.executors.provider.channels]]
+class = "LocalChannel"

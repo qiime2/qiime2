@@ -284,8 +284,11 @@ class Artifact(Result):
             return False
 
     @classmethod
-    def import_data(cls, type, view, view_type=None):
+    def import_data(cls, type, view, view_type=None, validate_level='max'):
         type_, type = type, __builtins__['type']
+
+        if validate_level not in ('min', 'max'):
+            raise ValueError("Expected 'min' or 'max' for `validate_level`.")
 
         is_format = False
         if isinstance(type_, str):
@@ -327,7 +330,7 @@ class Artifact(Result):
 
         provenance_capture = archive.ImportProvenanceCapture(format_, md5sums)
         return cls._from_view(type_, view, view_type, provenance_capture,
-                              validate_level='max')
+                              validate_level=validate_level)
 
     @classmethod
     def _from_view(cls, type, view, view_type, provenance_capture,
