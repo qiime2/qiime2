@@ -8,6 +8,7 @@
 
 import types
 import unittest
+import pkg_resources
 
 import qiime2.plugin
 import qiime2.sdk
@@ -18,11 +19,16 @@ from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
                                         IntSequenceV2DirectoryFormat)
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.plugin import is1_use, is2_use
+from qiime2.plugin.testing import assert_no_nans_in_tables
 
 
 class TestPlugin(unittest.TestCase):
     def setUp(self):
         self.plugin = get_dummy_plugin()
+
+    def get_data_path(self, filename):
+        return pkg_resources.resource_filename('qiime2.plugin.tests',
+                                               'data/%s' % filename)
 
     def test_name(self):
         self.assertEqual(self.plugin.name, 'dummy-plugin')
@@ -408,6 +414,19 @@ class TestPlugin(unittest.TestCase):
                                     r'Only a single.*Kennel\[Dog \| Cat\]'):
             plugin.register_artifact_class(
                 Kennel[Dog | Cat], IntSequenceDirectoryFormat)
+
+    def test_table_does_not_have_nans(self):
+        noNaN = self.get_data_path('no_nan.html')
+
+        with open(noNaN) as fh:
+            assert_no_nans_in_tables(fh)
+
+    def test_table_has_nans(self):
+        hasNaN = self.get_data_path('has_nan.html')
+
+        with open(hasNaN) as fh:
+            with self.assertRaises(AssertionError):
+                assert_no_nans_in_tables(fh)
 
 
 if __name__ == '__main__':
