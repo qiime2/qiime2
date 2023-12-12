@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import unittest
-import pkg_resources
 
 import qiime2
 import qiime2.sdk
@@ -16,10 +15,6 @@ from qiime2.sdk.util import validate_result_collection_keys
 
 
 class TestUtil(unittest.TestCase):
-    def get_data_path(self, filename):
-        return pkg_resources.resource_filename('qiime2.sdk.tests',
-                                               'data/%s' % filename)
-
     def test_artifact_actions(self):
         obs = qiime2.sdk.util.actions_by_input_type(None)
         self.assertEqual(obs, [])
