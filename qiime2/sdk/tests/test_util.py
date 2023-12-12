@@ -91,19 +91,6 @@ class TestUtil(unittest.TestCase):
                                         f"Invalid.*: {key}"):
                 validate_result_collection_keys(key)
 
-    def test_table_does_not_have_nans(self):
-        noNaN = self.get_data_path('no_nan.html')
-
-        with open(noNaN) as fh:
-            qiime2.sdk.util.assert_no_nans_in_tables(fh)
-
-    def test_table_has_nans(self):
-        hasNaN = self.get_data_path('has_nan.html')
-
-        with open(hasNaN) as fh:
-            with self.assertRaises(AssertionError):
-                qiime2.sdk.util.assert_no_nans_in_tables(fh)
-
 
 if __name__ == '__main__':
     unittest.main()
