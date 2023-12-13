@@ -38,6 +38,7 @@ test:
     - pytest
     - tornado
     - notebook <7
+    - lxml
 
   imports:
     - qiime2
