@@ -270,8 +270,8 @@ def construct_and_access_collection(use):
     ints_a = use.init_artifact('ints_a', single_int1_factory)
     ints_b = use.init_artifact('ints_b', single_int2_factory)
 
-    rc_in = use.construct_collection(
-        'rc_in', 'artifact', {'a': ints_a, 'b': ints_b}
+    rc_in = use.construct_artifact_collection(
+        'rc_in', {'a': ints_a, 'b': ints_b}
     )
 
     rc_out, = use.action(
@@ -280,6 +280,6 @@ def construct_and_access_collection(use):
         use.UsageOutputNames(output='rc_out')
     )
 
-    ints_b_from_collection = use.access_collection_member(  # noqa: F841
+    ints_b_from_collection = use.get_artifact_collection_member(  # noqa: F841
         'ints_b_from_collection', rc_out, 'b'
     )

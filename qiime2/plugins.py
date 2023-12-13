@@ -189,24 +189,10 @@ class ArtifactAPIUsage(usage.Usage):
 
         return variable
 
-    def construct_collection(self, name, member_type, members):
-        # make sure members is dict to avoid repeated type checking
-        if type(members) is list:
-            members = {str(i): member for i, member in enumerate(members)}
-
-        variable = super().construct_collection(name, member_type, members)
+    def construct_artifact_collection(self, name, members):
+        variable = super().construct_artifact_collection(name, members)
 
         var_name = variable.to_interface_name()
-
-        str_namespace = {str(name) for name in self.namespace}
-        diff = set(member.name for member in members.values()) - str_namespace
-        if diff:
-            msg = (
-                f'{diff} not found in driver\'s namespace. Make sure '
-                'that all ResultCollection members have been properly '
-                'created.'
-            )
-            raise ValueError(msg)
 
         lines = [f'{var_name} = ResultCollection({{']
         for key, member in members.items():
@@ -218,17 +204,17 @@ class ArtifactAPIUsage(usage.Usage):
 
         return variable
 
-    def access_collection_member(self, name, collection, key):
-        variable = super().access_collection_member(
-            name, collection, key
+    def get_artifact_collection_member(self, name, variable, key):
+        accessed_variable = super().get_artifact_collection_member(
+            name, variable, key
         )
 
         lines = [
-            f"{name} = {collection.to_interface_name()}['{key}']"
+            f"{name} = {variable.to_interface_name()}['{key}']"
         ]
         self._add(lines)
 
-        return variable
+        return accessed_variable
 
     def init_format(self, name, factory, ext=None):
         if ext is not None:
