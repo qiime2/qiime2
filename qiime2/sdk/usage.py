@@ -1255,7 +1255,9 @@ class Usage:
             raise ValueError('Expected only artifacts in the collection.')
 
         str_ns = {str(name) for name in self.namespace}
-        diff = set(member.name for member in members.values()) - str_ns
+        diff = set(
+            str(member.to_interface_name()) for member in members.values()
+        ) - str_ns
         if diff:
             msg = (
                 f'{diff} not found in driver\'s namespace. Make sure '
