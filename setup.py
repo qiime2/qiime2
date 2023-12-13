@@ -30,6 +30,7 @@ setup(
         'qiime2.core.archive.provenance_lib.tests': ['data/**/*'],
         'qiime2.core.archive.provenance_lib': ['assets/*'],
         'qiime2.plugin.model.tests': ['data/*/*'],
+        'qiime2.plugin.tests': ['data/*'],
         'qiime2.metadata.tests': ['data/*/*'],
         'qiime2.core.testing': ['citations.bib'],
         'qiime2.sdk.tests': ['data/*'],
