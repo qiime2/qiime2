@@ -1269,7 +1269,7 @@ class Usage:
             # NOTE: these usage variables are assumed to have been
             # materialized at this point
             members_dict = {
-                key: member.value for key, member in members.items()
+                key: member.execute() for key, member in members.items()
             }
 
             return ResultCollection(members_dict)
@@ -1318,7 +1318,7 @@ class Usage:
         <ExecutionUsageVariable name='first_member', var_type='artifact'>
         '''  # noqa: E501
         def factory():
-            return variable.value[key]
+            return variable.execute()[key]
 
         return self._usage_variable(name, factory, 'artifact')
 
