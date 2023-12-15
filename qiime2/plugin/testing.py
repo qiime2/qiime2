@@ -261,3 +261,16 @@ class TestPluginBase(unittest.TestCase):
                 with self.subTest(example=name):
                     use = usage.ExecutionUsage()
                     example_f(use)
+
+
+def assert_no_nans_in_tables(fh):
+    '''
+    Checks for NaNs present in any of the tables in the indicated file then
+    resets to the head of the file.
+    '''
+    from pandas import read_html
+
+    tables = read_html(fh)
+    for df in tables:
+        assert not df.isnull().values.any()
+    fh.seek(0)

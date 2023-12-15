@@ -34,7 +34,7 @@ requirements:
     - dill
     - psutil
     - flufl.lock
-    - parsl
+    - parsl {{ parsl }}
     - appdirs
     - tomlkit
 
@@ -43,6 +43,7 @@ test:
     - pytest
     - tornado
     - notebook <7
+    - lxml
 
   imports:
     - qiime2
