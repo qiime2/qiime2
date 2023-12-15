@@ -843,9 +843,7 @@ def _collect_action_inputs(
                 new_collection_uuid = uuid4()
                 ns.usg_var_namespace[new_collection_uuid] = input_name
                 var_name = ns.usg_var_namespace[new_collection_uuid]
-                usg_var = use.construct_collection(
-                    var_name, 'artifact', new_rc
-                )
+                usg_var = use.construct_artifact_collection(var_name, new_rc)
                 ns.usg_vars[new_collection_uuid] = usg_var
                 resolved_input = ns.usg_vars[new_collection_uuid]
         # If we ever mess with inputs again and add a new type here this should
@@ -870,7 +868,7 @@ def _get_rc_member(use, ns, uuid, input_name):
 
     ns.usg_var_namespace[uuid] = input_name
     var_name = ns.usg_var_namespace[uuid]
-    usg_var = use.access_collection_member(
+    usg_var = use.get_artifact_collection_member(
         var_name, collection_name, key
     )
 
