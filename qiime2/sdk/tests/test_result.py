@@ -17,6 +17,7 @@ from qiime2.sdk.result import ResultMetadata
 import qiime2.core.archive as archive
 import qiime2.core.exceptions as exceptions
 
+from qiime2.core.testing.format import IntSequenceDirectoryFormat
 from qiime2.core.testing.type import (FourInts, SingleInt, IntSequence1,
                                       IntSequence2)
 from qiime2.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
@@ -495,6 +496,44 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         with self.assertRaisesRegex(exceptions.ValidationError,
                                     r'extra\.file'):
             visualization.validate()
+
+    def test_import_min_validate(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fp = os.path.join(tempdir, 'ints.txt')
+            with open(fp, 'w') as fh:
+                for i in range(5):
+                    fh.write(f'{i}\n')
+                fh.write('a\n')
+
+            intseq_dir = IntSequenceDirectoryFormat(tempdir, 'r')
+
+            # import with min allows format error outside of min purview
+            _ = Artifact.import_data(
+                'IntSequence1', intseq_dir, validate_level='min'
+            )
+
+            # import with max should catch all format errors, max is default
+            with self.assertRaisesRegex(
+                exceptions.ValidationError, 'Line 6 is not an integer'
+            ):
+                _ = Artifact.import_data('IntSequence1', tempdir)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            fp = os.path.join(tempdir, 'ints.txt')
+            with open(fp, 'w') as fh:
+                fh.write('1\n')
+                fh.write('a\n')
+                fh.write('3\n')
+
+            intseq_dir = IntSequenceDirectoryFormat(tempdir, 'r')
+
+            # import with min catches format errors within its purview
+            with self.assertRaisesRegex(
+                exceptions.ValidationError, 'Line 2 is not an integer'
+            ):
+                _ = Artifact.import_data(
+                    'IntSequence1', [1, 'a', 3, 4], validate_level='min'
+                )
 
 
 class TestResultCollection(unittest.TestCase):

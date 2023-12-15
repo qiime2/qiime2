@@ -60,18 +60,24 @@ _TEST_CONFIG_ = {
 
 # Directs keys in the config whose values need to be objects to the module that
 # contains the class they need to instantiate
+PARSL_CHANNEL = 'parsl.channels'
+PARSL_DATA_PROVIDER = 'parsl.data_provider'
+PARSL_EXECUTOR = 'parsl.executors'
+PARSL_LAUNCHER = 'parsl.launchers'
+PARSL_MONITORING = 'parsl.monitoring'
+PARSL_PROVIDER = 'parsl.providers'
 module_paths = {
-    'channel': 'parsl.channels',
-    'channels': 'parsl.channels',
-    'data_provider': 'parsl.data_provider',
-    'data_providers': 'parsl.data_provider',
-    'executor': 'parsl.executors',
-    'executors': 'parsl.executors',
-    'launcher': 'parsl.launcher',
-    'launchers': 'parsl.launcher',
-    'monitoring': 'parsl.monitoring',
-    'provider': 'parsl.providers',
-    'providers': 'parsl.providers'
+    'channel': PARSL_CHANNEL,
+    'channels': PARSL_CHANNEL,
+    'data_provider': PARSL_DATA_PROVIDER,
+    'data_providers': PARSL_DATA_PROVIDER,
+    'executor': PARSL_EXECUTOR,
+    'executors': PARSL_EXECUTOR,
+    'launcher': PARSL_LAUNCHER,
+    'launchers': PARSL_LAUNCHER,
+    'monitoring': PARSL_MONITORING,
+    'provider': PARSL_PROVIDER,
+    'providers': PARSL_PROVIDER
 }
 
 
@@ -201,8 +207,14 @@ def _process_key(key, value):
     correct data type or class instance to be used in instantiating a
     parsl.Config object.
     """
+    # Our key points to a list
+    if isinstance(value, list):
+        processed_value = []
+        for item in value:
+            processed_value.append(_process_key(key, item))
+        return processed_value
     # Our key needs to point to some object.
-    if key in module_paths:
+    elif key in module_paths:
         # Get the module our class is from
         module = importlib.import_module(module_paths[key])
 

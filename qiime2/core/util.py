@@ -17,6 +17,8 @@ import uuid as _uuid
 import yaml
 import zipfile
 import pathlib
+import shutil
+import subprocess
 
 import decorator
 
@@ -116,12 +118,30 @@ def duration_time(relative_delta):
         return '0 %s' % attrs[-1]
 
 
+def has_md5sum_native():
+    return shutil.which('md5sum') is not None
+
+
 def md5sum(filepath):
+    if has_md5sum_native():
+        return md5sum_native(filepath)
+    else:
+        return md5sum_python(filepath)
+
+
+def md5sum_python(filepath):
     md5 = hashlib.md5()
     with open(str(filepath), mode='rb') as fh:
         for chunk in iter(lambda: fh.read(io.DEFAULT_BUFFER_SIZE), b""):
             md5.update(chunk)
     return md5.hexdigest()
+
+
+def md5sum_native(filepath):
+    result = subprocess.run(['md5sum', str(filepath)],
+                            check=True, capture_output=True, text=True)
+    _, digest = from_checksum_format(result.stdout)
+    return digest
 
 
 def md5sum_zip(zf: zipfile.ZipFile, filepath: str) -> str:
@@ -137,6 +157,11 @@ def md5sum_zip(zf: zipfile.ZipFile, filepath: str) -> str:
 
 
 def md5sum_directory(directory):
+    if has_md5sum_native():
+        md5sum = md5sum_native
+    else:
+        md5sum = md5sum_python
+
     directory = str(directory)
     sums = collections.OrderedDict()
     for root, dirs, files in os.walk(directory, topdown=True):

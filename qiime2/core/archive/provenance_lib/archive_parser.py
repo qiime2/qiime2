@@ -393,7 +393,7 @@ class _Action:
 
         Notes
         -----
-        One of three structures may be encoutered when parsing this section of
+        One of three structures may be encountered when parsing this section of
         action.yaml, described below:
 
         case 1:
@@ -418,6 +418,8 @@ class _Action:
                 - some_key: some_uuid
                 - some_other_key: some_other_uuid
             (...)
+
+            and thus is a different structure entirely.
         '''
         inputs = self._action_details.get('inputs')
         results = {}

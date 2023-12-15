@@ -25,11 +25,16 @@ requirements:
     - tzlocal <3
     - python-dateutil
     - bibtexparser
-    - networkx
+    # This is pinned because networkx 3.2 was trying to use
+    # importlib.resources.files which apparently doesn't exist on
+    # importlib_resources 6.1.0 which is what we were using when this was
+    # pinned. Pinning this to the version that was working for us was simpler
+    # than digging around in importlib_resources to find a compatible version
+    - networkx =3.1
     - dill
     - psutil
     - flufl.lock
-    - parsl
+    - parsl {{ parsl }}
     - appdirs
     - tomlkit
 
@@ -38,6 +43,7 @@ test:
     - pytest
     - tornado
     - notebook <7
+    - lxml
 
   imports:
     - qiime2

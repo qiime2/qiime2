@@ -1210,8 +1210,8 @@ class Usage:
             return artifact
         return self._usage_variable(name, factory, 'artifact')
 
-    def construct_collection(
-        self, name: str, member_type: str, members: Union[dict, list]
+    def construct_artifact_collection(
+        self, name: str, members: Union[dict, list]
     ) -> UsageVariable:
         '''
         Return a UsageVariable of type artifact_collection given a list or dict
@@ -1221,16 +1221,13 @@ class Usage:
         ----------
         name : str
             The name of the resulting variable.
-        member_type : str
-            One of 'artifact', 'visualization'. The types of the members in the
-            collection.
         members: list or dict
             The desired members of the ResultCollection.
 
         Returns
         -------
         UsageVariable
-            Of type artifact_collection or viz_collection.
+            Of type artifact_collection.
 
         Examples
         --------
@@ -1241,25 +1238,31 @@ class Usage:
         ... )
         >>> mapping_1
         <ExecutionUsageVariable name='mapping_1', var_type='artifact'>
-        >>> collection_1 = use.construct_collection(
-        ...     'collection_1', 'artifact', {'a': mapping_1, 'b': mapping_1}
+        >>> collection_1 = use.construct_artifact_collection(
+        ...     'collection_1', {'a': mapping_1, 'b': mapping_1}
         ... )
         >>> collection_1
         <ExecutionUsageVariable name='collection_1', var_type='artifact_collection'>
         '''  # noqa: E501
-        if member_type not in ('artifact', 'visualization'):
-            msg = (
-                'Collections must be either of type artifact or of type '
-                f'visualization, not {member_type}.'
-            )
-            raise ValueError(msg)
+
+        # make sure members is dict to avoid repeated type checking
+        if type(members) is list:
+            members = {str(i): member for i, member in enumerate(members)}
 
         if not all(
-            member.var_type == member_type for member in members.values()
+            member.var_type == 'artifact' for member in members.values()
         ):
+            raise ValueError('Expected only artifacts in the collection.')
+
+        str_ns = {str(name) for name in self.namespace}
+        diff = set(
+            str(member.to_interface_name()) for member in members.values()
+        ) - str_ns
+        if diff:
             msg = (
-                'Expected either only artifacts or only visualizations in a '
-                'collection.'
+                f'{diff} not found in driver\'s namespace. Make sure '
+                'that all ResultCollection members have been properly '
+                'created.'
             )
             raise ValueError(msg)
 
@@ -1268,18 +1271,15 @@ class Usage:
             # NOTE: these usage variables are assumed to have been
             # materialized at this point
             members_dict = {
-                key: member.value for key, member in members.items()
+                key: member.execute() for key, member in members.items()
             }
 
             return ResultCollection(members_dict)
 
-        if member_type == 'artifact':
-            return self._usage_variable(name, factory, 'artifact_collection')
+        return self._usage_variable(name, factory, 'artifact_collection')
 
-        return self._usage_variable(name, factory, 'viz_collection')
-
-    def access_collection_member(
-            self, name: str, collection: UsageVariable, key: str
+    def get_artifact_collection_member(
+            self, name: str, variable: UsageVariable, key: str
     ) -> UsageVariable:
         '''
         Accesses and returns a member of a ResultCollection as a UsageVariable.
@@ -1288,7 +1288,7 @@ class Usage:
         ----------
         name : str
             The name of the resulting variable.
-        collection : UsageVariable
+        variable : UsageVariable
             The UsageVariable of type artifact_collection from which to access
             the desired member.
         key : str
@@ -1297,7 +1297,7 @@ class Usage:
         Returns
         -------
         UsageVariable
-            Of type artifact or visualization.
+            Of type artifact.
 
         Examples
         --------
@@ -1308,24 +1308,21 @@ class Usage:
         ... )
         >>> mapping_2
         <ExecutionUsageVariable name='mapping_2', var_type='artifact'>
-        >>> collection_2 = use.construct_collection(
-        ...     'collection_2', 'artifact', {'a': mapping_2, 'b': mapping_2}
+        >>> collection_2 = use.construct_artifact_collection(
+        ...     'collection_2', {'a': mapping_2, 'b': mapping_2}
         ... )
         >>> collection_2
         <ExecutionUsageVariable name='collection_2', var_type='artifact_collection'>
-        >>> first_member = use.access_collection_member(
+        >>> first_member = use.get_artifact_collection_member(
         ...     'first_member', collection_2, 'a'
         ... )
         >>> first_member
         <ExecutionUsageVariable name='first_member', var_type='artifact'>
         '''  # noqa: E501
         def factory():
-            return collection.value[key]
+            return variable.execute()[key]
 
-        if collection.var_type == 'artifact_collection':
-            return self._usage_variable(name, factory, 'artifact')
-
-        return self._usage_variable(name, factory, 'visualization')
+        return self._usage_variable(name, factory, 'artifact')
 
     def merge_metadata(self, name: str,
                        *variables: UsageVariable) -> UsageVariable:
