@@ -37,13 +37,13 @@ requirements:
     - parsl {{ parsl }}
     - appdirs
     - tomlkit
+    - lxml
 
 test:
   requires:
     - pytest
     - tornado
     - notebook <7
-    - lxml
 
   imports:
     - qiime2
