@@ -13,9 +13,10 @@ import pathlib
 import pkg_resources
 import shutil
 import tempfile
+from uuid import uuid4
 from collections import UserDict
 from dataclasses import dataclass, field
-from typing import Dict, Iterator, List, Optional, Set, Union
+from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
 from .archive_parser import ProvNode
 from .parse import ProvDAG
@@ -199,10 +200,42 @@ class NamespaceCollections:
     action_namespace : set of str
         A collection of unique action strings that look like
         `{plugin}_{action}_{sequential int}`.
+    result_collection_ns : dict
+        Used to keep track of result collection members during usage rendering.
+        Structure is as follows:
+
+        {
+            action-id: {
+                output-name: {
+                    'collection_uuid': uuid,
+                    'artifacts': {
+                        uuid: key-in-collection,
+                        (...),
+                    }
+                },
+                (...),
+            }
+        }
+
+        where the action-id and the output-name uniquely identify a result
+        collection that came from some action, the `collection_uuid` key stores
+        a uuid for the entire collection needed for querying the
+        `usg_var_namespace`, and the `artifacts` key stores all result
+        collection members along with their keys so they can be accessed
+        properly.
     '''
     usg_var_namespace: UsageVarsDict = field(default_factory=UsageVarsDict)
     usg_vars: Dict[str, UsageVariable] = field(default_factory=dict)
     action_namespace: Set[str] = field(default_factory=set)
+    result_collection_ns: Dict = field(default_factory=dict)
+    rc_contents_to_rc_uuid: Dict = field(default_factory=dict)
+    artifact_uuid_to_rc_uuid: Dict = field(default_factory=dict)
+
+
+@dataclass
+class ResultCollectionRecord:
+    collection_uuid: str
+    members: Dict[str, str]
 
 
 def replay_provenance(
@@ -293,7 +326,16 @@ def replay_provenance(
         verbose=verbose, md_out_dir=md_out_dir
     )
 
-    build_usage_examples(dag, cfg)
+    result_collection_ns = make_result_collection_namespace(dag)
+    artifact_uuid_to_rc_uuid, rc_contents_to_rc_uuid = \
+        make_result_collection_mappings(result_collection_ns)
+    ns = NamespaceCollections(
+        result_collection_ns=result_collection_ns,
+        artifact_uuid_to_rc_uuid=artifact_uuid_to_rc_uuid,
+        rc_contents_to_rc_uuid=rc_contents_to_rc_uuid
+    )
+
+    build_usage_examples(dag, cfg, ns)
     if not suppress_header:
         cfg.use.build_header()
         cfg.use.build_footer(dag)
@@ -306,7 +348,123 @@ def replay_provenance(
         out_fh.write(output)
 
 
-def group_by_action(dag: ProvDAG, nodes: Iterator[str]) -> ActionCollections:
+def make_result_collection_namespace(dag: nx.digraph) -> dict:
+    '''
+    Constructs the result collections namespaces from the parsed digraph.
+
+    Parameters
+    ----------
+    dag : nx.digraph
+        The digraph representing the parsed provenance.
+
+    Returns
+    -------
+    dict
+        A fleshed-out dict to be attached to
+        `NamsepaceCollections.result_collection_ns`.
+    '''
+    rc_ns = {}
+    for node in dag:
+        provnode = dag.get_node_data(node)
+        rc_key = provnode.action.result_collection_key
+        if rc_key:
+            # output result collection
+            action_id = provnode.action.action_id
+            output_name = provnode.action.output_name
+            if action_id not in rc_ns:
+                rc_ns[action_id] = {}
+            if output_name not in rc_ns[action_id]:
+                artifacts = {rc_key: provnode._uuid}
+                rc_ns[action_id][output_name] = ResultCollectionRecord(
+                    collection_uuid=str(uuid4()), members=artifacts
+                )
+            else:
+                rc_ns[action_id][output_name].members[rc_key] = provnode._uuid
+
+    # TODO: maybe handle input result collections here
+    return rc_ns
+
+
+def make_result_collection_mappings(result_collection_ns: Dict) -> Tuple[Dict]:
+    '''
+    '''
+    a_to_c = {}  # artifact uuid -> collection uuid
+    c_to_c = {}  # hash of collection contents -> collection uuids
+    for action_id in result_collection_ns:
+        for output_name in result_collection_ns[action_id]:
+            record = result_collection_ns[action_id][output_name]
+            for key, uuid in record.members.items():
+                a_to_c[uuid] = (record.collection_uuid, key)
+
+            hashed_contents = hash_result_collection(record.members)
+            hashed_contents_with_keys = \
+                hash_result_collection_with_keys(record.members)
+
+            c_to_c[hashed_contents] = record.collection_uuid
+            c_to_c[hashed_contents_with_keys] = record.collection_uuid
+
+    return a_to_c, c_to_c
+
+
+def hash_result_collection_with_keys(members: Dict) -> int:
+    '''
+    Hashes the contents of a result collection. Useful for finding
+    corresponding usage variables when rendering the replay of result
+    collections. Order of the input result collection is not taken into
+    account (the result collections are ordered alphabetically by key).
+
+    Parameters
+    ----------
+    members : dict
+        The contents of a result collection, looks like:
+
+        {
+            'a': some-uuid,
+            'b': some-other-uuid,
+            (...)
+        }
+
+    Returns
+    -------
+    int
+        The hashed contents.
+    '''
+    sorted_members = {key: members[key] for key in sorted(members)}
+    hashable_members_with_keys = tuple(
+        (key, value) for key, value in sorted_members.items()
+    )
+
+    return hash(hashable_members_with_keys)
+
+
+def hash_result_collection(members: Union[Dict, List]) -> int:
+    '''
+    Hashes a list of uuids. Useful for finding corresponding result collections
+    that may have been cast to list of uuids. If a dict is input it is first
+    converted to a list of values (uuids).
+
+    Parameters
+    ----------
+    members : dict or list
+        The contents of a result collection, either as a dict or list.
+
+    Returns
+    -------
+    int
+        The hashed contents.
+    '''
+    if type(members) is dict:
+        members = list(members.values())
+
+    sorted_members = list(sorted(members))
+    hashable_members = tuple(uuid for uuid in sorted_members)
+
+    return hash(hashable_members)
+
+
+def group_by_action(
+    dag: ProvDAG, nodes: Iterator[str], ns: NamespaceCollections
+) -> ActionCollections:
     '''
     This groups the nodes from a DAG by action, returning an ActionCollections
     aggregating the outputs related to each action.
@@ -324,6 +482,8 @@ def group_by_action(dag: ProvDAG, nodes: Iterator[str]) -> ActionCollections:
         The dag representation of parsed provenance.
     nodes : iterator of str
         An iterator over node uuids.
+    ns : NamespaceCollections
+        Info tracking usage and result collection namespaces.
 
     Returns
     -------
@@ -334,23 +494,29 @@ def group_by_action(dag: ProvDAG, nodes: Iterator[str]) -> ActionCollections:
     for node_id in nodes:
         if dag.node_has_provenance(node_id):
             node = dag.get_node_data(node_id)
-            action_id = node.action._execution_details['uuid']
-
+            action_id = node.action.action_id
             output_name = node.action.output_name
             if output_name is None:
                 output_name = camel_to_snake(node.type)
 
-            try:
-                actions.std_actions[action_id].update({node_id: output_name})
-            except KeyError:
+            if node.action.result_collection_key:
+                rc_record = ns.result_collection_ns[action_id][output_name]
+                node_id = rc_record.collection_uuid
+
+            if action_id not in actions.std_actions:
                 actions.std_actions[action_id] = {node_id: output_name}
+            else:
+                # for result collections we overwrite this but don't care
+                actions.std_actions[action_id][node_id] = output_name
         else:
             actions.no_provenance_nodes.append(node_id)
 
     return actions
 
 
-def build_usage_examples(dag: ProvDAG, cfg: ReplayConfig):
+def build_usage_examples(
+    dag: ProvDAG, cfg: ReplayConfig, ns: NamespaceCollections
+):
     '''
     Builds a chained usage example representing the analysis `dag`.
 
@@ -360,23 +526,34 @@ def build_usage_examples(dag: ProvDAG, cfg: ReplayConfig):
        The dag representation of parsed provenance.
     cfg : ReplayConfig
         Replay configuration options.
+    ns : NamespaceCollections
+        Info tracking usage and result collection namespaces.
     '''
-    usg_ns = NamespaceCollections()
     sorted_nodes = nx.topological_sort(dag.collapsed_view)
-    actions = group_by_action(dag, sorted_nodes)
+    actions = group_by_action(dag, sorted_nodes, ns)
 
     for node_id in actions.no_provenance_nodes:
         node = dag.get_node_data(node_id)
-        build_no_provenance_node_usage(node, node_id, usg_ns, cfg)
+        build_no_provenance_node_usage(node, node_id, ns, cfg)
 
     for action_id in (std_actions := actions.std_actions):
         # we are replaying actions not nodes, so any associated node works
-        some_node_id = next(iter(std_actions[action_id]))
-        node = dag.get_node_data(some_node_id)
+        try:
+            some_node_id = next(iter(std_actions[action_id]))
+            node = dag.get_node_data(some_node_id)
+        except KeyError:
+            # we have result collection
+            some_output_name = next(iter(ns.result_collection_ns[action_id]))
+            some_node_id = next(iter(
+                ns.result_collection_ns[action_id][
+                    some_output_name].members.values()
+            ))
+            node = dag.get_node_data(some_node_id)
+
         if node.action.action_type == 'import':
-            build_import_usage(node, usg_ns, cfg)
+            build_import_usage(node, ns, cfg)
         else:
-            build_action_usage(node, usg_ns, std_actions, action_id, cfg)
+            build_action_usage(node, ns, std_actions, action_id, cfg)
 
 
 def build_no_provenance_node_usage(
@@ -398,7 +575,7 @@ def build_no_provenance_node_usage(
     uuid : str
         The uuid of the node/result.
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     cfg : ReplayConfig
         Replay configuration options. Contains the modified usage driver.
     '''
@@ -453,7 +630,7 @@ def build_import_usage(
     node : ProvNode
         The imported node of interest.
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     cfg : ReplayConfig
         Replay configuration options. Contains the modified usage driver.
     '''
@@ -493,7 +670,7 @@ def build_action_usage(
     node : ProvNode
         The node the creating action of which is of interest.
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     std_actions : dict
         Expalained in ActionCollections.
     action_id : str
@@ -506,7 +683,7 @@ def build_action_usage(
     action = node.action.action_name
     plg_action_name = uniquify_action_name(plugin, action, ns.action_namespace)
 
-    inputs = _collect_action_inputs(ns, node)
+    inputs = _collect_action_inputs(cfg.use, ns, node)
 
     # Process outputs before params so we can access the unique output name
     # from the namespace when dumping metadata to files below
@@ -592,15 +769,19 @@ def build_action_usage(
         ns.usg_vars[uuid_key] = res
 
 
-def _collect_action_inputs(ns: NamespaceCollections, node: ProvNode) -> dict:
+def _collect_action_inputs(
+    use: Usage, ns: NamespaceCollections, node: ProvNode
+) -> dict:
     '''
     Returns a dict containing the action Inputs for a ProvNode.
     Dict structure: {input_name: input_var} or {input_name: [input_var1, ...]}.
 
     Parameters
     ----------
+    use : Usage
+        The currently executing usage driver.
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     node : ProvNode
         The node the creating action of which's inputs are of interest.
 
@@ -610,18 +791,88 @@ def _collect_action_inputs(ns: NamespaceCollections, node: ProvNode) -> dict:
         Mapping input names to their corresponding usage variables.
     '''
     inputs_dict = {}
-    for input_name, uuids in node.action.inputs.items():
-        # Some optional inputs take None as a default
-        if uuids is not None:
-            if type(uuids) is str:
-                uuid = uuids
-                inputs_dict.update({input_name: ns.usg_vars[uuid]})
-            else:  # it's a collection
-                input_vars = []
-                for uuid in uuids:
-                    input_vars.append(ns.usg_vars[uuid])
-                inputs_dict.update({input_name: input_vars})
+    for input_name, input_value in node.action.inputs.items():
+        # Currently we can only have a None as a default value, so we can skip
+        # this as it was not provided
+        if input_value is None:
+            continue
+        # Received a single artifact
+        if type(input_value) is str:
+            if input_value not in ns.usg_vars:
+                ns.usg_vars[input_value] = _get_rc_member(
+                    use, ns, input_value, input_name)
+
+            resolved_input = ns.usg_vars[input_value]
+        # Received a list of artifacts
+        elif type(input_value) is list:
+            # may be rc cast to list so search for equivalent rc
+            # if not then follow algorithm for single str for each
+            input_hash = hash_result_collection(input_value)
+            if collection_uuid := ns.rc_contents_to_rc_uuid.get(input_hash):
+                # corresponding rc found
+                resolved_input = ns.usg_vars[collection_uuid]
+            else:
+                # find each artifact and assemble into a list
+                input_list = []
+                for input_value in input_value:
+                    if input_value not in ns.usg_vars:
+                        ns.usg_vars[input_value] = _get_rc_member(
+                            use, ns, input_value, input_name)
+
+                    input_list.append(ns.usg_vars[input_value])
+                resolved_input = input_list
+        # Received a dict of artifacts (ResultCollection)
+        elif type(input_value) is dict:
+            # rc -- search for equivalent rc if not found then create new rc
+            rc = input_value
+            input_hash = hash_result_collection_with_keys(rc)
+            if collection_uuid := ns.rc_contents_to_rc_uuid.get(input_hash):
+                # corresponding rc found
+                resolved_input = ns.usg_vars[collection_uuid]
+            else:
+                # build new rc
+                new_rc = {}
+                for key, input_value in rc.items():
+                    if input_value not in ns.usg_vars:
+                        ns.usg_vars[input_value] = _get_rc_member(
+                            use, ns, input_value, input_name)
+
+                    new_rc[key] = ns.usg_vars[input_value]
+
+                # make new rc usg var
+                new_collection_uuid = uuid4()
+                ns.usg_var_namespace[new_collection_uuid] = input_name
+                var_name = ns.usg_var_namespace[new_collection_uuid]
+                usg_var = use.construct_artifact_collection(var_name, new_rc)
+                ns.usg_vars[new_collection_uuid] = usg_var
+                resolved_input = ns.usg_vars[new_collection_uuid]
+        # If we ever mess with inputs again and add a new type here this should
+        # trip otherwise we should never see it
+        else:
+            msg = f"Got a '{input_value}' as input which is of type" \
+                  f" '{type(input_value)}'. Supported types are str, list," \
+                  " and dict."
+            raise ValueError(msg)
+
+        inputs_dict[input_name] = resolved_input
+
     return inputs_dict
+
+
+def _get_rc_member(use, ns, uuid, input_name):
+    '''
+    '''
+    # find in rc and render destructure
+    collection_uuid, key = ns.artifact_uuid_to_rc_uuid[uuid]
+    collection_name = ns.usg_vars[collection_uuid]
+
+    ns.usg_var_namespace[uuid] = input_name
+    var_name = ns.usg_var_namespace[uuid]
+    usg_var = use.get_artifact_collection_member(
+        var_name, collection_name, key
+    )
+
+    return usg_var
 
 
 def _uniquify_output_names(
@@ -634,7 +885,7 @@ def _uniquify_output_names(
     Parameters
     ----------
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     raw_outputs : dict
         Mapping of node uuid to output-name as seen in action.yaml.
 
@@ -773,7 +1024,7 @@ def init_md_from_artifacts(
         uuids and `relative_fp` which is the filename of the metadata file.
         These are parsed from a !metadata tag in action.yaml.
     ns : NamespaceCollections
-        Info tracking usage namespaces.
+        Info tracking usage and result collection namespaces.
     cfg: ReplayConfig
         Replay configuration options. Contains the executing usage driver.
 

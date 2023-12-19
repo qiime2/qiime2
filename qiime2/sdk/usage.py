@@ -1226,7 +1226,7 @@ class Usage:
 
         Returns
         -------
-        UsageVariale
+        UsageVariable
             Of type artifact_collection.
 
         Examples

@@ -271,33 +271,6 @@ class ReplayProvenanceTests(unittest.TestCase):
             self.assertNotIn('optional1=', rendered)
             self.assertNotIn('num2=', rendered)
 
-    # NOTE: remove once support for ResultCollections exists in usage drivers
-    def test_result_collections_not_suppported(self):
-        dag = self.das.int_from_collection.dag
-        with tempfile.TemporaryDirectory() as tempdir:
-            out_path = pathlib.Path(tempdir) / 'rendered.txt'
-
-            with self.assertRaisesRegex(
-                ValueError,
-                'ResultCollection was returned.*not.*supported'
-            ):
-                replay_provenance(
-                    ReplayPythonUsage, dag, out_path, md_out_dir=tempdir
-                )
-
-            # NOTE: we have to try a little harder to catch the exception
-            # raised when parsing inputs because there is no action in the
-            # dummy plyuin that takes a ResultCollection but doesn't return
-            # one and the `output-name` section always gets parsed before the
-            # `inputs` section
-            with self.assertRaisesRegex(
-                ValueError,
-                'ResultCollection as input.*not.*supported'
-            ):
-                for uuid in dag.nodes:
-                    node = dag.get_node_data(uuid)
-                    _ = node.action.inputs
-
 
 class MultiplePluginTests(unittest.TestCase):
     @classmethod
@@ -425,10 +398,11 @@ class BuildUsageExamplesTests(unittest.TestCase):
     @patch('qiime2.core.archive.provenance_lib.replay.'
            'build_no_provenance_node_usage')
     def test_build_usage_examples(self, n_p_builder, imp_builder, act_builder):
+        ns = NamespaceCollections()
         dag = self.das.concated_ints_with_md.dag
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
-        build_usage_examples(dag, cfg)
+        build_usage_examples(dag, cfg, ns)
 
         n_p_builder.assert_not_called()
         self.assertEqual(imp_builder.call_count, 3)
@@ -441,6 +415,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
     def test_build_usage_examples_lone_v0(
             self, n_p_builder, imp_builder, act_builder
     ):
+        ns = NamespaceCollections()
         uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{uuid}.*prior.*incomplete'
@@ -449,7 +424,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
 
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
-        build_usage_examples(dag, cfg)
+        build_usage_examples(dag, cfg, ns)
 
         # This is a single v0 archive, so should have only one np node
         n_p_builder.assert_called_once()
@@ -468,6 +443,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
         shutil.copy(self.das.table_v0.filepath, mixed_dir)
         shutil.copy(self.das.concated_ints_v6.filepath, mixed_dir)
 
+        ns = NamespaceCollections()
         v0_uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'
@@ -476,7 +452,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
 
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
-        build_usage_examples(dag, cfg)
+        build_usage_examples(dag, cfg, ns)
 
         n_p_builder.assert_called_once()
         self.assertEqual(imp_builder.call_count, 2)
@@ -495,10 +471,11 @@ class BuildUsageExamplesTests(unittest.TestCase):
         shutil.copy(self.das.splitted_ints.filepath, many_dir)
         shutil.copy(self.das.pipeline_viz.filepath, many_dir)
 
+        ns = NamespaceCollections()
         dag = ProvDAG(many_dir)
         cfg = ReplayConfig(use=ReplayPythonUsage(),
                            use_recorded_metadata=False, pm=self.pm)
-        build_usage_examples(dag, cfg)
+        build_usage_examples(dag, cfg, ns)
 
         n_p_builder.assert_not_called()
         # concated_ints_with_md is loaded from disk so imports don't overlap
@@ -562,9 +539,10 @@ class GroupByActionTests(unittest.TestCase):
     def test_gba_with_provenance(self):
         self.maxDiff = None
 
+        ns = NamespaceCollections()
         dag = self.das.concated_ints_v6.dag
         sorted_nodes = nx.topological_sort(dag.collapsed_view)
-        actual = group_by_action(dag, sorted_nodes)
+        actual = group_by_action(dag, sorted_nodes, ns)
         exp = {
             'b49e497c-19b2-49f7-b9a2-0d837016c151': {
                 '8dea2f1a-2164-4a85-9f7d-e0641b1db22b': 'int_sequence1'
@@ -580,11 +558,12 @@ class GroupByActionTests(unittest.TestCase):
         self.assertEqual(actual.no_provenance_nodes, [])
 
     def test_gba_no_provenance(self):
+        ns = NamespaceCollections()
         dag = self.das.table_v0.dag
         uuid = self.das.table_v0.uuid
 
         sorted_nodes = nx.topological_sort(dag.collapsed_view)
-        action_collections = group_by_action(dag, sorted_nodes)
+        action_collections = group_by_action(dag, sorted_nodes, ns)
         self.assertEqual(action_collections.std_actions, {})
         self.assertEqual(action_collections.no_provenance_nodes, [uuid])
 
@@ -594,6 +573,7 @@ class GroupByActionTests(unittest.TestCase):
         shutil.copy(self.das.table_v0.filepath, mixed_dir)
         shutil.copy(self.das.concated_ints_v6.filepath, mixed_dir)
 
+        ns = NamespaceCollections()
         v0_uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'
@@ -601,7 +581,7 @@ class GroupByActionTests(unittest.TestCase):
             dag = ProvDAG(mixed_dir)
 
         sorted_nodes = nx.topological_sort(dag.collapsed_view)
-        action_collections = group_by_action(dag, sorted_nodes)
+        action_collections = group_by_action(dag, sorted_nodes, ns)
 
         exp = {
             'b49e497c-19b2-49f7-b9a2-0d837016c151': {
@@ -921,6 +901,239 @@ class BuildImportUsageTests(CustomAssertions):
         self.assertRegex(rendered, rf'{out_name} = Artifact.import_data\(')
         self.assertRegex(rendered, import_node.type)
         self.assertRegex(rendered, '<your data here>')
+
+
+class ReplayResultCollectionTests(CustomAssertions):
+    '''
+    One of three structures may be encoutered when parsing the inputs section
+    of action.yaml, described below:
+
+    case 1 (single artifact case):
+
+        inputs:
+        - some_input_name: some_uuid
+        - some_other_input_name: some_other_uuid
+        (...)
+
+        For the single artifact case we may find the artifact in the usage
+        variable namespace or it might only exist in a result collection.
+        - case 1a:
+            The artifact exists in the usage variable namespace so access it
+            from there, not from any result collection that may contain it.
+        - case 1b:
+            The artifact does not exist in the usage variable namespace so
+            find it in a result collection, destructure it, and then use the
+            destructured artifact.
+
+    case 2 (list of artifacts case):
+
+        inputs:
+        - some_input_name:
+            - some_uuid
+            - some_other_uuid
+        (...)
+
+        For the list of artifacts case the list contents may be equivalent to
+        an existing result collection, or it may not be.
+        - case 2a:
+            The list contents are not equivalent to any existing result
+            collection so for each member do either case 1a or 1b as described
+            above.
+        - case 2b:
+            The list contents are equivalent to an existing result collection
+            so pass in the result collection directly (which will be cast to
+            a list).
+
+    case 3 (result collection case):
+
+        inputs:
+        - result_collection_name:
+            - some_key: some_uuid
+            - some_other_key: some_other_uuid
+        (...)
+
+        For the result collection case an equivalent existing result collection
+        may exist or it may not.
+        - case 3a:
+            No equivalent result collection is found so for each member follow
+            case 1a or 1b as described above.
+        - case 3b:
+            An equivalent result collection is found so pass it in directly.
+
+    '''
+    @classmethod
+    def setUpClass(cls):
+        cls.pm = PluginManager()
+        cls.dp = cls.pm.plugins['dummy-plugin']
+
+        cls.single_int = Artifact.import_data('SingleInt', 0)
+        cls.dict_of_ints = cls.dp.methods['dict_of_ints']
+        cls.list_of_ints = cls.dp.methods['list_of_ints']
+
+    def test_cases_1a_1b(self):
+        '''
+        The `single_int` usage variable is not found before the first call to
+        `optional_artifact_pipeline`, so it is accessed from the result
+        collection it belongs to (case 1b) and added to the usage variable
+        namespace. When we call `optional_artifact_pipeline` again it should
+        not destructure the result collection a second time but instead just
+        use the available usage variable that we added to the namespace
+        previously (case 1a).
+        '''
+        int_seq = Artifact.import_data('IntSequence1', [1, 1, 2])
+
+        opt_art_pipeline = self.dp.pipelines['optional_artifact_pipeline']
+
+        rc = {'int1': self.single_int}
+
+        rc_out, = self.dict_of_ints(rc)
+        int_destructured = rc_out['int1']
+        int_seq_out, = opt_art_pipeline(int_seq, int_destructured)
+        int_seq_out, = opt_art_pipeline(int_seq_out, int_destructured)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            in_fp = pathlib.Path(tempdir) / 'int_seq_out.qza'
+            int_seq_out.save(in_fp)
+            dag = ProvDAG(in_fp)
+
+            out_fp = pathlib.Path(tempdir) / 'rendered.txt'
+            out_fn = str(out_fp)
+            replay_provenance(ReplayPythonUsage, dag, out_fn)
+
+            with open(out_fp) as fh:
+                rendered = fh.read()
+
+        exp = '''\
+single_int_1 = output_0_artifact_collection['int1']
+ints_1, = dummy_plugin_actions.optional_artifact_pipeline(
+    int_sequence=int_sequence1_0,
+    single_int=single_int_1,
+)
+# SAVE: comment out the following with '# ' to skip saving Results to disk
+ints_1.save('ints_1')
+
+ints_2, = dummy_plugin_actions.optional_artifact_pipeline(
+    int_sequence=ints_1,
+    single_int=single_int_1,
+)
+'''
+        self.assertIn(exp, rendered)
+
+    def test_case_2a(self):
+        rc = {'int1': self.single_int, 'int2': self.single_int}
+        list_rc_out, = self.list_of_ints(rc)
+        int1_destructured = list_rc_out['0']
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            in_fp = pathlib.Path(tempdir) / 'int1_destructured.qza'
+            int1_destructured.save(in_fp)
+            dag = ProvDAG(in_fp)
+
+            out_fp = pathlib.Path(tempdir) / 'rendered.txt'
+            out_fn = str(out_fp)
+            replay_provenance(ReplayPythonUsage, dag, out_fn)
+
+            with open(out_fp) as fh:
+                rendered = fh.read()
+
+        exp = '''\
+output_0_artifact_collection, = dummy_plugin_actions.list_of_ints(
+    ints=[single_int_0, single_int_0],
+)
+'''
+        self.assertIn(exp, rendered)
+
+    def test_case_2b(self):
+        rc = {'int1': self.single_int}
+        rc_out, = self.dict_of_ints(rc)
+        list_rc_out, = self.list_of_ints(rc_out)
+        int1_destructured = list_rc_out['0']
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            in_fp = pathlib.Path(tempdir) / 'int1_destructured.qza'
+            int1_destructured.save(in_fp)
+            dag = ProvDAG(in_fp)
+
+            out_fp = pathlib.Path(tempdir) / 'rendered.txt'
+            out_fn = str(out_fp)
+            replay_provenance(ReplayPythonUsage, dag, out_fn)
+
+            with open(out_fp) as fh:
+                rendered = fh.read()
+
+        exp = '''\
+output_1_artifact_collection, = dummy_plugin_actions.list_of_ints(
+    ints=output_0_artifact_collection,
+)
+'''
+        self.assertIn(exp, rendered)
+
+    def test_case_3a(self):
+        '''
+        The `int1_destructured` artifact won't be found in the usage variable
+        namespace, while `self.single_int` will be, so assert that int1 is
+        destructured and `self.single_int` is just used as is because its
+        variable name is already available.
+        '''
+        rc1 = {'int1': self.single_int}
+        rc1_out, = self.dict_of_ints(rc1)
+        int1_destructured = rc1_out['int1']
+
+        rc2 = {'int1': int1_destructured, 'int2': self.single_int}
+        rc2_out, = self.dict_of_ints(rc2)
+        int3_destructured = rc2_out['int2']
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            in_fp = pathlib.Path(tempdir) / 'int2_destructured.qza'
+            int3_destructured.save(in_fp)
+            dag = ProvDAG(in_fp)
+
+            out_fp = pathlib.Path(tempdir) / 'rendered.txt'
+            out_fn = str(out_fp)
+            replay_provenance(ReplayPythonUsage, dag, out_fn)
+
+            with open(out_fp) as fh:
+                rendered = fh.read()
+
+        exp = '''\
+ints_1 = output_0_artifact_collection['int1']
+ints_2_artifact_collection = ResultCollection({
+    'int1': ints_1,
+    'int2': single_int_0,
+})
+output_1_artifact_collection, = dummy_plugin_actions.dict_of_ints(
+    ints=ints_2_artifact_collection,
+)
+'''
+        self.assertIn(exp, rendered)
+        self.assertREAppearsOnlyOnce(rendered, r'\[.*\]')
+
+    def test_case_3b(self):
+        rc = {'int1': self.single_int, 'int2': self.single_int}
+
+        rc_out, = self.dict_of_ints(rc)
+        rc_out_2, = self.dict_of_ints(rc_out)
+        int1_destructured = rc_out_2['int1']
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            in_fp = pathlib.Path(tempdir) / 'int1_destructured.qza'
+            int1_destructured.save(in_fp)
+            dag = ProvDAG(in_fp)
+
+            out_fp = pathlib.Path(tempdir) / 'rendered.txt'
+            out_fn = str(out_fp)
+            replay_provenance(ReplayPythonUsage, dag, out_fn)
+
+            with open(out_fp) as fh:
+                rendered = fh.read()
+
+        exp = '''\
+output_1_artifact_collection, = dummy_plugin_actions.dict_of_ints(
+    ints=output_0_artifact_collection,
+)
+'''
+        self.assertIn(exp, rendered)
+        self.assertREAppearsOnlyOnce(rendered, r'ResultCollection\(')
 
 
 class BuildActionUsageTests(CustomAssertions):
