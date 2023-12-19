@@ -247,7 +247,6 @@ out, = dummy_plugin_actions.identity_with_metadata_column(
         self.assertEqual(exp, use.render())
 
     def test_optional_inputs(self):
-        self.maxDiff = None
         action = self.plugin.actions['optional_artifacts_method']
         use = ArtifactAPIUsage()
         action.examples['optional_inputs'](use)
@@ -287,6 +286,25 @@ import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 out_artifact_collection, = dummy_plugin_actions.dict_of_ints(
     ints=ints_artifact_collection,
 )"""
+
+        self.assertEqual(exp, use.render())
+
+    def test_construct_artifact_collection(self):
+        action = self.plugin.actions['dict_of_ints']
+        use = ArtifactAPIUsage()
+        action.examples['construct_and_access_collection'](use)
+        exp = """\
+from qiime2 import ResultCollection
+import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
+
+rc_in_artifact_collection = ResultCollection({
+    'a': ints_a,
+    'b': ints_b,
+})
+rc_out_artifact_collection, = dummy_plugin_actions.dict_of_ints(
+    ints=rc_in_artifact_collection,
+)
+ints_b_from_collection = rc_out_artifact_collection['b']"""
 
         self.assertEqual(exp, use.render())
 

@@ -35,7 +35,7 @@ the doctest module. This should never be done in the real world.
 >>> builtins.use = ExecutionUsage()
 
 """
-from typing import Set, List, Literal, Any, Callable, Type
+from typing import Set, List, Literal, Any, Callable, Type, Union
 import dataclasses
 import functools
 import re
@@ -1208,6 +1208,120 @@ class Usage:
                 semantic_type, str(fmt), view_type=view_type)
 
             return artifact
+        return self._usage_variable(name, factory, 'artifact')
+
+    def construct_artifact_collection(
+        self, name: str, members: Union[dict, list]
+    ) -> UsageVariable:
+        '''
+        Return a UsageVariable of type artifact_collection given a list or dict
+        of its members.
+
+        Parameters
+        ----------
+        name : str
+            The name of the resulting variable.
+        members: list or dict
+            The desired members of the ResultCollection.
+
+        Returns
+        -------
+        UsageVariale
+            Of type artifact_collection.
+
+        Examples
+        --------
+        >>> mapping_1, = use.action(
+        ...     use.UsageAction('dummy_plugin', 'params_only_method'),
+        ...     use.UsageInputs(name='c', age=100),
+        ...     use.UsageOutputNames(out='mapping_1')
+        ... )
+        >>> mapping_1
+        <ExecutionUsageVariable name='mapping_1', var_type='artifact'>
+        >>> collection_1 = use.construct_artifact_collection(
+        ...     'collection_1', {'a': mapping_1, 'b': mapping_1}
+        ... )
+        >>> collection_1
+        <ExecutionUsageVariable name='collection_1', var_type='artifact_collection'>
+        '''  # noqa: E501
+
+        # make sure members is dict to avoid repeated type checking
+        if type(members) is list:
+            members = {str(i): member for i, member in enumerate(members)}
+
+        if not all(
+            member.var_type == 'artifact' for member in members.values()
+        ):
+            raise ValueError('Expected only artifacts in the collection.')
+
+        str_ns = {str(name) for name in self.namespace}
+        diff = set(
+            str(member.to_interface_name()) for member in members.values()
+        ) - str_ns
+        if diff:
+            msg = (
+                f'{diff} not found in driver\'s namespace. Make sure '
+                'that all ResultCollection members have been properly '
+                'created.'
+            )
+            raise ValueError(msg)
+
+        def factory():
+            from qiime2 import ResultCollection
+            # NOTE: these usage variables are assumed to have been
+            # materialized at this point
+            members_dict = {
+                key: member.execute() for key, member in members.items()
+            }
+
+            return ResultCollection(members_dict)
+
+        return self._usage_variable(name, factory, 'artifact_collection')
+
+    def get_artifact_collection_member(
+            self, name: str, variable: UsageVariable, key: str
+    ) -> UsageVariable:
+        '''
+        Accesses and returns a member of a ResultCollection as a UsageVariable.
+
+        Parameters
+        ----------
+        name : str
+            The name of the resulting variable.
+        variable : UsageVariable
+            The UsageVariable of type artifact_collection from which to access
+            the desired member.
+        key : str
+            The key of the desired member in the ResultCollection.
+
+        Returns
+        -------
+        UsageVariable
+            Of type artifact.
+
+        Examples
+        --------
+        >>> mapping_2, = use.action(
+        ...     use.UsageAction('dummy_plugin', 'params_only_method'),
+        ...     use.UsageInputs(name='c', age=100),
+        ...     use.UsageOutputNames(out='mapping_2')
+        ... )
+        >>> mapping_2
+        <ExecutionUsageVariable name='mapping_2', var_type='artifact'>
+        >>> collection_2 = use.construct_artifact_collection(
+        ...     'collection_2', {'a': mapping_2, 'b': mapping_2}
+        ... )
+        >>> collection_2
+        <ExecutionUsageVariable name='collection_2', var_type='artifact_collection'>
+        >>> first_member = use.get_artifact_collection_member(
+        ...     'first_member', collection_2, 'a'
+        ... )
+        >>> first_member
+        <ExecutionUsageVariable name='first_member', var_type='artifact'>
+        '''  # noqa: E501
+        def factory():
+            return variable.execute()[key]
+
         return self._usage_variable(name, factory, 'artifact')
 
     def merge_metadata(self, name: str,

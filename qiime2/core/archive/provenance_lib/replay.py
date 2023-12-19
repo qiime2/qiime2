@@ -192,7 +192,7 @@ class NamespaceCollections:
     ----------
     usg_var_namespace : UsageVarsDict
         A uuid -> variable-name mapping that ensures that variable names remain
-        uniue in the dictionary.
+        unique in the dictionary.
     usg_vars : dict
         A uuid -> UsageVariable mapping. The names of the UsageVariables here
         do not necessarily match those in `usg_var_namespace`.
