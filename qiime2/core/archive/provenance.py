@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -15,7 +15,10 @@ import uuid
 import copy
 import shutil
 import sys
+import warnings
 from datetime import datetime, timezone
+from typing import Any, List, NamedTuple, Set, Union
+from pathlib import Path
 
 import distutils
 import yaml
@@ -106,6 +109,164 @@ yaml.add_representer(ColorPrimitive, lambda dumper, data:
 
 yaml.add_representer(CitationKey, lambda dumper, data:
                      dumper.represent_scalar('!cite', data.key))
+
+
+def citation_key_constructor(loader, node) -> str:
+    """
+    A constructor for !cite yaml tags, returning a bibtex key as a str.
+    All we need for now is a key string we can match in citations.bib,
+    so _we're not parsing these into component substrings_.
+
+    If that need arises in future, these are spec'ed in provenance.py as:
+    <domain>|<package>:<version>|[<identifier>|]<index>
+
+    and frequently look like this (note no identifier):
+    framework|qiime2:2020.6.0.dev0|0
+    """
+    value = loader.construct_scalar(node)
+    return value
+
+
+def color_constructor(loader, node) -> str:
+    """
+    Constructor for !color tags, returning an str.
+    Color was a primitive type representing a 3 or 6 digit color hex code,
+    matching ^#(?:[0-9a-fA-F]{3}){1,2}$
+
+    Per E. Bolyen,these were unused by any plugins. They were removed in
+    e58ed5f8ba453035169d560e0223e6a37774ae08, which was released in 2019.4
+    """
+    return loader.construct_scalar(node)
+
+
+class MetadataInfo(NamedTuple):
+    """
+    A namedtuple representation of the data in one !metadata yaml tag.
+
+    Attributes
+    ----------
+    input_artifact_uuids : list of str
+        The uuids of any artifacts viewed as metadata.
+    relative_fp : str
+        The filepath of the metadata file relative to the action.yaml file.
+    md5sum_hash : str
+        The md5sum hash of the contents of the corresponding metadata file,
+        needed by qiime2.core.cache to tell if two metadata inputs are equal.
+    """
+    input_artifact_uuids: List[str]
+    relative_fp: str
+    md5sum_hash: str
+
+
+def metadata_path_constructor(loader, node) -> MetadataInfo:
+    """
+    A constructor for !metadata yaml tags, which come in the form
+    [<uuid_ref>[,<uuid_ref>][...]:]<relative_filepath>
+
+    Returns a MetadataInfo object containing a list of UUIDs, and the relative
+    filepath where the metadata was written into the zip archive
+
+    Most commonly, we see:
+    !metadata 'sample_metadata.tsv'
+
+    In cases where Artifacts are used as metadata, we see:
+    !metadata '415409a4-371d-4c69-9433-e3eaba5301b4:feature_metadata.tsv'
+
+    In cases where multiple Artifacts as metadata were merged,
+    it is possible for multiple comma-separated uuids to precede the ':'
+    !metadata '<uuid1>,<uuid2>,...,<uuidn>:feature_metadata.tsv'
+
+    The metadata files (including "Artifact metadata") are saved in the same
+    dir as `action.yaml`. The UUIDs listed must be incorporated into our
+    provenance graph as parents, so are returned in list form.
+
+    NOTES
+    -----
+    Assumes `loader` has been passed a filehandle to an action.yaml file.
+    If instead of a filehandle e.g. file contents are passed, will break
+    because `loader.name` will no longer be a useful path that we can use
+    to find the corresponding metadata file.
+    """
+    raw = loader.construct_scalar(node)
+    if ':' in raw:
+        artifact_uuids, rel_fp = raw.split(':')
+        artifact_uuids = artifact_uuids.split(',')
+    else:
+        artifact_uuids = []
+        rel_fp = raw
+
+    action_fp = Path(loader.name)
+    metadata_fp = action_fp.parent / rel_fp
+    md5sum_hash = util.md5sum(metadata_fp)
+
+    return MetadataInfo(artifact_uuids, rel_fp, md5sum_hash)
+
+
+def no_provenance_constructor(loader, node) -> str:
+    """
+    Constructor for !no-provenance tags. These tags are written by QIIME 2 when
+    an input has no /provenance dir, as in the case of v0 archives that have
+    been used in analyses in QIIME2 V1+. They look like this:
+
+    action:
+       inputs:
+       -   table: !no-provenance '34b07e56-27a5-4f03-ae57-ff427b50aaa1'
+
+    For now at least, this constructor warns but otherwise disregards the
+    no-provenance-ness of these. The v0 parser deals with them directly anyway.
+    """
+    uuid = loader.construct_scalar(node)
+    warnings.warn(f"Artifact {uuid} was created prior to provenance tracking. "
+                  + "Provenance data will be incomplete.", UserWarning)
+    return uuid
+
+
+def ref_constructor(loader, node) -> Union[str, List[str]]:
+    """
+    A constructor for !ref yaml tags. These tags describe yaml values that
+    reference other namespaces within the document, using colons to separate
+    namespaces. For example:
+    !ref 'environment:plugins:sample-classifier'
+
+    At present, ForwardRef tags are only used in the framework to 'link' the
+    plugin name to the plugin version and other details in the 'execution'
+    namespace of action.yaml
+
+    This constructor explicitly handles this type of !ref by extracting and
+    returning the plugin name to simplify parsing, while supporting the return
+    of a generic list of 'keys' (e.g. ['environment', 'framework', 'version'])
+    in the event ForwardRef is used more broadly in future.
+    """
+    value = loader.construct_scalar(node)
+    keys = value.split(':')
+    if keys[0:2] == ['environment', 'plugins']:
+        plugin_name = keys[2]
+        return plugin_name
+    else:
+        return keys
+
+
+def set_constructor(loader, node) -> Set[Any]:
+    """
+    A constructor for !set yaml tags, returning a python set object
+    """
+    value = loader.construct_sequence(node)
+    return set(value)
+
+
+# NOTE: New yaml tag constructors must be added to this registry, or tags will
+# raise ConstructorErrors
+CONSTRUCTOR_REGISTRY = {
+    '!cite': citation_key_constructor,
+    '!color': color_constructor,
+    '!metadata': metadata_path_constructor,
+    '!no-provenance': no_provenance_constructor,
+    '!ref': ref_constructor,
+    '!set': set_constructor,
+}
+
+for key in CONSTRUCTOR_REGISTRY:
+    yaml.SafeLoader.add_constructor(key, CONSTRUCTOR_REGISTRY[key])
 
 
 class ProvenanceCapture:
@@ -251,7 +412,17 @@ class ProvenanceCapture:
 
             if citation_keys:
                 entry['citations'] = citation_keys
-            section.append(entry)
+
+            # Don't create duplicate transformer records. These were happening
+            # with collections of inputs. If we have a method that takes a
+            # List[IntSequence1] with view type of list, we need to transform
+            # every IntSequence1 into a list to match the view type. This would
+            # add a transformation record for every IntSequence1 in the list.
+            # This ensures we only end up with one record of a given type for a
+            # given input while still allowing multiple unique records.
+            # NOTE: This does redundant work creating the record, do we care?
+            if entry not in section:
+                section.append(entry)
 
         return recorder
 
@@ -263,6 +434,10 @@ class ProvenanceCapture:
         runtime['end'] = end = _ts_to_date(self.end)
         runtime['duration'] = \
             util.duration_time(relativedelta.relativedelta(end, start))
+
+        if not isinstance(self, ImportProvenanceCapture):
+            execution['execution_context'] = collections.OrderedDict(
+                {k: v for k, v in self.execution_context.items()})
 
         return execution
 
@@ -365,7 +540,7 @@ class ImportProvenanceCapture(ProvenanceCapture):
 
 
 class ActionProvenanceCapture(ProvenanceCapture):
-    def __init__(self, action_type, plugin_id, action_id):
+    def __init__(self, action_type, plugin_id, action_id, execution_context):
         from qiime2.sdk import PluginManager
 
         super().__init__()
@@ -375,6 +550,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.inputs = OrderedKeyValue()
         self.parameters = OrderedKeyValue()
         self.output_name = ''
+        self.execution_context = execution_context
 
         self._action_citations = []
         for idx, citation in enumerate(self.action.citations):
@@ -409,18 +585,26 @@ class ActionProvenanceCapture(ProvenanceCapture):
             # TODO: handle collection primitives (not currently used)
         }
 
+        # Make sure if we get a Collection of params the items are put into
+        # provenance in the right order
+        if isinstance(parameter, dict):
+            parameter = [{k: v} for k, v in parameter.items()]
+
         handler = type_map.get(type_expr.to_ast().get('name'), lambda x: x)
         self.parameters[name] = handler(parameter)
 
     def add_input(self, name, input):
         if input is None:
             self.inputs[name] = None
+        elif isinstance(input, qiime2.sdk.result.ResultCollection):
+            # If we took a Collection input, we will have a ResultCollection,
+            # and we want the keys to line up with the processed values we were
+            # given, so we can maintain the order of the artifacts
+            self.inputs[name] = \
+                [{k: self.add_ancestor(v)} for k, v in input.items()]
         elif isinstance(input, collections.abc.Iterable):
-            values = []
-            for artifact in input:
-                record = self.add_ancestor(artifact)
-                values.append(record)
-            self.inputs[name] = type(input)(values)
+            self.inputs[name] = type(input)(
+                [self.add_ancestor(artifact) for artifact in input])
         else:
             self.inputs[name] = self.add_ancestor(input)
 

@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -45,10 +45,10 @@ class PluginManager:
         for entry_point in pkg_resources.iter_entry_points(
                 group=cls.entry_point_group):
             if 'QIIMETEST' in os.environ:
-                if entry_point.name == 'dummy-plugin':
+                if entry_point.name in ('dummy-plugin', 'other-plugin'):
                     yield entry_point
             else:
-                if entry_point.name != 'dummy-plugin':
+                if entry_point.name not in ('dummy-plugin', 'other-plugin'):
                     yield entry_point
 
     @classmethod
@@ -380,6 +380,12 @@ class PluginManager:
             if semantic_type <= artifact_class_record.semantic_type:
                 return artifact_class_record.format
 
+        # TODO: We need a good way to tell if a semantic type is registered but
+        # does not have a directory format. The previous error was causing a
+        # lot of confusion.
+        #
+        # Reference: https://github.com/qiime2/qiime2/issues/514
         raise TypeError(
-            "Semantic type %r does not have a compatible directory format."
+            "Semantic type %r is invalid, either because it doesn't have a "
+            "compatible directory format, or because it's not registered."
             % semantic_type)

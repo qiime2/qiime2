@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -9,7 +9,7 @@
 from importlib import import_module
 
 from qiime2.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
-                           Visualization, Metadata, MetadataColumn,
+                           Collection, Visualization, Metadata, MetadataColumn,
                            Categorical, Numeric, TypeMatch)
 
 from .format import (
@@ -45,12 +45,20 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      params_only_method, no_input_method, deprecated_method,
                      optional_artifacts_method, long_description_method,
                      docstring_order_method, variadic_input_method,
-                     unioned_primitives, type_match_list_and_set, union_inputs)
+                     unioned_primitives, type_match_list_and_set, union_inputs,
+                     list_of_ints, dict_of_ints, returns_int, varied_method,
+                     collection_inner_union, collection_outer_union,
+                     dict_params, list_params, _underscore_method)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        optional_artifact_pipeline, visualizer_only_pipeline,
-                       pipelines_in_pipeline, pointless_pipeline,
+                       pipelines_in_pipeline, resumable_pipeline,
+                       resumable_varied_pipeline,
+                       resumable_nested_varied_pipeline,
+                       internal_fail_pipeline, de_facto_list_pipeline,
+                       de_facto_dict_pipeline, de_facto_collection_pipeline,
+                       list_pipeline, collection_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
 
@@ -60,7 +68,8 @@ from .examples import (concatenate_ints_simple, concatenate_ints_complex,
                        identity_with_metadata_merging,
                        identity_with_metadata_column_get_mdc,
                        variadic_input_simple, optional_inputs,
-                       comments_only_factory,
+                       comments_only_factory, collection_list_of_ints,
+                       collection_dict_of_ints, construct_and_access_collection
                        )
 
 
@@ -734,6 +743,156 @@ dummy_plugin.pipelines.register_function(
 )
 
 dummy_plugin.pipelines.register_function(
+    function=resumable_pipeline,
+    inputs={
+        'int_list': List[SingleInt],
+        'int_dict': Collection[SingleInt],
+    },
+    parameters={
+        'fail': Bool
+    },
+    outputs=[
+        ('list_return', Collection[SingleInt]),
+        ('dict_return', Collection[SingleInt]),
+    ],
+    name='To be resumed',
+    description=('Called first with fail=True then again with fail=False '
+                 'meant to reuse results from first run durng second run')
+)
+
+T = TypeMatch([IntSequence1, IntSequence2])
+dummy_plugin.pipelines.register_function(
+    function=resumable_varied_pipeline,
+    inputs={
+        'ints1': Collection[SingleInt],
+        'ints2': List[T],
+        'int1': SingleInt,
+    },
+    parameters={
+        'string': Str,
+        'metadata': Metadata,
+        'fail': Bool,
+    },
+    outputs=[
+        ('ints1_ret', Collection[SingleInt]),
+        ('ints2_ret', Collection[T]),
+        ('int1_ret', SingleInt),
+        ('list_ret', Collection[SingleInt]),
+        ('dict_ret', Collection[SingleInt]),
+        ('identity_ret', T),
+        ('viz', Visualization),
+    ],
+    name='To be resumed',
+    description=('Called first with fail=True then again with fail=False '
+                 'meant to reuse results from first run durng second run')
+)
+
+dummy_plugin.pipelines.register_function(
+    function=resumable_nested_varied_pipeline,
+    inputs={
+        'ints1': Collection[SingleInt],
+        'ints2': List[T],
+        'int1': SingleInt,
+    },
+    parameters={
+        'string': Str,
+        'metadata': Metadata,
+        'fail': Bool,
+    },
+    outputs=[
+        ('ints1_ret', Collection[SingleInt]),
+        ('ints2_ret', Collection[T]),
+        ('int1_ret', SingleInt),
+        ('list_ret', Collection[SingleInt]),
+        ('dict_ret', Collection[SingleInt]),
+        ('identity_ret', T),
+        ('viz', Visualization),
+    ],
+    name='To be resumed',
+    description=('Called first with fail=True then again with fail=False '
+                 'meant to reuse results from first run durng second run')
+)
+
+dummy_plugin.pipelines.register_function(
+    function=internal_fail_pipeline,
+    inputs={
+        'ints1': Collection[SingleInt],
+        'ints2': List[T],
+        'int1': SingleInt,
+    },
+    parameters={
+        'string': Str,
+        'fail': Bool,
+    },
+    outputs=[
+        ('ints1_ret', Collection[SingleInt]),
+        ('ints2_ret', Collection[T]),
+        ('int1_ret', SingleInt),
+    ],
+    name='Internal fail pipeline',
+    description=('This pipeline is called inside of '
+                 'resumable_nested_variable_pipeline to mimic a nested '
+                 'pipeline failing')
+)
+
+dummy_plugin.pipelines.register_function(
+    function=de_facto_list_pipeline,
+    inputs={},
+    parameters={
+        'kwarg': Bool,
+        'non_proxies': Bool
+    },
+    outputs=[
+        ('output', Collection[SingleInt]),
+    ],
+    name='Pipeline that creates a de facto list of artifacts.',
+    description=('This pipeline is supposed to be run in parallel to assert '
+                 'that we can handle a de facto list of proxies.')
+)
+
+dummy_plugin.pipelines.register_function(
+    function=de_facto_dict_pipeline,
+    inputs={},
+    parameters={
+        'kwarg': Bool,
+        'non_proxies': Bool
+    },
+    outputs=[
+        ('output', Collection[SingleInt]),
+    ],
+    name='Pipeline that creates a de facto dict of artifacts.',
+    description=('This pipeline is supposed to be run in parallel to assert '
+                 'that we can handle a de facto dict of proxies.')
+)
+
+dummy_plugin.pipelines.register_function(
+    function=list_pipeline,
+    inputs={'ints': List[IntSequence1]},
+    parameters={},
+    outputs=[('output', Collection[SingleInt])],
+    name='Takes a list and returns a collection',
+    description='Takes a list and returns a collection'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=collection_pipeline,
+    inputs={'ints': Collection[IntSequence1]},
+    parameters={},
+    outputs=[('output', Collection[SingleInt])],
+    name='Takes a collection and returns a collection',
+    description='Takes a collection and returns a collection'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=de_facto_collection_pipeline,
+    inputs={},
+    parameters={},
+    outputs=[('output', Collection[Mapping])],
+    name='Returns de facto ResultCollection',
+    description='Takes nothing and returns de facto ResultCollection'
+)
+
+dummy_plugin.pipelines.register_function(
     function=pointless_pipeline,
     inputs={},
     parameters={},
@@ -779,4 +938,185 @@ dummy_plugin.methods.register_function(
     description='This method accepts a list or dict as first input.'
 )
 
+dummy_plugin.methods.register_function(
+    function=list_of_ints,
+    inputs={
+        'ints': List[SingleInt]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[SingleInt])
+    ],
+    name='Reverses list of inputs',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Reversed Collection of ints'
+    },
+    examples={'collection_list_of_ints': collection_list_of_ints}
+)
+
+dummy_plugin.methods.register_function(
+    function=returns_int,
+    inputs={},
+    parameters={
+        'int': Int
+    },
+    outputs=[
+        ('output', SingleInt)
+    ],
+    name='Returns int',
+    description='Just returns an int',
+)
+
+dummy_plugin.methods.register_function(
+    function=dict_of_ints,
+    inputs={
+        'ints': Collection[SingleInt]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[SingleInt])
+    ],
+    name='Takes ints',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Collection of ints'
+    },
+    examples={
+        'collection_dict_of_ints': collection_dict_of_ints,
+        'construct_and_access_collection': construct_and_access_collection
+    }
+)
+
+dummy_plugin.methods.register_function(
+    function=collection_inner_union,
+    inputs={
+        'ints': Collection[IntSequence1 | IntSequence2]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[IntSequence1])
+    ],
+    name='Takes ints',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Collection of ints'
+    }
+)
+
+dummy_plugin.methods.register_function(
+    function=collection_outer_union,
+    inputs={
+        'ints': Collection[IntSequence1] | Collection[IntSequence2]
+    },
+    parameters={},
+    outputs=[
+        ('output', Collection[IntSequence1])
+    ],
+    name='Takes ints',
+    description='Some description',
+    input_descriptions={
+        'ints': 'Collection of ints'
+    },
+    output_descriptions={
+        'output': 'Collection of ints'
+    }
+)
+
+dummy_plugin.methods.register_function(
+    function=dict_params,
+    inputs={},
+    parameters={
+        'ints': Collection[Int],
+    },
+    outputs=[
+        ('output', Collection[SingleInt])
+    ],
+    name='Parameters only method',
+    description='This method only accepts parameters.',
+)
+
+dummy_plugin.methods.register_function(
+    function=list_params,
+    inputs={},
+    parameters={
+        'ints': List[Int],
+    },
+    outputs=[
+        ('output', Collection[SingleInt])
+    ],
+    name='Parameters only method',
+    description='This method only accepts parameters.',
+)
+
+dummy_plugin.methods.register_function(
+    function=varied_method,
+    inputs={
+        'ints1': List[SingleInt],
+        'ints2': Collection[IntSequence1],
+        'int1': SingleInt
+    },
+    parameters={
+        'string': Str,
+    },
+    outputs=[
+        ('ints', Collection[SingleInt]),
+        ('sequences', Collection[IntSequence1]),
+        ('int', SingleInt)
+    ],
+    name='Takes and returns a combination of colletions and non collections',
+    description='Takes and returns a combination of colletions and non'
+                ' collections'
+)
+
+dummy_plugin.methods.register_function(
+    function=_underscore_method,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('int', SingleInt)
+    ],
+    name='Starts with an underscore',
+    description='Exists to test that the cli does not render actions that'
+                ' start with an underscore by default'
+)
+
 import_module('qiime2.core.testing.mapped')
+
+
+other_plugin = Plugin(
+    name='other-plugin',
+    description='',
+    short_description='',
+    version='0.0.0-dev',
+    website='',
+    package='qiime2.core.archive.provenance_lib.tests',
+    user_support_text='',
+    citations=[]
+)
+other_plugin.methods.register_function(
+    function=concatenate_ints,
+    inputs={
+        'ints1': IntSequence1,
+        'ints2': IntSequence1,
+        'ints3': IntSequence1,
+    },
+    parameters={
+        'int1': Int,
+        'int2': Int
+    },
+    outputs={
+        'concatenated_ints': IntSequence1
+    },
+    name='Concatenate integers',
+    description='Some description'
+)

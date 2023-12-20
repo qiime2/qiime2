@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -110,3 +110,10 @@ class Results(tuple):
 
     def _asdict(self):
         return dict(zip(self._fields, self))
+
+    def _result(self):
+        """ This exists to provide a standardized interface with ProxyResults.
+            Check the 'result' method on ProxyResults for a full
+            explanation.
+        """
+        return self

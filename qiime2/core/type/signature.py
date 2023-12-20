@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -10,16 +10,20 @@ import collections
 import inspect
 import copy
 import itertools
+import tempfile
 
 import qiime2.sdk
+import qiime2.core.type as qtype
+from qiime2.core.archive.provenance import MetadataInfo
 from .grammar import TypeExp, UnionExp
 from .meta import TypeVarExp
-from .collection import List, Set
+from .collection import List, Set, Collection
 from .primitive import infer_primitive_type
 from .visualization import Visualization
 from . import meta
-from .util import is_semantic_type, is_primitive_type, parse_primitive
-from ..util import ImmutableBase
+from .util import (is_semantic_type, is_collection_type, is_primitive_type,
+                   parse_primitive)
+from ..util import ImmutableBase, md5sum, create_collection_name
 
 
 class __NoValueMeta(type):
@@ -126,7 +130,6 @@ class PipelineSignature:
         self._assert_valid_parameters(parameters)
         self._assert_valid_outputs(outputs)
         self._assert_valid_views(inputs, parameters, outputs)
-
         self.inputs = inputs
         self.parameters = parameters
         self.outputs = outputs
@@ -234,6 +237,13 @@ class PipelineSignature:
         return (annotated_inputs, annotated_parameters, annotated_outputs,
                 signature_order)
 
+    def collate_inputs(self, *args, **kwargs):
+        collated_inputs = {name: value for value, name in
+                           zip(args, self.signature_order)}
+        collated_inputs.update(kwargs)
+
+        return collated_inputs
+
     def _assert_valid_inputs(self, inputs):
         for input_name, spec in inputs.items():
             if not is_semantic_type(spec.qiime_type):
@@ -318,6 +328,193 @@ class PipelineSignature:
                     " Pipelines do not support function annotations (found one"
                     " for parameter: %r)." % name)
 
+    def coerce_user_input(self, **user_input):
+        """ Coerce user inputs to be appropriate for callable
+        """
+        callable_args = {}
+
+        for name, spec in self.signature_order.items():
+            # Some arguments may be optional and won't be present here. Whether
+            # they passed all mandatory arguments or not is validated elsewhere
+            if name in user_input:
+                arg = user_input[name]
+                if name in self.inputs:
+                    callable_args[name] = self._coerce_given_input(arg, spec)
+                else:
+                    callable_args[name] = \
+                        self._coerce_given_parameter(arg, spec)
+
+        return callable_args
+
+    def _coerce_given_input(self, _input, spec):
+        """ Coerce input to be appropriate for callable
+        """
+        _, qiime_name = self._get_qiime_type_and_name(spec)
+
+        # Transform collection from list to dict and vice versa if needed
+        if qiime_name == 'Collection' and isinstance(_input, list):
+            _input = self._list_to_dict(_input)
+        elif qiime_name == 'List' and \
+                (isinstance(_input, dict) or
+                 isinstance(_input, qiime2.sdk.ResultCollection)):
+            _input = self._dict_to_list(_input)
+
+        if isinstance(_input, dict):
+            _input = qiime2.sdk.ResultCollection(_input)
+
+        return _input
+
+    def _coerce_given_parameter(self, param, spec):
+        """ Coerce parameter to be appropriate for callable
+        """
+        view_type = spec.view_type
+
+        if view_type == dict and isinstance(param, list):
+            param = self._list_to_dict(param)
+        elif view_type == list and isinstance(param, dict):
+            param = self._dict_to_list(param)
+
+        return param
+
+    def transform_and_add_callable_args_to_prov(self, provenance,
+                                                **callable_args):
+        """ Transform inputs to views and add all callable arguments to
+            provenance. Needs to be done together so we can add transformation
+            records to provenance and because we want transformers to run
+            outside the DFK in parsl
+        """
+        for name, spec in self.signature_order.items():
+            arg = callable_args[name]
+
+            if name in self.inputs:
+                callable_args[name] = \
+                    self._transform_and_add_input_to_prov(
+                        provenance, name, spec, arg)
+            else:
+                provenance.add_parameter(name, spec.qiime_type, arg)
+
+        return callable_args
+
+    def _transform_and_add_input_to_prov(self, provenance, name, spec, _input):
+        """ Transform the input and add both the input and the transformation
+            record to provenance
+        """
+        transformed_input = None
+
+        # Add input to provenance after creating the correct collection
+        # type
+        provenance.add_input(name, _input)
+        qiime_type, _ = self._get_qiime_type_and_name(spec)
+
+        # Transform artifacts to view types as necessary
+        if _input is None:
+            transformed_input = None
+        elif spec.has_view_type():
+            recorder = provenance.transformation_recorder(name)
+            # Transform all members of collection into view type
+            if qtype.is_collection_type(qiime_type):
+                if isinstance(_input, qiime2.sdk.result.ResultCollection):
+                    transformed_input = qiime2.sdk.result.ResultCollection(
+                        {k: v._view(spec.view_type,
+                                    recorder) for k, v in _input.items()})
+                else:
+                    transformed_input = [
+                        i._view(spec.view_type, recorder) for i in _input]
+            else:
+                transformed_input = _input._view(spec.view_type, recorder)
+        else:
+            transformed_input = _input
+
+        return transformed_input
+
+    def _get_qiime_type_and_name(self, spec):
+        """ Get concrete qiime type and name from nested spec
+        """
+        qiime_type = spec.qiime_type
+        qiime_name = spec.qiime_type.name
+
+        # I don't think this will necessarily work if we nest collection
+        # types in the future
+        if qiime_name == '':
+            # If we have an outer union as our semantic type, the name will
+            # be the empty string, and the type will be the entire union
+            # expression. In order to get a meaningful name and a type
+            # that tells us if we have a collection, we unpack the union
+            # and grab that info from the first element. All subsequent
+            # elements will share this same basic information because we
+            # do not allow
+            # List[TypeA] | Collection[TypeA]
+            qiime_type = next(iter(spec.qiime_type))
+            qiime_name = qiime_type.name
+
+        return qiime_type, qiime_name
+
+    def coerce_given_outputs(self, output_views, output_types, scope,
+                             provenance):
+        """ Coerce the outputs produced by the method into the desired types if
+            possible. Primarily useful to create collections of outputs
+        """
+        outputs = []
+
+        for output_view, (name, spec) in zip(output_views,
+                                             output_types.items()):
+            if spec.qiime_type.name == 'Collection':
+                output = qiime2.sdk.ResultCollection()
+                size = len(output_view)
+
+                if isinstance(output_view, qiime2.sdk.ResultCollection) or \
+                        isinstance(output_view, dict):
+                    keys = list(output_view.keys())
+                    values = list(output_view.values())
+                else:
+                    keys = None
+                    values = output_view
+
+                for idx, view in enumerate(values):
+                    if keys is not None:
+                        key = str(keys[idx])
+                    else:
+                        key = str(idx)
+
+                    collection_name = create_collection_name(
+                        name=name, key=key, idx=idx, size=size)
+                    output[key] = self._create_output_artifact(
+                        provenance, collection_name, scope, spec, view)
+            elif type(output_view) is not spec.view_type:
+                raise TypeError(
+                    "Expected output view type %r, received %r" %
+                    (spec.view_type.__name__, type(output_view).__name__))
+            else:
+                output = self._create_output_artifact(
+                    provenance, name, scope, spec, output_view)
+
+            outputs.append(output)
+
+        return outputs
+
+    def _create_output_artifact(self, provenance, name, scope, spec, view):
+        """ Create an output artifact from a view and add it to provenance
+        """
+        prov = provenance.fork(name)
+        qiime_type = spec.qiime_type
+
+        # If we have a collection we need to get a concrete qiime_type to
+        # instantiate each artifact as.
+        #
+        # For instance, we cannot instantiate a Collection[SingleInt] from an
+        # integer. We want to instantiate a SingleInt that will be put into a
+        # ResultCollection outside of this method.
+        if is_collection_type(qiime_type):
+            qiime_type = qiime_type.fields[0]
+
+        scope.add_reference(prov)
+
+        artifact = qiime2.sdk.Artifact._from_view(
+            qiime_type, view, spec.view_type, prov)
+        artifact = scope.add_parent_reference(artifact)
+
+        return artifact
+
     def decode_parameters(self, **kwargs):
         params = {}
         for key, spec in self.parameters.items():
@@ -328,6 +525,16 @@ class PipelineSignature:
             else:
                 params[key] = parse_primitive(spec.qiime_type, kwargs[key])
         return params
+
+    def _dict_to_list(self, _input):
+        """ Turn dict to list
+        """
+        return list(_input.values())
+
+    def _list_to_dict(self, _input):
+        """ Turn list to dict
+        """
+        return {str(idx): v for idx, v in enumerate(_input)}
 
     def check_types(self, **kwargs):
         for name, spec in self.signature_order.items():
@@ -407,7 +614,13 @@ class PipelineSignature:
         if type(value) is set:
             inner = UnionExp((self._infer_type(key, v) for v in value))
             return Set[inner.normalize()]
-        if isinstance(value, qiime2.sdk.Artifact):
+        if type(value) is dict or \
+                isinstance(value, qiime2.sdk.ResultCollection):
+            inner = UnionExp(
+                (self._infer_type(key, v) for v in value.values()))
+            return Collection[inner.normalize()]
+        if isinstance(
+                value, (qiime2.sdk.Artifact, qiime2.sdk.proxy.ProxyArtifact)):
             return value.type
         else:
             return infer_primitive_type(value)
@@ -479,3 +692,82 @@ class VisualizerSignature(PipelineSignature):
             if not spec.has_view_type():
                 raise TypeError("Visualizer is missing a function annotation"
                                 " for parameter: %r" % name)
+
+
+IndexedCollectionElement = collections.namedtuple(
+    'IndexedCollectionElement', ['item_name', 'idx', 'total'])
+
+
+class HashableInvocation():
+    def __init__(self, plugin_action, arguments):
+        self.plugin_action = plugin_action
+
+        unified_arguments = self._unify_dicts(arguments)
+        self.arguments = self._make_hashable(unified_arguments)
+
+    def __eq__(self, other):
+        return (self.plugin_action == other.plugin_action) \
+              and (self.arguments == other.arguments)
+
+    def __hash__(self):
+        return hash((self.plugin_action, self.arguments))
+
+    def __repr__(self):
+        return (f'\nPLUGIN_ACTION: {self.plugin_action}\nARGUMENTS:'
+                f' {self.arguments}\n')
+
+    def _unify_dicts(self, arguments):
+        """Check if action.yaml gave us any lists of single element dicts to
+        unify
+        """
+        for idx, argument in enumerate(arguments):
+            name, value = list(argument.items())[0]
+            if isinstance(value, list) and \
+                    all(isinstance(x, dict) for x in value):
+                arguments[idx] = {name: self._unify_dict(value)}
+
+        return arguments
+
+    def _unify_dict(self, collection):
+        """If we do have a list of single element dicts, turn it into one dict
+        """
+        unified_dict = {}
+
+        for elem in collection:
+            for k, v in elem.items():
+                unified_dict[k] = v
+
+        return unified_dict
+
+    def _make_hashable(self, collection):
+        """Take an arbitrarily nested collection and turn it into a hashable
+        arbitrarily nested tuple. Turns Artifacts into their uuid and Metadata
+        into their md5sum
+        """
+        from qiime2 import Artifact
+        from qiime2.sdk import ResultCollection
+        from qiime2.metadata.metadata import _MetadataBase
+
+        new_collection = []
+
+        if isinstance(collection, dict) or \
+                isinstance(collection, ResultCollection):
+            for k, v in collection.items():
+                new_collection.append((k, self._make_hashable(v)))
+        elif isinstance(collection, list):
+            for elem in collection:
+                new_collection.append(self._make_hashable(elem))
+        elif isinstance(collection, Artifact):
+            return str(collection.uuid)
+        elif isinstance(collection, _MetadataBase):
+            with tempfile.NamedTemporaryFile('w') as fh:
+                fp = fh.name
+                collection.save(fp)
+                collection = md5sum(fp)
+                return collection
+        elif isinstance(collection, MetadataInfo):
+            return collection.md5sum_hash
+        else:
+            return collection
+
+        return tuple(new_collection)

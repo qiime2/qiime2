@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -12,12 +12,14 @@ import unittest
 import pathlib
 
 import qiime2.core.type
-from qiime2.sdk import Result, Artifact, Visualization
+from qiime2.sdk import Result, Artifact, Visualization, ResultCollection
 from qiime2.sdk.result import ResultMetadata
 import qiime2.core.archive as archive
 import qiime2.core.exceptions as exceptions
 
-from qiime2.core.testing.type import FourInts
+from qiime2.core.testing.format import IntSequenceDirectoryFormat
+from qiime2.core.testing.type import (FourInts, SingleInt, IntSequence1,
+                                      IntSequence2)
 from qiime2.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 from qiime2.core.testing.visualizer import mapping_viz
 from qiime2.core.util import set_permissions, OTHER_NO_WRITE
@@ -494,6 +496,152 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
         with self.assertRaisesRegex(exceptions.ValidationError,
                                     r'extra\.file'):
             visualization.validate()
+
+    def test_import_min_validate(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fp = os.path.join(tempdir, 'ints.txt')
+            with open(fp, 'w') as fh:
+                for i in range(5):
+                    fh.write(f'{i}\n')
+                fh.write('a\n')
+
+            intseq_dir = IntSequenceDirectoryFormat(tempdir, 'r')
+
+            # import with min allows format error outside of min purview
+            _ = Artifact.import_data(
+                'IntSequence1', intseq_dir, validate_level='min'
+            )
+
+            # import with max should catch all format errors, max is default
+            with self.assertRaisesRegex(
+                exceptions.ValidationError, 'Line 6 is not an integer'
+            ):
+                _ = Artifact.import_data('IntSequence1', tempdir)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            fp = os.path.join(tempdir, 'ints.txt')
+            with open(fp, 'w') as fh:
+                fh.write('1\n')
+                fh.write('a\n')
+                fh.write('3\n')
+
+            intseq_dir = IntSequenceDirectoryFormat(tempdir, 'r')
+
+            # import with min catches format errors within its purview
+            with self.assertRaisesRegex(
+                exceptions.ValidationError, 'Line 2 is not an integer'
+            ):
+                _ = Artifact.import_data(
+                    'IntSequence1', [1, 'a', 3, 4], validate_level='min'
+                )
+
+
+class TestResultCollection(unittest.TestCase):
+    def setUp(self):
+        # Ignore the returned dummy plugin object, just run this to verify the
+        # plugin exists as the tests rely on it being loaded.
+        get_dummy_plugin()
+
+        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        self.output_fp = os.path.join(self.test_dir.name, 'output')
+
+        self.collection = ResultCollection(
+            {'foo': Artifact.import_data(SingleInt, 0),
+             'bar': Artifact.import_data(SingleInt, 1)})
+
+    def tearDown(self):
+        self.test_dir.cleanup()
+
+    def test_roundtrip_ordered_collection(self):
+        self.collection.save(self.output_fp)
+
+        foo = Artifact.load(os.path.join(self.output_fp, 'foo.qza'))
+        bar = Artifact.load(os.path.join(self.output_fp, 'bar.qza'))
+
+        self.assertEqual(foo.view(int), 0)
+        self.assertEqual(bar.view(int), 1)
+
+        with open(os.path.join(self.output_fp, '.order')) as fh:
+            self.assertEqual(fh.read(), 'foo\nbar\n')
+
+        read_collection = ResultCollection.load(self.output_fp)
+        self.assertEqual(self.collection, read_collection)
+
+    def test_roundtrip_unordered_collection(self):
+        self.collection.save(self.output_fp)
+        os.remove(os.path.join(self.output_fp, '.order'))
+
+        foo = Artifact.load(os.path.join(self.output_fp, 'foo.qza'))
+        bar = Artifact.load(os.path.join(self.output_fp, 'bar.qza'))
+
+        self.assertEqual(foo.view(int), 0)
+        self.assertEqual(bar.view(int), 1)
+
+        with self.assertWarnsRegex(
+                UserWarning, f"The directory '{self.output_fp}' does not "
+                "contain a .order file"):
+            read_collection = ResultCollection.load(self.output_fp)
+
+        self.assertEqual(
+            set(self.collection.items()), set(read_collection.items()))
+
+    def test_type_normal_collection(self):
+        self.assertEqual(
+            self.collection.type, qiime2.core.type.Collection[SingleInt])
+
+    def test_type_weird_collection(self):
+        weird_collection = ResultCollection({
+            'foo': Artifact.import_data(SingleInt, 0),
+            'bar': Artifact.import_data(FourInts, [1, 2, 3, 4]),
+            'baz': Artifact.import_data(IntSequence1, [5, 6, 7]),
+            'qux': Artifact.import_data(IntSequence2, [8, 9, 10])})
+
+        self.assertEqual(
+            weird_collection.type,
+            qiime2.core.type.Collection[SingleInt | FourInts | IntSequence1 |
+                                        IntSequence2])
+
+    def test_collection_order_file_contains_nonexistent_key(self):
+        BAD_KEY = 'NonexistentKey'
+
+        self.collection.save(self.output_fp)
+        order_fp = os.path.join(self.output_fp, '.order')
+
+        with open(order_fp, 'a') as order_fh:
+            order_fh.write(BAD_KEY)
+
+        foo = Artifact.load(os.path.join(self.output_fp, 'foo.qza'))
+        bar = Artifact.load(os.path.join(self.output_fp, 'bar.qza'))
+
+        self.assertEqual(foo.view(int), 0)
+        self.assertEqual(bar.view(int), 1)
+
+        with self.assertRaisesRegex(
+                ValueError, f"The Result '{BAD_KEY}' is referenced in the "
+                            "order file but does not exist"):
+            ResultCollection.load(self.output_fp)
+
+    def test_collection_non_str_keys(self):
+        with self.assertRaisesRegex(
+                KeyError, 'ResultCollection keys must be strings and may only '
+                'contain the following characters:.*1'):
+            ResultCollection({1: 0})
+
+    def test_invalid_key_init(self):
+        with self.assertRaisesRegex(
+                KeyError,
+                'ResultCollection keys must be strings and may only contain '
+                'the following characters:.*valid key'):
+            ResultCollection({'not a valid key': 0})
+
+    def test_invalid_key_added(self):
+        collection = ResultCollection()
+
+        with self.assertRaisesRegex(
+                KeyError,
+                'ResultCollection keys must be strings and may only contain '
+                'the following characters:.*valid key'):
+            collection['not a valid key'] = 0
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -13,7 +13,7 @@ import distutils
 import tempfile
 import weakref
 
-from qiime2.core.util import set_permissions, ALL_PERMISSIONS
+from qiime2.core.util import set_permissions, USER_GROUP_RWX
 
 _ConcretePath = type(pathlib.Path())
 
@@ -111,7 +111,6 @@ class OutPath(OwnedPath):
 
     def __exit__(self, t, v, tb):
         self._destructor()
-        super().__exit__(t, v, tb)
 
 
 class InternalDirectory(_ConcretePath):
@@ -121,7 +120,7 @@ class InternalDirectory(_ConcretePath):
     def _destruct(cls, path):
         """DO NOT USE DIRECTLY, use `_destructor()` instead"""
         if os.path.exists(path):
-            set_permissions(path, None, ALL_PERMISSIONS)
+            set_permissions(path, None, USER_GROUP_RWX)
             shutil.rmtree(path)
 
     @classmethod

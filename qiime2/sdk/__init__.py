@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -9,14 +9,14 @@
 from .context import Context
 from .action import Action, Method, Visualizer, Pipeline
 from .plugin_manager import PluginManager, UninitializedPluginManagerError
-from .result import Result, Artifact, Visualization
+from .result import Result, Artifact, Visualization, ResultCollection
 from .results import Results
 from .util import parse_type, parse_format, type_from_ast
 from ..core.cite import Citations
 from ..core.exceptions import ValidationError, ImplementationError
 
-__all__ = ['Result', 'Results', 'Artifact', 'Visualization', 'Action',
-           'Method', 'Visualizer', 'Pipeline', 'PluginManager', 'parse_type',
-           'parse_format', 'type_from_ast', 'Context', 'Citations',
-           'ValidationError', 'ImplementationError',
-           'UninitializedPluginManagerError']
+__all__ = ['Result', 'Results', 'Artifact', 'Visualization',
+           'ResultCollection', 'Action', 'Method', 'Visualizer', 'Pipeline',
+           'PluginManager', 'parse_type', 'parse_format', 'type_from_ast',
+           'Context', 'Citations', 'PARALLEL_CONFIG', 'ValidationError',
+           'ImplementationError', 'UninitializedPluginManagerError']

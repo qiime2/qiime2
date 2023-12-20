@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -41,7 +41,9 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
 
         parts = {
             'artifact': [self.name],
+            'artifact_collection': [self.name, 'artifact_collection'],
             'visualization': [self.name, 'viz'],
+            'visualization_collection': [self.name, 'viz_collection'],
             'metadata': [self.name, 'md'],
             'column': [self.name, 'mdc'],
             # No format here - it shouldn't be possible to make it this far
@@ -71,11 +73,14 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
 
         self.use._add(lines)
 
-    def assert_output_type(self, semantic_type):
+    def assert_output_type(self, semantic_type, key=None):
         if not self.use.enable_assertions:
             return
 
         name = self.to_interface_name()
+
+        if key:
+            name = "%s[%s]" % (name, key)
 
         lines = [
             'if str(%r.type) != %r:' % (name, str(semantic_type)),
@@ -175,6 +180,41 @@ class ArtifactAPIUsage(usage.Usage):
         self.init_data_refs[var_name] = variable
 
         return variable
+
+    def init_artifact_collection(self, name, factory):
+        variable = super().init_artifact_collection(name, factory)
+
+        var_name = str(variable.to_interface_name())
+        self.init_data_refs[var_name] = variable
+
+        return variable
+
+    def construct_artifact_collection(self, name, members):
+        variable = super().construct_artifact_collection(name, members)
+
+        var_name = variable.to_interface_name()
+
+        lines = [f'{var_name} = ResultCollection({{']
+        for key, member in members.items():
+            lines.append(self.INDENT + f"'{key}': {member.name},")
+        lines.append('})')
+
+        self._update_imports(from_='qiime2', import_='ResultCollection')
+        self._add(lines)
+
+        return variable
+
+    def get_artifact_collection_member(self, name, variable, key):
+        accessed_variable = super().get_artifact_collection_member(
+            name, variable, key
+        )
+
+        lines = [
+            f"{name} = {variable.to_interface_name()}['{key}']"
+        ]
+        self._add(lines)
+
+        return accessed_variable
 
     def init_format(self, name, factory, ext=None):
         if ext is not None:

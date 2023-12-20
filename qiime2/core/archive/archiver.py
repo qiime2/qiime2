@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -270,7 +270,7 @@ class ArchiveCheck(_Archive):
 
 
 class Archiver:
-    CURRENT_FORMAT_VERSION = '5'
+    CURRENT_FORMAT_VERSION = '6'
     _FORMAT_REGISTRY = {
         # NOTE: add more archive formats as things change
         '0': 'qiime2.core.archive.format.v0:ArchiveFormat',
@@ -278,7 +278,8 @@ class Archiver:
         '2': 'qiime2.core.archive.format.v2:ArchiveFormat',
         '3': 'qiime2.core.archive.format.v3:ArchiveFormat',
         '4': 'qiime2.core.archive.format.v4:ArchiveFormat',
-        '5': 'qiime2.core.archive.format.v5:ArchiveFormat'
+        '5': 'qiime2.core.archive.format.v5:ArchiveFormat',
+        '6': 'qiime2.core.archive.format.v6:ArchiveFormat'
     }
 
     @classmethod

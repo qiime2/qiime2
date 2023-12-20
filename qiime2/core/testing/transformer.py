@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -47,7 +47,7 @@ def _7(data: list) -> IntSequenceFormat:
     ff = IntSequenceFormat()
     with ff.open() as fh:
         for int_ in data:
-            fh.write('%d\n' % int_)
+            fh.write(f'{int_}\n')
     return ff
 
 

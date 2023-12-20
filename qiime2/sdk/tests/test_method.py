@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -13,8 +13,9 @@ import unittest
 import uuid
 
 import qiime2.plugin
+from qiime2.sdk.util import view_collection
 from qiime2.core.type import MethodSignature, Int
-from qiime2.sdk import Artifact, Method, Results
+from qiime2.sdk import Artifact, Method, Results, ResultCollection
 
 from qiime2.core.testing.method import (concatenate_ints, merge_mappings,
                                         params_only_method, no_input_method)
@@ -586,6 +587,160 @@ class TestMethod(unittest.TestCase):
 
         docstring_order = docstring_order_method.__call__.__doc__
         self.assertEqual(exp_docstring_order, docstring_order)
+
+    def test_collection_list_input(self):
+        list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
+        int_list = [Artifact.import_data(SingleInt, 1),
+                    Artifact.import_data(SingleInt, 2)]
+
+        expected = {'0': 1, '1': 2}
+
+        list_out = list_method(int_list)
+        dict_out = dict_method(int_list)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, ResultCollection)
+        self.assertIsInstance(dict_out.output, ResultCollection)
+
+        view_list_out = view_collection(list_out.output, int)
+        view_dict_out = view_collection(dict_out.output, int)
+
+        self.assertEqual(view_list_out, expected)
+        self.assertEqual(view_dict_out, expected)
+
+    def test_collection_dict_input(self):
+        list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
+        int_dict = {'foo': Artifact.import_data(SingleInt, 1),
+                    'bar': Artifact.import_data(SingleInt, 2)}
+
+        # The dict method should have preserved the keys, the list method can't
+        # have because it never received them because it recieved only the
+        # values as a list so uses list indices as keys
+        expected_list = {'0': 1, '1': 2}
+        expected_dict = {'foo': 1, 'bar': 2}
+
+        list_out = list_method(int_dict)
+        dict_out = dict_method(int_dict)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, ResultCollection)
+        self.assertIsInstance(dict_out.output, ResultCollection)
+
+        view_list_out = view_collection(list_out.output, int)
+        view_dict_out = view_collection(dict_out.output, int)
+
+        self.assertEqual(view_list_out, expected_list)
+        self.assertEqual(view_dict_out, expected_dict)
+
+    def test_collection_inner_union(self):
+        inner_union = self.plugin.methods['collection_inner_union']
+
+        inner_test = [Artifact.import_data(IntSequence1, [0, 1, 2]),
+                      Artifact.import_data(IntSequence2, [3, 4, 5])]
+
+        out = inner_union(inner_test)
+
+        self.assertEqual(len(out), 1)
+        self.assertIsInstance(out.output, ResultCollection)
+
+    def test_collection_outer_union(self):
+        outer_union = self.plugin.methods['collection_outer_union']
+
+        int_dict = {'1': Artifact.import_data(IntSequence1, [0, 1, 2]),
+                    '2': Artifact.import_data(IntSequence1, [3, 4, 5])}
+
+        out = outer_union(int_dict)
+
+        self.assertEqual(len(out), 1)
+        self.assertIsInstance(out.output, ResultCollection)
+
+    def test_collection_list_param(self):
+        list_method = self.plugin.methods['list_params']
+
+        param_list = [1, 2, 3, 4]
+        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
+
+        expected = {'0': 1, '1': 2, '2': 3, '3': 4}
+
+        list_out = list_method(param_list)
+        dict_out = list_method(param_dict)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, ResultCollection)
+        self.assertIsInstance(dict_out.output, ResultCollection)
+
+        view_list_out = view_collection(list_out.output, int)
+        view_dict_out = view_collection(dict_out.output, int)
+
+        self.assertEqual(view_list_out, expected)
+        self.assertEqual(view_dict_out, expected)
+
+    def test_collection_dict_param(self):
+        dict_method = self.plugin.methods['dict_params']
+
+        param_list = [1, 2, 3, 4]
+        param_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
+
+        # The dict method should have preserved the keys, the list method can't
+        # have because it never received them because it recieved only the
+        # values as a list so uses list indices as keys
+        expected_list = {'0': 1, '1': 2, '2': 3, '3': 4}
+        expected_dict = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
+
+        list_out = dict_method(param_list)
+        dict_out = dict_method(param_dict)
+
+        self.assertEqual(len(list_out), 1)
+        self.assertEqual(len(dict_out), 1)
+
+        self.assertIsInstance(list_out.output, ResultCollection)
+        self.assertIsInstance(dict_out.output, ResultCollection)
+
+        view_list_out = view_collection(list_out.output, int)
+        view_dict_out = view_collection(dict_out.output, int)
+
+        self.assertEqual(view_list_out, expected_list)
+        self.assertEqual(view_dict_out, expected_dict)
+
+    def test_varied_method(self):
+        varied_method = self.plugin.methods['varied_method']
+
+        ints1 = [Artifact.import_data(SingleInt, 1),
+                 Artifact.import_data(SingleInt, 2)]
+        ints2 = {'foo': Artifact.import_data(IntSequence1, [0, 1, 2]),
+                 'bar': Artifact.import_data(IntSequence1, [3, 4, 5])}
+        int1 = Artifact.import_data(SingleInt, 1)
+
+        ints1_expected = {'0': 1, '1': 2}
+        ints2_expected = {'foo': [0, 1, 2], 'bar': [3, 4, 5]}
+        int1_expected = 1
+
+        ints1_ret, ints2_ret, int1_ret = varied_method(
+            ints1, ints2, int1, 'Hi')
+
+        self.assertEqual(len(ints1_ret), 2)
+        self.assertEqual(len(ints2_ret), 2)
+
+        self.assertIsInstance(ints1_ret, ResultCollection)
+        self.assertIsInstance(ints2_ret, ResultCollection)
+
+        view_ints1_ret = view_collection(ints1_ret, int)
+        view_ints2_ret = view_collection(ints2_ret, list)
+        view_int1_ret = int1_ret.view(int)
+
+        self.assertEqual(view_ints1_ret, ints1_expected)
+        self.assertEqual(view_ints2_ret, ints2_expected)
+        self.assertEqual(view_int1_ret, int1_expected)
 
 
 exp_merge_calldoc = """\

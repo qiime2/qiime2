@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -8,6 +8,7 @@
 
 import os
 import shutil
+import warnings
 import tempfile
 import collections
 import distutils.dir_util
@@ -169,7 +170,7 @@ class Result:
         # ensure (as best as we can) that the UUIDs we are comparing are linked
         # to the same type of QIIME 2 object.
         return (
-            type(self) == type(other) and
+            type(self) is type(other) and
             self.uuid == other.uuid
         )
 
@@ -221,6 +222,8 @@ class Result:
 
         # This accounts for edge cases in the filename extension
         # and ensures that there is only a single period in the ext.
+        # Caste to str incase we received a pathlib.Path or similar
+        filepath = str(filepath)
         filepath = filepath.rstrip('.')
         ext = '.' + ext.lstrip('.')
 
@@ -264,6 +267,11 @@ class Result:
 
             raise exceptions.ValidationError(error)
 
+    def result(self):
+        """ Noop to provide standardized interface with ProxyResult.
+        """
+        return self
+
 
 class Artifact(Result):
     extension = '.qza'
@@ -276,8 +284,11 @@ class Artifact(Result):
             return False
 
     @classmethod
-    def import_data(cls, type, view, view_type=None):
+    def import_data(cls, type, view, view_type=None, validate_level='max'):
         type_, type = type, __builtins__['type']
+
+        if validate_level not in ('min', 'max'):
+            raise ValueError("Expected 'min' or 'max' for `validate_level`.")
 
         is_format = False
         if isinstance(type_, str):
@@ -319,7 +330,7 @@ class Artifact(Result):
 
         provenance_capture = archive.ImportProvenanceCapture(format_, md5sums)
         return cls._from_view(type_, view, view_type, provenance_capture,
-                              validate_level='max')
+                              validate_level=validate_level)
 
     @classmethod
     def _from_view(cls, type, view, view_type, provenance_capture,
@@ -468,3 +479,186 @@ class Visualization(Result):
     def _repr_html_(self):
         from qiime2.jupyter import make_html
         return make_html(str(self._archiver.path))
+
+
+class ResultCollection:
+    @classmethod
+    def load(cls, directory):
+        """ Determines how to load a Collection of QIIME 2 Artifacts in a
+            directory and dispatches to helpers
+        """
+        if not os.path.isdir(directory):
+            raise ValueError(
+                f"Given filepath '{directory}' is not a directory")
+
+        order_fp = os.path.join(directory, '.order')
+
+        if os.path.isfile(order_fp):
+            collection = cls._load_ordered(directory, order_fp)
+        else:
+            warnings.warn(f"The directory '{directory}' does not contain a "
+                          ".order file. The files will be read into the "
+                          "collection in the order the filesystem provides "
+                          "them in.")
+            collection = cls._load_unordered(directory)
+
+        return collection
+
+    @classmethod
+    def _load_ordered(cls, directory, order_fp):
+        collection = cls()
+
+        with open(order_fp, 'r') as order_fh:
+            for result_name in order_fh.read().splitlines():
+                result_fp = cls._get_result_fp(directory, result_name)
+                collection[result_name] = Result.load(result_fp)
+
+        return collection
+
+    @classmethod
+    def _load_unordered(cls, directory):
+        collection = cls()
+
+        for result in os.listdir(directory):
+            result_fp = os.path.join(directory, result)
+            result_name = result.rstrip('.qza')
+            result_name = result_name.rstrip('.qzv')
+
+            collection[result_name] = Result.load(result_fp)
+
+        return collection
+
+    @classmethod
+    def _get_result_fp(cls, directory, result_name):
+        result_fp = os.path.join(directory, result_name)
+
+        # Check if thing in .order file exists and if not try it with .qza at
+        # the end and if not try it with .qzv at the end
+        if not os.path.isfile(result_fp):
+            result_fp += '.qza'
+
+            if not os.path.isfile(result_fp):
+                # Get rid of the trailing .qza before adding .qzv
+                result_fp = result_fp[:-4]
+                result_fp += '.qzv'
+
+                if not os.path.isfile(result_fp):
+                    raise ValueError(
+                        f"The Result '{result_name}' is referenced in the "
+                        "order file but does not exist in the directory.")
+
+        return result_fp
+
+    def __init__(self, collection=None):
+        if collection is None:
+            self.collection = {}
+        elif isinstance(collection, dict):
+            qiime2.sdk.util.validate_result_collection_keys(*collection.keys())
+
+            self.collection = collection
+        else:
+            self.collection = {str(k): v for k, v in enumerate(collection)}
+
+    def __contains__(self, item):
+        return item in self.collection
+
+    def __eq__(self, other):
+        if isinstance(other, dict):
+            return self.collection == other
+        elif isinstance(other, ResultCollection):
+            return self.collection == other.collection
+        else:
+            raise TypeError(f"Equality between '{type(other)}' and "
+                            "ResultCollection is undefined.")
+
+    def __len__(self):
+        return len(self.collection)
+
+    def __iter__(self):
+        yield self.collection.__iter__()
+
+    def __setitem__(self, key, item):
+        qiime2.sdk.util.validate_result_collection_keys(key)
+        self.collection[key] = item
+
+    def __getitem__(self, key):
+        return self.collection[key]
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__.lower()}: {self.type}>"
+
+    @property
+    def type(self):
+        inner_type = qiime2.core.type.grammar.UnionExp(
+            v.type for v in self.collection.values()).normalize()
+
+        return qiime2.core.type.Collection[inner_type]
+
+    @property
+    def extension(self):
+        if str(self.type) == 'Collection[Visualization]':
+            return '.qzv'
+
+        return '.qza'
+
+    def save(self, directory):
+        """Saves a collection of QIIME 2 Results into a given directory with
+           an order file.
+
+           NOTE: The directory given must not exist
+        """
+        if os.path.exists(directory):
+            raise ValueError(f"The given directory '{directory}' already "
+                             "exists. A new directory must be given to save "
+                             "the collection to.")
+
+        os.makedirs(directory)
+
+        with open(os.path.join(directory, '.order'), 'w') as fh:
+            for name, result in self.collection.items():
+                result_fp = os.path.join(directory, name)
+                result.save(result_fp)
+                fh.write(f'{name}\n')
+
+        # Do this to give us a unified API with Result.save
+        return directory
+
+    def save_unordered(self, directory):
+        """Saves a collection of QIIME 2 Results into a given directory without
+           an order file. This is used by q2galaxy where an order file will be
+           interpreted as another dataset in the collection which is not
+           desirable
+
+           NOTE: The directory given must not exist
+        """
+        if os.path.exists(directory):
+            raise ValueError(f"The given directory '{directory}' already "
+                             "exists. A new directory must be given to save "
+                             "the collection to.")
+
+        os.makedirs(directory)
+
+        for name, result in self.collection.items():
+            result_fp = os.path.join(directory, name)
+            result.save(result_fp)
+
+        # Do this to give us a unified API with Result.save
+        return directory
+
+    def keys(self):
+        return self.collection.keys()
+
+    def values(self):
+        return self.collection.values()
+
+    def items(self):
+        return self.collection.items()
+
+    def validate(self, view, level=None):
+        for result in self.values():
+            result.validate(view, level)
+
+    def result(self):
+        """ Noop to provide standardized interface with ProxyResultCollection.
+        """
+        return self

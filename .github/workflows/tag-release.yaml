@@ -1,0 +1,7 @@
+name: tag-release
+on:
+  push:
+    branches: ["Release-*"]
+jobs:
+  tag:
+    uses: qiime2/distributions/.github/workflows/lib-tag-release.yaml@dev

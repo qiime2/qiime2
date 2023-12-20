@@ -1,0 +1,57 @@
+execution:
+    uuid: 96157f9a-a876-4dbc-94d9-3890e839ca04
+    runtime:
+        start: 2023-07-26T15:29:30.731768-07:00
+        end: 2023-07-26T15:29:30.735653-07:00
+        duration: 3885 microseconds
+
+action:
+    type: import
+
+transformers:
+    output:
+    -   from: builtins:list
+        to: IntSequenceDirectoryFormat
+        plugin: !ref 'environment:plugins:dummy-plugin'
+        citations:
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceDirectoryFormat|0'
+        - !cite 'view|dummy-plugin:0.0.0-dev|IntSequenceDirectoryFormat|0'
+
+environment:
+    platform: macosx-10.9-x86_64
+    python: |-
+        3.6.13 |Anaconda, Inc.| (default, Feb 23 2021, 12:58:59)
+        [GCC Clang 10.0.0 ]
+    framework:
+        version: 2018.11.0
+        website: https://qiime2.org
+        citations:
+        - !cite 'framework|qiime2:2018.11.0|0'
+    plugins:
+        dummy-plugin:
+            version: 0.0.0-dev
+            website: https://github.com/qiime2/qiime2
+            citations:
+            - !cite 'plugin|dummy-plugin:0.0.0-dev|0'
+            - !cite 'plugin|dummy-plugin:0.0.0-dev|1'
+    python-packages:
+        zipp: 3.6.0
+        wheel: 0.37.1
+        tzlocal: '4.2'
+        tzdata: '2023.3'
+        six: 1.16.0
+        setuptools: 58.0.4
+        qiime2: 2018.11.0
+        PyYAML: 6.0.1
+        pytz: '2023.3'
+        pytz-deprecation-shim: 0.1.0.post0
+        python-dateutil: 2.8.2
+        pyparsing: 3.1.0
+        pip: 21.2.2
+        pandas: 1.1.5
+        numpy: 1.19.5
+        importlib-resources: 5.4.0
+        decorator: 5.1.1
+        certifi: 2021.5.30
+        bibtexparser: 1.4.0
+        backports.zoneinfo: 0.2.1

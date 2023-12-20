@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -8,7 +8,7 @@
 
 import pandas as pd
 
-from qiime2 import Artifact, Metadata
+from qiime2 import Artifact, Metadata, ResultCollection
 
 from .type import IntSequence1, IntSequence2, Mapping, SingleInt
 
@@ -23,6 +23,11 @@ def ints2_factory():
 
 def ints3_factory():
     return Artifact.import_data(IntSequence2, [6, 7, 8])
+
+
+def artifact_collection_factory():
+    return ResultCollection({'Foo': Artifact.import_data(SingleInt, 1),
+                             'Bar': Artifact.import_data(SingleInt, 2)})
 
 
 def mapping1_factory():
@@ -234,4 +239,47 @@ def optional_inputs(use):
                         action_id='optional_artifacts_method'),
         use.UsageInputs(ints=ints, optional1=output3, num1=3, num2=4),
         use.UsageOutputNames(output='output4'),
+    )
+
+
+def collection_list_of_ints(use):
+    ints = use.init_artifact_collection('ints', artifact_collection_factory)
+
+    out, = use.action(
+                use.UsageAction(plugin_id='dummy_plugin',
+                                action_id='list_of_ints'),
+                use.UsageInputs(ints=ints),
+                use.UsageOutputNames(output='out'),
+    )
+
+
+def collection_dict_of_ints(use):
+    ints = use.init_artifact_collection('ints', artifact_collection_factory)
+
+    out, = use.action(
+                use.UsageAction(plugin_id='dummy_plugin',
+                                action_id='dict_of_ints'),
+                use.UsageInputs(ints=ints),
+                use.UsageOutputNames(output='out'),
+    )
+
+    out.assert_output_type(semantic_type='SingleInt', key='Foo')
+
+
+def construct_and_access_collection(use):
+    ints_a = use.init_artifact('ints_a', single_int1_factory)
+    ints_b = use.init_artifact('ints_b', single_int2_factory)
+
+    rc_in = use.construct_artifact_collection(
+        'rc_in', {'a': ints_a, 'b': ints_b}
+    )
+
+    rc_out, = use.action(
+        use.UsageAction(plugin_id='dummy_plugin', action_id='dict_of_ints'),
+        use.UsageInputs(ints=rc_in),
+        use.UsageOutputNames(output='rc_out')
+    )
+
+    ints_b_from_collection = use.get_artifact_collection_member(  # noqa: F841
+        'ints_b_from_collection', rc_out, 'b'
     )

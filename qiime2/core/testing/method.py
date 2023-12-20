@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -138,3 +138,48 @@ def type_match_list_and_set(ints: list, strs1: list, strs2: set) -> list:
 
 def union_inputs(ints1: Union[dict, list], ints2: list) -> list:
     return [0]
+
+
+def list_of_ints(ints: int) -> int:
+    assert isinstance(ints, list)
+    return ints
+
+
+def dict_of_ints(ints: int) -> int:
+    assert isinstance(ints, qiime2.sdk.result.ResultCollection)
+    return ints
+
+
+def returns_int(int: int) -> int:
+    return int
+
+
+def collection_inner_union(ints: list) -> list:
+    return [[0]]
+
+
+def collection_outer_union(ints: list) -> list:
+    return [[0]]
+
+
+def dict_params(ints: dict) -> int:
+    assert isinstance(ints, dict)
+    return ints
+
+
+def list_params(ints: list) -> int:
+    assert isinstance(ints, list)
+    return ints
+
+
+def varied_method(ints1: int, ints2: list, int1: int, string: str) -> \
+                  (int, list, int):
+    assert isinstance(ints1, list)
+    assert isinstance(ints2, qiime2.sdk.result.ResultCollection)
+    assert isinstance(int1, int)
+    assert isinstance(string, str)
+    return ints1, ints2, int1
+
+
+def _underscore_method() -> int:
+    return 42

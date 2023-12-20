@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -8,6 +8,7 @@
 
 import types
 import unittest
+import pkg_resources
 
 import qiime2.plugin
 import qiime2.sdk
@@ -18,11 +19,16 @@ from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
                                         IntSequenceV2DirectoryFormat)
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.plugin import is1_use, is2_use
+from qiime2.plugin.testing import assert_no_nans_in_tables
 
 
 class TestPlugin(unittest.TestCase):
     def setUp(self):
         self.plugin = get_dummy_plugin()
+
+    def get_data_path(self, filename):
+        return pkg_resources.resource_filename('qiime2.plugin.tests',
+                                               'data/%s' % filename)
 
     def test_name(self):
         self.assertEqual(self.plugin.name, 'dummy-plugin')
@@ -74,6 +80,7 @@ class TestPlugin(unittest.TestCase):
         actions = self.plugin.actions
 
         self.assertIsInstance(actions, types.MappingProxyType)
+
         self.assertEqual(actions.keys(),
                          {'merge_mappings', 'concatenate_ints', 'split_ints',
                           'most_common_viz', 'mapping_viz',
@@ -89,7 +96,14 @@ class TestPlugin(unittest.TestCase):
                           'long_description_method', 'parameter_only_pipeline',
                           'typical_pipeline', 'optional_artifact_pipeline',
                           'pointless_pipeline', 'visualizer_only_pipeline',
-                          'pipelines_in_pipeline', 'failing_pipeline',
+                          'pipelines_in_pipeline',
+                          'resumable_pipeline',
+                          'resumable_varied_pipeline',
+                          'resumable_nested_varied_pipeline',
+                          'internal_fail_pipeline', 'de_facto_list_pipeline',
+                          'de_facto_dict_pipeline',
+                          'de_facto_collection_pipeline', 'list_pipeline',
+                          'collection_pipeline', 'failing_pipeline',
                           'docstring_order_method',
                           'constrained_input_visualization',
                           'combinatorically_mapped_method',
@@ -99,6 +113,11 @@ class TestPlugin(unittest.TestCase):
                           'deprecated_method', 'union_inputs',
                           'unioned_primitives',
                           'type_match_list_and_set',
+                          'list_of_ints', 'dict_of_ints', 'returns_int',
+                          'collection_inner_union', 'collection_outer_union',
+                          'dict_params', 'list_params', 'varied_method',
+                          '_underscore_method', 'return_four_ints',
+                          'return_many_ints'
                           })
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
@@ -130,7 +149,12 @@ class TestPlugin(unittest.TestCase):
                           'predicates_preserved_method',
                           'deprecated_method', 'union_inputs',
                           'unioned_primitives',
-                          'type_match_list_and_set',
+                          'type_match_list_and_set', 'list_of_ints',
+                          'dict_of_ints', 'returns_int',
+                          'collection_inner_union',
+                          'collection_outer_union', 'dict_params',
+                          'list_params', 'varied_method', '_underscore_method',
+                          'return_four_ints', 'return_many_ints'
                           })
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)
@@ -151,7 +175,13 @@ class TestPlugin(unittest.TestCase):
                          {'parameter_only_pipeline', 'typical_pipeline',
                           'optional_artifact_pipeline', 'pointless_pipeline',
                           'visualizer_only_pipeline', 'pipelines_in_pipeline',
-                          'failing_pipeline'})
+                          'resumable_pipeline',
+                          'resumable_varied_pipeline',
+                          'resumable_nested_varied_pipeline',
+                          'internal_fail_pipeline', 'de_facto_list_pipeline',
+                          'de_facto_dict_pipeline',
+                          'de_facto_collection_pipeline', 'list_pipeline',
+                          'collection_pipeline', 'failing_pipeline'})
         for pipeline in pipelines.values():
             self.assertIsInstance(pipeline, qiime2.sdk.Pipeline)
 
@@ -384,6 +414,19 @@ class TestPlugin(unittest.TestCase):
                                     r'Only a single.*Kennel\[Dog \| Cat\]'):
             plugin.register_artifact_class(
                 Kennel[Dog | Cat], IntSequenceDirectoryFormat)
+
+    def test_table_does_not_have_nans(self):
+        noNaN = self.get_data_path('no_nan.html')
+
+        with open(noNaN) as fh:
+            assert_no_nans_in_tables(fh)
+
+    def test_table_has_nans(self):
+        hasNaN = self.get_data_path('has_nan.html')
+
+        with open(hasNaN) as fh:
+            with self.assertRaises(AssertionError):
+                assert_no_nans_in_tables(fh)
 
 
 if __name__ == '__main__':

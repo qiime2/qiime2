@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -45,14 +45,18 @@ from qiime2.core.testing.plugin import is1_use, is2_use
 
 class TestPluginManager(unittest.TestCase):
     def setUp(self):
-        self.plugin = get_dummy_plugin()
         # PluginManager is a singleton so there's no issue creating it again.
         self.pm = qiime2.sdk.PluginManager()
+        self.plugin = get_dummy_plugin()
+        self.other_plugin = self.pm.plugins['other-plugin']
 
     def test_plugins(self):
         plugins = self.pm.plugins
 
-        exp = {'dummy-plugin': self.plugin}
+        exp = {
+            'dummy-plugin': self.plugin,
+            'other-plugin': self.other_plugin
+        }
         self.assertEqual(plugins, exp)
 
     def test_validators(self):

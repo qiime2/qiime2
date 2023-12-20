@@ -1,17 +1,19 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .collection import List, Set
+from .collection import List, Set, Collection
 from .semantic import SemanticType, Properties
 from .primitive import (Str, Int, Float, Metadata, Bool, MetadataColumn,
                         Categorical, Numeric, Range, Start, End, Choices)
 from .visualization import Visualization
-from .signature import PipelineSignature, MethodSignature, VisualizerSignature
+from .signature import (PipelineSignature, MethodSignature,
+                        VisualizerSignature, IndexedCollectionElement,
+                        HashableInvocation)
 from .meta import TypeMap, TypeMatch
 from .util import (is_primitive_type, is_semantic_type, is_metadata_type,
                    is_collection_type, is_visualization_type,
@@ -24,7 +26,7 @@ __all__ = [
     'is_metadata_type', 'is_collection_type', 'interrogate_collection_type',
     'parse_primitive', 'is_union', 'is_metadata_column_type',
     # Collection Types
-    'Set', 'List',
+    'Set', 'List', 'Collection',
     # Semantic Types
     'SemanticType',
     'Properties',
@@ -35,6 +37,7 @@ __all__ = [
     'Visualization',
     # Signatures
     'PipelineSignature', 'MethodSignature', 'VisualizerSignature',
+    'IndexedCollectionElement', 'HashableInvocation',
     # Variables
     'TypeMap', 'TypeMatch'
 ]

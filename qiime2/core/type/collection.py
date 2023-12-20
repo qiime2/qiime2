@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -76,6 +76,24 @@ class _Set(_1DCollectionBase):
 class _List(_1DCollectionBase):
     _view = list
 
+    def is_element_expr(self, self_expr, value):
+        """Since this is a dictionary, we often need to make sure to use its
+        values not its keys.
+        """
+        from qiime2 import ResultCollection
+
+        contained_expr = self_expr.fields[0]
+
+        if isinstance(value, self._view) and len(value) > 0:
+            return all(v in contained_expr for v in value)
+        # The List's default type is unsurprisingly list, but we also want to
+        # be able to pass in a Collection (dict)
+        elif (isinstance(value, ResultCollection) or isinstance(value, dict)) \
+                and len(value) > 0:
+            return all(v in contained_expr for v in value.values())
+
+        return False
+
 
 class _Tuple(_CollectionBase):
     _view = tuple
@@ -95,6 +113,27 @@ class _Tuple(_CollectionBase):
         pass
 
 
+class _Collection(_1DCollectionBase):
+    _view = dict
+
+    def is_element_expr(self, self_expr, value):
+        """Since this is a dictionary, we often need to make sure to use its
+        values not its keys.
+        """
+        from qiime2 import ResultCollection
+
+        contained_expr = self_expr.fields[0]
+
+        if (isinstance(value, ResultCollection) or
+                isinstance(value, self._view)) and len(value) > 0:
+            return all(v in contained_expr for v in value.values())
+        elif isinstance(value, list) and len(value) > 0:
+            return all(v in contained_expr for v in value)
+
+        return False
+
+
 Set = _Set()
 List = _List()
 Tuple = _Tuple()
+Collection = _Collection()

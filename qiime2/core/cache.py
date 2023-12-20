@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -9,8 +9,7 @@
 The cache is used to store unzipped data on disk in a predictable and user
 controlled location. This allows us to skip constantly zipping and unzipping
 large amounts of data and taking up CPU time when storage space is not an
-issue. It also allows us to to know exactly what data has been created and
-where.
+issue. It also allows us to know exactly what data has been created and where.
 
 By default, a cache will be created under $TMPDIR/qiime2/$USER and all
 intermediate data created by QIIME 2 as it executes will be written into that
@@ -53,22 +52,15 @@ import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
 from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
-                              READ_ONLY_FILE, READ_ONLY_DIR, ALL_PERMISSIONS)
+                              load_action_yaml, READ_ONLY_FILE, READ_ONLY_DIR,
+                              USER_GROUP_RWX)
 from qiime2.core.archive.archiver import Archiver
+from qiime2.core.type import HashableInvocation, IndexedCollectionElement
 
 _VERSION_TEMPLATE = """\
 QIIME 2
 cache: %s
 framework: %s
-"""
-
-_KEY_TEMPLATE = """\
-origin:
- %s
-data:
- %s
-pool:
- %s
 """
 
 # Thread local indicating the cache to use
@@ -237,9 +229,17 @@ def _exit_cleanup():
         # does not create a process pool (on Mac this atexit is invoked on
         # workers). It could also happen if someone deleted the process pool
         # but... They probably shouldn't do that
-        if os.path.exists(target):
-            shutil.rmtree(target)
-            cache.garbage_collection()
+        try:
+            cache.lock.__enter__()
+        except Exception:
+            continue
+        else:
+            try:
+                if os.path.exists(target):
+                    shutil.rmtree(target)
+                    cache.garbage_collection()
+            finally:
+                cache.lock.__exit__()
 
 
 def monitor_thread(cache_dir, is_done):
@@ -268,7 +268,7 @@ tm = object
 
 
 class MEGALock(tm):
-    """ We need to lock out other processes with flufl, but we also need to
+    """We need to lock out other processes with flufl, but we also need to
     lock out other threads with a Python thread lock (because parsl
     threadpools), so we put them together in one MEGALock(tm)
     """
@@ -287,7 +287,12 @@ class MEGALock(tm):
         """
         if self.re_entries == 0:
             self.thread_lock.acquire()
-            self.flufl_lock.lock()
+
+            try:
+                self.flufl_lock.lock()
+            except Exception:
+                self.thread_lock.release()
+                raise
 
         self.re_entries += 1
 
@@ -412,39 +417,64 @@ class Cache:
             self.__init(path=path, process_pool_lifespan=process_pool_lifespan)
 
     def __init(self, path=None, process_pool_lifespan=45):
+        created_path = False
+        temp_cache_path = pathlib.Path(_get_temp_path())
+
         if path is not None:
             self.path = pathlib.Path(path)
         else:
-            self.path = pathlib.Path(_get_temp_path())
+            self.path = temp_cache_path
 
+        # We need this directory to exist so we can lock it, but we also want
+        # to keep track of whether we created it or not so if we didn't create
+        # it and it isn't a cache we can handle that
         if not os.path.exists(self.path):
-            os.makedirs(self.path)
+            # We could have another thread/process creating the cache at this
+            # directory in which case the above check might say it does not
+            # exist then it could be created elsewhere before we get here. We
+            # cannot lock this because we don't have a place to put the lock
+            # yet, and it isn't really a big enough deal to create a new lock
+            # elsewhere just for this because we don't really care if another
+            # instance makes the path out from under us
+            try:
+                os.makedirs(self.path)
+            except FileExistsError:
+                pass
+
+            # We don't actually care if this is the specific thread/process
+            # that created the path, we only care that some instance of QIIME 2
+            # must have just done it. Now any instance should treat it as a
+            # QIIME 2 created path
+            created_path = True
 
         self.lock = \
             MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
 
         # We need to lock here to ensure that if we have multiple processes
         # trying to create the same cache one of them can actually succeed at
-        # creating the cache without interference from the other processes.
+        # creating the cache contents without interference from the other
+        # processes.
         with self.lock:
-            if not Cache.is_cache(self.path):
-                try:
+            # If the path already existed and wasn't a cache then we don't want
+            # to create the cache contents here
+            if not Cache.is_cache(self.path) and not created_path:
+                # We own the temp_cache_path, so we can recreate it if there
+                # was something wrong with it
+                if self.path == temp_cache_path:
+                    set_permissions(self.path, USER_GROUP_RWX,
+                                    USER_GROUP_RWX, skip_root=True)
+                    self._remove_cache_contents()
                     self._create_cache_contents()
-                except FileExistsError as e:
-                    if path is None:
-                        warnings.warn(
-                            "Your temporary cache was found to be in an "
-                            "inconsistent state. It has been recreated.")
-                        set_permissions(self.path, ALL_PERMISSIONS,
-                                        ALL_PERMISSIONS, skip_root=True)
-                        self._remove_cache_contents()
-                        self._create_cache_contents()
-                    else:
-                        raise ValueError(
-                            f"Path: \'{self.path}\' already exists and is not "
-                            "a cache.") from e
+                    warnings.warn(
+                        "Your temporary cache was found to be in an "
+                        "inconsistent state. It has been recreated.")
+                else:
+                    raise ValueError(f"Path: '{self.path}' already exists and"
+                                     " is not a cache.")
+            elif not Cache.is_cache(self.path):
+                self._create_cache_contents()
+            # else: it was a cache with the contents already in it
 
-        # Make our process pool.
         self.process_pool = self._create_process_pool()
         # Lifespan is supplied in days and converted to seconds for internal
         # use
@@ -457,7 +487,7 @@ class Cache:
 
         # Start thread that pokes things in the cache to ensure they aren't
         # culled for being too old (only if we are in a temp cache)
-        if path is None:
+        if path == temp_cache_path:
             self._thread_is_done = threading.Event()
             self._thread_destructor = \
                 weakref.finalize(self, self._thread_is_done.set)
@@ -472,7 +502,8 @@ class Cache:
         """Tell QIIME 2 to use this cache in its current invocation (see
         get_cache).
         """
-        if _CACHE.cache is not None and _CACHE.cache.path != self.path:
+        if hasattr(_CACHE, 'cache') and _CACHE.cache is not None \
+                and _CACHE.cache.path != self.path:
             raise ValueError("You cannot enter multiple caches at once, "
                              "currently entered cache is located at: "
                              f"'{_CACHE.cache.path}'")
@@ -567,27 +598,8 @@ class Cache:
                 else:
                     os.unlink(fp)
 
-    def _create_process_pool(self):
-        """Creates a process pool which is identical in function to a named
-        pool, but it lives in the processes subdirectory not the pools
-        subdirectory, and is handled differently by garbage collection due to
-        being un-keyed. Process pools are used to keep track of results for
-        currently running processes and are removed when the process that
-        created them ends.
-
-        Returns
-        -------
-        Pool
-            The pool we created.
-        """
-        return Pool(self, reuse=True)
-
-    def create_pool(self, keys=[], reuse=False):
-        """Used to create named pools. A named pool's name is all of the keys
-        given for it separated by underscores. All of the given keys are
-        created individually and refer to the named pool as opposed to saving a
-        single piece of data where a single key is created referring to that
-        data.
+    def create_pool(self, key, reuse=False):
+        """Used to create named pools.
 
         Named pools can be used by pipelines to store all intermediate results
         created by the pipeline and prevent it from being reaped. This allows
@@ -603,8 +615,8 @@ class Cache:
 
         Parameters
         ----------
-        keys : List[str]
-            A list of keys to use to reference the pool.
+        key : str
+            The key to use to reference the pool.
         reuse : bool
             Whether to reuse a pool if a pool with the given keys already
             exists.
@@ -619,17 +631,37 @@ class Cache:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['some', 'kinda', 'keys'])
-        >>> cache.get_keys() == set(['some', 'kinda', 'keys'])
+        >>> pool = cache.create_pool(key='key')
+        >>> cache.get_keys() == set(['key'])
         True
-        >>> cache.get_pools() == set(['some_kinda_keys'])
+        >>> cache.get_pools() == set(['key'])
         True
         >>> test_dir.cleanup()
         """
-        pool_name = '_'.join(keys)
-        pool = Pool(self, name=pool_name, reuse=reuse)
+        pool = Pool(self, name=key, reuse=reuse)
+        self._register_key(key, key, pool=True)
 
-        self._create_pool_keys(pool_name, keys)
+        return pool
+
+    def _create_process_pool(self):
+        """Creates a process pool which is identical in function to a named
+        pool, but it lives in the processes subdirectory not the pools
+        subdirectory, and is handled differently by garbage collection due to
+        being un-keyed. Process pools are used to keep track of results for
+        currently running processes and are removed when the process that
+        created them ends.
+
+        Returns
+        -------
+        Pool
+            The pool we created.
+        """
+        return Pool(self, reuse=True)
+
+    def _create_collection_pool(self, ref_collection, key):
+        pool = Pool(self, name=key, reuse=False)
+        self._register_key(
+            key, key, pool=True, collection=ref_collection)
 
         return pool
 
@@ -677,15 +709,18 @@ class Cache:
         # their data
         with self.lock:
             for key in self.get_keys():
-                with open(self.keys / key) as fh:
-                    loaded_key = yaml.safe_load(fh)
-                referenced_pools.add(loaded_key['pool'])
-                referenced_data.add(loaded_key['data'])
+                loaded_key = self.read_key(key)
 
-            # Since each key has at most a pool or data, we will end up with a
-            # None in at least one of these sets. We don't want it
-            referenced_pools.discard(None)
-            referenced_data.discard(None)
+                if (data := loaded_key.get('data')) is not None:
+                    referenced_data.add(data)
+                elif (pool := loaded_key.get('pool')) is not None:
+                    referenced_pools.add(pool)
+                # This really should never be happening unless someone messes
+                # with things manually
+                else:
+                    raise ValueError(f"The key '{key}' in the cache"
+                                     f" '{self.path}' does not point to"
+                                     " anything")
 
             # Walk over pools and remove any that were not referred to by keys
             # while tracking all data within those that were referenced
@@ -716,7 +751,7 @@ class Cache:
                 if data not in referenced_data:
                     target = self.data / data
 
-                    set_permissions(target, None, ALL_PERMISSIONS)
+                    set_permissions(target, None, USER_GROUP_RWX)
                     shutil.rmtree(target)
 
     def save(self, ref, key):
@@ -761,7 +796,22 @@ class Cache:
 
         return self.load(key)
 
-    def _register_key(self, key, value, pool=False):
+    def save_collection(self, ref_collection, key):
+        """Saves a Collection to a pool in the cache with the given key. This
+        pool's key file will keep track of the order of the Collection.
+        """
+        if isinstance(ref_collection, qiime2.sdk.Results):
+            ref_collection = ref_collection.output
+
+        with self.lock:
+            pool = self._create_collection_pool(ref_collection, key)
+
+            for ref in ref_collection.values():
+                pool.save(ref)
+
+        return self.load_collection(key)
+
+    def _register_key(self, key, value, pool=False, collection=None):
         """Creates a key file pointing at the specified data or pool.
 
         Parameters
@@ -780,18 +830,36 @@ class Cache:
             this to ensure no one creates keys that cause issues when we try to
             load them.
         """
-        if not key.isidentifier():
-            raise ValueError('Key must be a valid Python identifier. Python '
-                             'identifier rules may be found here '
-                             'https://www.askpython.com/python/'
-                             'python-identifiers-rules-best-practices')
+        # We require keys to be valid Python identifiers with the single caveat
+        # that they may also contain dashes
+        validation_key = key.replace('-', '_')
+        if not validation_key.isidentifier():
+            raise ValueError("Keys may contain '-' characters but must "
+                             "otherwise be valid Python identifiers. Python "
+                             "identifier rules may be found here "
+                             "https://www.askpython.com/python/"
+                             "python-identifiers-rules-best-practices")
 
         key_fp = self.keys / key
 
+        key_dict = {}
+        key_dict['origin'] = key
+
         if pool:
-            key_fp.write_text(_KEY_TEMPLATE % (key, '', value))
+            key_dict['pool'] = value
+
+            if collection is not None:
+                key_dict['order'] = \
+                    [{k: str(v.uuid)} for k, v in collection.items()]
         else:
-            key_fp.write_text(_KEY_TEMPLATE % (key, value, ''))
+            key_dict['data'] = value
+
+            if collection is not None:
+                raise ValueError('An ordered Collection key can only be made'
+                                 ' for a pool.')
+
+        with open(key_fp, 'w') as fh:
+            yaml.safe_dump(key_dict, fh)
 
     def read_key(self, key):
         """Reads the contents of a given key.
@@ -822,8 +890,9 @@ class Cache:
                                f"key '{key}'") from e
 
     def load(self, key):
-        """Loads the data pointed to by a key. Only works on keys that refer to
-        data items and will error on keys that refer to pools.
+        """Loads the data pointed to by a key. Will defer to
+        Cache.load_collection if the key contains 'order'. Will error on keys
+        that refer to pools without order.
 
         Parameters
         ----------
@@ -859,18 +928,44 @@ class Cache:
         >>> test_dir.cleanup()
         """
         with self.lock:
-            try:
-                key_values = self.read_key(key)
-                path = self.data / key_values['data']
-            except TypeError as e:
+            key_values = self.read_key(key)
+
+            if 'order' in key_values:
+                return self.load_collection(key)
+
+            if 'data' not in key_values:
                 raise ValueError(f"The key file '{key}' does not point to any "
                                  "data. This most likely occurred because you "
                                  "tried to load a pool which is not "
-                                 "supported.") from e
+                                 "supported.")
 
+            path = self.data / key_values['data']
             archiver = Archiver.load_raw(path, self)
 
         return Result._from_archiver(archiver)
+
+    def load_collection(self, key):
+        """Loads a pool referenced by a given key as a Collection. The pool
+        loaded must have been created using Cache.save_collection.
+        """
+        collection = {}
+
+        with self.lock:
+            loaded_key = self.read_key(key)
+
+            if 'order' not in loaded_key:
+                raise KeyError(f"The key file '{self.keys / key}' does not"
+                               " contain an order which is necessary for a"
+                               " collection.")
+
+            for artifact in loaded_key['order']:
+                # We created a list of one element dicts to make sure the yaml
+                # looked as expected. This is how we parse one of those dicts
+                # into its key value pair.
+                k, v = list(artifact.items())[0]
+                collection[k] = Result._from_archiver(self._load_uuid(v))
+
+        return collection
 
     def _load_uuid(self, uuid):
         """Load raw from the cache if the uuid is in the cache. Return None if
@@ -1238,7 +1333,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool(key='pool')
         >>> # When we with in the pool the set cache will be the cache the pool
         >>> # belongs to, and the named pool on that cache will be the pool
         >>> # we withed in
@@ -1255,12 +1350,16 @@ class Pool:
         False
         >>> test_dir.cleanup()
         """
-        if _CACHE.cache is not None and _CACHE.cache.path != self.cache.path:
+        # This threadlocal may not even have a cache attribute
+        has_cache = hasattr(_CACHE, 'cache')
+
+        if has_cache and _CACHE.cache is not None \
+                and _CACHE.cache.path != self.cache.path:
             raise ValueError('Cannot enter a pool that is not on the '
                              'currently set cache. The current cache is '
                              f'located at: {_CACHE.cache.path}')
         else:
-            self.previously_entered_cache = _CACHE.cache
+            self.previously_entered_cache = _CACHE.cache if has_cache else None
             _CACHE.cache = self.cache
 
         if self.cache.named_pool is not None:
@@ -1326,7 +1425,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool(key='pool')
         >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
         >>> pool_artifact = pool.save(artifact)
         >>> # The data itself resides in the cache this pool belongs to
@@ -1440,8 +1539,30 @@ class Pool:
         # already exists. This could happen legitimately from trying to save
         # the same thing to a named pool several times.
         with self.cache.lock:
-            if not os.path.exists(dest):
+            if not os.path.lexists(dest):
                 os.symlink(src, dest)
+
+    def _rename_to_collection_pool(self, uuid, src):
+        uuid = str(uuid)
+
+        dest = self.data / uuid
+        alias = os.path.split(src)[0]
+        with self.lock:
+            # Rename errors if the destination already exists
+            if not os.path.exists(dest):
+                os.rename(src, dest)
+                set_permissions(dest, READ_ONLY_FILE, READ_ONLY_DIR)
+
+            # Create a new alias whether we renamed or not because this is
+            # still loading a new reference to the data even if the data is
+            # already there
+            process_alias = self._alias(uuid)
+
+        # Remove the aliased directory above the one we renamed. We need to do
+        # this whether we renamed or not because we aren't renaming this
+        # directory but the one beneath it
+        shutil.rmtree(alias)
+        return process_alias, dest
 
     def load(self, ref):
         """Loads a reference to an element in the pool.
@@ -1464,7 +1585,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool(key='pool')
         >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
         >>> pool_artifact = pool.save(artifact)
         >>> loaded_artifact = pool.load(str(artifact.uuid))
@@ -1504,7 +1625,7 @@ class Pool:
         >>> test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         >>> cache_path = os.path.join(test_dir.name, 'cache')
         >>> cache = Cache(cache_path)
-        >>> pool = cache.create_pool(keys=['pool'])
+        >>> pool = cache.create_pool('pool')
         >>> artifact = Artifact.import_data(IntSequence1, [0, 1, 2])
         >>> pool_artifact = pool.save(artifact)
         >>> pool.get_data() == set([str(artifact.uuid)])
@@ -1555,3 +1676,112 @@ class Pool:
             The uuids of all of the data in the pool.
         """
         return set(os.listdir(self.path))
+
+    def create_index(self):
+        """Indexes all artifacts in this cache's data directory mapping the
+        QIIME 2 invocations that made the given artifacts to the given
+        artifacts in a dictionary with the following structure:
+
+        {
+            HashableInvocation(plugin_action=f'{plugin}:{action}',
+                               arguments=[input_uuids + parameters]): {
+                output1_name: output1_uuid,
+                output2_name: output2_uuid,
+                ...
+            },
+            ...
+        }
+
+        Where the output uuids are the uuids of the artifacts in the actual
+        data directory. This information is parsed out of these artifacts'
+        provenance.
+
+        This index is used for pipeline resumption. We can tell if an artifact
+        in the cache was created by an invocation of a pipeline that is
+        identical to the one we are currently executing and take that cached
+        artifact instead of recreating it.
+        """
+        # Keep track of all invocations -> outputs
+        self.index = {}
+
+        with self.cache.lock:
+            for _uuid in self.get_data():
+                # Make sure the process that indexed this artifact will still
+                # have access to it if it is otherwise removed from the cache
+                # by retaining a reference to it in our process pool
+                alias = self.cache.process_pool._alias(_uuid)
+                self.cache.process_pool._make_symlink(_uuid, alias)
+
+                # Get action.yaml from this artifact's provenance
+                path = self.cache.data / _uuid
+                action_yaml = load_action_yaml(path)
+                action = action_yaml['action']
+
+                # This means the artifact was created in the pipeline by
+                # ctx.make_artifact, we don't index those because we cannot
+                # guarantee that whatever view they imported was hashable. it
+                # would be better to create an action that produces the
+                # artifact rather than using make_artifact
+                if 'type' in action and action['type'] == 'import':
+                    continue
+
+                plugin_action = action['plugin'] + ':' + action['action']
+                arguments = action['inputs']
+                arguments.extend(action['parameters'])
+
+                invocation = HashableInvocation(plugin_action, arguments)
+                if invocation not in self.index:
+                    self.index[invocation] = {}
+
+                self._add_index_output(
+                    self.index[invocation], action['output-name'], _uuid)
+
+    def _add_index_output(self, outputs, name, value):
+        """Adds a given output to the cache's index under the invocation that
+        created it. Dispatches to _add_collection_index_output for output
+        collections.
+
+
+        Parameters
+        ----------
+        outputs : dict
+            A dictionary mapping the names of the outputs of the given
+            invocation to their uuids.
+        name : str
+            The name of the output we are indexing.
+        value : str
+            The value of the output we are indexing
+
+        Note
+        ----
+        Modifies the output dictionary in place
+        """
+        if isinstance(name, list):
+            self._add_collection_index_output(outputs, name, value)
+        else:
+            outputs[name] = value
+
+    def _add_collection_index_output(self, outputs, name, value):
+        """Adds a given output collection to the cache's index under the
+        invocation that created it.
+
+        Parameters
+        ----------
+        outputs : dict
+            A dictionary mapping the names of the outputs of the given
+            invocation to their uuids.
+        name : tuple
+            The name of the output, the key for this element in the output
+            collection, the index of this element in the output collection in
+            the form of index/num_elements.
+        value : str
+            The uuid of this element in the output collection.
+        """
+        output_name, item_name, idx_out_of = name
+        idx, total = idx_out_of.split('/')
+
+        if output_name not in outputs:
+            outputs[output_name] = {}
+
+        item = IndexedCollectionElement(item_name, int(idx), int(total))
+        outputs[output_name][item] = value

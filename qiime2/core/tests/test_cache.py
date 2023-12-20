@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -25,9 +25,10 @@ from flufl.lock import LockState
 
 import qiime2
 from qiime2.core.cache import Cache, _exit_cleanup, get_cache, _get_user
-from qiime2.core.testing.type import IntSequence1, IntSequence2
+from qiime2.core.testing.type import IntSequence1, IntSequence2, SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.result import Artifact
+from qiime2.core.util import load_action_yaml
 
 # NOTE: If you see an error after all of your tests have ran saying that a pool
 # called __TEST_FAILURE__ doesn't exist and you were running tests in multiple
@@ -38,7 +39,6 @@ from qiime2.sdk.result import Artifact
 TEST_POOL = '__TEST_FAILURE__'
 
 
-# TODO: Check process contents too
 def _get_cache_contents(cache):
     """Gets contents of cache not including contents of the artifacts
     themselves relative to the root of the cache
@@ -116,8 +116,20 @@ def _fake_user_for_cache(cache_prefix, i_acknowledge_this_is_dangerous=False):
         shutil.rmtree(user_cache.path)
 
 
+def _load_outputs(collection):
+    outputs = []
+
+    for result in collection.values():
+        output = load_action_yaml(
+            result._archiver.path)['action']['output-name']
+        outputs.append(output)
+
+    return outputs
+
+
 class TestCache(unittest.TestCase):
     def setUp(self):
+        self.plugin = get_dummy_plugin()
         # Create temp test dir
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
 
@@ -204,6 +216,12 @@ class TestCache(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'valid Python identifier'):
             self.cache.create_pool('1')
 
+    def test_kebab_key(self):
+        self.cache.save(self.art1, '-kebab-case-key-')
+
+        artifact = self.cache.load('-kebab-case-key-')
+        artifact.validate()
+
     def test_remove_locks(self):
         """Create some locks then see if we can remove them
         """
@@ -221,11 +239,11 @@ class TestCache(unittest.TestCase):
         # Data referenced directly by key
         self.cache.save(self.art1, 'foo')
         # Data referenced by pool that is referenced by key
-        pool = self.cache.create_pool(['bar'])
+        pool = self.cache.create_pool('bar')
         pool.save(self.art2)
         # We will be manually deleting the keys that back these two
         self.cache.save(self.art3, 'baz')
-        pool = self.cache.create_pool(['qux'])
+        pool = self.cache.create_pool('qux')
         pool.save(self.art4)
 
         # What we expect to see before and after gc
@@ -260,8 +278,7 @@ class TestCache(unittest.TestCase):
         self.assertEqual(expected_post_gc_contents, post_gc_contents)
 
     def test_asynchronous(self):
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
+        concatenate_ints = self.plugin.methods['concatenate_ints']
 
         with self.cache:
             future = concatenate_ints.asynchronous(self.art1, self.art2,
@@ -276,9 +293,8 @@ class TestCache(unittest.TestCase):
         self.assertEqual(expected, observed)
 
     def test_asynchronous_pool(self):
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
-        test_pool = self.cache.create_pool(keys=[TEST_POOL])
+        concatenate_ints = self.plugin.methods['concatenate_ints']
+        test_pool = self.cache.create_pool(TEST_POOL)
 
         with self.cache:
             with test_pool:
@@ -306,7 +322,7 @@ class TestCache(unittest.TestCase):
         ref.validate()
 
     def test_no_dangling_ref_pool(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
         ref = pool.save(self.art1)
         ref.validate()
 
@@ -316,7 +332,7 @@ class TestCache(unittest.TestCase):
         ref.validate()
 
     def test_pool(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         # Create an artifact in the cache and the pool
         with self.cache:
@@ -328,7 +344,7 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
     def test_pool_no_cache_set(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         with pool:
             ref = Artifact.import_data(IntSequence1, [0, 1, 2])
@@ -339,7 +355,7 @@ class TestCache(unittest.TestCase):
 
     def test_pool_wrong_cache_set(self):
         cache = Cache(os.path.join(self.test_dir.name, 'cache'))
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         with cache:
             with self.assertRaisesRegex(ValueError,
@@ -359,8 +375,8 @@ class TestCache(unittest.TestCase):
                     pass
 
     def test_enter_multiple_pools(self):
-        pool1 = self.cache.create_pool(keys=['pool1'])
-        pool2 = self.cache.create_pool(keys=['pool2'])
+        pool1 = self.cache.create_pool('pool1')
+        pool2 = self.cache.create_pool('pool2')
 
         with pool1:
             with self.assertRaisesRegex(ValueError,
@@ -370,14 +386,14 @@ class TestCache(unittest.TestCase):
                     pass
 
     def test_loading_pool(self):
-        self.cache.create_pool(keys=['pool'])
+        self.cache.create_pool('pool')
 
         with self.assertRaisesRegex(
                 ValueError, "'pool' does not point to any data"):
             self.cache.load('pool')
 
     def test_access_data_with_deleted_key(self):
-        pool = self.cache.create_pool(keys=['pool'])
+        pool = self.cache.create_pool('pool')
 
         with self.cache:
             with pool:
@@ -399,6 +415,44 @@ class TestCache(unittest.TestCase):
         self.assertIn(uuid, os.listdir(self.cache.data))
         self.assertIn(uuid, os.listdir(self.cache.pools / 'pool'))
 
+    def test_collection_list_input_cache(self):
+        list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
+        int_list = [Artifact.import_data(SingleInt, 0),
+                    Artifact.import_data(SingleInt, 1)]
+
+        list_out = list_method(int_list)
+        dict_out = dict_method(int_list)
+
+        pre_cache_list = list_out.output
+        pre_cache_dict = dict_out.output
+
+        cache_list_out = self.cache.save_collection(list_out, 'list_out')
+        cache_dict_out = self.cache.save_collection(dict_out, 'dict_out')
+
+        self.assertEqual(pre_cache_list, cache_list_out)
+        self.assertEqual(pre_cache_dict, cache_dict_out)
+
+    def test_collection_dict_input_cache(self):
+        list_method = self.plugin.methods['list_of_ints']
+        dict_method = self.plugin.methods['dict_of_ints']
+
+        int_dict = {'1': Artifact.import_data(SingleInt, 0),
+                    '2': Artifact.import_data(SingleInt, 1)}
+
+        list_out = list_method(int_dict)
+        dict_out = dict_method(int_dict)
+
+        pre_cache_list = list_out.output
+        pre_cache_dict = dict_out.output
+
+        cache_list_out = self.cache.save_collection(list_out, 'list_out')
+        cache_dict_out = self.cache.save_collection(dict_out, 'dict_out')
+
+        self.assertEqual(pre_cache_list, cache_list_out)
+        self.assertEqual(pre_cache_dict, cache_dict_out)
+
     # This test has zzz in front of it because unittest.Testcase runs the tests
     # in alphabetical order, and we want this test to run last
     def test_zzz_asynchronous_pool_post_exit(self):
@@ -407,13 +461,12 @@ class TestCache(unittest.TestCase):
         destroy our data when running asynchronous actions, and it can probably
         be removed once Archiver is reworked
         """
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
+        concatenate_ints = self.plugin.methods['concatenate_ints']
 
         # This test needs to use a cache that exists past the lifespan of the
         # function
         cache = get_cache()
-        test_pool = cache.create_pool(keys=[TEST_POOL], reuse=True)
+        test_pool = cache.create_pool(TEST_POOL, reuse=True)
 
         with test_pool:
             future = concatenate_ints.asynchronous(self.art1, self.art2,
@@ -433,9 +486,9 @@ class TestCache(unittest.TestCase):
 
     @pytest.mark.skipif(os.geteuid() == 0, reason="super user always wins")
     def test_surreptitiously_write_artifact(self):
-        """Test commented out because behavior is temporarily removed
+        """Test temporarily no-oped because behavior is temporarily no-oped
         """
-        pass
+        return
         # self.cache.save(self.art1, 'a')
         # target = self.cache.data / str(self.art1.uuid) / 'metadata.yaml'
 
@@ -446,9 +499,9 @@ class TestCache(unittest.TestCase):
 
     @pytest.mark.skipif(os.geteuid() == 0, reason="super user always wins")
     def test_surreptitiously_add_file(self):
-        """Test commented out because behavior is temporarily removed
+        """Test temporarily no-oped because behavior is temporarily no-oped
         """
-        pass
+        return
         # self.cache.save(self.art1, 'a')
         # target = self.cache.data / str(self.art1.uuid) / 'extra.file'
 
@@ -469,8 +522,7 @@ class TestCache(unittest.TestCase):
         only run as root because only root can create and delete users, and for
         now at least it won't run on Mac
         """
-        plugin = get_dummy_plugin()
-        concatenate_ints = plugin.methods['concatenate_ints']
+        concatenate_ints = self.plugin.methods['concatenate_ints']
 
         root_cache = get_cache()
         root_user = _get_user()
@@ -494,6 +546,9 @@ class TestCache(unittest.TestCase):
                 cache_prefix,
                 i_acknowledge_this_is_dangerous=True) as (uname, user_cache):
             with user_cache:
+                # We can't use the artifacts that are on the class here anymore
+                # because they exist in root's temp cache and this user no
+                # longer has access to it (which is good honestly)
                 art1 = Artifact.import_data(IntSequence1, [0, 1, 2])
                 art2 = Artifact.import_data(IntSequence1, [3, 4, 5])
                 art4 = Artifact.import_data(IntSequence2, [9, 10, 11])
@@ -521,3 +576,24 @@ class TestCache(unittest.TestCase):
 
         with self.assertWarnsRegex(UserWarning, "in an inconsistent state"):
             Cache()
+
+    def test_output_collection_provenance(self):
+        """ This is really a prov test, but it's here because the
+            infrastructure to do it already exists in this class
+        """
+        collection_pipeline = self.plugin.pipelines['collection_pipeline']
+
+        input_ = [Artifact.import_data(IntSequence1, [0, 1, 2])]
+
+        with self.cache:
+            output = collection_pipeline(input_).output
+
+        expected = [['output', 'key1', '1/2'], ['output', 'key2', '2/2']]
+        observed = _load_outputs(output)
+
+        self.assertEqual(observed, expected)
+
+    def test_cache_existing_dir(self):
+        with self.assertRaisesRegex(
+                ValueError, f"Path: '{self.not_cache_path}' already exists"):
+            Cache(self.not_cache_path)

@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -23,11 +23,9 @@ class ActionTester(unittest.TestCase):
 
     def run_action(self, **inputs):
         results = self.action(**inputs)
+        async_results = self.action.asynchronous(**inputs).result()
 
-        future = self.action.asynchronous(**inputs)
-        async_results = future.result()
-
-        for a, b in zip(async_results, results):
+        for a, b in zip(results, async_results):
             self.assertEqual(a.type, b.type)
 
         return results

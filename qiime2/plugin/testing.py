@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -268,3 +268,16 @@ class TestPluginBase(unittest.TestCase):
                     except AssertionError as e:
                         raise AssertionError('Error in example %r %r: %s'
                                              % (name, example_f, e)) from e
+
+
+def assert_no_nans_in_tables(fh):
+    '''
+    Checks for NaNs present in any of the tables in the indicated file then
+    resets to the head of the file.
+    '''
+    from pandas import read_html
+
+    tables = read_html(fh)
+    for df in tables:
+        assert not df.isnull().values.any()
+    fh.seek(0)

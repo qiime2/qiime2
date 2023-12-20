@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -239,6 +239,26 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
     def test_roundtrip(self):
         fp1 = os.path.join(self.test_dir.name, 'artifact1.qza')
         fp2 = os.path.join(self.test_dir.name, 'artifact2.qza')
+        artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
+
+        artifact.save(fp1)
+
+        artifact1 = Artifact.load(fp1)
+        artifact1.save(fp2)
+        artifact2 = Artifact.load(fp2)
+
+        self.assertEqual(artifact1.type, artifact2.type)
+        self.assertEqual(artifact1.format, artifact2.format)
+        self.assertEqual(artifact1.uuid, artifact2.uuid)
+        self.assertEqual(artifact1.view(list),
+                         artifact2.view(list))
+        # double view to make sure multiple views can be taken
+        self.assertEqual(artifact1.view(list),
+                         artifact2.view(list))
+
+    def test_roundtrip_pathlib(self):
+        fp1 = pathlib.Path(os.path.join(self.test_dir.name, 'artifact1.qza'))
+        fp2 = pathlib.Path(os.path.join(self.test_dir.name, 'artifact2.qza'))
         artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
 
         artifact.save(fp1)

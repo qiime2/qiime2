@@ -1,0 +1,4 @@
+# This document is a representation of the scholarly work of the creator of the
+# QIIME 2 Results provided as input to this software, and may be protected by
+# intellectual property law. Please respect all copyright restrictions and
+# licenses governing the use, modification, and redistribution of this work.

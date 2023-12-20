@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2023, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -14,13 +14,18 @@ import os
 import io
 import collections
 import uuid as _uuid
+import yaml
+import zipfile
+import pathlib
+import shutil
+import subprocess
 
 import decorator
 
 READ_ONLY_FILE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
 READ_ONLY_DIR = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH | stat.S_IRUSR \
     | stat.S_IRGRP | stat.S_IROTH
-ALL_PERMISSIONS = stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+USER_GROUP_RWX = stat.S_IRWXU | stat.S_IRWXG
 OTHER_NO_WRITE = stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH
 
 
@@ -131,7 +136,18 @@ def weigh_directory(directory):
     return total_kib
 
 
+def has_md5sum_native():
+    return shutil.which('md5sum') is not None
+
+
 def md5sum(filepath):
+    if has_md5sum_native():
+        return md5sum_native(filepath)
+    else:
+        return md5sum_python(filepath)
+
+
+def md5sum_python(filepath):
     md5 = hashlib.md5()
     with open(str(filepath), mode='rb') as fh:
         for chunk in iter(lambda: fh.read(io.DEFAULT_BUFFER_SIZE), b""):
@@ -139,7 +155,31 @@ def md5sum(filepath):
     return md5.hexdigest()
 
 
+def md5sum_native(filepath):
+    result = subprocess.run(['md5sum', str(filepath)],
+                            check=True, capture_output=True, text=True)
+    _, digest = from_checksum_format(result.stdout)
+    return digest
+
+
+def md5sum_zip(zf: zipfile.ZipFile, filepath: str) -> str:
+    """
+    Given a ZipFile object and relative filepath within the zip archive,
+    returns the md5sum of the file
+    """
+    md5 = hashlib.md5()
+    with zf.open(filepath) as fh:
+        for chunk in iter(lambda: fh.read(io.DEFAULT_BUFFER_SIZE), b""):
+            md5.update(chunk)
+    return md5.hexdigest()
+
+
 def md5sum_directory(directory):
+    if has_md5sum_native():
+        md5sum = md5sum_native
+    else:
+        md5sum = md5sum_python
+
     directory = str(directory)
     sums = collections.OrderedDict()
     for root, dirs, files in os.walk(directory, topdown=True):
@@ -150,6 +190,24 @@ def md5sum_directory(directory):
 
             path = os.path.join(root, file)
             sums[os.path.relpath(path, start=directory)] = md5sum(path)
+    return sums
+
+
+def md5sum_directory_zip(zf: zipfile.ZipFile) -> dict:
+    """
+    Returns a mapping of fp/checksum pairs for all files in zf.
+
+    The root dir has been removed from these filepaths. This mimics the output
+    in checksums.md5 (without sorted descent), but is not generalizable beyond
+    QIIME 2 archives.
+    """
+    sums = dict()
+    for file in zf.namelist():
+        fp = pathlib.Path(file)
+        if fp.name != 'checksums.md5':
+            file_parts = list(fp.parts)
+            fp_w_o_root_uuid = pathlib.Path(*(file_parts[1:]))
+            sums[str(fp_w_o_root_uuid)] = md5sum_zip(zf, file)
     return sums
 
 
@@ -300,28 +358,37 @@ def is_uuid4(uuid_str):
 
 def set_permissions(path, file_permissions=None, dir_permissions=None,
                     skip_root=False):
-    """Right now this doesn't seem to be doing anything but causing a thorn in
-    our side with panfs, but we may end up wanting it back later, and we are
-    already calling it in all (or most) of the locations we would want
-    """
-    pass
     """Set permissions on all directories and files under and including path
     """
-    # for directory, _, files in os.walk(path):
-    #     # We may want to set permissions under a directory but not on the
-    #     # directory itself.
-    #     if dir_permissions and not (skip_root and directory == str(path)):
-    #         try:
-    #             os.chmod(directory, dir_permissions)
-    #         except FileNotFoundError:
-    #             pass
+    # Panfs is currently causing issues for us setting permissions. We still
+    # want to set rwx for user and group before we remove things to ensure we
+    # can remove them, but we want to temporarily no-op other permission
+    # changes
+    if file_permissions != USER_GROUP_RWX:
+        file_permissions = None
 
-    #     for file in files:
-    #         if file_permissions:
-    #             try:
-    #                 os.chmod(os.path.join(directory, file), file_permissions)
-    #             except FileNotFoundError:
-    #                 pass
+    if dir_permissions != USER_GROUP_RWX:
+        dir_permissions = None
+
+    # Just get out if we aren't doing anything
+    if file_permissions is None and dir_permissions is None:
+        return
+
+    for directory, _, files in os.walk(path):
+        # We may want to set permissions under a directory but not on the
+        # directory itself.
+        if dir_permissions and not (skip_root and directory == str(path)):
+            try:
+                os.chmod(directory, dir_permissions)
+            except FileNotFoundError:
+                pass
+
+        for file in files:
+            if file_permissions:
+                try:
+                    os.chmod(os.path.join(directory, file), file_permissions)
+                except FileNotFoundError:
+                    pass
 
 
 def touch_under_path(path):
@@ -340,3 +407,45 @@ def touch_under_path(path):
                     os.path.join(directory, file), None, follow_symlinks=False)
             except FileNotFoundError:
                 pass
+
+
+def load_action_yaml(path):
+    """Takes a path to an unzipped Aritfact and loads its action.yaml with
+    yaml.safe_load
+    """
+    # TODO: Make these actually do something useful at least for the tags
+    # that are relevant to what we need out of provenance (this is partially
+    # done)
+    def ref_constructor(loader, node):
+        # We only care about the name of the thing we are referencing which
+        # is at the end of this list
+        return node.value.split(':')[-1]
+
+    def cite_constructor(loader, node):
+        return node.value
+
+    def metadata_constructor(loader, node):
+        # Use the md5sum of the metadata as its identifier, so we can tell
+        # if two artifacts used the same metadata input
+        metadata_path = prov_path / node.value
+        return md5sum(metadata_path)
+
+    yaml.constructor.SafeConstructor.add_constructor('!ref', ref_constructor)
+    yaml.constructor.SafeConstructor.add_constructor('!cite', cite_constructor)
+    yaml.constructor.SafeConstructor.add_constructor(
+        '!metadata', metadata_constructor)
+
+    prov_path = path / 'provenance' / 'action'
+    action_path = prov_path / 'action.yaml'
+
+    with open(action_path) as fh:
+        prov = yaml.safe_load(fh)
+
+    return prov
+
+
+def create_collection_name(*, name, key, idx, size):
+    """ Only accepts kwargs. Creates a name for a collection item in a
+        standardized way. Assumes 0 based indexing.
+    """
+    return [name, key, f'{idx + 1}/{size}']
