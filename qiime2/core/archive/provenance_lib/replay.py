@@ -183,6 +183,86 @@ class UsageVarsDict(UserDict):
         super().__setitem__(key, f'<{self.data[key]}>')
 
 
+class ReplayNamespaces:
+    @dataclass
+    class UsageVariableRecord:
+        name: str
+        variable: UsageVariable = None
+        
+    @dataclass
+    class ResultCollectionRecord:
+        collection_uuid: str
+        members: Dict[str, str]
+     
+    def __init__(self):
+        self._usg_var_ns = {} 
+        self.action_ns = {}
+        self.result_collection_ns = {}
+        self.rc_contents_to_uuid = {}
+        self.artifact_to_rc_uuid = {}
+        
+    def add_usg_var_record(self, name, var=None):
+        # uniquify name, add record, return unique name
+        
+        pass
+        
+    def get_unique_var_name(self, name):
+        # call add_usg_var_record under hood, return name
+        pass
+
+    def _make_unique_name(self, name: str) -> str:
+        '''
+        Appends `_<some int>` to name, such that the returned name won't
+        collide with any variable names that already exist in `usg_var_ns`.
+
+        Parameters
+        ----------
+        name : str
+            The variable name to make unique.
+
+        Returns
+        -------
+        str
+            The unique integer-appended variable name.
+        '''
+        counter = 0
+        unique_name = f'{var_name}_{counter}'
+        names = self._usg_var_ns.values()
+
+        # no-provenance nodes are stored with angle brackets around them
+        while unique_name in names or f'<{unique_name}>' in names:
+            counter += 1
+            unique_name = f'{var_name}_{counter}'
+            
+        return unique_name
+    
+    def get_usg_var_uuid(self, name: str) -> str:
+        '''
+        Given some value in the dict, returns its key.
+
+        Parameters
+        ----------
+        name : str
+            The name of the usage variable.
+
+        Returns
+        -------
+        str
+            The key (uuid) corresponding to the name.
+
+        Raises
+        ------
+        KeyError
+            If the name is not found.
+        '''
+        for uuid, record in self._usg_var_ns.items():
+            if name == record.name:
+                return uuid
+                
+        raise KeyError(
+            f'The queried name \'{name}\' does not exist in the namespace.'
+        )
+    
 @dataclass
 class NamespaceCollections:
     '''
