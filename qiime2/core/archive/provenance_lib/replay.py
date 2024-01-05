@@ -90,99 +90,6 @@ class ActionCollections():
     no_provenance_nodes: List[str] = field(default_factory=list)
 
 
-class UsageVarsDict(UserDict):
-    '''
-    Mapping of uuid -> unique variable name.
-
-    A dict where values are also unique. Used here as a UUID-queryable
-    "namespace" of strings that can be passed to usage drivers for rendering
-    into unique variable names. Non-unique values cause namespace collisions.
-
-    For consistency and simplicity, all str values are suffixed with _n when
-    added, such that n is some int. When potentially colliding values are
-    added, n is incremented as needed until collision is avoided.
-    UsageVarsDicts mutate ALL str values they receive.
-
-    Best practice is generally to add the UUID: variable-name pair to this,
-    create the usage variable using the stored name,
-    then store the usage variable in a separate {UUID: UsageVar}. This
-    ensures that UsageVariable.name is unique, preventing namespace collisions.
-    NamespaceCollections (below) exist to group these related structures.
-
-    Note: it's not necessary (and may break the mechanism of uniqueness here)
-    to maintain parity between variable names in this namespace and in the
-    usage variable store. The keys in both stores, however, must match.
-    '''
-    def __setitem__(self, key: str, item: str) -> None:
-        unique_item = self._uniquify(item)
-        return super().__setitem__(key, unique_item)
-
-    def _uniquify(self, var_name: str) -> str:
-        '''
-        Appends _<some int> to var_name, such that the returned name won't
-        collide with any variable-name values that already exist in the dict.
-
-        Parameters
-        ----------
-        var_name : str
-            The variable name to make unique.
-
-        Returns
-        -------
-        str
-            The unique integer-appended variable name.
-        '''
-        some_int = 0
-        unique_name = f'{var_name}_{some_int}'
-        values = self.data.values()
-
-        # no-prov nodes are stored with angle brackets around them, but
-        # those brackets shouldn't be considered on uniqueness check
-        while unique_name in values or f'<{unique_name}>' in values:
-            some_int += 1
-            unique_name = f"{var_name}_{some_int}"
-        return unique_name
-
-    def get_key(self, value: str):
-        '''
-        Given some value in the dict, returns its key.
-
-        Parameters
-        ----------
-        value : str
-            The value to query.
-
-        Returns
-        -------
-        str
-            The key (uuid) corresponding to the value (variable name).
-
-        Raises
-        ------
-        KeyError
-            If the value is not found.
-        '''
-        for key, val in self.items():
-            if value == val:
-                return key
-        raise KeyError(f'passed value \'{value}\' does not exist in the dict.')
-
-    def wrap_val_in_angle_brackets(self, key: str):
-        '''
-        Wraps the variable name pointed to by `key` in brackets `<>`.
-
-        Parameters
-        ----------
-        key : str
-            The key (uuid) of the variable name to wrap in brackets.
-
-        Notes
-        -----
-        If this is accidentally run twice, it will break things.
-        '''
-        super().__setitem__(key, f'<{self.data[key]}>')
-
-
 @dataclass
 class UsageVariableRecord:
     name: str
@@ -196,6 +103,39 @@ class ResultCollectionRecord:
 
 
 class ReplayNamespaces:
+    '''
+    A dataclass collection of objects that each track some useful bit of
+    information relevant to replay/usage namespaces.
+
+    Attributes
+    ----------
+    action_ns : set of str
+        A collection of unique action strings that look like
+        `{plugin}_{action}_{sequential int}`.
+    result_collection_ns : dict
+        Used to keep track of result collection members during usage rendering.
+        Structure is as follows:
+
+        {
+            action-id: {
+                output-name: {
+                    'collection_uuid': uuid,
+                    'artifacts': {
+                        uuid: key-in-collection,
+                        (...),
+                    }
+                },
+                (...),
+            }
+        }
+
+        where the action-id and the output-name uniquely identify a result
+        collection that came from some action, the `collection_uuid` key stores
+        a uuid for the entire collection needed for querying the
+        `usg_var_namespace`, and the `artifacts` key stores all result
+        collection members along with their keys so they can be accessed
+        properly.
+    '''
     def __init__(self):
         self._usg_var_ns = {}
         self.action_ns = set()
@@ -271,54 +211,6 @@ class ReplayNamespaces:
             unique_name = f'{name}_{counter}'
 
         return unique_name
-
-@dataclass
-class NamespaceCollections:
-    '''
-    A dataclass collection of objects that each track some useful bit of
-    information relevant to usage namespaces.
-
-    Attributes
-    ----------
-    usg_var_namespace : UsageVarsDict
-        A uuid -> variable-name mapping that ensures that variable names remain
-        unique in the dictionary.
-    usg_vars : dict
-        A uuid -> UsageVariable mapping. The names of the UsageVariables here
-        do not necessarily match those in `usg_var_namespace`.
-    action_namespace : set of str
-        A collection of unique action strings that look like
-        `{plugin}_{action}_{sequential int}`.
-    result_collection_ns : dict
-        Used to keep track of result collection members during usage rendering.
-        Structure is as follows:
-
-        {
-            action-id: {
-                output-name: {
-                    'collection_uuid': uuid,
-                    'artifacts': {
-                        uuid: key-in-collection,
-                        (...),
-                    }
-                },
-                (...),
-            }
-        }
-
-        where the action-id and the output-name uniquely identify a result
-        collection that came from some action, the `collection_uuid` key stores
-        a uuid for the entire collection needed for querying the
-        `usg_var_namespace`, and the `artifacts` key stores all result
-        collection members along with their keys so they can be accessed
-        properly.
-    '''
-    usg_var_namespace: UsageVarsDict = field(default_factory=UsageVarsDict)
-    usg_vars: Dict[str, UsageVariable] = field(default_factory=dict)
-    action_namespace: Set[str] = field(default_factory=set)
-    result_collection_ns: Dict = field(default_factory=dict)
-    rc_contents_to_rc_uuid: Dict = field(default_factory=dict)
-    artifact_uuid_to_rc_uuid: Dict = field(default_factory=dict)
 
 
 def replay_provenance(
@@ -412,11 +304,7 @@ def replay_provenance(
     result_collection_ns = make_result_collection_namespace(dag)
     artifact_uuid_to_rc_uuid, rc_contents_to_rc_uuid = \
         make_result_collection_mappings(result_collection_ns)
-    # ns = NamespaceCollections(
-    #     result_collection_ns=result_collection_ns,
-    #     artifact_uuid_to_rc_uuid=artifact_uuid_to_rc_uuid,
-    #     rc_contents_to_rc_uuid=rc_contents_to_rc_uuid
-    # )
+
     ns = ReplayNamespaces()
     ns.result_collection_ns = result_collection_ns
     ns.rc_contents_to_rc_uuid = rc_contents_to_rc_uuid
@@ -447,8 +335,7 @@ def make_result_collection_namespace(dag: nx.digraph) -> dict:
     Returns
     -------
     dict
-        A fleshed-out dict to be attached to
-        `NamsepaceCollections.result_collection_ns`.
+        A fleshed-out dict to be attached to result_collection_ns`.
     '''
     rc_ns = {}
     for node in dag:
@@ -549,7 +436,7 @@ def hash_result_collection(members: Union[Dict, List]) -> int:
 
 
 def build_usage_examples(
-    dag: ProvDAG, cfg: ReplayConfig, ns: NamespaceCollections
+    dag: ProvDAG, cfg: ReplayConfig, ns: ReplayNamespaces
 ):
     '''
     Builds a chained usage example representing the analysis `dag`.
@@ -560,7 +447,7 @@ def build_usage_examples(
        The dag representation of parsed provenance.
     cfg : ReplayConfig
         Replay configuration options.
-    ns : NamespaceCollections
+    ns : ReplayNamespaces
         Info tracking usage and result collection namespaces.
     '''
     sorted_nodes = nx.topological_sort(dag.collapsed_view)
@@ -591,7 +478,7 @@ def build_usage_examples(
 
 
 def group_by_action(
-    dag: ProvDAG, nodes: Iterator[str], ns: NamespaceCollections
+    dag: ProvDAG, nodes: Iterator[str], ns: ReplayNamespaces
 ) -> ActionCollections:
     '''
     This groups the nodes from a DAG by action, returning an ActionCollections
@@ -610,7 +497,7 @@ def group_by_action(
         The dag representation of parsed provenance.
     nodes : iterator of str
         An iterator over node uuids.
-    ns : NamespaceCollections
+    ns : ReplayNamespaces
         Info tracking usage and result collection namespaces.
 
     Returns
@@ -660,7 +547,7 @@ def build_no_provenance_node_usage(
         is available.
     uuid : str
         The uuid of the node/result.
-    ns : NamespaceCollections
+    ns : ReplayNamespaces
         Info tracking usage and result collection namespaces.
     cfg : ReplayConfig
         Replay configuration options. Contains the modified usage driver.
@@ -697,7 +584,7 @@ def build_no_provenance_node_usage(
 
 
 def build_import_usage(
-    node: ProvNode, ns: NamespaceCollections, cfg: ReplayConfig
+    node: ProvNode, ns: ReplayNamespaces, cfg: ReplayConfig
 ):
     '''
     Given a ProvNode, adds an import usage example for it, roughly
@@ -717,7 +604,7 @@ def build_import_usage(
     ----------
     node : ProvNode
         The imported node of interest.
-    ns : NamespaceCollections
+    ns : ReplayNamespaces
         Info tracking usage and result collection namespaces.
     cfg : ReplayConfig
         Replay configuration options. Contains the modified usage driver.
@@ -739,7 +626,7 @@ def build_import_usage(
 
 def build_action_usage(
     node: ProvNode,
-    ns: NamespaceCollections,
+    ns: ReplayNamespaces,
     std_actions: Dict[str, Dict[str, str]],
     action_id: str,
     cfg: ReplayConfig
@@ -759,7 +646,7 @@ def build_action_usage(
     ----------
     node : ProvNode
         The node the creating action of which is of interest.
-    ns : NamespaceCollections
+    ns : ReplayNamespaces
         Info tracking usage and result collection namespaces.
     std_actions : dict
         Expalained in ActionCollections.
@@ -850,7 +737,7 @@ def build_action_usage(
 
 
 def _collect_action_inputs(
-    use: Usage, ns: NamespaceCollections, node: ProvNode
+    use: Usage, ns: ReplayNamespaces, node: ProvNode
 ) -> dict:
     '''
     Returns a dict containing the action Inputs for a ProvNode.
@@ -860,7 +747,7 @@ def _collect_action_inputs(
     ----------
     use : Usage
         The currently executing usage driver.
-    ns : NamespaceCollections
+    ns : ReplayNamespaces
         Info tracking usage and result collection namespaces.
     node : ProvNode
         The node the creating action of which's inputs are of interest.
@@ -971,7 +858,7 @@ def _get_rc_member(use, ns, uuid, input_name):
 
 
 def _uniquify_output_names(
-    ns: NamespaceCollections, raw_outputs: dict
+    ns: ReplayNamespaces, raw_outputs: dict
 ) -> dict:
     '''
     Returns a dict containing the uniquified output names from a ProvNode.
@@ -979,7 +866,7 @@ def _uniquify_output_names(
 
     Parameters
     ----------
-    ns : NamespaceCollections
+    ns : ReplayNamespaces
         Info tracking usage and result collection namespaces.
     raw_outputs : dict
         Mapping of node uuid to output-name as seen in action.yaml.
@@ -1129,7 +1016,7 @@ def init_md_from_artifacts(
         Named tuple with fields `input_artifact_uuids` which is a list of
         uuids and `relative_fp` which is the filename of the metadata file.
         These are parsed from a !metadata tag in action.yaml.
-    ns : NamespaceCollections
+    ns : ReplayNamespaces
         Info tracking usage and result collection namespaces.
     cfg: ReplayConfig
         Replay configuration options. Contains the executing usage driver.

@@ -22,45 +22,22 @@ from qiime2.plugins import ArtifactAPIUsageVariable
 
 from ..parse import ProvDAG
 from ..replay import (
-    ActionCollections, BibContent, NamespaceCollections, ReplayConfig,
-    UsageVarsDict, ReplayNamespaces, UsageVariableRecord,
+    ActionCollections, BibContent, ReplayConfig, ReplayNamespaces,
+    UsageVariableRecord,
     build_no_provenance_node_usage, build_import_usage, build_action_usage,
     build_usage_examples, collect_citations, dedupe_citations,
     dump_recorded_md_file, group_by_action, init_md_from_artifacts,
     init_md_from_md_file, init_md_from_recorded_md, replay_provenance,
     uniquify_action_name, replay_citations
 )
-from .testing_utilities import (
-    CustomAssertions, DummyArtifacts
-)
+from .testing_utilities import CustomAssertions, DummyArtifacts
 from ..usage_drivers import ReplayPythonUsage
 from ...provenance import MetadataInfo
 
 from qiime2.sdk.util import camel_to_snake
 
 
-class UsageVarsDictTests(unittest.TestCase):
-    def test_uniquify(self):
-        collision_val = 'emp_single_end_sequences'
-        unique_val = 'some_prime'
-        ns = UsageVarsDict({'123': collision_val})
-        self.assertEqual(ns.data, {'123': 'emp_single_end_sequences_0'})
-        ns.update({'456': collision_val, 'unique': unique_val})
-        self.assertEqual(ns['456'], 'emp_single_end_sequences_1')
-        self.assertEqual(ns['unique'], 'some_prime_0')
-        ns['789'] = collision_val
-        self.assertEqual(ns.pop('789'), 'emp_single_end_sequences_2')
-
-    def test_get_key(self):
-        ns = UsageVarsDict({'123': 'some_name'})
-        self.assertEqual('123', ns.get_key('some_name_0'))
-        with self.assertRaisesRegex(
-            KeyError, "passed value 'fake_key' does not exist"
-        ):
-            ns.get_key('fake_key')
-
-
-class NamespaceCollectionTests(unittest.TestCase):
+class ReplayNamespacesTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.das = DummyArtifacts()
@@ -69,6 +46,14 @@ class NamespaceCollectionTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.das.free()
+
+    # TODO
+    def test_make_unique_name(self):
+        pass
+
+    # TODO
+    def test_get_usg_var_uuid(self):
+        pass
 
     def test_add_usage_var_workflow(self):
         """
@@ -82,21 +67,24 @@ class NamespaceCollectionTests(unittest.TestCase):
         uuid = self.das.concated_ints.uuid
         base_name = 'concated_ints'
         exp_name = base_name + '_0'
-        ns = NamespaceCollections()
-        ns.usg_var_namespace.update({uuid: base_name})
-        self.assertEqual(ns.usg_var_namespace[uuid], exp_name)
+        ns = ReplayNamespaces()
+        ns.add_usg_var_record(uuid, base_name)
+        self.assertEqual(ns.get_usg_var_record(uuid).name, exp_name)
 
         def factory():  # pragma: no cover
             return Artifact.load(self.das.concated_ints.filepath)
-        u_var = use.init_artifact(ns.usg_var_namespace[uuid], factory)
+
+        u_var = use.init_artifact(ns.get_usg_var_record(uuid).name, factory)
         self.assertEqual(u_var.name, exp_name)
 
-        actual_uuid = ns.usg_var_namespace.get_key(u_var.name)
+        actual_uuid = ns.get_usg_var_uuid(u_var.name)
         self.assertEqual(actual_uuid, uuid)
 
-        ns.usg_vars[uuid] = u_var
-        self.assertIsInstance(ns.usg_vars[uuid], UsageVariable)
-        self.assertEqual(ns.usg_vars[uuid].name, exp_name)
+        ns.update_usg_var_record(uuid, u_var)
+        self.assertIsInstance(
+            ns.get_usg_var_record(uuid).variable, UsageVariable
+        )
+        self.assertEqual(ns.get_usg_var_record(uuid).name, exp_name)
 
 
 class ReplayProvenanceTests(unittest.TestCase):
@@ -398,10 +386,13 @@ class BuildUsageExamplesTests(unittest.TestCase):
     @patch('qiime2.core.archive.provenance_lib.replay.'
            'build_no_provenance_node_usage')
     def test_build_usage_examples(self, n_p_builder, imp_builder, act_builder):
-        ns = NamespaceCollections()
+        ns = ReplayNamespaces()
         dag = self.das.concated_ints_with_md.dag
-        cfg = ReplayConfig(use=ReplayPythonUsage(),
-                           use_recorded_metadata=False, pm=self.pm)
+        cfg = ReplayConfig(
+            use=ReplayPythonUsage(),
+            use_recorded_metadata=False,
+            pm=self.pm
+        )
         build_usage_examples(dag, cfg, ns)
 
         n_p_builder.assert_not_called()
@@ -415,15 +406,18 @@ class BuildUsageExamplesTests(unittest.TestCase):
     def test_build_usage_examples_lone_v0(
             self, n_p_builder, imp_builder, act_builder
     ):
-        ns = NamespaceCollections()
+        ns = ReplayNamespaces()
         uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{uuid}.*prior.*incomplete'
         ):
             dag = ProvDAG(self.das.table_v0.filepath)
 
-        cfg = ReplayConfig(use=ReplayPythonUsage(),
-                           use_recorded_metadata=False, pm=self.pm)
+        cfg = ReplayConfig(
+            use=ReplayPythonUsage(),
+            use_recorded_metadata=False,
+            pm=self.pm
+        )
         build_usage_examples(dag, cfg, ns)
 
         # This is a single v0 archive, so should have only one np node
@@ -443,15 +437,18 @@ class BuildUsageExamplesTests(unittest.TestCase):
         shutil.copy(self.das.table_v0.filepath, mixed_dir)
         shutil.copy(self.das.concated_ints_v6.filepath, mixed_dir)
 
-        ns = NamespaceCollections()
+        ns = ReplayNamespaces()
         v0_uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'
         ):
             dag = ProvDAG(mixed_dir)
 
-        cfg = ReplayConfig(use=ReplayPythonUsage(),
-                           use_recorded_metadata=False, pm=self.pm)
+        cfg = ReplayConfig(
+            use=ReplayPythonUsage(),
+            use_recorded_metadata=False,
+            pm=self.pm
+        )
         build_usage_examples(dag, cfg, ns)
 
         n_p_builder.assert_called_once()
@@ -471,10 +468,13 @@ class BuildUsageExamplesTests(unittest.TestCase):
         shutil.copy(self.das.splitted_ints.filepath, many_dir)
         shutil.copy(self.das.pipeline_viz.filepath, many_dir)
 
-        ns = NamespaceCollections()
+        ns = ReplayNamespaces()
         dag = ProvDAG(many_dir)
-        cfg = ReplayConfig(use=ReplayPythonUsage(),
-                           use_recorded_metadata=False, pm=self.pm)
+        cfg = ReplayConfig(
+            use=ReplayPythonUsage(),
+            use_recorded_metadata=False,
+            pm=self.pm
+        )
         build_usage_examples(dag, cfg, ns)
 
         n_p_builder.assert_not_called()
@@ -539,7 +539,7 @@ class GroupByActionTests(unittest.TestCase):
     def test_gba_with_provenance(self):
         self.maxDiff = None
 
-        ns = NamespaceCollections()
+        ns = ReplayNamespaces()
         dag = self.das.concated_ints_v6.dag
         sorted_nodes = nx.topological_sort(dag.collapsed_view)
         actual = group_by_action(dag, sorted_nodes, ns)
@@ -558,7 +558,7 @@ class GroupByActionTests(unittest.TestCase):
         self.assertEqual(actual.no_provenance_nodes, [])
 
     def test_gba_no_provenance(self):
-        ns = NamespaceCollections()
+        ns = ReplayNamespaces()
         dag = self.das.table_v0.dag
         uuid = self.das.table_v0.uuid
 
@@ -573,7 +573,7 @@ class GroupByActionTests(unittest.TestCase):
         shutil.copy(self.das.table_v0.filepath, mixed_dir)
         shutil.copy(self.das.concated_ints_v6.filepath, mixed_dir)
 
-        ns = NamespaceCollections()
+        ns = ReplayNamespaces()
         v0_uuid = self.das.table_v0.uuid
         with self.assertWarnsRegex(
                 UserWarning, f'(:?)Art.*{v0_uuid}.*prior.*incomplete'
