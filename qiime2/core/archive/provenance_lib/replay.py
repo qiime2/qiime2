@@ -328,6 +328,19 @@ class ReplayNamespaces:
 
         return hash(hashable_members)
 
+    def add_rc_member_to_ns(self, uuid, name, use):
+        collection_uuid, key = self.artifact_uuid_to_rc_uuid[uuid]
+        collection_var = self.get_usg_var_record(collection_uuid).variable
+
+        self.add_usg_var_record(uuid, name)
+
+        var_name = self.get_usg_var_record(uuid).name
+        usg_var = use.get_artifact_collection_member(
+            var_name, collection_var, key
+        )
+
+        self.update_usg_var_record(uuid, usg_var)
+
 
 def replay_provenance(
     usage_driver: Usage,
@@ -764,8 +777,7 @@ def _collect_action_inputs(
         # Received a single artifact
         if type(input_value) is str:
             if ns.get_usg_var_record(input_value) is None:
-                variable = _get_rc_member(use, ns, input_value, input_name)
-                ns.update_usg_var_record(input_value, variable)
+                ns.add_rc_member_to_ns(input_value, input_name, use)
 
             resolved_input = ns.get_usg_var_record(input_value).variable
 
@@ -784,10 +796,7 @@ def _collect_action_inputs(
                 input_list = []
                 for input_value in input_value:
                     if ns.get_usg_var_record(input_value) is None:
-                        variable = _get_rc_member(
-                            use, ns, input_value, input_name
-                        )
-                        ns.update_usg_var_record(input_value, variable)
+                        ns.add_rc_member_to_ns(input_value, input_name, use)
 
                     input_list.append(
                         ns.get_usg_var_record(input_value).variable
@@ -810,10 +819,7 @@ def _collect_action_inputs(
                 new_rc = {}
                 for key, input_value in rc.items():
                     if ns.get_usg_var_record(input_value) is None:
-                        variable = _get_rc_member(
-                            use, ns, input_value, input_name
-                        )
-                        ns.update_usg_var_record(input_value, variable)
+                        ns.add_rc_member_to_ns(input_value, input_name, use)
 
                     new_rc[key] = ns.get_usg_var_record(input_value).variable
 
@@ -839,19 +845,6 @@ def _collect_action_inputs(
         inputs_dict[input_name] = resolved_input
 
     return inputs_dict
-
-
-def _get_rc_member(use, ns, uuid, input_name):
-    # find in rc and render destructure
-    collection_uuid, key = ns.artifact_uuid_to_rc_uuid[uuid]
-    collection_var = ns.get_usg_var_record(collection_uuid).variable
-
-    ns.add_usg_var_record(uuid, input_name)
-
-    var_name = ns.get_usg_var_record(uuid).name
-    usg_var = use.get_artifact_collection_member(var_name, collection_var, key)
-
-    return usg_var
 
 
 def _uniquify_output_names(
