@@ -378,6 +378,19 @@ class ReplayNamespaces:
         return hash(hashable_members)
 
     def add_rc_member_to_ns(self, uuid, name, use):
+        '''
+        Accesses a result collection member of interest and adds it the
+        central usage variable namespace.
+
+        Parameters
+        ----------
+        uuid : str
+            The uuid of the artifact of interest.
+        name : str
+            The desired name of the to-be-made usage variable.
+        use : Usage
+            The currently executing usage driver.
+        '''
         collection_uuid, key = self.artifact_uuid_to_rc_uuid[uuid]
         collection_var = self.get_usg_var_record(collection_uuid).variable
 
