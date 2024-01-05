@@ -28,7 +28,7 @@ from ..replay import (
     build_usage_examples, collect_citations, dedupe_citations,
     dump_recorded_md_file, group_by_action, init_md_from_artifacts,
     init_md_from_md_file, init_md_from_recorded_md, replay_provenance,
-    uniquify_action_name, replay_citations
+    replay_citations
 )
 from .testing_utilities import CustomAssertions, DummyArtifacts
 from ..usage_drivers import ReplayPythonUsage
@@ -496,16 +496,19 @@ class MiscHelperFnTests(unittest.TestCase):
         cls.das.free()
 
     def test_uniquify_action_name(self):
-        ns = set()
+        ns = ReplayNamespaces()
         p1 = 'dummy_plugin'
         a1 = 'action_jackson'
         p2 = 'dummy_plugin'
         a2 = 'missing_in_action'
-        unique1 = uniquify_action_name(p1, a1, ns)
+
+        unique1 = ns.uniquify_action_name(p1, a1)
         self.assertEqual(unique1, 'dummy_plugin_action_jackson_0')
-        unique2 = uniquify_action_name(p2, a2, ns)
+
+        unique2 = ns.uniquify_action_name(p2, a2)
         self.assertEqual(unique2, 'dummy_plugin_missing_in_action_0')
-        duplicate = uniquify_action_name(p1, a1, ns)
+
+        duplicate = ns.uniquify_action_name(p1, a1)
         self.assertEqual(duplicate, 'dummy_plugin_action_jackson_1')
 
     def test_dump_recorded_md_file_no_md(self):

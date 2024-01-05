@@ -15,7 +15,7 @@ import shutil
 import tempfile
 from uuid import uuid4
 from dataclasses import dataclass, field
-from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
+from typing import Dict, Iterator, List, Optional, Tuple, Union
 
 from .archive_parser import ProvNode
 from .parse import ProvDAG
@@ -108,7 +108,7 @@ class ReplayNamespaces:
 
     Attributes
     ----------
-    action_ns : set of str
+    _action_ns : set of str
         A collection of unique action strings that look like
         `{plugin}_{action}_{sequential int}`.
     result_collection_ns : dict
@@ -137,7 +137,7 @@ class ReplayNamespaces:
     '''
     def __init__(self, dag=None):
         self._usg_var_ns = {}
-        self.action_ns = set()
+        self._action_ns = set()
         if dag:
             self.create_result_collection_namespaces(dag)
         else:
@@ -340,6 +340,34 @@ class ReplayNamespaces:
         )
 
         self.update_usg_var_record(uuid, usg_var)
+
+    def uniquify_action_name(self, plugin: str, action: str) -> str:
+        '''
+        Creates a unique name by concatenating plugin, action, and a counter,
+        and adds this name to _action_ns before returning it.
+
+        Parameters
+        ----------
+        plugin : str
+            The name of the plugin.
+        action : str
+            The name of the action.
+        action_namespace : set of str
+            The collection of unqiue action names.
+
+        Returns
+        -------
+        str
+            The unique action name.
+        '''
+        counter = 0
+        plg_action_name = f'{plugin}_{action}_{counter}'
+        while plg_action_name in self._action_ns:
+            counter += 1
+            plg_action_name = f'{plugin}_{action}_{counter}'
+        self._action_ns.add(plg_action_name)
+
+        return plg_action_name
 
 
 def replay_provenance(
@@ -668,7 +696,7 @@ def build_action_usage(
     command_specific_md_context_has_been_printed = False
     plugin = node.action.plugin
     action = node.action.action_name
-    plg_action_name = uniquify_action_name(plugin, action, ns.action_ns)
+    plg_action_name = ns.uniquify_action_name(plugin, action)
 
     inputs = _collect_action_inputs(cfg.use, ns, node)
 
@@ -1155,36 +1183,6 @@ def param_is_metadata_column(
 
     # HACK, but it works without relying on Q2's type system
     return 'MetadataColumn' in str(param_spec.qiime_type)
-
-
-def uniquify_action_name(
-    plugin: str, action: str, action_namespace: Set[str]
-) -> str:
-    '''
-    Creates a unique name by concatenating plugin, action, and a counter,
-    and adds this name to action_ns before returning it.
-
-    Parameters
-    ----------
-    plugin : str
-        The name of the plugin.
-    action : str
-        The name of the action.
-    action_namespace : set of str
-        The collection of unqiue action names.
-
-    Returns
-    -------
-    str
-        The unique action name.
-    '''
-    counter = 0
-    plg_action_name = f'{plugin}_{action}_{counter}'
-    while plg_action_name in action_namespace:
-        counter += 1
-        plg_action_name = f'{plugin}_{action}_{counter}'
-    action_namespace.add(plg_action_name)
-    return plg_action_name
 
 
 def collect_citations(
