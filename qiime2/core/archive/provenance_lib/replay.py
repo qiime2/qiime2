@@ -108,6 +108,9 @@ class ReplayNamespaces:
 
     Attributes
     ----------
+    _usg_var_ns : dict
+        The central usage variable namespace that ensures no namespace clashes.
+        Maps artifact uuid to `UsageVariableRecord`.
     _action_ns : set of str
         A collection of unique action strings that look like
         `{plugin}_{action}_{sequential int}`.
@@ -139,27 +142,35 @@ class ReplayNamespaces:
         self._usg_var_ns = {}
         self._action_ns = set()
         if dag:
-            self.create_result_collection_namespaces(dag)
+            self.make_result_collection_namespace(dag)
+            self.make_result_collection_mappings()
         else:
             self.result_collection_ns = {}
             self.artifact_uuid_to_rc_uuid = {}
             self.rc_contents_to_rc_uuid = {}
 
-    def create_result_collection_namespaces(self, dag):
-        self.result_collection_ns = self.make_result_collection_namespace(dag)
-        self.artifact_uuid_to_rc_uuid, self.rc_contents_to_rc_uuid = \
-            self.make_result_collection_mappings()
-
     def add_usg_var_record(self, uuid, name, variable=None):
         '''
         Given a uuid, name, and optionally a usage variable, create a usage
         variable record and add it to the namespace.
+
+        Parameters
+        ----------
+        uuid : str
+            The uuid of the the artifact or result collection.
+        name : str
+            The not-yet-unique name of the artifact or result collection.
+        variable : UsageVariable or None
+            The optional UsageVariable instance to add to the record.
+
+        Returns
+        -------
+        str
+            The now-unique name of the artifact or result collection.
         '''
         unique_name = self._make_unique_name(name)
 
-        self._usg_var_ns[uuid] = UsageVariableRecord(
-            name=unique_name, variable=variable
-        )
+        self._usg_var_ns[uuid] = UsageVariableRecord(unique_name, variable)
 
         return unique_name
 
@@ -167,6 +178,14 @@ class ReplayNamespaces:
         '''
         Given a uuid update the record to contain the passed usage variable.
         The record is assumed to already be present in the namespace.
+
+        Parameters
+        ----------
+        uuid : str
+            The uuid of the artifact or result collection for which to update
+            the usage variable instance.
+        variable : UsageVariable
+            The usage variable to add to the record.
         '''
         self._usg_var_ns[uuid].variable = variable
 
@@ -174,6 +193,17 @@ class ReplayNamespaces:
         '''
         Given a uuid, return the corresponding usage variable record, or none
         if the uuid is not in the namespace.
+
+        Parameters
+        ----------
+        uuid : str
+            The uuid of the artifact or result collection for which to return
+            the record.
+
+        Returns
+        -------
+        UsageVariableRecord or None
+            The record if the uuid was found, otherwise None.
         '''
         try:
             return self._usg_var_ns[uuid]
@@ -184,6 +214,21 @@ class ReplayNamespaces:
         '''
         Given a usage variable name, return its uuid, or raise KeyError if the
         name is not in the namespace.
+
+        Parameters
+        ----------
+        name : str
+            The name of the usage variable record of interest.
+
+        Returns
+        -------
+        str
+            The corresponding uuid of the record.
+
+        Raises
+        ------
+        KeyError
+            If the name is not found in the namespace.
         '''
         for uuid, record in self._usg_var_ns.items():
             if name == record.name:
@@ -221,17 +266,13 @@ class ReplayNamespaces:
 
     def make_result_collection_namespace(self, dag: nx.digraph) -> dict:
         '''
-        Constructs the result collections namespaces from the parsed digraph.
+        Constructs the result collections namespaces from the parsed digraph
+        and attaches it to `self`.
 
         Parameters
         ----------
         dag : nx.digraph
             The digraph representing the parsed provenance.
-
-        Returns
-        -------
-        dict
-            As explained in this class's attributes section.
         '''
         rc_ns = {}
         for node in dag:
@@ -252,13 +293,20 @@ class ReplayNamespaces:
                     rc_ns[action_id][output_name].members[rc_key] = \
                         provnode._uuid
 
-        return rc_ns
+        self.result_collection_ns = rc_ns
 
     def make_result_collection_mappings(self) -> Tuple[Dict]:
         '''
+        Builds two mappings:
+            - one from artifact uuid to a tuple of the uuid of the result
+              collection of which it is a member and its key in the collection
+            - one from the hash of the result collection contents (both with
+              and without keys) to the uuid of the result collection
+
+        and attaches each to `self`.
         '''
         a_to_c = {}  # artifact uuid -> collection uuid
-        c_to_c = {}  # hash of collection contents -> collection uuids
+        c_to_c = {}  # hash of collection contents -> collection uuid
         for action_id in self.result_collection_ns:
             for output_name in self.result_collection_ns[action_id]:
                 record = self.result_collection_ns[action_id][output_name]
@@ -272,7 +320,8 @@ class ReplayNamespaces:
                 c_to_c[hashed_contents] = record.collection_uuid
                 c_to_c[hashed_contents_with_keys] = record.collection_uuid
 
-        return a_to_c, c_to_c
+        self.artifact_uuid_to_rc_uuid = a_to_c
+        self.rc_contents_to_rc_uuid = c_to_c
 
     def hash_result_collection_with_keys(self, members: Dict) -> int:
         '''
@@ -332,9 +381,8 @@ class ReplayNamespaces:
         collection_uuid, key = self.artifact_uuid_to_rc_uuid[uuid]
         collection_var = self.get_usg_var_record(collection_uuid).variable
 
-        self.add_usg_var_record(uuid, name)
+        var_name = self.add_usg_var_record(uuid, name)
 
-        var_name = self.get_usg_var_record(uuid).name
         usg_var = use.get_artifact_collection_member(
             var_name, collection_var, key
         )
@@ -608,7 +656,6 @@ def build_no_provenance_node_usage(
         var_name = camel_to_snake(node.type)
 
     ns.add_usg_var_record(uuid, var_name)
-    # ns.usg_var_namespace.wrap_val_in_angle_brackets(uuid)
 
     # make a usage variable for downstream consumption
     empty_var = cfg.use.usage_variable(
@@ -654,10 +701,10 @@ def build_import_usage(
         ns.get_usg_var_record(format_id).name, lambda: None
     )
 
-    ns.add_usg_var_record(node._uuid, camel_to_snake(node.type))
+    var_name = ns.add_usg_var_record(node._uuid, camel_to_snake(node.type))
 
     use_var = cfg.use.import_from_format(
-        ns.get_usg_var_record(node._uuid).name, node.type, format_for_import
+        var_name, node.type, format_for_import
     )
     ns.update_usg_var_record(node._uuid, use_var)
 
@@ -714,8 +761,9 @@ def build_action_usage(
         if isinstance(param_val, MetadataInfo):
             unique_md_id = ns.get_usg_var_record(node._uuid).name \
                            + '_' + param_name
-            ns.add_usg_var_record(unique_md_id, camel_to_snake(param_name))
-            md_fn = ns.get_usg_var_record(unique_md_id).name
+            md_fn = ns.add_usg_var_record(
+                unique_md_id, camel_to_snake(param_name)
+            )
             if cfg.dump_recorded_metadata:
                 md_with_ext = md_fn + '.tsv'
                 dump_recorded_md_file(
@@ -853,9 +901,9 @@ def _collect_action_inputs(
 
                 # make new rc usg var
                 new_collection_uuid = uuid4()
-                ns.add_usg_var_record(new_collection_uuid, input_name)
-
-                var_name = ns.get_usg_var_record(new_collection_uuid).name
+                var_name = ns.add_usg_var_record(
+                    new_collection_uuid, input_name
+                )
                 usg_var = use.construct_artifact_collection(var_name, new_rc)
                 ns.update_usg_var_record(new_collection_uuid, usg_var)
                 resolved_input = ns.get_usg_var_record(
@@ -896,9 +944,8 @@ def _uniquify_output_names(
     '''
     outputs = {}
     for uuid, output_name in raw_outputs:
-        ns.add_usg_var_record(uuid, output_name)
-        uniquified_output_name = ns.get_usg_var_record(uuid).name
-        outputs.update({output_name: uniquified_output_name})
+        var_name = ns.add_usg_var_record(uuid, output_name)
+        outputs.update({output_name: var_name})
 
     return outputs
 
@@ -966,10 +1013,8 @@ def init_md_from_recorded_md(
     if param_is_metadata_column(cfg, param_name, plugin, action):
         mdc_id = node._uuid + '_mdc'
         mdc_name = ns.get_usg_var_record(md_id).name + '_mdc'
-        ns.add_usg_var_record(mdc_id, mdc_name)
-        md = cfg.use.get_metadata_column(
-            ns.get_usg_var_record(mdc_id).name, '<column name>', md
-        )
+        var_name = ns.add_usg_var_record(mdc_id, mdc_name)
+        md = cfg.use.get_metadata_column(var_name, '<column name>', md)
 
     return md
 
@@ -1010,10 +1055,8 @@ def init_md_from_md_file(
     if param_is_metadata_column(cfg, param_name, plugin, action):
         mdc_id = node._uuid + '_mdc'
         mdc_name = ns.get_usg_var_record(md_id).name + '_mdc'
-        ns.add_usg_var_record(mdc_id, mdc_name)
-        md = cfg.use.get_metadata_column(
-            ns.get_usg_var_record(mdc_id).name, '<column name>', md
-        )
+        var_name = ns.add_usg_var_record(mdc_id, mdc_name)
+        md = cfg.use.get_metadata_column(var_name, '<column name>', md)
 
     return md
 
@@ -1060,10 +1103,9 @@ def init_md_from_artifacts(
         amd_id = artifact_uuid + '_a'
         var_name = ns.get_usg_var_record(artifact_uuid).variable.name + '_a'
         if ns.get_usg_var_record(amd_id) is None:
-            ns.add_usg_var_record(amd_id, var_name)
+            var_name = ns.add_usg_var_record(amd_id, var_name)
             art_as_md = cfg.use.view_as_metadata(
-                ns.get_usg_var_record(amd_id).name,
-                ns.get_usg_var_record(artifact_uuid).variable
+                var_name, ns.get_usg_var_record(artifact_uuid).variable
             )
             ns.update_usg_var_record(amd_id, art_as_md)
         else:
@@ -1075,9 +1117,9 @@ def init_md_from_artifacts(
         # we can't uniquify this normally, because one uuid can be merged with
         # combinations of others
         merge_id = '-'.join(md_inf.input_artifact_uuids)
-        ns.add_usg_var_record(merge_id, 'merged_artifacts')
+        var_name = ns.add_usg_var_record(merge_id, 'merged_artifacts')
         merged_md = cfg.use.merge_metadata(
-            ns.get_usg_var_record(merge_id).name, *md_files_in
+            var_name, *md_files_in
         )
         ns.update_usg_var_record(merge_id, merged_md)
 
