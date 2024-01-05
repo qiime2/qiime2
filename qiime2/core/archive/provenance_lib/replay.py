@@ -14,7 +14,6 @@ import pkg_resources
 import shutil
 import tempfile
 from uuid import uuid4
-from collections import UserDict
 from dataclasses import dataclass, field
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
@@ -136,12 +135,20 @@ class ReplayNamespaces:
         collection members along with their keys so they can be accessed
         properly.
     '''
-    def __init__(self):
+    def __init__(self, dag=None):
         self._usg_var_ns = {}
         self.action_ns = set()
-        self.result_collection_ns = {}
-        self.rc_contents_to_rc_uuid = {}
-        self.artifact_uiud_to_rc_uuid = {}
+        if dag:
+            self.create_result_collection_namespaces(dag)
+        else:
+            self.result_collection_ns = {}
+            self.artifact_uuid_to_rc_uuid = {}
+            self.rc_contents_to_rc_uuid = {}
+
+    def create_result_collection_namespaces(self, dag):
+        self.result_collection_ns = self.make_result_collection_namespace(dag)
+        self.artifact_uuid_to_rc_uuid, self.rc_contents_to_rc_uuid = \
+            self.make_result_collection_mappings()
 
     def add_usg_var_record(self, uuid, name, variable=None):
         '''
@@ -211,6 +218,115 @@ class ReplayNamespaces:
             unique_name = f'{name}_{counter}'
 
         return unique_name
+
+    def make_result_collection_namespace(self, dag: nx.digraph) -> dict:
+        '''
+        Constructs the result collections namespaces from the parsed digraph.
+
+        Parameters
+        ----------
+        dag : nx.digraph
+            The digraph representing the parsed provenance.
+
+        Returns
+        -------
+        dict
+            As explained in this class's attributes section.
+        '''
+        rc_ns = {}
+        for node in dag:
+            provnode = dag.get_node_data(node)
+            rc_key = provnode.action.result_collection_key
+            if rc_key:
+                # output result collection
+                action_id = provnode.action.action_id
+                output_name = provnode.action.output_name
+                if action_id not in rc_ns:
+                    rc_ns[action_id] = {}
+                if output_name not in rc_ns[action_id]:
+                    artifacts = {rc_key: provnode._uuid}
+                    rc_ns[action_id][output_name] = ResultCollectionRecord(
+                        collection_uuid=str(uuid4()), members=artifacts
+                    )
+                else:
+                    rc_ns[action_id][output_name].members[rc_key] = \
+                        provnode._uuid
+
+        return rc_ns
+
+    def make_result_collection_mappings(self) -> Tuple[Dict]:
+        '''
+        '''
+        a_to_c = {}  # artifact uuid -> collection uuid
+        c_to_c = {}  # hash of collection contents -> collection uuids
+        for action_id in self.result_collection_ns:
+            for output_name in self.result_collection_ns[action_id]:
+                record = self.result_collection_ns[action_id][output_name]
+                for key, uuid in record.members.items():
+                    a_to_c[uuid] = (record.collection_uuid, key)
+
+                hashed_contents = self.hash_result_collection(record.members)
+                hashed_contents_with_keys = \
+                    self.hash_result_collection_with_keys(record.members)
+
+                c_to_c[hashed_contents] = record.collection_uuid
+                c_to_c[hashed_contents_with_keys] = record.collection_uuid
+
+        return a_to_c, c_to_c
+
+    def hash_result_collection_with_keys(self, members: Dict) -> int:
+        '''
+        Hashes the contents of a result collection. Useful for finding
+        corresponding usage variables when rendering the replay of result
+        collections. Order of the input result collection is not taken into
+        account (the result collections are ordered alphabetically by key).
+
+        Parameters
+        ----------
+        members : dict
+            The contents of a result collection, looks like:
+
+            {
+                'a': some-uuid,
+                'b': some-other-uuid,
+                (...)
+            }
+
+        Returns
+        -------
+        int
+            The hashed contents.
+        '''
+        sorted_members = {key: members[key] for key in sorted(members)}
+        hashable_members_with_keys = tuple(
+            (key, value) for key, value in sorted_members.items()
+        )
+
+        return hash(hashable_members_with_keys)
+
+    def hash_result_collection(self, members: Union[Dict, List]) -> int:
+        '''
+        Hashes a list of uuids. Useful for finding corresponding result
+        collections that may have been cast to list of uuids. If a dict is
+        input it is first converted to a list of values (uuids).
+
+        Parameters
+        ----------
+        members : dict or list
+            The contents of a result collection, either as a dict or list.
+
+        Returns
+        -------
+        int
+            The hashed contents.
+        '''
+        if type(members) is dict:
+            members = list(members.values())
+
+        sorted_members = list(sorted(members))
+        hashable_members = tuple(uuid for uuid in sorted_members)
+
+        return hash(hashable_members)
 
 
 def replay_provenance(
@@ -301,14 +417,7 @@ def replay_provenance(
         verbose=verbose, md_out_dir=md_out_dir
     )
 
-    result_collection_ns = make_result_collection_namespace(dag)
-    artifact_uuid_to_rc_uuid, rc_contents_to_rc_uuid = \
-        make_result_collection_mappings(result_collection_ns)
-
-    ns = ReplayNamespaces()
-    ns.result_collection_ns = result_collection_ns
-    ns.rc_contents_to_rc_uuid = rc_contents_to_rc_uuid
-    ns.artifact_uuid_to_rc_uuid = artifact_uuid_to_rc_uuid
+    ns = ReplayNamespaces(dag)
 
     build_usage_examples(dag, cfg, ns)
     if not suppress_header:
@@ -321,118 +430,6 @@ def replay_provenance(
     output = cfg.use.render(flush=True)
     with open(out_fp, mode='w') as out_fh:
         out_fh.write(output)
-
-
-def make_result_collection_namespace(dag: nx.digraph) -> dict:
-    '''
-    Constructs the result collections namespaces from the parsed digraph.
-
-    Parameters
-    ----------
-    dag : nx.digraph
-        The digraph representing the parsed provenance.
-
-    Returns
-    -------
-    dict
-        A fleshed-out dict to be attached to result_collection_ns`.
-    '''
-    rc_ns = {}
-    for node in dag:
-        provnode = dag.get_node_data(node)
-        rc_key = provnode.action.result_collection_key
-        if rc_key:
-            # output result collection
-            action_id = provnode.action.action_id
-            output_name = provnode.action.output_name
-            if action_id not in rc_ns:
-                rc_ns[action_id] = {}
-            if output_name not in rc_ns[action_id]:
-                artifacts = {rc_key: provnode._uuid}
-                rc_ns[action_id][output_name] = ResultCollectionRecord(
-                    collection_uuid=str(uuid4()), members=artifacts
-                )
-            else:
-                rc_ns[action_id][output_name].members[rc_key] = provnode._uuid
-
-    return rc_ns
-
-
-def make_result_collection_mappings(result_collection_ns: Dict) -> Tuple[Dict]:
-    '''
-    '''
-    a_to_c = {}  # artifact uuid -> collection uuid
-    c_to_c = {}  # hash of collection contents -> collection uuids
-    for action_id in result_collection_ns:
-        for output_name in result_collection_ns[action_id]:
-            record = result_collection_ns[action_id][output_name]
-            for key, uuid in record.members.items():
-                a_to_c[uuid] = (record.collection_uuid, key)
-
-            hashed_contents = hash_result_collection(record.members)
-            hashed_contents_with_keys = \
-                hash_result_collection_with_keys(record.members)
-
-            c_to_c[hashed_contents] = record.collection_uuid
-            c_to_c[hashed_contents_with_keys] = record.collection_uuid
-
-    return a_to_c, c_to_c
-
-
-def hash_result_collection_with_keys(members: Dict) -> int:
-    '''
-    Hashes the contents of a result collection. Useful for finding
-    corresponding usage variables when rendering the replay of result
-    collections. Order of the input result collection is not taken into
-    account (the result collections are ordered alphabetically by key).
-
-    Parameters
-    ----------
-    members : dict
-        The contents of a result collection, looks like:
-
-        {
-            'a': some-uuid,
-            'b': some-other-uuid,
-            (...)
-        }
-
-    Returns
-    -------
-    int
-        The hashed contents.
-    '''
-    sorted_members = {key: members[key] for key in sorted(members)}
-    hashable_members_with_keys = tuple(
-        (key, value) for key, value in sorted_members.items()
-    )
-
-    return hash(hashable_members_with_keys)
-
-
-def hash_result_collection(members: Union[Dict, List]) -> int:
-    '''
-    Hashes a list of uuids. Useful for finding corresponding result collections
-    that may have been cast to list of uuids. If a dict is input it is first
-    converted to a list of values (uuids).
-
-    Parameters
-    ----------
-    members : dict or list
-        The contents of a result collection, either as a dict or list.
-
-    Returns
-    -------
-    int
-        The hashed contents.
-    '''
-    if type(members) is dict:
-        members = list(members.values())
-
-    sorted_members = list(sorted(members))
-    hashable_members = tuple(uuid for uuid in sorted_members)
-
-    return hash(hashable_members)
 
 
 def build_usage_examples(
@@ -776,7 +773,7 @@ def _collect_action_inputs(
         elif type(input_value) is list:
             # may be rc cast to list so search for equivalent rc
             # if not then follow algorithm for single str for each
-            input_hash = hash_result_collection(input_value)
+            input_hash = ns.hash_result_collection(input_value)
             if collection_uuid := ns.rc_contents_to_rc_uuid.get(input_hash):
                 # corresponding rc found
                 resolved_input = ns.get_usg_var_record(
@@ -802,7 +799,7 @@ def _collect_action_inputs(
         elif type(input_value) is dict:
             # search for equivalent rc if not found then create new rc
             rc = input_value
-            input_hash = hash_result_collection_with_keys(rc)
+            input_hash = ns.hash_result_collection_with_keys(rc)
             if collection_uuid := ns.rc_contents_to_rc_uuid.get(input_hash):
                 # corresponding rc found
                 resolved_input = ns.get_usg_var_record(

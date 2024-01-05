@@ -938,7 +938,6 @@ class BuildImportUsageTests(CustomAssertions):
         unq_var_nm = c_to_s_type + '_0'
         build_import_usage(import_node, ns, cfg)
 
-
         usg_var = ns.get_usg_var_record(import_uuid).variable
         self.assertIsInstance(usg_var, UsageVariable)
         self.assertEqual(usg_var.var_type, 'artifact')
