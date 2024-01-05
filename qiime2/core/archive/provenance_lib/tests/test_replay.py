@@ -47,21 +47,24 @@ class ReplayNamespacesTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.das.free()
 
-    # TODO
     def test_make_unique_name(self):
-        pass
+        ns = ReplayNamespaces()
+        self.assertEqual('name_0', ns._make_unique_name('name'))
+        ns.add_usg_var_record('uuid1', 'name')
+        self.assertEqual('name_1', ns._make_unique_name('name'))
 
-    # TODO
     def test_get_usg_var_uuid(self):
-        pass
+        ns = ReplayNamespaces()
+        ns.add_usg_var_record('uuid1', 'name')
+        self.assertEqual('uuid1', ns.get_usg_var_uuid('name_0'))
 
     def test_add_usage_var_workflow(self):
         """
         Smoke tests a common workflow with this data structure
-        - Create a unique variable name by adding to .usg_var_namespace
+        - Create a unique variable name by adding to the namespace
         - Create a UsageVariable with that name
         - use the name to get the UUID (when we have Results, we have no UUIDs)
-        - add the correctly-named UsageVariable to .usg_vars
+        - add the correctly-named UsageVariable to the namespace
         """
         use = Usage()
         uuid = self.das.concated_ints.uuid
