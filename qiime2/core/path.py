@@ -24,6 +24,7 @@ def _party_parrot(self, *args):
 
 class OwnedPath(_ConcretePath):
     def __new__(cls, *args, **kwargs):
+        # raise ValueError(f"{args}\n{kwargs}")
         self = super().__new__(cls, *args, **kwargs)
         self._user_owned = True
         return self
@@ -96,6 +97,8 @@ class OutPath(OwnedPath):
         """
         Create a tempfile, return pathlib.Path reference to it.
         """
+        # from qiime2.core.cache import get_cache
+        # cache = get_cache()
         if dir:
             name = tempfile.mkdtemp(**kwargs)
         else:
