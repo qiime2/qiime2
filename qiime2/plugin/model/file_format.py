@@ -16,9 +16,6 @@ from .base import FormatBase, ValidationError, _check_validation_level
 class _FileFormat(FormatBase, metaclass=abc.ABCMeta):
 
     def validate(self, level='max'):
-        # print(self)
-        # import time
-        # time.sleep(600)
         _check_validation_level(level)
 
         if not self.path.is_file():
