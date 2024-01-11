@@ -722,6 +722,9 @@ class Cache:
                                      f" '{self.path}' does not point to"
                                      " anything")
 
+                if (data and not os.path.exists(self.data / data)) and (pool and not os.path.exists(self.pools / pool)):
+                    os.remove(self.keys / key)
+
             # Walk over pools and remove any that were not referred to by keys
             # while tracking all data within those that were referenced
             for pool in self.get_pools():
@@ -729,7 +732,10 @@ class Cache:
                     shutil.rmtree(self.pools / pool)
                 else:
                     for data in os.listdir(self.pools / pool):
-                        referenced_data.add(data)
+                        if os.path.exists(self.data / data):
+                            referenced_data.add(data)
+                        else:
+                            os.remove(self.pools / pool / data)
 
             # Add references to data in process pools
             for process_pool in self.get_processes():
@@ -741,7 +747,11 @@ class Cache:
                     shutil.rmtree(self.processes / process_pool)
                 else:
                     for data in os.listdir(self.processes / process_pool):
-                        referenced_data.add(data.split('.')[0])
+                        # data = data.split('.')[0]
+                        if os.path.exists(self.processes / process_pool / data.split('.')[0]):
+                            referenced_data.add(data)
+                        else:
+                            os.remove(self.processes / process_pool / data)
 
             # Walk over all data and remove any that was not referenced
             for data in self.get_data():
@@ -1714,6 +1724,19 @@ class Pool:
 
                 # Get action.yaml from this artifact's provenance
                 path = self.cache.data / _uuid
+
+                if not os.path.exists(path):
+                    warnings.warn(f"Dangling reference with uuid {_uuid}.")
+                    continue
+
+                # NOTE: The error Liz saw was raised right here.
+                #
+                # Possibly create centralized method for reading out of data dir
+                # that is resistant to missing data. It would probably need to
+                # remove the ref and warn the user
+                #
+                # We can potentially also be poking the actual data under the ref
+                # every time we read the ref (in gc for instance)
                 action_yaml = load_action_yaml(path)
                 action = action_yaml['action']
 

@@ -11,6 +11,7 @@ from qiime2.core.type import HashableInvocation
 from qiime2.core.cache import get_cache
 import qiime2.sdk
 from qiime2.sdk.parallel_config import PARALLEL_CONFIG
+import warnings
 
 
 class Context:
@@ -116,7 +117,7 @@ class Context:
 
                     return qiime2.sdk.Results(
                         loaded_outputs.keys(), loaded_outputs.values())
-
+            warnings.warn(f"MISS {plugin} {action} {args} {kwargs}")
             # If we didn't have cached results to reuse, we need to execute the
             # action.
             #
