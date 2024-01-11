@@ -238,9 +238,17 @@ class PipelineSignature:
                 signature_order)
 
     def collate_inputs(self, *args, **kwargs):
-        collated_inputs = {name: value for value, name in
-                           zip(args, self.signature_order)}
-        collated_inputs.update(kwargs)
+        # Collate positional inputs
+        collated_inputs = {name: value for name, value in
+                           zip(self.signature_order, args)}
+
+        # Collate keyword inputs
+        for name, param in self.signature_order.items():
+            if name in kwargs:
+                collated_inputs[name] = kwargs[name]
+            # Make sure to track default values for params not provided
+            elif name not in collated_inputs:
+                collated_inputs[name] = param.default
 
         return collated_inputs
 
