@@ -713,17 +713,20 @@ class Cache:
 
                 if (data := loaded_key.get('data')) is not None:
                     referenced_data.add(data)
+
+                    if not os.path.exists(self.data / data):
+                        os.remove(self.keys / key)
                 elif (pool := loaded_key.get('pool')) is not None:
                     referenced_pools.add(pool)
+
+                    if not os.path.exists(self.pools / pool):
+                        os.remove(self.keys / key)
                 # This really should never be happening unless someone messes
                 # with things manually
                 else:
                     raise ValueError(f"The key '{key}' in the cache"
                                      f" '{self.path}' does not point to"
                                      " anything")
-
-                if (data and not os.path.exists(self.data / data)) and (pool and not os.path.exists(self.pools / pool)):
-                    os.remove(self.keys / key)
 
             # Walk over pools and remove any that were not referred to by keys
             # while tracking all data within those that were referenced
@@ -747,11 +750,7 @@ class Cache:
                     shutil.rmtree(self.processes / process_pool)
                 else:
                     for data in os.listdir(self.processes / process_pool):
-                        # data = data.split('.')[0]
-                        if os.path.exists(self.processes / process_pool / data.split('.')[0]):
-                            referenced_data.add(data)
-                        else:
-                            os.remove(self.processes / process_pool / data)
+                        referenced_data.add(data.split('.')[0])
 
             # Walk over all data and remove any that was not referenced
             for data in self.get_data():
@@ -1731,11 +1730,11 @@ class Pool:
 
                 # NOTE: The error Liz saw was raised right here.
                 #
-                # Possibly create centralized method for reading out of data dir
-                # that is resistant to missing data. It would probably need to
-                # remove the ref and warn the user
+                # Possibly create centralized method for reading out of data
+                # dir that is resistant to missing data. It would probably need
+                # to remove the ref and warn the user
                 #
-                # We can potentially also be poking the actual data under the ref
+                # We can potentially also be poking the actual data under there
                 # every time we read the ref (in gc for instance)
                 action_yaml = load_action_yaml(path)
                 action = action_yaml['action']
