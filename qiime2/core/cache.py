@@ -712,15 +712,13 @@ class Cache:
                 loaded_key = self.read_key(key)
 
                 if (data := loaded_key.get('data')) is not None:
-                    referenced_data.add(data)
-
-                    if not os.path.exists(self.data / data):
-                        os.remove(self.keys / key)
+                    if not self._check_dangling_reference(
+                            self.data / data, self.keys / key):
+                        referenced_data.add(data)
                 elif (pool := loaded_key.get('pool')) is not None:
-                    referenced_pools.add(pool)
-
-                    if not os.path.exists(self.pools / pool):
-                        os.remove(self.keys / key)
+                    if not self._check_dangling_reference(
+                            self.pools / pool, self.keys / key):
+                        referenced_pools.add(pool)
                 # This really should never be happening unless someone messes
                 # with things manually
                 else:
@@ -735,10 +733,9 @@ class Cache:
                     shutil.rmtree(self.pools / pool)
                 else:
                     for data in os.listdir(self.pools / pool):
-                        if os.path.exists(self.data / data):
+                        if not self._check_dangling_reference(
+                                self.data / data, self.pools / pool / data):
                             referenced_data.add(data)
-                        else:
-                            os.remove(self.pools / pool / data)
 
             # Add references to data in process pools
             for process_pool in self.get_processes():
@@ -762,6 +759,18 @@ class Cache:
 
                     set_permissions(target, None, USER_GROUP_RWX)
                     shutil.rmtree(target)
+
+    def _check_dangling_reference(self, data_path, key_path):
+        """ If the data specified does not exist then remove the key
+        """
+        if not os.path.exists(data_path):
+            warnings.warn(f"Dangling reference {key_path}. Data at {data_path}"
+                          " does not exist. Reference will be removed")
+            os.path.remove(data_path)
+
+            return True
+
+        return False
 
     def save(self, ref, key):
         """Saves data into the cache by creating a key referring to the data
@@ -1723,10 +1732,6 @@ class Pool:
 
                 # Get action.yaml from this artifact's provenance
                 path = self.cache.data / _uuid
-
-                if not os.path.exists(path):
-                    warnings.warn(f"Dangling reference with uuid {_uuid}.")
-                    continue
 
                 # NOTE: The error Liz saw was raised right here.
                 #
