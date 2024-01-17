@@ -96,7 +96,7 @@ class TestPipelineResumption(unittest.TestCase):
         with self.cache:
             with self.assertRaises(PipelineError) as e:
                 self.pipeline(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                     fail=True)
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
@@ -104,7 +104,7 @@ class TestPipelineResumption(unittest.TestCase):
 
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, identity_ret, \
                 viz_ret = self.pipeline(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md1)
+                    self.ints1, self.ints2, self.md1, self.int1, 'Hi')
 
             complete_ints1_uuids = _load_alias_uuids(ints1_ret)
             complete_ints2_uuids = _load_alias_uuids(ints2_ret)
@@ -123,11 +123,11 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertNotEqual(identity_uuid, complete_identity_uuid)
             self.assertNotEqual(viz_uuid, complete_viz_uuid)
 
-    def test_resumable_pipeline(self):
+    def test_resumable_pipeline_OLD(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 self.pipeline(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                     fail=True)
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
@@ -135,7 +135,7 @@ class TestPipelineResumption(unittest.TestCase):
 
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                 identity_ret, viz_ret = self.pipeline(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md1)
+                    self.ints1, self.ints2, self.md1, self.int1, 'Hi')
 
             complete_ints1_uuids = _load_alias_uuids(ints1_ret)
             complete_ints2_uuids = _load_alias_uuids(ints2_ret)
@@ -161,7 +161,7 @@ class TestPipelineResumption(unittest.TestCase):
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():
                     future = self.pipeline.parallel(
-                        self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                        self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                         fail=True)
                     future._result()
 
@@ -170,7 +170,7 @@ class TestPipelineResumption(unittest.TestCase):
 
             with ParallelConfig():
                 future = self.pipeline.parallel(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md1)
+                    self.ints1, self.ints2, self.md1, self.int1, 'Hi')
                 ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                     identity_ret, viz_ret = future._result()
 
@@ -197,7 +197,7 @@ class TestPipelineResumption(unittest.TestCase):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 self.pipeline(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                     fail=True)
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
@@ -206,7 +206,7 @@ class TestPipelineResumption(unittest.TestCase):
             # Pass int2 instead of int1
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                 identity_ret, viz_ret = self.pipeline(
-                    self.ints1, self.ints2, self.int2, 'Hi', self.md1)
+                    self.ints1, self.ints2, self.md1, self.int2, 'Hi')
 
             complete_ints1_uuids = _load_alias_uuids(ints1_ret)
             complete_ints2_uuids = _load_alias_uuids(ints2_ret)
@@ -232,7 +232,7 @@ class TestPipelineResumption(unittest.TestCase):
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():
                     future = self.pipeline.parallel(
-                        self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                        self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                         fail=True)
                     future._result()
 
@@ -242,7 +242,7 @@ class TestPipelineResumption(unittest.TestCase):
             # Pass int2 instead of int1
             with ParallelConfig():
                 future = self.pipeline.parallel(
-                    self.ints1, self.ints2, self.int2, 'Hi', self.md1)
+                    self.ints1, self.ints2, self.md1, self.int2, 'Hi')
                 ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                     identity_ret, viz_ret = future._result()
 
@@ -269,7 +269,7 @@ class TestPipelineResumption(unittest.TestCase):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 self.pipeline(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                     fail=True)
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
@@ -278,7 +278,7 @@ class TestPipelineResumption(unittest.TestCase):
             # Pass ints1_2 instead of ints1
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                 identity_ret, viz_ret = self.pipeline(
-                    self.ints1_2, self.ints2, self.int1, 'Hi', self.md1)
+                    self.ints1_2, self.ints2, self.md1, self.int1, 'Hi')
 
             complete_ints1_uuids = _load_alias_uuids(ints1_ret)
             complete_ints2_uuids = _load_alias_uuids(ints2_ret)
@@ -304,7 +304,7 @@ class TestPipelineResumption(unittest.TestCase):
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():
                     future = self.pipeline.parallel(
-                        self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                        self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                         fail=True)
                     future._result()
 
@@ -314,7 +314,7 @@ class TestPipelineResumption(unittest.TestCase):
             # Pass ints1_2 instead of ints1
             with ParallelConfig():
                 future = self.pipeline.parallel(
-                    self.ints1_2, self.ints2, self.int2, 'Hi', self.md1)
+                    self.ints1_2, self.ints2, self.md1, self.int2, 'Hi')
                 ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                     identity_ret, viz_ret = future._result()
 
@@ -341,7 +341,7 @@ class TestPipelineResumption(unittest.TestCase):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 self.pipeline(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                     fail=True)
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
@@ -350,7 +350,7 @@ class TestPipelineResumption(unittest.TestCase):
             # Pass in Bye instead of Hi
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                 identity_ret, viz_ret = self.pipeline(
-                    self.ints1, self.ints2, self.int1, 'Bye', self.md1)
+                    self.ints1, self.ints2, self.md1, self.int1, 'Bye')
 
             complete_ints1_uuids = _load_alias_uuids(ints1_ret)
             complete_ints2_uuids = _load_alias_uuids(ints2_ret)
@@ -376,7 +376,7 @@ class TestPipelineResumption(unittest.TestCase):
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():
                     future = self.pipeline.parallel(
-                        self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                        self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                         fail=True)
                     future._result()
 
@@ -386,7 +386,7 @@ class TestPipelineResumption(unittest.TestCase):
             # Pass in Bye instead of Hi
             with ParallelConfig():
                 future = self.pipeline.parallel(
-                    self.ints1, self.ints2, self.int1, 'Bye', self.md1)
+                    self.ints1, self.ints2, self.md1, self.int1, 'Bye')
                 ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                     identity_ret, viz_ret = future._result()
 
@@ -413,7 +413,7 @@ class TestPipelineResumption(unittest.TestCase):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 self.pipeline(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                     fail=True)
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
@@ -422,7 +422,7 @@ class TestPipelineResumption(unittest.TestCase):
             # Pass in md2 instead of md1
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                 identity_ret, viz_ret = self.pipeline(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md2)
+                    self.ints1, self.ints2, self.md2, self.int1, 'Hi')
 
             complete_ints1_uuids = _load_alias_uuids(ints1_ret)
             complete_ints2_uuids = _load_alias_uuids(ints2_ret)
@@ -448,7 +448,7 @@ class TestPipelineResumption(unittest.TestCase):
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():
                     future = self.pipeline.parallel(
-                        self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                        self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                         fail=True)
                     future._result()
 
@@ -458,7 +458,7 @@ class TestPipelineResumption(unittest.TestCase):
             # Pass in md2 instead of md1
             with ParallelConfig():
                 future = self.pipeline.parallel(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md2)
+                    self.ints1, self.ints2, self.md2, self.int1, 'Hi')
                 ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                     identity_ret, viz_ret = future._result()
 
@@ -485,7 +485,7 @@ class TestPipelineResumption(unittest.TestCase):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 self.nested_pipeline(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                    self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                     fail=True)
 
             ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
@@ -495,7 +495,7 @@ class TestPipelineResumption(unittest.TestCase):
             # returns from varied_method
             ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                 identity_ret, viz_ret = self.nested_pipeline(
-                    self.ints1, self.ints2, self.int1, 'Hi', self.md1)
+                    self.ints1, self.ints2, self.md1, self.int1, 'Hi')
 
             complete_ints1_uuids = _load_nested_alias_uuids(
                 ints1_ret, self.cache)
@@ -523,7 +523,7 @@ class TestPipelineResumption(unittest.TestCase):
             with self.assertRaises(PipelineError) as e:
                 with ParallelConfig():
                     future = self.nested_pipeline.parallel(
-                        self.ints1, self.ints2, self.int1, 'Hi', self.md1,
+                        self.ints1, self.ints2, self.md1, self.int1, 'Hi',
                         fail=True)
                     future._result()
 
@@ -532,7 +532,151 @@ class TestPipelineResumption(unittest.TestCase):
 
             with ParallelConfig():
                 future = self.nested_pipeline.parallel(
-                        self.ints1, self.ints2, self.int1, 'Hi', self.md1)
+                        self.ints1, self.ints2, self.md1, self.int1, 'Hi')
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                    identity_ret, viz_ret = future._result()
+
+            complete_ints1_uuids = _load_nested_alias_uuids(
+                ints1_ret, self.cache)
+            complete_ints2_uuids = _load_nested_alias_uuids(
+                ints2_ret, self.cache)
+            complete_int1_uuid = _load_nested_alias_uuid(int1_ret, self.cache)
+            complete_list_uuids = _load_alias_uuids(list_ret)
+            complete_dict_uuids = _load_alias_uuids(dict_ret)
+            complete_identity_uuid = _load_alias_uuid(identity_ret)
+            complete_viz_uuid = _load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed run of the
+            # pipeline are aliases of the artifacts created by the first failed
+            # run
+            self.assertEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertEqual(int1_uuid, complete_int1_uuid)
+            self.assertEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_resumable_pipeline_default_args(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                self.pipeline(
+                    self.ints1, self.ints2, self.md1,
+                    fail=True)
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = self.pipeline(
+                    self.ints1, self.ints2, self.md1)
+
+            complete_ints1_uuids = _load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = _load_alias_uuids(ints2_ret)
+            complete_int1_uuid = _load_alias_uuid(int1_ret)
+            complete_list_uuids = _load_alias_uuids(list_ret)
+            complete_dict_uuids = _load_alias_uuids(dict_ret)
+            complete_identity_uuid = _load_alias_uuid(identity_ret)
+            complete_viz_uuid = _load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed run of
+            # the pipeline are aliases of the artifacts created by the
+            # first failed run
+            self.assertEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertEqual(int1_uuid, complete_int1_uuid)
+            self.assertEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_resumable_pipeline_default_args_parallel(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                with ParallelConfig():
+                    future = self.pipeline.parallel(
+                        self.ints1, self.ints2, self.md1,
+                        fail=True)
+                    future._result()
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            with ParallelConfig():
+                future = self.pipeline.parallel(
+                    self.ints1, self.ints2, self.md1)
+                ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                    identity_ret, viz_ret = future._result()
+
+            complete_ints1_uuids = _load_alias_uuids(ints1_ret)
+            complete_ints2_uuids = _load_alias_uuids(ints2_ret)
+            complete_int1_uuid = _load_alias_uuid(int1_ret)
+            complete_list_uuids = _load_alias_uuids(list_ret)
+            complete_dict_uuids = _load_alias_uuids(dict_ret)
+            complete_identity_uuid = _load_alias_uuid(identity_ret)
+            complete_viz_uuid = _load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed run of
+            # the pipeline are aliases of the artifacts created by the
+            # first failed run
+            self.assertEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertEqual(int1_uuid, complete_int1_uuid)
+            self.assertEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_nested_resumable_pipeline_default_args(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                self.nested_pipeline(
+                    self.ints1, self.ints2, self.md1, fail=True)
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            # We now run the not nested version. This will be able to reuse the
+            # returns from varied_method
+            ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
+                identity_ret, viz_ret = self.nested_pipeline(
+                    self.ints1, self.ints2, self.md1)
+
+            complete_ints1_uuids = _load_nested_alias_uuids(
+                ints1_ret, self.cache)
+            complete_ints2_uuids = _load_nested_alias_uuids(
+                ints2_ret, self.cache)
+            complete_int1_uuid = _load_nested_alias_uuid(int1_ret, self.cache)
+            complete_list_uuids = _load_alias_uuids(list_ret)
+            complete_dict_uuids = _load_alias_uuids(dict_ret)
+            complete_identity_uuid = _load_alias_uuid(identity_ret)
+            complete_viz_uuid = _load_alias_uuid(viz_ret)
+
+            # Assert that the artifacts returned by the completed run of the
+            # pipeline are aliases of the artifacts created by the first failed
+            # run
+            self.assertEqual(ints1_uuids, complete_ints1_uuids)
+            self.assertEqual(ints2_uuids, complete_ints2_uuids)
+            self.assertEqual(int1_uuid, complete_int1_uuid)
+            self.assertEqual(list_uuids, complete_list_uuids)
+            self.assertEqual(dict_uuids, complete_dict_uuids)
+            self.assertEqual(identity_uuid, complete_identity_uuid)
+            self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_nested_resumable_pipeline_parallel_default_args(self):
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                with ParallelConfig():
+                    future = self.nested_pipeline.parallel(
+                        self.ints1, self.ints2, self.md1, fail=True)
+                    future._result()
+
+            ints1_uuids, ints2_uuids, int1_uuid, list_uuids, dict_uuids, \
+                identity_uuid, viz_uuid = e.exception.uuids
+
+            with ParallelConfig():
+                future = self.nested_pipeline.parallel(
+                        self.ints1, self.ints2, self.md1)
                 ints1_ret, ints2_ret, int1_ret, list_ret, dict_ret, \
                     identity_ret, viz_ret = future._result()
 
