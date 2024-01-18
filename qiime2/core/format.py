@@ -19,16 +19,11 @@ class FormatBase:
             if mode != 'r':
                 raise ValueError("A path must be omitted when writing.")
 
-        from qiime2.core.cache import get_cache
-        import os
-        cache = get_cache()
-
         if mode == 'w':
             self.path = qpath.OutPath(
                 # TODO: parents shouldn't know about their children
                 dir=isinstance(self, model.DirectoryFormat),
-                prefix=os.path.join(cache.process_pool.path,
-                                    'q2-%s-' % self.__class__.__name__))
+                prefix='q2-%s-' % self.__class__.__name__)
         else:
             self.path = qpath.InPath(path)
 

@@ -24,6 +24,14 @@ def _party_parrot(self, *args):
 
 class OwnedPath(_ConcretePath):
     def __new__(cls, *args, **kwargs):
+        import os
+        from qiime2.core.cache import get_cache
+
+        cache = get_cache()
+
+        kwargs['prefix'] = os.path.join(cache.process_pool.path,
+                                        'q2-%s-' % cls.__name__)
+
         self = super().__new__(cls, *args, **kwargs)
         self._user_owned = True
         return self
