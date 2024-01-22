@@ -457,6 +457,42 @@ class _Numeric(_PrimitiveTemplateBase):
         return isinstance(value, metadata.NumericMetadataColumn)
 
 
+class _Jobs(_PrimitiveTemplateBase):
+    def is_element(self, value):
+        return (
+            value is not True and value is not False
+            and isinstance(value, numbers.Integral)
+            and value >= 1
+        )
+
+    def decode(self, string):
+        return int(string)
+
+    def encode(self, value):
+        return str(value)
+
+
+class _Threads(_PrimitiveTemplateBase):
+    def is_element(self, value):
+        if value == 'auto':
+            return True
+
+        return (
+            value is not True and value is not False
+            and isinstance(value, numbers.Integral)
+            and value >= 0
+        )
+
+    def decode(self, string):
+        if string == 'auto':
+            return string
+
+        return int(string)
+
+    def encode(self, value):
+        return str(value)
+
+
 Int = _Int()
 Float = _Float()
 Bool = _Bool()
@@ -465,6 +501,8 @@ Metadata = _Metadata()
 MetadataColumn = _MetadataColumn()
 Categorical = _Categorical()
 Numeric = _Numeric()
+Jobs = _Jobs()
+Threads = _Threads()
 
 
 def infer_primitive_type(value):
