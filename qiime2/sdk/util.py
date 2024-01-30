@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import os
 import re
 from pkg_resources import iter_entry_points
 from typing import Dict, TYPE_CHECKING
@@ -183,3 +184,26 @@ def get_available_usage_drivers() -> Dict[str, 'UsageDriver']:
         entry_point.name: entry_point.resolve() for entry_point in
         iter_entry_points(group='qiime2.usage_drivers')
     }
+
+
+def get_available_cores(one_less: bool = False):
+    '''
+    Finds the number of currently available (logical) cores. Useful for plugins
+    that need to convert a 0 to a concrete number of cores when 0 is not
+    suppprted by the underlying/called software.
+
+    Parameters
+    ----------
+    one_less : bool
+        Whether to return one less than the total number of cores available.
+
+    Returns
+    -------
+    int
+        The number of cores to be requested.
+    '''
+    cpus = os.cpu_count()
+    if cpus is not None:
+        return cpus - one_less
+
+    return 1
