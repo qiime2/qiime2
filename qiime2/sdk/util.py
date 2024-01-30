@@ -190,7 +190,7 @@ def get_available_cores(one_less: bool = False):
     '''
     Finds the number of currently available (logical) cores. Useful for plugins
     that need to convert a 0 to a concrete number of cores when 0 is not
-    suppprted by the underlying/called software.
+    supported by the underlying/called software.
 
     Parameters
     ----------
@@ -203,7 +203,7 @@ def get_available_cores(one_less: bool = False):
         The number of cores to be requested.
     '''
     cpus = os.cpu_count()
-    if cpus is not None:
+    if cpus is not None and cpus > 1:
         return cpus - one_less
 
     return 1
