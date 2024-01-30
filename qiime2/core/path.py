@@ -27,7 +27,7 @@ class OwnedPath(_ConcretePath):
         from qiime2.core.cache import get_cache
 
         cache = get_cache()
-        kwargs['prefix'] = os.path.join(cache.process_pool.path,
+        kwargs['prefix'] = os.path.join(cache.process_pool.path, 'tmp',
                                         'q2-%s-' % cls.__name__)
 
         self = super().__new__(cls, *args, **kwargs)
