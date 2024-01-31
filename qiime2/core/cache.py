@@ -1785,3 +1785,9 @@ class Pool:
 
         item = IndexedCollectionElement(item_name, int(idx), int(total))
         outputs[output_name][item] = value
+
+    def get_tmp_path(self):
+        path = os.path.join(self.path, 'tmp')
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        return path
