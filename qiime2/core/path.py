@@ -24,12 +24,6 @@ def _party_parrot(self, *args):
 
 class OwnedPath(_ConcretePath):
     def __new__(cls, *args, **kwargs):
-        from qiime2.core.cache import get_cache
-
-        cache = get_cache()
-        kwargs['prefix'] = os.path.join(cache.process_pool.path, 'tmp',
-                                        'q2-%s-' % cls.__name__)
-
         self = super().__new__(cls, *args, **kwargs)
         self._user_owned = True
         return self
@@ -98,14 +92,20 @@ class OutPath(OwnedPath):
         else:
             os.unlink(path)
 
-    def __new__(cls, dir=False, **kwargs):
+    def __new__(cls, dir=False):
         """
         Create a tempfile, return pathlib.Path reference to it.
         """
+        from qiime2.core.cache import get_cache
+
+        cache = get_cache()
+        tmp_path = cache.process_pool.get_tmp_path()
+        prefix = os.path.join(tmp_path, 'q2-%s-' % cls.__name__)
+
         if dir:
-            name = tempfile.mkdtemp(**kwargs)
+            name = tempfile.mkdtemp(prefix=prefix)
         else:
-            fd, name = tempfile.mkstemp(**kwargs)
+            fd, name = tempfile.mkstemp(prefix=prefix)
             # fd is now assigned to our process table, but we don't need to do
             # anything with the file. We will call `open` on the `name` later
             # producing a different file descriptor, so close this one to

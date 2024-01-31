@@ -5,7 +5,7 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
-
+import os
 import qiime2.core.path as qpath
 
 
@@ -22,8 +22,7 @@ class FormatBase:
         if mode == 'w':
             self.path = qpath.OutPath(
                 # TODO: parents shouldn't know about their children
-                dir=isinstance(self, model.DirectoryFormat),
-                prefix='q2-%s-' % self.__class__.__name__)
+                dir=isinstance(self, model.DirectoryFormat))
         else:
             self.path = qpath.InPath(path)
 
