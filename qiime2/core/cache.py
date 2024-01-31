@@ -714,6 +714,8 @@ class Cache:
             for key in self.get_keys():
                 loaded_key = self.read_key(key)
 
+                # If the data/pool referenced by the key actually exists then
+                # track it. Otherwise remove the dangling reference
                 if (data := loaded_key.get('data')) is not None:
                     if not self._check_dangling_reference(
                             self.data / data, self.keys / key):
@@ -1749,15 +1751,6 @@ class Pool:
 
                 # Get action.yaml from this artifact's provenance
                 path = self.cache.data / _uuid
-
-                # NOTE: The error Liz saw was raised right here.
-                #
-                # Possibly create centralized method for reading out of data
-                # dir that is resistant to missing data. It would probably need
-                # to remove the ref and warn the user
-                #
-                # We can potentially also be poking the actual data under there
-                # every time we read the ref (in gc for instance)
                 action_yaml = load_action_yaml(path)
                 action = action_yaml['action']
 
