@@ -6,7 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import os
+import psutil
 import re
 from pkg_resources import iter_entry_points
 from typing import Dict, TYPE_CHECKING
@@ -203,7 +203,7 @@ def get_available_cores(one_less: bool = False):
     int
         The number of cores to be requested.
     '''
-    cpus = os.cpu_count()
+    cpus = psutil.cpu_count()
     if cpus is not None and cpus > 1:
         return cpus - one_less
 
