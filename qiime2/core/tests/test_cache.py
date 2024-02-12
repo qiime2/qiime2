@@ -453,6 +453,31 @@ class TestCache(unittest.TestCase):
         self.assertEqual(pre_cache_list, cache_list_out)
         self.assertEqual(pre_cache_dict, cache_dict_out)
 
+    def test_dangling_reference(self):
+        ref = self.cache.save(self.art1, 'foo')
+        ref.validate()
+
+        shutil.rmtree(self.cache.data / str(ref.uuid))
+        with self.assertWarnsRegex(Warning, 'Dangling reference .*foo'):
+            self.cache.garbage_collection()
+
+    def test_dangling_reference_in_pool(self):
+        pool = self.cache.create_pool('pool')
+        ref = pool.save(self.art1)
+        ref.validate()
+
+        shutil.rmtree(self.cache.data / str(ref.uuid))
+        with self.assertWarnsRegex(Warning,
+                                   f'Dangling reference .*{ref.uuid}'):
+            self.cache.garbage_collection()
+
+    def test_dangling_reference_pool(self):
+        self.cache.create_pool('pool')
+
+        shutil.rmtree(self.cache.pools / 'pool')
+        with self.assertWarnsRegex(Warning, 'Dangling reference .*pool'):
+            self.cache.garbage_collection()
+
     # This test has zzz in front of it because unittest.Testcase runs the tests
     # in alphabetical order, and we want this test to run last
     def test_zzz_asynchronous_pool_post_exit(self):
