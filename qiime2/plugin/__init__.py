@@ -9,6 +9,7 @@
 from .model import (TextFileFormat, BinaryFileFormat, DirectoryFormat,
                     ValidationError)
 from .plugin import Plugin
+from .util import get_available_cores
 from qiime2.core.cite import Citations, CitationRecord
 from qiime2.core.type import (SemanticType, Int, Str, Float, Metadata,
                               MetadataColumn, Categorical, Numeric, Properties,
@@ -22,4 +23,4 @@ __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
            'Float', 'Metadata', 'MetadataColumn', 'Categorical', 'Numeric',
            'Properties', 'Range', 'Start', 'End', 'Choices', 'Visualization',
            'Jobs', 'Threads', 'TypeMap', 'TypeMatch', 'ValidationError',
-           'Citations', 'CitationRecord']
+           'Citations', 'CitationRecord', 'get_available_cores']
