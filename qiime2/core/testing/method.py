@@ -172,8 +172,10 @@ def list_params(ints: list) -> int:
     return ints
 
 
-def varied_method(ints1: int, ints2: list, int1: int, string: str) -> \
-                  (int, list, int):
+def varied_method(ints1: int, ints2: list, int1: int = None,
+                  string: str = "NO") -> (int, list, int):
+    if int1 is None:
+        int1 = 1
     assert isinstance(ints1, list)
     assert isinstance(ints2, qiime2.sdk.result.ResultCollection)
     assert isinstance(int1, int)

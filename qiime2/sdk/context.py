@@ -64,6 +64,9 @@ class Context:
         # We return this callable which determines whether to return cached
         # results or to run the action requested.
         def deferred_action(*args, **kwargs):
+            # The function is the first arg, we ditch that
+            args = args[1:]
+
             # If we have a named_pool, we need to check for cached results that
             # we can reuse.
             #
@@ -140,6 +143,9 @@ class Context:
             return action_obj._bind(
                 lambda: Context(parent=self))(*args, **kwargs)
 
+        deferred_action = action_obj._rewrite_wrapper_signature(
+            deferred_action)
+        action_obj._set_wrapper_properties(deferred_action)
         return deferred_action
 
     def _contains_proxies(self, *args, **kwargs):

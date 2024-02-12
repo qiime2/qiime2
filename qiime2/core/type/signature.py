@@ -238,10 +238,10 @@ class PipelineSignature:
                 signature_order)
 
     def collate_inputs(self, *args, **kwargs):
-        collated_inputs = {name: value for value, name in
-                           zip(args, self.signature_order)}
+        # Collate positional inputs
+        collated_inputs = {name: value for name, value in
+                           zip(self.signature_order, args)}
         collated_inputs.update(kwargs)
-
         return collated_inputs
 
     def _assert_valid_inputs(self, inputs):
