@@ -123,7 +123,7 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertNotEqual(identity_uuid, complete_identity_uuid)
             self.assertNotEqual(viz_uuid, complete_viz_uuid)
 
-    def test_resumable_pipeline_OLD(self):
+    def test_resumable_pipeline(self):
         with self.pool:
             with self.assertRaises(PipelineError) as e:
                 self.pipeline(
