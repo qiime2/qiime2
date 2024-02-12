@@ -785,7 +785,7 @@ class Cache:
         if not os.path.exists(data_path):
             warnings.warn(f"Dangling reference {key_path}. Data at {data_path}"
                           " does not exist. Reference will be removed.")
-            os.path.remove(key_path)
+            os.remove(key_path)
 
             return True
 
