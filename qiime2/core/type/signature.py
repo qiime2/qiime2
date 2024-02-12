@@ -368,11 +368,15 @@ class PipelineSignature:
         """ Coerce parameter to be appropriate for callable
         """
         view_type = spec.view_type
+        qiime_type = spec.qiime_type
 
         if view_type == dict and isinstance(param, list):
             param = self._list_to_dict(param)
         elif view_type == list and isinstance(param, dict):
             param = self._dict_to_list(param)
+
+        if qiime_type is qtype.Threads and param == 'auto':
+            param = 0
 
         return param
 

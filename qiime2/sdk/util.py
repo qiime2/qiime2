@@ -16,7 +16,7 @@ import qiime2.core.type.parse as _parse
 from qiime2.core.type import (
     is_semantic_type, is_primitive_type, is_collection_type, is_metadata_type,
     is_visualization_type, interrogate_collection_type, parse_primitive,
-    is_union, is_metadata_column_type)
+    is_union, is_metadata_column_type, is_parallel_type)
 
 if TYPE_CHECKING:
     from qiime2.sdk.usage import UsageDriver
@@ -26,6 +26,7 @@ __all__ = [
     'is_metadata_type', 'is_visualization_type', 'interrogate_collection_type',
     'type_from_ast', 'parse_primitive', 'parse_type', 'parse_format',
     'actions_by_input_type', 'is_union', 'is_metadata_column_type',
+    'is_parallel_type'
 ]
 
 
