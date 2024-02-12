@@ -142,8 +142,10 @@ class ReplayNamespaces:
         self._usg_var_ns = {}
         self._action_ns = set()
         if dag:
-            self.make_result_collection_namespace(dag)
-            self.make_result_collection_mappings()
+            self.result_collection_ns = \
+                self.make_result_collection_namespace(dag)
+            self.artifact_uuid_to_rc_uuid, self.rc_contents_to_rc_uuid = \
+                self.make_result_collection_mappings()
         else:
             self.result_collection_ns = {}
             self.artifact_uuid_to_rc_uuid = {}
@@ -266,13 +268,17 @@ class ReplayNamespaces:
 
     def make_result_collection_namespace(self, dag: nx.digraph) -> dict:
         '''
-        Constructs the result collections namespaces from the parsed digraph
-        and attaches it to `self`.
+        Constructs the result collections namespaces from the parsed digraph.
 
         Parameters
         ----------
         dag : nx.digraph
             The digraph representing the parsed provenance.
+
+        Returns
+        -------
+        dict
+            The result collection namespace.
         '''
         rc_ns = {}
         for node in dag:
@@ -293,7 +299,7 @@ class ReplayNamespaces:
                     rc_ns[action_id][output_name].members[rc_key] = \
                         provnode._uuid
 
-        self.result_collection_ns = rc_ns
+        return rc_ns
 
     def make_result_collection_mappings(self) -> Tuple[Dict]:
         '''
@@ -303,7 +309,10 @@ class ReplayNamespaces:
             - one from the hash of the result collection contents (both with
               and without keys) to the uuid of the result collection
 
-        and attaches each to `self`.
+        Returns
+        -------
+        tuple of dict
+            The two result collection mappings.
         '''
         a_to_c = {}  # artifact uuid -> collection uuid
         c_to_c = {}  # hash of collection contents -> collection uuid
@@ -320,8 +329,7 @@ class ReplayNamespaces:
                 c_to_c[hashed_contents] = record.collection_uuid
                 c_to_c[hashed_contents_with_keys] = record.collection_uuid
 
-        self.artifact_uuid_to_rc_uuid = a_to_c
-        self.rc_contents_to_rc_uuid = c_to_c
+        return a_to_c, c_to_c
 
     def hash_result_collection_with_keys(self, members: Dict) -> int:
         '''
