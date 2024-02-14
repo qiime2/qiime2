@@ -21,7 +21,7 @@ def transform(data, *, from_type=None, to_type):
     return transformation(data)
 
 
-def get_available_cores(one_less: bool = False):
+def get_available_cores(n_less: int = 0):
     '''
     Finds the number of currently available (logical) cores. Useful for plugins
     that need to convert a 0 to a concrete number of cores when 0 is not
@@ -29,8 +29,10 @@ def get_available_cores(one_less: bool = False):
 
     Parameters
     ----------
-    one_less : bool
-        Whether to return one less than the total number of cores available.
+    n_less : int
+        The number of cores less than the total number available to request.
+        For example `get_available_cores(n_less=2) with 10 available cores
+        will return 8.
 
     Returns
     -------
@@ -38,7 +40,7 @@ def get_available_cores(one_less: bool = False):
         The number of cores to be requested.
     '''
     cpus = psutil.cpu_count()
-    if cpus is not None and cpus > 1:
-        return cpus - one_less
+    if cpus is not None:
+        return cpus - n_less
 
     return 1
