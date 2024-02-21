@@ -614,11 +614,14 @@ class ResultCollection:
 
         os.makedirs(directory)
 
+        order_string = ''
+        for name, result in self.collection.items():
+            result_fp = os.path.join(directory, name)
+            result.save(result_fp)
+            order_string += f'{name}\n'
+
         with open(os.path.join(directory, '.order'), 'w') as fh:
-            for name, result in self.collection.items():
-                result_fp = os.path.join(directory, name)
-                result.save(result_fp)
-                fh.write(f'{name}\n')
+            fh.write(order_string)
 
         # Do this to give us a unified API with Result.save
         return directory
