@@ -99,6 +99,22 @@ class TestParsing(unittest.TestCase):
         self.assertIs(V1.mapping, W1.mapping)
         self.assertIs(W1.mapping, X1.mapping)
 
+    def test_TypeMap_with_properties(self):
+        inp, _ = TypeMap({
+            C1[Foo % Properties(['A', 'B', 'C'])]: Str,
+            C1[Foo % Properties(['A', 'B'])]: Str,
+            C1[Foo % Properties(['A', 'C'])]: Str,
+            C1[Foo % Properties(['B', 'C'])]: Str,
+            C1[Foo % Properties(['A'])]: Str,
+            C1[Foo % Properties(['B'])]: Str,
+            C1[Foo % Properties(['C'])]: Str,
+        })
+
+        try:
+            inp = ast_to_type(inp.to_ast(), scope={})
+        except Exception as e:
+            self.fail(f"Raised exception: {e}")
+
     def test_syntax_error(self):
         with self.assertRaisesRegex(ValueError, "could not be parsed"):
             string_to_ast('$')
