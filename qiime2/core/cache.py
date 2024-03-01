@@ -583,9 +583,7 @@ class Cache:
             If the key passed in is not a valid Python identifier. We enforce
             this to ensure no one creates keys that cause issues when we try to
             load them.
-
-        # We require keys to be valid Python identifiers with the single caveat
-        # that they may also contain dashes"""
+        """
         validation_key = key.replace('-', '_')
         if not validation_key.isidentifier():
             raise ValueError(f"Key '{key}' is not a valid Python identifier. "
