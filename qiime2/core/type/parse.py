@@ -219,7 +219,14 @@ def ast_to_type(json_ast, scope=None):
 
         name = json_ast['name']
         if not json_ast['builtin']:
-            base_template = semantic.SemanticType(name).template
+            base_template = semantic.SemanticType(
+                name,
+                field_names=['field' + str(i) for i in range(len(fields))],
+                field_members={
+                    ('field' + str(i)):
+                    [child] for i, child in enumerate(fields)
+                },
+            ).template
         elif name == 'Visualization':
             return visualization.Visualization
         elif name in {'List', 'Set', 'Tuple', 'Collection'}:

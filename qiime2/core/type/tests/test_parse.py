@@ -99,6 +99,30 @@ class TestParsing(unittest.TestCase):
         self.assertIs(V1.mapping, W1.mapping)
         self.assertIs(W1.mapping, X1.mapping)
 
+    def test_TypeMap_with_properties(self):
+        I, OU = TypeMap({
+            C1[Foo % Properties(['A', 'B', 'C'])]: Str,
+            C1[Foo % Properties(['A', 'B'])]: Str,
+            C1[Foo % Properties(['A', 'C'])]: Str,
+            C1[Foo % Properties(['B', 'C'])]: Str,
+            C1[Foo % Properties(['A'])]: Str,
+            C1[Foo % Properties(['B'])]: Str,
+            C1[Foo % Properties(['C'])]: Str,
+        })
+
+        scope = {}
+        i = ast_to_type(I.to_ast(), scope=scope)
+        o = ast_to_type(OU.to_ast(), scope=scope)
+
+        self.assertEqual(scope[id(I.mapping)], [i, o])
+        self.assertEqual(len(scope), 1)
+
+        # Assert mapping is the same after ast_to_type call
+        self.assertEqual(I.mapping.lifted, i.mapping.lifted)
+
+        # Assert that the mapping object is the same in both i and o
+        self.assertIs(i.mapping, o.mapping)
+
     def test_syntax_error(self):
         with self.assertRaisesRegex(ValueError, "could not be parsed"):
             string_to_ast('$')
