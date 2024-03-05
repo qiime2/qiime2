@@ -567,6 +567,32 @@ class Cache:
             version_file = fh.read()
             return regex.match(version_file) is not None
 
+    @classmethod
+    def validate_key(cls, key):
+        """Validates that the given key is a valid Python idenitifier with the
+        exception that - is allowed.
+
+        Parameters
+        ----------
+        key : str
+            The name of the key to validate.
+
+        Raises
+        ------
+        ValueError
+            If the key passed in is not a valid Python identifier. We enforce
+            this to ensure no one creates keys that cause issues when we try to
+            load them.
+        """
+        validation_key = key.replace('-', '_')
+        if not validation_key.isidentifier():
+            raise ValueError(f"Key '{key}' is not a valid Python identifier. "
+                             "Keys may contain '-' characters but must "
+                             "otherwise be valid Python identifiers. Python "
+                             "identifier rules may be found here "
+                             "https://www.askpython.com/python/"
+                             "python-identifiers-rules-best-practices")
+
     def _create_cache_contents(self):
         """Create the cache directory, all sub directories, and the version
         file.
@@ -859,24 +885,8 @@ class Cache:
             The path to the data or pool we are keying.
         pool : bool
             Whether we are keying a pool or not.
-
-        Raises
-        ------
-        ValueError
-            If the key passed in is not a valid Python identifier. We enforce
-            this to ensure no one creates keys that cause issues when we try to
-            load them.
         """
-        # We require keys to be valid Python identifiers with the single caveat
-        # that they may also contain dashes
-        validation_key = key.replace('-', '_')
-        if not validation_key.isidentifier():
-            raise ValueError("Keys may contain '-' characters but must "
-                             "otherwise be valid Python identifiers. Python "
-                             "identifier rules may be found here "
-                             "https://www.askpython.com/python/"
-                             "python-identifiers-rules-best-practices")
-
+        self.validate_key(key)
         key_fp = self.keys / key
 
         key_dict = {}
