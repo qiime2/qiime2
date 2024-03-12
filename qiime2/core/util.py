@@ -118,6 +118,24 @@ def duration_time(relative_delta):
         return '0 %s' % attrs[-1]
 
 
+def weigh_file(filepath):
+    """Return size of filepath in KiB."""
+    return os.stat(filepath).st_size / 1024
+
+
+def weigh_directory(directory):
+    """Return size of directory in KiB (excluding dir-entries themselves)."""
+    directory = str(directory)
+    total_kib = 0
+    for entry in os.scandir(directory):
+        if entry.is_dir(follow_symlinks=False):
+            total_kib += weigh_directory(entry.path)
+        else:
+            total_kib += entry.stat().st_size / 1024
+
+    return total_kib
+
+
 def has_md5sum_native():
     return shutil.which('md5sum') is not None
 

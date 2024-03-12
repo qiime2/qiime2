@@ -386,9 +386,13 @@ class TestDiagnosticUsage(TestCaseUsage):
 
 
 class TestExecutionUsage(TestCaseUsage):
+    def setUp(self):
+        super().setUp()
+        self.kwargs = dict()
+
     def test_basic(self):
         action = self.plugin.actions['concatenate_ints']
-        use = usage.ExecutionUsage()
+        use = usage.ExecutionUsage(**self.kwargs)
         action.examples['concatenate_ints_simple'](use)
 
         # TODO
@@ -396,21 +400,21 @@ class TestExecutionUsage(TestCaseUsage):
 
     def test_pipeline(self):
         action = self.plugin.actions['typical_pipeline']
-        use = usage.ExecutionUsage()
+        use = usage.ExecutionUsage(**self.kwargs)
         action.examples['typical_pipeline_simple'](use)
 
         # TODO
         ...
 
     def test_merge_metadata(self):
-        use = usage.ExecutionUsage()
+        use = usage.ExecutionUsage(**self.kwargs)
         md1 = use.init_metadata('md1', examples.md1_factory)
         md2 = use.init_metadata('md2', examples.md2_factory)
         merged = use.merge_metadata('md3', md1, md2)
         self.assertIsInstance(merged.execute(), Metadata)
 
     def test_variadic_input_simple(self):
-        use = usage.ExecutionUsage()
+        use = usage.ExecutionUsage(**self.kwargs)
         action = self.plugin.actions['variadic_input_method']
         action.examples['variadic_input_simple'](use)
 
@@ -423,7 +427,7 @@ class TestExecutionUsage(TestCaseUsage):
         self.assertIsInstance(out.value, Artifact)
 
     def test_variadic_input_simple_async(self):
-        use = usage.ExecutionUsage(asynchronous=True)
+        use = usage.ExecutionUsage(**self.kwargs, asynchronous=True)
         action = self.plugin.actions['variadic_input_method']
         action.examples['variadic_input_simple'](use)
 
@@ -446,7 +450,7 @@ class TestExecutionUsage(TestCaseUsage):
         self.assertIsInstance(out.value, ResultCollection)
 
     def test_init_artifact_from_url_error(self):
-        use = usage.ExecutionUsage()
+        use = usage.ExecutionUsage(**self.kwargs)
 
         with self.assertRaisesRegex(ValueError, 'Could no.*not-a-url'):
             use.init_artifact_from_url(
@@ -454,7 +458,7 @@ class TestExecutionUsage(TestCaseUsage):
                 'https://not-a-url.qiime2.org/junk.qza',)
 
     def test_init_metadata_from_url_error(self):
-        use = usage.ExecutionUsage()
+        use = usage.ExecutionUsage(**self.kwargs)
 
         with self.assertRaisesRegex(ValueError, 'Could no.*https://not-a-url'):
             use.init_metadata_from_url(
@@ -475,14 +479,14 @@ class TestExecutionUsage(TestCaseUsage):
         metadata_url = \
             'https://data.qiime2.org/2022.11/tutorials/' \
             'moving-pictures/sample_metadata.tsv'
-        use = usage.ExecutionUsage()
+        use = usage.ExecutionUsage(**self.kwargs)
 
         with self.assertRaisesRegex(ValueError, "Could not.*\n.*a QIIME arc"):
             use.init_artifact_from_url('a', metadata_url)
 
     def test_init_metadata_from_url_error_on_non_metadata(self):
         url = 'https://www.qiime2.org/'
-        use = usage.ExecutionUsage()
+        use = usage.ExecutionUsage(**self.kwargs)
 
         with self.assertRaisesRegex(ValueError, "Could not.*\n.*nized ID"):
             use.init_metadata_from_url('a', url)
@@ -491,8 +495,14 @@ class TestExecutionUsage(TestCaseUsage):
         metadata_url = \
             'https://data.qiime2.org/2022.11/tutorials/' \
             'moving-pictures/sample_metadata.tsv'
-        use = usage.ExecutionUsage()
+        use = usage.ExecutionUsage(**self.kwargs)
 
         md = use.init_metadata_from_url('md', metadata_url)
 
         self.assertIsInstance(md.value, Metadata)
+
+
+class TestExecutionUsageWithLimit(TestExecutionUsage):
+    def setUp(self):
+        super().setUp()
+        self.kwargs = dict(size_limit=64)

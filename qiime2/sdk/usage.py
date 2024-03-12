@@ -39,6 +39,7 @@ from typing import Set, List, Literal, Any, Callable, Type, Union
 import dataclasses
 import functools
 import re
+import tempfile
 
 import qiime2
 from qiime2 import sdk
@@ -1754,6 +1755,100 @@ class DiagnosticUsage(Usage):
 class ExecutionUsageVariable(UsageVariable):
     """A specialized implementation for :class:`ExecutionUsage`."""
 
+    def __init__(self, name: str, factory: Callable[[], Any],
+                 var_type: T_VAR_TYPES, usage: 'Usage', size_limit=0,
+                 measure_size=False):
+        """Constructor for ExecutionUsageVariable.
+
+        Warning
+        -------
+        For use by interface drivers only (and rarely at that).
+        Do not use in a written usage example.
+
+        Parameters
+        ----------
+        name : str
+            The name of this variable (interfaces will use this as a starting
+            point).
+        factory : Callable[[], Any]
+            A function which will return a realized value of `var_type`.
+        var_type : 'artifact', 'visualization', 'metadata', 'column', 'format'
+            The type of value which will be returned by the factory.
+            Most are self-explanatory, but "format" indicates that the factory
+            produces a QIIME 2 file format or directory format, which is used
+            for importing data.
+        use : Usage
+            The currently executing usage driver. Provided for convenience.
+        size_limit : int, optional
+            Maximum number of KiB (2^10) the given `factory` can create without
+            raising a failure. Default is unlimited.
+        """
+        super().__init__(name, factory, var_type, usage)
+        self.size_limit = size_limit
+        self.measure_size = measure_size
+        self.size = None
+
+    def execute(self) -> Any:
+        """Execute the factory to produce a value, this is stored and returned.
+
+        Warning
+        -------
+        For use by interface drivers only. Do not use in a written usage
+        example.
+
+        Examples
+        --------
+        >>> var = UsageVariable('foo', lambda: '<pretend artifact>',
+        ...                     'artifact', use)
+        >>> var.value
+        <object object ...>
+        >>> var.execute()
+        '<pretend artifact>'
+        >>> var.value
+        '<pretend artifact>'
+
+        See Also
+        --------
+        factory
+        value
+        """
+        value = super().execute()
+
+        if self.measure_size or self.size_limit:
+            def weigh_serialized(x):
+                import qiime2.core.util as util
+
+                with tempfile.NamedTemporaryFile(prefix='q2-exe-usage') as fh:
+                    return util.weigh_file(x.save(fh.name))
+
+            def weigh_format(x):
+                import qiime2.core.util as util
+                from qiime2.plugin.model import DirectoryFormat
+
+                if isinstance(x, DirectoryFormat):
+                    return util.weigh_directory(x.path)
+                else:
+                    return util.weigh_file(x.path)
+
+            handlers = {
+                'artifact': weigh_serialized,
+                'visualization': weigh_serialized,
+                'metadata': weigh_serialized,
+                'column': weigh_serialized,
+                # this one is different:
+                'format': weigh_format
+            }
+            size = handlers[self.var_type](value)
+            self.size = size
+
+            if self.size_limit and size > self.size_limit:
+                raise AssertionError(
+                    'Usage variable %r exceeds allowed size_limit (%d KiB) on'
+                    ' disk: actual size %d KiB'
+                    % (self.name, self.size_limit, size))
+
+        return value
+
     # Utility method for key handling within result collections
     def _collection_key_util(self, data, key):
         if self.var_type not in self.COLLECTION_VAR_TYPES:
@@ -1771,7 +1866,6 @@ class ExecutionUsageVariable(UsageVariable):
         assert_usage_var_type(self, 'artifact', 'visualization',
                               'artifact_collection',
                               'visualization_collection')
-
         data = self.value
 
         if key is not None:
@@ -1809,7 +1903,7 @@ class ExecutionUsageVariable(UsageVariable):
 
 
 class ExecutionUsage(Usage):
-    def __init__(self, asynchronous=False):
+    def __init__(self, asynchronous=False, size_limit=0, measure_size=False):
         """Constructor for ExecutionUsage.
 
         Warning
@@ -1822,8 +1916,13 @@ class ExecutionUsage(Usage):
             Whether to execute actions via
             :meth:`qiime2.sdk.Action.asynchronous` or
             :meth:`qiime2.sdk.Action.__call__`
+        size_limit : int, optional
+            Maximum number of KiB (2^10) any given factory can create without
+            raising a failure. Default is unlimited.
         """
         super().__init__(asynchronous)
+        self.size_limit = size_limit
+        self.measure_size = measure_size
         # This is here for testing-purposes
         self._recorder = dict()
 
@@ -1856,7 +1955,8 @@ class ExecutionUsage(Usage):
         return records
 
     def usage_variable(self, name, factory, var_type):
-        return ExecutionUsageVariable(name, factory, var_type, self)
+        return ExecutionUsageVariable(name, factory, var_type, self,
+                                      self.size_limit, self.measure_size)
 
     def init_artifact(self, name, factory):
         variable = super().init_artifact(name, factory)
