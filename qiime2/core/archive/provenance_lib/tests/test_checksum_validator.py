@@ -62,9 +62,7 @@ class ValidateChecksumTests(unittest.TestCase):
 
             uuid = os.listdir(tempdir)[0]
             root_dir = os.path.join(tempdir, uuid)
-            print(os.listdir(root_dir))
             os.remove(os.path.join(root_dir, 'metadata.yaml'))
-            print(os.listdir(root_dir))
             with open(os.path.join(root_dir, 'tamper.txt'), 'w') as fh:
                 pass
             citations_path = \
