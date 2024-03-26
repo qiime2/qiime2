@@ -24,6 +24,7 @@ import qiime2.core.archive as archive
 import qiime2.plugin.model as model
 import qiime2.core.util as util
 import qiime2.core.exceptions as exceptions
+import qiime2.core.type.grammar
 
 # Note: Result, Artifact, and Visualization classes are in this file to avoid
 # circular dependencies between Result and its subclasses. Result is tightly
@@ -290,10 +291,10 @@ class Artifact(Result):
         if validate_level not in ('min', 'max'):
             raise ValueError("Expected 'min' or 'max' for `validate_level`.")
 
-        if not isinstance(type_, str) and type is not None:
-            type_ = type_.__class__.__name__
-
         is_format = False
+        if isinstance(type_, qiime2.core.type.grammar.TypeExp):
+            is_format = True
+
         if isinstance(type_, str):
             type_ = qiime2.sdk.parse_type(type_)
 
