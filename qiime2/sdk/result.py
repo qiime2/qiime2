@@ -290,6 +290,9 @@ class Artifact(Result):
         if validate_level not in ('min', 'max'):
             raise ValueError("Expected 'min' or 'max' for `validate_level`.")
 
+        if not isinstance(type_, str) and type is not None:
+            type_ = type_.__class__.__name__
+
         is_format = False
         if isinstance(type_, str):
             type_ = qiime2.sdk.parse_type(type_)
