@@ -695,7 +695,10 @@ class Cache:
 
         This process destroys data and named pools that do not have keys along
         with process pools older than the process_pool_lifespan on the cache
-        which defaults to 45 days. It never removes keys.
+        which defaults to 45 days.
+
+        It removes keys and warns the user about the removal if the data
+        referenced by the keys does not exist.
 
         We lock out other processes and threads from accessing the cache while
         garbage collecting to ensure the cache remains in a consistent state.
@@ -711,10 +714,16 @@ class Cache:
             for key in self.get_keys():
                 loaded_key = self.read_key(key)
 
+                # If the data/pool referenced by the key actually exists then
+                # track it. Otherwise remove the dangling reference
                 if (data := loaded_key.get('data')) is not None:
-                    referenced_data.add(data)
+                    if not self._check_dangling_reference(
+                            self.data / data, self.keys / key):
+                        referenced_data.add(data)
                 elif (pool := loaded_key.get('pool')) is not None:
-                    referenced_pools.add(pool)
+                    if not self._check_dangling_reference(
+                            self.pools / pool, self.keys / key):
+                        referenced_pools.add(pool)
                 # This really should never be happening unless someone messes
                 # with things manually
                 else:
@@ -729,7 +738,9 @@ class Cache:
                     shutil.rmtree(self.pools / pool)
                 else:
                     for data in os.listdir(self.pools / pool):
-                        referenced_data.add(data)
+                        if not self._check_dangling_reference(
+                                self.data / data, self.pools / pool / data):
+                            referenced_data.add(data)
 
             # Add references to data in process pools
             for process_pool in self.get_processes():
@@ -753,6 +764,32 @@ class Cache:
 
                     set_permissions(target, None, USER_GROUP_RWX)
                     shutil.rmtree(target)
+
+    def _check_dangling_reference(self, data_path, key_path):
+        """ If the data specified does not exist then we have a dangling
+        reference and we warn them about it and remove the reference.
+
+        Parameters
+        ----------
+        data_path : pathlib.Path
+            The path we are expecting to see the data at.
+        key_path : pathlib.Path
+            The path to the key referencing the data path that will be removed
+            if the data is missing.
+
+        Returns
+        -------
+        Boolean
+            True if reference was dangling False if not
+        """
+        if not os.path.exists(data_path):
+            warnings.warn(f"Dangling reference {key_path}. Data at {data_path}"
+                          " does not exist. Reference will be removed.")
+            os.remove(key_path)
+
+            return True
+
+        return False
 
     def save(self, ref, key):
         """Saves data into the cache by creating a key referring to the data

@@ -238,10 +238,10 @@ class PipelineSignature:
                 signature_order)
 
     def collate_inputs(self, *args, **kwargs):
-        collated_inputs = {name: value for value, name in
-                           zip(args, self.signature_order)}
+        # Collate positional inputs
+        collated_inputs = {name: value for name, value in
+                           zip(self.signature_order, args)}
         collated_inputs.update(kwargs)
-
         return collated_inputs
 
     def _assert_valid_inputs(self, inputs):
@@ -368,11 +368,15 @@ class PipelineSignature:
         """ Coerce parameter to be appropriate for callable
         """
         view_type = spec.view_type
+        qiime_type = spec.qiime_type
 
         if view_type == dict and isinstance(param, list):
             param = self._list_to_dict(param)
         elif view_type == list and isinstance(param, dict):
             param = self._dict_to_list(param)
+
+        if qiime_type is qtype.Threads and param == 'auto':
+            param = 0
 
         return param
 

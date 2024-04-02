@@ -10,7 +10,7 @@ import collections
 
 from qiime2.core.util import tuplize
 from qiime2.core.type.collection import List, Set, Collection
-from qiime2.core.type.primitive import Int, Float, Bool, Str
+from qiime2.core.type.primitive import Int, Float, Bool, Str, Jobs, Threads
 from qiime2.core.type.grammar import UnionExp, _ExpBase, IntersectionExp
 from qiime2.core.type.parse import ast_to_type
 
@@ -137,6 +137,11 @@ def is_collection_type(t):
                 return True
 
     return False
+
+
+def is_parallel_type(t):
+    expr = _norm_input(t)
+    return is_primitive_type(t) and expr in (Jobs, Threads)
 
 
 def interrogate_collection_type(t):

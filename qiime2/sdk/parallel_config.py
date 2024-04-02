@@ -128,7 +128,15 @@ def get_config_from_file(config_fp):
     it contains parsl config info.
     """
     with open(config_fp, 'r') as fh:
-        config_dict = tomlkit.load(fh)
+        # After parsing the file tomlkit has the data wrapped in its own
+        # proprietary classes. Unwrap recursively turns these classes into
+        # Python built-ins
+        #
+        # ex: tomlkit.items.Int -> int
+        #
+        # issue caused by this wrapping
+        # https://github.com/Parsl/parsl/issues/3027
+        config_dict = tomlkit.load(fh).unwrap()
 
     return get_config_from_dict(config_dict)
 

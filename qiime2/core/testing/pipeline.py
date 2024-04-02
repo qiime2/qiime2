@@ -102,8 +102,9 @@ def resumable_pipeline(ctx, int_list, int_dict, fail=False):
     return list_return, dict_return
 
 
-def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
-                              fail=False):
+# Either both int1 and string should be default or neither should be
+def resumable_varied_pipeline(ctx, ints1, ints2, metadata, int1=None,
+                              string='None', fail=False):
     varied_method = ctx.get_action('dummy_plugin', 'varied_method')
     list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
     dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
@@ -111,8 +112,11 @@ def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
                                             'identity_with_metadata')
     most_common_viz = ctx.get_action('dummy_plugin', 'most_common_viz')
 
-    ints1_ret, ints2_ret, int1_ret = varied_method(
-        ints1, ints2, int1, string)
+    if int1 is None and string == 'None':
+        ints1_ret, ints2_ret, int1_ret = varied_method(ints1, ints2)
+    else:
+        ints1_ret, ints2_ret, int1_ret = varied_method(
+            ints1, ints2, int1, string)
 
     list_ret, = list_of_ints(ints1_ret)
     dict_ret, = dict_of_ints(ints1)
@@ -141,8 +145,9 @@ def resumable_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
             viz_ret)
 
 
-def resumable_nested_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
-                                     fail=False):
+# Either both int1 and string should be default or neither should be
+def resumable_nested_varied_pipeline(ctx, ints1, ints2, metadata, int1=None,
+                                     string='None', fail=False):
     internal_pipeline = ctx.get_action('dummy_plugin',
                                        'internal_fail_pipeline')
     list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
@@ -159,8 +164,12 @@ def resumable_nested_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
     viz_ret, = most_common_viz(ints2[1])
 
     try:
-        ints1_ret, ints2_ret, int1_ret = internal_pipeline(
-            ints1, ints2, int1, string, fail)._result()
+        if int1 is None and string == 'None':
+            ints1_ret, ints2_ret, int1_ret = internal_pipeline(
+                ints1, ints2, fail=fail)._result()
+        else:
+            ints1_ret, ints2_ret, int1_ret = internal_pipeline(
+                ints1, ints2, int1, string, fail=fail)._result()
     except PipelineError as e:
         uuids = [uuid for uuid in e.uuids]
 
@@ -177,11 +186,17 @@ def resumable_nested_varied_pipeline(ctx, ints1, ints2, int1, string, metadata,
             viz_ret)
 
 
-def internal_fail_pipeline(ctx, ints1, ints2, int1, string, fail=False):
+# Either both int1 and string should be default or neither should be
+def internal_fail_pipeline(ctx, ints1, ints2, int1=None, string='None',
+                           fail=False):
     varied_method = ctx.get_action('dummy_plugin', 'varied_method')
 
-    ints1_ret, ints2_ret, int1_ret = varied_method(
-        ints1, ints2, int1, string)
+    if int1 is None and string == 'None':
+        ints1_ret, ints2_ret, int1_ret = varied_method(
+            ints1, ints2)
+    else:
+        ints1_ret, ints2_ret, int1_ret = varied_method(
+            ints1, ints2, int1, string)
 
     if fail:
         uuids = []

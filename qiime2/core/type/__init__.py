@@ -9,7 +9,8 @@
 from .collection import List, Set, Collection
 from .semantic import SemanticType, Properties
 from .primitive import (Str, Int, Float, Metadata, Bool, MetadataColumn,
-                        Categorical, Numeric, Range, Start, End, Choices)
+                        Categorical, Numeric, Range, Start, End, Choices,
+                        Jobs, Threads)
 from .visualization import Visualization
 from .signature import (PipelineSignature, MethodSignature,
                         VisualizerSignature, IndexedCollectionElement,
@@ -18,13 +19,14 @@ from .meta import TypeMap, TypeMatch
 from .util import (is_primitive_type, is_semantic_type, is_metadata_type,
                    is_collection_type, is_visualization_type,
                    interrogate_collection_type, parse_primitive,
-                   is_union, is_metadata_column_type)
+                   is_union, is_metadata_column_type, is_parallel_type)
 
 __all__ = [
     # Type Helpers
     'is_semantic_type', 'is_visualization_type', 'is_primitive_type',
     'is_metadata_type', 'is_collection_type', 'interrogate_collection_type',
     'parse_primitive', 'is_union', 'is_metadata_column_type',
+    'is_parallel_type',
     # Collection Types
     'Set', 'List', 'Collection',
     # Semantic Types
@@ -33,6 +35,7 @@ __all__ = [
     # Primitive Types
     'Str', 'Int', 'Float', 'Bool', 'Metadata', 'MetadataColumn',
     'Categorical', 'Numeric', 'Range', 'Start', 'End', 'Choices',
+    'Jobs', 'Threads',
     # Visualization Type
     'Visualization',
     # Signatures
