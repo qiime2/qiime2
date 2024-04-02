@@ -74,6 +74,9 @@ USED_CACHES = set()
 
 # These permissions are directory with sticky bit and rwx for all set
 EXPECTED_PERMISSIONS = 0o41777
+# We are fine if we end up with these permissions due to some mask or
+# something even though we are setting the permissions to the above
+MASKED_PERMISSIONS = 0o41755
 
 
 def get_cache():
@@ -154,10 +157,11 @@ def _get_temp_path():
             sticky_permissions = stat.S_ISVTX | stat.S_IRWXU | stat.S_IRWXG \
                 | stat.S_IRWXO
             os.chmod(cache_dir, sticky_permissions)
-    elif os.stat(cache_dir).st_mode != EXPECTED_PERMISSIONS:
+    elif os.stat(cache_dir).st_mode & MASKED_PERMISSIONS != MASKED_PERMISSIONS:
         raise ValueError(f"Directory '{cache_dir}' already exists without "
-                         f"proper permissions '{oct(EXPECTED_PERMISSIONS)}' "
-                         "set. Current permissions are "
+                         "proper permissions 'at least "
+                         f"{oct(MASKED_PERMISSIONS)}' set. Current "
+                         "permissions are "
                          f"'{oct(os.stat(cache_dir).st_mode)}.' This most "
                          "likely means something other than QIIME 2 created "
                          f"the directory '{cache_dir}' or QIIME 2 failed "
