@@ -302,7 +302,8 @@ class PipelineSignature:
 
         for output_name, spec in outputs.items():
             if not (is_semantic_type(spec.qiime_type) or
-                    spec.qiime_type == Visualization or spec.qiime_type == Collection[Visualization]):
+                    spec.qiime_type == Visualization or
+                    spec.qiime_type == Collection[Visualization]):
                 raise TypeError(
                     "Output %r must be a semantic QIIME type or "
                     "Visualization, not %r"
