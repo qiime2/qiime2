@@ -44,7 +44,7 @@ def _expr(expr):
         return _build_predicate(expr.func.id, args, kwargs)
 
     if node is ast.Subscript:
-        field_expr = expr.slice.value
+        field_expr = expr.slice
 
         if type(field_expr) is ast.Tuple:
             field_expr = field_expr.elts
