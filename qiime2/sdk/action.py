@@ -438,13 +438,17 @@ class Action(metaclass=abc.ABCMeta):
         # pipeline that calls two other pipelines within it and execute both of
         # those internal pipelines simultaneously.
         if isinstance(self, qiime2.sdk.action.Pipeline):
-            execution_ctx['parsl_type'] = 'DFK'
-            # NOTE: Do not make this a python_app(join=True). We need it to run
-            # in the parsl main thread
-            future = join_app()(
-                    _run_parsl_action)(self, ctx, execution_ctx,
-                                       mapped_args, mapped_kwargs,
-                                       inputs=futures)
+            if ctx._parent is None:
+                execution_ctx['parsl_type'] = 'DFK'
+                # NOTE: Do not make this a python_app(join=True). We need it to
+                # run in the parsl main thread
+                future = join_app()(
+                        _run_parsl_action)(self, ctx, execution_ctx,
+                                           mapped_args, mapped_kwargs,
+                                           inputs=futures)
+            else:
+                return self._bind(lambda: qiime2.sdk.Context(ctx))(*args,
+                                                                   **kwargs)
         else:
             execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
