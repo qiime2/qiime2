@@ -108,7 +108,7 @@ class Context:
                             for elem_info in collection_order:
                                 elem = cached_collection[elem_info]
                                 loaded_elem = self.cache.named_pool.load(elem)
-                                loaded_collection[u
+                                loaded_collection[
                                     elem_info.item_name] = loaded_elem
 
                             loaded_outputs[name] = loaded_collection
