@@ -62,7 +62,7 @@ def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
     # right cache
     with ctx.cache:
         exe = action._bind(
-            lambda: qiime2.sdk.Context(parent=ctx), before_hook=before_hook, after_hook=after_hook, execution_ctx)
+            lambda: qiime2.sdk.Context(parent=ctx), execution_ctx, before_hook=before_hook, after_hook=after_hook)
         results = exe(*args, **kwargs)
 
         # If we are running a pipeline, we need to create a future here because
