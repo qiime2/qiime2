@@ -134,7 +134,7 @@ class Context:
             # Context with this one as its parent inside of the parsl app
             def _bind_parsl_context(ctx):
                 def _bind_parsl_args(*args, **kwargs):
-                    return action_obj._bind_parsl(ctx, *args, before_hook=before_hook, after_hook=after_hook **kwargs)
+                    return action_obj._bind_parsl(ctx, *args, before_hook=before_hook, after_hook=after_hook, **kwargs)
                 return _bind_parsl_args
 
             if self.parallel:
