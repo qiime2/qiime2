@@ -40,7 +40,7 @@ class Context:
         self._parent = parent
         self._scope = None
 
-    def get_action(self, plugin: str, action: str):
+    def get_action(self, plugin: str, action: str, before_hook=None, after_hook=None):
         """Return a function matching the callable API of an action.
         This function is aware of the pipeline context and manages its own
         cleanup as appropriate.
@@ -108,7 +108,7 @@ class Context:
                             for elem_info in collection_order:
                                 elem = cached_collection[elem_info]
                                 loaded_elem = self.cache.named_pool.load(elem)
-                                loaded_collection[
+                                loaded_collection[u
                                     elem_info.item_name] = loaded_elem
 
                             loaded_outputs[name] = loaded_collection
@@ -134,14 +134,14 @@ class Context:
             # Context with this one as its parent inside of the parsl app
             def _bind_parsl_context(ctx):
                 def _bind_parsl_args(*args, **kwargs):
-                    return action_obj._bind_parsl(ctx, *args, **kwargs)
+                    return action_obj._bind_parsl(ctx, *args, before_hook=before_hook, after_hook=after_hook **kwargs)
                 return _bind_parsl_args
 
             if self.parallel:
                 return _bind_parsl_context(self)(*args, **kwargs)
 
             return action_obj._bind(
-                lambda: Context(parent=self))(*args, **kwargs)
+                lambda: Context(parent=self), before_hook=before_hook, after_hook=after_hook)(*args, **kwargs)
 
         deferred_action = action_obj._rewrite_wrapper_signature(
             deferred_action)

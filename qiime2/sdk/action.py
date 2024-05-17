@@ -36,7 +36,7 @@ def _subprocess_apply(action, ctx, args, kwargs):
 
 
 def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
-                      inputs=[]):
+                      inputs=[], before_hook=None, after_hook=None):
     """This is what the parsl app itself actually runs. It's basically just a
     wrapper around our QIIME 2 action. When this is initially called, args and
     kwargs may contain proxies that reference futures in inputs. By the time
@@ -62,7 +62,7 @@ def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
     # right cache
     with ctx.cache:
         exe = action._bind(
-            lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
+            lambda: qiime2.sdk.Context(parent=ctx), before_hook=before_hook, after_hook=after_hook, execution_ctx)
         results = exe(*args, **kwargs)
 
         # If we are running a pipeline, we need to create a future here because
@@ -281,7 +281,7 @@ class Action(metaclass=abc.ABCMeta):
     def __setstate__(self, state):
         self.__init(**dill.loads(state))
 
-    def _bind(self, context_factory, execution_ctx={'type': 'synchronous'}):
+    def _bind(self, context_factory, execution_ctx={'type': 'synchronous'}, before_hook=None, after_hook=None):
         """Bind an action to a Context factory, returning a decorated function.
 
         This is a very primitive API and should be used primarily by the
@@ -339,6 +339,9 @@ class Action(metaclass=abc.ABCMeta):
                     self.signature.transform_and_add_callable_args_to_prov(
                         provenance, **callable_args)
 
+                if before_hook is not None:
+                    before_hook()
+
                 outputs = self._callable_executor_(
                     scope, callable_args, output_types, provenance)
 
@@ -352,6 +355,9 @@ class Action(metaclass=abc.ABCMeta):
                 # users have access to outputs by name or position.
                 results = qiime2.sdk.Results(
                     self.signature.outputs.keys(), outputs)
+
+                if after_hook is not None:
+                    after_hook()
 
                 return results
 
@@ -399,7 +405,7 @@ class Action(metaclass=abc.ABCMeta):
         self._set_wrapper_name(async_wrapper, 'asynchronous')
         return async_wrapper
 
-    def _bind_parsl(self, ctx, *args, **kwargs):
+    def _bind_parsl(self, ctx, *args, before_hook=None, after_hook=None, **kwargs):
         futures = []
         mapped_args = []
         mapped_kwargs = {}
@@ -446,22 +452,22 @@ class Action(metaclass=abc.ABCMeta):
                 # run in the parsl main thread
                 future = join_app()(
                         _run_parsl_action)(self, ctx, execution_ctx,
-                                           mapped_args, mapped_kwargs,
+                                           mapped_args, mapped_kwargs, before_hook=before_hook, after_hook=after_hook,
                                            inputs=futures)
             # If there is a parent then this is not the root pipeline and we
             # want to just _bind it with a parallel context. The fact that
             # parallel is set on the context will cause ctx.get_action calls in
             # the pipeline to use the action's _bind_parsl method.
             else:
-                return self._bind(lambda: qiime2.sdk.Context(ctx),
-                                  execution_ctx=execution_ctx)(*args, **kwargs)
+                return self._bind(lambda: qiime2.sdk.Context(ctx), execution_ctx=execution_ctx, before_hook=before_hook, after_hook=after_hook)(*args,
+                                                                   **kwargs)
         else:
             execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
             future = python_app(
                 executors=[executor])(
                     _run_parsl_action)(self, ctx, execution_ctx,
-                                       mapped_args, mapped_kwargs,
+                                       mapped_args, mapped_kwargs, before_hook=before_hook, after_hook=after_hook,
                                        inputs=futures)
 
         collated_input = self.signature.collate_inputs(*args, **kwargs)
