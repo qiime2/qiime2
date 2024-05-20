@@ -76,8 +76,8 @@ USED_CACHES = set()
 EXPECTED_PERMISSIONS = 0o41777
 # We are fine if we end up with these permissions due to some mask or
 # something even though we are setting the permissions to the above. These
-# permissions are sticky bit set with rwx for owner r-x for group and public
-MASKED_PERMISSIONS = 0o41755
+# permissions are sticky bit set with rwx for owner r-- for group and public
+MASKED_PERMISSIONS = 0o41744
 # The permissions we actually set, should be 0o1777, the leading 4 in the
 # permissions we check indicate that the given file system entry is a directory
 # we don't set whether it's a file or a directory or a whatever when we set
