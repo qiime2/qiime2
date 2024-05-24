@@ -30,7 +30,6 @@ from qiime2.metadata.tests.test_io import get_data_path
 
 
 class TestBadInputs(TestPluginBase):
-
     def make_provenance_capture(self):
         # importing visualizations is not supported, but we do that here to
         # simplify testing machinery

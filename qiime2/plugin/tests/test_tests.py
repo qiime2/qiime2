@@ -9,11 +9,15 @@
 import unittest
 import tempfile
 
+
+from qiime2.core.testing.format import SingleIntFormat
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.plugin.testing import TestPluginBase
 
 
 class TestTesting(TestPluginBase):
+    package = 'qiime2.sdk.tests'
+
     def setUp(self):
         self.plugin = get_dummy_plugin()
 
@@ -23,6 +27,12 @@ class TestTesting(TestPluginBase):
 
     def tearDown(self):
         self.test_dir.cleanup()
+
+    def test_transformer_in_other_plugin(self):
+        _, obs = self.transform_format(SingleIntFormat, str,
+                                       filename='singleint.txt')
+
+        self.assertEqual('42', obs)
 
     def test_examples(self):
         self.execute_examples()

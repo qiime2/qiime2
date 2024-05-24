@@ -16,6 +16,7 @@ import itertools
 import qiime2
 
 from qiime2.sdk import usage
+from qiime2.plugin.util import transform
 from qiime2.plugin.model.base import FormatBase
 
 
@@ -241,8 +242,7 @@ class TestPluginBase(unittest.TestCase):
                 shutil.copy(filepath, source_path)
         input = source_format(source_path, mode='r')
 
-        transformer = self.get_transformer(source_format, target)
-        obs = transformer(input)
+        obs = transform(input, from_type=source_format, to_type=target)
 
         if issubclass(target, FormatBase):
             self.assertIsInstance(obs, (type(pathlib.Path()), str, target))
