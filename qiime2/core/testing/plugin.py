@@ -1120,3 +1120,9 @@ other_plugin.methods.register_function(
     name='Concatenate integers',
     description='Some description'
 )
+
+
+@other_plugin.register_transformer
+def _9999999(ff: SingleIntFormat) -> str:
+    with ff.open() as fh:
+        return fh.read()
