@@ -36,7 +36,8 @@ def _subprocess_apply(action, ctx, args, kwargs):
 
 
 def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
-                      inputs=[], before_hook=None, after_hook=None):
+                      inputs=[], before_hook=None, after_hook=None,
+                      exception_hook=None):
     """This is what the parsl app itself actually runs. It's basically just a
     wrapper around our QIIME 2 action. When this is initially called, args and
     kwargs may contain proxies that reference futures in inputs. By the time
@@ -62,7 +63,9 @@ def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
     # right cache
     with ctx.cache:
         exe = action._bind(
-            lambda: qiime2.sdk.Context(parent=ctx), execution_ctx, before_hook=before_hook, after_hook=after_hook)
+            lambda: qiime2.sdk.Context(parent=ctx), execution_ctx,
+            before_hook=before_hook, after_hook=after_hook,
+            exception_hook=exception_hook)
         results = exe(*args, **kwargs)
 
         # If we are running a pipeline, we need to create a future here because
@@ -281,7 +284,8 @@ class Action(metaclass=abc.ABCMeta):
     def __setstate__(self, state):
         self.__init(**dill.loads(state))
 
-    def _bind(self, context_factory, execution_ctx={'type': 'synchronous'}, before_hook=None, after_hook=None):
+    def _bind(self, context_factory, execution_ctx={'type': 'synchronous'},
+              before_hook=None, after_hook=None, exception_hook=None):
         """Bind an action to a Context factory, returning a decorated function.
 
         This is a very primitive API and should be used primarily by the
@@ -342,8 +346,14 @@ class Action(metaclass=abc.ABCMeta):
                 if before_hook is not None:
                     before_hook()
 
-                outputs = self._callable_executor_(
-                    scope, callable_args, output_types, provenance)
+                try:
+                    outputs = self._callable_executor_(
+                        scope, callable_args, output_types, provenance)
+                except Exception as e:
+                    if exception_hook is not None:
+                        exception_hook(e)
+                    else:
+                        raise
 
                 if len(outputs) != len(self.signature.outputs):
                     raise ValueError(
@@ -405,7 +415,8 @@ class Action(metaclass=abc.ABCMeta):
         self._set_wrapper_name(async_wrapper, 'asynchronous')
         return async_wrapper
 
-    def _bind_parsl(self, ctx, *args, before_hook=None, after_hook=None, **kwargs):
+    def _bind_parsl(self, ctx, *args, before_hook=None, after_hook=None,
+                    exception_hook=None, **kwargs):
         futures = []
         mapped_args = []
         mapped_kwargs = {}
@@ -452,22 +463,31 @@ class Action(metaclass=abc.ABCMeta):
                 # run in the parsl main thread
                 future = join_app()(
                         _run_parsl_action)(self, ctx, execution_ctx,
-                                           mapped_args, mapped_kwargs, before_hook=before_hook, after_hook=after_hook,
+                                           mapped_args, mapped_kwargs,
+                                           before_hook=before_hook,
+                                           after_hook=after_hook,
+                                           exception_hook=exception_hook,
                                            inputs=futures)
             # If there is a parent then this is not the root pipeline and we
             # want to just _bind it with a parallel context. The fact that
             # parallel is set on the context will cause ctx.get_action calls in
             # the pipeline to use the action's _bind_parsl method.
             else:
-                return self._bind(lambda: qiime2.sdk.Context(ctx), execution_ctx=execution_ctx, before_hook=before_hook, after_hook=after_hook)(*args,
-                                                                   **kwargs)
+                return self._bind(
+                    lambda: qiime2.sdk.Context(ctx),
+                    execution_ctx=execution_ctx, before_hook=before_hook,
+                    after_hook=after_hook, exception_hook=exception_hook)(
+                        *args, **kwargs)
         else:
             execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
             future = python_app(
                 executors=[executor])(
                     _run_parsl_action)(self, ctx, execution_ctx,
-                                       mapped_args, mapped_kwargs, before_hook=before_hook, after_hook=after_hook,
+                                       mapped_args, mapped_kwargs,
+                                       before_hook=before_hook,
+                                       after_hook=after_hook,
+                                       exception_hook=exception_hook,
                                        inputs=futures)
 
         collated_input = self.signature.collate_inputs(*args, **kwargs)
