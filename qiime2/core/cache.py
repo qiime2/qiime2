@@ -555,6 +555,11 @@ class Cache:
         True
         >>> test_dir.cleanup()
         """
+        # If the thing they gave us wasn't a directory then it definitely isn't
+        # a cache
+        if not os.path.isdir(path):
+            return False
+
         path = pathlib.Path(path)
         contents = set(os.listdir(path))
         if not contents.issuperset(cls.base_cache_contents):
