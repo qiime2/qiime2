@@ -520,17 +520,26 @@ class Action(metaclass=abc.ABCMeta):
         else:
             execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
-            future = python_app(
-                executors=[executor])(
-                    _run_parsl_action_resource)(self, ctx, execution_ctx,
-                                       mapped_args, mapped_kwargs,
-                                       before_hook=before_hook,
-                                       after_hook=after_hook,
-                                       exception_hook=exception_hook,
-                                       inputs=futures,
-                                       parsl_resource_specification={
-                                           'cores': 1, 'memory': 0, 'disk': 0
-                                        })
+
+            if ctx.executor_name_type_mapping[executor] == "WorkQueueExecutor":
+                future = python_app(
+                    executors=[executor])(
+                        _run_parsl_action_resource)(self, ctx, execution_ctx,
+                                        mapped_args, mapped_kwargs,
+                                        before_hook=before_hook,
+                                        after_hook=after_hook,
+                                        exception_hook=exception_hook,
+                                        inputs=futures,
+                                        parsl_resource_specification={"cores": 5, "memory": 0, "disk": 0})
+            else:
+                future = python_app(
+                    executors=[executor])(
+                        _run_parsl_action_resource)(self, ctx, execution_ctx,
+                                        mapped_args, mapped_kwargs,
+                                        before_hook=before_hook,
+                                        after_hook=after_hook,
+                                        exception_hook=exception_hook,
+                                        inputs=futures)
 
         collated_input = self.signature.collate_inputs(*args, **kwargs)
         output_types = self.signature.solve_output(**collated_input)
