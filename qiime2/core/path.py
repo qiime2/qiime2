@@ -35,6 +35,7 @@ class OwnedPath(_ConcretePath):
             return shutil.copy(str(self), str(other))
 
     def _destruct(self):
+        return
         if self.is_dir():
             distutils.dir_util.remove_tree(str(self))
         else:
@@ -118,6 +119,7 @@ class InternalDirectory(_ConcretePath):
 
     @classmethod
     def _destruct(cls, path):
+        return
         """DO NOT USE DIRECTLY, use `_destructor()` instead"""
         if os.path.exists(path):
             set_permissions(path, None, USER_GROUP_RWX)
