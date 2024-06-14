@@ -531,7 +531,7 @@ class Action(metaclass=abc.ABCMeta):
                 for key, value in collated_inputs.items():
                     if key in self.signature.parameters and (self.signature.parameters[key].qiime_type == Threads or \
                             self.signature.parameters[key].qiime_type == Jobs):
-                        parsl_resource_specification['cores'] = max(value, os.cpu_count())
+                        parsl_resource_specification['cores'] = min(value, os.cpu_count())
                         break
 
                 future = python_app(
