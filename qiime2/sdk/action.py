@@ -48,8 +48,6 @@ def _run_parsl_action_resource(action, ctx, execution_ctx, mapped_args, mapped_k
     Results object. We need to take singular Result objects off of that Results
     object and map them to the correct inputs for the action we want to call.
     """
-    import os
-    raise ValueError(f"SUB: {os.environ['THING']}")
     args = []
     for arg in mapped_args:
         unmapped = _unmap_arg(arg, inputs)
