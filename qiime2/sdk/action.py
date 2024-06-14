@@ -522,6 +522,18 @@ class Action(metaclass=abc.ABCMeta):
                 ctx.executor_name_type_mapping[executor]
 
             if ctx.executor_name_type_mapping[executor] == "WorkQueueExecutor":
+                import os
+                from qiime2.core.type.primitive import Threads, Jobs
+                collated_inputs = self.signature.collate_inputs(*args, **kwargs)
+
+                parsl_resource_specification = {'cores': 1, 'memory': 0, 'disk': 0}
+
+                for key, value in collated_inputs.items():
+                    if key in self.signature.parameters and (self.signature.parameters[key].qiime_type == Threads or \
+                            self.signature.parameters[key].qiime_type == Jobs):
+                        parsl_resource_specification['cores'] = max(value, os.cpu_count())
+                        break
+
                 future = python_app(
                     executors=[executor])(
                         _run_parsl_action_resource)(self, ctx, execution_ctx,
@@ -530,7 +542,7 @@ class Action(metaclass=abc.ABCMeta):
                                         after_hook=after_hook,
                                         exception_hook=exception_hook,
                                         inputs=futures,
-                                        parsl_resource_specification={"cores": 5, "memory": 0, "disk": 0})
+                                        parsl_resource_specification=parsl_resource_specification)
             else:
                 future = python_app(
                     executors=[executor])(
