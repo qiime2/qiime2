@@ -182,6 +182,21 @@ class Context:
         self._scope.add_reference(artifact)
         return artifact
 
+    def pre_execution_hook(self):
+        """Runs before the action executes.
+        """
+        pass
+
+    def post_execution_hook(self):
+        """Runs after the action has executed successfully
+        """
+        pass
+
+    def exception_hook(self, exception):
+        """Runs is an exception is encountered while executing the action
+        """
+        raise exception
+
     def __enter__(self):
         """For internal use only.
 
