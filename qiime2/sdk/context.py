@@ -40,8 +40,7 @@ class Context:
         self._parent = parent
         self._scope = None
 
-    def get_action(self, plugin: str, action: str, before_hook=None,
-                   after_hook=None, exception_hook=None):
+    def get_action(self, plugin: str, action: str):
         """Return a function matching the callable API of an action.
         This function is aware of the pipeline context and manages its own
         cleanup as appropriate.
@@ -136,18 +135,14 @@ class Context:
             def _bind_parsl_context(ctx):
                 def _bind_parsl_args(*args, **kwargs):
                     return action_obj._bind_parsl(
-                        ctx, *args, before_hook=before_hook,
-                        after_hook=after_hook, exception_hook=exception_hook,
-                        **kwargs)
+                        ctx, *args, **kwargs)
                 return _bind_parsl_args
 
             if self.parallel:
                 return _bind_parsl_context(self)(*args, **kwargs)
 
             return action_obj._bind(
-                lambda: Context(parent=self), before_hook=before_hook,
-                after_hook=after_hook, exception_hook=exception_hook)(
-                    *args, **kwargs)
+                lambda: self.__class__(parent=self))(*args, **kwargs)
 
         deferred_action = action_obj._rewrite_wrapper_signature(
             deferred_action)
