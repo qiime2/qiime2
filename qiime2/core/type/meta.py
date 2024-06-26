@@ -90,6 +90,75 @@ class TypeVarExp(UnionExp):
 
 
 class TypeMap(ImmutableBase):
+    """A table of input types which match to output types.
+
+    The TypeMap is best thought of as a table in which QIIME 2 is trying to
+    find a row which matches the user's input. Once found, the row-wise search
+    is terminated and the outputs of that row are bound to the outputs of the
+    action.
+
+    So if a TypeMap looked like this:
+
+    .. code-block:: python
+
+       T_paramA, T_paramB, T_out = TypeMap({
+           (Bool % Choices(True) , InputTypeA): ResultTypeA
+           (Bool % Choices(False), InputTypeA): ResultTypeB
+           (Bool % Choices(False), InputTypeB): ResultTypeB
+       })
+
+    It could be thought of as this table:
+
+    +-------------+-------------+-------------+
+    | Parameter A | Parameter B | Result      |
+    +=============+=============+=============+
+    | True        | InputTypeA  | ResultTypeA |
+    +-------------+-------------+-------------+
+    | False       | InputTypeA  | ResultTypeB |
+    +-------------+-------------+-------------+
+    | False       | InputTypeB  | ResultTypeB |
+    +-------------+-------------+-------------+
+
+    Where if the user provide ``True`` to Parameter A, they MUST provide
+    ``InputTypeA`` to Parameter B, and will receive ``ResultTypeA``.
+    Otherwise, they may pass ``False`` to Parameter A, and provide either
+    ``InputTypeA`` or ``InputTypeB``, but will now receive ``ResultTypeB``.
+
+    Note that there is not a solution for ``True`` and ``InputTypeB``, so the
+    TypeMap does not permit that.
+
+    This can be used to constrain dependent input parameters to a more limited
+    domain than they would otherwise possess if they were treated
+    independently.
+
+    If a TypeMap is used exclusively to constrain inputs but does not impact
+    the output in any way, then the convention is to use
+    :py:data:`Visualization` to indicate a nonsense output and that final
+    type variable is ignored (an unbound output variable has no effect so
+    ``Visualization`` distinguishes the intention from an accidental omission).
+
+    It is also possible to define multiple outputs which are dependent on
+    inputs, so long as the value of the dictionary is a tuple. This will result
+    in additional type variables to be used in the output registration.
+
+    Parameters
+    ----------
+    mapping : dict[tuple[type expressions], tuple[type expressions]]
+      A tuple is not strictly required, so long as there are input and outputs
+      which are enforced by the syntax of a dictionary.
+      In the event a given input tuple's domain overlaps another input tuple,
+      the overlap must be a subset and the smaller branch must come first.
+      Otherwise, the output resolution would be ambiguous (this rule is
+      enforced when the TypeMap is constructed).
+
+
+    Returns
+    -------
+    iterable of TypeVarExp
+      The type variables should be unpacked from the TypeMap and the number
+      will correspond to the number of "columns" in the TypeMap.
+
+    """
     def __init__(self, mapping):
         mapping = {Tuple[tuplize(k)]: Tuple[tuplize(v)]
                    for k, v in mapping.items()}
@@ -163,6 +232,54 @@ def _get_intersections(listing):
 
 
 def TypeMatch(listing):
+    """A trivial :py:class:`.TypeMap` such that every entry maps to itself.
+
+    A TypeMatch which looked like this:
+
+    .. code-block:: python
+
+       T = TypeMatch([Foo, Bar, Baz])
+
+    Is essentially the same as:
+
+    .. code-block:: python
+
+       T_in, T_out = TypeMap({
+           Foo: Foo,
+           Bar: Bar,
+           Baz: Baz
+       })
+
+    Except that ``T`` doubles as both ``T_in`` and ``T_out``.
+
+    Parameters
+    ----------
+    listing : list[type fragments]
+      A list of type fragments (usually variants). The behavior is similar to
+      a union, but will cause the output type to be the same as the input type.
+
+    Returns
+    -------
+    TypeVarExp
+      A type variable that can be used as a plugin's input **and** output. The
+      output type will then be the same as the input type.
+
+    Examples
+    --------
+    >>> from qiime2.plugin import TypeMatch
+    >>> from qiime2.core.testing.type import Foo, Bar, Baz, C1
+    >>> T = TypeMatch([Foo, Bar, Baz])
+    >>> C1[Foo] <= C1[T]
+    True
+    >>> C1[Bar] <= C1[T]
+    True
+    >>> C1[Baz] <= C1[T]
+    True
+
+    See Also
+    --------
+    TypeMap
+    """
     listing = list(listing)
     intersections = _get_intersections(listing)
     to_add = []

@@ -5,11 +5,64 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
+"""
+.. For the docs below, we set this artificial global context
+    >>> import builtins
 
+    >>> builtins.__version__ = '0.0.1'
+    >>> builtins.website = 'http://github.com/qiime2'
+    >>> plugin = Plugin('my-plugin', builtins.__version__, builtins.website)
+    >>> builtins.plugin = plugin
+
+    >>> from qiime2.core.testing.type import (
+    ...     Foo, Bar, C1, IntSequence1, IntSequence2)
+    >>> builtins.Foo = Foo
+    >>> builtins.Bar = Bar
+    >>> builtins.Variant1 = Foo
+    >>> builtins.Variant2 = Bar
+    >>> builtins.BaseType = C1
+    >>> builtins.IntSequence1 = IntSequence1
+    >>> builtins.IntSequence2 = IntSequence2
+
+    >>> import pandas
+    >>> builtins.pd = pandas
+
+    >>> from typing import Literal
+    >>> builtins.Literal = Literal
+
+    >>> from qiime2.plugin import TextFileFormat
+    >>> class CSVFormat(TextFileFormat):
+    ...     def _validate_(self, level):
+    ...         pass
+    >>> builtins.CSVFormat = CSVFormat
+
+    >>> from qiime2.plugin import SingleFileDirectoryFormat
+    >>> builtins.CSVDirFormat = SingleFileDirectoryFormat(
+    ...     'CSVDirFormat', 'data.csv', builtins.CSVFormat)
+
+    >>> from qiime2.plugin import Citations
+    >>> builtins.citations = Citations.load('citations.bib',
+    ...                                     package='qiime2.core.testing')
+
+    >>> from qiime2.core.testing.method import optional_artifacts_method
+    >>> builtins.my_method = optional_artifacts_method
+
+    >>> from qiime2.core.testing.visualizer import most_common_viz
+    >>> builtins.my_visualizer = most_common_viz
+
+    >>> from qiime2.core.testing.pipeline import collection_pipeline
+    >>> builtins.my_pipeline = collection_pipeline
+
+    >>> builtins.example_function_variant1 = lambda x: None
+    >>> builtins.example_function_variant2 = lambda x: None
+
+"""
 import collections
 import inspect
 import types
+from typing import Any, Optional, Union, Type
 
+from qiime2.core.cite import Citations, CitationRecord
 import qiime2.sdk
 import qiime2.core.type.grammar as grammar
 from qiime2.core.validate import ValidationObject
@@ -39,9 +92,50 @@ ValidatorRecord = collections.namedtuple(
 
 
 class Plugin:
-    def __init__(self, name, version, website, package=None, project_name=None,
-                 citation_text=None, user_support_text=None,
-                 short_description=None, description=None, citations=None):
+    """
+    A QIIME 2 Plugin. An instance of this class defines all features of a given plugin
+    and is instantiated as a module global (i.e. a singleton).
+
+    """
+
+    methods: Type['PluginMethods']
+    visualizers: Type['PluginVisualizers']
+    pipelines: Type['PluginPipelines']
+
+    def __init__(self, name: str, version: str, website: str, package: Optional[str]=None, project_name: Optional[str]=None,
+                 citation_text: Optional[Any]=None, user_support_text: Optional[str]=None,
+                 short_description: Optional[str]=None, description: Optional[str]=None, citations: Optional[Union[Citations, 'list[CitationRecord]']]=None):
+        """
+        Parameters
+        ----------
+        name
+          The name of the plugin (hyphens will be automatically replaced for the plugin ID)
+        version
+          The version of the plugin (this should match the package version)
+        website
+          A URL to find more information about this plugin
+        package
+          The Python package name of your plugin. This is largely defunct and is set by the
+          entry_point during plugin loading.
+        project_name
+          The external name of the plugin (distinct from the internal ``name``, i.e. q2-my-plugin vs my-plugin).
+          Also defunct and set by the entry_point during plugin loading.
+        citation_text
+          Deprecated. Does nothing. Use ``citations`` instead.
+        user_support_text
+          A message about where to find user support. The default will suggest users visit the QIIME 2 forum.
+        short_description
+          A small (single-line) description to help identify the plugin in a list.
+        description
+          A more complete description of the plugins purpose.
+        citations : list of CitationRecord
+          Citations to associate with a result whenever this plugin is
+          used. Can also use an entire :py:class:`Citations` object.
+
+        Examples
+        --------
+        >>> plugin = Plugin('my-plugin', __version__, website)
+        """
         self.id = name.replace('-', '_')
         self.name = name
         self.version = version
@@ -112,6 +206,24 @@ class Plugin:
         return list(self.artifact_classes.values())
 
     def register_formats(self, *formats, citations=None):
+        """Register file formats to the plugin
+
+        Parameters
+        ----------
+        *formats : TextFileFormat, BinaryFileFormat, or DirectoryFormat
+          Formats which are created or defined by this plugin.
+        citations : list of CitationRecord
+          Citations to associate with a result whenever this format is used
+          internally. Can also use an entire :py:class:`Citations` object.
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        :py:func:`SingleFileDirectoryFormat` returns a :py:class:`DirectoryFormat`
+        """
         for format in formats:
             if not issubclass(format, FormatBase):
                 raise TypeError("%r is not a valid format." % format)
@@ -119,6 +231,20 @@ class Plugin:
         self.register_views(*formats, citations=citations)
 
     def register_views(self, *views, citations=None):
+        """Register arbitrary views (Python classes or formats) to the plugin
+
+        Parameters
+        ----------
+        *views : type
+          Views which are created or defined by this plugin
+        citations : list of CitationRecord
+          Citations to associate with a result whenever this format is used
+          internally. Can also use an entire :py:class:`Citations` object.
+
+        Returns
+        -------
+        None
+        """
         if citations is None:
             citations = ()
         else:
@@ -144,6 +270,36 @@ class Plugin:
                 self.formats[name] = FormatRecord(format=view, plugin=self)
 
     def register_validator(self, semantic_expression):
+        """**Decorator** which registers a validator
+
+        Parameters
+        ----------
+        semantic_expression : semantic type expression
+          An expression (may include operators like union (``|``)) which will
+          be compared to an artifact. If the artifact is in the domain of the
+          type expression, it will be transformed into a view that matches the
+          type annotation of the decorated function and that function will be
+          executed.
+
+        Returns
+        -------
+        decorator
+          A decorator which can be applied to a function which takes
+          ``data`` as the first argument and ``level`` as the second.
+          ``data`` must be annotated with a type which will become the
+          transformed view. ``level`` should accept the strings
+          ``"min"`` and ``"max"``. It does not necessarily need to change
+          behavior based on ``level``, but it is encouraged where it could save
+          the user time.
+
+        Examples
+        --------
+        >>> @plugin.register_validator(Foo | Bar)
+        ... def validate_something(data: pd.DataFrame,
+        ...                        level: Literal['min', 'max']):
+        ...     if data.empty:
+        ...         raise ValidationError("This data is empty.")
+        """
         if not is_semantic_type(semantic_expression):
             raise TypeError('%s is not a Semantic Type' % semantic_expression)
 
@@ -178,8 +334,50 @@ class Plugin:
         return decorator
 
     def register_transformer(self, _fn=None, *, citations=None):
-        """
-        A transformer has the type Callable[[type], type]
+        """ **Decorator** which registers a transformer to convert data
+
+        This decorator may be used with or without arguments.
+
+        Parameters
+        ----------
+        _fn : Callable
+            Ignore this parameter as it is the mechanism to allow argumentless
+            decoration
+        citations : list of CitationRecord
+          Citations to associate with a result whenever this transformer is
+          used internally. Can also use an entire :py:class:`Citations` object.
+
+        Returns
+        -------
+        decorator
+          A decorator which can be applied to a function which takes a single
+          argument with a type annotation and a single return annotation.
+          This decorated function will then be executed whenever data matching
+          the type annotation exists and there is a need to view that data as
+          the return annotation.
+
+        Notes
+        -----
+        Since the function is entirely defined by the input and output type the
+        name of the function is usually unimportant and only adds noise. We
+        tend to use ``_<number>`` as the name, but any other name may be used.
+
+        Examples
+        --------
+        >>> @plugin.register_transformer
+        ... def _0(data: pd.DataFrame) -> CSVFormat:
+        ...     ff = CSVFormat()
+        ...     with ff.open() as fh:
+        ...         data.write_csv(fh)
+        ...     return ff
+
+        >>> @plugin.register_transformer(citations=[
+        ...     citations['baerheim1994effect'],
+        ...     citations['silvers1997effects']
+        ... ])
+        ... def _1(ff: CSVFormat) -> pd.DataFrame:
+        ...     with ff.open() as fh:
+        ...         return pd.read_csv(fh)
         """
         # `_fn` allows us to figure out if we are called with or without
         # arguments in order to support both:
@@ -233,6 +431,23 @@ class Plugin:
             return decorator(_fn)
 
     def register_semantic_types(self, *type_fragments):
+        """Register semantic type fragments to the plugin
+
+        Parameters
+        ----------
+        *type_fragments : semantic types
+          Semantic type fragments to register. If a plugin had defined types
+          for this expression: ``BaseType[Variant1 | Variant2]`` then
+          ``type_fragments`` would be ``BaseType, Variant1, Variant2``
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> plugin.register_semantic_types(BaseType, Variant1, Variant2)
+        """
         for type_fragment in type_fragments:
             if not is_semantic_type(type_fragment):
                 raise TypeError("%r is not a semantic type." % type_fragment)
@@ -288,6 +503,31 @@ class Plugin:
     def register_semantic_type_to_format(self, semantic_type,
                                          artifact_format=None,
                                          directory_format=None):
+        """Connect a semantic type expression to a format. **Deprecated**
+
+        Permits an arbitrary type expression and expands it to all concrete
+        variants which are then associated with the supplied
+        ``directory_format``.
+
+        As this does not support documentation or examples, it is recommended
+        to use :py:meth:`Plugin.register_artifact_class` instead, which takes
+        a single concrete expression, but allows for additional specific
+        information.
+
+        Parameters
+        ----------
+        semantic_type : semantic type expression
+          A semantic type expression which may include operators.
+        artifact_format : type
+          **Super deprecated**
+        directory_format : subclass of DirectoryFormat
+          A directory format which will define the ``/data/`` directory of a
+          stored artifact.
+
+        Returns
+        -------
+        None
+        """
         # Handle the deprecated parameter name, artifact_format. This is being
         # replaced with directory_format for clarity.
         if artifact_format is not None and directory_format is not None:
@@ -312,6 +552,39 @@ class Plugin:
 
     def register_artifact_class(self, semantic_type, directory_format,
                                 description=None, examples=None):
+        """Register an artifact class which defines an Artifact
+
+        Parameters
+        ----------
+        semantic_type : type expression
+          A *concrete* type expression which will be the type of this artifact
+          class.
+        directory_format : subclass of DirectoryFormat
+          A directory format which will define the ``/data/`` directory of a
+          stored artifact.
+        description : str
+          A description of what this artifact will represent.
+        examples : dict[str, callable]
+          A dict of example name to usage example functions which take a
+          single argument (the usage driver, a.k.a. ``use``). Each function
+          which will demonstrate importing this data when executed.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> plugin.register_artifact_class(
+        ...     semantic_type=BaseType[Variant1],
+        ...     directory_format=CSVDirFormat,
+        ...     description="This data represents something important.",
+        ...     examples={
+        ...         'example1': example_function_variant1,
+        ...         'example2': example_function_variant2
+        ...     }
+        ... )
+        """
         if not semantic_type.is_concrete():
             raise TypeError("Only a single type can be registered at a time "
                             "with register_artifact_class. Registration "
@@ -327,11 +600,80 @@ class PluginActions(dict):
 
 
 class PluginMethods(PluginActions):
+    """Accessed via ``plugin.methods``"""
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None,
                           deprecated=False, examples=None):
+        """Register a method to the associated plugin.
+
+        Parameters
+        ----------
+        function : callable
+          A function which will be called when the user uses this method.
+        inputs : dict[str, type expression]
+          A dictionary of function-parameter names to semantic type
+          expressions. The keys of the dictionary must match the parameter
+          names which are on the ``function``. Collections and type variables
+          are also permitted so long as they contain semantic types.
+        parameters : dict[str, type expression]
+          A dictionary of function0parameter names to primitive type
+          expressions. The keys of the dictionary must match the parameter
+          names which are on the ``function``. Collections and type variables
+          are also permitted so long as they contain primitive types.
+        outputs : dict[str, type expression]
+          A dictionary of named outputs to *concrete* semantic types. The keys
+          of the dictionary will become the parameter names for these outputs
+          and must match the number of annotated outputs on the ``function``.
+          Collections and type variables are also permitted so long as they
+          contain semantic types. (In older versions of QIIME 2 this was a list
+          of tuples as dictionaries were not yet ordered.)
+        name : str
+          A short description, ideally a human-oriented name or title.
+        description : str
+          A longer description of the action.
+        input_descriptions: dict[str, str]
+          A dictionary of input names (see ``inputs``) to descriptions.
+        parameter_descriptions: dict[str, str]
+          A dictionary of parameter names (see ``parameters``) to descriptions.
+        output_descriptions: dict[str, str]
+          A dictionary of output names (see ``outputs``) to descriptions.
+        citations : list of CitationRecord
+          Citations to associate with a result whenever this action is
+          used. Can also use an entire :py:class:`.Citations` object.
+        deprecated : bool
+          Whether this action is deprecated and should be migrated away from.
+        examples : dict[str, callable]
+          A dict of example name to usage example functions which take a
+          single argument (the usage driver, a.k.a. ``use``). Each function
+          will carry out some example situation for this action when executed.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> from qiime2.plugin import Int
+        >>> plugin.methods.register_function(
+        ...     function=my_method,
+        ...     inputs={
+        ...         'ints': IntSequence1,
+        ...         'optional1': IntSequence1,
+        ...         'optional2': IntSequence1 | IntSequence2
+        ...     },
+        ...     parameters={
+        ...         'num1': Int,
+        ...         'num2': Int
+        ...     },
+        ...     outputs={
+        ...         'output': IntSequence1
+        ...     },
+        ...     name='My cool method',
+        ...     description='It does something very clever and interesting.'
+        ... )
+        """
         if citations is None:
             citations = ()
         else:
@@ -350,10 +692,62 @@ class PluginMethods(PluginActions):
 
 
 class PluginVisualizers(PluginActions):
+    """Accessed via ``plugin.visualizers``"""
     def register_function(self, function, inputs, parameters, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None, citations=None,
                           deprecated=False, examples=None):
+        """Register a visualizer to the associated plugin.
+
+        Parameters
+        ----------
+        function : callable
+          A function which will be called when the user uses this method. This
+          function receives an ``output_dir`` as the first argument.
+        inputs : dict[str, type expression]
+          A dictionary of function-parameter names to semantic type
+          expressions. The keys of the dictionary must match the parameter
+          names which are on the ``function``. Collections and type variables
+          are also permitted so long as they contain semantic types.
+        parameters : dict[str, type expression]
+          A dictionary of function0parameter names to primitive type
+          expressions. The keys of the dictionary must match the parameter
+          names which are on the ``function``. Collections and type variables
+          are also permitted so long as they contain primitive types.
+        name : str
+          A short description, ideally a human-oriented name or title.
+        description : str
+          A longer description of the action.
+        input_descriptions: dict[str, str]
+          A dictionary of input names (see ``inputs``) to descriptions.
+        parameter_descriptions: dict[str, str]
+          A dictionary of parameter names (see ``parameters``) to descriptions.
+        citations : list of CitationRecord
+          Citations to associate with a result whenever this action is
+          used. Can also use an entire :py:class:`.Citations` object.
+        deprecated : bool
+          Whether this action is deprecated and should be migrated away from.
+        examples : dict[str, callable]
+          A dict of example name to usage example functions which take a
+          single argument (the usage driver, a.k.a. ``use``). Each function
+          will carry out some example situation for this action when executed.
+
+        Notes
+        -----
+        Unlike methods and pipelines, there are no registered outputs as every
+        visualizer returns a single output.
+
+        Examples
+        --------
+        >>> plugin.visualizers.register_function(
+        ...     function=my_visualizer,
+        ...     inputs={'ints': IntSequence1 | IntSequence2},
+        ...     parameters={},
+        ...     name='Visualize most common integers',
+        ...     description='Produces a ranked list of integers.',
+        ...     citations=[citations['witcombe2006sword']]
+        ... )
+        """
         if citations is None:
             citations = ()
         else:
@@ -373,11 +767,68 @@ class PluginVisualizers(PluginActions):
 
 
 class PluginPipelines(PluginActions):
+    """Accessed via ``plugin.pipelines``"""
     def register_function(self, function, inputs, parameters, outputs, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None,
                           deprecated=False, examples=None):
+        """Register a pipeline to the associated plugin.
+
+        Parameters
+        ----------
+        function : callable
+          A function which will be called when the user uses this method. This
+          function receives a Context object ``ctx`` as its first argument.
+        inputs : dict[str, type expression]
+          A dictionary of function-parameter names to semantic type
+          expressions. The keys of the dictionary must match the parameter
+          names which are on the ``function``. Collections and type variables
+          are also permitted so long as they contain semantic types.
+        parameters : dict[str, type expression]
+          A dictionary of function0parameter names to primitive type
+          expressions. The keys of the dictionary must match the parameter
+          names which are on the ``function``. Collections and type variables
+          are also permitted so long as they contain primitive types.
+        outputs : dict[str, type expression]
+          A dictionary of named outputs to *concrete* semantic types. The keys
+          of the dictionary will become the parameter names for these outputs
+          and must match the number of annotated outputs on the ``function``.
+          Collections and type variables are also permitted so long as they
+          contain semantic types. (In older versions of QIIME 2 this was a list
+          of tuples as dictionaries were not yet ordered.)
+        name : str
+          A short description, ideally a human-oriented name or title.
+        description : str
+          A longer description of the action.
+        input_descriptions: dict[str, str]
+          A dictionary of input names (see ``inputs``) to descriptions.
+        parameter_descriptions: dict[str, str]
+          A dictionary of parameter names (see ``parameters``) to descriptions.
+        output_descriptions: dict[str, str]
+          A dictionary of output names (see ``outputs``) to descriptions.
+        citations : list of CitationRecord
+          Citations to associate with a result whenever this action is
+          used. Can also use an entire :py:class:`.Citations` object.
+        deprecated : bool
+          Whether this action is deprecated and should be migrated away from.
+        examples : dict[str, callable]
+          A dict of example name to usage example functions which take a
+          single argument (the usage driver, a.k.a. ``use``). Each function
+          will carry out some example situation for this action when executed.
+
+        Examples
+        --------
+        >>> from qiime2.plugin import Collection
+        >>> plugin.pipelines.register_function(
+        ...     function=my_pipeline,
+        ...     inputs={'ints': Collection[IntSequence1]},
+        ...     parameters={},
+        ...     outputs={'output': Collection[IntSequence1]},
+        ...     name='Do thing multiple times',
+        ...     description='Takes a collection and returns a better one'
+        ... )
+        """
         if citations is None:
             citations = ()
         else:

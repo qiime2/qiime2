@@ -7,17 +7,44 @@
 # ----------------------------------------------------------------------------
 
 import os
+from typing import Union, Optional, IO
 import pkg_resources
 import collections
 
 import bibtexparser as bp
 
 CitationRecord = collections.namedtuple('CitationRecord', ['type', 'fields'])
+"""
+A :py:func:`collections.namedtuple` of bibtex entry type and entry fields.
+
+Parameters
+----------
+type : str
+  The bibtex entry type (e.g. 'article')
+fields: dict
+  The individual key-value pairs of the bibtex entry
+"""
 
 
 class Citations(collections.OrderedDict):
+    """A simple subclass of :py:class:`collections.OrderedDict`
+       but iterates over values instead of keys by default."""
     @classmethod
-    def load(cls, path, package=None):
+    def load(cls, path: Union[str, os.PathLike], package: Optional[str]=None):
+        """Load a bibtex file from a path (or relative package path)
+
+        Parameters
+        ----------
+        path
+          The path of a bibtex file, if `package` is provided, it will be
+          relative to the python package.
+        package
+          The python package to load from.
+
+        Returns
+        -------
+        Citations
+        """
         if package is not None:
             root = pkg_resources.resource_filename(package, '.')
             root = os.path.abspath(root)
@@ -46,9 +73,21 @@ class Citations(collections.OrderedDict):
         return cls(entries)
 
     def __iter__(self):
+        """Iterates over the contained :py:class:`CitationRecord`'s"""
         return iter(self.values())
 
-    def save(self, f):
+    def save(self, f: Union[str, IO]):
+        """Save object as bibtex to a filepath or filehandle
+
+        Parameters
+        ----------
+        f
+          A string (but not :py:class:`os.PathLike`) or filehandle
+
+        Returns
+        -------
+        None
+        """
         entries = []
         for key, citation in self.items():
             entry = citation.fields.copy()

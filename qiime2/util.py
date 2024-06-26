@@ -19,6 +19,22 @@ _REDIRECTED_STDIO_LOCK = threading.Lock()
 
 @contextlib.contextmanager
 def redirected_stdio(stdout=None, stderr=None):
+    """A context manager to redirect stdio to a new file (if provided).
+
+    Parameters
+    ----------
+    stdout : file-like object or file-descriptor (int)
+      The file to redirect stdout to. Does nothing to the process-table if not
+      provided.
+    stderr : file-like object or file-descriptor (int)
+      The file to redirect stderr to. Does nothing to the process-table if not
+      provided.
+
+    Notes
+    -----
+    The current sys.stdout/sys.stderr must be backed by a file descriptor
+    (i.e they cannot be replaced with BytesIO).
+    """
     with _REDIRECTED_STDIO_LOCK:
         if stdout is not None:
             with _redirected_fd(to=stdout, stdio=sys.stdout):
@@ -68,9 +84,11 @@ def _get_fileno(file_or_fd):
 
 
 def duplicate(src, dst):
-    """Alternative to shutil.copyfile, this will use os.link when possible.
+    """Alternative to :py:func:`shutil.copyfile`
+    this will use :py:func:`os.link` when possible.
 
-    See shutil.copyfile for documention. Only `src` and `dst` are supported.
+    See :py:func:`shutil.copyfile` for documention.
+    Only ``src`` and ``dst`` are supported.
     Unlike copyfile, this will not overwrite the destination if it exists.
 
     """
