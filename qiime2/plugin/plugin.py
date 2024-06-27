@@ -93,7 +93,9 @@ ValidatorRecord = collections.namedtuple(
 
 class Plugin:
     """
-    A QIIME 2 Plugin. An instance of this class defines all features of a given plugin
+    A QIIME 2 Plugin.
+
+    An instance of this class defines all features of a given plugin
     and is instantiated as a module global (i.e. a singleton).
 
     """
@@ -102,30 +104,40 @@ class Plugin:
     visualizers: Type['PluginVisualizers']
     pipelines: Type['PluginPipelines']
 
-    def __init__(self, name: str, version: str, website: str, package: Optional[str]=None, project_name: Optional[str]=None,
-                 citation_text: Optional[Any]=None, user_support_text: Optional[str]=None,
-                 short_description: Optional[str]=None, description: Optional[str]=None, citations: Optional[Union[Citations, 'list[CitationRecord]']]=None):
+    def __init__(self, name: str, version: str, website: str,
+                 package: Optional[str] = None,
+                 project_name: Optional[str] = None,
+                 citation_text: Optional[Any] = None,
+                 user_support_text: Optional[str] = None,
+                 short_description: Optional[str] = None,
+                 description: Optional[str] = None,
+                 citations: Optional[
+                     Union[Citations, 'list[CitationRecord]']] = None):
         """
         Parameters
         ----------
         name
-          The name of the plugin (hyphens will be automatically replaced for the plugin ID)
+          The name of the plugin (hyphens will be automatically replaced for
+          the plugin ID)
         version
           The version of the plugin (this should match the package version)
         website
           A URL to find more information about this plugin
         package
-          The Python package name of your plugin. This is largely defunct and is set by the
-          entry_point during plugin loading.
+          The Python package name of your plugin. This is largely defunct and
+          is set by the entry-point during plugin loading.
         project_name
-          The external name of the plugin (distinct from the internal ``name``, i.e. q2-my-plugin vs my-plugin).
-          Also defunct and set by the entry_point during plugin loading.
+          The external name of the plugin (distinct from the internal ``name``,
+          i.e. q2-my-plugin vs my-plugin). Also defunct and set by the
+          entry-point during plugin loading.
         citation_text
-          Deprecated. Does nothing. Use ``citations`` instead.
+          **Deprecated**. Does nothing. Use ``citations`` instead.
         user_support_text
-          A message about where to find user support. The default will suggest users visit the QIIME 2 forum.
+          A message about where to find user support. The default will suggest
+          users visit the QIIME 2 forum.
         short_description
-          A small (single-line) description to help identify the plugin in a list.
+          A small (single-line) description to help identify the plugin in a
+          list.
         description
           A more complete description of the plugins purpose.
         citations : list of CitationRecord
@@ -222,7 +234,8 @@ class Plugin:
 
         Notes
         -----
-        :py:func:`SingleFileDirectoryFormat` returns a :py:class:`DirectoryFormat`
+        :py:func:`SingleFileDirectoryFormat` returns a
+        :py:class:`DirectoryFormat`
         """
         for format in formats:
             if not issubclass(format, FormatBase):

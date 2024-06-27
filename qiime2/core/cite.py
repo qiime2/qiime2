@@ -30,7 +30,8 @@ class Citations(collections.OrderedDict):
     """A simple subclass of :py:class:`collections.OrderedDict`
        but iterates over values instead of keys by default."""
     @classmethod
-    def load(cls, path: Union[str, os.PathLike], package: Optional[str]=None):
+    def load(cls, path: Union[str, os.PathLike],
+             package: Optional[str] = None):
         """Load a bibtex file from a path (or relative package path)
 
         Parameters

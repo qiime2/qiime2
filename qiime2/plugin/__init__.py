@@ -23,7 +23,8 @@ __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
            'Float', 'Metadata', 'MetadataColumn', 'Categorical', 'Numeric',
            'Properties', 'Range', 'Start', 'End', 'Choices', 'Visualization',
            'Jobs', 'Threads', 'TypeMap', 'TypeMatch', 'ValidationError',
-           'Citations', 'CitationRecord', 'get_available_cores', 'SingleFileDirectoryFormat']
+           'Citations', 'CitationRecord', 'get_available_cores',
+           'SingleFileDirectoryFormat']
 
 
 Set = Set
@@ -94,7 +95,8 @@ Visualization
 Int = Int
 """
 An integer without any particular bounds.
-It can use the predicates :py:class:`.Range`, :py:func:`.Start`, and :py:func:`.End`
+It can use the predicates :py:class:`.Range`, :py:func:`.Start`, and
+:py:func:`.End`
 
 Examples
 --------
@@ -124,7 +126,8 @@ False
 Float = Float
 """
 A 64 bit floating point number.
-It can use the predicates :py:class:`.Range`, :py:func:`.Start`, and :py:func:`.End`
+It can use the predicates :py:class:`.Range`, :py:func:`.Start`, and
+:py:func:`.End`
 
 Examples
 --------
@@ -153,7 +156,8 @@ True
 Bool = Bool
 """
 A boolean value (``True``/``False``).
-It can use the predicate :py:class:`.Choices` (but this is only interesting when using :py:class:`.TypeMap`)
+It can use the predicate :py:class:`.Choices` (but this is only interesting
+when using :py:class:`.TypeMap`)
 
 Examples
 --------
@@ -278,7 +282,9 @@ Has no meaning unless used within :py:data:`.MetadataColumn`.
 
 Jobs = Jobs
 """
-The number of jobs to submit as an integer that is greater than zero (exclusive).
+The number of jobs to submit as an integer that is greater than zero
+(exclusive).
+
 It does not support any predicate expressions.
 
 Examples
@@ -298,8 +304,12 @@ False
 
 Threads = Threads
 """
-The number of logical threads to use (OS threads/CPUs/Cores) as an integer that is non-negative or the string ``"auto"``.
-``0`` and ``"auto"`` will indicate that the number of logical threads should be dictated by system resources.
+The number of logical threads to use (OS threads/CPUs/Cores).
+
+Valid inputs are an integer that is non-negative or the string ``"auto"``.
+``0`` and ``"auto"`` will indicate that the number of logical threads should be
+dictated by system resources.
+
 It does not support any predicate expressions.
 
 Examples
