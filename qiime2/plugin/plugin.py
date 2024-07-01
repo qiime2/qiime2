@@ -371,8 +371,8 @@ class Plugin:
 
         Notes
         -----
-        Since the function is entirely defined by the input and output type, the
-        name of the function is usually unimportant and only adds noise. We
+        Since the function is entirely defined by the input and output type,
+        the name of the function is usually unimportant and only adds noise. We
         tend to use ``_<number>`` as the name, but any other name may be used.
 
         Examples

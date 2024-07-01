@@ -124,8 +124,10 @@ class TypeMap(ImmutableBase):
     Otherwise, they may pass ``False`` to Parameter A, and provide either
     ``InputTypeA`` or ``InputTypeB``, but will now receive ``ResultTypeB``.
 
-    Note that there is not a valid result for ``True`` to be given as the value for ``Parameter A`` and ``InputTypeB`` to be given as a value for  ``Parameter B`` , so the
-    TypeMap does not permit that.
+    Note that when ``Parameter B`` is given ``InputTypeB``, ``Parameter A``
+    must be ``False`` as there is no row in which ``True`` is
+    simultaneously possible. (Or equivalently, if ``True`` is given for
+    ``Parameter A``, then ``Parameter B`` must be fixed to ``InputTypeA``.)
 
     This can be used to constrain dependent input parameters to a more limited
     domain than they would otherwise possess if they were treated
