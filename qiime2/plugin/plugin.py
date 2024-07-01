@@ -17,6 +17,7 @@ from qiime2.plugin.model import DirectoryFormat
 from qiime2.plugin.model.base import FormatBase
 from qiime2.core.type import is_semantic_type
 from qiime2.core.util import get_view_name
+from qiime2.core.cite import make_citations_tuple
 
 
 TransformerRecord = collections.namedtuple(
@@ -70,10 +71,7 @@ class Plugin:
         else:
             self.description = description
 
-        if citations is None:
-            self.citations = ()
-        else:
-            self.citations = tuple(citations)
+        self.citations = make_citations_tuple(citations)
 
         self.methods = PluginMethods(self)
         self.visualizers = PluginVisualizers(self)
@@ -119,10 +117,7 @@ class Plugin:
         self.register_views(*formats, citations=citations)
 
     def register_views(self, *views, citations=None):
-        if citations is None:
-            citations = ()
-        else:
-            citations = tuple(citations)
+        citations = make_citations_tuple(citations)
 
         for view in views:
             if not isinstance(view, type):
@@ -194,10 +189,7 @@ class Plugin:
         # def _(x: A) -> B:
         #   ...
         # ```
-        if citations is None:
-            citations = ()
-        else:
-            citations = tuple(citations)
+        citations = make_citations_tuple(citations)
 
         def decorator(transformer):
             annotations = transformer.__annotations__.copy()
@@ -332,10 +324,7 @@ class PluginMethods(PluginActions):
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None,
                           deprecated=False, examples=None):
-        if citations is None:
-            citations = ()
-        else:
-            citations = tuple(citations)
+        citations = make_citations_tuple(citations)
 
         if examples is None:
             examples = {}
@@ -354,10 +343,7 @@ class PluginVisualizers(PluginActions):
                           description, input_descriptions=None,
                           parameter_descriptions=None, citations=None,
                           deprecated=False, examples=None):
-        if citations is None:
-            citations = ()
-        else:
-            citations = tuple(citations)
+        citations = make_citations_tuple(citations)
 
         if examples is None:
             examples = {}
@@ -378,10 +364,7 @@ class PluginPipelines(PluginActions):
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None,
                           deprecated=False, examples=None):
-        if citations is None:
-            citations = ()
-        else:
-            citations = tuple(citations)
+        citations = make_citations_tuple(citations)
 
         if examples is None:
             examples = {}
