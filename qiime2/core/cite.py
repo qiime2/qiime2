@@ -16,9 +16,6 @@ CitationRecord = collections.namedtuple('CitationRecord', ['type', 'fields'])
 
 
 def make_citations_tuple(citations):
-    '''
-    Convert none, one, or multiple `CitationRecord`(s) to a tuple thereof.
-    '''
     if citations is None:
         return tuple()
     elif isinstance(citations, CitationRecord):
