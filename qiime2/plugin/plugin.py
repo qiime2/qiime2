@@ -6,7 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 """
-.. For the docs below, we set this artificial global context
+.. For the docs below, we set the following artificial global context
     >>> import builtins
 
     >>> builtins.__version__ = '0.0.1'
@@ -354,8 +354,8 @@ class Plugin:
         Parameters
         ----------
         _fn : Callable
-            Ignore this parameter as it is the mechanism to allow argumentless
-            decoration
+          Ignore this parameter as it is the mechanism to allow argumentless
+          decoration
         citations : list of CitationRecord
           Citations to associate with a result whenever this transformer is
           used internally. Can also use an entire :py:class:`Citations` object.
@@ -371,7 +371,7 @@ class Plugin:
 
         Notes
         -----
-        Since the function is entirely defined by the input and output type the
+        Since the function is entirely defined by the input and output type, the
         name of the function is usually unimportant and only adds noise. We
         tend to use ``_<number>`` as the name, but any other name may be used.
 
@@ -631,7 +631,7 @@ class PluginMethods(PluginActions):
           names which are on the ``function``. Collections and type variables
           are also permitted so long as they contain semantic types.
         parameters : dict[str, type expression]
-          A dictionary of function0parameter names to primitive type
+          A dictionary of function parameter names to primitive type
           expressions. The keys of the dictionary must match the parameter
           names which are on the ``function``. Collections and type variables
           are also permitted so long as they contain primitive types.
@@ -723,7 +723,7 @@ class PluginVisualizers(PluginActions):
           names which are on the ``function``. Collections and type variables
           are also permitted so long as they contain semantic types.
         parameters : dict[str, type expression]
-          A dictionary of function0parameter names to primitive type
+          A dictionary of function parameter names to primitive type
           expressions. The keys of the dictionary must match the parameter
           names which are on the ``function``. Collections and type variables
           are also permitted so long as they contain primitive types.
@@ -748,7 +748,7 @@ class PluginVisualizers(PluginActions):
         Notes
         -----
         Unlike methods and pipelines, there are no registered outputs as every
-        visualizer returns a single output.
+        visualizer returns a single ``Visualization``  output.
 
         Examples
         --------
@@ -799,7 +799,7 @@ class PluginPipelines(PluginActions):
           names which are on the ``function``. Collections and type variables
           are also permitted so long as they contain semantic types.
         parameters : dict[str, type expression]
-          A dictionary of function0parameter names to primitive type
+          A dictionary of function parameter names to primitive type
           expressions. The keys of the dictionary must match the parameter
           names which are on the ``function``. Collections and type variables
           are also permitted so long as they contain primitive types.

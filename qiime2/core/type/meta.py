@@ -93,7 +93,7 @@ class TypeMap(ImmutableBase):
     """A table of input types which match to output types.
 
     The TypeMap is best thought of as a table in which QIIME 2 is trying to
-    find a row which matches the user's input. Once found, the row-wise search
+    find a row that matches the user's input. Once found, the row-wise search
     is terminated and the outputs of that row are bound to the outputs of the
     action.
 
