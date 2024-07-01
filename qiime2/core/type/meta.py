@@ -119,12 +119,12 @@ class TypeMap(ImmutableBase):
     | False       | InputTypeB  | ResultTypeB |
     +-------------+-------------+-------------+
 
-    Where if the user provide ``True`` to Parameter A, they MUST provide
+    Where if the user provides ``True`` to Parameter A, they MUST provide
     ``InputTypeA`` to Parameter B, and will receive ``ResultTypeA``.
     Otherwise, they may pass ``False`` to Parameter A, and provide either
     ``InputTypeA`` or ``InputTypeB``, but will now receive ``ResultTypeB``.
 
-    Note that there is not a solution for ``True`` and ``InputTypeB``, so the
+    Note that there is not a valid result for ``True`` to be given as the value for ``Parameter A`` and ``InputTypeB`` to be given as a value for  ``Parameter B`` , so the
     TypeMap does not permit that.
 
     This can be used to constrain dependent input parameters to a more limited
@@ -133,7 +133,7 @@ class TypeMap(ImmutableBase):
 
     If a TypeMap is used exclusively to constrain inputs but does not impact
     the output in any way, then the convention is to use
-    :py:data:`Visualization` to indicate a nonsense output and that final
+    :py:data:`Visualization` to indicate a "nonsense" output and that final
     type variable is ignored (an unbound output variable has no effect so
     ``Visualization`` distinguishes the intention from an accidental omission).
 

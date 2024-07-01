@@ -36,7 +36,7 @@ class Range(_PrimitivePredicateBase):
     Parameters
     ----------
     [start] : number
-      When provided as the first argument, the start of the range.
+      When provided as the first argument, the value will be the start of the range.
       Will be ``None`` (meaning negative infinity) when not provided.
     end : number
       The end of the range (when provided as the first or second argument).
