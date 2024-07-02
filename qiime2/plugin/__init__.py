@@ -26,6 +26,13 @@ __all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
            'Citations', 'CitationRecord', 'get_available_cores',
            'SingleFileDirectoryFormat']
 
+# IMPORTANT:
+# Autodoc cannot find a docstring unless it is defined in the same module that
+# is referenced. So if you say something like
+# .. autodata:: qiime2.plugin.Set
+# then the docstring has to be present at qiime2.plugin (aka here)
+# Otherwise, you would have to say `qiime2.core.type.collections.Set` which is
+# NOT what we want other developers to be importing.
 
 Set = Set
 """**Deprecated** - use List or Collection instead
