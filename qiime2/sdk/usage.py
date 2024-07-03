@@ -491,7 +491,7 @@ class UsageVariable:
             Most are self-explanatory, but "format" indicates that the factory
             produces a QIIME 2 file format or directory format, which is used
             for importing data.
-        use : Usage
+        usage : Usage
             The currently executing usage driver. Provided for convenience.
         """
         if not callable(factory):

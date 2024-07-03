@@ -30,9 +30,11 @@ class TestPluginBase(unittest.TestCase):
     Attributes
     ----------
     package : str
-        The name of the plugin package to be tested.
+        The name of the plugin package to be tested. Subclasses **must** define
+        this as a class-attribute.
     test_dir_prefix : str
         The prefix for the temporary testing dir created by the harness.
+        Optional.
 
     """
 
@@ -156,7 +158,7 @@ class TestPluginBase(unittest.TestCase):
 
     def assertSemanticTypeRegisteredToFormat(self, semantic_type, exp_format):
         """Test assertion for ensuring a semantic type is registered to a
-           format.
+        format.
 
         Fails if the semantic type requested is not registered to the format
         specified with ``exp_format``. Also fails if the semantic type isn't
@@ -252,6 +254,7 @@ class TestPluginBase(unittest.TestCase):
         return input, obs
 
     def execute_examples(self):
+        """Runs all usage examples defined in the plugin."""
         if self.plugin is None:
             raise ValueError('Attempted to run `execute_examples` without '
                              'configuring test harness.')

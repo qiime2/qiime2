@@ -31,7 +31,7 @@ def get_available_cores(n_less: int = 0):
     ----------
     n_less : int
         The number of cores less than the total number available to request.
-        For example `get_available_cores(n_less=2) with 10 available cores
+        For example `get_available_cores(n_less=2)` with 10 available cores
         will return 8.
 
     Returns
