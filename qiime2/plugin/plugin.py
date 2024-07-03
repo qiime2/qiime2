@@ -142,7 +142,7 @@ class Plugin:
         description
           A more complete description of the plugins purpose.
         citations : CitationRecord or list of CitationRecord
-          Citations to associate with a result whenever this plugin is
+          Citation(s) to associate with a result whenever this plugin is
           used. Can also use an entire :py:class:`Citations` object.
 
         Examples
@@ -725,7 +725,7 @@ class PluginVisualizers(PluginActions):
         parameter_descriptions: dict[str, str]
           A dictionary of parameter names (see ``parameters``) to descriptions.
         citations : CitationRecord or list of CitationRecord
-          Citations to associate with a result whenever this action is
+          Citation(s) to associate with a result whenever this action is
           used. Can also use an entire :py:class:`.Citations` object.
         deprecated : bool
           Whether this action is deprecated and should be migrated away from.
