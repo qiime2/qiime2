@@ -88,30 +88,35 @@ def _setup_parallel():
     parallel_config = PARALLEL_CONFIG.parallel_config
     mapping = PARALLEL_CONFIG.action_executor_mapping
 
+    # Make sure the vendored mapping is initialized. It is very possible that
+    # no mapping will be set at all
+    vendored_mapping = {}
+
     # If we are running tests, get the test config not the normal one
     if os.environ.get('QIIMETEST') is not None and parallel_config is None:
-        _parallel_config, _mapping = get_config_from_dict(_TEST_CONFIG_)
+        vendored_config, vendored_mapping = get_config_from_dict(_TEST_CONFIG_)
     else:
         # If they did not already supply a config, we get the vendored one
-        if parallel_config is None:
+        if not parallel_config:
             config_fp = _get_vendored_config()
 
             # If we are not in a conda environment, we may not get an fp back
             # (because the vendored fp uses the conda prefix), so we load from
             # the vendored dict. Otherwise we load from the vendored file
             if config_fp is not None:
-                _parallel_config, _mapping = get_config_from_file(config_fp)
+                vendored_config, vendored_mapping = \
+                    get_config_from_file(config_fp)
             else:
-                _parallel_config, _mapping = \
+                vendored_config, vendored_mapping = \
                     get_config_from_dict(VENDORED_CONFIG)
 
     # If they did not supply a parallel_config, set the vendored one
     if not parallel_config:
-        PARALLEL_CONFIG.parallel_config = _parallel_config
+        PARALLEL_CONFIG.parallel_config = vendored_config
 
     # If they did not supply a mapping, set the vendored one
     if not mapping:
-        PARALLEL_CONFIG.action_executor_mapping = _mapping
+        PARALLEL_CONFIG.action_executor_mapping = vendored_mapping
 
     PARALLEL_CONFIG.dfk = parsl.load(PARALLEL_CONFIG.parallel_config)
 
