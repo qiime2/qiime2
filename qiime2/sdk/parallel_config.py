@@ -106,11 +106,11 @@ def _setup_parallel():
                     get_config_from_dict(VENDORED_CONFIG)
 
     # If they did not supply a parallel_config, set the vendored one
-    if parallel_config is None:
+    if not parallel_config:
         PARALLEL_CONFIG.parallel_config = _parallel_config
 
     # If they did not supply a mapping, set the vendored one
-    if mapping == {}:
+    if not mapping:
         PARALLEL_CONFIG.action_executor_mapping = _mapping
 
     PARALLEL_CONFIG.dfk = parsl.load(PARALLEL_CONFIG.parallel_config)
