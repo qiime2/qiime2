@@ -31,9 +31,9 @@ VENDORED_CONFIG = {
     'parsl': {
         'strategy': 'None',
         'executors': [
-            {'class': 'ThreadPoolExecutor', 'label': 'default',
+            {'class': 'ThreadPoolExecutor', 'label': 'tpool',
                 'max_threads': max(psutil.cpu_count() - 1, 1)},
-            {'class': 'HighThroughputExecutor', 'label': 'htex',
+            {'class': 'HighThroughputExecutor', 'label': 'default',
                 'max_workers': max(psutil.cpu_count() - 1, 1),
                 'provider': {'class': 'LocalProvider'}}
             ]
