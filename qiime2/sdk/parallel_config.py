@@ -110,7 +110,7 @@ def _setup_parallel():
         PARALLEL_CONFIG.parallel_config = _parallel_config
 
     # If they did not supply a mapping, set the vendored one
-    if mapping is {}:
+    if mapping == {}:
         PARALLEL_CONFIG.action_executor_mapping = _mapping
 
     PARALLEL_CONFIG.dfk = parsl.load(PARALLEL_CONFIG.parallel_config)
