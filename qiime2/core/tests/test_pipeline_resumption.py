@@ -700,3 +700,15 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertEqual(dict_uuids, complete_dict_uuids)
             self.assertEqual(identity_uuid, complete_identity_uuid)
             self.assertEqual(viz_uuid, complete_viz_uuid)
+
+    def test_mixing_cached_and_new_artifacts(self):
+        """ This was previously causing issues
+        """
+        self.pipeline = self.plugin.pipelines['mix_arts_and_proxies']
+
+        with self.cache:
+            with ParallelConfig():
+                with self.assertRaises(ValueError):
+                    self.pipeline.parallel(fail=True)._result()
+
+                self.pipeline.parallel()._result()

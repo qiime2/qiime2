@@ -70,7 +70,7 @@ def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
         # a future, but we will have concrete results by this point if we are a
         # pipeline
         if isinstance(action, Pipeline) and ctx.parallel:
-            return _create_future(results)
+            return qiime2.sdk.util.create_future(results)
 
         return results
 
@@ -78,25 +78,32 @@ def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
 def _map_arg(arg, futures):
     """ Map a proxy artifact for input to a parsl action
     """
-
     # We add this future to the list and create a new proxy with its index as
     # its future.
     if isinstance(arg, Proxy):
         futures.append(arg._future_)
         mapped = arg.__class__(len(futures) - 1, arg._selector_)
     # We do the above but for all elements in the collection
-    elif isinstance(arg, list) and _is_all_proxies(arg):
+    elif isinstance(arg, list):
         mapped = []
 
         for proxy in arg:
-            futures.append(proxy._future_)
-            mapped.append(proxy.__class__(len(futures) - 1, proxy._selector_))
-    elif isinstance(arg, dict) and _is_all_proxies(arg):
+            if isinstance(proxy, Proxy):
+                futures.append(proxy._future_)
+                mapped.append(proxy.__class__(
+                    len(futures) - 1, proxy._selector_))
+            else:
+                mapped.append(proxy)
+    elif isinstance(arg, dict):
         mapped = {}
 
         for key, value in arg.items():
-            futures.append(value._future_)
-            mapped[key] = value.__class__(len(futures) - 1, value._selector_)
+            if isinstance(value, Proxy):
+                futures.append(value._future_)
+                mapped[key] = value.__class__(
+                    len(futures) - 1, value._selector_)
+            else:
+                mapped[key] = value
     # We just have a real artifact and don't need to map
     else:
         mapped = arg
@@ -116,49 +123,29 @@ def _unmap_arg(arg, inputs):
     # If we got a collection of proxies as the input we were even hackier and
     # added each proxy to the inputs list individually while having a list of
     # their indices in the args.
-    elif isinstance(arg, list) and _is_all_proxies(arg):
+    elif isinstance(arg, list):
         unmapped = []
 
         for proxy in arg:
-            resolved_result = inputs[proxy._future_]
-            unmapped.append(proxy._get_element_(resolved_result))
-    elif isinstance(arg, dict) and _is_all_proxies(arg):
+            if isinstance(proxy, Proxy):
+                resolved_result = inputs[proxy._future_]
+                unmapped.append(proxy._get_element_(resolved_result))
+            else:
+                unmapped.append(proxy)
+    elif isinstance(arg, dict):
         unmapped = {}
 
         for key, value in arg.items():
-            resolved_result = inputs[value._future_]
-            unmapped[key] = value._get_element_(resolved_result)
+            if isinstance(value, Proxy):
+                resolved_result = inputs[value._future_]
+                unmapped[key] = value._get_element_(resolved_result)
+            else:
+                unmapped[key] = value
     # We didn't have a proxy at all
     else:
         unmapped = arg
 
     return unmapped
-
-
-def _is_all_proxies(collection):
-    """ Returns whether the collection is all proxies or all artifacts.
-        Raises a ValueError if there is a mix.
-    """
-    if isinstance(collection, dict):
-        collection = list(collection.values())
-
-    if all(isinstance(elem, Proxy) for elem in collection):
-        return True
-
-    if any(isinstance(elem, Proxy) for elem in collection):
-        raise ValueError("Collection has mixed proxies and artifacts. "
-                         "This is not allowed.")
-
-    return False
-
-
-@python_app
-def _create_future(results):
-    """ This is a bit of a dumb hack. It's just a way for us to make pipelines
-    return a future which is what Parsl wants a join_app to return even though
-    we will have real results at this point.
-    """
-    return results
 
 
 class Action(metaclass=abc.ABCMeta):

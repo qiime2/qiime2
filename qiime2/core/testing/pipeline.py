@@ -210,7 +210,7 @@ def internal_fail_pipeline(ctx, ints1, ints2, int1=None, string='None',
     return ints1_ret, ints2_ret, int1_ret
 
 
-def de_facto_list_pipeline(ctx, kwarg=False, non_proxies=False):
+def de_facto_list_pipeline(ctx, kwarg=False):
     returns_int = ctx.get_action('dummy_plugin', 'returns_int')
     list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
     num_ints = 3
@@ -220,9 +220,6 @@ def de_facto_list_pipeline(ctx, kwarg=False, non_proxies=False):
         ints_ret, = returns_int(i)
         ints.append(ints_ret)
 
-    if non_proxies:
-        ints.append(ctx.make_artifact(SingleInt, num_ints + 1))
-
     if kwarg:
         ret, = list_of_ints(ints=ints)
     else:
@@ -231,7 +228,7 @@ def de_facto_list_pipeline(ctx, kwarg=False, non_proxies=False):
     return ret
 
 
-def de_facto_dict_pipeline(ctx, kwarg=False, non_proxies=False):
+def de_facto_dict_pipeline(ctx, kwarg=False):
     returns_int = ctx.get_action('dummy_plugin', 'returns_int')
     dict_of_ints = ctx.get_action('dummy_plugin', 'dict_of_ints')
     num_ints = 3
@@ -241,15 +238,31 @@ def de_facto_dict_pipeline(ctx, kwarg=False, non_proxies=False):
         ints_ret, = returns_int(i)
         ints[str(i + 1)] = ints_ret
 
-    if non_proxies:
-        ints[str(num_ints + 2)] = ctx.make_artifact(SingleInt, num_ints + 1)
-
     if kwarg:
         ret, = dict_of_ints(ints=ints)
     else:
         ret, = dict_of_ints(ints)
 
     return ret
+
+
+def mix_arts_and_proxies(ctx, fail=False):
+    returns_int = ctx.get_action('dummy_plugin', 'returns_int')
+    list_of_ints = ctx.get_action('dummy_plugin', 'list_of_ints')
+
+    ints = []
+    for i in range(2):
+        if i == 0:
+            int_ret, = returns_int(i)._result()
+
+        if i == 1 and fail:
+            raise ValueError()
+
+        int_ret, = returns_int(i)
+        ints.append(int_ret)
+
+    real_ints, = list_of_ints(ints)
+    return real_ints
 
 
 def list_pipeline(ctx, ints):
