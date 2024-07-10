@@ -103,7 +103,7 @@ def _setup_parallel():
             # If we are not in a conda environment, we may not get an fp back
             # (because the vendored fp uses the conda prefix), so we load from
             # the vendored dict. Otherwise we load from the vendored file
-            if config_fp is not None:
+            if config_fp:
                 vendored_config, vendored_mapping = \
                     get_config_from_file(config_fp)
             else:
