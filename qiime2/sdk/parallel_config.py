@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import os
+import copy
 import psutil
 import appdirs
 import threading
@@ -15,6 +16,7 @@ import importlib
 import parsl
 import tomlkit
 
+# Stores info about the currently loaded parallel config
 PARALLEL_CONFIG = threading.local()
 PARALLEL_CONFIG.dfk = None
 PARALLEL_CONFIG.parallel_config = None
@@ -81,86 +83,34 @@ module_paths = {
 }
 
 
-def _setup_parallel():
-    """Sets the parsl config and action executor mapping to the values set on
-    the thread local
+def get_vendored_config():
+    """Gets the vendored parallel config as a dict
+
+       NOTE: Does NOT load the config
     """
-    parallel_config = PARALLEL_CONFIG.parallel_config
-    mapping = PARALLEL_CONFIG.action_executor_mapping
-
-    # Make sure the vendored mapping is initialized. It is very possible that
-    # no mapping will be set at all
-    vendored_mapping = {}
-
     # If we are running tests, get the test config not the normal one
-    if os.environ.get('QIIMETEST') is not None and parallel_config is None:
-        vendored_config, vendored_mapping = get_config_from_dict(_TEST_CONFIG_)
+    if 'QIIMETEST' in os.environ:
+        source = 'test config dict'
+        config_dict = copy.copy(_TEST_CONFIG_)
     else:
-        # If they did not already supply a config, we get the vendored one
-        if not parallel_config:
-            config_fp = _get_vendored_config()
+        config_fp = _get_vendored_config_path()
 
-            # If we are not in a conda environment, we may not get an fp back
-            # (because the vendored fp uses the conda prefix), so we load from
-            # the vendored dict. Otherwise we load from the vendored file
-            if config_fp:
-                vendored_config, vendored_mapping = \
-                    get_config_from_file(config_fp)
-            else:
-                vendored_config, vendored_mapping = \
-                    get_config_from_dict(VENDORED_CONFIG)
+        # If we are not in a conda environment, we may not get an fp back
+        # (because the vendored fp uses the conda prefix), so we load from
+        # the vendored dict. Otherwise we load from the vendored file
+        if config_fp:
+            source = config_fp
+            config_dict = _get_config_dict_from_file(config_fp)
+        else:
+            source = 'vendored config dict'
+            config_dict = copy.copy(VENDORED_CONFIG)
 
-    # If they did not supply a parallel_config, set the vendored one
-    if not parallel_config:
-        PARALLEL_CONFIG.parallel_config = vendored_config
-
-    # If they did not supply a mapping, set the vendored one
-    if not mapping:
-        PARALLEL_CONFIG.action_executor_mapping = vendored_mapping
-
-    PARALLEL_CONFIG.dfk = parsl.load(PARALLEL_CONFIG.parallel_config)
+    vendored_mapping = config_dict.pop('executor_mapping', {})
+    vendored_config = config_dict
+    return vendored_config, vendored_mapping, source
 
 
-def _cleanup_parallel():
-    """Ask parsl to cleanup and then remove the currently active dfk
-    """
-    PARALLEL_CONFIG.dfk.cleanup()
-    parsl.clear()
-
-
-def get_config_from_file(config_fp):
-    """Takes a config filepath and determines if the file exists and if so if
-    it contains parsl config info.
-    """
-    with open(config_fp, 'r') as fh:
-        # After parsing the file tomlkit has the data wrapped in its own
-        # proprietary classes. Unwrap recursively turns these classes into
-        # Python built-ins
-        #
-        # ex: tomlkit.items.Int -> int
-        #
-        # issue caused by this wrapping
-        # https://github.com/Parsl/parsl/issues/3027
-        config_dict = tomlkit.load(fh).unwrap()
-
-    return get_config_from_dict(config_dict)
-
-
-def get_config_from_dict(config_dict):
-    parallel_config_dict = config_dict.get('parsl')
-    mapping = parallel_config_dict.pop('executor_mapping', {})
-
-    processed_parallel_config_dict = _process_config(parallel_config_dict)
-
-    if processed_parallel_config_dict != {}:
-        parallel_config = parsl.Config(**processed_parallel_config_dict)
-    else:
-        parallel_config = None
-
-    return parallel_config, mapping
-
-
-def _get_vendored_config():
+def _get_vendored_config_path():
     # 1. Check envvar
     config_fp = os.environ.get('QIIME2_CONFIG')
 
@@ -190,6 +140,42 @@ def _get_vendored_config():
             config_fp = VENDORED_FP
 
     return config_fp
+
+
+def load_config_from_file(config_fp):
+    """Takes a config filepath and load the config and mapping from it.
+    """
+    config_dict = _get_config_dict_from_file(config_fp)
+    return load_config_from_dict(config_dict)
+
+
+def load_config_from_dict(config_dict):
+    """Takes a config dict and loads the config and mapping from it
+    """
+    parallel_config_dict = config_dict.get('parsl')
+    mapping = parallel_config_dict.pop('executor_mapping', {})
+
+    processed_parallel_config_dict = _process_config(parallel_config_dict)
+
+    if processed_parallel_config_dict != {}:
+        parallel_config = parsl.Config(**processed_parallel_config_dict)
+    else:
+        parallel_config = None
+
+    return parallel_config, mapping
+
+
+def _get_config_dict_from_file(config_fp):
+    with open(config_fp, 'r') as fh:
+        # After parsing the file tomlkit has the data wrapped in its own
+        # proprietary classes. Unwrap recursively turns these classes into
+        # Python built-ins
+        #
+        # ex: tomlkit.items.Int -> int
+        #
+        # issue caused by this wrapping
+        # https://github.com/Parsl/parsl/issues/3027
+        return tomlkit.load(fh).unwrap()
 
 
 def _process_config(config_dict):
@@ -277,21 +263,41 @@ class ParallelConfig():
             raise ValueError('ParallelConfig already loaded, cannot nest '
                              'ParallelConfigs')
 
-        PARALLEL_CONFIG.parallel_config = self.parallel_config
-        PARALLEL_CONFIG.action_executor_mapping = self.action_executor_mapping
+        # Make sure the vendored mapping is initialized. It is very possible
+        # that no mapping will be set at all
+        vendored_mapping = {}
 
-        _setup_parallel()
+        # If they did not already supply a config, we get the vendored one
+        if not self.parallel_config:
+            vendored_config, vendored_mapping, _ = \
+                get_vendored_config()
+            vendored_config, _ = load_config_from_dict(vendored_config)
+
+            PARALLEL_CONFIG.parallel_config = vendored_config
+        else:
+            PARALLEL_CONFIG.parallel_config = self.parallel_config
+
+        # If they did not supply a mapping, set the vendored one
+        if not self.action_executor_mapping:
+            PARALLEL_CONFIG.action_executor_mapping = vendored_mapping
+        else:
+            PARALLEL_CONFIG.action_executor_mapping = \
+                self.action_executor_mapping
+
+        PARALLEL_CONFIG.dfk = parsl.load(PARALLEL_CONFIG.parallel_config)
 
     def __exit__(self, *args):
         """Set our Parsl config back to whatever it was before this one
         """
-        _cleanup_parallel()
+        PARALLEL_CONFIG.dfk.cleanup()
+        parsl.clear()
 
         PARALLEL_CONFIG.dfk = None
         PARALLEL_CONFIG.parallel_config = None
         PARALLEL_CONFIG.action_executor_mapping = {}
 
 
+# TESTING STUFF #
 def _check_env(cls):
     if 'QIIMETEST' not in os.environ:
         raise ValueError(
