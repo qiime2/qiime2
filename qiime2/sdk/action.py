@@ -35,46 +35,6 @@ def _subprocess_apply(action, ctx, args, kwargs):
         return results
 
 
-def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
-                      inputs=[]):
-    """This is what the parsl app itself actually runs. It's basically just a
-    wrapper around our QIIME 2 action. When this is initially called, args and
-    kwargs may contain proxies that reference futures in inputs. By the time
-    this starts executing, those futures will have resolved. We then need to
-    take the resolved inputs and map the correct parts of them to the correct
-    args/kwargs before calling the action with them.
-
-    This is necessary because a single future in inputs will resolve into a
-    Results object. We need to take singular Result objects off of that Results
-    object and map them to the correct inputs for the action we want to call.
-    """
-    args = []
-    for arg in mapped_args:
-        unmapped = _unmap_arg(arg, inputs)
-        args.append(unmapped)
-
-    kwargs = {}
-    for key, value in mapped_kwargs.items():
-        unmapped = _unmap_arg(value, inputs)
-        kwargs[key] = unmapped
-
-    # We with in the cache here to make sure archiver.load* puts things in the
-    # right cache
-    with ctx.cache:
-        exe = action._bind(
-            lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
-        results = exe(*args, **kwargs)
-
-        # If we are running a pipeline, we need to create a future here because
-        # the parsl join app the pipeline was running in is expected to return
-        # a future, but we will have concrete results by this point if we are a
-        # pipeline
-        if isinstance(action, Pipeline) and ctx.parallel:
-            return qiime2.sdk.util.create_future(results)
-
-        return results
-
-
 def _map_arg(arg, futures):
     """ Map a proxy artifact for input to a parsl action
     """
@@ -419,6 +379,51 @@ class Action(metaclass=abc.ABCMeta):
         # determine that here
         executor = ctx.action_executor_mapping.get(self.id, 'default')
         execution_ctx = {'type': 'parsl'}
+
+        def _run_parsl_action(action, ctx, execution_ctx, mapped_args,
+                              mapped_kwargs, inputs=[]):
+            """This is what the parsl app itself actually runs. It's basically
+            just a wrapper around our QIIME 2 action. When this is initially
+            called, args and kwargs may contain proxies that reference futures
+            in inputs. By the time this starts executing, those futures will
+            have resolved. We then need to take the resolved inputs and map the
+            correct parts of them to the correct args/kwargs before calling the
+            action with them.
+
+            This is necessary because a single future in inputs will resolve
+            into a Results object. We need to take singular Result objects off
+            of that Results object and map them to the correct inputs for the
+            action we want to call.
+            """
+            args = []
+            for arg in mapped_args:
+                unmapped = _unmap_arg(arg, inputs)
+                args.append(unmapped)
+
+            kwargs = {}
+            for key, value in mapped_kwargs.items():
+                unmapped = _unmap_arg(value, inputs)
+                kwargs[key] = unmapped
+
+            # We with in the cache here to make sure archiver.load* puts things
+            # in the right cache
+            with ctx.cache:
+                exe = action._bind(
+                    lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
+                results = exe(*args, **kwargs)
+
+                # If we are running a pipeline, we need to create a future here
+                # because the parsl join app the pipeline was running in is
+                # expected to return a future, but we will have concrete
+                # results by this point if we are a pipeline
+                if isinstance(action, Pipeline) and ctx.parallel:
+                    return qiime2.sdk.util.create_future(results)
+
+                return results
+
+        # Set the name of the closure to the name of the action, so we see the
+        # correct name in the parsl log
+        self._set_wrapper_name(_run_parsl_action, self.name)
 
         # Pipelines run in join apps and are a sort of synchronization point
         # right now. Unfortunately it is not currently possible to make say a
