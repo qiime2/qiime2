@@ -362,7 +362,7 @@ class MetadataReader:
         return series.replace([''], [None])
 
     def _to_numeric(self, series):
-        series = series.replace('', np.nan)
+        series = series.replace('', np.nan).infer_objects(copy=False)
         is_numeric = series.apply(self._is_numeric)
         if is_numeric.all():
             return pd.to_numeric(series, errors='raise')
