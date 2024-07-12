@@ -14,7 +14,7 @@ from qiime2.sdk.parallel_config import PARALLEL_CONFIG
 
 
 class Context:
-    def __init__(self, parent=None, parallel=False):
+    def __init__(self, parent=None, parallel=False, id=None):
         if parent is not None:
             self.action_executor_mapping = parent.action_executor_mapping
             self.executor_name_type_mapping = parent.executor_name_type_mapping
@@ -39,8 +39,9 @@ class Context:
 
         self._parent = parent
         self._scope = None
+        self.id = id
 
-    def get_action(self, plugin: str, action: str):
+    def get_action(self, plugin: str, action: str, id: str = None):
         """Return a function matching the callable API of an action.
         This function is aware of the pipeline context and manages its own
         cleanup as appropriate.
@@ -135,14 +136,14 @@ class Context:
             def _bind_parsl_context(ctx):
                 def _bind_parsl_args(*args, **kwargs):
                     return action_obj._bind_parsl(
-                        ctx, *args, **kwargs)
+                        ctx, *args, id=id, **kwargs)
                 return _bind_parsl_args
 
             if self.parallel:
                 return _bind_parsl_context(self)(*args, **kwargs)
 
             return action_obj._bind(
-                lambda: self.__class__(parent=self))(*args, **kwargs)
+                lambda: self.make_child(id=self.id))(*args, **kwargs)
 
         deferred_action = action_obj._rewrite_wrapper_signature(
             deferred_action)
@@ -176,6 +177,9 @@ class Context:
         # happen)
         self._scope.add_reference(artifact)
         return artifact
+
+    def make_child(self, id: str = None):
+        return Context(parent=self, id=id)
 
     def pre_execution_hook(self):
         """Runs before the action executes.

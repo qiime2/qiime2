@@ -28,14 +28,13 @@ def _subprocess_apply(action, ctx, args, kwargs):
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
     with ctx.cache:
-        exe = action._bind(
-            lambda: ctx.__class__(parent=ctx), {'type': 'asynchronous'})
+        exe = action._bind(ctx.make_child, {'type': 'asynchronous'})
         results = exe(*args, **kwargs)
 
         return results
 
 def _run_parsl_action_resource(action, ctx, execution_ctx, mapped_args,
-                               mapped_kwargs, inputs=[],
+                               mapped_kwargs, id, inputs=[],
                                parsl_resource_specification={}):
     """This is what the parsl app itself actually runs. It's basically just a
     wrapper around our QIIME 2 action. When this is initially called, args and
@@ -48,33 +47,11 @@ def _run_parsl_action_resource(action, ctx, execution_ctx, mapped_args,
     Results object. We need to take singular Result objects off of that Results
     object and map them to the correct inputs for the action we want to call.
     """
-    args = []
-    for arg in mapped_args:
-        unmapped = _unmap_arg(arg, inputs)
-        args.append(unmapped)
-
-    kwargs = {}
-    for key, value in mapped_kwargs.items():
-        unmapped = _unmap_arg(value, inputs)
-        kwargs[key] = unmapped
-
-    # We with in the cache here to make sure archiver.load* puts things in the
-    # right cache
-    with ctx.cache:
-        exe = action._bind(lambda: ctx.__class__(parent=ctx), execution_ctx)
-        results = exe(*args, **kwargs)
-
-        # If we are running a pipeline, we need to create a future here because
-        # the parsl join app the pipeline was running in is expected to return
-        # a future, but we will have concrete results by this point if we are a
-        # pipeline
-        if isinstance(action, Pipeline) and ctx.parallel:
-            return _create_future(results)
-
-        return results
+    return _run_parsl_action(action, ctx, execution_ctx, mapped_args,
+                             mapped_kwargs, id, inputs)
 
 def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
-                      inputs=[]):
+                      id, inputs=[]):
     """This is what the parsl app itself actually runs. It's basically just a
     wrapper around our QIIME 2 action. When this is initially called, args and
     kwargs may contain proxies that reference futures in inputs. By the time
@@ -99,7 +76,7 @@ def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
     with ctx.cache:
-        exe = action._bind(lambda: ctx.__class__(parent=ctx), execution_ctx)
+        exe = action._bind(lambda: ctx.make_child(id=id), execution_ctx)
         results = exe(*args, **kwargs)
 
         # If we are running a pipeline, we need to create a future here because
@@ -445,7 +422,7 @@ class Action(metaclass=abc.ABCMeta):
         self._set_wrapper_name(async_wrapper, 'asynchronous')
         return async_wrapper
 
-    def _bind_parsl(self, ctx, *args, **kwargs):
+    def _bind_parsl(self, ctx, *args, id=None, **kwargs):
         futures = []
         mapped_args = []
         mapped_kwargs = {}
@@ -492,14 +469,14 @@ class Action(metaclass=abc.ABCMeta):
                 # run in the parsl main thread
                 future = join_app()(
                         _run_parsl_action)(self, ctx, execution_ctx,
-                                           mapped_args, mapped_kwargs,
+                                           mapped_args, mapped_kwargs, id,
                                            inputs=futures)
             # If there is a parent then this is not the root pipeline and we
             # want to just _bind it with a parallel context. The fact that
             # parallel is set on the context will cause ctx.get_action calls in
             # the pipeline to use the action's _bind_parsl method.
             else:
-                return self._bind(lambda: qiime2.sdk.Context(ctx),
+                return self._bind(ctx.make_child,
                                   execution_ctx=execution_ctx)(*args, **kwargs)
         else:
             execution_ctx['parsl_type'] = \
@@ -521,14 +498,14 @@ class Action(metaclass=abc.ABCMeta):
                 future = python_app(
                     executors=[executor])(
                         _run_parsl_action_resource)(self, ctx, execution_ctx,
-                                        mapped_args, mapped_kwargs,
+                                        mapped_args, mapped_kwargs, id,
                                         inputs=futures,
                                         parsl_resource_specification=parsl_resource_specification)
             else:
                 future = python_app(
                     executors=[executor])(
                         _run_parsl_action_resource)(self, ctx, execution_ctx,
-                                        mapped_args, mapped_kwargs,
+                                        mapped_args, mapped_kwargs, id,
                                         inputs=futures)
 
         collated_input = self.signature.collate_inputs(*args, **kwargs)
