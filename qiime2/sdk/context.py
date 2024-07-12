@@ -181,12 +181,12 @@ class Context:
     def make_child(self, id: str = None):
         return Context(parent=self, id=id)
 
-    def pre_execution_hook(self):
+    def pre_execution_hook(self, id=None):
         """Runs before the action executes.
         """
         pass
 
-    def post_execution_hook(self):
+    def post_execution_hook(self, id=None):
         """Runs after the action has executed successfully
         """
         pass

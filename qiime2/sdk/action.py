@@ -353,7 +353,7 @@ class Action(metaclass=abc.ABCMeta):
                     self.signature.transform_and_add_callable_args_to_prov(
                         provenance, **callable_args)
 
-                ctx.pre_execution_hook()
+                ctx.parent.pre_execution_hook(ctx.id)
 
                 try:
                     outputs = self._callable_executor_(
@@ -372,7 +372,7 @@ class Action(metaclass=abc.ABCMeta):
                 results = qiime2.sdk.Results(
                     self.signature.outputs.keys(), outputs)
 
-                ctx.post_execution_hook()
+                ctx.parent.post_execution_hook(ctx.id)
 
                 return results
 
