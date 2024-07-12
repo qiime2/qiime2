@@ -486,8 +486,8 @@ class Action(metaclass=abc.ABCMeta):
         if isinstance(self, qiime2.sdk.action.Pipeline):
             # If ctx._parent is None then this is the root pipeline and we want
             # to dispatch it to a join_app
+            execution_ctx['parsl_type'] = 'DFK'
             if ctx._parent is None:
-                execution_ctx['parsl_type'] = 'DFK'
                 # NOTE: Do not make this a python_app(join=True). We need it to
                 # run in the parsl main thread
                 future = join_app()(
@@ -499,7 +499,7 @@ class Action(metaclass=abc.ABCMeta):
             # parallel is set on the context will cause ctx.get_action calls in
             # the pipeline to use the action's _bind_parsl method.
             else:
-                return self._bind(lambda: ctx.__class__(parent=ctx),
+                return self._bind(lambda: qiime2.sdk.Context(ctx),
                                   execution_ctx=execution_ctx)(*args, **kwargs)
         else:
             execution_ctx['parsl_type'] = \
