@@ -158,6 +158,48 @@ class TestCache(unittest.TestCase):
         """
         self.assertFalse(Cache.is_cache(self.not_cache_path))
 
+    def test_file_is_not_cache(self):
+        """Verfies that a single file is not a cache
+        """
+        # Create a thing and make sure it exists and is a file
+        x = tempfile.NamedTemporaryFile()
+        os.path.isfile(x.name)
+
+        # Make sure that file is not a cache
+        self.assertFalse(Cache.is_cache(x.name))
+
+    def test_thing_that_does_not_exist_is_not_cache(self):
+        """A thing that doesn't even exist on the filesystem is not a cache
+        """
+        # Create a random string that isn't on the filesystem at all
+        tries = 1
+
+        random_string = ''.join(
+            random.choices(
+                string.ascii_lowercase +
+                string.ascii_uppercase +
+                string.digits,
+                k=10))
+
+        while os.path.exists(random_string):
+            if tries == 10:
+                raise ValueError(
+                    "We randomly generated 10 alphanumeric strings 10 "
+                    "characters long and somehow all 10 existed as paths on "
+                    "your filesystem.")
+
+            random_string = ''.join(
+                random.choices(
+                    string.ascii_lowercase +
+                    string.ascii_uppercase +
+                    string.digits,
+                    k=10))
+
+            tries += 1
+
+        # Make sure that random string is not a cache
+        self.assertFalse(Cache.is_cache(random_string))
+
     def test_cache_manually_V1(self):
         """This test manually asserts the cache created by the constructor
         looks exactly as expected.

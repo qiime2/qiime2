@@ -240,6 +240,64 @@ class SemanticTemplate(TypeTemplate):
 
 class Properties(PredicateTemplate):
     def __init__(self, *include, exclude=()):
+        """A one or more semantic properties to add to an existing type.
+
+        Semantic properties make an existing semantic type "smaller" than it
+        would otherwise be. If a union causes types to become larger, then a
+        property is the conceptual opposite. Either can be used to the same
+        effect, it just depends on what the most natural "starting point" is
+        for the base types (i.e. are the base types small and then union-ed,
+        or are they broad and then subsequently narrowed as needed?)
+
+        Parameters
+        ----------
+        *include : str
+          Properties that are true. A property is only a subtype of another
+          property if they match. This means that a subtype (with a set of
+          properties ``X``) of an expression (with properties ``Y``)
+          must have properties such that ``X >= Y``. As a consequence, each
+          additional property narrows the type further.
+        exclude : tuple[str]
+          Treated as an inverse of ``include``. The absence of a property
+          is not sufficient for an excluded property to match. Excluded
+          properties must be explicitly defined on the type. As a consequence,
+          this field is rarely if ever used.
+          It may be deprecated in the future.
+
+        Examples
+        --------
+        >>> from qiime2.plugin import Properties
+
+        Properties must match:
+
+        >>> Properties('a') <= Properties('a')
+        True
+
+        An empty property is larger than a defined one:
+
+        >>> # semantic type expressions have implicit empty properties so
+        >>> # there is no need to ever provide an empty property directly
+        >>> Properties('a') <= Properties()
+        True
+
+        The more properties there are, the narrower the type is:
+
+        >>> Properties('a', 'b', 'c') <= Properties('a', 'b')
+        True
+        >>> Properties('a', 'b', 'c') <= Properties('a', 'c')
+        True
+        >>> Properties('a', 'b', 'c') <= Properties('b', 'c')
+        True
+        >>> Properties('a', 'b', 'c') <= Properties('a')
+        True
+
+        Order does not matter:
+
+        >>> Properties('a', 'b') <= Properties('a', 'b')
+        True
+        >>> Properties('a', 'b') <= Properties('b', 'a')
+        True
+        """
         if len(include) == 1 and isinstance(include[0],
                                             (list, tuple, set, frozenset)):
             include = tuple(include[0])

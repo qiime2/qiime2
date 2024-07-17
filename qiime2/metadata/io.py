@@ -362,7 +362,7 @@ class MetadataReader:
         return series.replace([''], [None])
 
     def _to_numeric(self, series):
-        series = series.replace('', np.nan)
+        series = series.replace('', np.nan).infer_objects(copy=False)
         is_numeric = series.apply(self._is_numeric)
         if is_numeric.all():
             return pd.to_numeric(series, errors='raise')
@@ -415,7 +415,7 @@ class MetadataWriter:
 
             df = md.to_dataframe(encode_missing=True)
             df.fillna('', inplace=True)
-            df = df.applymap(self._format)
+            df = df.map(self._format)
             tsv_writer.writerows(df.itertuples(index=True))
 
     def _non_default_missing(self, missing_directive):

@@ -29,6 +29,70 @@ class _PrimitivePredicateBase(PredicateTemplate):
 
 
 class Range(_PrimitivePredicateBase):
+    """A predicate which defines a contiguous range of allowable values.
+
+    Can be used with :py:data:`.Int` and :py:data:`.Float`.
+
+    Parameters
+    ----------
+    [start] : number
+      When provided as the first argument, the value will be the start of the
+      range. Will be ``None`` (meaning negative infinity) when not provided.
+    end : number
+      The end of the range (when provided as the first or second argument).
+      Will be ``None`` (meaning positive infinity) when not provided.
+    inclusive_start : bool
+      If the ``start`` is a part of the range.
+    inclusive_end : bool
+      If the ``end`` is a part of the range.
+
+    Examples
+    --------
+    >>> from qiime2.plugin import Float, Range
+
+    A simple proportion without 100%:
+
+    >>> 0.0 in Float % Range(0, 1)
+    True
+    >>> 0.999 in Float % Range(0, 1)
+    True
+    >>> 1.0 in Float % Range(0, 1)
+    False
+
+    A non-negative value:
+
+    >>> -1.0 in Float % Range(0, None)
+    False
+    >>> 0.0 in Float % Range(0, None)
+    True
+    >>> 1.0 in Float % Range(0, None)
+    True
+
+    Multiple discontinuous ranges:
+
+    >>> 0.0 in Float % (Range(0.1, 1, inclusive_end=True)
+    ...                 | Range(10, 100, inclusive_end=True))
+    False
+    >>> 3.4 in Float % (Range(0.1, 1, inclusive_end=True)
+    ...                 | Range(10, 100, inclusive_end=True))
+    False
+    >>> 1.0 in Float % (Range(0.1, 1, inclusive_end=True)
+    ...                 | Range(10, 100, inclusive_end=True))
+    True
+    >>> 100.0 in Float % (Range(0.1, 1, inclusive_end=True)
+    ...                   | Range(10, 100, inclusive_end=True))
+    True
+
+    Intersecting ranges (how :py:func:`.Start` and :py:func:`.End` work):
+
+    >>> Range(0, None) & Range(None, 10)
+    Range(0, 10)
+
+    See also
+    --------
+    .Start
+    .End
+    """
     def __init__(self, *args, inclusive_start=_RANGE_DEFAULT_INCLUSIVE_START,
                  inclusive_end=_RANGE_DEFAULT_INCLUSIVE_END):
         if len(args) == 2:
@@ -194,14 +258,74 @@ class Range(_PrimitivePredicateBase):
 
 
 def Start(start, inclusive=_RANGE_DEFAULT_INCLUSIVE_START):
+    """Shorthand to generate a :py:class:`.Range`
+
+    The end of the resulting range is ``None`` (infinity).
+
+    Parameters
+    ----------
+    start : number
+      The start of the range
+    inclusive: bool
+      Whether the start is a part of the range
+
+    Examples
+    --------
+    >>> from qiime2.plugin import Start
+    >>> Start(0)
+    Range(0, None)
+
+    See also
+    --------
+    .Range
+    """
     return Range(start, _RANGE_DEFAULT_END, inclusive_start=inclusive)
 
 
 def End(end, inclusive=_RANGE_DEFAULT_INCLUSIVE_END):
+    """Shorthand to generate a :py:class:`.Range`
+
+    The start of the resulting range is ``None`` (negative infinity).
+
+    Parameters
+    ----------
+    end : number
+      The end of the range
+    inclusive: bool
+      Whether the end is a part of the range
+
+    Examples
+    --------
+    >>> from qiime2.plugin import End
+    >>> End(100)
+    Range(None, 100)
+
+    See also
+    --------
+    .Range
+    """
     return Range(_RANGE_DEFAULT_START, end, inclusive_end=inclusive)
 
 
 class Choices(_PrimitivePredicateBase):
+    """A predicate which defines a set of allowable values.
+
+    Can be used with :py:data:`.Str` and :py:data:`.Bool`.
+
+    Parameters
+    ----------
+    *choices : Any
+      The legal values for the base type to use. Any value outside of this
+      enumeration will be considered outside of the domain of the base type.
+
+    Examples
+    --------
+    >>> from qiime2.plugin import Str, Choices
+    >>> "apple" in Str % Choices("apple", "orange", "banana")
+    True
+    >>> "airplane" in Str % Choices("apple", "orange", "banana")
+    False
+    """
     def __init__(self, *choices):
         if not choices:
             raise ValueError("'Choices' cannot be instantiated with an empty"
@@ -458,6 +582,8 @@ class _Numeric(_PrimitiveTemplateBase):
 
 
 class _Jobs(_PrimitiveTemplateBase):
+    _valid_predicates = set()
+
     def is_element(self, value):
         return (
             value is not True and value is not False
@@ -473,6 +599,8 @@ class _Jobs(_PrimitiveTemplateBase):
 
 
 class _Threads(_PrimitiveTemplateBase):
+    _valid_predicates = set()
+
     def is_element(self, value):
         if value == 'auto':
             return True

@@ -438,13 +438,23 @@ class Action(metaclass=abc.ABCMeta):
         # pipeline that calls two other pipelines within it and execute both of
         # those internal pipelines simultaneously.
         if isinstance(self, qiime2.sdk.action.Pipeline):
+            # If ctx._parent is None then this is the root pipeline and we want
+            # to dispatch it to a join_app
             execution_ctx['parsl_type'] = 'DFK'
-            # NOTE: Do not make this a python_app(join=True). We need it to run
-            # in the parsl main thread
-            future = join_app()(
-                    _run_parsl_action)(self, ctx, execution_ctx,
-                                       mapped_args, mapped_kwargs,
-                                       inputs=futures)
+            if ctx._parent is None:
+                # NOTE: Do not make this a python_app(join=True). We need it to
+                # run in the parsl main thread
+                future = join_app()(
+                        _run_parsl_action)(self, ctx, execution_ctx,
+                                           mapped_args, mapped_kwargs,
+                                           inputs=futures)
+            # If there is a parent then this is not the root pipeline and we
+            # want to just _bind it with a parallel context. The fact that
+            # parallel is set on the context will cause ctx.get_action calls in
+            # the pipeline to use the action's _bind_parsl method.
+            else:
+                return self._bind(lambda: qiime2.sdk.Context(ctx),
+                                  execution_ctx=execution_ctx)(*args, **kwargs)
         else:
             execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]

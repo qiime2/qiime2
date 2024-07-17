@@ -16,6 +16,7 @@ import qiime2.sdk
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.type import IntSequence1, SingleInt, Mapping
 from qiime2.plugin import Visualization, Int, Bool
+import qiime2.sdk.parallel_config
 
 
 class TestPipeline(unittest.TestCase):
@@ -338,6 +339,21 @@ class TestPipeline(unittest.TestCase):
         obs = qiime2.sdk.util.view_collection(ret.output, int)
 
         self.assertEqual(obs, exp)
+
+    def test_nested_pipeline_parallel(self):
+        ''' This test basically just validates that nested pipelines in
+            parallel don't blow anything up. It was added concurrently with
+            nested parallel pipelines being flattened.
+        '''
+        pipeline = self.plugin.pipelines['pipelines_in_pipeline']
+
+        ints = qiime2.Artifact.import_data(IntSequence1, [1, 2, 3])
+        mapping = qiime2.Artifact.import_data(Mapping, {'foo': '42'})
+
+        with qiime2.sdk.parallel_config.ParallelConfig():
+            pipeline.parallel(ints, mapping)._result()
+
+        self.assertTrue(True)
 
     def test_failing_from_arity(self):
         for call in self.iter_callables('failing_pipeline'):
