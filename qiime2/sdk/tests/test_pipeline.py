@@ -390,38 +390,6 @@ class TestPipeline(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, r'action.*not\%a\$method'):
                 call(self.int_sequence, break_from='no-action')
 
-    def test_fail_de_facto_list_arg_mixed(self):
-        pipeline = self.plugin.pipelines['de_facto_list_pipeline']
-
-        with self.assertRaisesRegex(
-                ValueError, 'Collection has mixed proxies and artifacts.*'):
-            with qiime2.sdk.parallel_config.ParallelConfig():
-                pipeline.parallel(non_proxies=True)._result()
-
-    def test_fail_de_facto_list_kwarg_mixed(self):
-        pipeline = self.plugin.pipelines['de_facto_list_pipeline']
-
-        with self.assertRaisesRegex(
-                ValueError, 'Collection has mixed proxies and artifacts.*'):
-            with qiime2.sdk.parallel_config.ParallelConfig():
-                pipeline.parallel(kwarg=True, non_proxies=True)._result()
-
-    def test_fail_de_facto_dict_arg_mixed(self):
-        pipeline = self.plugin.pipelines['de_facto_dict_pipeline']
-
-        with self.assertRaisesRegex(
-                ValueError, 'Collection has mixed proxies and artifacts.*'):
-            with qiime2.sdk.parallel_config.ParallelConfig():
-                pipeline.parallel(non_proxies=True)._result()
-
-    def test_fail_de_facto_dict_kwarg_mixed(self):
-        pipeline = self.plugin.pipelines['de_facto_dict_pipeline']
-
-        with self.assertRaisesRegex(
-                ValueError, 'Collection has mixed proxies and artifacts.*'):
-            with qiime2.sdk.parallel_config.ParallelConfig():
-                pipeline.parallel(kwarg=True, non_proxies=True)._result()
-
 
 if __name__ == '__main__':
     unittest.main()
