@@ -288,6 +288,7 @@ class Action(metaclass=abc.ABCMeta):
                     ctx._parent.pre_execution_hook(ctx.id)
 
                 try:
+                    raise ValueError()
                     outputs = self._callable_executor_(
                         scope, callable_args, output_types, provenance)
                 except Exception as e:
@@ -516,7 +517,7 @@ class Action(metaclass=abc.ABCMeta):
         collated_input = self.signature.collate_inputs(*args, **kwargs)
         output_types = self.signature.solve_output(**collated_input)
 
-        # TODO: This is a bit of a weird one. We discussed wanting the same 
+        # TODO: This is a bit of a weird one. We discussed wanting the same
         ctx.submitted_hook(ctx.id)
         # Again, we return a set of futures not a set of real results
         return qiime2.sdk.proxy.ProxyResults(future, output_types)
