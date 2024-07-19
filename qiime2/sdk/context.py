@@ -181,8 +181,15 @@ class Context:
     def make_child(self, id: str = None):
         return Context(parent=self, id=id)
 
+    def submitted_hook(self, id=None):
+        """Runs after the action is submitted to execute. It is conceivable
+        this will run after the pre_execution hook, but it will usually run
+        before
+        """
+        pass
+
     def pre_execution_hook(self, id=None):
-        """Runs before the action executes.
+        """Runs immediately before the action executes
         """
         pass
 
