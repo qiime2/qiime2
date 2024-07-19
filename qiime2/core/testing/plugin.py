@@ -57,8 +57,9 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        resumable_varied_pipeline,
                        resumable_nested_varied_pipeline,
                        internal_fail_pipeline, de_facto_list_pipeline,
-                       de_facto_dict_pipeline, de_facto_collection_pipeline,
-                       list_pipeline, collection_pipeline, pointless_pipeline,
+                       mix_arts_and_proxies, de_facto_dict_pipeline,
+                       de_facto_collection_pipeline, list_pipeline,
+                       collection_pipeline, pointless_pipeline,
                        failing_pipeline)
 from ..cite import Citations
 
@@ -839,8 +840,7 @@ dummy_plugin.pipelines.register_function(
     function=de_facto_list_pipeline,
     inputs={},
     parameters={
-        'kwarg': Bool,
-        'non_proxies': Bool
+        'kwarg': Bool
     },
     outputs=[
         ('output', Collection[SingleInt]),
@@ -851,11 +851,24 @@ dummy_plugin.pipelines.register_function(
 )
 
 dummy_plugin.pipelines.register_function(
+    function=mix_arts_and_proxies,
+    inputs={},
+    parameters={
+        'fail': Bool,
+    },
+    outputs=[
+        ('output', Collection[SingleInt]),
+    ],
+    name='Pipeline that mixes artifacts and proxies.',
+    description=('This pipeline is supposed to be run in parallel and fail '
+                 'the first time to mix artifacts and proxies.')
+)
+
+dummy_plugin.pipelines.register_function(
     function=de_facto_dict_pipeline,
     inputs={},
     parameters={
-        'kwarg': Bool,
-        'non_proxies': Bool
+        'kwarg': Bool
     },
     outputs=[
         ('output', Collection[SingleInt]),

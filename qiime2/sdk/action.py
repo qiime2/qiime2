@@ -33,84 +33,35 @@ def _subprocess_apply(action, ctx, args, kwargs):
 
         return results
 
-def _run_parsl_action_resource(action, ctx, execution_ctx, mapped_args,
-                               mapped_kwargs, id, inputs=[],
-                               parsl_resource_specification={}):
-    """This is what the parsl app itself actually runs. It's basically just a
-    wrapper around our QIIME 2 action. When this is initially called, args and
-    kwargs may contain proxies that reference futures in inputs. By the time
-    this starts executing, those futures will have resolved. We then need to
-    take the resolved inputs and map the correct parts of them to the correct
-    args/kwargs before calling the action with them.
-
-    This is necessary because a single future in inputs will resolve into a
-    Results object. We need to take singular Result objects off of that Results
-    object and map them to the correct inputs for the action we want to call.
-    """
-    return _run_parsl_action(action, ctx, execution_ctx, mapped_args,
-                             mapped_kwargs, id, inputs)
-
-def _run_parsl_action(action, ctx, execution_ctx, mapped_args, mapped_kwargs,
-                      id, inputs=[]):
-    """This is what the parsl app itself actually runs. It's basically just a
-    wrapper around our QIIME 2 action. When this is initially called, args and
-    kwargs may contain proxies that reference futures in inputs. By the time
-    this starts executing, those futures will have resolved. We then need to
-    take the resolved inputs and map the correct parts of them to the correct
-    args/kwargs before calling the action with them.
-
-    This is necessary because a single future in inputs will resolve into a
-    Results object. We need to take singular Result objects off of that Results
-    object and map them to the correct inputs for the action we want to call.
-    """
-    args = []
-    for arg in mapped_args:
-        unmapped = _unmap_arg(arg, inputs)
-        args.append(unmapped)
-
-    kwargs = {}
-    for key, value in mapped_kwargs.items():
-        unmapped = _unmap_arg(value, inputs)
-        kwargs[key] = unmapped
-
-    # We with in the cache here to make sure archiver.load* puts things in the
-    # right cache
-    with ctx.cache:
-        exe = action._bind(lambda: ctx.make_child(id=id), execution_ctx)
-        results = exe(*args, **kwargs)
-
-        # If we are running a pipeline, we need to create a future here because
-        # the parsl join app the pipeline was running in is expected to return
-        # a future, but we will have concrete results by this point if we are a
-        # pipeline
-        if isinstance(action, Pipeline) and ctx.parallel:
-            return _create_future(results)
-
-        return results
-
-
 def _map_arg(arg, futures):
     """ Map a proxy artifact for input to a parsl action
     """
-
     # We add this future to the list and create a new proxy with its index as
     # its future.
     if isinstance(arg, Proxy):
         futures.append(arg._future_)
         mapped = arg.__class__(len(futures) - 1, arg._selector_)
     # We do the above but for all elements in the collection
-    elif isinstance(arg, list) and _is_all_proxies(arg):
+    elif isinstance(arg, list):
         mapped = []
 
         for proxy in arg:
-            futures.append(proxy._future_)
-            mapped.append(proxy.__class__(len(futures) - 1, proxy._selector_))
-    elif isinstance(arg, dict) and _is_all_proxies(arg):
+            if isinstance(proxy, Proxy):
+                futures.append(proxy._future_)
+                mapped.append(proxy.__class__(
+                    len(futures) - 1, proxy._selector_))
+            else:
+                mapped.append(proxy)
+    elif isinstance(arg, dict):
         mapped = {}
 
         for key, value in arg.items():
-            futures.append(value._future_)
-            mapped[key] = value.__class__(len(futures) - 1, value._selector_)
+            if isinstance(value, Proxy):
+                futures.append(value._future_)
+                mapped[key] = value.__class__(
+                    len(futures) - 1, value._selector_)
+            else:
+                mapped[key] = value
     # We just have a real artifact and don't need to map
     else:
         mapped = arg
@@ -130,49 +81,29 @@ def _unmap_arg(arg, inputs):
     # If we got a collection of proxies as the input we were even hackier and
     # added each proxy to the inputs list individually while having a list of
     # their indices in the args.
-    elif isinstance(arg, list) and _is_all_proxies(arg):
+    elif isinstance(arg, list):
         unmapped = []
 
         for proxy in arg:
-            resolved_result = inputs[proxy._future_]
-            unmapped.append(proxy._get_element_(resolved_result))
-    elif isinstance(arg, dict) and _is_all_proxies(arg):
+            if isinstance(proxy, Proxy):
+                resolved_result = inputs[proxy._future_]
+                unmapped.append(proxy._get_element_(resolved_result))
+            else:
+                unmapped.append(proxy)
+    elif isinstance(arg, dict):
         unmapped = {}
 
         for key, value in arg.items():
-            resolved_result = inputs[value._future_]
-            unmapped[key] = value._get_element_(resolved_result)
+            if isinstance(value, Proxy):
+                resolved_result = inputs[value._future_]
+                unmapped[key] = value._get_element_(resolved_result)
+            else:
+                unmapped[key] = value
     # We didn't have a proxy at all
     else:
         unmapped = arg
 
     return unmapped
-
-
-def _is_all_proxies(collection):
-    """ Returns whether the collection is all proxies or all artifacts.
-        Raises a ValueError if there is a mix.
-    """
-    if isinstance(collection, dict):
-        collection = list(collection.values())
-
-    if all(isinstance(elem, Proxy) for elem in collection):
-        return True
-
-    if any(isinstance(elem, Proxy) for elem in collection):
-        raise ValueError("Collection has mixed proxies and artifacts. "
-                         "This is not allowed.")
-
-    return False
-
-
-@python_app
-def _create_future(results):
-    """ This is a bit of a dumb hack. It's just a way for us to make pipelines
-    return a future which is what Parsl wants a join_app to return even though
-    we will have real results at this point.
-    """
-    return results
 
 
 class Action(metaclass=abc.ABCMeta):
@@ -353,7 +284,8 @@ class Action(metaclass=abc.ABCMeta):
                     self.signature.transform_and_add_callable_args_to_prov(
                         provenance, **callable_args)
 
-                ctx.parent.pre_execution_hook(ctx.id)
+                if ctx._parent:
+                    ctx._parent.pre_execution_hook(ctx.id)
 
                 try:
                     outputs = self._callable_executor_(
@@ -372,7 +304,8 @@ class Action(metaclass=abc.ABCMeta):
                 results = qiime2.sdk.Results(
                     self.signature.outputs.keys(), outputs)
 
-                ctx.parent.post_execution_hook(ctx.id)
+                if ctx._parent:
+                    ctx._parent.post_execution_hook(ctx.id)
 
                 return results
 
@@ -456,6 +389,70 @@ class Action(metaclass=abc.ABCMeta):
         executor = ctx.action_executor_mapping.get(self.id, 'default')
         execution_ctx = {'type': 'parsl'}
 
+        def _run_parsl_action_resource(action, ctx, execution_ctx, mapped_args,
+                                       mapped_kwargs, id, inputs=[],
+                                       parsl_resource_specification={}):
+            """This is what the parsl app itself actually runs. It's basically
+            just a wrapper around our QIIME 2 action. When this is initially
+            called, args and kwargs may contain proxies that reference futures
+            in inputs. By the time this starts executing, those futures will
+            have resolved. We then need to take the resolved inputs and map the
+            correct parts of them to the correct args/kwargs before calling the
+            action with them.
+
+            This is necessary because a single future in inputs will resolve
+            into a Results object. We need to take singular Result objects off
+            of that Results object and map them to the correct inputs for the
+            action we want to call.
+            """
+            return _run_parsl_action(action, ctx, execution_ctx, mapped_args,
+                                    mapped_kwargs, id, inputs)
+
+        def _run_parsl_action(action, ctx, execution_ctx, mapped_args,
+                              mapped_kwargs, inputs=[]):
+            """This is what the parsl app itself actually runs. It's basically
+            just a wrapper around our QIIME 2 action. When this is initially
+            called, args and kwargs may contain proxies that reference futures
+            in inputs. By the time this starts executing, those futures will
+            have resolved. We then need to take the resolved inputs and map the
+            correct parts of them to the correct args/kwargs before calling the
+            action with them.
+
+            This is necessary because a single future in inputs will resolve
+            into a Results object. We need to take singular Result objects off
+            of that Results object and map them to the correct inputs for the
+            action we want to call.
+            """
+            args = []
+            for arg in mapped_args:
+                unmapped = _unmap_arg(arg, inputs)
+                args.append(unmapped)
+
+            kwargs = {}
+            for key, value in mapped_kwargs.items():
+                unmapped = _unmap_arg(value, inputs)
+                kwargs[key] = unmapped
+
+            # We with in the cache here to make sure archiver.load* puts things
+            # in the right cache
+            with ctx.cache:
+                exe = action._bind(
+                    lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
+                results = exe(*args, **kwargs)
+
+                # If we are running a pipeline, we need to create a future here
+                # because the parsl join app the pipeline was running in is
+                # expected to return a future, but we will have concrete
+                # results by this point if we are a pipeline
+                if isinstance(action, Pipeline) and ctx.parallel:
+                    return qiime2.sdk.util.create_future(results)
+
+                return results
+
+        # Set the name of the closure to the name of the action, so we see the
+        # correct name in the parsl log
+        self._set_wrapper_name(_run_parsl_action, self.name)
+
         # Pipelines run in join apps and are a sort of synchronization point
         # right now. Unfortunately it is not currently possible to make say a
         # pipeline that calls two other pipelines within it and execute both of
@@ -487,20 +484,28 @@ class Action(metaclass=abc.ABCMeta):
                 from qiime2.core.type.primitive import Threads, Jobs
                 collated_inputs = self.signature.collate_inputs(*args, **kwargs)
 
-                parsl_resource_specification = {'cores': 1, 'memory': 0, 'disk': 0}
+                parsl_resource_specification = {
+                    'cores': 1,
+                    'memory': 0,
+                    'disk': 0
+                }
 
                 for key, value in collated_inputs.items():
-                    if key in self.signature.parameters and (self.signature.parameters[key].qiime_type == Threads or \
+                    if key in self.signature.parameters and (
+                            self.signature.parameters[key].qiime_type == \
+                            Threads or \
                             self.signature.parameters[key].qiime_type == Jobs):
-                        parsl_resource_specification['cores'] = min(value, os.cpu_count())
+                        parsl_resource_specification['cores'] = \
+                            min(value, os.cpu_count())
                         break
 
                 future = python_app(
                     executors=[executor])(
-                        _run_parsl_action_resource)(self, ctx, execution_ctx,
-                                        mapped_args, mapped_kwargs, id,
-                                        inputs=futures,
-                                        parsl_resource_specification=parsl_resource_specification)
+                        _run_parsl_action_resource)(
+                            self, ctx, execution_ctx, mapped_args,
+                            mapped_kwargs, id, inputs=futures,
+                            parsl_resource_specification=
+                                parsl_resource_specification)
             else:
                 future = python_app(
                     executors=[executor])(

@@ -21,7 +21,7 @@ from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, _TEST_EXECUTOR_,
                                         _MASK_CONDA_ENV_, ParallelConfig,
-                                        get_config_from_file)
+                                        load_config_from_file)
 
 
 class TestConfig(unittest.TestCase):
@@ -89,7 +89,7 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
-        config, mapping = get_config_from_file(self.mapping_config_fp)
+        config, mapping = load_config_from_file(self.mapping_config_fp)
 
         with self.cache:
             with ParallelConfig(config, mapping):
@@ -105,7 +105,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def test_mapping_only_config(self):
-        _, mapping = get_config_from_file(self.mapping_only_config_fp)
+        _, mapping = load_config_from_file(self.mapping_only_config_fp)
 
         with self.cache:
             with ParallelConfig(action_executor_mapping=mapping):
@@ -201,7 +201,7 @@ class TestConfig(unittest.TestCase):
     def test_load_complex_config(self):
         """ Test that all parsl modules we currently map are correct
         """
-        config, mapping = get_config_from_file(self.complex_config_fp)
+        config, mapping = load_config_from_file(self.complex_config_fp)
         # Just assert that we were able to parse the file and get a config out
         with ParallelConfig(config, mapping):
             self.assertIsInstance(
