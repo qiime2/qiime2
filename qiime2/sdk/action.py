@@ -438,7 +438,7 @@ class Action(metaclass=abc.ABCMeta):
             # in the right cache
             with ctx.cache:
                 exe = action._bind(
-                    qiime2.sdk.Context(parent=ctx, id=id), execution_ctx)
+                    ctx.make_child(parent=ctx, id=id), execution_ctx)
                 results = exe(*args, **kwargs)
 
                 # If we are running a pipeline, we need to create a future here
