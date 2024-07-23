@@ -28,7 +28,7 @@ def _subprocess_apply(action, ctx, args, kwargs):
     # We with in the cache here to make sure archiver.load* puts things in the
     # right cache
     with ctx.cache:
-        exe = action._bind(ctx.make_child, {'type': 'asynchronous'})
+        exe = action._bind(ctx.make_child(), {'type': 'asynchronous'})
         results = exe(*args, **kwargs)
 
         return results
@@ -292,7 +292,7 @@ class Action(metaclass=abc.ABCMeta):
                     outputs = self._callable_executor_(
                         scope, callable_args, output_types, provenance)
                 except Exception as e:
-                    ctx.exception_hook(e)
+                    ctx._parent.exception_hook(e, ctx.id)
 
                 if len(outputs) != len(self.signature.outputs):
                     raise ValueError(
@@ -407,10 +407,10 @@ class Action(metaclass=abc.ABCMeta):
             action we want to call.
             """
             return _run_parsl_action(action, ctx, execution_ctx, mapped_args,
-                                    mapped_kwargs, id, inputs)
+                                     mapped_kwargs, id, inputs)
 
         def _run_parsl_action(action, ctx, execution_ctx, mapped_args,
-                              mapped_kwargs, inputs=[]):
+                              mapped_kwargs, id, inputs=[]):
             """This is what the parsl app itself actually runs. It's basically
             just a wrapper around our QIIME 2 action. When this is initially
             called, args and kwargs may contain proxies that reference futures
@@ -438,7 +438,7 @@ class Action(metaclass=abc.ABCMeta):
             # in the right cache
             with ctx.cache:
                 exe = action._bind(
-                    lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
+                    qiime2.sdk.Context(parent=ctx, id=id), execution_ctx)
                 results = exe(*args, **kwargs)
 
                 # If we are running a pipeline, we need to create a future here
@@ -474,7 +474,7 @@ class Action(metaclass=abc.ABCMeta):
             # parallel is set on the context will cause ctx.get_action calls in
             # the pipeline to use the action's _bind_parsl method.
             else:
-                return self._bind(ctx.make_child,
+                return self._bind(ctx.make_child(id=id),
                                   execution_ctx=execution_ctx)(*args, **kwargs)
         else:
             execution_ctx['parsl_type'] = \
@@ -517,7 +517,6 @@ class Action(metaclass=abc.ABCMeta):
         collated_input = self.signature.collate_inputs(*args, **kwargs)
         output_types = self.signature.solve_output(**collated_input)
 
-        # TODO: This is a bit of a weird one. We discussed wanting the same
         ctx.submitted_hook(ctx.id)
         # Again, we return a set of futures not a set of real results
         return qiime2.sdk.proxy.ProxyResults(future, output_types)

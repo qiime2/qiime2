@@ -143,7 +143,7 @@ class Context:
                 return _bind_parsl_context(self)(*args, **kwargs)
 
             return action_obj._bind(
-                lambda: self.make_child(id=self.id))(*args, **kwargs)
+                lambda: self.make_child(id=id))(*args, **kwargs)
 
         deferred_action = action_obj._rewrite_wrapper_signature(
             deferred_action)
@@ -179,7 +179,7 @@ class Context:
         return artifact
 
     def make_child(self, id: str = None):
-        return Context(parent=self, id=id)
+        return lambda: Context(parent=self, id=id)
 
     def submitted_hook(self, id=None):
         """Runs after the action is submitted to execute. It is conceivable
