@@ -407,7 +407,7 @@ class Action(metaclass=abc.ABCMeta):
             action we want to call.
             """
             return _run_parsl_action(action, ctx, execution_ctx, mapped_args,
-                                     mapped_kwargs, id, inputs)
+                                     mapped_kwargs, id, inputs=inputs)
 
         def _run_parsl_action(action, ctx, execution_ctx, mapped_args,
                               mapped_kwargs, id, inputs=[]):
