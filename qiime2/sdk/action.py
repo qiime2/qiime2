@@ -437,8 +437,7 @@ class Action(metaclass=abc.ABCMeta):
             # We with in the cache here to make sure archiver.load* puts things
             # in the right cache
             with ctx.cache:
-                exe = action._bind(
-                    ctx.make_child(parent=ctx, id=id), execution_ctx)
+                exe = action._bind(ctx.make_child(id=id), execution_ctx)
                 results = exe(*args, **kwargs)
 
                 # If we are running a pipeline, we need to create a future here
