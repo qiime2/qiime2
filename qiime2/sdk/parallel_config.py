@@ -60,6 +60,21 @@ _TEST_CONFIG_ = {
         }
     }
 
+# This is to be used by plugins with parallel testing that do not set QIIMETEST
+# it uses a ThreadPoolExecutor only to avoid the HighThroughputExecutor issues
+# mentioned above. It also ensures all tests will in theory be using the same
+# config not beholden to potential issues with vendored configs being
+# different.
+NON_QIIMETEST_TEST_CONFIG = {
+    'parsl': {
+        'strategy': 'None',
+        'executors': [
+            {'class': 'ThreadPoolExecutor', 'label': 'default',
+                'max_threads': 1}
+            ]
+        }
+    }
+
 # Directs keys in the config whose values need to be objects to the module that
 # contains the class they need to instantiate
 PARSL_CHANNEL = 'parsl.channels'
