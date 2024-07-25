@@ -16,8 +16,24 @@ import itertools
 import qiime2
 
 from qiime2.sdk import usage
+from qiime2.sdk.parallel_config import ParallelConfig
 from qiime2.plugin.util import transform
 from qiime2.plugin.model.base import FormatBase
+
+# This is to be used by plugins with parallel testing that do not set QIIMETEST
+# it uses a ThreadPoolExecutor only to avoid the HighThroughputExecutor issues
+# mentioned above. It also ensures all tests will in theory be using the same
+# config not beholden to potential issues with vendored configs being
+# different.
+NON_QIIMETEST_TEST_CONFIG = {
+    'parsl': {
+        'strategy': 'None',
+        'executors': [
+            {'class': 'ThreadPoolExecutor', 'label': 'default',
+                'max_threads': 1}
+            ]
+        }
+    }
 
 
 # TODO Split out into more specific subclasses if necessary.
@@ -40,6 +56,7 @@ class TestPluginBase(unittest.TestCase):
 
     package = None
     test_dir_prefix = 'qiime2-plugin'
+    test_config = ParallelConfig(NON_QIIMETEST_TEST_CONFIG)
 
     def setUp(self):
         """Test runner setup hook.
