@@ -451,7 +451,7 @@ class Action(metaclass=abc.ABCMeta):
 
             # Set the name of the closure to the name of the action, so we see
             # the correct name in the parsl log
-            self._set_wrapper_name(_run_parsl_action, self._callable)
+            self._set_wrapper_name(_run_parsl_action, self.id)
 
             action = UsageAction(self.plugin_id, self.id)
             inputs = UsageInputs(**callable_args)
