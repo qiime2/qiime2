@@ -27,7 +27,7 @@ class Context:
             # an executor object when we write this to then read this from
             # provenance
             self.executor_name_type_mapping = \
-                None if PARALLEL_CONFIG.parallel_config is None \
+                {} if PARALLEL_CONFIG.parallel_config is None \
                 else {v.label: v.__class__.__name__
                       for v in PARALLEL_CONFIG.parallel_config.executors}
             self.parallel = parallel
@@ -184,17 +184,17 @@ class Context:
     def pre_parallel_submit_hook(self, action, inputs, executor, id=None):
         pass
 
-    def pre_execution_hook(self, id=None):
+    def pre_execution_hook(self, action, inputs, id=None):
         """Runs immediately before the action executes
         """
         pass
 
-    def post_execution_hook(self, id=None):
+    def post_execution_hook(self, action, inputs, id=None):
         """Runs after the action has executed successfully
         """
         pass
 
-    def exception_hook(self, exception, id=None):
+    def exception_hook(self, action, inputs, exception, id=None):
         """Runs is an exception is encountered while executing the action
         """
         raise exception

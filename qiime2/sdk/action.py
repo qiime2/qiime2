@@ -253,6 +253,8 @@ class Action(metaclass=abc.ABCMeta):
 
         """
         def bound_callable(*args, **kwargs):
+            from qiime2.sdk.usage import UsageAction, UsageInputs
+
             # This function's signature is rewritten below using
             # `decorator.decorator`. When the signature is rewritten,
             # args[0] is the function whose signature was used to rewrite
@@ -284,15 +286,18 @@ class Action(metaclass=abc.ABCMeta):
                     self.signature.transform_and_add_callable_args_to_prov(
                         provenance, **callable_args)
 
+                action = UsageAction(self.plugin_id, self.name)
+                inputs = UsageInputs(**callable_args)
+
                 if ctx._parent:
-                    ctx._parent.pre_execution_hook(ctx.id)
+                    ctx._parent.pre_execution_hook(action, inputs, ctx.id)
 
                 try:
                     outputs = self._callable_executor_(
                         scope, callable_args, output_types, provenance)
                 except Exception as e:
                     if ctx._parent:
-                        ctx._parent.exception_hook(e, ctx.id)
+                        ctx._parent.exception_hook(action, inputs, e, ctx.id)
                     else:
                         raise
 
@@ -308,7 +313,7 @@ class Action(metaclass=abc.ABCMeta):
                     self.signature.outputs.keys(), outputs)
 
                 if ctx._parent:
-                    ctx._parent.post_execution_hook(ctx.id)
+                    ctx._parent.post_execution_hook(action, inputs, ctx.id)
 
                 return results
 
@@ -360,6 +365,8 @@ class Action(metaclass=abc.ABCMeta):
 
     def _bind_parsl(self, context_factory, id=None):
         def bound_parsl_callable(*args, **kwargs):
+            from qiime2.sdk.usage import UsageAction, UsageInputs
+
             ctx = context_factory()
             futures = []
             mapped_args = []
@@ -390,7 +397,10 @@ class Action(metaclass=abc.ABCMeta):
                 mapped = _map_arg(value, futures)
                 mapped_kwargs[key] = mapped
 
-            collated_input = self.signature.collate_inputs(*args, **kwargs)
+            collated_inputs = self.signature.collate_inputs(*args, **kwargs)
+            callable_args = self.signature.coerce_user_input(
+                **collated_inputs)
+
             # If the user specified a particular executor for a this action
             # determine that here
             executor = ctx.action_executor_mapping.get(self.id, 'default')
@@ -440,7 +450,11 @@ class Action(metaclass=abc.ABCMeta):
             # Set the name of the closure to the name of the action, so we see
             # the correct name in the parsl log
             self._set_wrapper_name(_run_parsl_action, self.name)
-            parsl_resource_specification = ctx.pre_parallel_submit_hook(None, None, executor, id=id)
+
+            action = UsageAction(self.plugin_id, self.name)
+            inputs = UsageInputs(**callable_args)
+
+            parsl_resource_specification = ctx.pre_parallel_submit_hook(action, inputs, executor, id=id)
             if parsl_resource_specification is None:
                 parsl_resource_specification = {}
 
@@ -512,7 +526,7 @@ class Action(metaclass=abc.ABCMeta):
                 #                             mapped_args, mapped_kwargs, id,
                 #                             inputs=futures)
 
-            output_types = self.signature.solve_output(**collated_input)
+            output_types = self.signature.solve_output(**collated_inputs)
             # Again, we return a set of futures not a set of real results
             return qiime2.sdk.proxy.ProxyResults(future, output_types)
 
