@@ -128,19 +128,10 @@ class Context:
             # their parent. This allows scope cleanup to happen recursively. A
             # factory is necessary so that independent applications of the
             # returned callable receive their own Context objects.
-            #
-            # The parsl factory is a bit more complicated because we need to
-            # pass this exact Context along for a while longer until we run a
-            # normal _bind in action/_run_parsl_action. Then we create a new
-            # Context with this one as its parent inside of the parsl app
-            # def _bind_parsl_context(ctx):
-            #     def _bind_parsl_args(*args, **kwargs):
-            #         return action_obj._bind_parsl(
-            #             ctx, *args, id=id, **kwargs)
-            #     return _bind_parsl_args
 
             if self.parallel:
-                return action_obj._bind_parsl(lambda: self, id=id)(*args, **kwargs)
+                return action_obj._bind_parsl(
+                    lambda: self, id=id)(*args, **kwargs)
 
             return action_obj._bind(
                 lambda: self.make_child(id=id))(*args, **kwargs)
