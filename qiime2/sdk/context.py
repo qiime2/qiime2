@@ -133,14 +133,14 @@ class Context:
             # pass this exact Context along for a while longer until we run a
             # normal _bind in action/_run_parsl_action. Then we create a new
             # Context with this one as its parent inside of the parsl app
-            def _bind_parsl_context(ctx):
-                def _bind_parsl_args(*args, **kwargs):
-                    return action_obj._bind_parsl(
-                        ctx, *args, id=id, **kwargs)
-                return _bind_parsl_args
+            # def _bind_parsl_context(ctx):
+            #     def _bind_parsl_args(*args, **kwargs):
+            #         return action_obj._bind_parsl(
+            #             ctx, *args, id=id, **kwargs)
+            #     return _bind_parsl_args
 
             if self.parallel:
-                return _bind_parsl_context(self)(*args, **kwargs)
+                return action_obj._bind_parsl(lambda: self, id=id)(*args, **kwargs)
 
             return action_obj._bind(
                 lambda: self.make_child(id=id))(*args, **kwargs)
@@ -179,13 +179,9 @@ class Context:
         return artifact
 
     def make_child(self, id: str = None):
-        return lambda: Context(parent=self, id=id)
+        return Context(parent=self, id=id)
 
-    def submitted_hook(self, id=None):
-        """Runs after the action is submitted to execute. It is conceivable
-        this will run after the pre_execution hook, but it will usually run
-        before
-        """
+    def pre_parallel_submit_hook(self, action, inputs, executor, id=None):
         pass
 
     def pre_execution_hook(self, id=None):
@@ -198,7 +194,7 @@ class Context:
         """
         pass
 
-    def exception_hook(self, exception):
+    def exception_hook(self, exception, id=None):
         """Runs is an exception is encountered while executing the action
         """
         raise exception
