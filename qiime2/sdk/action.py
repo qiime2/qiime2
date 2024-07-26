@@ -458,8 +458,6 @@ class Action(metaclass=abc.ABCMeta):
 
             resources = \
                 ctx.pre_parallel_submit_hook(action, inputs, executor, id=id)
-            if resources is None:
-                resources = {}
 
             # Pipelines run in join apps and are a sort of synchronization
             # point right now. Unfortunately it is not currently possible to
@@ -476,8 +474,7 @@ class Action(metaclass=abc.ABCMeta):
                             _run_parsl_action)(
                                 self, ctx, execution_ctx,
                                 mapped_args, mapped_kwargs, id,
-                                inputs=futures,
-                                parsl_resource_specification=resources)
+                                inputs=futures)
                 # If there is a parent then this is not the root pipeline and
                 # we want to just _bind it with a parallel context. The fact
                 # that parallel is set on the context will cause ctx.get_action
@@ -489,13 +486,15 @@ class Action(metaclass=abc.ABCMeta):
             else:
                 execution_ctx['parsl_type'] = \
                     ctx.executor_name_type_mapping[executor]
+                extras = {}
+                if resources is not None:
+                    extras['parsl_resource_specification'] = resources
 
                 future = python_app(
                     executors=[executor])(
                         _run_parsl_action)(
                             self, ctx, execution_ctx, mapped_args,
-                            mapped_kwargs, id, inputs=futures,
-                            parsl_resource_specification=resources)
+                            mapped_kwargs, id, inputs=futures, **extras)
 
             output_types = self.signature.solve_output(**collated_inputs)
             # Again, we return a set of futures not a set of real results
