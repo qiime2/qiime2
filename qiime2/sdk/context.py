@@ -14,7 +14,7 @@ from qiime2.sdk.parallel_config import PARALLEL_CONFIG
 
 
 class Context:
-    def __init__(self, parent=None, parallel=False):
+    def __init__(self, parent=None, parallel=False, id=None):
         if parent is not None:
             self.action_executor_mapping = parent.action_executor_mapping
             self.executor_name_type_mapping = parent.executor_name_type_mapping
@@ -27,7 +27,7 @@ class Context:
             # an executor object when we write this to then read this from
             # provenance
             self.executor_name_type_mapping = \
-                None if PARALLEL_CONFIG.parallel_config is None \
+                {} if PARALLEL_CONFIG.parallel_config is None \
                 else {v.label: v.__class__.__name__
                       for v in PARALLEL_CONFIG.parallel_config.executors}
             self.parallel = parallel
@@ -39,8 +39,9 @@ class Context:
 
         self._parent = parent
         self._scope = None
+        self.id = id
 
-    def get_action(self, plugin: str, action: str):
+    def get_action(self, plugin: str, action: str, id: str = None):
         """Return a function matching the callable API of an action.
         This function is aware of the pipeline context and manages its own
         cleanup as appropriate.
@@ -127,21 +128,13 @@ class Context:
             # their parent. This allows scope cleanup to happen recursively. A
             # factory is necessary so that independent applications of the
             # returned callable receive their own Context objects.
-            #
-            # The parsl factory is a bit more complicated because we need to
-            # pass this exact Context along for a while longer until we run a
-            # normal _bind in action/_run_parsl_action. Then we create a new
-            # Context with this one as its parent inside of the parsl app
-            def _bind_parsl_context(ctx):
-                def _bind_parsl_args(*args, **kwargs):
-                    return action_obj._bind_parsl(ctx, *args, **kwargs)
-                return _bind_parsl_args
 
             if self.parallel:
-                return _bind_parsl_context(self)(*args, **kwargs)
+                return action_obj._bind_parsl(
+                    lambda: self, id=id)(*args, **kwargs)
 
             return action_obj._bind(
-                lambda: Context(parent=self))(*args, **kwargs)
+                lambda: self.make_child(id=id))(*args, **kwargs)
 
         deferred_action = action_obj._rewrite_wrapper_signature(
             deferred_action)
@@ -175,6 +168,30 @@ class Context:
         # happen)
         self._scope.add_reference(artifact)
         return artifact
+
+    def make_child(self, id: str = None):
+        return Context(parent=self, id=id)
+
+    def pre_parallel_submit_hook(self, action, inputs, executor, id=None):
+        """Runs immediately before the action is submitted. Determines if there
+        are extra arguments that need to be passed along for parsl purposes.
+        """
+        pass
+
+    def pre_execution_hook(self, action, inputs, id=None):
+        """Runs immediately before the action executes
+        """
+        pass
+
+    def post_execution_hook(self, action, inputs, id=None):
+        """Runs after the action has executed successfully
+        """
+        pass
+
+    def exception_hook(self, action, inputs, exception, id=None):
+        """Runs is an exception is encountered while executing the action
+        """
+        raise exception
 
     def __enter__(self):
         """For internal use only.
