@@ -173,6 +173,9 @@ class Context:
         return Context(parent=self, id=id)
 
     def pre_parallel_submit_hook(self, action, inputs, executor, id=None):
+        """Runs immediately before the action is submitted. Determines if there
+        are extra arguments that need to be passed along for parsl purposes.
+        """
         pass
 
     def pre_execution_hook(self, action, inputs, id=None):
