@@ -287,7 +287,7 @@ class Action(metaclass=abc.ABCMeta):
                     self.signature.transform_and_add_callable_args_to_prov(
                         provenance, **callable_args)
 
-                action = UsageAction(self.plugin_id, self.name)
+                action = UsageAction(self.plugin_id, self.id)
                 inputs = UsageInputs(**callable_args)
 
                 if ctx._parent:
@@ -451,9 +451,9 @@ class Action(metaclass=abc.ABCMeta):
 
             # Set the name of the closure to the name of the action, so we see
             # the correct name in the parsl log
-            self._set_wrapper_name(_run_parsl_action, self._callable.__name__)
+            self._set_wrapper_name(_run_parsl_action, self._callable)
 
-            action = UsageAction(self.plugin_id, self._callable.__name__)
+            action = UsageAction(self.plugin_id, self.id)
             inputs = UsageInputs(**callable_args)
 
             resources = \
