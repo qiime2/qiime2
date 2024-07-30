@@ -70,7 +70,7 @@ from qiime2.plugin.model import DirectoryFormat
 from qiime2.plugin.model.base import FormatBase
 from qiime2.core.type import is_semantic_type
 from qiime2.core.util import get_view_name
-from qiime2.core.cite import make_citations_tuple
+from qiime2.core.cite import _make_citations_tuple
 
 
 TransformerRecord = collections.namedtuple(
@@ -177,7 +177,7 @@ class Plugin:
         else:
             self.description = description
 
-        self.citations = make_citations_tuple(citations)
+        self.citations = _make_citations_tuple(citations)
 
         self.methods = PluginMethods(self)
         self.visualizers = PluginVisualizers(self)
@@ -256,7 +256,7 @@ class Plugin:
         -------
         None
         """
-        citations = make_citations_tuple(citations)
+        citations = _make_citations_tuple(citations)
 
         for view in views:
             if not isinstance(view, type):
@@ -400,7 +400,7 @@ class Plugin:
         # def _(x: A) -> B:
         #   ...
         # ```
-        citations = make_citations_tuple(citations)
+        citations = _make_citations_tuple(citations)
 
         def decorator(transformer):
             annotations = transformer.__annotations__.copy()
@@ -679,7 +679,7 @@ class PluginMethods(PluginActions):
         ...     description='It does something very clever and interesting.'
         ... )
         """
-        citations = make_citations_tuple(citations)
+        citations = _make_citations_tuple(citations)
 
         if examples is None:
             examples = {}
@@ -750,7 +750,7 @@ class PluginVisualizers(PluginActions):
         ...     citations=[citations['witcombe2006sword']]
         ... )
         """
-        citations = make_citations_tuple(citations)
+        citations = _make_citations_tuple(citations)
 
         if examples is None:
             examples = {}
@@ -828,7 +828,7 @@ class PluginPipelines(PluginActions):
         ...     description='Takes a collection and returns a better one'
         ... )
         """
-        citations = make_citations_tuple(citations)
+        citations = _make_citations_tuple(citations)
 
         if examples is None:
             examples = {}

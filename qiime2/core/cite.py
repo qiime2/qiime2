@@ -26,7 +26,7 @@ fields: dict
 """
 
 
-def make_citations_tuple(citations):
+def _make_citations_tuple(citations):
     if citations is None:
         return tuple()
     elif isinstance(citations, CitationRecord):
