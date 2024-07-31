@@ -120,25 +120,8 @@ class Context:
                     return qiime2.sdk.Results(
                         loaded_outputs.keys(), loaded_outputs.values())
 
-            # If we didn't have cached results to reuse, we need to execute the
-            # action.
-            #
-            # These factories will create new Contexts with this context as
-            # their parent. This allows scope cleanup to happen recursively. A
-            # factory is necessary so that independent applications of the
-            # returned callable receive their own Context objects.
-            #
-            # The parsl factory is a bit more complicated because we need to
-            # pass this exact Context along for a while longer until we run a
-            # normal _bind in action/_run_parsl_action. Then we create a new
-            # Context with this one as its parent inside of the parsl app
-            def _bind_parsl_context(ctx):
-                def _bind_parsl_args(*args, **kwargs):
-                    return action_obj._bind_parsl(ctx, *args, **kwargs)
-                return _bind_parsl_args
-
             if self.parallel:
-                return _bind_parsl_context(self)(*args, **kwargs)
+                return action_obj._bind_parsl(lambda: self)(*args, **kwargs)
 
             return action_obj._bind(
                 lambda: Context(parent=self))(*args, **kwargs)
