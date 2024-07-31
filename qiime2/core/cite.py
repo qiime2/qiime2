@@ -26,6 +26,16 @@ fields: dict
 """
 
 
+def _make_citations_tuple(citations):
+    if citations is None:
+        return tuple()
+    elif isinstance(citations, CitationRecord):
+        citation = citations
+        return (citation,)
+    else:
+        return tuple(citations)
+
+
 class Citations(collections.OrderedDict):
     """A simple subclass of :py:class:`collections.OrderedDict`
        but iterates over values instead of keys by default."""

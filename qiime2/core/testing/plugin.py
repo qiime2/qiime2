@@ -106,12 +106,12 @@ dummy_plugin.register_formats(
 
 dummy_plugin.register_formats(
     FourIntsDirectoryFormat, UnimportableDirectoryFormat, UnimportableFormat,
-    citations=[citations['baerheim1994effect']])
+    citations=citations['baerheim1994effect'])
 
 dummy_plugin.register_views(
     int, IntSequenceFormat, IntSequenceDirectoryFormat,
     SingleIntFormat, RedundantSingleIntDirectoryFormat,
-    citations=[citations['mayer2012walking']])
+    citations=citations['mayer2012walking'])
 
 
 # Create IntSequence1 import example usage example
@@ -222,7 +222,7 @@ dummy_plugin.methods.register_function(
     name='Concatenate integers',
     description='This method concatenates integers into'
                 ' a single sequence in the order they are provided.',
-    citations=[citations['baerheim1994effect']],
+    citations=citations['baerheim1994effect'],
     examples={'concatenate_ints_simple': concatenate_ints_simple,
               'concatenate_ints_complex': concatenate_ints_complex,
               'comments_only': comments_only,
@@ -596,7 +596,7 @@ dummy_plugin.visualizers.register_function(
                 'input sequence of integers ordered from most- to '
                 'least-frequently occurring, along with their respective '
                 'frequencies.',
-    citations=[citations['barbeito1967microbiological']]
+    citations=citations['barbeito1967microbiological']
 )
 
 # TODO add optional parameters to this method when they are supported

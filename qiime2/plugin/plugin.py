@@ -70,6 +70,7 @@ from qiime2.plugin.model import DirectoryFormat
 from qiime2.plugin.model.base import FormatBase
 from qiime2.core.type import is_semantic_type
 from qiime2.core.util import get_view_name
+from qiime2.core.cite import _make_citations_tuple
 
 
 TransformerRecord = collections.namedtuple(
@@ -140,8 +141,8 @@ class Plugin:
           list.
         description
           A more complete description of the plugins purpose.
-        citations : list of CitationRecord
-          Citations to associate with a result whenever this plugin is
+        citations : CitationRecord or list of CitationRecord
+          Citation(s) to associate with a result whenever this plugin is
           used. Can also use an entire :py:class:`Citations` object.
 
         Examples
@@ -176,10 +177,7 @@ class Plugin:
         else:
             self.description = description
 
-        if citations is None:
-            self.citations = ()
-        else:
-            self.citations = tuple(citations)
+        self.citations = _make_citations_tuple(citations)
 
         self.methods = PluginMethods(self)
         self.visualizers = PluginVisualizers(self)
@@ -224,8 +222,8 @@ class Plugin:
         ----------
         *formats : TextFileFormat, BinaryFileFormat, or DirectoryFormat
           Formats which are created or defined by this plugin.
-        citations : list of CitationRecord
-          Citations to associate with a result whenever this format is used
+        citations : CitatonRecord or list of CitationRecord
+          Citation(s) to associate with a result whenever this format is used
           internally. Can also use an entire :py:class:`Citations` object.
 
         Returns
@@ -250,18 +248,15 @@ class Plugin:
         ----------
         *views : type
           Views which are created or defined by this plugin
-        citations : list of CitationRecord
-          Citations to associate with a result whenever this format is used
+        citations : CitationRecord or list of CitationRecord
+          Citation(s) to associate with a result whenever this format is used
           internally. Can also use an entire :py:class:`Citations` object.
 
         Returns
         -------
         None
         """
-        if citations is None:
-            citations = ()
-        else:
-            citations = tuple(citations)
+        citations = _make_citations_tuple(citations)
 
         for view in views:
             if not isinstance(view, type):
@@ -356,8 +351,8 @@ class Plugin:
         _fn : Callable
           Ignore this parameter as it is the mechanism to allow argumentless
           decoration
-        citations : list of CitationRecord
-          Citations to associate with a result whenever this transformer is
+        citations : CitationRecord or list of CitationRecord
+          Citation(s) to associate with a result whenever this transformer is
           used internally. Can also use an entire :py:class:`Citations` object.
 
         Returns
@@ -405,10 +400,7 @@ class Plugin:
         # def _(x: A) -> B:
         #   ...
         # ```
-        if citations is None:
-            citations = ()
-        else:
-            citations = tuple(citations)
+        citations = _make_citations_tuple(citations)
 
         def decorator(transformer):
             annotations = transformer.__annotations__.copy()
@@ -652,8 +644,8 @@ class PluginMethods(PluginActions):
           A dictionary of parameter names (see ``parameters``) to descriptions.
         output_descriptions: dict[str, str]
           A dictionary of output names (see ``outputs``) to descriptions.
-        citations : list of CitationRecord
-          Citations to associate with a result whenever this action is
+        citations : CitationRecord or list of CitationRecord
+          Citation(s) to associate with a result whenever this action is
           used. Can also use an entire :py:class:`.Citations` object.
         deprecated : bool
           Whether this action is deprecated and should be migrated away from.
@@ -687,10 +679,7 @@ class PluginMethods(PluginActions):
         ...     description='It does something very clever and interesting.'
         ... )
         """
-        if citations is None:
-            citations = ()
-        else:
-            citations = tuple(citations)
+        citations = _make_citations_tuple(citations)
 
         if examples is None:
             examples = {}
@@ -735,8 +724,8 @@ class PluginVisualizers(PluginActions):
           A dictionary of input names (see ``inputs``) to descriptions.
         parameter_descriptions: dict[str, str]
           A dictionary of parameter names (see ``parameters``) to descriptions.
-        citations : list of CitationRecord
-          Citations to associate with a result whenever this action is
+        citations : CitationRecord or list of CitationRecord
+          Citation(s) to associate with a result whenever this action is
           used. Can also use an entire :py:class:`.Citations` object.
         deprecated : bool
           Whether this action is deprecated and should be migrated away from.
@@ -761,10 +750,7 @@ class PluginVisualizers(PluginActions):
         ...     citations=[citations['witcombe2006sword']]
         ... )
         """
-        if citations is None:
-            citations = ()
-        else:
-            citations = tuple(citations)
+        citations = _make_citations_tuple(citations)
 
         if examples is None:
             examples = {}
@@ -820,8 +806,8 @@ class PluginPipelines(PluginActions):
           A dictionary of parameter names (see ``parameters``) to descriptions.
         output_descriptions: dict[str, str]
           A dictionary of output names (see ``outputs``) to descriptions.
-        citations : list of CitationRecord
-          Citations to associate with a result whenever this action is
+        citations : CitationRecord or list of CitationRecord
+          Citation(s) to associate with a result whenever this action is
           used. Can also use an entire :py:class:`.Citations` object.
         deprecated : bool
           Whether this action is deprecated and should be migrated away from.
@@ -842,10 +828,7 @@ class PluginPipelines(PluginActions):
         ...     description='Takes a collection and returns a better one'
         ... )
         """
-        if citations is None:
-            citations = ()
-        else:
-            citations = tuple(citations)
+        citations = _make_citations_tuple(citations)
 
         if examples is None:
             examples = {}
