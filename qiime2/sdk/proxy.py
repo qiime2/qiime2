@@ -42,10 +42,14 @@ class ProxyResult(Proxy):
     def __hash__(self):
         return hash(self.uuid)
 
-    def _alias(self, provenance_capture, scope):
+    def _alias(self, name, provenance, scope):
         def _alias_hook():
             result = new._get_element_(new._future_.result())
-            aliased_result = result._alias(provenance_capture)
+
+            prov = provenance.fork(name, result)
+            scope.add_reference(prov)
+
+            aliased_result = result._alias(prov)
             aliased_result = scope.add_parent_reference(aliased_result)
 
             return aliased_result

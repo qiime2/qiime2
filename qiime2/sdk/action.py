@@ -697,12 +697,12 @@ class Pipeline(Action):
             # happened
             if (isinstance(output, qiime2.sdk.Result) or isinstance(output, ProxyResult)) and \
                     (output.type <= spec.qiime_type):
-                prov = provenance.fork(name, output)
-                scope.add_reference(prov)
-
                 if isinstance(output, Proxy):
-                    aliased_result = output._alias(prov, scope)
+                    aliased_result = output._alias(name, provenance, scope)
                 else:
+                    prov = provenance.fork(name, output)
+                    scope.add_reference(prov)
+
                     aliased_result = output._alias(prov)
                     aliased_result = scope.add_parent_reference(aliased_result)
 
@@ -717,11 +717,8 @@ class Pipeline(Action):
                     prov = provenance.fork(collection_name, value)
                     scope.add_reference(prov)
 
-                    if isinstance(output, Proxy):
-                        aliased_result = output._alias(prov, scope)
-                    else:
-                        aliased_result = output._alias(prov)
-                        aliased_result = scope.add_parent_reference(aliased_result)
+                    aliased_result = output._alias(prov)
+                    aliased_result = scope.add_parent_reference(aliased_result)
 
                     aliased_output[str(key)] = aliased_result
 
@@ -745,6 +742,7 @@ class Pipeline(Action):
         """Ensure all futures are resolved and all collections are of type
            ResultCollection
         """
+        print(f'HANDLE PROXIES: {handle_proxies}')
         coerced_outputs = []
 
         for output in outputs:
