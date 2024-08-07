@@ -346,134 +346,143 @@ class Action(metaclass=abc.ABCMeta):
         self._set_wrapper_name(async_wrapper, 'asynchronous')
         return async_wrapper
 
-    def _bind_parsl(self, ctx, *args, **kwargs):
-        futures = []
-        mapped_args = []
-        mapped_kwargs = {}
+    def _bind_parsl(self, context_factory):
+        def bound_parsl_callable(*args, **kwargs):
+            ctx = context_factory()
+            futures = []
+            mapped_args = []
+            mapped_kwargs = {}
 
-        # If this is the first time we called _bind_parsl on a pipeline, the
-        # first argument will be the callable for the pipeline which we do not
-        # want to pass on in this manner, so we skip it.
-        if len(args) >= 1 and callable(args[0]):
-            args = args[1:]
+            # If this is the first time we called _bind_parsl on a pipeline,
+            # the first argument will be the callable for the pipeline which we
+            # do not want to pass on in this manner, so we skip it.
+            if len(args) >= 1 and callable(args[0]):
+                args = args[1:]
 
-        # Parsl will queue up apps with futures as their arguments then not
-        # execute the apps until the futures are resolved. This is an extremely
-        # handy feature, but QIIME 2 does not play nice with it out of the box.
-        # You can look in qiime2/sdk/proxy.py for some more details on how this
-        # is working, but we are basically taking future QIIME 2 results and
-        # mapping them to the correct inputs in the action we are trying to
-        # call. This is necessary if we are running a pipeline in particular
-        # because the inputs to the next action could contain outputs from the
-        # last action that might not be resolved yet because Parsl may be
-        # queueing the next action before the last one has completed.
-        for arg in args:
-            mapped = _map_arg(arg, futures)
-            mapped_args.append(mapped)
+            # Parsl will queue up apps with futures as their arguments then not
+            # execute the apps until the futures are resolved. This is an
+            # extremely handy feature, but QIIME 2 does not play nice with it
+            # out of the box. You can look in qiime2/sdk/proxy.py for some more
+            # details on how this is working, but we are basically taking
+            # future QIIME 2 results and mapping them to the correct inputs in
+            # the action we are trying to call. This is necessary if we are
+            # running a pipeline in particular because the inputs to the next
+            # action could contain outputs from the last action that might not
+            # be resolved yet because Parsl may be queueing the next action
+            # before the last one has completed.
+            for arg in args:
+                mapped = _map_arg(arg, futures)
+                mapped_args.append(mapped)
 
-        for key, value in kwargs.items():
-            mapped = _map_arg(value, futures)
-            mapped_kwargs[key] = mapped
+            for key, value in kwargs.items():
+                mapped = _map_arg(value, futures)
+                mapped_kwargs[key] = mapped
 
-        # If the user specified a particular executor for a this action
-        # determine that here
-        executor = ctx.action_executor_mapping.get(self.id, 'default')
-        execution_ctx = {'type': 'parsl'}
+            # If the user specified a particular executor for a this action
+            # determine that here
+            executor = ctx.action_executor_mapping.get(self.id, 'default')
+            execution_ctx = {'type': 'parsl'}
 
-        def _run_parsl_action(action, ctx, execution_ctx, mapped_args,
-                              mapped_kwargs, inputs=[]):
-            """This is what the parsl app itself actually runs. It's basically
-            just a wrapper around our QIIME 2 action. When this is initially
-            called, args and kwargs may contain proxies that reference futures
-            in inputs. By the time this starts executing, those futures will
-            have resolved. We then need to take the resolved inputs and map the
-            correct parts of them to the correct args/kwargs before calling the
-            action with them.
+            def run_parsl_action(action, ctx, execution_ctx, mapped_args,
+                                 mapped_kwargs, inputs=[]):
+                """This is what the parsl app itself actually runs. It's
+                basically just a wrapper around our QIIME 2 action. When this
+                is initially called, args and kwargs may contain proxies that
+                reference futures in inputs. By the time this starts executing,
+                those futures will have resolved. We then need to take the
+                resolved inputs and map the correct parts of them to the
+                correct args/kwargs before calling the action with them.
 
-            This is necessary because a single future in inputs will resolve
-            into a Results object. We need to take singular Result objects off
-            of that Results object and map them to the correct inputs for the
-            action we want to call.
-            """
-            args = []
-            for arg in mapped_args:
-                unmapped = _unmap_arg(arg, inputs)
-                args.append(unmapped)
+                This is necessary because a single future in inputs will
+                resolve into a Results object. We need to take singular Result
+                objects off of that Results object and map them to the correct
+                inputs for the action we want to call.
+                """
+                args = []
+                for arg in mapped_args:
+                    unmapped = _unmap_arg(arg, inputs)
+                    args.append(unmapped)
 
-            kwargs = {}
-            for key, value in mapped_kwargs.items():
-                unmapped = _unmap_arg(value, inputs)
-                kwargs[key] = unmapped
+                kwargs = {}
+                for key, value in mapped_kwargs.items():
+                    unmapped = _unmap_arg(value, inputs)
+                    kwargs[key] = unmapped
 
-            # We with in the cache here to make sure archiver.load* puts things
-            # in the right cache
-            with ctx.cache:
-                exe = action._bind(
-                    lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
-                results = exe(*args, **kwargs)
+                # We with in the cache here to make sure archiver.load* puts
+                # things in the right cache
+                with ctx.cache:
+                    exe = action._bind(
+                        lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
+                    results = exe(*args, **kwargs)
 
-                # If we are running a pipeline, we need to create a future here
-                # because the parsl join app the pipeline was running in is
-                # expected to return a future, but we will have concrete
-                # results by this point if we are a pipeline
-                if isinstance(action, Pipeline) and ctx.parallel:
-                    return qiime2.sdk.util.create_future(results)
+                    # If we are running a pipeline, we need to create a future
+                    # here because the parsl join app the pipeline was running
+                    # in is expected to return a future, but we will have
+                    # concrete results by this point if we are a pipeline
+                    if isinstance(action, Pipeline) and ctx.parallel:
+                        return qiime2.sdk.util.create_future(results)
 
-                return results
+                    return results
 
-        # Set the name of the closure to the name of the action, so we see the
-        # correct name in the parsl log
-        self._set_wrapper_name(_run_parsl_action, self.name)
+            # Set the name of the closure to the name of the action, so we see
+            # the correct name in the parsl log
+            self._set_wrapper_name(run_parsl_action, self.name)
 
-        # Pipelines run in join apps and are a sort of synchronization point
-        # right now. Unfortunately it is not currently possible to make say a
-        # pipeline that calls two other pipelines within it and execute both of
-        # those internal pipelines simultaneously.
-        if isinstance(self, qiime2.sdk.action.Pipeline):
-            # If ctx._parent is None then this is the root pipeline and we want
-            # to dispatch it to a join_app
-            execution_ctx['parsl_type'] = 'DFK'
-            if ctx._parent is None:
-                # NOTE: Do not make this a python_app(join=True). We need it to
-                # run in the parsl main thread
-                future = join_app()(
-                        _run_parsl_action)(self, ctx, execution_ctx,
-                                           mapped_args, mapped_kwargs,
-                                           inputs=futures)
-            # If there is a parent then this is not the root pipeline and we
-            # want to just _bind it with a parallel context. The fact that
-            # parallel is set on the context will cause ctx.get_action calls in
-            # the pipeline to use the action's _bind_parsl method.
+            # Pipelines run in join apps and are a sort of synchronization
+            # point right now. Unfortunately it is not currently possible to
+            # make say a pipeline that calls two other pipelines within it and
+            # execute both of those internal pipelines simultaneously.
+            if isinstance(self, qiime2.sdk.action.Pipeline):
+                # If ctx._parent is None then this is the root pipeline and we
+                # want to dispatch it to a join_app
+                execution_ctx['parsl_type'] = 'DFK'
+                if ctx._parent is None:
+                    # NOTE: Do not make this a python_app(join=True). We need
+                    # it to run in the parsl main thread
+                    future = join_app()(
+                            run_parsl_action)(self, ctx, execution_ctx,
+                                              mapped_args, mapped_kwargs,
+                                              inputs=futures)
+                # If there is a parent then this is not the root pipeline and
+                # we want to just _bind it with a parallel context. The fact
+                # that parallel is set on the context will cause ctx.get_action
+                # calls in the pipeline to use the action's _bind_parsl method.
+                else:
+                    return self._bind(
+                        lambda: qiime2.sdk.Context(ctx),
+                        execution_ctx=execution_ctx)(*args, **kwargs)
             else:
-                return self._bind(lambda: qiime2.sdk.Context(ctx),
-                                  execution_ctx=execution_ctx)(*args, **kwargs)
-        else:
-            execution_ctx['parsl_type'] = \
-                ctx.executor_name_type_mapping[executor]
-            future = python_app(
-                executors=[executor])(
-                    _run_parsl_action)(self, ctx, execution_ctx,
-                                       mapped_args, mapped_kwargs,
-                                       inputs=futures)
+                execution_ctx['parsl_type'] = \
+                    ctx.executor_name_type_mapping[executor]
+                future = python_app(
+                    executors=[executor])(
+                        run_parsl_action)(self, ctx, execution_ctx,
+                                          mapped_args, mapped_kwargs,
+                                          inputs=futures)
 
-        collated_input = self.signature.collate_inputs(*args, **kwargs)
-        output_types = self.signature.solve_output(**collated_input)
+            collated_input = self.signature.collate_inputs(*args, **kwargs)
+            output_types = self.signature.solve_output(**collated_input)
 
-        # Again, we return a set of futures not a set of real results
-        return qiime2.sdk.proxy.ProxyResults(future, output_types)
+            # Again, we return a set of futures not a set of real results
+            return qiime2.sdk.proxy.ProxyResults(future, output_types)
+
+        bound_parsl_callable = \
+            self._rewrite_wrapper_signature(bound_parsl_callable)
+        self._set_wrapper_properties(bound_parsl_callable)
+        self._set_wrapper_name(bound_parsl_callable, self.id)
+        return bound_parsl_callable
 
     def _get_parsl_wrapper(self):
-        def parsl_wrapper(*args, **kwargs):
-            # TODO: Maybe make this a warning instead?
-            if not isinstance(self, Pipeline):
+        if isinstance(self, Pipeline):
+            parsl_wrapper = \
+                self._bind_parsl(lambda: qiime2.sdk.Context(parallel=True))
+        else:
+            def error(*args, **kwargs):
                 raise ValueError('Only pipelines may be run in parallel')
 
-            return self._bind_parsl(qiime2.sdk.Context(parallel=True), *args,
-                                    **kwargs)
+            parsl_wrapper = error
 
-        parsl_wrapper = self._rewrite_wrapper_signature(parsl_wrapper)
-        self._set_wrapper_properties(parsl_wrapper)
-        self._set_wrapper_name(parsl_wrapper, 'parsl')
+        self._set_wrapper_name(parsl_wrapper, 'parallel')
         return parsl_wrapper
 
     def _rewrite_wrapper_signature(self, wrapper):
