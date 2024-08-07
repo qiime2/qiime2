@@ -331,18 +331,6 @@ class TypeExp(_AlgebraicExpBase):
                         " fields already present." % (fields, self))
 
     def __contains__(self, value):
-        # from qiime2.sdk.proxy import Proxy
-        # # if self.name == "Collection":
-        # #     raise ValueError(f'{self} {value}')
-        # if isinstance(value, Proxy):
-        #     print(f'{value} {value.type}')
-        #     value = value.type
-        #     print(self.template)
-        #     print(self.template.is_element_expr)
-        #     print(self.template.is_element_expr(self, value))
-        #     print(value in self.full_predicate)
-        #     raise ValueError(value)
-
         return (self.template.is_element_expr(self, value)
                 and value in self.full_predicate)
 

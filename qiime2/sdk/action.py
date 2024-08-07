@@ -666,10 +666,7 @@ class Pipeline(Action):
         #
         # TODO: Ideally we would not need to resolve futures here as this
         # prevents us from properly parallelizing nested pipelines
-        print(scope.ctx._parent._parent)
-        print(f"BEFORE: {outputs}")
         outputs = self._coerce_pipeline_outputs(outputs, handle_proxies=(scope.ctx._parent._parent is None))
-        print(f"AFTER: {outputs}")
         # for output in outputs:
         #     if isinstance(output, qiime2.sdk.ResultCollection):
         #         for elem in output.values():
@@ -746,7 +743,6 @@ class Pipeline(Action):
         """Ensure all futures are resolved and all collections are of type
            ResultCollection
         """
-        print(f'HANDLE PROXIES: {handle_proxies}')
         coerced_outputs = []
 
         for output in outputs:
