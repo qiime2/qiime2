@@ -667,8 +667,9 @@ class Pipeline(Action):
         # TODO: Ideally we would not need to resolve futures here as this
         # prevents us from properly parallelizing nested pipelines
         print(scope.ctx._parent._parent)
+        print(f"BEFORE: {outputs}")
         outputs = self._coerce_pipeline_outputs(outputs, handle_proxies=(scope.ctx._parent._parent is None))
-
+        print(f"AFTER: {outputs}")
         # for output in outputs:
         #     if isinstance(output, qiime2.sdk.ResultCollection):
         #         for elem in output.values():
@@ -714,11 +715,14 @@ class Pipeline(Action):
                 for idx, (key, value) in enumerate(output.items()):
                     collection_name = create_collection_name(
                         name=name, key=key, idx=idx, size=size)
-                    prov = provenance.fork(collection_name, value)
-                    scope.add_reference(prov)
+                    if isinstance(value, Proxy):
+                        aliased_result = value._alias(collection_name, provenance, scope)
+                    else:
+                        prov = provenance.fork(collection_name, value)
+                        scope.add_reference(prov)
 
-                    aliased_result = output._alias(prov)
-                    aliased_result = scope.add_parent_reference(aliased_result)
+                        aliased_result = value._alias(prov)
+                        aliased_result = scope.add_parent_reference(aliased_result)
 
                     aliased_output[str(key)] = aliased_result
 
