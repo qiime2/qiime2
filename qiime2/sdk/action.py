@@ -439,7 +439,6 @@ class Action(metaclass=abc.ABCMeta):
                 if ctx._parent is None:
                     # NOTE: Do not make this a python_app(join=True). We need
                     # it to run in the parsl main thread
-                    print(f'ROOT: {self.name}')
                     future = join_app()(
                             run_parsl_action)(self, ctx, execution_ctx,
                                               mapped_args, mapped_kwargs,
@@ -449,12 +448,10 @@ class Action(metaclass=abc.ABCMeta):
                 # that parallel is set on the context will cause ctx.get_action
                 # calls in the pipeline to use the action's _bind_parsl method.
                 else:
-                    print(f'PIPE: {self.name}')
                     return self._bind(
                         lambda: qiime2.sdk.Context(ctx),
                         execution_ctx=execution_ctx)(*args, **kwargs)
             else:
-                print(f'NOT PIPE: {self.name}')
                 execution_ctx['parsl_type'] = \
                     ctx.executor_name_type_mapping[executor]
                 future = python_app(
