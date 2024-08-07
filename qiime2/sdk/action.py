@@ -21,7 +21,7 @@ import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import (LateBindingAttribute, DropFirstParameter,
                               tuplize, create_collection_name)
-from qiime2.sdk.proxy import Proxy
+from qiime2.sdk.proxy import Proxy, ProxyResult, ProxyResultCollection
 
 
 def _subprocess_apply(action, ctx, args, kwargs):
@@ -439,6 +439,7 @@ class Action(metaclass=abc.ABCMeta):
                 if ctx._parent is None:
                     # NOTE: Do not make this a python_app(join=True). We need
                     # it to run in the parsl main thread
+                    print(f'ROOT: {self.name}')
                     future = join_app()(
                             run_parsl_action)(self, ctx, execution_ctx,
                                               mapped_args, mapped_kwargs,
@@ -448,10 +449,12 @@ class Action(metaclass=abc.ABCMeta):
                 # that parallel is set on the context will cause ctx.get_action
                 # calls in the pipeline to use the action's _bind_parsl method.
                 else:
+                    print(f'PIPE: {self.name}')
                     return self._bind(
                         lambda: qiime2.sdk.Context(ctx),
                         execution_ctx=execution_ctx)(*args, **kwargs)
             else:
+                print(f'NOT PIPE: {self.name}')
                 execution_ctx['parsl_type'] = \
                     ctx.executor_name_type_mapping[executor]
                 future = python_app(
@@ -663,17 +666,18 @@ class Pipeline(Action):
         #
         # TODO: Ideally we would not need to resolve futures here as this
         # prevents us from properly parallelizing nested pipelines
-        outputs = self._coerce_pipeline_outputs(outputs)
+        print(scope.ctx._parent._parent)
+        outputs = self._coerce_pipeline_outputs(outputs, handle_proxies=(scope.ctx._parent._parent is None))
 
-        for output in outputs:
-            if isinstance(output, qiime2.sdk.ResultCollection):
-                for elem in output.values():
-                    if not isinstance(elem, qiime2.sdk.Result):
-                        raise TypeError("Pipelines must return `Result` "
-                                        "objects, not %s" % (type(elem), ))
-            elif not isinstance(output, qiime2.sdk.Result):
-                raise TypeError("Pipelines must return `Result` objects, "
-                                "not %s" % (type(output), ))
+        # for output in outputs:
+        #     if isinstance(output, qiime2.sdk.ResultCollection):
+        #         for elem in output.values():
+        #             if not isinstance(elem, qiime2.sdk.Result):
+        #                 raise TypeError("Pipelines must return `Result` "
+        #                                 "objects, not %s" % (type(elem), ))
+        #     elif not isinstance(output, qiime2.sdk.Result):
+        #         raise TypeError("Pipelines must return `Result` objects, "
+        #                         "not %s" % (type(output), ))
 
         # This condition *is* tested by the caller of _callable_executor_, but
         # the kinds of errors a plugin developer see will make more sense if
@@ -691,13 +695,16 @@ class Pipeline(Action):
             # If we don't have a Result, we should have a collection, if we
             # have neither, or our types just don't match up, something bad
             # happened
-            if isinstance(output, qiime2.sdk.Result) and \
+            if (isinstance(output, qiime2.sdk.Result) or isinstance(output, ProxyResult)) and \
                     (output.type <= spec.qiime_type):
                 prov = provenance.fork(name, output)
                 scope.add_reference(prov)
 
-                aliased_result = output._alias(prov)
-                aliased_result = scope.add_parent_reference(aliased_result)
+                if isinstance(output, Proxy):
+                    aliased_result = output._alias(prov, scope)
+                else:
+                    aliased_result = output._alias(prov)
+                    aliased_result = scope.add_parent_reference(aliased_result)
 
                 results.append(aliased_result)
             elif spec.qiime_type.name == 'Collection' and \
@@ -710,8 +717,12 @@ class Pipeline(Action):
                     prov = provenance.fork(collection_name, value)
                     scope.add_reference(prov)
 
-                    aliased_result = value._alias(prov)
-                    aliased_result = scope.add_parent_reference(aliased_result)
+                    if isinstance(output, Proxy):
+                        aliased_result = output._alias(prov, scope)
+                    else:
+                        aliased_result = output._alias(prov)
+                        aliased_result = scope.add_parent_reference(aliased_result)
+
                     aliased_output[str(key)] = aliased_result
 
                 results.append(aliased_output)
@@ -730,7 +741,7 @@ class Pipeline(Action):
 
         return tuple(results)
 
-    def _coerce_pipeline_outputs(self, outputs):
+    def _coerce_pipeline_outputs(self, outputs, handle_proxies=False):
         """Ensure all futures are resolved and all collections are of type
            ResultCollection
         """
@@ -738,7 +749,7 @@ class Pipeline(Action):
 
         for output in outputs:
             # Handle proxy outputs
-            if isinstance(output, Proxy):
+            if isinstance(output, Proxy) and handle_proxies:
                 output = output.result()
 
             # Handle collection outputs
@@ -747,9 +758,10 @@ class Pipeline(Action):
                 output = qiime2.sdk.ResultCollection(output)
 
                 # Handle proxies as elements of collections
-                for key, value in output.items():
-                    if isinstance(value, Proxy):
-                        output[key] = value.result()
+                if handle_proxies:
+                    for key, value in output.items():
+                        if isinstance(value, Proxy):
+                            output[key] = value.result()
 
             coerced_outputs.append(output)
 

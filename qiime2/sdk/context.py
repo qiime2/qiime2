@@ -195,7 +195,11 @@ class Scope:
         """Add a reference to something destructable that is owned by this
            scope.
         """
-        self._locals.append(ref)
+        # If we are not the root then this is actually our parent's problem
+        if self.ctx._parent is not None:
+            self._parent_locals.append(ref)
+        else:
+            self._locals.append(ref)
 
     # NOTE: We end up with both the artifact and the pipeline alias of artifact
     # in the named cache in the end. We only have the pipeline alias in the
@@ -236,18 +240,24 @@ class Scope:
 
         # Unset instance state, handy to prevent cycles in GC, and also causes
         # catastrophic failure if some invariant is violated.
-        del self.ctx
-        del self._locals
-        del self._parent_locals
+        # del self.ctx
+        # del self._locals
+        # del self._parent_locals
 
         for ref in local_refs:
-            ref._destructor()
+            try:
+                ref._destructor()
+            except Exception:
+                pass
 
         if local_references_only:
             return parent_refs
 
         for ref in parent_refs:
-            ref._destructor()
+            try:
+                ref._destructor()
+            except Exception:
+                pass
 
         ctx.cache.garbage_collection()
         return []
