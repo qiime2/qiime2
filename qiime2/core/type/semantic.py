@@ -200,7 +200,8 @@ class SemanticTemplate(TypeTemplate):
 
     def is_element_expr(self, self_expr, value):
         import qiime2.sdk
-        if not (isinstance(value, qiime2.sdk.Artifact) or isinstance(value, qiime2.sdk.proxy.ProxyArtifact)):
+        if not (isinstance(value, qiime2.sdk.Artifact) or
+                isinstance(value, qiime2.sdk.proxy.ProxyArtifact)):
             return False
         return value.type <= self_expr
 

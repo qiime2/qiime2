@@ -21,7 +21,7 @@ import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import (LateBindingAttribute, DropFirstParameter,
                               tuplize, create_collection_name)
-from qiime2.sdk.proxy import Proxy, ProxyResult, ProxyResultCollection
+from qiime2.sdk.proxy import Proxy, ProxyResult
 
 
 def _subprocess_apply(action, ctx, args, kwargs):
@@ -666,16 +666,19 @@ class Pipeline(Action):
         #
         # TODO: Ideally we would not need to resolve futures here as this
         # prevents us from properly parallelizing nested pipelines
-        outputs = self._coerce_pipeline_outputs(outputs, handle_proxies=(scope.ctx._parent._parent is None))
-        # for output in outputs:
-        #     if isinstance(output, qiime2.sdk.ResultCollection):
-        #         for elem in output.values():
-        #             if not isinstance(elem, qiime2.sdk.Result):
-        #                 raise TypeError("Pipelines must return `Result` "
-        #                                 "objects, not %s" % (type(elem), ))
-        #     elif not isinstance(output, qiime2.sdk.Result):
-        #         raise TypeError("Pipelines must return `Result` objects, "
-        #                         "not %s" % (type(output), ))
+        outputs = self._coerce_pipeline_outputs(
+            outputs, handle_proxies=(scope.ctx._parent._parent is None))
+
+        for output in outputs:
+            if isinstance(output, qiime2.sdk.ResultCollection):
+                for elem in output.values():
+                    if not isinstance(elem, qiime2.sdk.Result):
+                        raise TypeError("Pipelines must return `Result` "
+                                        "objects, not %s" % (type(elem), ))
+            elif not isinstance(output, qiime2.sdk.Result) \
+                    or isinstance(output, ProxyResult):
+                raise TypeError("Pipelines must return `Result` objects, "
+                                "not %s" % (type(output), ))
 
         # This condition *is* tested by the caller of _callable_executor_, but
         # the kinds of errors a plugin developer see will make more sense if
@@ -693,7 +696,8 @@ class Pipeline(Action):
             # If we don't have a Result, we should have a collection, if we
             # have neither, or our types just don't match up, something bad
             # happened
-            if (isinstance(output, qiime2.sdk.Result) or isinstance(output, ProxyResult)) and \
+            if (isinstance(output, qiime2.sdk.Result) or
+                    isinstance(output, ProxyResult)) and \
                     (output.type <= spec.qiime_type):
                 if isinstance(output, Proxy):
                     aliased_result = output._alias(name, provenance, scope)
@@ -713,13 +717,15 @@ class Pipeline(Action):
                     collection_name = create_collection_name(
                         name=name, key=key, idx=idx, size=size)
                     if isinstance(value, Proxy):
-                        aliased_result = value._alias(collection_name, provenance, scope)
+                        aliased_result = \
+                            value._alias(collection_name, provenance, scope)
                     else:
                         prov = provenance.fork(collection_name, value)
                         scope.add_reference(prov)
 
                         aliased_result = value._alias(prov)
-                        aliased_result = scope.add_parent_reference(aliased_result)
+                        aliased_result = \
+                            scope.add_parent_reference(aliased_result)
 
                     aliased_output[str(key)] = aliased_result
 

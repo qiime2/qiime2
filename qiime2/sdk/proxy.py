@@ -156,32 +156,6 @@ class ProxyResultCollection(Proxy):
     def __repr__(self):
         return f"<{self.__class__.__name__.lower()}: {self.type}>"
 
-    # def _alias(self, name, provenance, scope):
-    #     def _alias_hook():
-    #         from qiime2.sdk.result import ResultCollection
-    #         from qiime2.core.util import create_collection_name
-
-    #         collection = new.collection()
-    #         size = len(collection)
-    #         aliased_output = ResultCollection()
-
-    #         for idx, (key, value) in enumerate(collection.items()):
-    #             collection_name = create_collection_name(
-    #                 name=name, key=key, idx=idx, size=size)
-    #             prov = provenance.fork(collection_name, value)
-    #             scope.add_reference(prov)
-
-    #             aliased_result = collection._alias(prov)
-    #             aliased_result = scope.add_parent_reference(aliased_result)
-
-    #             aliased_output[str(key)] = aliased_result
-
-    #         return aliased_output
-
-    #     new = self.__class__(self._future_, self._selector_, self._qiime_type_)
-    #     new._alias_hook = _alias_hook
-    #     return new
-
     @property
     def type(self):
         # I'm not a huge fan of the fact that this may or may not need to
