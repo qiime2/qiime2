@@ -672,8 +672,8 @@ class Pipeline(Action):
                     if not isinstance(elem, qiime2.sdk.Result):
                         raise TypeError("Pipelines must return `Result` "
                                         "objects, not %s" % (type(elem), ))
-            elif not isinstance(output, qiime2.sdk.Result) \
-                    or isinstance(output, ProxyResult):
+            elif not (isinstance(output, qiime2.sdk.Result)
+                      or isinstance(output, ProxyResult)):
                 raise TypeError("Pipelines must return `Result` objects, "
                                 "not %s" % (type(output), ))
 
