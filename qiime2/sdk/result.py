@@ -297,6 +297,11 @@ class Artifact(Result):
         if isinstance(view_type, str):
             view_type = qiime2.sdk.parse_format(view_type)
             is_format = True
+        # This ensures that when view_type is provided as a python class
+        # or base class, the checksum is still performed
+        elif (isinstance(view_type, type) and
+              issubclass(view_type, qiime2.core.format.FormatBase)):
+            is_format = True
 
         if view_type is None:
             if type(view) is str or isinstance(view, pathlib.PurePath):
