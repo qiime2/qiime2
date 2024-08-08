@@ -11,6 +11,7 @@ import inspect
 import copy
 import itertools
 import tempfile
+from typing import get_origin, Union, get_args
 
 import qiime2.sdk
 import qiime2.core.type as qtype
@@ -485,6 +486,25 @@ class PipelineSignature:
                         name=name, key=key, idx=idx, size=size)
                     output[key] = self._create_output_artifact(
                         provenance, collection_name, scope, spec, view)
+            elif isinstance(get_origin(spec.view_type), type(Union)):
+                union_resolved = False
+                for arg in get_args(spec.view_type):
+                    if isinstance(output_view, arg):
+                        # we need a new spec with the correct view type
+                        spec = ParameterSpec(
+                            qiime_type=spec.qiime_type, view_type=arg,
+                            default=spec.default, description=spec.description
+                        )
+                        output = self._create_output_artifact(
+                            provenance, name, scope, spec, output_view
+                        )
+                        union_resolved = True
+                        break
+                if not union_resolved:
+                    raise TypeError(
+                        "Expected output view type to be one of %r, received %r" %
+                        ([x.__name__ for x in get_args(spec.view_type)],
+                         type(output_view).__name__))
             elif type(output_view) is not spec.view_type:
                 raise TypeError(
                     "Expected output view type %r, received %r" %
