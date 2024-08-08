@@ -322,7 +322,9 @@ class Artifact(Result):
 
         format_ = None
         md5sums = None
-        if is_format:
+        if is_format and issubclass(view_type, qiime2.core.format.FormatBase):
+            path = pathlib.Path(str(view))
+        elif is_format:
             path = pathlib.Path(view)
             if path.is_file():
                 md5sums = {path.name: util.md5sum(path)}
