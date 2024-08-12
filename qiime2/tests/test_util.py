@@ -15,6 +15,7 @@ import unittest.mock as mock
 import qiime2.util as util
 
 EXDEV = OSError(errno.EXDEV, "Invalid cross-device link")
+ENOTSUP = OSError(errno.ENOTSUP, "Operation not supported")
 EPERM = PermissionError(errno.EPERM, "unsafe operation e.g. using link wrong")
 EACCES = PermissionError(errno.EACCES, "insufficient r/w permissions")
 SECRET = "this is a secret for testing, don't tell anyone!"
@@ -71,6 +72,15 @@ class TestDuplicate(unittest.TestCase):
 
     @mock.patch('qiime2.util.os.link', side_effect=EPERM)
     def test_perm_error_EPERM(self, mocked_link):
+        util.duplicate(self.src, self.dst1)
+
+        assert mocked_link.called
+        assert os.path.exists(self.dst1)
+        with open(self.dst1) as fh:
+            self.assertEqual(fh.read(), SECRET)
+
+    @mock.patch('qiime2.util.os.link', side_effect=ENOTSUP)
+    def test_operation_not_supported(self, mocked_link):
         util.duplicate(self.src, self.dst1)
 
         assert mocked_link.called
