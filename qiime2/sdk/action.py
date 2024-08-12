@@ -424,7 +424,8 @@ class Action(metaclass=abc.ABCMeta):
             # in the right cache
             with ctx.cache:
                 exe = action._bind(
-                    lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
+                    lambda: ctx if ctx._scope is None
+                    else qiime2.sdk.Context(parent=ctx), execution_ctx)
                 results = exe(*args, **kwargs)
 
                 # If we are running a pipeline, we need to create a future here
@@ -445,20 +446,20 @@ class Action(metaclass=abc.ABCMeta):
         # pipeline that calls two other pipelines within it and execute both of
         # those internal pipelines simultaneously.
         if isinstance(self, qiime2.sdk.action.Pipeline):
-            # If ctx._parent is None then this is the root pipeline and we want
+            # If ctx._scope is None then this is the root pipeline and we want
             # to dispatch it to a join_app
             execution_ctx['parsl_type'] = 'DFK'
-            if ctx._parent is None:
+            if ctx._scope is None:
                 # NOTE: Do not make this a python_app(join=True). We need it to
                 # run in the parsl main thread
                 future = join_app()(
                         _run_parsl_action)(self, ctx, execution_ctx,
                                            mapped_args, mapped_kwargs,
                                            inputs=futures)
-            # If there is a parent then this is not the root pipeline and we
-            # want to just _bind it with a parallel context. The fact that
-            # parallel is set on the context will cause ctx.get_action calls in
-            # the pipeline to use the action's _bind_parsl method.
+            # Otherwise this is not the root pipeline and we want to just _bind
+            # it with a parallel context. The fact that parallel is set on the
+            # context will cause ctx.get_action calls in the pipeline to use
+            # the action's _bind_parsl method.
             else:
                 return self._bind(lambda: qiime2.sdk.Context(ctx),
                                   execution_ctx=execution_ctx)(*args, **kwargs)
@@ -665,13 +666,12 @@ class Pipeline(Action):
         # Just make sure we have an iterable even if there was only one output
         outputs = tuplize(outputs)
         # Make sure any collections returned are in the form of
-        # ResultCollections and that futures are resolved
+        # ResultCollections
         #
-        # TODO: Ideally we would not need to resolve futures here as this
-        # prevents us from properly parallelizing nested pipelines
-
-        # is_root = scope.ctx._parent is not None and scope.ctx._parent._parent is None
-        outputs = self._coerce_pipeline_outputs(outputs, is_root)
+        # We only want to wait for proxies to resolve if we are the root
+        # pipeline
+        outputs = self._coerce_pipeline_outputs(
+            outputs, is_root=scope.ctx._parent is None)
 
         for output in outputs:
             if isinstance(output, qiime2.sdk.ResultCollection):
@@ -681,7 +681,7 @@ class Pipeline(Action):
                         raise TypeError("Pipelines must return `Result` "
                                         "objects, not %s" % (type(elem), ))
             elif not (isinstance(output, qiime2.sdk.Result) or
-                      isinstance(elem, Proxy)):
+                      isinstance(output, Proxy)):
                 raise TypeError("Pipelines must return `Result` objects, "
                                 "not %s" % (type(output), ))
 
@@ -742,7 +742,7 @@ class Pipeline(Action):
 
         return tuple(results)
 
-    def _coerce_pipeline_outputs(self, outputs):
+    def _coerce_pipeline_outputs(self, outputs, is_root):
         """Ensure all futures are resolved and all collections are of type
            ResultCollection
         """
