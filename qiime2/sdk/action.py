@@ -108,6 +108,21 @@ def _unmap_arg(arg, inputs):
     return unmapped
 
 
+@join_app
+def _deferred_alias():
+    pass
+
+
+def _alias(provenance, name, output, scope):
+    prov = provenance.fork(name, output)
+    scope.add_reference(prov)
+
+    aliased_result = output._alias(prov)
+    aliased_result = scope.add_parent_reference(aliased_result)
+
+    return aliased_result
+
+
 class Action(metaclass=abc.ABCMeta):
     """QIIME 2 Action"""
     type = 'action'
@@ -654,15 +669,19 @@ class Pipeline(Action):
         #
         # TODO: Ideally we would not need to resolve futures here as this
         # prevents us from properly parallelizing nested pipelines
-        outputs = self._coerce_pipeline_outputs(outputs)
+
+        # is_root = scope.ctx._parent is not None and scope.ctx._parent._parent is None
+        outputs = self._coerce_pipeline_outputs(outputs, is_root)
 
         for output in outputs:
             if isinstance(output, qiime2.sdk.ResultCollection):
                 for elem in output.values():
-                    if not isinstance(elem, qiime2.sdk.Result):
+                    if not (isinstance(elem, qiime2.sdk.Result) or
+                            isinstance(elem, Proxy)):
                         raise TypeError("Pipelines must return `Result` "
                                         "objects, not %s" % (type(elem), ))
-            elif not isinstance(output, qiime2.sdk.Result):
+            elif not (isinstance(output, qiime2.sdk.Result) or
+                      isinstance(elem, Proxy)):
                 raise TypeError("Pipelines must return `Result` objects, "
                                 "not %s" % (type(output), ))
 
@@ -684,12 +703,13 @@ class Pipeline(Action):
             # happened
             if isinstance(output, qiime2.sdk.Result) and \
                     (output.type <= spec.qiime_type):
-                prov = provenance.fork(name, output)
-                scope.add_reference(prov)
+                # prov = provenance.fork(name, output)
+                # scope.add_reference(prov)
 
-                aliased_result = output._alias(prov)
-                aliased_result = scope.add_parent_reference(aliased_result)
+                # aliased_result = output._alias(prov)
+                # aliased_result = scope.add_parent_reference(aliased_result)
 
+                aliased_result = _alias(provenance, name, output, scope)
                 results.append(aliased_result)
             elif spec.qiime_type.name == 'Collection' and \
                     output.collection in spec.qiime_type:
@@ -698,11 +718,12 @@ class Pipeline(Action):
                 for idx, (key, value) in enumerate(output.items()):
                     collection_name = create_collection_name(
                         name=name, key=key, idx=idx, size=size)
-                    prov = provenance.fork(collection_name, value)
-                    scope.add_reference(prov)
+                    # prov = provenance.fork(collection_name, value)
+                    # scope.add_reference(prov)
 
-                    aliased_result = value._alias(prov)
-                    aliased_result = scope.add_parent_reference(aliased_result)
+                    # aliased_result = value._alias(prov)
+                    # aliased_result = scope.add_parent_reference(aliased_result)
+                    aliased_result = _alias(provenance, collection_name, value, scope)
                     aliased_output[str(key)] = aliased_result
 
                 results.append(aliased_output)
