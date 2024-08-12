@@ -253,18 +253,18 @@ class Scope:
 
         # Unset instance state, handy to prevent cycles in GC, and also causes
         # catastrophic failure if some invariant is violated.
-        del self.ctx
-        del self._locals
-        del self._parent_locals
+        # del self.ctx
+        # del self._locals
+        # del self._parent_locals
 
-        for ref in local_refs:
-            ref._destructor()
+        # for ref in local_refs:
+        #     ref._destructor()
 
-        if local_references_only:
-            return parent_refs
+        # if local_references_only:
+        #     return parent_refs
 
-        for ref in parent_refs:
-            ref._destructor()
+        # for ref in parent_refs:
+        #     ref._destructor()
 
-        ctx.cache.garbage_collection()
+        # ctx.cache.garbage_collection()
         return []

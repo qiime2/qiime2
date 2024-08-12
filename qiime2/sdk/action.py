@@ -109,8 +109,9 @@ def _unmap_arg(arg, inputs):
 
 
 @join_app
-def _deferred_alias():
-    pass
+def _deferred_alias(provenance, name, output, scope, inputs=[]):
+    output = output.result()
+    return qiime2.sdk.util.create_future(_alias(provenance, name, output, scope))
 
 
 def _alias(provenance, name, output, scope):
@@ -450,6 +451,7 @@ class Action(metaclass=abc.ABCMeta):
             # to dispatch it to a join_app
             execution_ctx['parsl_type'] = 'DFK'
             if ctx._scope is None:
+                print(f"ROOT: {self.name}")
                 # NOTE: Do not make this a python_app(join=True). We need it to
                 # run in the parsl main thread
                 future = join_app()(
@@ -461,9 +463,11 @@ class Action(metaclass=abc.ABCMeta):
             # context will cause ctx.get_action calls in the pipeline to use
             # the action's _bind_parsl method.
             else:
+                print(f'NOT ROOT: {self.name}')
                 return self._bind(lambda: qiime2.sdk.Context(ctx),
                                   execution_ctx=execution_ctx)(*args, **kwargs)
         else:
+            print(f'NOT PIPE: {self.name}')
             execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
             future = python_app(
@@ -703,13 +707,14 @@ class Pipeline(Action):
             # happened
             if isinstance(output, qiime2.sdk.Result) and \
                     (output.type <= spec.qiime_type):
-                # prov = provenance.fork(name, output)
-                # scope.add_reference(prov)
-
-                # aliased_result = output._alias(prov)
-                # aliased_result = scope.add_parent_reference(aliased_result)
-
                 aliased_result = _alias(provenance, name, output, scope)
+                results.append(aliased_result)
+            elif isinstance(output, Proxy) and \
+                    (output.type <= spec.qiime_type):
+                aliased_result = _deferred_alias(
+                    provenance, name, output, scope,
+                    inputs=[output._future_])
+                aliased_result = output.__class__(future=aliased_result, selector=output._selector_, qiime_type=output._qiime_type_)
                 results.append(aliased_result)
             elif spec.qiime_type.name == 'Collection' and \
                     output.collection in spec.qiime_type:
@@ -718,12 +723,16 @@ class Pipeline(Action):
                 for idx, (key, value) in enumerate(output.items()):
                     collection_name = create_collection_name(
                         name=name, key=key, idx=idx, size=size)
-                    # prov = provenance.fork(collection_name, value)
-                    # scope.add_reference(prov)
 
-                    # aliased_result = value._alias(prov)
-                    # aliased_result = scope.add_parent_reference(aliased_result)
-                    aliased_result = _alias(provenance, collection_name, value, scope)
+                    if isinstance(output, Proxy):
+                        aliased_result = _deferred_alias(
+                            provenance, collection_name, value, scope,
+                            inputs=[output._future_])
+                        aliased_result = output.__class__(future=aliased_result, selector=output._selector_, qiime_type=output._qiime_type_)
+                    else:
+                        aliased_result = _alias(
+                            provenance, collection_name, value, scope)
+
                     aliased_output[str(key)] = aliased_result
 
                 results.append(aliased_output)
@@ -749,8 +758,8 @@ class Pipeline(Action):
         coerced_outputs = []
 
         for output in outputs:
-            # Handle proxy outputs
-            if isinstance(output, Proxy):
+            # Handle proxy outputs if root
+            if is_root and isinstance(output, Proxy):
                 output = output.result()
 
             # Handle collection outputs
@@ -758,10 +767,11 @@ class Pipeline(Action):
                     isinstance(output, list):
                 output = qiime2.sdk.ResultCollection(output)
 
-                # Handle proxies as elements of collections
-                for key, value in output.items():
-                    if isinstance(value, Proxy):
-                        output[key] = value.result()
+                # Handle proxies as elements of collections if root
+                if is_root:
+                    for key, value in output.items():
+                        if isinstance(value, Proxy):
+                            output[key] = value.result()
 
             coerced_outputs.append(output)
 
