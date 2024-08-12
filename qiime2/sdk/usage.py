@@ -1626,13 +1626,13 @@ class Usage:
         # need to be explicitly aware of the signature order
         for param_name, var_name in outputs.items():
             qiime_type = action_f.signature.outputs[param_name].qiime_type
-            if is_visualization_type(qiime_type):
-                var_type = 'visualization'
-            elif is_collection_type(qiime_type):
+            if is_collection_type(qiime_type):
                 if str(qiime_type) == 'Collection[Visualization]':
                     var_type = 'visualization_collection'
                 else:
                     var_type = 'artifact_collection'
+            elif is_visualization_type(qiime_type):
+                var_type = 'visualization'
             elif is_semantic_type(qiime_type):
                 var_type = 'artifact'
             else:
