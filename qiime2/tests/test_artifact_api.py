@@ -278,14 +278,40 @@ output4, = dummy_plugin_actions.optional_artifacts_method(
 
     def test_artifact_collection_dict_of_ints(self):
         action = self.plugin.actions['dict_of_ints']
-        use = ArtifactAPIUsage()
+        use = ArtifactAPIUsage(enable_assertions=True)
         action.examples['collection_dict_of_ints'](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
+import re
 
 out_artifact_collection, = dummy_plugin_actions.dict_of_ints(
     ints=ints_artifact_collection,
-)"""
+)
+if str(out_artifact_collection['Foo'].type) != 'SingleInt':
+    raise AssertionError
+hits = sorted(out_artifact_collection['Foo']._archiver.data_dir.glob('file1.txt'))
+if len(hits) != 1:
+    raise ValueError
+target = hits[0].read_text()
+match = re.search('1', target, flags=re.MULTILINE)
+if match is None:
+    raise AssertionError"""  # noqa: E501
+
+        self.maxDiff = None
+        self.assertEqual(exp, use.render())
+
+    def test_collection_of_visualizations(self):
+        action = self.plugin.actions['viz_collection_pipeline']
+        use = ArtifactAPIUsage(enable_assertions=True)
+        action.examples['collection_of_visualizations'](use)
+        exp = """\
+import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
+
+visualizations_viz_collection, = dummy_plugin_actions.viz_collection_pipeline(
+    ints=ints,
+)
+if str(visualizations_viz_collection.type) != 'Collection[Visualization]':
+    raise AssertionError"""
 
         self.assertEqual(exp, use.render())
 
