@@ -104,6 +104,7 @@ class TestPlugin(unittest.TestCase):
                           'mix_arts_and_proxies', 'de_facto_dict_pipeline',
                           'de_facto_collection_pipeline', 'list_pipeline',
                           'collection_pipeline', 'failing_pipeline',
+                          'viz_collection_pipeline',
                           'docstring_order_method',
                           'constrained_input_visualization',
                           'combinatorically_mapped_method',
@@ -181,7 +182,8 @@ class TestPlugin(unittest.TestCase):
                           'internal_fail_pipeline', 'de_facto_list_pipeline',
                           'mix_arts_and_proxies', 'de_facto_dict_pipeline',
                           'de_facto_collection_pipeline', 'list_pipeline',
-                          'collection_pipeline', 'failing_pipeline'})
+                          'collection_pipeline', 'failing_pipeline',
+                          'viz_collection_pipeline'})
         for pipeline in pipelines.values():
             self.assertIsInstance(pipeline, qiime2.sdk.Pipeline)
 
