@@ -264,6 +264,7 @@ def collection_dict_of_ints(use):
     )
 
     out.assert_output_type(semantic_type='SingleInt', key='Foo')
+    out.assert_has_line_matching('file1.txt', '1', key='Foo')
 
 
 def collection_of_visualizations(use):
