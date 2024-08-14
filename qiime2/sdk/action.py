@@ -451,7 +451,6 @@ class Action(metaclass=abc.ABCMeta):
             # to dispatch it to a join_app
             execution_ctx['parsl_type'] = 'DFK'
             if ctx._scope is None:
-                print(f"ROOT: {self.name}")
                 # NOTE: Do not make this a python_app(join=True). We need it to
                 # run in the parsl main thread
                 future = join_app()(
@@ -463,11 +462,9 @@ class Action(metaclass=abc.ABCMeta):
             # context will cause ctx.get_action calls in the pipeline to use
             # the action's _bind_parsl method.
             else:
-                print(f'NOT ROOT: {self.name}')
                 return self._bind(lambda: qiime2.sdk.Context(ctx),
                                   execution_ctx=execution_ctx)(*args, **kwargs)
         else:
-            print(f'NOT PIPE: {self.name}')
             execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
             future = python_app(
