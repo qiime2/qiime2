@@ -724,11 +724,11 @@ class Pipeline(Action):
                     collection_name = create_collection_name(
                         name=name, key=key, idx=idx, size=size)
 
-                    if isinstance(output, Proxy):
+                    if isinstance(value, Proxy):
                         aliased_result = _deferred_alias(
                             provenance, collection_name, value, scope,
-                            inputs=[output._future_])
-                        aliased_result = output.__class__(future=aliased_result, selector=output._selector_, qiime_type=output._qiime_type_)
+                            inputs=[value._future_])
+                        aliased_result = value.__class__(future=aliased_result, selector=value._selector_, qiime_type=value._qiime_type_)
                     else:
                         aliased_result = _alias(
                             provenance, collection_name, value, scope)
