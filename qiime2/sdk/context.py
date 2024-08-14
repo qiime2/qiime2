@@ -247,9 +247,9 @@ class Scope:
             The list of references that were not destroyed.
 
         """
-        ctx = self.ctx
-        local_refs = self._locals
-        parent_refs = self._parent_locals
+        # ctx = self.ctx
+        # local_refs = self._locals
+        # parent_refs = self._parent_locals
 
         # Unset instance state, handy to prevent cycles in GC, and also causes
         # catastrophic failure if some invariant is violated.

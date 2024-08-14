@@ -111,7 +111,8 @@ def _unmap_arg(arg, inputs):
 @join_app
 def _deferred_alias(provenance, name, output, scope, inputs=[]):
     output = output.result()
-    return qiime2.sdk.util.create_future(_alias(provenance, name, output, scope))
+    return qiime2.sdk.util.create_future(
+        _alias(provenance, name, output, scope))
 
 
 def _alias(provenance, name, output, scope):
@@ -711,7 +712,9 @@ class Pipeline(Action):
                 aliased_result = _deferred_alias(
                     provenance, name, output, scope,
                     inputs=[output._future_])
-                aliased_result = output.__class__(future=aliased_result, selector=output._selector_, qiime_type=output._qiime_type_)
+                aliased_result = output.__class__(
+                    future=aliased_result, selector=output._selector_,
+                    qiime_type=output._qiime_type_)
                 results.append(aliased_result)
             elif spec.qiime_type.name == 'Collection' and \
                     output.collection in spec.qiime_type:
@@ -725,7 +728,9 @@ class Pipeline(Action):
                         aliased_result = _deferred_alias(
                             provenance, collection_name, value, scope,
                             inputs=[value._future_])
-                        aliased_result = value.__class__(future=aliased_result, selector=value._selector_, qiime_type=value._qiime_type_)
+                        aliased_result = value.__class__(
+                            future=aliased_result, selector=value._selector_,
+                            qiime_type=value._qiime_type_)
                     else:
                         aliased_result = _alias(
                             provenance, collection_name, value, scope)
