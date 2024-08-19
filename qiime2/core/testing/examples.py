@@ -275,7 +275,7 @@ def collection_of_visualizations(use):
                         action_id='viz_collection_pipeline'),
         use.UsageInputs(
             ints=ints
-            ),
+        ),
         use.UsageOutputNames(
             visualizations='visualizations'
         )

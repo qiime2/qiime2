@@ -296,8 +296,6 @@ target = hits[0].read_text()
 match = re.search('1', target, flags=re.MULTILINE)
 if match is None:
     raise AssertionError"""  # noqa: E501
-
-        self.maxDiff = None
         self.assertEqual(exp, use.render())
 
     def test_collection_of_visualizations(self):
