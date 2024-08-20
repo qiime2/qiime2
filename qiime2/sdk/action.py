@@ -122,14 +122,6 @@ def _alias(provenance, name, output, scope):
     aliased_result = output._alias(prov)
     aliased_result = scope.add_parent_reference(aliased_result)
 
-    if scope.ctx.parallel:
-        # import multiprocessing
-        # lock = multiprocessing.Lock()
-
-        # lock.acquire()
-        scope.ctx.__exit__(None, None, None)
-        # lock.release()
-
     return aliased_result
 
 
@@ -290,9 +282,7 @@ class Action(metaclass=abc.ABCMeta):
             # if something goes wrong, the __exit__ handler of this context
             # manager will clean up. (It also cleans up when things go right)
             # with ctx as scope:
-            try:
-                scope = ctx.__enter__()
-
+            with ctx as scope:
                 provenance = self._ProvCaptureCls(
                     self.type, self.plugin_id, self.id, execution_ctx)
                 scope.add_reference(provenance)
@@ -329,14 +319,6 @@ class Action(metaclass=abc.ABCMeta):
                     self.signature.outputs.keys(), outputs)
 
                 return results
-            finally:
-                import sys
-                import multiprocessing
-                lock = multiprocessing.Lock()
-
-                lock.acquire()
-                ctx.__exit__(*sys.exc_info())
-                lock.release()
 
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
@@ -728,8 +710,6 @@ class Pipeline(Action):
                 results.append(aliased_result)
             elif isinstance(output, Proxy) and \
                     (output.type <= spec.qiime_type):
-                scope.entries += 1
-
                 aliased_result = _deferred_alias(
                     provenance, name, output, scope,
                     inputs=[output._future_])
@@ -746,8 +726,6 @@ class Pipeline(Action):
                         name=name, key=key, idx=idx, size=size)
 
                     if isinstance(value, Proxy):
-                        scope.entries += 1
-
                         aliased_result = _deferred_alias(
                             provenance, collection_name, value, scope,
                             inputs=[value._future_])

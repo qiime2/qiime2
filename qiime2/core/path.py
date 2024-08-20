@@ -96,10 +96,16 @@ class OutPath(OwnedPath):
         """
         Create a tempfile, return pathlib.Path reference to it.
         """
+        from qiime2.core.cache import get_cache
+
+        cache = get_cache()
+        tmp_path = cache.process_pool.get_tmp_path()
+        prefix = 'q2-%s-' % cls.__name__
+
         if dir:
-            name = tempfile.mkdtemp(**kwargs)
+            name = tempfile.mkdtemp(prefix=prefix, dir=tmp_path)
         else:
-            fd, name = tempfile.mkstemp(**kwargs)
+            fd, name = tempfile.mkstemp(prefix=prefix, dir=tmp_path)
             # fd is now assigned to our process table, but we don't need to do
             # anything with the file. We will call `open` on the `name` later
             # producing a different file descriptor, so close this one to
@@ -118,7 +124,6 @@ class InternalDirectory(_ConcretePath):
 
     @classmethod
     def _destruct(cls, path):
-        print(path)
         """DO NOT USE DIRECTLY, use `_destructor()` instead"""
         if os.path.exists(path):
             set_permissions(path, None, USER_GROUP_RWX)
@@ -138,12 +143,17 @@ class InternalDirectory(_ConcretePath):
             # for pickling.
             return cls.__new(*args)
         else:
+            from qiime2.core.cache import get_cache
+
+            cache = get_cache()
+            tmp_path = cache.process_pool.get_tmp_path()
+
             if prefix is None:
                 prefix = cls.DEFAULT_PREFIX
             elif not prefix.startswith(cls.DEFAULT_PREFIX):
                 prefix = cls.DEFAULT_PREFIX + prefix
             # TODO: normalize when temp-directories are configurable
-            path = tempfile.mkdtemp(prefix=prefix)
+            path = tempfile.mkdtemp(prefix=prefix, dir=tmp_path)
             return cls.__new(path)
 
     def __truediv__(self, path):

@@ -205,7 +205,6 @@ class Context:
 class Scope:
     def __init__(self, ctx):
         self.ctx = ctx
-        self.entries = 1
         self._locals = []
         self._parent_locals = []
 
@@ -213,10 +212,7 @@ class Scope:
         """Add a reference to something destructable that is owned by this
            scope.
         """
-        # if self.ctx._parent is None:
-        # self._locals.append(ref)
-        # else:
-        self._parent_locals.append(ref)
+        self._locals.append(ref)
 
     # NOTE: We end up with both the artifact and the pipeline alias of artifact
     # in the named cache in the end. We only have the pipeline alias in the
@@ -251,13 +247,6 @@ class Scope:
             The list of references that were not destroyed.
 
         """
-        print(self.entries)
-        self.entries -= 1
-
-        if self.entries != 0:
-            return []
-
-        print(local_references_only)
         ctx = self.ctx
         local_refs = self._locals
         parent_refs = self._parent_locals
