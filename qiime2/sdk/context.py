@@ -213,10 +213,10 @@ class Scope:
         """Add a reference to something destructable that is owned by this
            scope.
         """
-        # if self.ctx._parent:
-        #     self._parent_locals.append(ref)
-        # else:
-        self._locals.append(ref)
+        if self.ctx._parent:
+            self._parent_locals.append(ref)
+        else:
+            self._locals.append(ref)
 
     # NOTE: We end up with both the artifact and the pipeline alias of artifact
     # in the named cache in the end. We only have the pipeline alias in the
@@ -257,7 +257,6 @@ class Scope:
             return []
 
         ctx = self.ctx
-        entries = self.entries
         local_refs = self._locals
         parent_refs = self._parent_locals
 
