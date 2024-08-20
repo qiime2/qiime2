@@ -118,6 +118,7 @@ class InternalDirectory(_ConcretePath):
 
     @classmethod
     def _destruct(cls, path):
+        print(path)
         """DO NOT USE DIRECTLY, use `_destructor()` instead"""
         if os.path.exists(path):
             set_permissions(path, None, USER_GROUP_RWX)

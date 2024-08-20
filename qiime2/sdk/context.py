@@ -205,6 +205,7 @@ class Context:
 class Scope:
     def __init__(self, ctx):
         self.ctx = ctx
+        self.entries = 1
         self._locals = []
         self._parent_locals = []
 
@@ -212,7 +213,10 @@ class Scope:
         """Add a reference to something destructable that is owned by this
            scope.
         """
-        self._locals.append(ref)
+        # if self.ctx._parent is None:
+        # self._locals.append(ref)
+        # else:
+        self._parent_locals.append(ref)
 
     # NOTE: We end up with both the artifact and the pipeline alias of artifact
     # in the named cache in the end. We only have the pipeline alias in the
@@ -247,24 +251,31 @@ class Scope:
             The list of references that were not destroyed.
 
         """
-        # ctx = self.ctx
-        # local_refs = self._locals
-        # parent_refs = self._parent_locals
+        print(self.entries)
+        self.entries -= 1
+
+        if self.entries != 0:
+            return []
+
+        print(local_references_only)
+        ctx = self.ctx
+        local_refs = self._locals
+        parent_refs = self._parent_locals
 
         # Unset instance state, handy to prevent cycles in GC, and also causes
         # catastrophic failure if some invariant is violated.
-        # del self.ctx
-        # del self._locals
-        # del self._parent_locals
+        del self.ctx
+        del self._locals
+        del self._parent_locals
 
-        # for ref in local_refs:
-        #     ref._destructor()
+        for ref in local_refs:
+            ref._destructor()
 
-        # if local_references_only:
-        #     return parent_refs
+        if local_references_only:
+            return parent_refs
 
-        # for ref in parent_refs:
-        #     ref._destructor()
+        for ref in parent_refs:
+            ref._destructor()
 
-        # ctx.cache.garbage_collection()
+        ctx.cache.garbage_collection()
         return []
