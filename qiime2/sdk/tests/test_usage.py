@@ -481,7 +481,7 @@ class TestExecutionUsage(TestCaseUsage):
             use.init_artifact_from_url('a', metadata_url)
 
     def test_init_metadata_from_url_error_on_non_metadata(self):
-        url = 'https://www.qiime2.org/'
+        url = 'https://docs.qiime2.org/'
         use = usage.ExecutionUsage()
 
         with self.assertRaisesRegex(ValueError, "Could not.*\n.*nized ID"):
