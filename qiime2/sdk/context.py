@@ -257,12 +257,14 @@ class Scope:
             return []
 
         ctx = self.ctx
+        entries = self.entries
         local_refs = self._locals
         parent_refs = self._parent_locals
 
         # Unset instance state, handy to prevent cycles in GC, and also causes
         # catastrophic failure if some invariant is violated.
         del self.ctx
+        del self.entries
         del self._locals
         del self._parent_locals
 
