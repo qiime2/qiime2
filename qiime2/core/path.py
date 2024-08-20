@@ -136,11 +136,6 @@ class InternalDirectory(_ConcretePath):
         return self
 
     def __new__(cls, *args, prefix=None):
-        from qiime2.core.cache import get_cache
-
-        cache = get_cache()
-        tmp_path = cache.process_pool.get_tmp_path()
-
         if args and prefix is not None:
             raise TypeError("Cannot pass a path and a prefix at the same time")
         elif args:
@@ -148,6 +143,11 @@ class InternalDirectory(_ConcretePath):
             # for pickling.
             return cls.__new(*args)
         else:
+            from qiime2.core.cache import get_cache
+
+            cache = get_cache()
+            tmp_path = cache.process_pool.get_tmp_path()
+
             if prefix is None:
                 prefix = cls.DEFAULT_PREFIX
             elif not prefix.startswith(cls.DEFAULT_PREFIX):
