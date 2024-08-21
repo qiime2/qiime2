@@ -264,6 +264,24 @@ def collection_dict_of_ints(use):
     )
 
     out.assert_output_type(semantic_type='SingleInt', key='Foo')
+    out.assert_has_line_matching('file1.txt', '1', key='Foo')
+
+
+def collection_of_visualizations(use):
+    ints = use.init_artifact('ints', ints1_factory)
+
+    vizualizations, = use.action(
+        use.UsageAction(plugin_id='dummy_plugin',
+                        action_id='viz_collection_pipeline'),
+        use.UsageInputs(
+            ints=ints
+        ),
+        use.UsageOutputNames(
+            visualizations='visualizations'
+        )
+    )
+
+    vizualizations.assert_output_type('Collection[Visualization]')
 
 
 def construct_and_access_collection(use):

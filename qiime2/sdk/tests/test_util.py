@@ -48,7 +48,8 @@ class TestUtil(unittest.TestCase):
             'Split sequence of integers in half',
             'Test different ways of failing', 'Optional artifacts method',
             'Do stuff normally, but override this one step sometimes',
-            'TypeMatch with list and set params'])]
+            'TypeMatch with list and set params',
+            'Return a collection of Visualizations'])]
         self.assertEqual(len(obs), 2)
         self.assertEqual(obs[0][0], exp[0][0])
         self.assertCountEqual(obs[0][1], exp[0][1])

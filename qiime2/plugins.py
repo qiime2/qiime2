@@ -53,7 +53,7 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
         var_name = re.sub(r'\W|^(?=\d)', '_', var_name)
         return self.repr_raw_variable_name(var_name)
 
-    def assert_has_line_matching(self, path, expression):
+    def assert_has_line_matching(self, path, expression, key=None):
         if not self.use.enable_assertions:
             return
 
@@ -61,8 +61,11 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
         name = self.to_interface_name()
         expr = expression
 
+        if key:
+            name = "%r[%r]" % (name, key)
+
         lines = [
-            'hits = sorted(%r._archiver.data_dir.glob(%r))' % (name, path),
+            'hits = sorted(%s._archiver.data_dir.glob(%r))' % (name, path),
             'if len(hits) != 1:',
             self.use.INDENT + 'raise ValueError',
             'target = hits[0].read_text()',
@@ -80,10 +83,10 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
         name = self.to_interface_name()
 
         if key:
-            name = "%s[%s]" % (name, key)
+            name = "%r[%r]" % (name, key)
 
         lines = [
-            'if str(%r.type) != %r:' % (name, str(semantic_type)),
+            'if str(%s.type) != %r:' % (name, str(semantic_type)),
             self.use.INDENT + 'raise AssertionError',
         ]
 

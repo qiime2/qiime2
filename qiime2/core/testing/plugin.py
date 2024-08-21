@@ -60,7 +60,7 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        mix_arts_and_proxies, de_facto_dict_pipeline,
                        de_facto_collection_pipeline, list_pipeline,
                        collection_pipeline, pointless_pipeline,
-                       failing_pipeline)
+                       failing_pipeline, viz_collection_pipeline)
 from ..cite import Citations
 
 from .examples import (concatenate_ints_simple, concatenate_ints_complex,
@@ -70,7 +70,9 @@ from .examples import (concatenate_ints_simple, concatenate_ints_complex,
                        identity_with_metadata_column_get_mdc,
                        variadic_input_simple, optional_inputs,
                        comments_only_factory, collection_list_of_ints,
-                       collection_dict_of_ints, construct_and_access_collection
+                       collection_dict_of_ints,
+                       construct_and_access_collection,
+                       collection_of_visualizations
                        )
 
 
@@ -928,6 +930,20 @@ dummy_plugin.pipelines.register_function(
     name='Test different ways of failing',
     description=('This is useful to make sure all of the intermediate stuff is'
                  ' cleaned up the way it should be.')
+)
+
+dummy_plugin.pipelines.register_function(
+    function=viz_collection_pipeline,
+    inputs={
+        'ints': IntSequence1
+    },
+    parameters={},
+    outputs=[
+        ('visualizations', Collection[Visualization])
+    ],
+    name='Return a collection of Visualizations',
+    description='Just returns a collection of Visualizations',
+    examples={'collection_of_visualizations': collection_of_visualizations}
 )
 
 dummy_plugin.methods.register_function(

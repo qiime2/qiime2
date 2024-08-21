@@ -320,3 +320,12 @@ def failing_pipeline(ctx, int_sequence, break_from='arity'):
         ctx.get_action('dummy_plugin', 'not%a$method')
     else:
         raise ValueError('this never works')
+
+
+def viz_collection_pipeline(ctx, ints):
+    most_common_viz = ctx.get_action('dummy_plugin', 'most_common_viz')
+
+    viz1, = most_common_viz(ints)
+    viz2, = most_common_viz(ints)
+
+    return [viz1, viz2]
