@@ -328,7 +328,6 @@ class Action(metaclass=abc.ABCMeta):
                 import sys
                 scope.ctx.__exit__(*sys.exc_info())
 
-
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
         self._set_wrapper_name(bound_callable, self.id)
