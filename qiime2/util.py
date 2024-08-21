@@ -110,5 +110,7 @@ def duplicate(src, dst):
             shutil.copyfile(src, dst)
         elif e.errno == errno.EPERM:  # Permissions/ownership error
             shutil.copyfile(src, dst)
+        elif e.errno == errno.ENOTSUP:  # Operation not supported
+            shutil.copyfile(src, dst)
         else:
             raise
