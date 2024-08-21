@@ -13,7 +13,7 @@ import distutils
 import tempfile
 import weakref
 
-from qiime2.core.util import set_permissions, USER_GROUP_RWX
+# from qiime2.core.util import set_permissions, USER_GROUP_RWX
 
 _ConcretePath = type(pathlib.Path())
 
@@ -124,10 +124,14 @@ class InternalDirectory(_ConcretePath):
 
     @classmethod
     def _destruct(cls, path):
-        """DO NOT USE DIRECTLY, use `_destructor()` instead"""
-        if os.path.exists(path):
-            set_permissions(path, None, USER_GROUP_RWX)
-            shutil.rmtree(path)
+        # TODO: We probably don't need this at all anymore now that this is in
+        # cache/process/tmp
+
+        # """DO NOT USE DIRECTLY, use `_destructor()` instead"""
+        # if os.path.exists(path):
+        #     set_permissions(path, None, USER_GROUP_RWX)
+        #     shutil.rmtree(path)
+        return
 
     @classmethod
     def __new(cls, *args):

@@ -205,7 +205,7 @@ class Context:
 class Scope:
     def __init__(self, ctx):
         self.ctx = ctx
-        self.entries = 1
+        self.entries = 0
         self._locals = []
         self._parent_locals = []
 
@@ -251,30 +251,28 @@ class Scope:
             The list of references that were not destroyed.
 
         """
-        self.entries -= 1
-
-        if self.entries != 0:
-            return []
-
-        ctx = self.ctx
-        local_refs = self._locals
-        parent_refs = self._parent_locals
+        # TODO: So I set up entry counting, but I'm not convinced we actually
+        # care about running this at all anymore with the stuff now in
+        # cache/process/tmp
+        # ctx = self.ctx
+        # local_refs = self._locals
+        # parent_refs = self._parent_locals
 
         # Unset instance state, handy to prevent cycles in GC, and also causes
         # catastrophic failure if some invariant is violated.
-        del self.ctx
-        del self.entries
-        del self._locals
-        del self._parent_locals
+        # del self.ctx
+        # del self.entries
+        # del self._locals
+        # del self._parent_locals
 
-        for ref in local_refs:
-            ref._destructor()
+        # for ref in local_refs:
+        #     ref._destructor()
 
-        if local_references_only:
-            return parent_refs
+        # if local_references_only:
+        #     return parent_refs
 
-        for ref in parent_refs:
-            ref._destructor()
+        # for ref in parent_refs:
+        #     ref._destructor()
 
-        ctx.cache.garbage_collection()
+        # ctx.cache.garbage_collection()
         return []

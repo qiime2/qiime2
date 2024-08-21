@@ -123,7 +123,10 @@ def _alias(provenance, name, output, scope):
     aliased_result = scope.add_parent_reference(aliased_result)
 
     if scope.ctx.parallel:
-        scope.ctx.__exit__(None, None, None)
+        scope.entries -= 1
+
+        if scope.entries == 0:
+            scope.ctx.__exit__(None, None, None)
 
     return aliased_result
 
@@ -326,7 +329,9 @@ class Action(metaclass=abc.ABCMeta):
                 return results
             finally:
                 import sys
-                scope.ctx.__exit__(*sys.exc_info())
+
+                if hasattr(scope, 'ctx') and not scope.ctx.parallel:
+                    scope.ctx.__exit__(*sys.exc_info())
 
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
@@ -682,7 +687,7 @@ class Pipeline(Action):
         # We only want to wait for proxies to resolve if we are the root
         # pipeline
         outputs = self._coerce_pipeline_outputs(
-            outputs, is_root=scope.ctx._parent is None)
+            outputs, scope, is_root=scope.ctx._parent is None)
 
         for output in outputs:
             if isinstance(output, qiime2.sdk.ResultCollection):
@@ -766,7 +771,7 @@ class Pipeline(Action):
 
         return tuple(results)
 
-    def _coerce_pipeline_outputs(self, outputs, is_root):
+    def _coerce_pipeline_outputs(self, outputs, scope, is_root):
         """Ensure all futures are resolved and all collections are of type
            ResultCollection
         """
@@ -775,6 +780,7 @@ class Pipeline(Action):
         for output in outputs:
             # Handle proxy outputs if root
             if is_root and isinstance(output, Proxy):
+                scope.entries += 1
                 output = output.result()
 
             # Handle collection outputs
@@ -786,6 +792,7 @@ class Pipeline(Action):
                 if is_root:
                     for key, value in output.items():
                         if isinstance(value, Proxy):
+                            scope.entries += 1
                             output[key] = value.result()
 
             coerced_outputs.append(output)
