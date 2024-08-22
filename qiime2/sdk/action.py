@@ -788,6 +788,7 @@ class Pipeline(Action):
                     isinstance(output, list):
                 output = qiime2.sdk.ResultCollection(output)
 
+            if isinstance(output, qiime2.sdk.ResultCollection):
                 # Handle proxies as elements of collections if root
                 if is_root:
                     for key, value in output.items():
