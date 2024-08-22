@@ -188,7 +188,7 @@ def get_available_usage_drivers() -> Dict[str, 'UsageDriver']:
     }
 
 
-@python_app
+@python_app(executors=['default'])
 def create_future(results):
     '''
     There are some cases where we need a future but don't have one, this is
