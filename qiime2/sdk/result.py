@@ -238,8 +238,12 @@ class Result:
             # directory is empty, this function is meant to fix that, so we
             # can rmdir so that copytree is happy
             into.rmdir()
-            shutil.copytree(str(self._archiver.data_dir), str(into),
-                            copy_function=os.link)  # Use hardlinks
+            try:
+                shutil.copytree(str(self._archiver.data_dir), str(into),
+                                copy_function=os.link)  # Use hardlinks
+            except shutil.Error:
+                # Try again with full copy not links
+                shutil.copytree(str(self._archiver.data_dir), str(into))
 
         cls = type(self)
         alias = cls.__new__(cls)
