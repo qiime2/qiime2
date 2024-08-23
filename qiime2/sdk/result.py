@@ -243,7 +243,8 @@ class Result:
                                 copy_function=os.link)  # Use hardlinks
             except shutil.Error:
                 # Try again with full copy not links
-                shutil.copytree(str(self._archiver.data_dir), str(into))
+                shutil.copytree(str(self._archiver.data_dir), str(into),
+                                dirs_exist_ok=True)
 
         cls = type(self)
         alias = cls.__new__(cls)
