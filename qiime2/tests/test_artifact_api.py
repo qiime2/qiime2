@@ -118,6 +118,20 @@ class TestImports(unittest.TestCase):
         with self.assertRaises(ImportError):
             importlib.reload(qiime2.plugins.dummy_plugin)
 
+    def test_import_base_format_stores_checksums(self):
+        from qiime2 import Artifact
+        from qiime2.core.testing.type import IntSequence2
+        from qiime2.core.testing.format import IntSequenceFormat
+        from qiime2.core.util import load_action_yaml
+        from qiime2.plugin.util import transform
+
+        ff = transform([1, 2, 3,], to_type=IntSequenceFormat)
+        ff2 = Artifact.import_data(IntSequence2, ff,
+                                   view_type='IntSequenceFormat')
+
+        action = load_action_yaml(ff2._archiver.path)['action']['manifest']
+        self.assertIn('md5sum', action[0].keys())
+
 
 class TestArtifactAPIUsage(unittest.TestCase):
     def setUp(self):
