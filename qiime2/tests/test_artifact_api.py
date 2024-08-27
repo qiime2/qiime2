@@ -132,9 +132,10 @@ class TestImports(unittest.TestCase):
         # If the checksum is not stored, this will raise a KeyError
         action = load_action_yaml(ff2._archiver.path)['action']['manifest']
         self.assertIn('md5sum', action[0].keys())
-        # This ensures that the checksum is the standard 32 character length
-        # and will catch empty strings or other weird values that could arise
-        self.assertEqual(len(action[0]['md5sum']), 32)
+        # This ensures that the checksum is exactly what we expect and will
+        # catch empty strings or other weird values that could arise
+        self.assertEqual(action[0]['md5sum'],
+                         'c0710d6b4f15dfa88f600b0e6b624077')
 
 
 class TestArtifactAPIUsage(unittest.TestCase):
