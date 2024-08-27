@@ -127,7 +127,7 @@ class TestImports(unittest.TestCase):
 
         ff = transform([1, 2, 3,], to_type=IntSequenceFormat)
         ff2 = Artifact.import_data(IntSequence2, ff,
-                                   view_type='IntSequenceFormat')
+                                   view_type=IntSequenceFormat)
 
         action = load_action_yaml(ff2._archiver.path)['action']['manifest']
         self.assertIn('md5sum', action[0].keys())
