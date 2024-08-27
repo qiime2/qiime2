@@ -129,8 +129,12 @@ class TestImports(unittest.TestCase):
         ff2 = Artifact.import_data(IntSequence2, ff,
                                    view_type=IntSequenceFormat)
 
+        # If the checksum is not stored, this will raise a KeyError
         action = load_action_yaml(ff2._archiver.path)['action']['manifest']
         self.assertIn('md5sum', action[0].keys())
+        # This ensures that the checksum is the standard 32 character length
+        # and will catch empty strings or other weird values that could arise
+        self.assertEqual(len(action[0]['md5sum']), 32)
 
 
 class TestArtifactAPIUsage(unittest.TestCase):
