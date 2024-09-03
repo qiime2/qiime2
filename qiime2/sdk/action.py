@@ -442,13 +442,11 @@ class Action(metaclass=abc.ABCMeta):
         # those internal pipelines simultaneously.
         if isinstance(self, qiime2.sdk.action.Pipeline):
             execution_ctx['parsl_type'] = 'DFK'
-            print(f'IS PIPE: {self.name}')
             future = join_app()(
                     _run_parsl_action)(self, ctx, execution_ctx,
                                        mapped_args, mapped_kwargs,
                                        inputs=futures)
         else:
-            print(f'NOT PIPE: {self.name}')
             execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
             future = python_app(
