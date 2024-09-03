@@ -109,24 +109,17 @@ def _unmap_arg(arg, inputs):
 
 
 @join_app
-def _deferred_alias(provenance, name, output, scope, inputs=[]):
+def _deferred_alias(provenance, name, output, ctx, inputs=[]):
     output = output.result()
     return qiime2.sdk.util.create_future(
-        _alias(provenance, name, output, scope))
+        _alias(provenance, name, output, ctx))
 
 
-def _alias(provenance, name, output, scope):
+def _alias(provenance, name, output, ctx):
     prov = provenance.fork(name, output)
-    scope.add_reference(prov)
 
     aliased_result = output._alias(prov)
-    aliased_result = scope.add_parent_reference(aliased_result)
-
-    if scope.ctx.parallel:
-        scope.entries -= 1
-
-        if scope.entries == 0:
-            scope.ctx.__exit__(None, None, None)
+    aliased_result = ctx.add_parent_reference(aliased_result)
 
     return aliased_result
 
@@ -158,7 +151,7 @@ class Action(metaclass=abc.ABCMeta):
     # callable. `output_types` is an OrderedDict mapping output name to QIIME
     # type (e.g. semantic type).
     @abc.abstractmethod
-    def _callable_executor_(self, scope, view_args, output_types):
+    def _callable_executor_(self, ctx, view_args, output_types):
         raise NotImplementedError
 
     # Private constructor
@@ -284,54 +277,40 @@ class Action(metaclass=abc.ABCMeta):
             # this function's signature.
             args = args[1:]
             ctx = context_factory()
-            # Set up a scope under which we can track destructable references
-            # if something goes wrong, the __exit__ handler of this context
-            # manager will clean up. (It also cleans up when things go right)
-            # with ctx as scope:
-            # with ctx as scope:
-            try:
-                scope = ctx.__enter__()
-                provenance = self._ProvCaptureCls(
-                    self.type, self.plugin_id, self.id, execution_ctx)
-                scope.add_reference(provenance)
+            provenance = self._ProvCaptureCls(
+                self.type, self.plugin_id, self.id, execution_ctx)
 
-                if self.deprecated:
-                    with qiime2.core.util.warning() as warn:
-                        warn(self._build_deprecation_message(),
-                             FutureWarning)
+            if self.deprecated:
+                with qiime2.core.util.warning() as warn:
+                    warn(self._build_deprecation_message(), FutureWarning)
 
-                # Type management
-                collated_inputs = self.signature.collate_inputs(
-                    *args, **kwargs)
-                self.signature.check_types(**collated_inputs)
-                output_types = self.signature.solve_output(**collated_inputs)
-                callable_args = self.signature.coerce_user_input(
-                    **collated_inputs)
+            # Type management
+            collated_inputs = self.signature.collate_inputs(
+                *args, **kwargs)
+            self.signature.check_types(**collated_inputs)
+            output_types = self.signature.solve_output(**collated_inputs)
+            callable_args = self.signature.coerce_user_input(
+                **collated_inputs)
 
-                callable_args = \
-                    self.signature.transform_and_add_callable_args_to_prov(
-                        provenance, **callable_args)
+            callable_args = \
+                self.signature.transform_and_add_callable_args_to_prov(
+                    provenance, **callable_args)
 
-                outputs = self._callable_executor_(
-                    scope, callable_args, output_types, provenance)
+            outputs = self._callable_executor_(
+                ctx, callable_args, output_types, provenance)
 
-                if len(outputs) != len(self.signature.outputs):
-                    raise ValueError(
-                        "Number of callable outputs must match number of "
-                        "outputs defined in signature: %d != %d" %
-                        (len(outputs), len(self.signature.outputs)))
+            if len(outputs) != len(self.signature.outputs):
+                raise ValueError(
+                    "Number of callable outputs must match number of "
+                    "outputs defined in signature: %d != %d" %
+                    (len(outputs), len(self.signature.outputs)))
 
-                # Wrap in a Results object mapping output name to value so
-                # users have access to outputs by name or position.
-                results = qiime2.sdk.Results(
-                    self.signature.outputs.keys(), outputs)
+            # Wrap in a Results object mapping output name to value so
+            # users have access to outputs by name or position.
+            results = qiime2.sdk.Results(
+                self.signature.outputs.keys(), outputs)
 
-                return results
-            finally:
-                import sys
-
-                if hasattr(scope, 'ctx') and not scope.ctx.parallel:
-                    scope.ctx.__exit__(*sys.exc_info())
+            return results
 
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
@@ -440,7 +419,7 @@ class Action(metaclass=abc.ABCMeta):
             # in the right cache
             with ctx.cache:
                 exe = action._bind(
-                    lambda: ctx if ctx._scope is None
+                    lambda: ctx if ctx._parent is None
                     else qiime2.sdk.Context(parent=ctx), execution_ctx)
                 results = exe(*args, **kwargs)
 
@@ -462,24 +441,14 @@ class Action(metaclass=abc.ABCMeta):
         # pipeline that calls two other pipelines within it and execute both of
         # those internal pipelines simultaneously.
         if isinstance(self, qiime2.sdk.action.Pipeline):
-            # If ctx._scope is None then this is the root pipeline and we want
-            # to dispatch it to a join_app
             execution_ctx['parsl_type'] = 'DFK'
-            if ctx._scope is None:
-                # NOTE: Do not make this a python_app(join=True). We need it to
-                # run in the parsl main thread
-                future = join_app()(
-                        _run_parsl_action)(self, ctx, execution_ctx,
-                                           mapped_args, mapped_kwargs,
-                                           inputs=futures)
-            # Otherwise this is not the root pipeline and we want to just _bind
-            # it with a parallel context. The fact that parallel is set on the
-            # context will cause ctx.get_action calls in the pipeline to use
-            # the action's _bind_parsl method.
-            else:
-                return self._bind(lambda: qiime2.sdk.Context(ctx),
-                                  execution_ctx=execution_ctx)(*args, **kwargs)
+            print(f'IS PIPE: {self.name}')
+            future = join_app()(
+                    _run_parsl_action)(self, ctx, execution_ctx,
+                                       mapped_args, mapped_kwargs,
+                                       inputs=futures)
         else:
+            print(f'NOT PIPE: {self.name}')
             execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
             future = python_app(
@@ -596,7 +565,7 @@ class Method(Action):
         # No conversion necessary.
         return callable
 
-    def _callable_executor_(self, scope, view_args, output_types, provenance):
+    def _callable_executor_(self, ctx, view_args, output_types, provenance):
         output_views = self._callable(**view_args)
         output_views = tuplize(output_views)
 
@@ -615,7 +584,7 @@ class Method(Action):
 
         output_artifacts = \
             self.signature.coerce_given_outputs(output_views, output_types,
-                                                scope, provenance)
+                                                ctx, provenance)
 
         return tuple(output_artifacts)
 
@@ -641,7 +610,7 @@ class Visualizer(Action):
     def _callable_sig_converter_(self, callable):
         return DropFirstParameter.from_function(callable)
 
-    def _callable_executor_(self, scope, view_args, output_types, provenance):
+    def _callable_executor_(self, ctx, view_args, output_types, provenance):
         # TODO use qiime2.plugin.OutPath when it exists, and update visualizers
         # to work with OutPath instead of str. Visualization._from_data_dir
         # will also need to be updated to support OutPath instead of str.
@@ -654,7 +623,7 @@ class Visualizer(Action):
             provenance.output_name = 'visualization'
             viz = qiime2.sdk.Visualization._from_data_dir(temp_dir,
                                                           provenance)
-            viz = scope.add_parent_reference(viz)
+            viz = ctx.add_parent_reference(viz)
 
             return (viz, )
 
@@ -677,8 +646,8 @@ class Pipeline(Action):
     def _callable_sig_converter_(self, callable):
         return DropFirstParameter.from_function(callable)
 
-    def _callable_executor_(self, scope, view_args, output_types, provenance):
-        outputs = self._callable(scope.ctx, **view_args)
+    def _callable_executor_(self, ctx, view_args, output_types, provenance):
+        outputs = self._callable(ctx, **view_args)
         # Just make sure we have an iterable even if there was only one output
         outputs = tuplize(outputs)
         # Make sure any collections returned are in the form of
@@ -687,7 +656,7 @@ class Pipeline(Action):
         # We only want to wait for proxies to resolve if we are the root
         # pipeline
         outputs = self._coerce_pipeline_outputs(
-            outputs, scope, is_root=scope.ctx._parent is None)
+            outputs, is_root=ctx._parent is None)
 
         for output in outputs:
             if isinstance(output, qiime2.sdk.ResultCollection):
@@ -719,14 +688,12 @@ class Pipeline(Action):
             # happened
             if isinstance(output, qiime2.sdk.Result) and \
                     (output.type <= spec.qiime_type):
-                aliased_result = _alias(provenance, name, output, scope)
+                aliased_result = _alias(provenance, name, output, ctx)
                 results.append(aliased_result)
             elif isinstance(output, Proxy) and \
                     (output.type <= spec.qiime_type):
-                scope.entries += 1
-
                 aliased_result = _deferred_alias(
-                    provenance, name, output, scope,
+                    provenance, name, output, ctx,
                     inputs=[output._future_])
                 aliased_result = output.__class__(
                     future=aliased_result, selector=output._selector_,
@@ -741,17 +708,15 @@ class Pipeline(Action):
                         name=name, key=key, idx=idx, size=size)
 
                     if isinstance(value, Proxy):
-                        scope.entries += 1
-
                         aliased_result = _deferred_alias(
-                            provenance, collection_name, value, scope,
+                            provenance, collection_name, value, ctx,
                             inputs=[value._future_])
                         aliased_result = value.__class__(
                             future=aliased_result, selector=value._selector_,
                             qiime_type=value._qiime_type_)
                     else:
                         aliased_result = _alias(
-                            provenance, collection_name, value, scope)
+                            provenance, collection_name, value, ctx)
 
                     aliased_output[str(key)] = aliased_result
 
@@ -771,7 +736,7 @@ class Pipeline(Action):
 
         return tuple(results)
 
-    def _coerce_pipeline_outputs(self, outputs, scope, is_root):
+    def _coerce_pipeline_outputs(self, outputs, is_root):
         """Ensure all futures are resolved and all collections are of type
            ResultCollection
         """
@@ -780,7 +745,6 @@ class Pipeline(Action):
         for output in outputs:
             # Handle proxy outputs if root
             if is_root and isinstance(output, Proxy):
-                scope.entries += 1
                 output = output.result()
 
             # Handle collection outputs
@@ -793,7 +757,6 @@ class Pipeline(Action):
                 if is_root:
                     for key, value in output.items():
                         if isinstance(value, Proxy):
-                            scope.entries += 1
                             output[key] = value.result()
 
             coerced_outputs.append(output)
