@@ -148,7 +148,6 @@ class GetFilepathFromPackageTests(unittest.TestCase):
         self.assertTrue(fp.exists(), f"Observed path does not exist: {fp}.")
         self.assertTrue(len(fp.read_text()) > 0, f"No contents found in {fp}.")
 
-
     def test_failure(self):
         with self.assertRaisesRegex(FileNotFoundError, "-exists.txt does not"):
             util.get_filepath_from_package(
