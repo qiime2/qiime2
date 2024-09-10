@@ -128,5 +128,32 @@ class TestDuplicate(unittest.TestCase):
         assert mocked_copyfile.called
 
 
+class GetFilepathFromPackageTests(unittest.TestCase):
+
+    def test_success(self):
+        # Note there is nothing special about this specific files targeted in
+        # these tests, but rather I'm just testing that different file names in
+        # different subpackages can be found, exist, and are non-empty
+        # (indicating they can be opened and read). If this test fails in the
+        # future because the specific file(s) referenced are no longer part of
+        # the package, or have moved, we can just update this test to point to
+        # other non-empty data resources in the package.
+
+        fp = util.get_filepath_from_package('qiime2', 'citations.bib')
+        self.assertTrue(fp.exists(), f"Observed path does not exist: {fp}.")
+        self.assertTrue(len(fp.read_text()) > 0, f"No contents found in {fp}.")
+
+        fp = util.get_filepath_from_package(
+            'qiime2.core.archive.provenance_lib', 'assets/python_howto.txt')
+        self.assertTrue(fp.exists(), f"Observed path does not exist: {fp}.")
+        self.assertTrue(len(fp.read_text()) > 0, f"No contents found in {fp}.")
+
+
+    def test_failure(self):
+        with self.assertRaisesRegex(FileNotFoundError, "-exists.txt does not"):
+            util.get_filepath_from_package(
+                'qiime2', 'i-hope-this-filename-never-exists.txt')
+
+
 if __name__ == '__main__':
     unittest.main()
