@@ -141,12 +141,12 @@ class GetFilepathFromPackageTests(unittest.TestCase):
 
         fp = util.get_filepath_from_package('qiime2', 'citations.bib')
         self.assertTrue(fp.exists(), f"Observed path does not exist: {fp}.")
-        self.assertTrue(len(fp.read_text()) > 0, f"No contents found in {fp}.")
+        self.assertTrue(len(fp.open('r').read()) > 0, f"No contents found in {fp}.")
 
         fp = util.get_filepath_from_package(
             'qiime2.core.archive.provenance_lib', 'assets/python_howto.txt')
         self.assertTrue(fp.exists(), f"Observed path does not exist: {fp}.")
-        self.assertTrue(len(fp.read_text()) > 0, f"No contents found in {fp}.")
+        self.assertTrue(len(fp.open('r').read()) > 0, f"No contents found in {fp}.")
 
     def test_failure(self):
         with self.assertRaisesRegex(FileNotFoundError, "-exists.txt does not"):
