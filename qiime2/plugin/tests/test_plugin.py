@@ -8,10 +8,10 @@
 
 import types
 import unittest
-import pkg_resources
 
 import qiime2.plugin
 import qiime2.sdk
+import qiime2.util
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
                                       FourInts, Kennel, Dog, Cat, SingleInt)
@@ -27,8 +27,9 @@ class TestPlugin(unittest.TestCase):
         self.plugin = get_dummy_plugin()
 
     def get_data_path(self, filename):
-        return pkg_resources.resource_filename('qiime2.plugin.tests',
-                                               'data/%s' % filename)
+        fp = qiime2.util.get_filepath_from_package(
+            'qiime2.plugin.tests', 'data/%s' % filename)
+        return str(fp)
 
     def test_name(self):
         self.assertEqual(self.plugin.name, 'dummy-plugin')
