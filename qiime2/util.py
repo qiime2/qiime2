@@ -10,7 +10,6 @@ import os
 import sys
 import errno
 import shutil
-import importlib
 
 import threading
 import contextlib
@@ -115,32 +114,3 @@ def duplicate(src, dst):
             shutil.copyfile(src, dst)
         else:
             raise
-
-
-def get_filepath_from_package(package, relative_filepath):
-    """Utility function for getting the absolute path to a packaged data asset.
-
-    Parameters
-    ----------
-    package : str
-        The name of the package or sub-package where the file can be found.
-    relative_filepath : str
-        The filepath to look up, relative to `package`.
-
-    Returns
-    -------
-    fp : pathlib.Path
-        The absolute filepath to the requested data asset.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the filepath does not exist.
-
-    """
-    fp = importlib.resources.files(package) / relative_filepath
-    if not fp.exists():
-        raise FileNotFoundError(
-            f'The requested data asset {fp} does not exist.')
-    else:
-        return fp

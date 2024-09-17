@@ -14,6 +14,8 @@ import uuid
 import pathlib
 from typing import Union
 
+import pkg_resources
+
 import pandas as pd
 
 import qiime2.plugin
@@ -30,9 +32,8 @@ from qiime2.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 
 
 def get_data_path(filename):
-    fp = qiime2.util.get_filepath_from_package(
-        'qiime2.sdk.tests', 'data/%s' % filename)
-    return str(fp)
+    return pkg_resources.resource_filename('qiime2.sdk.tests',
+                                           'data/%s' % filename)
 
 
 class TestArtifact(unittest.TestCase, ArchiveTestingMixin):

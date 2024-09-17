@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import pkg_resources
 import tempfile
 import unittest
 import shutil
@@ -99,7 +100,7 @@ class TestPluginBase(unittest.TestCase):
 
         self.temp_dir.cleanup()
 
-    def get_data_path(self, filename, result_as_str=True):
+    def get_data_path(self, filename):
         """Convenience method for getting a data asset while testing.
 
         Test data stored in the ``data/`` dir local to the running test
@@ -109,23 +110,16 @@ class TestPluginBase(unittest.TestCase):
         ----------
         filename : str
             The name of the file to look up.
-        result_as_str : bool, True
-            To retain the original API, by default the result is returned as a
-            string. Setting this to False will return the result as a
-            pathlib.FilePath object.
 
         Returns
         -------
-        filepath : str (or pathlib.Path if result_as_str != True)
+        filepath : str
             The materialized filepath to the requested test data.
 
         """
-        fp = qiime2.util.get_filepath_from_package(
-            self.package, 'data/%s' % filename)
-        if result_as_str:
-            return str(fp)
-        else:
-            return fp
+
+        return pkg_resources.resource_filename(self.package,
+                                               'data/%s' % filename)
 
     def get_transformer(self, from_type, to_type):
         """Convenience method for getting a registered transformer.
