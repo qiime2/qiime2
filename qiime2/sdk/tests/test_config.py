@@ -9,14 +9,13 @@
 import os
 import tempfile
 import unittest
+import pkg_resources
 
 import parsl
 from parsl.executors.threads import ThreadPoolExecutor
 from parsl.errors import NoDataFlowKernelError
 
 from qiime2 import Artifact, Cache
-
-import qiime2.util
 from qiime2.core.util import load_action_yaml
 from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
@@ -80,9 +79,8 @@ class TestConfig(unittest.TestCase):
         PARALLEL_CONFIG.action_executor_mapping = {}
 
     def get_data_path(self, filename):
-        fp = qiime2.util.get_filepath_from_package(
-            'qiime2.sdk.tests', 'data/%s' % filename)
-        return str(fp)
+        return pkg_resources.resource_filename('qiime2.sdk.tests',
+                                               'data/%s' % filename)
 
     def test_default_config(self):
         with ParallelConfig():
