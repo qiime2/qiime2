@@ -9,8 +9,8 @@
 
 import unittest
 
-import pkg_resources
 from qiime2.plugin import model
+import qiime2.util
 
 from qiime2.core.testing.format import IntSequenceFormat
 from qiime2.core.exceptions import ValidationError
@@ -62,9 +62,9 @@ class TestDirectoryFormat(unittest.TestCase):
             The materialized filepath to the requested test data.
 
         """
-
-        return pkg_resources.resource_filename(self.package,
-                                               'data/%s' % filename)
+        fp = qiime2.util.get_filepath_from_package(
+            self.package, 'data/%s' % filename)
+        return str(fp)
 
     def test_fails_missing_required(self):
         files_dir_fp = self.get_data_path('test_text_files/')
