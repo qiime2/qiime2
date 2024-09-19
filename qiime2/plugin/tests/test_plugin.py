@@ -430,6 +430,24 @@ class TestPlugin(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 assert_no_nans_in_tables(fh)
 
+    def test_register_list_output(self):
+        def bad_function() -> list:
+            pass
+
+        with self.assertRaisesRegex(TypeError,
+                                    "'bad_output'.*'List'.*'Collection'.*"):
+            self.plugin.methods.register_function(
+                function=bad_function,
+                inputs={},
+                parameters={},
+                outputs={
+                    'bad_output': qiime2.plugin.List[IntSequence1]
+                },
+                name='Output is registered as returning a List which is bad.',
+                description='Output is registered as returning a List which is'
+                            ' bad.'
+            )
+
 
 if __name__ == '__main__':
     unittest.main()

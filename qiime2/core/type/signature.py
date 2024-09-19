@@ -309,6 +309,11 @@ class PipelineSignature:
                     "Visualization, not %r"
                     % (output_name, spec.qiime_type))
 
+            if spec.qiime_type.name == "List":
+                raise TypeError(
+                    f"Output '{output_name}' has been registered as a 'List', "
+                    "please register it as a 'Collection'")
+
             if not isinstance(spec.qiime_type, (TypeVarExp, TypeExp)):
                 raise TypeError(
                     "Output %r must be a complete type expression, not %r"
