@@ -1194,7 +1194,12 @@ class Cache:
 
             # Named pool links are not aliased
             if self.named_pool is not None:
-                self.named_pool._make_symlink(uuid, uuid)
+                if not os.path.exists(self.named_pool.path):
+                    warnings.warn("The named pool path"
+                                  f" '{self.named_pool.path}' does not exist.")
+                    self.named_pool = None
+                else:
+                    self.named_pool._make_symlink(uuid, uuid)
 
         return process_alias
 
