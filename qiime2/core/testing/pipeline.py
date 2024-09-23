@@ -44,6 +44,14 @@ def typical_pipeline(ctx, int_sequence, mapping, do_extra_thing, add=1):
     return mapping, left, right, left_viz, right_viz
 
 
+def sleep_pipeline(ctx, int_sequence, sleep=False):
+    if sleep:
+        import time
+        time.sleep(1)
+
+    return int_sequence
+
+
 def optional_artifact_pipeline(ctx, int_sequence, single_int=None):
     optional_artifact_method = ctx.get_action(
         'dummy_plugin', 'optional_artifacts_method')
