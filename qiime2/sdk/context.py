@@ -78,6 +78,7 @@ class Context:
             if self.cache.named_pool is not None and (not self.parallel or (
                     self.parallel and not self._contains_proxies(
                         *args, **kwargs))):
+
                 collated_inputs = action_obj.signature.collate_inputs(
                     *args, **kwargs)
                 callable_args = action_obj.signature.coerce_user_input(
@@ -91,34 +92,9 @@ class Context:
                     arguments.append({k: v})
 
                 invocation = HashableInvocation(plugin_action, arguments)
-                if invocation in self.cache.named_pool.index:
-                    cached_outputs = self.cache.named_pool.index[invocation]
-                    loaded_outputs = {}
-
-                    for name, _type in action_obj.signature.outputs.items():
-                        if is_collection_type(_type.qiime_type):
-                            loaded_collection = qiime2.sdk.ResultCollection()
-                            cached_collection = cached_outputs[name]
-
-                            # Get the order we should load collection items in
-                            collection_order = list(cached_collection.keys())
-                            self._validate_collection(collection_order)
-                            collection_order.sort(key=lambda x: x.idx)
-
-                            for elem_info in collection_order:
-                                elem = cached_collection[elem_info]
-                                loaded_elem = self.cache.named_pool.load(elem)
-                                loaded_collection[
-                                    elem_info.item_name] = loaded_elem
-
-                            loaded_outputs[name] = loaded_collection
-                        else:
-                            output = cached_outputs[name]
-                            loaded_outputs[name] = \
-                                self.cache.named_pool.load(output)
-
-                    return qiime2.sdk.Results(
-                        loaded_outputs.keys(), loaded_outputs.values())
+                with self.cache.lock:
+                    if invocation in self.cache.named_pool.index:
+                        return self._load_cache(action_obj, invocation)
 
             # If we didn't have cached results to reuse, we need to execute the
             # action.
@@ -147,6 +123,37 @@ class Context:
             deferred_action)
         action_obj._set_wrapper_properties(deferred_action)
         return deferred_action
+
+    def _load_cache(self, action_obj, invocation):
+        """Load cached results
+        """
+        cached_outputs = self.cache.named_pool.index[invocation]
+        loaded_outputs = {}
+
+        for name, _type in action_obj.signature.outputs.items():
+            if is_collection_type(_type.qiime_type):
+                loaded_collection = qiime2.sdk.ResultCollection()
+                cached_collection = cached_outputs[name]
+
+                # Get the order we should load collection items in
+                collection_order = list(cached_collection.keys())
+                self._validate_collection(collection_order)
+                collection_order.sort(key=lambda x: x.idx)
+
+                for elem_info in collection_order:
+                    elem = cached_collection[elem_info]
+                    loaded_elem = self.cache.named_pool.load(elem)
+                    loaded_collection[
+                        elem_info.item_name] = loaded_elem
+
+                loaded_outputs[name] = loaded_collection
+            else:
+                output = cached_outputs[name]
+                loaded_outputs[name] = \
+                    self.cache.named_pool.load(output)
+
+        return qiime2.sdk.Results(
+            loaded_outputs.keys(), loaded_outputs.values())
 
     def _contains_proxies(self, *args, **kwargs):
         """Returns True if any of the args or kwargs are proxies
