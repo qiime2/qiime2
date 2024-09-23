@@ -75,43 +75,46 @@ class Context:
             # is a new thing we are computing from a prior step in the pipeline
             # and thus will not be cached. We can only have proxies if we are
             # executing with parsl
-            if self.cache.named_pool is not None and (not self.parallel or (
-                    self.parallel and not self._contains_proxies(
-                        *args, **kwargs))):
+            with self.cache.lock:
+                if self.cache.named_pool is not None and (
+                    not self.parallel or (
+                        self.parallel and not self._contains_proxies(
+                            *args, **kwargs))):
 
-                collated_inputs = action_obj.signature.collate_inputs(
-                    *args, **kwargs)
-                callable_args = action_obj.signature.coerce_user_input(
-                    **collated_inputs)
+                    collated_inputs = action_obj.signature.collate_inputs(
+                        *args, **kwargs)
+                    callable_args = action_obj.signature.coerce_user_input(
+                        **collated_inputs)
 
-                # Make args and kwargs look how they do when we read them out
-                # of a .yaml file (list of single value dicts of
-                # input_name: value)
-                arguments = []
-                for k, v in callable_args.items():
-                    arguments.append({k: v})
+                    # Make args and kwargs look how they do when we read them
+                    # out of a .yaml file (list of single value dicts of
+                    # input_name: value)
+                    arguments = []
+                    for k, v in callable_args.items():
+                        arguments.append({k: v})
 
-                invocation = HashableInvocation(plugin_action, arguments)
-                with self.cache.lock:
+                    invocation = HashableInvocation(plugin_action, arguments)
                     if invocation in self.cache.named_pool.index:
                         return self._load_cache(action_obj, invocation)
 
-            # If we didn't have cached results to reuse, we need to execute the
-            # action.
-            #
-            # These factories will create new Contexts with this context as
-            # their parent. This allows scope cleanup to happen recursively. A
-            # factory is necessary so that independent applications of the
-            # returned callable receive their own Context objects.
-            #
-            # The parsl factory is a bit more complicated because we need to
-            # pass this exact Context along for a while longer until we run a
-            # normal _bind in action/_run_parsl_action. Then we create a new
-            # Context with this one as its parent inside of the parsl app
-            def _bind_parsl_context(ctx):
-                def _bind_parsl_args(*args, **kwargs):
-                    return action_obj._bind_parsl(ctx, *args, **kwargs)
-                return _bind_parsl_args
+                # If we didn't have cached results to reuse, we need to execute
+                # the action.
+                #
+                # These factories will create new Contexts with this context as
+                # their parent. This allows scope cleanup to happen
+                # recursively. A factory is necessary so that independent
+                # applications of the returned callable receive their own
+                # Context objects.
+                #
+                # The parsl factory is a bit more complicated because we need
+                # to pass this exact Context along for a while longer until we
+                # run a normal _bind in action/_run_parsl_action. Then we
+                # create a new Context with this one as its parent inside of
+                # the parsl app
+                def _bind_parsl_context(ctx):
+                    def _bind_parsl_args(*args, **kwargs):
+                        return action_obj._bind_parsl(ctx, *args, **kwargs)
+                    return _bind_parsl_args
 
             if self.parallel:
                 return _bind_parsl_context(self)(*args, **kwargs)
