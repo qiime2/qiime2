@@ -1840,6 +1840,5 @@ class Pool:
 
     def get_tmp_path(self):
         path = os.path.join(self.path, 'tmp')
-        if not os.path.isdir(path):
-            os.makedirs(path)
+        os.makedirs(path, exist_ok=True)
         return path

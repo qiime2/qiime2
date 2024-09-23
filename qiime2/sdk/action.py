@@ -111,8 +111,8 @@ def _unmap_arg(arg, inputs):
 @join_app
 def _deferred_alias(provenance, name, output, ctx, inputs=[]):
     output = output.result()
-    return qiime2.sdk.util.create_future(
-        _alias(provenance, name, output, ctx))
+    alias = _alias(provenance, name, output, ctx)
+    return qiime2.sdk.util.create_future(alias)
 
 
 def _alias(provenance, name, output, ctx):

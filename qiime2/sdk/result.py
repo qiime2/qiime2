@@ -240,7 +240,7 @@ class Result:
             into.rmdir()
             try:
                 shutil.copytree(str(self._archiver.data_dir), str(into),
-                                copy_function=os.link)  # Use hardlinks
+                                copy_function=qiime2.util.duplicate)
             except shutil.Error:
                 # Try again with full copy not links
                 shutil.copytree(str(self._archiver.data_dir), str(into),

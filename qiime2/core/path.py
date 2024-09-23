@@ -90,7 +90,7 @@ class OutPath(OwnedPath):
         else:
             os.unlink(path)
 
-    def __new__(cls, dir=False, **kwargs):
+    def __new__(cls, dir=False):
         """
         Create a tempfile, return pathlib.Path reference to it.
         """
