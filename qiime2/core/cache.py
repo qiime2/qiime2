@@ -1734,6 +1734,8 @@ class Pool:
         """
         return set(os.listdir(self.path))
 
+    # TODO: This index can get created then between creation and use the
+    # backing pool could be deleted with disastrous consequences
     def create_index(self):
         """Indexes all artifacts in this cache's data directory mapping the
         QIIME 2 invocations that made the given artifacts to the given

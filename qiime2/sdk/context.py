@@ -95,7 +95,13 @@ class Context:
 
                     invocation = HashableInvocation(plugin_action, arguments)
                     if invocation in self.cache.named_pool.index:
-                        return self._load_cache(action_obj, invocation)
+                        # It is conceivable that since we created our index the
+                        # pool we indexed has been destroyed. If that is the
+                        # case we want to just continue on and rerun the action
+                        try:
+                            return self._load_cache(action_obj, invocation)
+                        except KeyError:
+                            pass
 
                 # If we didn't have cached results to reuse, we need to execute
                 # the action.
@@ -233,10 +239,11 @@ class Scope:
            failure, a context can still identify what will (no longer) be
            returned.
         """
-        new_ref = self.ctx.cache.process_pool.save(ref)
+        with self.ctx.cache.lock:
+            new_ref = self.ctx.cache.process_pool.save(ref)
 
-        if self.ctx.cache.named_pool is not None:
-            self.ctx.cache.named_pool.save(new_ref)
+            if self.ctx.cache.named_pool is not None:
+                self.ctx.cache.named_pool.save(new_ref)
 
         self._parent_locals.append(new_ref)
         self._parent_locals.append(ref)

@@ -60,8 +60,7 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        mix_arts_and_proxies, de_facto_dict_pipeline,
                        de_facto_collection_pipeline, list_pipeline,
                        collection_pipeline, pointless_pipeline,
-                       failing_pipeline, viz_collection_pipeline,
-                       sleep_pipeline)
+                       failing_pipeline, viz_collection_pipeline)
 from ..cite import Citations
 
 from .examples import (concatenate_ints_simple, concatenate_ints_complex,
@@ -680,30 +679,6 @@ dummy_plugin.pipelines.register_function(
     citations=citations,  # ALL of them.
     examples={'typical_pipeline_simple': typical_pipeline_simple,
               'typical_pipeline_complex': typical_pipeline_complex},
-)
-
-dummy_plugin.pipelines.register_function(
-    function=sleep_pipeline,
-    inputs={
-        'int_sequence': IntSequence1
-    },
-    parameters={
-        'sleep': Bool
-    },
-    outputs={
-        'int_sequence': IntSequence1
-    },
-    input_descriptions={
-        'int_sequence': 'A sequence of ints'
-    },
-    parameter_descriptions={
-        'sleep': 'Whether or not to sleep'
-    },
-    output_descriptions={
-        'int_sequence': 'Same as input'
-    },
-    name='A pipeline that sleeps',
-    description='A pipeline that sleeps'
 )
 
 dummy_plugin.pipelines.register_function(
