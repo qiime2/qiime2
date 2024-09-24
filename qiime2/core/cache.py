@@ -1218,6 +1218,11 @@ class Cache:
         if target.exists():
             os.remove(target)
 
+    def get_tmp_path(self):
+        path = os.path.join(self.process_pool.path, 'tmp')
+        os.makedirs(path, exist_ok=True)
+        return path
+
     @property
     def data(self):
         """The directory in the cache that stores the data.
@@ -1837,8 +1842,3 @@ class Pool:
 
         item = IndexedCollectionElement(item_name, int(idx), int(total))
         outputs[output_name][item] = value
-
-    def get_tmp_path(self):
-        path = os.path.join(self.path, 'tmp')
-        os.makedirs(path, exist_ok=True)
-        return path

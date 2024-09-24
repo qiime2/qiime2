@@ -97,7 +97,7 @@ class OutPath(OwnedPath):
         from qiime2.core.cache import get_cache
 
         cache = get_cache()
-        tmp_path = cache.process_pool.get_tmp_path()
+        tmp_path = cache.get_tmp_path()
         prefix = 'q2-%s-' % cls.__name__
 
         if dir:
@@ -136,7 +136,7 @@ class InternalDirectory(_ConcretePath):
             from qiime2.core.cache import get_cache
 
             cache = get_cache()
-            tmp_path = cache.process_pool.get_tmp_path()
+            tmp_path = cache.get_tmp_path()
 
             if prefix is None:
                 prefix = cls.DEFAULT_PREFIX
