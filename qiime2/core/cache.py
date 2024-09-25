@@ -1314,13 +1314,14 @@ class Cache:
         if self._named_pool_ is None:
             return None
 
-        if not os.path.exists(self._named_pool_.path):
+        if os.path.exists(self._named_pool_.path):
+            return self._named_pool_
+
+        if not self._named_pool_._warned_:
             warnings.warn("The named pool path"
                           f" '{self.named_pool.path}' does not exist. It was"
                           " most likely removed by another QIIME 2 process")
             self._named_pool_._warned_ = True
-        else:
-            return self._named_pool_
 
 
 class Pool:
