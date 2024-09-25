@@ -480,7 +480,7 @@ class Cache:
         # use
         self.process_pool_lifespan = process_pool_lifespan * 3600 * 24
         # This is set if a named pool is created on this cache and withed in
-        self.named_pool = None
+        self._named_pool_ = None
 
         # We were used by this process
         USED_CACHES.add(self)
@@ -1194,11 +1194,7 @@ class Cache:
 
             # Named pool links are not aliased
             if self.named_pool is not None:
-                if not os.path.exists(self.named_pool.path):
-                    warnings.warn("The named pool path"
-                                  f" '{self.named_pool.path}' does not exist.")
-                else:
-                    self.named_pool._make_symlink(uuid, uuid)
+                self.named_pool._make_symlink(uuid, uuid)
 
         return process_alias
 
@@ -1304,6 +1300,28 @@ class Cache:
         """
         return self.path / 'VERSION'
 
+    @property
+    def named_pool(self):
+        """Get the named_pool on this cache. Warn and return None if the
+        backing directory was removed.
+
+        Note
+        ----
+
+        Any time the named pool is to be accessed one should first lock the
+        cache then ensure the named_pool is not None.
+        """
+        if self._named_pool_ is None:
+            return None
+
+        if not os.path.exists(self._named_pool_.path):
+            warnings.warn("The named pool path"
+                          f" '{self.named_pool.path}' does not exist. It was"
+                          " most likely removed by another QIIME 2 process")
+            self._named_pool_._warned_ = True
+        else:
+            return self._named_pool_
+
 
 class Pool:
     """Pools are folders in the cache that contain many symlinks to many
@@ -1345,6 +1363,10 @@ class Pool:
         """
         # The pool keeps track of the cache it belongs to
         self.cache = cache
+        # Has the user been warned about the directory backing this named pool
+        # being removed? If the directory backing this pool is removed we want
+        # to warn the user, but only the first time we notice this fact
+        self._warned_ = False
 
         # If they are creating a named pool, we already have this info
         if name:
@@ -1423,7 +1445,7 @@ class Pool:
                              "currently entered pool is located at: "
                              f"'{self.cache.named_pool.path}'")
 
-        self.cache.named_pool = self
+        self.cache._named_pool_ = self
 
     def __exit__(self, *args):
         """Unsets the named pool on the currently set cache. If there was no
@@ -1439,7 +1461,7 @@ class Pool:
         in __enter__.
         """
         _CACHE.cache = self.previously_entered_cache
-        self.cache.named_pool = None
+        self.cache._named_pool_ = None
 
     def _get_process_pool_name(self):
         """Creates a process pool name of the format

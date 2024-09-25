@@ -34,8 +34,9 @@ class Context:
             self.cache = get_cache()
             # Only ever do this on the root context. We only want to index the
             # pool once before we start adding our own stuff to it.
-            if self.cache.named_pool is not None:
-                self.cache.named_pool.create_index()
+            with self.cache.lock:
+                if self.cache.named_pool is not None:
+                    self.cache.named_pool.create_index()
 
         self._parent = parent
         self._scope = None
