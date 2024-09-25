@@ -1197,7 +1197,6 @@ class Cache:
                 if not os.path.exists(self.named_pool.path):
                     warnings.warn("The named pool path"
                                   f" '{self.named_pool.path}' does not exist.")
-                    self.named_pool = None
                 else:
                     self.named_pool._make_symlink(uuid, uuid)
 
