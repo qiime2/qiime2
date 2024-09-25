@@ -1319,7 +1319,7 @@ class Cache:
 
         if not self._named_pool_._warned_:
             warnings.warn("The named pool path"
-                          f" '{self.named_pool.path}' does not exist. It was"
+                          f" '{self._named_pool_.path}' does not exist. It was"
                           " most likely removed by another QIIME 2 process")
             self._named_pool_._warned_ = True
 
