@@ -1314,14 +1314,13 @@ class Cache:
         if self._named_pool_ is None:
             return None
 
-        if os.path.exists(self._named_pool_.path):
-            return self._named_pool_
-
-        if not self._named_pool_._warned_:
+        if not os.path.exists(self._named_pool_.path):
             warnings.warn("The named pool path"
                           f" '{self._named_pool_.path}' does not exist. It was"
                           " most likely removed by another QIIME 2 process")
-            self._named_pool_._warned_ = True
+            self._named_pool_ = None
+
+        return self._named_pool_
 
 
 class Pool:
@@ -1364,10 +1363,6 @@ class Pool:
         """
         # The pool keeps track of the cache it belongs to
         self.cache = cache
-        # Has the user been warned about the directory backing this named pool
-        # being removed? If the directory backing this pool is removed we want
-        # to warn the user, but only the first time we notice this fact
-        self._warned_ = False
 
         # If they are creating a named pool, we already have this info
         if name:
