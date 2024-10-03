@@ -377,7 +377,8 @@ class Action(metaclass=abc.ABCMeta):
 
         # If the user specified a particular executor for a this action
         # determine that here
-        executor = ctx.action_executor_mapping.get(self.id, 'default')
+        executor = ctx.action_executor_mapping.get(
+            f'{self.plugin_id}-{self.id}', 'default')
         execution_ctx = {'type': 'parsl'}
 
         def _run_parsl_action(action, ctx, execution_ctx, mapped_args,

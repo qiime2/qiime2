@@ -123,7 +123,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def test_mapping_from_dict(self):
-        mapping = {'list_of_ints': 'test'}
+        mapping = {'dummy_plugin-list_of_ints': 'test'}
 
         with self.cache:
             with ParallelConfig(action_executor_mapping=mapping):
@@ -167,7 +167,8 @@ class TestConfig(unittest.TestCase):
             # At this point we should be using the default config again which
             # does not have an executor called tpool
             with ParallelConfig(
-                    action_executor_mapping={'list_of_ints': 'tpool'}):
+                    action_executor_mapping={
+                        'dummy_plugin-list_of_ints': 'tpool'}):
                 with self.assertRaisesRegex(KeyError, 'tpool'):
                     future = self.pipeline.parallel(self.art, self.art)
                     list_return, dict_return = future._result()
