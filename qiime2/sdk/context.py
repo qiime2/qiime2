@@ -34,8 +34,9 @@ class Context:
             self.cache = get_cache()
             # Only ever do this on the root context. We only want to index the
             # pool once before we start adding our own stuff to it.
-            if self.cache.named_pool is not None:
-                self.cache.named_pool.create_index()
+            with self.cache.lock:
+                if self.cache.named_pool is not None:
+                    self.cache.named_pool.create_index()
 
         self._parent = parent
         self._scope = None
@@ -73,65 +74,47 @@ class Context:
             # We can short circuit our index checking if any of our arguments
             # are proxies because if we got a proxy as an argument, we know it
             # is a new thing we are computing from a prior step in the pipeline
-            # and thus will not be cached. We can only have proxies if we are
-            # executing with parsl
-            if self.cache.named_pool is not None and (not self.parallel or (
-                    self.parallel and not self._contains_proxies(
-                        *args, **kwargs))):
-                collated_inputs = action_obj.signature.collate_inputs(
-                    *args, **kwargs)
-                callable_args = action_obj.signature.coerce_user_input(
-                    **collated_inputs)
+            # and thus will not be cached.
+            with self.cache.lock:
+                if self.cache.named_pool is not None and \
+                        not self._contains_proxies(*args, **kwargs):
 
-                # Make args and kwargs look how they do when we read them out
-                # of a .yaml file (list of single value dicts of
-                # input_name: value)
-                arguments = []
-                for k, v in callable_args.items():
-                    arguments.append({k: v})
+                    collated_inputs = action_obj.signature.collate_inputs(
+                        *args, **kwargs)
+                    callable_args = action_obj.signature.coerce_user_input(
+                        **collated_inputs)
 
-                invocation = HashableInvocation(plugin_action, arguments)
-                if invocation in self.cache.named_pool.index:
-                    cached_outputs = self.cache.named_pool.index[invocation]
-                    loaded_outputs = {}
+                    # Make args and kwargs look how they do when we read them
+                    # out of a .yaml file (list of single value dicts of
+                    # input_name: value)
+                    arguments = []
+                    for k, v in callable_args.items():
+                        arguments.append({k: v})
 
-                    for name, _type in action_obj.signature.outputs.items():
-                        if is_collection_type(_type.qiime_type):
-                            loaded_collection = qiime2.sdk.ResultCollection()
-                            cached_collection = cached_outputs[name]
+                    invocation = HashableInvocation(plugin_action, arguments)
+                    if invocation in self.cache.named_pool.index:
+                        # It is conceivable that since we created our index the
+                        # pool we indexed has been destroyed. If that is the
+                        # case we want to just continue on and rerun the action
+                        try:
+                            return self._load_cache(action_obj, invocation)
+                        except KeyError:
+                            pass
 
-                            # Get the order we should load collection items in
-                            collection_order = list(cached_collection.keys())
-                            self._validate_collection(collection_order)
-                            collection_order.sort(key=lambda x: x.idx)
-
-                            for elem_info in collection_order:
-                                elem = cached_collection[elem_info]
-                                loaded_elem = self.cache.named_pool.load(elem)
-                                loaded_collection[
-                                    elem_info.item_name] = loaded_elem
-
-                            loaded_outputs[name] = loaded_collection
-                        else:
-                            output = cached_outputs[name]
-                            loaded_outputs[name] = \
-                                self.cache.named_pool.load(output)
-
-                    return qiime2.sdk.Results(
-                        loaded_outputs.keys(), loaded_outputs.values())
-
-            # If we didn't have cached results to reuse, we need to execute the
-            # action.
+            # If we didn't have cached results to reuse, we need to execute
+            # the action.
             #
             # These factories will create new Contexts with this context as
-            # their parent. This allows scope cleanup to happen recursively. A
-            # factory is necessary so that independent applications of the
-            # returned callable receive their own Context objects.
+            # their parent. This allows scope cleanup to happen
+            # recursively. A factory is necessary so that independent
+            # applications of the returned callable receive their own
+            # Context objects.
             #
-            # The parsl factory is a bit more complicated because we need to
-            # pass this exact Context along for a while longer until we run a
-            # normal _bind in action/_run_parsl_action. Then we create a new
-            # Context with this one as its parent inside of the parsl app
+            # The parsl factory is a bit more complicated because we need
+            # to pass this exact Context along for a while longer until we
+            # run a normal _bind in action/_run_parsl_action. Then we
+            # create a new Context with this one as its parent inside of
+            # the parsl app
             def _bind_parsl_context(ctx):
                 def _bind_parsl_args(*args, **kwargs):
                     return action_obj._bind_parsl(ctx, *args, **kwargs)
@@ -147,6 +130,37 @@ class Context:
             deferred_action)
         action_obj._set_wrapper_properties(deferred_action)
         return deferred_action
+
+    def _load_cache(self, action_obj, invocation):
+        """Load cached results
+        """
+        cached_outputs = self.cache.named_pool.index[invocation]
+        loaded_outputs = {}
+
+        for name, _type in action_obj.signature.outputs.items():
+            if is_collection_type(_type.qiime_type):
+                loaded_collection = qiime2.sdk.ResultCollection()
+                cached_collection = cached_outputs[name]
+
+                # Get the order we should load collection items in
+                collection_order = list(cached_collection.keys())
+                self._validate_collection(collection_order)
+                collection_order.sort(key=lambda x: x.idx)
+
+                for elem_info in collection_order:
+                    elem = cached_collection[elem_info]
+                    loaded_elem = self.cache.named_pool.load(elem)
+                    loaded_collection[
+                        elem_info.item_name] = loaded_elem
+
+                loaded_outputs[name] = loaded_collection
+            else:
+                output = cached_outputs[name]
+                loaded_outputs[name] = \
+                    self.cache.named_pool.load(output)
+
+        return qiime2.sdk.Results(
+            loaded_outputs.keys(), loaded_outputs.values())
 
     def _contains_proxies(self, *args, **kwargs):
         """Returns True if any of the args or kwargs are proxies
@@ -223,10 +237,11 @@ class Scope:
            failure, a context can still identify what will (no longer) be
            returned.
         """
-        new_ref = self.ctx.cache.process_pool.save(ref)
+        with self.ctx.cache.lock:
+            new_ref = self.ctx.cache.process_pool.save(ref)
 
-        if self.ctx.cache.named_pool is not None:
-            self.ctx.cache.named_pool.save(new_ref)
+            if self.ctx.cache.named_pool is not None:
+                self.ctx.cache.named_pool.save(new_ref)
 
         self._parent_locals.append(new_ref)
         self._parent_locals.append(ref)

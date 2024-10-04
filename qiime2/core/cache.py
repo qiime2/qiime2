@@ -480,7 +480,7 @@ class Cache:
         # use
         self.process_pool_lifespan = process_pool_lifespan * 3600 * 24
         # This is set if a named pool is created on this cache and withed in
-        self.named_pool = None
+        self._named_pool_ = None
 
         # We were used by this process
         USED_CACHES.add(self)
@@ -1300,6 +1300,28 @@ class Cache:
         """
         return self.path / 'VERSION'
 
+    @property
+    def named_pool(self):
+        """Get the named_pool on this cache. Warn and return None if the
+        backing directory was removed.
+
+        Note
+        ----
+
+        Any time the named pool is to be accessed one should first lock the
+        cache then ensure the named_pool is not None.
+        """
+        if self._named_pool_ is None:
+            return None
+
+        if not os.path.exists(self._named_pool_.path):
+            warnings.warn("The named pool path"
+                          f" '{self._named_pool_.path}' does not exist. It was"
+                          " most likely removed by another QIIME 2 process")
+            self._named_pool_ = None
+
+        return self._named_pool_
+
 
 class Pool:
     """Pools are folders in the cache that contain many symlinks to many
@@ -1419,7 +1441,7 @@ class Pool:
                              "currently entered pool is located at: "
                              f"'{self.cache.named_pool.path}'")
 
-        self.cache.named_pool = self
+        self.cache._named_pool_ = self
 
     def __exit__(self, *args):
         """Unsets the named pool on the currently set cache. If there was no
@@ -1435,7 +1457,7 @@ class Pool:
         in __enter__.
         """
         _CACHE.cache = self.previously_entered_cache
-        self.cache.named_pool = None
+        self.cache._named_pool_ = None
 
     def _get_process_pool_name(self):
         """Creates a process pool name of the format
@@ -1729,6 +1751,8 @@ class Pool:
         """
         return set(os.listdir(self.path))
 
+    # TODO: This index can get created then between creation and use the
+    # backing pool could be deleted with disastrous consequences
     def create_index(self):
         """Indexes all artifacts in this cache's data directory mapping the
         QIIME 2 invocations that made the given artifacts to the given
