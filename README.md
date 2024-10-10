@@ -15,21 +15,15 @@ project.
 
 ## Installation
 
-Detailed instructions are available in the
-[documentation](https://docs.qiime2.org/).
+To learn how to install and use QIIME 2, refer to our [User Documentation](https://docs.qiime2.org/).
 
-## Users
+## Getting Help
 
-Head to the [user docs](https://docs.qiime2.org/) for help getting started,
-core concepts, tutorials, and other resources.
-
-Just have a question? Please ask it in our
-[forum](https://forum.qiime2.org/c/user-support).
+To get help with QIIME 2, review our [Support Guidelines](https://github.com/qiime2/.github/blob/main/SUPPORT.md).
 
 ## Developers
 
-Please visit the [contributing page](https://dev.qiime2.org) for more
-information on contributions, documentation links, and more.
+To learn about developing with QIIME 2 or contributing to the project, review our [Contributing Guidelines](https://github.com/qiime2/.github/blob/main/CONTRIBUTING.md).
 
 ## Citing QIIME 2
 
