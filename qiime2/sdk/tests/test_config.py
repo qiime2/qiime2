@@ -37,7 +37,7 @@ class TestConfig(unittest.TestCase):
             'concatenate_ints': 'test'
         },
         'other_plugin': {
-            'concatenate_ints': 'test'
+            'concatenate_ints': 'default'
         }
     }
 
@@ -239,14 +239,44 @@ class TestConfig(unittest.TestCase):
                                     'Must first load config'):
             self.pipeline.parallel(self.art, self.art)
 
+    def test_concatenate_ints_mapping(self):
+        pm = qiime2.sdk.PluginManager()
+        other_plugin = pm.plugins['other-plugin']
+
+        parameter_only_dummy = self.plugin.pipelines['parameter_only_pipeline']
+        parameter_only_other = \
+            other_plugin.pipelines['parameter_only_pipeline']
+
+        config, mapping = load_config_from_file(self.mapping_config_fp)
+
+        with self.cache:
+            with ParallelConfig(config, mapping):
+                _, concate_output_dummy = \
+                    parameter_only_dummy.parallel(0)._result()
+                _, concate_output_other = \
+                    parameter_only_other.parallel(0, other=True)._result()
+
+        dummy_execution_context = \
+            self._load_alias_execution_context(concate_output_dummy)
+        other_execution_context = \
+            self._load_alias_execution_context(concate_output_other)
+
+        self.assertEqual(dummy_execution_context,
+                         {'type': 'parsl', 'parsl_type': '_TEST_EXECUTOR_'})
+        self.assertEqual(other_execution_context,
+                         {'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'})
+
     def _load_alias_execution_contexts(self, collection):
         execution_contexts = []
 
         for result in collection.values():
-            alias_uuid = load_action_yaml(
-                result._archiver.path)['action']['alias-of']
-            execution_contexts.append(load_action_yaml(
-                self.cache.data / alias_uuid)
-                ['execution']['execution_context'])
+            execution_context = self._load_alias_execution_context(result)
+            execution_contexts.append(execution_context)
 
         return execution_contexts
+
+    def _load_alias_execution_context(self, result):
+        alias_uuid = load_action_yaml(
+            result._archiver.path)['action']['alias-of']
+        return load_action_yaml(
+            self.cache.data / alias_uuid)['execution']['execution_context']
