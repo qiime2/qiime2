@@ -31,6 +31,16 @@ class TestConfig(unittest.TestCase):
     pipeline = plugin.pipelines['resumable_pipeline']
     method = plugin.methods['list_of_ints']
 
+    mapping = {
+        'dummy_plugin': {
+            'list_of_ints': 'test',
+            'concatenate_ints': 'test'
+        },
+        'other_plugin': {
+            'concatenate_ints': 'test'
+        }
+    }
+
     # Expected provenance based on type of executor used
     tpool_expected = [{
         'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'}, {
@@ -93,6 +103,8 @@ class TestConfig(unittest.TestCase):
     def test_mapping_from_config(self):
         config, mapping = load_config_from_file(self.mapping_config_fp)
 
+        self.assertEqual(mapping, self.mapping)
+
         with self.cache:
             with ParallelConfig(config, mapping):
                 future = self.pipeline.parallel(self.art, self.art)
@@ -109,6 +121,8 @@ class TestConfig(unittest.TestCase):
     def test_mapping_only_config(self):
         _, mapping = load_config_from_file(self.mapping_only_config_fp)
 
+        self.assertEqual(mapping, self.mapping)
+
         with self.cache:
             with ParallelConfig(action_executor_mapping=mapping):
                 future = self.pipeline.parallel(self.art, self.art)
@@ -123,10 +137,8 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def test_mapping_from_dict(self):
-        mapping = {'dummy_plugin': {'list_of_ints': 'test'}}
-
         with self.cache:
-            with ParallelConfig(action_executor_mapping=mapping):
+            with ParallelConfig(action_executor_mapping=self.mapping):
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
 
@@ -205,6 +217,9 @@ class TestConfig(unittest.TestCase):
         """ Test that all parsl modules we currently map are correct
         """
         config, mapping = load_config_from_file(self.complex_config_fp)
+
+        self.assertEqual(mapping, {})
+
         # Just assert that we were able to parse the file and get a config out
         with ParallelConfig(config, mapping):
             self.assertIsInstance(
