@@ -11,5 +11,5 @@ class = "_TEST_EXECUTOR_"
 label = "test"
 max_threads = 1
 
-[parsl.executor_mapping]
-dummy_plugin-list_of_ints = "test"
+[parsl.executor_mapping.dummy_plugin]
+list_of_ints = "test"
