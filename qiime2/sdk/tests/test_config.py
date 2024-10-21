@@ -79,6 +79,8 @@ class TestConfig(unittest.TestCase):
         self.mapping_config_fp = self.get_data_path('mapping_config.toml')
         self.mapping_only_config_fp = \
             self.get_data_path('mapping_only_config.toml')
+        self.mapping_only_config_old_fp = \
+            self.get_data_path('mapping_only_config_old.toml')
         self.complex_config_fp = \
             self.get_data_path('complex_config.toml')
 
@@ -265,6 +267,12 @@ class TestConfig(unittest.TestCase):
                          {'type': 'parsl', 'parsl_type': '_TEST_EXECUTOR_'})
         self.assertEqual(other_execution_context,
                          {'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'})
+
+    def test_old_mapping(self):
+        with self.assertRaisesRegex(TypeError,
+                                    'The provided mapping:\n\n'
+                                    "{'list_of_ints': 'test'}"):
+            load_config_from_file(self.mapping_only_config_old_fp)
 
     def _load_alias_execution_contexts(self, collection):
         execution_contexts = []
