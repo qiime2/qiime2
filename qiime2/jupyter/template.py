@@ -38,7 +38,7 @@ url = baseURL + url;
 fetch(url).then(function(res) {
     if (res.status === 404) {
         div.innerHTML = 'Install QIIME 2 Jupyter extension with:<br />' +
-                        '<code>jupyter serverextension enable --py qiime2' +
+                        '<code>jupyter server extension enable --py qiime2' +
                         ' --sys-prefix</code><br />then restart your server.' +
                         '<br /><br />(Interactive output not available on ' +
                         'static notebook viewer services like nbviewer.)';

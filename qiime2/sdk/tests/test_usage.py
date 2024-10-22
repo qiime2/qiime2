@@ -384,6 +384,28 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertTrue(obs1.variable.is_deferred)
         self.assertTrue(obs2.variable[0].is_deferred)
 
+    def test_visualization_collection(self):
+        action = self.plugin.actions['viz_collection_pipeline']
+        use = usage.DiagnosticUsage()
+        action.examples['collection_of_visualizations'](use)
+
+        self.assertEqual(2, len(use.render()))
+
+        ints, visualizations = use.render()
+
+        self.assertEqual('init_artifact', ints.source)
+        self.assertEqual('action', visualizations.source)
+
+        self.assertEqual('ints', ints.variable.name)
+        self.assertEqual('visualizations', visualizations.variable[0].name)
+
+        self.assertCountEqual('artifact', ints.variable.var_type)
+        self.assertEqual('visualization_collection',
+                         visualizations.variable[0].var_type)
+
+        self.assertTrue(ints.variable.is_deferred)
+        self.assertTrue(visualizations.variable[0].is_deferred)
+
 
 class TestExecutionUsage(TestCaseUsage):
     def test_basic(self):

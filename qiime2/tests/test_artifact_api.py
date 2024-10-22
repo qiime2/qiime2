@@ -118,6 +118,25 @@ class TestImports(unittest.TestCase):
         with self.assertRaises(ImportError):
             importlib.reload(qiime2.plugins.dummy_plugin)
 
+    def test_import_base_format_stores_checksums(self):
+        from qiime2 import Artifact
+        from qiime2.core.testing.type import IntSequence2
+        from qiime2.core.testing.format import IntSequenceFormat
+        from qiime2.core.util import load_action_yaml
+        from qiime2.plugin.util import transform
+
+        ff = transform([1, 2, 3,], to_type=IntSequenceFormat)
+        ff2 = Artifact.import_data(IntSequence2, ff,
+                                   view_type=IntSequenceFormat)
+
+        # If the checksum is not stored, this will raise a KeyError
+        action = load_action_yaml(ff2._archiver.path)['action']['manifest']
+        self.assertIn('md5sum', action[0].keys())
+        # This ensures that the checksum is exactly what we expect and will
+        # catch empty strings or other weird values that could arise
+        self.assertEqual(action[0]['md5sum'],
+                         'c0710d6b4f15dfa88f600b0e6b624077')
+
 
 class TestArtifactAPIUsage(unittest.TestCase):
     def setUp(self):
@@ -278,14 +297,38 @@ output4, = dummy_plugin_actions.optional_artifacts_method(
 
     def test_artifact_collection_dict_of_ints(self):
         action = self.plugin.actions['dict_of_ints']
-        use = ArtifactAPIUsage()
+        use = ArtifactAPIUsage(enable_assertions=True)
         action.examples['collection_dict_of_ints'](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
+import re
 
 out_artifact_collection, = dummy_plugin_actions.dict_of_ints(
     ints=ints_artifact_collection,
-)"""
+)
+if str(out_artifact_collection['Foo'].type) != 'SingleInt':
+    raise AssertionError
+hits = sorted(out_artifact_collection['Foo']._archiver.data_dir.glob('file1.txt'))
+if len(hits) != 1:
+    raise ValueError
+target = hits[0].read_text()
+match = re.search('1', target, flags=re.MULTILINE)
+if match is None:
+    raise AssertionError"""  # noqa: E501
+        self.assertEqual(exp, use.render())
+
+    def test_collection_of_visualizations(self):
+        action = self.plugin.actions['viz_collection_pipeline']
+        use = ArtifactAPIUsage(enable_assertions=True)
+        action.examples['collection_of_visualizations'](use)
+        exp = """\
+import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
+
+visualizations_viz_collection, = dummy_plugin_actions.viz_collection_pipeline(
+    ints=ints,
+)
+if str(visualizations_viz_collection.type) != 'Collection[Visualization]':
+    raise AssertionError"""
 
         self.assertEqual(exp, use.render())
 

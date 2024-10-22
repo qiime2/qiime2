@@ -8,7 +8,6 @@
 
 import collections
 import os.path
-import pkg_resources
 import tempfile
 import unittest
 
@@ -17,11 +16,12 @@ import pandas as pd
 
 from qiime2.metadata import (Metadata, CategoricalMetadataColumn,
                              NumericMetadataColumn, MetadataFileError)
+import qiime2.util
 
 
 def get_data_path(filename):
-    return pkg_resources.resource_filename('qiime2.metadata.tests',
-                                           'data/%s' % filename)
+    return qiime2.util.get_filepath_from_package(
+        'qiime2.metadata.tests', 'data/%s' % filename)
 
 # NOTE: many of the test files in the `data` directory intentionally have
 # leading/trailing whitespace characters on some lines, as well as mixed usage

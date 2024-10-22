@@ -8,10 +8,10 @@
 
 import types
 import unittest
-import pkg_resources
 
 import qiime2.plugin
 import qiime2.sdk
+import qiime2.util
 
 from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
                                       FourInts, Kennel, Dog, Cat, SingleInt)
@@ -27,8 +27,9 @@ class TestPlugin(unittest.TestCase):
         self.plugin = get_dummy_plugin()
 
     def get_data_path(self, filename):
-        return pkg_resources.resource_filename('qiime2.plugin.tests',
-                                               'data/%s' % filename)
+        fp = qiime2.util.get_filepath_from_package(
+            'qiime2.plugin.tests', 'data/%s' % filename)
+        return str(fp)
 
     def test_name(self):
         self.assertEqual(self.plugin.name, 'dummy-plugin')
@@ -104,6 +105,7 @@ class TestPlugin(unittest.TestCase):
                           'mix_arts_and_proxies', 'de_facto_dict_pipeline',
                           'de_facto_collection_pipeline', 'list_pipeline',
                           'collection_pipeline', 'failing_pipeline',
+                          'viz_collection_pipeline',
                           'docstring_order_method',
                           'constrained_input_visualization',
                           'combinatorically_mapped_method',
@@ -181,7 +183,8 @@ class TestPlugin(unittest.TestCase):
                           'internal_fail_pipeline', 'de_facto_list_pipeline',
                           'mix_arts_and_proxies', 'de_facto_dict_pipeline',
                           'de_facto_collection_pipeline', 'list_pipeline',
-                          'collection_pipeline', 'failing_pipeline'})
+                          'collection_pipeline', 'failing_pipeline',
+                          'viz_collection_pipeline'})
         for pipeline in pipelines.values():
             self.assertIsInstance(pipeline, qiime2.sdk.Pipeline)
 
@@ -427,6 +430,24 @@ class TestPlugin(unittest.TestCase):
         with open(hasNaN) as fh:
             with self.assertRaises(AssertionError):
                 assert_no_nans_in_tables(fh)
+
+    def test_register_list_output(self):
+        def bad_function() -> list:
+            pass
+
+        with self.assertRaisesRegex(TypeError,
+                                    "'bad_output'.*'List'.*'Collection'.*"):
+            self.plugin.methods.register_function(
+                function=bad_function,
+                inputs={},
+                parameters={},
+                outputs={
+                    'bad_output': qiime2.plugin.List[IntSequence1]
+                },
+                name='Output is registered as returning a List which is bad.',
+                description='Output is registered as returning a List which is'
+                            ' bad.'
+            )
 
 
 if __name__ == '__main__':
