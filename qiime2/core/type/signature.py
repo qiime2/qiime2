@@ -459,7 +459,7 @@ class PipelineSignature:
 
         return qiime_type, qiime_name
 
-    def coerce_given_outputs(self, output_views, output_types, scope,
+    def coerce_given_outputs(self, output_views, output_types, ctx,
                              provenance):
         """ Coerce the outputs produced by the method into the desired types if
             possible. Primarily useful to create collections of outputs
@@ -489,20 +489,20 @@ class PipelineSignature:
                     collection_name = create_collection_name(
                         name=name, key=key, idx=idx, size=size)
                     output[key] = self._create_output_artifact(
-                        provenance, collection_name, scope, spec, view)
+                        provenance, collection_name, ctx, spec, view)
             elif type(output_view) is not spec.view_type:
                 raise TypeError(
                     "Expected output view type %r, received %r" %
                     (spec.view_type.__name__, type(output_view).__name__))
             else:
                 output = self._create_output_artifact(
-                    provenance, name, scope, spec, output_view)
+                    provenance, name, ctx, spec, output_view)
 
             outputs.append(output)
 
         return outputs
 
-    def _create_output_artifact(self, provenance, name, scope, spec, view):
+    def _create_output_artifact(self, provenance, name, ctx, spec, view):
         """ Create an output artifact from a view and add it to provenance
         """
         prov = provenance.fork(name)
@@ -517,11 +517,9 @@ class PipelineSignature:
         if is_collection_type(qiime_type):
             qiime_type = qiime_type.fields[0]
 
-        scope.add_reference(prov)
-
         artifact = qiime2.sdk.Artifact._from_view(
             qiime_type, view, spec.view_type, prov)
-        artifact = scope.add_parent_reference(artifact)
+        artifact = ctx.add_parent_reference(artifact)
 
         return artifact
 

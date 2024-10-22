@@ -1218,6 +1218,14 @@ class Cache:
         if target.exists():
             os.remove(target)
 
+    def get_tmp_path(self):
+        """Creates a tmp dir inside of the current process pool and returns a
+        path to it. If the pool already exists just returns the path
+        """
+        path = os.path.join(self.process_pool.path, 'tmp')
+        os.makedirs(path, exist_ok=True)
+        return path
+
     @property
     def data(self):
         """The directory in the cache that stores the data.

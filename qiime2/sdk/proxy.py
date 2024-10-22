@@ -73,7 +73,12 @@ class ProxyResult(Proxy):
     def _get_element_(self, results):
         """Get the result we want off of the future we have
         """
-        return getattr(results, self._selector_)
+        from qiime2.sdk import Results
+
+        if isinstance(results, Results):
+            return getattr(results, self._selector_)
+
+        return results
 
     def export_data(self, output_dir):
         return self.result().export_data(output_dir)

@@ -108,6 +108,22 @@ def _unmap_arg(arg, inputs):
     return unmapped
 
 
+@join_app
+def _deferred_alias(provenance, name, output, ctx, inputs=[]):
+    output = output.result()
+    alias = _alias(provenance, name, output, ctx)
+    return qiime2.sdk.util.create_future(alias)
+
+
+def _alias(provenance, name, output, ctx):
+    prov = provenance.fork(name, output)
+
+    aliased_result = output._alias(prov)
+    aliased_result = ctx.add_parent_reference(aliased_result)
+
+    return aliased_result
+
+
 class Action(metaclass=abc.ABCMeta):
     """QIIME 2 Action"""
     type = 'action'
@@ -135,7 +151,7 @@ class Action(metaclass=abc.ABCMeta):
     # callable. `output_types` is an OrderedDict mapping output name to QIIME
     # type (e.g. semantic type).
     @abc.abstractmethod
-    def _callable_executor_(self, scope, view_args, output_types):
+    def _callable_executor_(self, ctx, view_args, output_types):
         raise NotImplementedError
 
     # Private constructor
@@ -261,46 +277,40 @@ class Action(metaclass=abc.ABCMeta):
             # this function's signature.
             args = args[1:]
             ctx = context_factory()
-            # Set up a scope under which we can track destructable references
-            # if something goes wrong, the __exit__ handler of this context
-            # manager will clean up. (It also cleans up when things go right)
-            with ctx as scope:
-                provenance = self._ProvCaptureCls(
-                    self.type, self.plugin_id, self.id, execution_ctx)
-                scope.add_reference(provenance)
+            provenance = self._ProvCaptureCls(
+                self.type, self.plugin_id, self.id, execution_ctx)
 
-                if self.deprecated:
-                    with qiime2.core.util.warning() as warn:
-                        warn(self._build_deprecation_message(),
-                             FutureWarning)
+            if self.deprecated:
+                with qiime2.core.util.warning() as warn:
+                    warn(self._build_deprecation_message(), FutureWarning)
 
-                # Type management
-                collated_inputs = self.signature.collate_inputs(
-                    *args, **kwargs)
-                self.signature.check_types(**collated_inputs)
-                output_types = self.signature.solve_output(**collated_inputs)
-                callable_args = self.signature.coerce_user_input(
-                    **collated_inputs)
+            # Type management
+            collated_inputs = self.signature.collate_inputs(
+                *args, **kwargs)
+            self.signature.check_types(**collated_inputs)
+            output_types = self.signature.solve_output(**collated_inputs)
+            callable_args = self.signature.coerce_user_input(
+                **collated_inputs)
 
-                callable_args = \
-                    self.signature.transform_and_add_callable_args_to_prov(
-                        provenance, **callable_args)
+            callable_args = \
+                self.signature.transform_and_add_callable_args_to_prov(
+                    provenance, **callable_args)
 
-                outputs = self._callable_executor_(
-                    scope, callable_args, output_types, provenance)
+            outputs = self._callable_executor_(
+                ctx, callable_args, output_types, provenance)
 
-                if len(outputs) != len(self.signature.outputs):
-                    raise ValueError(
-                        "Number of callable outputs must match number of "
-                        "outputs defined in signature: %d != %d" %
-                        (len(outputs), len(self.signature.outputs)))
+            if len(outputs) != len(self.signature.outputs):
+                raise ValueError(
+                    "Number of callable outputs must match number of "
+                    "outputs defined in signature: %d != %d" %
+                    (len(outputs), len(self.signature.outputs)))
 
-                # Wrap in a Results object mapping output name to value so
-                # users have access to outputs by name or position.
-                results = qiime2.sdk.Results(
-                    self.signature.outputs.keys(), outputs)
+            # Wrap in a Results object mapping output name to value so
+            # users have access to outputs by name or position.
+            results = qiime2.sdk.Results(
+                self.signature.outputs.keys(), outputs)
 
-                return results
+            return results
 
         bound_callable = self._rewrite_wrapper_signature(bound_callable)
         self._set_wrapper_properties(bound_callable)
@@ -413,8 +423,7 @@ class Action(metaclass=abc.ABCMeta):
             # We with in the cache here to make sure archiver.load* puts things
             # in the right cache
             with ctx.cache:
-                exe = action._bind(
-                    lambda: qiime2.sdk.Context(parent=ctx), execution_ctx)
+                exe = action._bind(lambda: ctx, execution_ctx)
                 results = exe(*args, **kwargs)
 
                 # If we are running a pipeline, we need to create a future here
@@ -435,23 +444,11 @@ class Action(metaclass=abc.ABCMeta):
         # pipeline that calls two other pipelines within it and execute both of
         # those internal pipelines simultaneously.
         if isinstance(self, qiime2.sdk.action.Pipeline):
-            # If ctx._parent is None then this is the root pipeline and we want
-            # to dispatch it to a join_app
             execution_ctx['parsl_type'] = 'DFK'
-            if ctx._parent is None:
-                # NOTE: Do not make this a python_app(join=True). We need it to
-                # run in the parsl main thread
-                future = join_app()(
-                        _run_parsl_action)(self, ctx, execution_ctx,
-                                           mapped_args, mapped_kwargs,
-                                           inputs=futures)
-            # If there is a parent then this is not the root pipeline and we
-            # want to just _bind it with a parallel context. The fact that
-            # parallel is set on the context will cause ctx.get_action calls in
-            # the pipeline to use the action's _bind_parsl method.
-            else:
-                return self._bind(lambda: qiime2.sdk.Context(ctx),
-                                  execution_ctx=execution_ctx)(*args, **kwargs)
+            future = join_app()(
+                    _run_parsl_action)(self, ctx, execution_ctx,
+                                       mapped_args, mapped_kwargs,
+                                       inputs=futures)
         else:
             execution_ctx['parsl_type'] = \
                 ctx.executor_name_type_mapping[executor]
@@ -569,7 +566,7 @@ class Method(Action):
         # No conversion necessary.
         return callable
 
-    def _callable_executor_(self, scope, view_args, output_types, provenance):
+    def _callable_executor_(self, ctx, view_args, output_types, provenance):
         output_views = self._callable(**view_args)
         output_views = tuplize(output_views)
 
@@ -588,7 +585,7 @@ class Method(Action):
 
         output_artifacts = \
             self.signature.coerce_given_outputs(output_views, output_types,
-                                                scope, provenance)
+                                                ctx, provenance)
 
         return tuple(output_artifacts)
 
@@ -614,7 +611,7 @@ class Visualizer(Action):
     def _callable_sig_converter_(self, callable):
         return DropFirstParameter.from_function(callable)
 
-    def _callable_executor_(self, scope, view_args, output_types, provenance):
+    def _callable_executor_(self, ctx, view_args, output_types, provenance):
         # TODO use qiime2.plugin.OutPath when it exists, and update visualizers
         # to work with OutPath instead of str. Visualization._from_data_dir
         # will also need to be updated to support OutPath instead of str.
@@ -627,7 +624,7 @@ class Visualizer(Action):
             provenance.output_name = 'visualization'
             viz = qiime2.sdk.Visualization._from_data_dir(temp_dir,
                                                           provenance)
-            viz = scope.add_parent_reference(viz)
+            viz = ctx.add_parent_reference(viz)
 
             return (viz, )
 
@@ -650,24 +647,27 @@ class Pipeline(Action):
     def _callable_sig_converter_(self, callable):
         return DropFirstParameter.from_function(callable)
 
-    def _callable_executor_(self, scope, view_args, output_types, provenance):
-        outputs = self._callable(scope.ctx, **view_args)
+    def _callable_executor_(self, ctx, view_args, output_types, provenance):
+        outputs = self._callable(ctx, **view_args)
         # Just make sure we have an iterable even if there was only one output
         outputs = tuplize(outputs)
         # Make sure any collections returned are in the form of
-        # ResultCollections and that futures are resolved
+        # ResultCollections
         #
-        # TODO: Ideally we would not need to resolve futures here as this
-        # prevents us from properly parallelizing nested pipelines
-        outputs = self._coerce_pipeline_outputs(outputs)
+        # We only want to wait for proxies to resolve if we are the root
+        # pipeline
+        outputs = self._coerce_pipeline_outputs(
+            outputs, is_root=ctx._parent is None)
 
         for output in outputs:
             if isinstance(output, qiime2.sdk.ResultCollection):
                 for elem in output.values():
-                    if not isinstance(elem, qiime2.sdk.Result):
+                    if not (isinstance(elem, qiime2.sdk.Result) or
+                            isinstance(elem, Proxy)):
                         raise TypeError("Pipelines must return `Result` "
                                         "objects, not %s" % (type(elem), ))
-            elif not isinstance(output, qiime2.sdk.Result):
+            elif not (isinstance(output, qiime2.sdk.Result) or
+                      isinstance(output, Proxy)):
                 raise TypeError("Pipelines must return `Result` objects, "
                                 "not %s" % (type(output), ))
 
@@ -689,12 +689,16 @@ class Pipeline(Action):
             # happened
             if isinstance(output, qiime2.sdk.Result) and \
                     (output.type <= spec.qiime_type):
-                prov = provenance.fork(name, output)
-                scope.add_reference(prov)
-
-                aliased_result = output._alias(prov)
-                aliased_result = scope.add_parent_reference(aliased_result)
-
+                aliased_result = _alias(provenance, name, output, ctx)
+                results.append(aliased_result)
+            elif isinstance(output, Proxy) and \
+                    (output.type <= spec.qiime_type):
+                aliased_result = _deferred_alias(
+                    provenance, name, output, ctx,
+                    inputs=[output._future_])
+                aliased_result = output.__class__(
+                    future=aliased_result, selector=output._selector_,
+                    qiime_type=output._qiime_type_)
                 results.append(aliased_result)
             elif spec.qiime_type.name == 'Collection' and \
                     output.collection in spec.qiime_type:
@@ -703,11 +707,18 @@ class Pipeline(Action):
                 for idx, (key, value) in enumerate(output.items()):
                     collection_name = create_collection_name(
                         name=name, key=key, idx=idx, size=size)
-                    prov = provenance.fork(collection_name, value)
-                    scope.add_reference(prov)
 
-                    aliased_result = value._alias(prov)
-                    aliased_result = scope.add_parent_reference(aliased_result)
+                    if isinstance(value, Proxy):
+                        aliased_result = _deferred_alias(
+                            provenance, collection_name, value, ctx,
+                            inputs=[value._future_])
+                        aliased_result = value.__class__(
+                            future=aliased_result, selector=value._selector_,
+                            qiime_type=value._qiime_type_)
+                    else:
+                        aliased_result = _alias(
+                            provenance, collection_name, value, ctx)
+
                     aliased_output[str(key)] = aliased_result
 
                 results.append(aliased_output)
@@ -726,15 +737,15 @@ class Pipeline(Action):
 
         return tuple(results)
 
-    def _coerce_pipeline_outputs(self, outputs):
+    def _coerce_pipeline_outputs(self, outputs, is_root):
         """Ensure all futures are resolved and all collections are of type
            ResultCollection
         """
         coerced_outputs = []
 
         for output in outputs:
-            # Handle proxy outputs
-            if isinstance(output, Proxy):
+            # Handle proxy outputs if root
+            if is_root and isinstance(output, Proxy):
                 output = output.result()
 
             # Handle collection outputs
@@ -742,10 +753,12 @@ class Pipeline(Action):
                     isinstance(output, list):
                 output = qiime2.sdk.ResultCollection(output)
 
-                # Handle proxies as elements of collections
-                for key, value in output.items():
-                    if isinstance(value, Proxy):
-                        output[key] = value.result()
+            if isinstance(output, qiime2.sdk.ResultCollection):
+                # Handle proxies as elements of collections if root
+                if is_root:
+                    for key, value in output.items():
+                        if isinstance(value, Proxy):
+                            output[key] = value.result()
 
             coerced_outputs.append(output)
 

@@ -13,8 +13,6 @@ import distutils
 import tempfile
 import weakref
 
-from qiime2.core.util import set_permissions, USER_GROUP_RWX
-
 _ConcretePath = type(pathlib.Path())
 
 
@@ -92,14 +90,20 @@ class OutPath(OwnedPath):
         else:
             os.unlink(path)
 
-    def __new__(cls, dir=False, **kwargs):
+    def __new__(cls, dir=False):
         """
         Create a tempfile, return pathlib.Path reference to it.
         """
+        from qiime2.core.cache import get_cache
+
+        cache = get_cache()
+        tmp_path = cache.get_tmp_path()
+        prefix = 'q2-%s-' % cls.__name__
+
         if dir:
-            name = tempfile.mkdtemp(**kwargs)
+            name = tempfile.mkdtemp(prefix=prefix, dir=tmp_path)
         else:
-            fd, name = tempfile.mkstemp(**kwargs)
+            fd, name = tempfile.mkstemp(prefix=prefix, dir=tmp_path)
             # fd is now assigned to our process table, but we don't need to do
             # anything with the file. We will call `open` on the `name` later
             # producing a different file descriptor, so close this one to
@@ -117,16 +121,8 @@ class InternalDirectory(_ConcretePath):
     DEFAULT_PREFIX = 'qiime2-'
 
     @classmethod
-    def _destruct(cls, path):
-        """DO NOT USE DIRECTLY, use `_destructor()` instead"""
-        if os.path.exists(path):
-            set_permissions(path, None, USER_GROUP_RWX)
-            shutil.rmtree(path)
-
-    @classmethod
     def __new(cls, *args):
         self = super().__new__(cls, *args)
-        self._destructor = weakref.finalize(self, self._destruct, str(self))
         return self
 
     def __new__(cls, *args, prefix=None):
@@ -137,12 +133,17 @@ class InternalDirectory(_ConcretePath):
             # for pickling.
             return cls.__new(*args)
         else:
+            from qiime2.core.cache import get_cache
+
+            cache = get_cache()
+            tmp_path = cache.get_tmp_path()
+
             if prefix is None:
                 prefix = cls.DEFAULT_PREFIX
             elif not prefix.startswith(cls.DEFAULT_PREFIX):
                 prefix = cls.DEFAULT_PREFIX + prefix
             # TODO: normalize when temp-directories are configurable
-            path = tempfile.mkdtemp(prefix=prefix)
+            path = tempfile.mkdtemp(prefix=prefix, dir=tmp_path)
             return cls.__new(path)
 
     def __truediv__(self, path):
