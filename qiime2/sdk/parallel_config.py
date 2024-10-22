@@ -210,6 +210,17 @@ def load_config_from_dict(config_dict):
     parallel_config_dict = config_dict.get('parsl')
     mapping = parallel_config_dict.pop('executor_mapping', {})
 
+    # NOTE: There was a prior version of the mappings that did not contain the
+    # name of the plugin the action belonged to. This is ensuring the config is
+    # not of that format. What it checks is designed to specifically catch that
+    # case where each key is an action and each value is an executor as opposed
+    # to each key being a string and each value being a dict now.
+    for value in mapping.values():
+        if not isinstance(value, dict):
+            raise TypeError(f'The provided mapping:\n\n{mapping}\n\ndoes not'
+                            ' follow the correct format of:\n\n'
+                            "{'plugin': {'action': 'executor'}}")
+
     processed_parallel_config_dict = _process_config(parallel_config_dict)
 
     if processed_parallel_config_dict != {}:

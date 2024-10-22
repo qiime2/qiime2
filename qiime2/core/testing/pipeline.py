@@ -11,10 +11,11 @@ from qiime2.sdk.result import ResultCollection
 from qiime2.core.testing.util import PipelineError
 
 
-def parameter_only_pipeline(ctx, int1, int2=2, metadata=None):
+def parameter_only_pipeline(ctx, int1, int2=2, metadata=None, other=False):
     identity_with_optional_metadata = ctx.get_action(
         'dummy_plugin', 'identity_with_optional_metadata')
-    concatenate_ints = ctx.get_action('dummy_plugin', 'concatenate_ints')
+    concatenate_ints = ctx.get_action(
+        'other_plugin' if other else 'dummy_plugin', 'concatenate_ints')
 
     ints1 = ctx.make_artifact('IntSequence2', [int1, int2, 3])
     ints2, = identity_with_optional_metadata(ints1, metadata)

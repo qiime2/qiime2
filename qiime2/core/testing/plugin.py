@@ -623,7 +623,8 @@ dummy_plugin.pipelines.register_function(
     parameters={
         'int1': Int,
         'int2': Int,
-        'metadata': Metadata
+        'metadata': Metadata,
+        'other': Bool
     },
     outputs=[
         ('foo', IntSequence2),
@@ -634,7 +635,9 @@ dummy_plugin.pipelines.register_function(
     parameter_descriptions={
         'int1': 'An integer, the first one in fact',
         'int2': 'An integer, the second one',
-        'metadata': 'Very little is done with this'
+        'metadata': 'Very little is done with this',
+        'other': 'Whether to use the dummy or other plugin version of '
+                 'concatenate ints'
     },
     output_descriptions={
         'foo': 'Foo - "The Integers of 2"',
@@ -1132,12 +1135,13 @@ other_plugin = Plugin(
     user_support_text='',
     citations=[]
 )
+
 other_plugin.methods.register_function(
     function=concatenate_ints,
     inputs={
         'ints1': IntSequence1,
         'ints2': IntSequence1,
-        'ints3': IntSequence1,
+        'ints3': IntSequence1 | IntSequence2,
     },
     parameters={
         'int1': Int,
@@ -1148,6 +1152,34 @@ other_plugin.methods.register_function(
     },
     name='Concatenate integers',
     description='Some description'
+)
+
+other_plugin.pipelines.register_function(
+    function=parameter_only_pipeline,
+    inputs={},
+    parameters={
+        'int1': Int,
+        'int2': Int,
+        'metadata': Metadata,
+        'other': Bool
+    },
+    outputs=[
+        ('foo', IntSequence2),
+        ('bar', IntSequence1)
+    ],
+    name='Do multiple things',
+    description='This pipeline only accepts parameters',
+    parameter_descriptions={
+        'int1': 'An integer, the first one in fact',
+        'int2': 'An integer, the second one',
+        'metadata': 'Very little is done with this',
+        'other': 'Whether to use the dummy or other plugin version of '
+                 'concatenate ints'
+    },
+    output_descriptions={
+        'foo': 'Foo - "The Integers of 2"',
+        'bar': 'Bar - "What a sequences"'
+    },
 )
 
 
