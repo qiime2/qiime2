@@ -195,11 +195,11 @@ class Context:
            failure, a context can still identify what will (no longer) be
            returned.
         """
-        with self.ctx.cache.lock:
-            new_ref = self.ctx.cache.process_pool.save(ref)
+        with self.cache.lock:
+            new_ref = self.cache.process_pool.save(ref)
 
-            if self.ctx.cache.named_pool is not None:
-                self.ctx.cache.named_pool.save(new_ref)
+            if self.cache.named_pool is not None:
+                self.cache.named_pool.save(new_ref)
 
         # Return an artifact backed by the data in the cache
         return new_ref
