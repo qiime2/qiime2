@@ -770,6 +770,9 @@ def build_action_usage(
 
     # Process outputs before params so we can access the unique output name
     # from the namespace when dumping metadata to files below
+    # NOTE: artificat collection members are not detected here; we don't care
+    # because we don't need to name them until they are used individually as
+    # inputs to another action
     raw_outputs = std_actions[action_id].items()
     outputs = _uniquify_output_names(ns, raw_outputs)
 
@@ -780,8 +783,10 @@ def build_action_usage(
             continue
 
         if isinstance(param_val, MetadataInfo):
-            unique_md_id = ns.get_usg_var_record(node._uuid).name \
-                           + '_' + param_name
+            # we only need this identifier to be unique; the rendered interface
+            # name will not contain this identifier
+            unique_md_id = node._uuid + '_' + param_name
+
             md_fn = ns.add_usg_var_record(
                 unique_md_id, camel_to_snake(param_name)
             )
