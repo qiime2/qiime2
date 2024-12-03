@@ -1074,6 +1074,12 @@ class ParserV6(ParserV5):
     expected_files_all_nodes = ParserV5.expected_files_all_nodes
 
 
+class ParserV7(ParserV6):
+    '''
+    Parser for V7 archives. TODO add completed new features here.
+    '''
+
+
 FORMAT_REGISTRY = {
     # NOTE: update for new format versions in qiime2.core.archive.Archiver
     '0': ParserV0,
@@ -1082,5 +1088,6 @@ FORMAT_REGISTRY = {
     '3': ParserV3,
     '4': ParserV4,
     '5': ParserV5,
-    '6': ParserV6
+    '6': ParserV6,
+    '7': ParserV7
 }
