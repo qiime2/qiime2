@@ -60,7 +60,7 @@
 import collections
 import inspect
 import types
-from typing import Any, Optional, Union, Type
+from typing import Any, Optional, Union
 
 from qiime2.core.cite import Citations, CitationRecord
 import qiime2.sdk
@@ -101,9 +101,9 @@ class Plugin:
 
     """
 
-    methods: Type['PluginMethods']
-    visualizers: Type['PluginVisualizers']
-    pipelines: Type['PluginPipelines']
+    methods: 'PluginMethods'
+    visualizers: 'PluginVisualizers'
+    pipelines: 'PluginPipelines'
 
     def __init__(self, name: str, version: str, website: str,
                  package: Optional[str] = None,
