@@ -519,7 +519,7 @@ class PipelineSignature:
 
         artifact = qiime2.sdk.Artifact._from_view(
             qiime_type, view, spec.view_type, prov)
-        artifact = ctx.add_parent_reference(artifact)
+        artifact = ctx.add_reference(artifact)
 
         return artifact
 

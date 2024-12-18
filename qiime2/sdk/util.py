@@ -10,8 +10,6 @@ import re
 from pkg_resources import iter_entry_points
 from typing import Dict, TYPE_CHECKING
 
-from parsl.app.app import python_app
-
 import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.type.parse as _parse
@@ -186,12 +184,3 @@ def get_available_usage_drivers() -> Dict[str, 'UsageDriver']:
         entry_point.name: entry_point.resolve() for entry_point in
         iter_entry_points(group='qiime2.usage_drivers')
     }
-
-
-@python_app(executors=['default'])
-def create_future(results):
-    '''
-    There are some cases where we need a future but don't have one, this is
-    used to create one.
-    '''
-    return results
