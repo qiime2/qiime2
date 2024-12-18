@@ -13,7 +13,11 @@ Homepage = "https://qiime2.org"
 Repository = "https://github.com/qiime2/qiime2"
 
 [project.entry-points.'qiime2.plugins']
-"qiime2" = "qiime2.plugin_setup:plugin"
+"dummy-plugin" = "qiime2.core.testing.plugin:dummy_plugin"
+"other-plugin" = "qiime2.core.testing.plugin:other_plugin"
+
+[project.entry-points.'qiime2.usage_drivers']
+"python3" = "qiime2.core.archive.provenance_lib:ReplayPythonUsage"
 
 [build-system]
 requires = [
