@@ -1,0 +1,46 @@
+package:
+  name: qiime2
+  version: {{ PLUGIN_VERSION }}
+source:
+  path: ..
+build:
+  script: make install
+requirements:
+  host:
+  - python {{ python }}
+  - setuptools
+  - versioningit
+  - wheel
+  run:
+  - python {{ python }}
+  - pyyaml
+  - decorator >=4,<5
+  - pandas {{ pandas }}
+  - tzlocal <3
+  - python-dateutil
+  - bibtexparser
+  - networkx =3.1
+  - dill
+  - psutil
+  - flufl.lock
+  - parsl {{ parsl }}
+  - appdirs
+  - tomlkit
+  - lxml
+  build:
+  - setuptools
+  - versioningit
+test:
+  requires:
+  - pytest
+  - tornado
+  - notebook <7
+  imports:
+  - qiime2
+  commands:
+  - QIIMETEST= python -c "import qiime2.plugins.dummy_plugin"
+  - QIIMETEST= py.test --pyargs --doctest-modules qiime2
+about:
+  home: https://qiime2.org
+  license: BSD-3-Clause
+  license_family: BSD
