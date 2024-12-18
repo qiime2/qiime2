@@ -269,9 +269,8 @@ class MultiplePluginTests(unittest.TestCase):
         from qiime2.sdk.plugin_manager import PluginManager
         from qiime2 import Artifact
 
-        cls.pm = PluginManager()
-        cls.dp = cls.pm.plugins['dummy-plugin']
-        cls.op = cls.pm.plugins['other-plugin']
+        cls.dp = PluginManager().plugins['dummy-plugin']
+        cls.op = PluginManager().plugins['other-plugin']
         cls.tempdir = tempfile.mkdtemp(prefix='qiime2-other-plugin-temp-')
 
         int_seq = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
@@ -378,7 +377,6 @@ class BuildUsageExamplesTests(unittest.TestCase):
     def setUpClass(cls):
         cls.das = DummyArtifacts()
         cls.tempdir = cls.das.tempdir
-        cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
@@ -392,9 +390,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
         ns = ReplayNamespaces()
         dag = self.das.concated_ints_with_md.dag
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
         build_usage_examples(dag, cfg, ns)
 
@@ -417,9 +413,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
             dag = ProvDAG(self.das.table_v0.filepath)
 
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
         build_usage_examples(dag, cfg, ns)
 
@@ -448,9 +442,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
             dag = ProvDAG(mixed_dir)
 
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
         build_usage_examples(dag, cfg, ns)
 
@@ -474,9 +466,7 @@ class BuildUsageExamplesTests(unittest.TestCase):
         ns = ReplayNamespaces()
         dag = ProvDAG(many_dir)
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
         build_usage_examples(dag, cfg, ns)
 
@@ -492,7 +482,6 @@ class MiscHelperFnTests(unittest.TestCase):
     def setUpClass(cls):
         cls.das = DummyArtifacts()
         cls.tempdir = cls.das.tempdir
-        cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
@@ -518,8 +507,7 @@ class MiscHelperFnTests(unittest.TestCase):
         uuid = self.das.table_v0.uuid
         dag = self.das.table_v0.dag
 
-        cfg = ReplayConfig(use=ReplayPythonUsage(),
-                           pm=self.pm)
+        cfg = ReplayConfig(use=ReplayPythonUsage())
         provnode = dag.get_node_data(uuid)
         action_name = 'old_action'
         md_id = 'metadata'
@@ -536,7 +524,6 @@ class GroupByActionTests(unittest.TestCase):
     def setUpClass(cls):
         cls.das = DummyArtifacts()
         cls.tempdir = cls.das.tempdir
-        cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
@@ -609,7 +596,6 @@ class InitializerTests(unittest.TestCase):
     def setUpClass(cls):
         cls.das = DummyArtifacts()
         cls.tempdir = cls.das.tempdir
-        cls.pm = PluginManager()
 
         with zipfile.ZipFile(cls.das.concated_ints_with_md.filepath) as zf:
             root_node_id = cls.das.concated_ints_with_md.uuid
@@ -647,9 +633,7 @@ class InitializerTests(unittest.TestCase):
 
     def test_init_md_from_artifacts_no_artifacts(self):
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
         ns = ReplayNamespaces
 
@@ -664,9 +648,7 @@ class InitializerTests(unittest.TestCase):
         # This helper doesn't capture real data, so we're only smoke testing,
         # checking type, and confirming the repr looks reasonable.
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
 
         # We expect artifact vars have already been added to the namespace
@@ -688,9 +670,7 @@ class InitializerTests(unittest.TestCase):
         # This helper doesn't capture real data, so we're only smoke testing,
         # checking type, and confirming the repr looks reasonable.
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
 
         # We expect artifact vars have already been added to the namespace
@@ -732,9 +712,7 @@ class InitializerTests(unittest.TestCase):
         ns.add_usg_var_record(md_id, param_name)
 
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
 
         var = init_md_from_md_file(md_node, param_name, md_id, ns, cfg)
@@ -757,9 +735,7 @@ class InitializerTests(unittest.TestCase):
         ns.add_usg_var_record(var_name, param_name)
 
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
 
         md_fn = 'identity_with_metadata/metadata_0'
@@ -793,9 +769,7 @@ class InitializerTests(unittest.TestCase):
         ns.add_usg_var_record(var_name, param_name)
 
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
 
         md_fn = 'identity_with_metadata_column/metadata_0'
@@ -824,7 +798,6 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
     def setUpClass(cls):
         cls.das = DummyArtifacts()
         cls.tempdir = cls.das.tempdir
-        cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
@@ -832,8 +805,9 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
 
     def test_build_no_provenance_node_usage_w_complete_node(self):
         ns = ReplayNamespaces()
-        cfg = ReplayConfig(use=ReplayPythonUsage(),
-                           use_recorded_metadata=False, pm=self.pm)
+        cfg = ReplayConfig(
+            use=ReplayPythonUsage(), use_recorded_metadata=False
+        )
         uuid = self.das.table_v0.uuid
         dag = self.das.table_v0.dag
         v0_node = dag.get_node_data(uuid)
@@ -856,9 +830,7 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
     def test_build_no_provenance_node_usage_uuid_only_node(self):
         ns = ReplayNamespaces()
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
 
         uuid = 'some-uuid'
@@ -882,8 +854,7 @@ class BuildNoProvenanceUsageTests(CustomAssertions):
     def test_build_no_provenance_node_usage_many(self):
         ns = ReplayNamespaces()
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False, pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
 
         # This function doesn't actually know about the DAG, so no need to join
@@ -923,7 +894,6 @@ class BuildImportUsageTests(CustomAssertions):
     def setUpClass(cls):
         cls.das = DummyArtifacts()
         cls.tempdir = cls.das.tempdir
-        cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
@@ -932,9 +902,7 @@ class BuildImportUsageTests(CustomAssertions):
     def test_build_import_usage_python(self):
         ns = ReplayNamespaces()
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False
         )
 
         dag = self.das.concated_ints_v6.dag
@@ -1017,8 +985,7 @@ class ReplayResultCollectionTests(CustomAssertions):
     '''
     @classmethod
     def setUpClass(cls):
-        cls.pm = PluginManager()
-        cls.dp = cls.pm.plugins['dummy-plugin']
+        cls.dp = PluginManager().plugins['dummy-plugin']
 
         cls.single_int = Artifact.import_data('SingleInt', 0)
         cls.dict_of_ints = cls.dp.methods['dict_of_ints']
@@ -1195,7 +1162,6 @@ class BuildActionUsageTests(CustomAssertions):
     def setUpClass(cls):
         cls.das = DummyArtifacts()
         cls.tempdir = cls.das.tempdir
-        cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):
@@ -1205,9 +1171,7 @@ class BuildActionUsageTests(CustomAssertions):
         plugin = 'dummy_plugin'
         action = 'concatenate_ints'
         cfg = ReplayConfig(
-            use=ReplayPythonUsage(),
-            use_recorded_metadata=False,
-            pm=self.pm
+            use=ReplayPythonUsage(), use_recorded_metadata=False,
         )
 
         ns = ReplayNamespaces()
@@ -1253,7 +1217,6 @@ class BuildActionUsageTests(CustomAssertions):
             cfg = ReplayConfig(
                 use=ReplayPythonUsage(),
                 use_recorded_metadata=False,
-                pm=self.pm,
                 md_out_dir=tempdir
             )
 
@@ -1337,7 +1300,6 @@ class CitationsTests(unittest.TestCase):
     def setUpClass(cls):
         cls.das = DummyArtifacts()
         cls.tempdir = cls.das.tempdir
-        cls.pm = PluginManager()
 
     @classmethod
     def tearDownClass(cls):

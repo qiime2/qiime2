@@ -28,7 +28,7 @@ from qiime2.sdk.util import camel_to_snake
 
 
 @dataclass
-class ReplayConfig():
+class ReplayConfig:
     '''
     Dataclass that stores various user-selected configuration options and
     other bits of information relevant to provenance replay.
@@ -42,8 +42,6 @@ class ReplayConfig():
         disk in .tsv format.
     use_recorded_metadata : bool
         If True, replay should use the metadata recorded in provenance.
-    pm : PluginManager
-        The active instance of the QIIME 2 PluginManager.
     md_context_has_been_printed : bool
         A flag set by default and used internally, allows context to be
         printed once and only once.
@@ -58,15 +56,27 @@ class ReplayConfig():
     md_out_dir : str
         The directory where caputred metadata should be written.
     '''
-    use: Usage
-    dump_recorded_metadata: bool = True
-    use_recorded_metadata: bool = False
-    pm: PluginManager = PluginManager()
-    md_context_has_been_printed: bool = False
-    no_provenance_context_has_been_printed: bool = False
-    header: bool = True
-    verbose: bool = False
-    md_out_dir: str = ''
+    def __init__(
+        self,
+        use: Usage,
+        dump_recorded_metadata: bool = True,
+        use_recorded_metadata: bool = False,
+        md_context_has_been_printed: bool = False,
+        no_provenance_context_has_been_printed: bool = False,
+        header: bool = True,
+        verbose: bool = False,
+        md_out_dir: str = ''
+    ):
+        self.use = use
+        self.dump_recorded_metadata = dump_recorded_metadata
+        self.use_recorded_metadata = use_recorded_metadata
+        self.md_context_has_been_printed = md_context_has_been_printed
+        self.no_provenance_context_has_been_printed = \
+            no_provenance_context_has_been_printed
+        self.header = header
+        self.verbose = verbose
+        self.md_out_dir = md_out_dir
+        self.pm = PluginManager.reuse_existing()
 
 
 @dataclass
@@ -524,7 +534,8 @@ def replay_provenance(
         use=usage_driver(),
         use_recorded_metadata=use_recorded_metadata,
         dump_recorded_metadata=dump_recorded_metadata,
-        verbose=verbose, md_out_dir=md_out_dir
+        verbose=verbose,
+        md_out_dir=md_out_dir
     )
 
     ns = ReplayNamespaces(dag)
