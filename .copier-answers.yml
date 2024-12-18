@@ -1,0 +1,11 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 8f6ff2e
+_src_path: https://github.com/qiime2/q2-setup-template.git
+module_name: qiime2
+plugin_name: qiime2
+project_author_email: q2d2.noreply@gmail.com
+project_author_name: ''
+project_description: null
+project_name: qiime2
+project_urls_homepage: https://qiime2.org
+project_urls_repository: https://github.com/qiime2/qiime2

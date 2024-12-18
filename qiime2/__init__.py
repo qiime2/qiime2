@@ -11,10 +11,11 @@ from qiime2.metadata import (Metadata, MetadataColumn,
                              CategoricalMetadataColumn, NumericMetadataColumn)
 from qiime2.plugin import Citations
 from qiime2.core.cache import Cache, Pool
-from ._version import get_versions
 
-__version__ = get_versions()['version']
-del get_versions
+try:
+    from ._version import __version__
+except ModuleNotFoundError:
+    __version__ = '0.0.0+notfound'
 
 # "Train release" version includes <year>.<month> and excludes patch numbers
 # and pre/post-release tags. All versions within a train release are expected
