@@ -1,0 +1,58 @@
+name: Update Copyright Headers
+
+on:
+  # Runs at 00:00 UTC on Jan 3rd or via manual trigger
+  schedule:
+    - cron: '0 0 3 1 *'
+  workflow_dispatch:
+    inputs:
+      newYear:
+        description: "Desired year to update to (e.g., 2025). If not provided, will auto-detect."
+        required: false
+
+jobs:
+  update-headers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Determine years for update
+        id: determine-years
+        run: |
+          INPUT_YEAR="${{ github.event.inputs.newYear }}"
+
+          if [ -z "$INPUT_YEAR" ]; then
+            CURRENT_YEAR="$(date +'%Y')"
+            echo "No 'newYear' input. Using current year: ${CURRENT_YEAR}"
+          else
+            CURRENT_YEAR="$INPUT_YEAR"
+            echo "Received user input. Updating to: ${CURRENT_YEAR}"
+          fi
+
+          echo "CURRENT_YEAR=$CURRENT_YEAR" >> $GITHUB_ENV
+
+      - name: Bump ending year in QIIME 2 headers
+        run: |
+          source $GITHUB_ENV
+
+          echo "Will update any QIIME 2 header years in [2015..$((CURRENT_YEAR-1))] to $CURRENT_YEAR"
+
+          for OLD_YEAR in $(seq 2015 $((CURRENT_YEAR - 1))); do
+            find . -type f -exec \
+              sed -i -E "s/(Copyright \(c\) [0-9]{4})-${OLD_YEAR}, QIIME 2/\1-${CURRENT_YEAR}, QIIME 2/g" {} +
+          done
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "q2d2"
+          git config --global user.email "q2d2.noreply@gmail.com"
+
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "Auto-update copyright year to $CURRENT_YEAR"
+            git push
+          else
+            echo "No changes to commit."
+            exit 0
+          fi
