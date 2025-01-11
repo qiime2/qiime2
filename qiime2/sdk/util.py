@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import re
+import subprocess
 from pkg_resources import iter_entry_points
 from typing import Dict, TYPE_CHECKING
 
@@ -184,3 +185,21 @@ def get_available_usage_drivers() -> Dict[str, 'UsageDriver']:
         entry_point.name: entry_point.resolve() for entry_point in
         iter_entry_points(group='qiime2.usage_drivers')
     }
+
+
+def run_commands(cmds, verbose=True):
+    '''
+    Helper method for subprocess calls. Typically used when wrapping
+    external tools/methods within a QIIME 2 plugin.
+    '''
+    if verbose:
+        print("Running external command line application(s). This may print "
+              "messages to stdout and/or stderr.")
+        print("The command(s) being run are below. These commands cannot "
+              "be manually re-run as they will depend on temporary files that "
+              "no longer exist.")
+    for cmd in cmds:
+        if verbose:
+            print("\nCommand:", end=' ')
+            print(" ".join(cmd), end='\n\n')
+        subprocess.run(cmd, check=True)
