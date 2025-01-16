@@ -29,6 +29,7 @@ requirements:
   - lxml
   - py-cpuinfo
   build:
+  - python {{ python }}
   - setuptools
   - versioningit
 test:
