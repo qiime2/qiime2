@@ -49,7 +49,8 @@ class ArchiveFormat:
             return self._parse_metadata(fh, expected_uuid=archive.uuid)
 
     @classmethod
-    def write(cls, archive_record, type, format, data_initializer, provenance_capture):
+    def write(cls, archive_record, type, format,
+              data_initializer, provenance_capture):
         root = archive_record.root
         metadata_fp = root / cls.METADATA_FILE
 

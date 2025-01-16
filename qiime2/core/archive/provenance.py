@@ -14,7 +14,6 @@ import pkg_resources
 import uuid
 import copy
 import shutil
-import subprocess
 import sys
 import warnings
 from datetime import datetime, timezone

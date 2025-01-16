@@ -31,7 +31,8 @@ class ArchiveFormat(v6.ArchiveFormat):
     # TODO: UPDATE action.yaml with CPU flags
     # Use psutil to pull these and add as a new section under action.yaml
 
-    # We call init_files first to ensure that all files are written prior to checksums being calculated (relevant for this new conda-env.yaml file)
+    # We call init_files first to ensure that all files are written prior to
+    # checksums being calculated (relevant for this new conda-env.yaml file)
     @classmethod
     def init_files(cls, archive_record, provenance_capture):
         super().init_files(archive_record, provenance_capture)
@@ -56,7 +57,8 @@ class ArchiveFormat(v6.ArchiveFormat):
         except subprocess.CalledProcessError as e:
             print(f"Error exporting conda environment: {e}")
 
-    # Now that all files are written, can now write the checksums file for everyone, now using sha256 instead of md5
+    # Now that all files are written, can write the checksums file
+    # for everyone, now using sha256 instead of md5
     @classmethod
     def write_checksums(cls, archive_record):
         super().write_checksums(archive_record)
