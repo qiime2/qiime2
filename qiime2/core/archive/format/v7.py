@@ -6,10 +6,13 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import subprocess
+
 import qiime2.core.archive.format.v6 as v6
 
 
 class ArchiveFormat(v6.ArchiveFormat):
+    CONDA_ENV_FILE = 'conda-env.yaml'
     # TODO: NEW annotations dir
     # This will live under prov and can contain license, notes, etc
     # Contains its own self-signed checksum
@@ -25,10 +28,36 @@ class ArchiveFormat(v6.ArchiveFormat):
     # This will be its own file in the top level dir
     # (similar to the checksums file)
 
-    # TODO: NEW conda env file
-    # This will dump the contents of conda env export into a file
-    # that will live under prov/action (something like conda-env.yaml)
-
     # TODO: UPDATE action.yaml with CPU flags
     # Use psutil to pull these and add as a new section under action.yaml
-    pass
+
+    # We call init_files first to ensure that all files are written prior to checksums being calculated (relevant for this new conda-env.yaml file)
+    @classmethod
+    def init_files(cls, archive_record, provenance_capture):
+        super().init_files(archive_record, provenance_capture)
+
+        conda_fp = \
+            archive_record.root / cls.PROVENANCE_DIR / cls.CONDA_ENV_FILE
+
+        try:
+            cmd = subprocess.run(["conda", "env", "export"],
+                                 capture_output=True,
+                                 text=True, check=True)
+
+            lines = cmd.stdout.splitlines()
+            filtered_lines = [
+                line + '\n' for line in lines
+                if not (line.startswith("name:") or line.startswith("prefix:"))
+            ]
+
+            with conda_fp.open(mode='w') as fh:
+                fh.writelines(filtered_lines)
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error exporting conda environment: {e}")
+
+    # Now that all files are written, can now write the checksums file for everyone, now using sha256 instead of md5
+    @classmethod
+    def write_checksums(cls, archive_record):
+        super().write_checksums(archive_record)
+        # now we write sha256 instead of md5

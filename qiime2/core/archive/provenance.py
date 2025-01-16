@@ -275,7 +275,6 @@ class ProvenanceCapture:
     ACTION_DIR = 'action'
     ACTION_FILE = 'action.yaml'
     CITATION_FILE = 'citations.bib'
-    CONDA_ENV_FILE = 'conda-env.yaml'
 
     def __init__(self):
         self.start = time.time()
@@ -487,16 +486,6 @@ class ProvenanceCapture:
     def write_citations_bib(self):
         self.citations.save(str(self.path / self.CITATION_FILE))
 
-    def write_conda_env_yaml(self):
-        try:
-            cmd = subprocess.run(["conda", "env", "export"],
-                                 capture_output=True,
-                                 text=True, check=True)
-            with (self.path / self.CONDA_ENV_FILE).open(mode='w') as fh:
-                fh.write(cmd.stdout)
-        except subprocess.CalledProcessError as e:
-            print(f"Error exporting conda environment: {e}")
-
     def finalize(self, final_path, node_members):
         self.end = time.time()
 
@@ -505,7 +494,6 @@ class ProvenanceCapture:
 
         self.write_action_yaml()
         self.write_citations_bib()
-        self.write_conda_env_yaml()
 
         # Certain networked filesystems will experience a race
         # condition on `rename`, so fall back to copying.

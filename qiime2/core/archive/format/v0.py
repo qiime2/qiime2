@@ -49,7 +49,7 @@ class ArchiveFormat:
             return self._parse_metadata(fh, expected_uuid=archive.uuid)
 
     @classmethod
-    def write(cls, archive_record, type, format, data_initializer, _):
+    def write(cls, archive_record, type, format, data_initializer, provenance_capture):
         root = archive_record.root
         metadata_fp = root / cls.METADATA_FILE
 
@@ -60,6 +60,17 @@ class ArchiveFormat:
         data_dir.mkdir()
 
         data_initializer(data_dir)
+
+        cls.init_files(archive_record, provenance_capture)
+        cls.write_checksums(archive_record)
+
+    @classmethod
+    def init_files(cls, archive_record, provenance_capture):
+        pass
+
+    @classmethod
+    def write_checksums(cls, archive_record):
+        pass
 
     def __init__(self, archive_record):
         path = archive_record.root

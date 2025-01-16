@@ -15,11 +15,7 @@ class ArchiveFormat(v4.ArchiveFormat):
     # Adds `checksums.md5` to root of directory structure
 
     @classmethod
-    def write(cls, archive_record, type, format, data_initializer,
-              provenance_capture):
-        super().write(archive_record, type, format, data_initializer,
-                      provenance_capture)
-
+    def write_checksums(cls, archive_record):
         checksums = md5sum_directory(str(archive_record.root))
         with (archive_record.root / cls.CHECKSUM_FILE).open('w') as fh:
             for item in checksums.items():

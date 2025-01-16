@@ -13,10 +13,9 @@ class ArchiveFormat(v0.ArchiveFormat):
     PROVENANCE_DIR = 'provenance'
 
     @classmethod
-    def write(cls, archive_record, type, format, data_initializer,
-              provenance_capture):
-        super().write(archive_record, type, format, data_initializer,
-                      provenance_capture)
+    def init_files(cls, archive_record, provenance_capture):
+        super().init_files(archive_record, provenance_capture)
+
         root = archive_record.root
 
         prov_dir = root / cls.PROVENANCE_DIR
