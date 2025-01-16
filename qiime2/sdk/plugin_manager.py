@@ -8,7 +8,7 @@
 
 import collections
 import os
-import pkg_resources
+import importlib.metadata
 import enum
 
 import qiime2.core.type
@@ -42,7 +42,7 @@ class PluginManager:
         yielded.
 
         """
-        for entry_point in pkg_resources.iter_entry_points(
+        for entry_point in importlib.metadata.entry_points(
                 group=cls.entry_point_group):
             if 'QIIMETEST' in os.environ:
                 if entry_point.name in ('dummy-plugin', 'other-plugin'):
@@ -100,8 +100,8 @@ class PluginManager:
             # These are all dependent loops, each requires the loop above it to
             # be completed.
             for entry_point in self.iter_entry_points():
-                project_name = entry_point.dist.project_name
-                package = entry_point.module_name.split('.')[0]
+                project_name = entry_point.name
+                package = entry_point.value.split('.')[0]
                 plugin = entry_point.load()
 
                 self.add_plugin(plugin, package, project_name,

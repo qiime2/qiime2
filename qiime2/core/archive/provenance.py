@@ -10,7 +10,8 @@ import os
 import time
 import collections
 import collections.abc
-import pkg_resources
+import platform
+import importlib.metadata
 import uuid
 import copy
 import shutil
@@ -373,8 +374,14 @@ class ProvenanceCapture:
         return ForwardRef('environment:plugins:' + plugin.name)
 
     def capture_env(self):
-        return collections.OrderedDict(
-            (d.project_name, d.version) for d in pkg_resources.working_set)
+        env = collections.OrderedDict()
+
+        for pkg_list in importlib.metadata.packages_distributions().values():
+            for pkg in pkg_list:
+                version = importlib.metadata.version(pkg)
+                env[pkg] = version
+
+        return env
 
     def transformation_recorder(self, name):
         section = self.transformers[name] = []
@@ -453,7 +460,7 @@ class ProvenanceCapture:
 
     def make_env_section(self):
         env = collections.OrderedDict()
-        env['platform'] = pkg_resources.get_build_platform()
+        env['platform'] = platform.platform()
         # There is a trailing whitespace in sys.version, strip so that YAML can
         # use literal formatting.
         env['python'] = LiteralString('\n'.join(line.strip() for line in

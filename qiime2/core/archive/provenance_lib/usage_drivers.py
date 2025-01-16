@@ -7,7 +7,7 @@
 # ----------------------------------------------------------------------------
 from datetime import datetime
 from importlib.metadata import metadata
-import pkg_resources
+import importlib.resources
 import textwrap
 from typing import Any, Callable, List
 
@@ -116,14 +116,14 @@ def build_footer(dag: ProvDAG, boundary: str) -> List[str]:
 class ReplayPythonUsage(ArtifactAPIUsage):
     shebang = '#!/usr/bin/env python'
     header_boundary = '# ' + ('-' * 77)
-    copyright = pkg_resources.resource_string(
-        'qiime2.core.archive.provenance_lib',
-        'assets/copyright_note.txt'
-    ).decode('utf-8').split('\n')
-    how_to = pkg_resources.resource_string(
-        'qiime2.core.archive.provenance_lib',
-        'assets/python_howto.txt'
-    ).decode('utf-8').split('\n')
+    copyright = importlib.resources.read_text(
+        'qiime2.core.archive.provenance_lib.assets',
+        'copyright_note.txt'
+        ).split('\n')
+    how_to = importlib.resources.read_text(
+        'qiime2.core.archive.provenance_lib.assets',
+        'python_howto.txt'
+        ).split('\n')
 
     def __init__(
         self,
