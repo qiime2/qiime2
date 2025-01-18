@@ -374,14 +374,10 @@ class ProvenanceCapture:
         return ForwardRef('environment:plugins:' + plugin.name)
 
     def capture_env(self):
-        env = collections.OrderedDict()
-
-        for pkg_list in importlib.metadata.packages_distributions().values():
-            for pkg in pkg_list:
-                version = importlib.metadata.version(pkg)
-                env[pkg] = version
-
-        return env
+        return collections.OrderedDict(
+            (d.metadata["Name"], d.metadata["Version"]) for d in
+            importlib.metadata.distributions()
+        )
 
     def transformation_recorder(self, name):
         section = self.transformers[name] = []
@@ -468,7 +464,13 @@ class ProvenanceCapture:
         env['framework'] = self.make_software_entry(
             qiime2.__version__, qiime2.__website__, self._framework_citations)
         env['plugins'] = self.plugins
-        env['python-packages'] = self.capture_env()
+
+        # sort pkgs alphabetically, ignoring upper/lower casing
+        unsorted_packages = self.capture_env()
+        sorted_packages = collections.OrderedDict(
+            sorted(unsorted_packages.items(), key=lambda x: x[0].lower())
+        )
+        env['python-packages'] = sorted_packages
 
         return env
 
