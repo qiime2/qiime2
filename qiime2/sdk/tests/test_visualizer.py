@@ -252,10 +252,12 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/artifacts/%s/metadata.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/VERSION' % artifact1.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact1.uuid,
+            'provenance/artifacts/%s/conda-env.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/metadata.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/VERSION' % artifact2.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact2.uuid,
+            'provenance/artifacts/%s/conda-env.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid
         }
 
@@ -302,6 +304,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/artifacts/%s/metadata.yaml' % artifact.uuid,
             'provenance/artifacts/%s/VERSION' % artifact.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact.uuid,
+            'provenance/artifacts/%s/conda-env.yaml' % artifact.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact.uuid
         }
 
@@ -407,10 +410,12 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/artifacts/%s/metadata.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/VERSION' % artifact1.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact1.uuid,
+            'provenance/artifacts/%s/conda-env.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/metadata.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/VERSION' % artifact2.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact2.uuid,
+            'provenance/artifacts/%s/conda-env.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid
         }
 
