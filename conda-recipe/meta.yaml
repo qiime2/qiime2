@@ -27,6 +27,7 @@ requirements:
   - appdirs
   - tomlkit
   - lxml
+  - py-cpuinfo
   - ruamel.yaml
   - humanize
   build:
