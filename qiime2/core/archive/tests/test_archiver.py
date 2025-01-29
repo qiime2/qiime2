@@ -94,6 +94,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -113,6 +114,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -158,6 +160,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '%s/provenance/metadata.yaml' % root_dir,
                 '%s/provenance/VERSION' % root_dir,
                 '%s/provenance/citations.bib' % root_dir,
+                '%s/provenance/conda-env.yaml' % root_dir,
                 '%s/provenance/action/action.yaml' % root_dir
             }
 
@@ -235,6 +238,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '%s/provenance/metadata.yaml' % root_dir,
                 '%s/provenance/VERSION' % root_dir,
                 '%s/provenance/citations.bib' % root_dir,
+                '%s/provenance/conda-env.yaml' % root_dir,
                 '%s/provenance/action/action.yaml' % root_dir,
                 '%s/VERSION' % second_root_dir
             }

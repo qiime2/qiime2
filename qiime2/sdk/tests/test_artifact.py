@@ -151,6 +151,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -213,6 +214,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -230,6 +232,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -324,6 +327,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 

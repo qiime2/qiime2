@@ -247,6 +247,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/VERSION' % artifact1.uuid,
@@ -296,6 +297,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact.uuid,
             'provenance/artifacts/%s/VERSION' % artifact.uuid,
@@ -327,6 +329,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -353,6 +356,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -398,6 +402,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/VERSION' % artifact1.uuid,
