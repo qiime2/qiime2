@@ -17,7 +17,7 @@ mystery-stew: all
 	MYSTERY_STEW= pytest qiime2/tests/mystery_stew.py -n auto
 
 install: all
-	$(PYTHON) setup.py install && \
+	$(PYTHON) -m pip install -v . && \
 	mkdir -p $(PREFIX)/etc/conda/activate.d && \
 	cp hooks/00_activate_qiime2_envs.sh $(PREFIX)/etc/conda/activate.d/ && \
 	mkdir -p $(PREFIX)/etc/conda/deactivate.d && \

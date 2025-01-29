@@ -72,3 +72,7 @@ target/
 
 #Parsl log
 runinfo
+
+# Version file from versioningit
+_version.py
+
