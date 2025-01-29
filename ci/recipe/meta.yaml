@@ -38,6 +38,7 @@ requirements:
     - appdirs
     - tomlkit
     - lxml
+    - py-cpuinfo
 
 test:
   requires:
