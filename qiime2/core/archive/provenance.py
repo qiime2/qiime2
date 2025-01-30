@@ -20,7 +20,6 @@ from datetime import datetime, timezone
 from typing import Any, List, NamedTuple, Set, Union
 from pathlib import Path
 
-# import cpuinfo
 import distutils
 import yaml
 import tzlocal
@@ -455,7 +454,6 @@ class ProvenanceCapture:
     def make_env_section(self):
         env = collections.OrderedDict()
         env['platform'] = pkg_resources.get_build_platform()
-        # env['cpu-flags'] = cpuinfo.get_cpu_info().get('flags', [])
         # There is a trailing whitespace in sys.version, strip so that YAML can
         # use literal formatting.
         env['python'] = LiteralString('\n'.join(line.strip() for line in

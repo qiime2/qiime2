@@ -6,7 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import subprocess
+import os
+import pathlib
 
 import qiime2.core.archive.format.v6 as v6
 
@@ -22,14 +23,8 @@ class ArchiveFormat(v6.ArchiveFormat):
     # or can be added to the QIIME 2 config with a 'pull default author' flag
     # that can be enabled
 
-    # TODO: NEW filesizes file
-    # This will list all of the files within the data dir
-    # and their respective sizes in bytes
-    # This will be its own file in the top level dir
-    # (similar to the checksums file)
-
-    # TODO: UPDATE action.yaml with CPU flags
-    # Use psutil to pull these and add as a new section under action.yaml
+    # TODO: NEW filesizes under execution section of action.yaml
+    # this will list the total size of all files under data directory
 
     # We call init_files first to ensure that all files are written prior to
     # checksums being calculated (relevant for this new conda-env.yaml file)
@@ -40,22 +35,24 @@ class ArchiveFormat(v6.ArchiveFormat):
         conda_fp = \
             archive_record.root / cls.PROVENANCE_DIR / cls.CONDA_ENV_FILE
 
-        try:
-            cmd = subprocess.run(["conda", "env", "export"],
-                                 capture_output=True,
-                                 text=True, check=True)
+        conda_prefix = os.environ.get('CONDA_PREFIX')
 
-            lines = cmd.stdout.splitlines()
-            filtered_lines = [
-                line + '\n' for line in lines
-                if not (line.startswith("name:") or line.startswith("prefix:"))
-            ]
+        if conda_prefix:
+            conda_meta_dir = pathlib.Path(conda_prefix) / 'conda-meta'
 
+            if conda_meta_dir.exists():
+                meta_files = \
+                    [file.stem for file in conda_meta_dir.iterdir()
+                     if file.is_file()]
+
+                with conda_fp.open(mode='w') as fh:
+                    fh.write('dependencies:\n')
+                    fh.writelines(f'- {filename}\n'
+                                  for filename in sorted(meta_files))
+
+        else:
             with conda_fp.open(mode='w') as fh:
-                fh.writelines(filtered_lines)
-
-        except subprocess.CalledProcessError as e:
-            print(f"Error exporting conda environment: {e}")
+                fh.write('No conda environment detected.')
 
     # Now that all files are written, can write the checksums file
     # for everyone, now using sha256 instead of md5

@@ -27,7 +27,6 @@ requirements:
   - appdirs
   - tomlkit
   - lxml
-  - py-cpuinfo
   build:
   - python {{ python }}
   - setuptools
