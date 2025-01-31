@@ -16,8 +16,8 @@ class ArchiveFormat(v6.ArchiveFormat):
     CONDA_ENV_FILE = 'conda-env.yaml'
     # TODO: NEW annotations dir
     # This will live under prov and can contain license, notes, etc
-    # Contains its own self-signed checksum
-    # Also references the machine generated checksum from top level
+    # Contains its own self-signed sha256checksum
+    # Also references the machine generated md5checksum from top level
     # For any notes files (something like note-1.txt, note-2.txt, etc)
     # Author is required, and this can either be added manually to each note
     # or can be added to the QIIME 2 config with a 'pull default author' flag
@@ -52,10 +52,18 @@ class ArchiveFormat(v6.ArchiveFormat):
 
         else:
             with conda_fp.open(mode='w') as fh:
-                fh.write('No conda environment detected.')
+                fh.write('error: no conda environment detected.\n')
 
-    # Now that all files are written, can write the checksums file
-    # for everyone, now using sha256 instead of md5
+    # need to add a special write operation to ensure that the contents of the
+    # data dir are written prior to the prov dir so that file sizes within
+    # data dir can be accurately collected and included in action.yaml
+    @classmethod
+    def write():
+        super().write()
+
+    # TODO: figure out how to separate checksum type by self-signed vs.
+    # machine generated to ensure that we use sha256 for all self-signed
+    # checksums, while all machine generated checksums can remain md5
     @classmethod
     def write_checksums(cls, archive_record):
         super().write_checksums(archive_record)
