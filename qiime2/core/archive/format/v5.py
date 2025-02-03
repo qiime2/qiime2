@@ -11,8 +11,17 @@ from qiime2.core.util import md5sum_directory, to_checksum_format
 
 
 class ArchiveFormat(v4.ArchiveFormat):
-    CHECKSUM_FILE = 'checksums.md5'
     # Adds `checksums.md5` to root of directory structure
+    CHECKSUM_FILE = 'checksums.md5'
+
+    @classmethod
+    def write(cls, archive_record, type, format,
+              data_initializer, provenance_capture):
+        super().write(archive_record, type, format,
+                      data_initializer, provenance_capture)
+
+        # make sure checksums are written last
+        cls.write_checksums(archive_record)
 
     @classmethod
     def write_checksums(cls, archive_record):

@@ -27,6 +27,8 @@ requirements:
   - appdirs
   - tomlkit
   - lxml
+  - ruamel.yaml
+  - humanize
   build:
   - python {{ python }}
   - setuptools

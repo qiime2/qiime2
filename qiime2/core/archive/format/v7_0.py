@@ -6,9 +6,13 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import humanize
 import os
 import pathlib
 
+from ruamel.yaml import YAML
+
+import qiime2.core.archive.format.v1 as v1
 import qiime2.core.archive.format.v6 as v6
 
 
@@ -23,15 +27,17 @@ class ArchiveFormat(v6.ArchiveFormat):
     # or can be added to the QIIME 2 config with a 'pull default author' flag
     # that can be enabled
 
-    # TODO: NEW filesizes under execution section of action.yaml
-    # this will list the total size of all files under data directory
-
-    # We call init_files first to ensure that all files are written prior to
-    # checksums being calculated (relevant for this new conda-env.yaml file)
     @classmethod
-    def init_files(cls, archive_record, provenance_capture):
-        super().init_files(archive_record, provenance_capture)
+    def write(cls, archive_record, type, format,
+              data_initializer, provenance_capture):
+        # pulling from the most recent write version that doesn't include
+        # checksums - that way we ensure those are only calculated once
+        # after all requisite files are present.
+        v1.ArchiveFormat.write(archive_record, type, format,
+                               data_initializer, provenance_capture)
 
+        # now we add extras within prov specific to v7
+        # conda-env.yaml
         conda_fp = \
             archive_record.root / cls.PROVENANCE_DIR / cls.CONDA_ENV_FILE
 
@@ -54,12 +60,34 @@ class ArchiveFormat(v6.ArchiveFormat):
             with conda_fp.open(mode='w') as fh:
                 fh.write('error: no conda environment detected.\n')
 
-    # need to add a special write operation to ensure that the contents of the
-    # data dir are written prior to the prov dir so that file sizes within
-    # data dir can be accurately collected and included in action.yaml
-    @classmethod
-    def write():
-        super().write()
+        # TODO: add file sizes of data/ under exection section of action.yaml
+        data_fp = archive_record.root / cls.DATA_DIR
+        action_fp = \
+            archive_record.root / cls.PROVENANCE_DIR / 'action' / 'action.yaml'
+
+        total_size = 0
+        for path in data_fp.iterdir():
+            if path.is_file():
+                file_size = path.stat().st_size
+                total_size += file_size
+
+        datadir_size = humanize.naturalsize(total_size, binary=True)
+
+        # using ruamel.yaml bc it's more considerate of existing formatting
+        yaml = YAML()
+        yaml.preserve_quotes = True
+
+        with action_fp.open('r') as fp:
+            action_yaml = yaml.load(fp)
+
+        execution = action_yaml['execution']
+        execution.insert(1, 'datadir-size', datadir_size)
+
+        with action_fp.open('w') as fp:
+            yaml.dump(action_yaml, fp)
+
+        # make sure checksums are written last
+        cls.write_checksums(archive_record)
 
     # TODO: figure out how to separate checksum type by self-signed vs.
     # machine generated to ensure that we use sha256 for all self-signed

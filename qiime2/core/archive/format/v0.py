@@ -57,17 +57,13 @@ class ArchiveFormat:
         with metadata_fp.open(mode='w') as fh:
             cls._format_metadata(fh, archive_record.uuid, type, format)
 
+        # contents of data dir written here
         data_dir = root / cls.DATA_DIR
         data_dir.mkdir()
 
         data_initializer(data_dir)
 
-        cls.init_files(archive_record, provenance_capture)
         cls.write_checksums(archive_record)
-
-    @classmethod
-    def init_files(cls, archive_record, provenance_capture):
-        pass
 
     @classmethod
     def write_checksums(cls, archive_record):

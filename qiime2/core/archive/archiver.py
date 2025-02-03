@@ -280,7 +280,7 @@ class Archiver:
         '4': 'qiime2.core.archive.format.v4:ArchiveFormat',
         '5': 'qiime2.core.archive.format.v5:ArchiveFormat',
         '6': 'qiime2.core.archive.format.v6:ArchiveFormat',
-        '7': 'qiime2.core.archive.format.v7:ArchiveFormat'
+        '7': 'qiime2.core.archive.format.v7_0:ArchiveFormat'
     }
 
     @classmethod
@@ -303,6 +303,10 @@ class Archiver:
 
     @classmethod
     def get_format_class(cls, version):
+        # if '.' in version:
+        # TODO: if dot is present, try finding the version and then walk
+        # backwards from the dot until zero to check for available minor
+        # versions. Else handle as below.
         try:
             imp, fmt_cls = cls._FORMAT_REGISTRY[version].split(':')
         except KeyError:
