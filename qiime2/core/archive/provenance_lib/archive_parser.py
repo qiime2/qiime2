@@ -1089,5 +1089,5 @@ FORMAT_REGISTRY = {
     '4': ParserV4,
     '5': ParserV5,
     '6': ParserV6,
-    '7': ParserV7
+    '7.0': ParserV7
 }
