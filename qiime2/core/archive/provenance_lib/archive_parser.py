@@ -120,7 +120,10 @@ class ProvNode:
 
     @property
     def has_provenance(self) -> bool:
-        return int(self.archive_version) > 1
+        if '.' in self.archive_version:
+            return float(self.archive_version) >= 7.0
+        else:
+            return int(self.archive_version) > 1
 
     @property
     def citations(self) -> Dict:
