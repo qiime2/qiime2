@@ -123,7 +123,7 @@ def diff_checksums(zf: ZipFile) -> ChecksumDiff:
     '''
     archive_version, _ = parse_version(zf)
     # TODO: don't think this is ever called
-    if int(archive_version) < 5:
+    if float(archive_version) < 5.0:
         return ChecksumDiff({}, {}, {})
 
     root_dir = pathlib.Path(get_root_uuid(zf))
