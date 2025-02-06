@@ -168,8 +168,9 @@ class TestVersionParser(unittest.TestCase):
     def test_archive_version_1digit_numeric(self):
         self.assertRegex('archive: 1\n', self.re_l2)
 
+    # modified to accommodate semantic versioning for <=7.0
     def test_archive_version_2digit_numeric(self):
-        self.assertRegex('archive: 12\n', self.re_l2)
+        self.assertRegex('archive: 12.0\n', self.re_l2)
 
     def test_archive_version_bad(self):
         self.assertNotRegex('agama agama\n', self.re_l2)

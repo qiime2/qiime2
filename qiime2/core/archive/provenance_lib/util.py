@@ -53,7 +53,8 @@ def get_nonroot_uuid(fp: pathlib.Path) -> str:
 
 _VERSION_MATCHER = (
     r'QIIME 2\n'
-    r'archive: [0-9]+(?:\.[0-9]+)?$\n'
+    # allows for 0-6 as ints and 7.0+ as floats
+    r'archive: (?:[0-6]|[7-9]\.[0-9]+|[1-9][0-9]+\.[0-9]+)$\n'
     r'framework: '
     r'(?:20[0-9]{2}|2)\.(?:[1-9][0-2]?|0)\.[0-9](?:\.dev[0-9]?)?'
     r'(?:\+[.\w]+)?\Z'

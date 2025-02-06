@@ -6,11 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import humanize
 import os
 import pathlib
-
-from ruamel.yaml import YAML
 
 import qiime2.core.archive.format.v1 as v1
 import qiime2.core.archive.format.v6 as v6
@@ -59,32 +56,6 @@ class ArchiveFormat(v6.ArchiveFormat):
         else:
             with conda_fp.open(mode='w') as fh:
                 fh.write('error: no conda environment detected.\n')
-
-        # TODO: add file sizes of data/ under exection section of action.yaml
-        data_fp = archive_record.root / cls.DATA_DIR
-        action_fp = \
-            archive_record.root / cls.PROVENANCE_DIR / 'action' / 'action.yaml'
-
-        total_size = 0
-        for path in data_fp.iterdir():
-            if path.is_file():
-                file_size = path.stat().st_size
-                total_size += file_size
-
-        datadir_size = humanize.naturalsize(total_size, binary=True)
-
-        # using ruamel.yaml bc it's more considerate of existing formatting
-        yaml = YAML()
-        yaml.preserve_quotes = True
-
-        with action_fp.open('r') as fp:
-            action_yaml = yaml.load(fp)
-
-        execution = action_yaml['execution']
-        execution.insert(1, 'datadir-size', datadir_size)
-
-        with action_fp.open('w') as fp:
-            yaml.dump(action_yaml, fp)
 
         # make sure checksums are written last
         cls.write_checksums(archive_record)

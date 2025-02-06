@@ -135,6 +135,7 @@ class TestProvenanceIntegration(unittest.TestCase):
         p_dir = obs._archiver.provenance_dir
         with (p_dir / 'action' / 'action.yaml').open() as fh:
             yaml = fh.read()
+            raise ValueError(yaml)
 
         self.assertIn('ints: %s' % ints1.uuid, yaml)
         self.assertIn('optional1: %s' % ints2.uuid, yaml)

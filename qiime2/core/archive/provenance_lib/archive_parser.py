@@ -1078,8 +1078,9 @@ class ParserV6(ParserV5):
 
 
 class ParserV7(ParserV6):
+    # TODO: add completed new features here.
     '''
-    Parser for V7 archives. TODO add completed new features here.
+    Parser for V7 archives.
     '''
 
 

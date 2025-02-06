@@ -25,6 +25,7 @@ import cpuinfo
 import distutils
 import yaml
 import tzlocal
+import humanize
 import dateutil.relativedelta as relativedelta
 
 import qiime2
@@ -39,6 +40,27 @@ def _ts_to_date(ts):
     except ValueError:
         pass
     return datetime.fromtimestamp(ts, tz=time_zone)
+
+
+def _get_datadir_size(self):
+    data_fp = self._archiver.data_dir
+
+    total_size = sum(path.stat().st_size for path in data_fp.iterdir()
+                     if path.is_file())
+    datadir_size = humanize.naturalsize(total_size, binary=True)
+
+    action_yaml_path = self.action_dir / 'action.yaml'
+
+    with action_yaml_path.open('r') as fp:
+        action_yaml = yaml.safe_load(fp)
+
+    execution = action_yaml.get('execution', {})
+    execution['datadir-size'] = datadir_size
+    action_yaml['execution'] = execution
+
+    # Write back the modified YAML
+    with action_yaml_path.open('w') as fp:
+        yaml.safe_dump(action_yaml, fp, default_flow_style=False, indent=4)
 
 
 # Used to give PyYAML something to recognize for custom tags
@@ -433,6 +455,7 @@ class ProvenanceCapture:
     def make_execution_section(self):
         execution = collections.OrderedDict()
         execution['uuid'] = str(self.uuid)
+        execution['datadir-size'] = self._get_datadir_size()
         execution['runtime'] = runtime = collections.OrderedDict()
         runtime['start'] = start = _ts_to_date(self.start)
         runtime['end'] = end = _ts_to_date(self.end)
