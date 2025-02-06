@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import psutil
+import subprocess
 
 from qiime2.core.transform import ModelType
 
@@ -44,3 +45,21 @@ def get_available_cores(n_less: int = 0):
         return cpus - n_less
 
     return 1
+
+
+def run_commands(cmds, verbose=True):
+    '''
+    Helper method for subprocess calls. Typically used when wrapping
+    external tools/methods within a QIIME 2 plugin.
+    '''
+    if verbose:
+        print("Running external command line application(s). This may print "
+              "messages to stdout and/or stderr.")
+        print("The command(s) being run are below. These commands cannot "
+              "be manually re-run as they will depend on temporary files that "
+              "no longer exist.")
+    for cmd in cmds:
+        if verbose:
+            print("\nCommand:", end=' ')
+            print(" ".join(cmd), end='\n\n')
+        subprocess.run(cmd, check=True)
