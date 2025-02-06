@@ -7,7 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import re
-from pkg_resources import iter_entry_points
+from importlib.metadata import entry_points
 from typing import Dict, TYPE_CHECKING
 
 import qiime2.sdk
@@ -181,6 +181,6 @@ def get_available_usage_drivers() -> Dict[str, 'UsageDriver']:
         themselves).
     '''
     return {
-        entry_point.name: entry_point.resolve() for entry_point in
-        iter_entry_points(group='qiime2.usage_drivers')
+        entry_point.name: entry_point.load() for entry_point in
+        entry_points(group='qiime2.usage_drivers')
     }

@@ -10,7 +10,7 @@ from bibtexparser.bwriter import BibTexWriter
 import networkx as nx
 import os
 import pathlib
-import pkg_resources
+import importlib.resources
 import shutil
 import tempfile
 from uuid import uuid4
@@ -1370,10 +1370,8 @@ def dedupe_citations(citations: List[Dict]) -> List[Dict]:
 
         if 'framework|qiime2' in citation_id:
             if not is_framework_cited:
-                root = pkg_resources.resource_filename('qiime2', '.')
-                root = os.path.abspath(root)
-                path = os.path.join(root, 'citations.bib')
-                with open(path) as bibtex_file:
+                with importlib.resources.open_text(
+                        'qiime2', 'citations.bib') as bibtex_file:
                     q2_entry = bp.load(bibtex_file).entries.pop()
 
                 q2_entry['ID'] = citation_id

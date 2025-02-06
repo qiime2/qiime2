@@ -8,7 +8,7 @@
 
 import os
 from typing import Union, Optional, IO
-import pkg_resources
+import importlib.resources
 import collections
 
 import bibtexparser as bp
@@ -56,16 +56,17 @@ class Citations(collections.OrderedDict):
         -------
         Citations
         """
-        if package is not None:
-            root = pkg_resources.resource_filename(package, '.')
-            root = os.path.abspath(root)
-            path = os.path.join(root, path)
-
         parser = bp.bparser.BibTexParser()
         # Downstream tooling is much easier with unicode. For actual latex
         # users, use the modern biber backend instead of bibtex
         parser.customization = bp.customization.convert_to_unicode
-        with open(path) as fh:
+
+        if package is not None:
+            file = importlib.resources.open_text(package, path)
+        else:
+            file = open(path)
+
+        with file as fh:
             try:
                 db = bp.load(fh, parser=parser)
             except Exception as e:
