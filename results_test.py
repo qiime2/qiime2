@@ -53,7 +53,7 @@ class Results(tuple):
         return self
     def __iter__(self):
         """Allow iteration over (key, value) pairs. """
-        return iter(zip(self._fields, super().__iter__())) 
+        return iter(zip(self._fields,super().__iter__()))
     
     def to_dict(self):
         """Return the results as a dictionary"""
@@ -124,7 +124,18 @@ class Results(tuple):
             explanation.
         """
         return self
+if __name__ == "__main__":
+    results = Results(["out1", "out2"], ["Artifact1", "Artifact2"])
     
+    # Print results as tuple
+    print("Tuple format:", results)
+    
+    # Print results as dictionary
+    print("Dictionary format:", results.to_dict())
+    
+    # Iterate over key-value pairs
+    for key, value in results:
+        print(f"{key}: {value}")
 
 
 
