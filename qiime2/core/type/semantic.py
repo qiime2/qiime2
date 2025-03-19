@@ -16,25 +16,59 @@ from qiime2.core.type.util import is_semantic_type, is_qiime_type
 
 _RESERVED_NAMES = {
     # Predicates:
-    'range', 'choice', 'properties', 'arguments',
+    "range",
+    "choice",
+    "properties",
+    "arguments",
     # Primitives:
-    'integer', 'int', 'string', 'str', 'metadata', 'metadatacolumn',
-    'categoricalmetadatacolumn', 'numericmetadatacolumn', 'column',
-    'categoricalcolumn', 'numericcolumn', 'metacol', 'categoricalmetacol',
-    'numericmetacol', 'metadatacategory', 'float', 'double', 'number', 'set',
-    'list', 'bag', 'multiset', 'map', 'dict', 'nominal', 'ordinal',
-    'categorical', 'numeric', 'interval', 'ratio', 'continuous', 'discrete',
-    'tuple', 'row', 'record',
+    "integer",
+    "int",
+    "string",
+    "str",
+    "metadata",
+    "metadatacolumn",
+    "categoricalmetadatacolumn",
+    "numericmetadatacolumn",
+    "column",
+    "categoricalcolumn",
+    "numericcolumn",
+    "metacol",
+    "categoricalmetacol",
+    "numericmetacol",
+    "metadatacategory",
+    "float",
+    "double",
+    "number",
+    "set",
+    "list",
+    "bag",
+    "multiset",
+    "map",
+    "dict",
+    "nominal",
+    "ordinal",
+    "categorical",
+    "numeric",
+    "interval",
+    "ratio",
+    "continuous",
+    "discrete",
+    "tuple",
+    "row",
+    "record",
     # Type System:
-    'semantictype', 'propertymap', 'propertiesmap', 'typemap', 'typevariable',
-    'predicate'
+    "semantictype",
+    "propertymap",
+    "propertiesmap",
+    "typemap",
+    "typevariable",
+    "predicate",
 }
 
 
 def _validate_name(name):
     if type(name) is not str:
-        raise TypeError("Names of semantic types must be strings, not %r."
-                        % name)
+        raise TypeError("Names of semantic types must be strings, not %r." % name)
     if name.lower() in _RESERVED_NAMES:
         raise ValueError("%r is a reserved name." % name)
 
@@ -84,9 +118,10 @@ def _munge_variant_of(variant_of):
         variant_of = tuple(variant_of)
         for variant in variant_of:
             if not isinstance(variant, VariantField):
-                raise ValueError("Element %r of %r is not a variant field"
-                                 " (ExampleType.field['name'])."
-                                 % (variant, variant_of))
+                raise ValueError(
+                    "Element %r of %r is not a variant field"
+                    " (ExampleType.field['name'])." % (variant, variant_of)
+                )
     return variant_of
 
 
@@ -100,8 +135,9 @@ def _munge_field_names(field_names):
     field_names = tuple(field_names)
     for field_name in field_names:
         if type(field_name) is not str:
-            raise ValueError("Field name %r from %r is not a string."
-                             % (field_name, field_names))
+            raise ValueError(
+                "Field name %r from %r is not a string." % (field_name, field_names)
+            )
     if len(set(field_names)) != len(field_names):
         raise ValueError("Duplicate field names in %r." % field_names)
 
@@ -123,16 +159,20 @@ def _munge_field_members(field_names, field_members):
 
     for key, value in field_members.items():
         if key not in field_names:
-            raise ValueError("Field member key: %r is not in `field_names`"
-                             " (%r)." % (key, field_names))
+            raise ValueError(
+                "Field member key: %r is not in `field_names`"
+                " (%r)." % (key, field_names)
+            )
         if is_qiime_type(value) and is_semantic_type(value):
             fixed[key] = (value,)
         else:
             value = tuple(value)
             for v in value:
                 if not is_semantic_type(v):
-                    raise ValueError("Field member: %r (of field %r) is not a"
-                                     " semantic type." % (v, key))
+                    raise ValueError(
+                        "Field member: %r (of field %r) is not a"
+                        " semantic type." % (v, key)
+                    )
             fixed[key] = value
     return fixed
 
@@ -166,13 +206,14 @@ class VariantField:
 
 
 class SemanticTemplate(TypeTemplate):
-    public_proxy = 'field',
+    public_proxy = ("field",)
 
     def __init__(self, name, field_names, field_members, variant_of):
         self.name = name
         self.field_names = field_names
-        self.__field = {f: VariantField(name, f, field_members[f])
-                        for f in self.field_names}
+        self.__field = {
+            f: VariantField(name, f, field_members[f]) for f in self.field_names
+        }
         self.variant_of = variant_of
 
     @property
@@ -180,17 +221,23 @@ class SemanticTemplate(TypeTemplate):
         return types.MappingProxyType(self.__field)
 
     def __eq__(self, other):
-        return (type(self) is type(other)
-                and self.name == other.name
-                and self.fields == other.fields
-                and self.variant_of == other.variant_of)
+        return (
+            type(self) is type(other)
+            and self.name == other.name
+            and self.fields == other.fields
+            and self.variant_of == other.variant_of
+        )
 
     def __hash__(self):
-        return (hash(type(self)) ^ hash(self.name)
-                ^ hash(self.fields) ^ hash(self.variant_of))
+        return (
+            hash(type(self))
+            ^ hash(self.name)
+            ^ hash(self.fields)
+            ^ hash(self.variant_of)
+        )
 
     def get_kind(self):
-        return 'semantic-type'
+        return "semantic-type"
 
     def get_name(self):
         return self.name
@@ -200,8 +247,11 @@ class SemanticTemplate(TypeTemplate):
 
     def is_element_expr(self, self_expr, value):
         import qiime2.sdk
-        if not (isinstance(value, qiime2.sdk.Artifact) or
-                isinstance(value, qiime2.sdk.proxy.ProxyArtifact)):
+
+        if not (
+            isinstance(value, qiime2.sdk.Artifact)
+            or isinstance(value, qiime2.sdk.proxy.ProxyArtifact)
+        ):
             return False
         return value.type <= self_expr
 
@@ -213,10 +263,8 @@ class SemanticTemplate(TypeTemplate):
 
     def validate_fields_expr(self, self_expr, fields_expr):
         self.validate_field_count(len(fields_expr))
-        for expr, varf in zip(fields_expr,
-                              [self.field[n] for n in self.field_names]):
-            if (expr.template is not None
-                    and hasattr(expr.template, 'is_variant')):
+        for expr, varf in zip(fields_expr, [self.field[n] for n in self.field_names]):
+            if expr.template is not None and hasattr(expr.template, "is_variant"):
                 check = expr.template.is_variant
             else:
                 check = self.is_variant
@@ -236,7 +284,7 @@ class SemanticTemplate(TypeTemplate):
             raise TypeError()
 
     def update_ast(self, ast):
-        ast['builtin'] = False
+        ast["builtin"] = False
 
 
 class Properties(PredicateTemplate):
@@ -299,8 +347,7 @@ class Properties(PredicateTemplate):
         >>> Properties('a', 'b') <= Properties('b', 'a')
         True
         """
-        if len(include) == 1 and isinstance(include[0],
-                                            (list, tuple, set, frozenset)):
+        if len(include) == 1 and isinstance(include[0], (list, tuple, set, frozenset)):
             include = tuple(include[0])
 
         if type(exclude) is str:
@@ -316,32 +363,36 @@ class Properties(PredicateTemplate):
         return hash(frozenset(self.include)) ^ hash(frozenset(self.exclude))
 
     def __eq__(self, other):
-        return (type(self) is type(other) and
-                set(self.include) == set(other.include) and
-                set(self.exclude) == set(other.exclude))
+        return (
+            type(self) is type(other)
+            and set(self.include) == set(other.include)
+            and set(self.exclude) == set(other.exclude)
+        )
 
     def __repr__(self):
         args = []
         if self.include:
-            args.append(', '.join(repr(s) for s in self.include))
+            args.append(", ".join(repr(s) for s in self.include))
         if self.exclude:
             args.append("exclude=%r" % list(self.exclude))
 
-        return "%s(%s)" % (self.__class__.__name__, ', '.join(args))
+        return "%s(%s)" % (self.__class__.__name__, ", ".join(args))
 
     def is_symbol_subtype(self, other):
         if type(self) is not type(other):
             return False
 
-        return (set(other.include) <= set(self.include) and
-                set(other.exclude) <= set(self.exclude))
+        return set(other.include) <= set(self.include) and set(other.exclude) <= set(
+            self.exclude
+        )
 
     def is_symbol_supertype(self, other):
         if type(self) is not type(other):
             return False
 
-        return (set(other.include) >= set(self.include) and
-                set(other.exclude) >= set(self.exclude))
+        return set(other.include) >= set(self.include) and set(other.exclude) >= set(
+            self.exclude
+        )
 
     def collapse_intersection(self, other):
         if type(self) is not type(other):
@@ -364,7 +415,7 @@ class Properties(PredicateTemplate):
         return self.__class__(*new_include, exclude=new_exclude).template
 
     def get_kind(self):
-        return 'semantic-type'
+        return "semantic-type"
 
     def get_name(self):
         return self.__class__.__name__
@@ -373,8 +424,8 @@ class Properties(PredicateTemplate):
         return True  # attached TypeExp checks this
 
     def get_union_membership_expr(self, self_expr):
-        return 'predicate-' + self.get_name()
+        return "predicate-" + self.get_name()
 
     def update_ast(self, ast):
-        ast['include'] = list(self.include)
-        ast['exclude'] = list(self.exclude)
+        ast["include"] = list(self.include)
+        ast["exclude"] = list(self.exclude)

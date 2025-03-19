@@ -10,9 +10,23 @@ import unittest
 
 from qiime2.core.type.parse import ast_to_type, string_to_ast
 from qiime2.core.testing.type import Foo, Bar, C1, C2
-from qiime2.plugin import (Int, Float, Str, Bool, Range, Choices, TypeMap,
-                           Properties, List, Set, Visualization, Metadata,
-                           MetadataColumn, Categorical, Numeric)
+from qiime2.plugin import (
+    Int,
+    Float,
+    Str,
+    Bool,
+    Range,
+    Choices,
+    TypeMap,
+    Properties,
+    List,
+    Set,
+    Visualization,
+    Metadata,
+    MetadataColumn,
+    Categorical,
+    Numeric,
+)
 
 
 class TestParsing(unittest.TestCase):
@@ -35,9 +49,10 @@ class TestParsing(unittest.TestCase):
         self.assert_roundtrip(C1[Foo | Bar])
 
     def test_complicated_semantic_type(self):
-        self.assert_roundtrip(C2[C1[Foo % Properties(["A", "B"]) | Bar],
-                                 Foo % Properties("A")
-                                 ] % Properties(exclude=["B", "C"]))
+        self.assert_roundtrip(
+            C2[C1[Foo % Properties(["A", "B"]) | Bar], Foo % Properties("A")]
+            % Properties(exclude=["B", "C"])
+        )
 
     def test_collection_semantic_type(self):
         self.assert_roundtrip(List[Foo | Bar])
@@ -54,8 +69,7 @@ class TestParsing(unittest.TestCase):
 
     def test_primitive_predicate(self):
         self.assert_roundtrip(Int % Range(0, 10))
-        self.assert_roundtrip(
-            Int % (Range(0, 10) | Range(50, 100, inclusive_end=True)))
+        self.assert_roundtrip(Int % (Range(0, 10) | Range(50, 100, inclusive_end=True)))
         self.assert_roundtrip(Float % Range(None, 10))
         self.assert_roundtrip(Float % Range(0, None))
         self.assert_roundtrip(Str % Choices("A"))
@@ -66,9 +80,10 @@ class TestParsing(unittest.TestCase):
         self.assert_roundtrip(Bool % Choices(False))
 
     def test_collection_primitive(self):
-        self.assert_roundtrip(Set[Str % Choices('A', 'B', 'C')])
-        self.assert_roundtrip(List[Int % Range(1, 3, inclusive_end=True)
-                                   | Str % Choices('A', 'B', 'C')])
+        self.assert_roundtrip(Set[Str % Choices("A", "B", "C")])
+        self.assert_roundtrip(
+            List[Int % Range(1, 3, inclusive_end=True) | Str % Choices("A", "B", "C")]
+        )
 
     def test_metadata_primitive(self):
         self.assert_roundtrip(Metadata)
@@ -77,10 +92,12 @@ class TestParsing(unittest.TestCase):
         self.assert_roundtrip(MetadataColumn[Numeric | Categorical])
 
     def test_typevars(self):
-        T, U, V, W, X = TypeMap({
-            (Foo, Bar, Str % Choices('A', 'B')): (C1[Foo], C1[Bar]),
-            (Foo | Bar, Foo, Str): (C1[Bar], C1[Foo])
-        })
+        T, U, V, W, X = TypeMap(
+            {
+                (Foo, Bar, Str % Choices("A", "B")): (C1[Foo], C1[Bar]),
+                (Foo | Bar, Foo, Str): (C1[Bar], C1[Foo]),
+            }
+        )
 
         scope = {}
         T1 = ast_to_type(T.to_ast(), scope=scope)
@@ -100,15 +117,17 @@ class TestParsing(unittest.TestCase):
         self.assertIs(W1.mapping, X1.mapping)
 
     def test_TypeMap_with_properties(self):
-        I, OU = TypeMap({
-            C1[Foo % Properties(['A', 'B', 'C'])]: Str,
-            C1[Foo % Properties(['A', 'B'])]: Str,
-            C1[Foo % Properties(['A', 'C'])]: Str,
-            C1[Foo % Properties(['B', 'C'])]: Str,
-            C1[Foo % Properties(['A'])]: Str,
-            C1[Foo % Properties(['B'])]: Str,
-            C1[Foo % Properties(['C'])]: Str,
-        })
+        I, OU = TypeMap(
+            {
+                C1[Foo % Properties(["A", "B", "C"])]: Str,
+                C1[Foo % Properties(["A", "B"])]: Str,
+                C1[Foo % Properties(["A", "C"])]: Str,
+                C1[Foo % Properties(["B", "C"])]: Str,
+                C1[Foo % Properties(["A"])]: Str,
+                C1[Foo % Properties(["B"])]: Str,
+                C1[Foo % Properties(["C"])]: Str,
+            }
+        )
 
         scope = {}
         i = ast_to_type(I.to_ast(), scope=scope)
@@ -125,7 +144,7 @@ class TestParsing(unittest.TestCase):
 
     def test_syntax_error(self):
         with self.assertRaisesRegex(ValueError, "could not be parsed"):
-            string_to_ast('$')
+            string_to_ast("$")
 
     def test_bad_juju(self):
         with self.assertRaisesRegex(ValueError, "one type expression"):
@@ -133,12 +152,12 @@ class TestParsing(unittest.TestCase):
 
     def test_more_bad(self):
         with self.assertRaisesRegex(ValueError, "Unknown expression"):
-            string_to_ast('lambda x: x')
+            string_to_ast("lambda x: x")
 
     def test_weird(self):
         with self.assertRaisesRegex(ValueError, "Unknown literal"):
-            string_to_ast('FeatureTable(Foo + Bar)')
+            string_to_ast("FeatureTable(Foo + Bar)")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

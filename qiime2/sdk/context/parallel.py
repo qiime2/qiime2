@@ -16,8 +16,7 @@ from .base import Context
 
 
 def _map_arg(arg, futures):
-    """ Map a proxy artifact for input to a parsl action
-    """
+    """Map a proxy artifact for input to a parsl action"""
     # We add this future to the list and create a new proxy with its index as
     # its future.
     if isinstance(arg, Proxy):
@@ -36,8 +35,7 @@ def _map_arg(arg, futures):
 
 
 def _unmap_arg(arg, inputs):
-    """ Unmap a proxy artifact given to a parsl action
-    """
+    """Unmap a proxy artifact given to a parsl action"""
     # We were hacky and set _future_ to be the index of this artifact in the
     # inputs list
     if isinstance(arg, Proxy):
@@ -49,8 +47,7 @@ def _unmap_arg(arg, inputs):
     elif isinstance(arg, list):
         unmapped = [_unmap_arg(proxy, inputs) for proxy in arg]
     elif isinstance(arg, dict):
-        unmapped = {key: _unmap_arg(proxy, inputs) for
-                    key, proxy in arg.items()}
+        unmapped = {key: _unmap_arg(proxy, inputs) for key, proxy in arg.items()}
     # We didn't have a proxy at all
     else:
         unmapped = arg
@@ -59,11 +56,10 @@ def _unmap_arg(arg, inputs):
 
 
 def _contains_proxies(*args, **kwargs):
-    """Returns True if any of the args or kwargs are proxies
-    """
-    return any(isinstance(arg, Proxy) for arg in args) \
-        or any(isinstance(value, Proxy) for
-               value in kwargs.values())
+    """Returns True if any of the args or kwargs are proxies"""
+    return any(isinstance(arg, Proxy) for arg in args) or any(
+        isinstance(value, Proxy) for value in kwargs.values()
+    )
 
 
 class ParallelContext(Context):
@@ -74,12 +70,15 @@ class ParallelContext(Context):
             self.action_executor_mapping = parent.action_executor_mapping
             self.executor_name_type_mapping = parent.executor_name_type_mapping
         else:
-            self.action_executor_mapping = \
-                PARALLEL_CONFIG.action_executor_mapping
-            self.executor_name_type_mapping = \
-                None if PARALLEL_CONFIG.parallel_config is None \
-                else {v.label: v.__class__.__name__
-                      for v in PARALLEL_CONFIG.parallel_config.executors}
+            self.action_executor_mapping = PARALLEL_CONFIG.action_executor_mapping
+            self.executor_name_type_mapping = (
+                None
+                if PARALLEL_CONFIG.parallel_config is None
+                else {
+                    v.label: v.__class__.__name__
+                    for v in PARALLEL_CONFIG.parallel_config.executors
+                }
+            )
 
     def _callable_action_(self, *args, **kwargs):
         # The function is the first arg, we ditch that
@@ -92,9 +91,11 @@ class ParallelContext(Context):
         # are proxies because if we got a proxy as an argument, we know it
         # is a new thing we are computing from a prior step in the pipeline
         # and thus will not be cached.
-        if self.cache.named_pool is not None and \
-                not _contains_proxies(*args, **kwargs) and \
-                (cached_results := self._check_cache(args, kwargs)):
+        if (
+            self.cache.named_pool is not None
+            and not _contains_proxies(*args, **kwargs)
+            and (cached_results := self._check_cache(args, kwargs))
+        ):
             return cached_results
 
         # If we didn't have cached results to reuse, we need to execute
@@ -137,17 +138,19 @@ class ParallelContext(Context):
         # If the user specified a particular executor for a this action
         # determine that here
         if self.action_obj.plugin_id in self.action_executor_mapping:
-            executor = self.action_executor_mapping[
-                self.action_obj.plugin_id].get(self.action_obj.id, 'default')
+            executor = self.action_executor_mapping[self.action_obj.plugin_id].get(
+                self.action_obj.id, "default"
+            )
         else:
-            executor = 'default'
+            executor = "default"
 
-        execution_ctx = {'type': 'parsl'}
+        execution_ctx = {"type": "parsl"}
 
         # This a closure so we can change its name to our action name with
         # impunity
-        def _run_parsl_action(ctx, execution_ctx, mapped_args,
-                              mapped_kwargs, inputs=[]):
+        def _run_parsl_action(
+            ctx, execution_ctx, mapped_args, mapped_kwargs, inputs=[]
+        ):
             """This is what the parsl app itself actually runs. It's basically
             just a wrapper around our QIIME 2 action. When this is initially
             called, args and kwargs may contain proxies that reference futures
@@ -181,15 +184,14 @@ class ParallelContext(Context):
 
         # Set the name of the closure to the name of the action, so we see the
         # correct name in the parsl log
-        self.action_obj._set_wrapper_name(
-            _run_parsl_action, self.action_obj.name)
+        self.action_obj._set_wrapper_name(_run_parsl_action, self.action_obj.name)
 
         if isinstance(self.action_obj, Pipeline):
             # Nested pipelines are not run as a parsl app at all, they run as a
             # normal python function that will call more python_apps. This
             # means any blocking operation within a pipeline itself will block
             # the entire pipeline
-            execution_ctx['parsl_type'] = 'DFK'
+            execution_ctx["parsl_type"] = "DFK"
             exe = self.action_obj._bind(lambda: self, execution_ctx)
             results = exe(*args, **kwargs)
 
@@ -199,19 +201,16 @@ class ParallelContext(Context):
             # an executor which will fail out with an obscure error if no
             # config was loaded
             if PARALLEL_CONFIG.parallel_config is None:
-                raise ValueError('You must load a parallel config before '
-                                 'running in parallel.')
+                raise ValueError(
+                    "You must load a parallel config before " "running in parallel."
+                )
 
-            execution_ctx['parsl_type'] = \
-                self.executor_name_type_mapping[executor]
-            future = python_app(
-                executors=[executor])(
-                    _run_parsl_action)(self, execution_ctx,
-                                       mapped_args, mapped_kwargs,
-                                       inputs=futures)
+            execution_ctx["parsl_type"] = self.executor_name_type_mapping[executor]
+            future = python_app(executors=[executor])(_run_parsl_action)(
+                self, execution_ctx, mapped_args, mapped_kwargs, inputs=futures
+            )
 
-        collated_input = self.action_obj.signature.collate_inputs(
-            *args, **kwargs)
+        collated_input = self.action_obj.signature.collate_inputs(*args, **kwargs)
         output_types = self.action_obj.signature.solve_output(**collated_input)
 
         # Again, we return a set of futures not a set of real results

@@ -19,7 +19,7 @@ def _strip_predicates(expr):
     if isinstance(expr, UnionExp):
         return UnionExp(_strip_predicates(m) for m in expr.members).normalize()
 
-    if hasattr(expr, 'fields'):
+    if hasattr(expr, "fields"):
         new_fields = tuple(_strip_predicates(f) for f in expr.fields)
 
     return expr.duplicate(fields=new_fields, predicate=IntersectionExp())
@@ -28,12 +28,12 @@ def _strip_predicates(expr):
 def val_to_bool(value):
     if type(value) is bool:
         return value
-    elif str(value).lower() == 'true':
+    elif str(value).lower() == "true":
         return True
-    elif str(value).lower() == 'false':
+    elif str(value).lower() == "false":
         return False
     else:
-        raise ValueError('Could not cast to bool')
+        raise ValueError("Could not cast to bool")
 
 
 def val_to_int(v):
@@ -43,7 +43,7 @@ def val_to_int(v):
     elif type_ is str:
         return int(v)
     else:
-        raise ValueError('Could not cast to int')
+        raise ValueError("Could not cast to int")
 
 
 def val_to_float(v):
@@ -53,17 +53,17 @@ def val_to_float(v):
     elif type_ is str:
         return float(v)
     else:
-        raise ValueError('Could not cast to float')
+        raise ValueError("Could not cast to float")
 
 
-VariadicRecord = collections.namedtuple('VariadicRecord', ['pytype', 'q2type'])
+VariadicRecord = collections.namedtuple("VariadicRecord", ["pytype", "q2type"])
 _VARIADIC = {
-    'List': VariadicRecord(pytype=list, q2type=List),
-    'Set': VariadicRecord(pytype=set, q2type=Set),
-    'Collection': VariadicRecord(pytype=dict, q2type=Collection),
+    "List": VariadicRecord(pytype=list, q2type=List),
+    "Set": VariadicRecord(pytype=set, q2type=Set),
+    "Collection": VariadicRecord(pytype=dict, q2type=Collection),
 }
 
-CoercionRecord = collections.namedtuple('CoercionRecord', ['func', 'pytype'])
+CoercionRecord = collections.namedtuple("CoercionRecord", ["func", "pytype"])
 # Beware visitor, order matters in this here mapper
 _COERCION_MAPPER = {
     Int: CoercionRecord(pytype=int, func=val_to_int),
@@ -71,11 +71,11 @@ _COERCION_MAPPER = {
     Bool: CoercionRecord(pytype=bool, func=val_to_bool),
     Str: CoercionRecord(pytype=str, func=str),
 }
-_COERCE_ERROR = ValueError(
-    'Could not coerce value based on expression provided.')
+_COERCE_ERROR = ValueError("Could not coerce value based on expression provided.")
 
 CollectionStyle = collections.namedtuple(
-    'CollectionStyle', ['style', 'members', 'view', 'expr', 'base'])
+    "CollectionStyle", ["style", "members", "view", "expr", "base"]
+)
 
 
 def _norm_input(t):
@@ -97,27 +97,27 @@ def is_qiime_type(t):
 
 def is_primitive_type(t):
     expr = _norm_input(t)
-    return hasattr(expr, 'kind') and expr.kind == 'primitive'
+    return hasattr(expr, "kind") and expr.kind == "primitive"
 
 
 def is_metadata_type(t):
     expr = _norm_input(t)
-    return is_primitive_type(t) and expr.name.startswith('Metadata')
+    return is_primitive_type(t) and expr.name.startswith("Metadata")
 
 
 def is_metadata_column_type(t):
     expr = _norm_input(t)
-    return is_primitive_type(t) and expr.name.endswith('MetadataColumn')
+    return is_primitive_type(t) and expr.name.endswith("MetadataColumn")
 
 
 def is_semantic_type(t):
     expr = _norm_input(t)
-    return hasattr(expr, 'kind') and expr.kind == 'semantic-type'
+    return hasattr(expr, "kind") and expr.kind == "semantic-type"
 
 
 def is_visualization_type(t):
     expr = _norm_input(t)
-    return hasattr(expr, 'kind') and expr.kind == 'visualization'
+    return hasattr(expr, "kind") and expr.kind == "visualization"
 
 
 def is_union(t):
@@ -146,40 +146,41 @@ def is_parallel_type(t):
 
 def interrogate_collection_type(t):
     expr = _norm_input(t)
-    style = None    # simple, monomorphic, composite, complex
+    style = None  # simple, monomorphic, composite, complex
     members = None  # T     , [T1, T2]   , [T1, T2],  [[T1], [T2, T3]]
     view = None  # set, list
     base = None
 
     if expr.name in _VARIADIC:
         view, base = _VARIADIC[expr.name]
-        field, = expr.fields
+        (field,) = expr.fields
         if isinstance(field, UnionExp):
-            style = 'composite'
+            style = "composite"
             members = list(field.members)
         else:
-            style = 'simple'
+            style = "simple"
             members = field
     elif isinstance(expr, UnionExp):
         if expr.members[0].name in _VARIADIC:
             members = []
             for member in expr.members:
-                field, = member.fields
+                (field,) = member.fields
                 if isinstance(field, UnionExp):
-                    style = 'complex'
+                    style = "complex"
                     members.append(list(field.members))
                 else:
                     members.append([field])
-                    if style != 'complex':
-                        style = 'monomorphic'
+                    if style != "complex":
+                        style = "monomorphic"
 
             # use last iteration
             view, base = _VARIADIC[member.name]
-            if style == 'monomorphic':
+            if style == "monomorphic":
                 members = [m[0] for m in members]
 
-    return CollectionStyle(style=style, members=members, view=view,
-                           expr=expr, base=base)
+    return CollectionStyle(
+        style=style, members=members, view=view, expr=expr, base=base
+    )
 
 
 def _ordered_coercion(types):
@@ -209,17 +210,17 @@ def parse_primitive(t, value):
         value = list(value.values())
 
     if is_metadata_type(expr):
-        raise ValueError('%r may not be parsed with this util.' % (expr,))
+        raise ValueError("%r may not be parsed with this util." % (expr,))
 
     expr = _strip_predicates(expr)
     collection_style = interrogate_collection_type(expr)
 
-    if collection_style.style in ('simple', 'monomorphic', 'composite'):
+    if collection_style.style in ("simple", "monomorphic", "composite"):
         allowed = list(collection_style.members)
 
-    if collection_style.style == 'composite':
+    if collection_style.style == "composite":
         homogeneous = False
-    elif collection_style.style == 'complex':
+    elif collection_style.style == "complex":
         # Sort here so that we can start with any simple lists in the memberset
         for subexpr in sorted(collection_style.members, key=len):
             expr = collection_style.base[UnionExp(subexpr)]
@@ -252,11 +253,10 @@ def parse_primitive(t, value):
     if homogeneous:
         all_matching = False
         for member in allowed:
-            if all(type(x) is _COERCION_MAPPER[member].pytype
-                   for x in result):
+            if all(type(x) is _COERCION_MAPPER[member].pytype for x in result):
                 all_matching = True
                 break
-        if not all_matching and collection_style.style == 'monomorphic':
+        if not all_matching and collection_style.style == "monomorphic":
             for subexpr in allowed:
                 expr = collection_style.base[subexpr]
                 try:

@@ -52,8 +52,11 @@ class OwnedPath(_ConcretePath):
                 # still want to explode. FileExistsErrors are apparently
                 # instances of OSError, so we also make sure we don't have one
                 # of them when we explode
-                if isinstance(e, OSError) and e.errno != 18 and \
-                        not isinstance(e, FileExistsError):
+                if (
+                    isinstance(e, OSError)
+                    and e.errno != 18
+                    and not isinstance(e, FileExistsError)
+                ):
                     raise e
                 copied = self._copy_dir_or_file(other)
                 self._destruct()
@@ -64,19 +67,28 @@ class InPath(OwnedPath):
     def __new__(cls, path):
         self = super().__new__(cls, path)
         self.__backing_path = path
-        if hasattr(path, '_user_owned'):
+        if hasattr(path, "_user_owned"):
             self._user_owned = path._user_owned
         return self
 
-    chmod = lchmod = rename = replace = rmdir = symlink_to = touch = unlink = \
-        write_bytes = write_text = _party_parrot
+    chmod = (
+        lchmod
+    ) = (
+        rename
+    ) = (
+        replace
+    ) = rmdir = symlink_to = touch = unlink = write_bytes = write_text = _party_parrot
 
-    def open(self, mode='r', buffering=-1, encoding=None, errors=None,
-             newline=None):
-        if 'w' in mode or '+' in mode or 'a' in mode:
+    def open(self, mode="r", buffering=-1, encoding=None, errors=None, newline=None):
+        if "w" in mode or "+" in mode or "a" in mode:
             _party_parrot(self)
-        return super().open(mode=mode, buffering=buffering, encoding=encoding,
-                            errors=errors, newline=newline)
+        return super().open(
+            mode=mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+        )
 
 
 class OutPath(OwnedPath):
@@ -98,7 +110,7 @@ class OutPath(OwnedPath):
 
         cache = get_cache()
         tmp_path = cache.get_tmp_path()
-        prefix = 'q2-%s-' % cls.__name__
+        prefix = "q2-%s-" % cls.__name__
 
         if dir:
             name = tempfile.mkdtemp(prefix=prefix, dir=tmp_path)
@@ -118,7 +130,7 @@ class OutPath(OwnedPath):
 
 
 class InternalDirectory(_ConcretePath):
-    DEFAULT_PREFIX = 'qiime2-'
+    DEFAULT_PREFIX = "qiime2-"
 
     @classmethod
     def __new(cls, *args):
@@ -157,8 +169,8 @@ class InternalDirectory(_ConcretePath):
 
 
 class ArchivePath(InternalDirectory):
-    DEFAULT_PREFIX = 'qiime2-archive-'
+    DEFAULT_PREFIX = "qiime2-archive-"
 
 
 class ProvenancePath(InternalDirectory):
-    DEFAULT_PREFIX = 'qiime2-provenance-'
+    DEFAULT_PREFIX = "qiime2-provenance-"

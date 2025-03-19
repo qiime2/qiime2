@@ -23,6 +23,7 @@ class ValidationObject:
         The semantic type for which the validators are valid for.
 
     """
+
     def __init__(self, concrete_type):
         r"""
         Create a new ValidationObject to add ValidatorRecords to.
@@ -83,10 +84,11 @@ class ValidationObject:
         """
         for other in others:
             if self.concrete_type != other.concrete_type:
-                raise TypeError('Unable to add ValidationObject of'
-                                ' `concrete_type: %s to ValidationObject of'
-                                ' `concrete_type: %s`' % (other.concrete_type,
-                                                          self.concrete_type))
+                raise TypeError(
+                    "Unable to add ValidationObject of"
+                    " `concrete_type: %s to ValidationObject of"
+                    " `concrete_type: %s`" % (other.concrete_type, self.concrete_type)
+                )
 
             self._validators += other._validators
         self._is_sorted = False
@@ -120,9 +122,8 @@ class ValidationObject:
 
         """
         self._validators = sorted_poset(
-            iterable=self._validators,
-            key=lambda record: record.context,
-            reverse=True)
+            iterable=self._validators, key=lambda record: record.context, reverse=True
+        )
 
         self._is_sorted = True
 
@@ -154,11 +155,11 @@ class ValidationObject:
             except ValidationError:
                 raise
             except Exception as e:
-                raise ImplementationError("An unexpected error occured when %r"
-                                          " from %r attempted to validate %r"
-                                          % (record.validator.__name__,
-                                             record.plugin,
-                                             new_data)) from e
+                raise ImplementationError(
+                    "An unexpected error occured when %r"
+                    " from %r attempted to validate %r"
+                    % (record.validator.__name__, record.plugin, new_data)
+                ) from e
 
     def assert_transformation_available(self, data):
         r"""
@@ -187,8 +188,12 @@ class ValidationObject:
             mt_other = ModelType.from_view_type(record.view)
             if not mt.has_transformation(mt_other):
                 raise AssertionError(
-                    'Could not validate %s using %r because there was no'
-                    ' transformation from %r to %r' %
-                    (self.concrete_type, record.validator.__name__,
-                     mt._view_name, mt_other._view_name)
+                    "Could not validate %s using %r because there was no"
+                    " transformation from %r to %r"
+                    % (
+                        self.concrete_type,
+                        record.validator.__name__,
+                        mt._view_name,
+                        mt_other._view_name,
+                    )
                 )

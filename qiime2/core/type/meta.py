@@ -27,7 +27,7 @@ class TypeVarExp(UnionExp):
         numbers = {}
         for idx, m in enumerate(self.members, 1):
             if m in numbers:
-                numbers[m] += superscript(',' + str(idx))
+                numbers[m] += superscript("," + str(idx))
             else:
                 numbers[m] = superscript(idx)
         return " | ".join([repr(k) + v for k, v in numbers.items()])
@@ -48,9 +48,11 @@ class TypeVarExp(UnionExp):
         return a_branches == b_branches
 
     def __eq__(self, other):
-        return (type(self) is type(other)
-                and self.index == other.index
-                and self.mapping == other.mapping)
+        return (
+            type(self) is type(other)
+            and self.index == other.index
+            and self.mapping == other.mapping
+        )
 
     def __hash__(self):
         return hash(self.index) ^ hash(self.mapping)
@@ -83,9 +85,9 @@ class TypeVarExp(UnionExp):
             "group": id(self.mapping),
             "outputs": self.mapping.input_width(),
             "mapping": [
-                ([k.to_ast() for k in key.fields]
-                 + [v.to_ast() for v in value.fields])
-                for key, value in self.mapping.lifted.items()]
+                ([k.to_ast() for k in key.fields] + [v.to_ast() for v in value.fields])
+                for key, value in self.mapping.lifted.items()
+            ],
         }
 
 
@@ -161,9 +163,9 @@ class TypeMap(ImmutableBase):
       will correspond to the number of "columns" in the TypeMap.
 
     """
+
     def __init__(self, mapping):
-        mapping = {Tuple[tuplize(k)]: Tuple[tuplize(v)]
-                   for k, v in mapping.items()}
+        mapping = {Tuple[tuplize(k)]: Tuple[tuplize(v)] for k, v in mapping.items()}
         branches = list(mapping)
         for i, a in enumerate(branches):
             for j in range(i, len(branches)):
@@ -171,10 +173,10 @@ class TypeMap(ImmutableBase):
                 try:
                     intersection = a & b
                 except TypeError:
-                    raise ValueError("Cannot place %r and %r in the same "
-                                     "type variable." % (a, b))
-                if (intersection.is_bottom()
-                        or intersection is a or intersection is b):
+                    raise ValueError(
+                        "Cannot place %r and %r in the same " "type variable." % (a, b)
+                    )
+                if intersection.is_bottom() or intersection is a or intersection is b:
                     continue
 
                 for k in range(i):
@@ -185,7 +187,8 @@ class TypeMap(ImmutableBase):
                         "Ambiguous resolution for invocations with type %r."
                         " Could match %r or %r, add a new branch ABOVE these"
                         " two (or modify these branches) to correct this."
-                        % (intersection.fields, a.fields, b.fields))
+                        % (intersection.fields, a.fields, b.fields)
+                    )
         self.__lifted = mapping
         super()._freeze_()
 
@@ -200,8 +203,7 @@ class TypeMap(ImmutableBase):
         return hash(id(self))
 
     def __iter__(self):
-        for idx, members in enumerate(
-                zip(*(k.fields for k in self.lifted.keys()))):
+        for idx, members in enumerate(zip(*(k.fields for k in self.lifted.keys()))):
             yield TypeVarExp(members, self, input=True, index=idx)
 
         yield from self.iter_outputs()
@@ -218,9 +220,11 @@ class TypeMap(ImmutableBase):
     def iter_outputs(self, *, _double_as_input=False):
         start = self.input_width()
         for idx, members in enumerate(
-                zip(*(v.fields for v in self.lifted.values())), start):
-            yield TypeVarExp(members, self, output=True, index=idx,
-                             input=_double_as_input)
+            zip(*(v.fields for v in self.lifted.values())), start
+        ):
+            yield TypeVarExp(
+                members, self, output=True, index=idx, input=_double_as_input
+            )
 
 
 def _get_intersections(listing):
@@ -323,6 +327,7 @@ def select_variables(expr):
 
     """
     if type(expr) is TypeVarExp:
+
         def select(x, swap=None):
             if swap is not None:
                 return swap
@@ -335,6 +340,7 @@ def select_variables(expr):
         return
 
     if type(expr.full_predicate) is TypeVarExp:
+
         def select(x, swap=None):
             if swap is not None:
                 return x.duplicate(predicate=swap)
@@ -354,7 +360,9 @@ def select_variables(expr):
                         new_fields[idx] = sel(x.fields[idx], swap)
                         return x.duplicate(fields=tuple(new_fields))
                     return sel(x.fields[idx])
+
                 return select
+
             yield closure(idx, sel)
 
 
@@ -372,11 +380,17 @@ def match(provided, inputs, outputs):
                 error_map[var] = provided[key]
             else:
                 if not var.uniq_upto_sub(current_binding, provided_fragment):
-                    raise ValueError("Received %r and %r, but expected %r"
-                                     " and %r to match (or to select the same"
-                                     " output)."
-                                     % (error_map[var], provided[key],
-                                        current_binding, provided_fragment))
+                    raise ValueError(
+                        "Received %r and %r, but expected %r"
+                        " and %r to match (or to select the same"
+                        " output)."
+                        % (
+                            error_map[var],
+                            provided[key],
+                            current_binding,
+                            provided_fragment,
+                        )
+                    )
 
     # provided_binding now maps TypeVarExp instances to a TypeExp instance
     # which is the relevent fragment from the provided input types
@@ -401,10 +415,13 @@ def match(provided, inputs, outputs):
         inputs = [x[1] for x in sorted(group, key=lambda x: x[0].index)]
         solved = mapping.solve(*inputs)
         if solved is None:
-            provided = tuple(error_map[x[0]]
-                             for x in sorted(group, key=lambda x: x[0].index))
-            raise ValueError("No solution for inputs: %r, check the signature "
-                             "to see valid combinations." % (provided,))
+            provided = tuple(
+                error_map[x[0]] for x in sorted(group, key=lambda x: x[0].index)
+            )
+            raise ValueError(
+                "No solution for inputs: %r, check the signature "
+                "to see valid combinations." % (provided,)
+            )
 
         # type vars share identity by instance of map and index, so we will
         # be able to see the "same" vars again when looking up the outputs

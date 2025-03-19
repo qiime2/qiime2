@@ -13,7 +13,7 @@ import collections
 
 import bibtexparser as bp
 
-CitationRecord = collections.namedtuple('CitationRecord', ['type', 'fields'])
+CitationRecord = collections.namedtuple("CitationRecord", ["type", "fields"])
 """
 A :py:func:`collections.namedtuple` of bibtex entry type and entry fields.
 
@@ -38,10 +38,10 @@ def _make_citations_tuple(citations):
 
 class Citations(collections.OrderedDict):
     """A simple subclass of :py:class:`collections.OrderedDict`
-       but iterates over values instead of keys by default."""
+    but iterates over values instead of keys by default."""
+
     @classmethod
-    def load(cls, path: Union[str, os.PathLike],
-             package: Optional[str] = None):
+    def load(cls, path: Union[str, os.PathLike], package: Optional[str] = None):
         """Load a bibtex file from a path (or relative package path)
 
         Parameters
@@ -70,16 +70,16 @@ class Citations(collections.OrderedDict):
             try:
                 db = bp.load(fh, parser=parser)
             except Exception as e:
-                raise ValueError("There was a problem loading the BiBTex file:"
-                                 "%r" % path) from e
+                raise ValueError(
+                    "There was a problem loading the BiBTex file:" "%r" % path
+                ) from e
 
         entries = collections.OrderedDict()
         for entry in db.entries:
-            id_ = entry.pop('ID')
-            type_ = entry.pop('ENTRYTYPE')
+            id_ = entry.pop("ID")
+            type_ = entry.pop("ENTRYTYPE")
             if id_ in entries:
-                raise ValueError("Duplicate entry-key found in BibTex file: %r"
-                                 % id_)
+                raise ValueError("Duplicate entry-key found in BibTex file: %r" % id_)
             entries[id_] = CitationRecord(type_, entry)
 
         return cls(entries)
@@ -103,8 +103,8 @@ class Citations(collections.OrderedDict):
         entries = []
         for key, citation in self.items():
             entry = citation.fields.copy()
-            entry['ID'] = key
-            entry['ENTRYTYPE'] = citation.type
+            entry["ID"] = key
+            entry["ENTRYTYPE"] = citation.type
 
             entries.append(entry)
 
@@ -116,7 +116,7 @@ class Citations(collections.OrderedDict):
 
         owned = False
         if type(f) is str:
-            f = open(f, 'w')
+            f = open(f, "w")
             owned = True
         try:
             bp.dump(db, f, writer=writer)

@@ -20,8 +20,7 @@ class ModelType:
     @staticmethod
     def from_view_type(view_type):
         if issubclass(view_type, model.base.FormatBase):
-            if issubclass(view_type,
-                          model.SingleFileDirectoryFormatBase):
+            if issubclass(view_type, model.SingleFileDirectoryFormatBase):
                 # HACK: this is necessary because we need to be able to "act"
                 # like a FileFormat when looking up transformers, but our
                 # input/output coercion still needs to bridge the
@@ -55,15 +54,20 @@ class ModelType:
         # record may be None in case of identity transformer
         transformer, transformer_record = self._get_transformer_to(other)
         if transformer is None:
-            raise Exception("No transformation from %r to %r" %
-                            (self._view_type, other._view_type))
+            raise Exception(
+                "No transformation from %r to %r" % (self._view_type, other._view_type)
+            )
 
         if recorder is not None:
-            recorder(transformer_record, input_name=self._view_name,
-                     input_record=self._record, output_name=other._view_name,
-                     output_record=other._record)
+            recorder(
+                transformer_record,
+                input_name=self._view_name,
+                input_record=self._record,
+                output_name=other._view_name,
+                output_record=other._record,
+            )
 
-        def transformation(view, validate_level='min'):
+        def transformation(view, validate_level="min"):
             view = self.coerce_view(view)
             self.validate(view, level=validate_level)
 
@@ -80,15 +84,16 @@ class ModelType:
         return transformation
 
     def _get_transformer_to(self, other):
-        transformer, record = self._lookup_transformer(self._view_type,
-                                                       other._view_type)
+        transformer, record = self._lookup_transformer(
+            self._view_type, other._view_type
+        )
         if transformer is None:
             return other._get_transformer_from(self)
 
         return transformer, record
 
     def has_transformation(self, other):
-        """ Checks to see if there exist transformers for other
+        """Checks to see if there exist transformers for other
 
         Parameters
         ----------
@@ -126,19 +131,18 @@ class ModelType:
 class FormatType(ModelType):
     def coerce_view(self, view):
         if type(view) is str or isinstance(view, pathlib.Path):
-            return self._view_type(view, mode='r')
+            return self._view_type(view, mode="r")
 
         if isinstance(view, self._view_type):
             # wrap original path (inheriting the lifetime) and return a
             # read-only instance
-            return self._view_type(view.path, mode='r')
+            return self._view_type(view.path, mode="r")
 
         return view
 
-    def validate(self, view, level='min'):
+    def validate(self, view, level="min"):
         if not isinstance(view, self._view_type):
-            raise TypeError("%r is not an instance of %r."
-                            % (view, self._view_type))
+            raise TypeError("%r is not an instance of %r." % (view, self._view_type))
         # Formats have a validate method, so defer to it
         view.validate(level)
 
@@ -172,15 +176,15 @@ class SingleFileDirectoryFormatType(FormatType):
             return transformer, record
 
         # Dx :> Dy via Dx -> x => y | Dy
-        transformer, record = self._wrap_transformer(self, other,
-                                                     wrap_input=True)
+        transformer, record = self._wrap_transformer(self, other, wrap_input=True)
         if transformer is not None:
             return transformer, record
 
         if type(other) is type(self):
             # Dx :> Dy via Dx -> x => y -> Dy
             transformer, record = self._wrap_transformer(
-                self, other, wrap_input=True, wrap_output=True)
+                self, other, wrap_input=True, wrap_output=True
+            )
             if transformer is not None:
                 return transformer, record
 
@@ -192,8 +196,7 @@ class SingleFileDirectoryFormatType(FormatType):
         # IMPORTANT: reverse other and self, this method is like __radd__
         return self._wrap_transformer(other, self, wrap_output=True)
 
-    def _wrap_transformer(self, in_, out_, wrap_input=False,
-                          wrap_output=False):
+    def _wrap_transformer(self, in_, out_, wrap_input=False, wrap_output=False):
         input = in_._wrapped_view_type if wrap_input else in_._view_type
         output = out_._wrapped_view_type if wrap_output else out_._view_type
 
@@ -230,5 +233,7 @@ class SingleFileDirectoryFormatType(FormatType):
 class ObjectType(ModelType):
     def validate(self, view, level=None):
         if not isinstance(view, self._view_type):
-            raise TypeError("%r is not of type %r, cannot transform further."
-                            % (view, self._view_type))
+            raise TypeError(
+                "%r is not of type %r, cannot transform further."
+                % (view, self._view_type)
+            )

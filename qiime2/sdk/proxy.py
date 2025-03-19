@@ -16,6 +16,7 @@ class Proxy:
     """Base class to indicate that a given class that inherits from it is a
     proxy. Also implements some generic functionality
     """
+
     def __eq__(self, other):
         return self.result() == other.result()
 
@@ -35,10 +36,12 @@ class ProxyResult(Proxy, IResult):
 
     def __repr__(self):
         if self._qiime_type_ is None:
-            return f'<{self.__class__.__name__.lower()}: Unknown Type ' \
-                   f'{object.__repr__(self)}>'
+            return (
+                f"<{self.__class__.__name__.lower()}: Unknown Type "
+                f"{object.__repr__(self)}>"
+            )
         else:
-            return f'<{self.__class__.__name__.lower()}: {self.type}>'
+            return f"<{self.__class__.__name__.lower()}: {self.type}>"
 
     def __hash__(self):
         return hash(self.uuid)
@@ -48,6 +51,7 @@ class ProxyResult(Proxy, IResult):
         operation. Calling alias on a Proxy adds a hook that will create the
         alias when the result on the Proxy is requested
         """
+
         def _alias_hook():
             result = new._get_element_(new._future_.result())
             return result._alias(name, provenance, ctx)
@@ -90,8 +94,7 @@ class ProxyResult(Proxy, IResult):
         return self._get_element_(self._future_.result())
 
     def _get_element_(self, results):
-        """Get the result we want off of the future we have
-        """
+        """Get the result we want off of the future we have"""
         from qiime2.sdk import Results
 
         if isinstance(results, Results):
@@ -103,8 +106,7 @@ class ProxyResult(Proxy, IResult):
         return self.result().export_data(output_dir)
 
     def save(self, filepath, ext=None):
-        """Blocks then calls save on the result.
-        """
+        """Blocks then calls save on the result."""
         return self.result().save(filepath, ext=ext)
 
     def validate(self, level=NotImplemented):
@@ -112,14 +114,13 @@ class ProxyResult(Proxy, IResult):
 
 
 class ProxyArtifact(ProxyResult):
-    """This represents a future Artifact that is being returned by a Parsl app
-    """
+    """This represents a future Artifact that is being returned by a Parsl app"""
+
     def _view(self, view_type, recorder):
         return self.result()._view(view_type, recorder)
 
     def view(self, view_type):
-        """If we want to view the result we need the future to be resolved
-        """
+        """If we want to view the result we need the future to be resolved"""
         return self.result().view(view_type)
 
     def has_metadata(self):
@@ -129,22 +130,24 @@ class ProxyArtifact(ProxyResult):
         to_type = transform.ModelType.from_view_type(Metadata)
         return from_type.has_transformation(to_type)
 
-    def validate(self, level='max'):
+    def validate(self, level="max"):
         self.result().validate(level=level)
 
 
 class ProxyVisualization(ProxyResult):
     """This represents a future Visualization that is being returned by a Parsl
-       app
+    app
     """
+
     def get_index_paths(self, relative=True):
         return self.result().get_index_paths(relative=relative)
 
 
 class ProxyResultCollection(Proxy):
     """This represents a collection of future results being returned by a Parsl
-       app
+    app
     """
+
     def __init__(self, future, selector, qiime_type=None):
         self._future_ = future
         self._selector_ = selector
@@ -180,8 +183,7 @@ class ProxyResultCollection(Proxy):
         return self.result().collection
 
     def save(self, directory):
-        """Blocks then calls save on the result.
-        """
+        """Blocks then calls save on the result."""
         return self.result().save(directory)
 
     def keys(self):
@@ -194,8 +196,7 @@ class ProxyResultCollection(Proxy):
         return self.collection.items()
 
     def _get_element_(self, results):
-        """Get the result we want off of the future we have
-        """
+        """Get the result we want off of the future we have"""
         return getattr(results, self._selector_)
 
     def result(self):
@@ -203,8 +204,8 @@ class ProxyResultCollection(Proxy):
 
 
 class ProxyResults(Proxy):
-    """This represents future results that are being returned by a Parsl app
-    """
+    """This represents future results that are being returned by a Parsl app"""
+
     def __init__(self, future, signature):
         """We have the future results and the outputs portion of the signature
         of the action creating the results
@@ -213,14 +214,12 @@ class ProxyResults(Proxy):
         self._signature_ = signature
 
     def __iter__(self):
-        """Give us a ProxyArtifact for each result in the future
-        """
+        """Give us a ProxyArtifact for each result in the future"""
         for s in self._signature_:
             yield self._create_proxy(s)
 
     def __getattr__(self, attr):
-        """Get a particular ProxyArtifact out of the future
-        """
+        """Get a particular ProxyArtifact out of the future"""
         return self._create_proxy(attr)
 
     def __getitem__(self, index):
@@ -228,8 +227,8 @@ class ProxyResults(Proxy):
 
     def __repr__(self):
         lines = []
-        lines.append('%s (name = value)' % self.__class__.__name__)
-        lines.append('')
+        lines.append("%s (name = value)" % self.__class__.__name__)
+        lines.append("")
 
         max_len = -1
         for field in self._signature_:
@@ -237,20 +236,19 @@ class ProxyResults(Proxy):
                 max_len = len(field)
 
         for field, value in zip(self._signature_, self):
-            field_padding = ' ' * (max_len - len(field))
-            lines.append('%s%s = %r' % (field, field_padding, value))
+            field_padding = " " * (max_len - len(field))
+            lines.append("%s%s = %r" % (field, field_padding, value))
 
         max_len = -1
         for line in lines:
             if len(line) > max_len:
                 max_len = len(line)
-        lines[1] = '-' * max_len
+        lines[1] = "-" * max_len
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def __eq__(self, other):
-        """ Overriding the one on Proxy because we have _result not result
-        """
+        """Overriding the one on Proxy because we have _result not result"""
         return self._result() == other._result()
 
     def _asdict(self):
@@ -258,34 +256,32 @@ class ProxyResults(Proxy):
 
     def _result(self):
         """If you are calling an action in a try-except block in a pipeline,
-           you need to call this method on the Results object returned by the
-           action.
+        you need to call this method on the Results object returned by the
+        action.
 
-           This is because if the Pipeline was executed with parsl, we need to
-           block on the action in the try-except to ensure we get the result
-           and raise the potential exception while we are still inside of the
-           try-except. Otherwise we would just get the exception whenever the
-           future resolved which would likely be outside of the try-except, so
-           the exception would be raised and not caught.
+        This is because if the Pipeline was executed with parsl, we need to
+        block on the action in the try-except to ensure we get the result
+        and raise the potential exception while we are still inside of the
+        try-except. Otherwise we would just get the exception whenever the
+        future resolved which would likely be outside of the try-except, so
+        the exception would be raised and not caught.
 
-           If you call an action in the Python API using parsl inside of a
-           context manager (a withed in Cache for instance) you also must call
-           this method there to ensure you get you don't start using a
-           different cache/pool/whatever before your future resolves.
+        If you call an action in the Python API using parsl inside of a
+        context manager (a withed in Cache for instance) you also must call
+        this method there to ensure you get you don't start using a
+        different cache/pool/whatever before your future resolves.
         """
         return self._future_.result()
 
     def _create_proxy(self, selector):
         """Create a ProxyResult for the element of the ProxyResults being
-           requested
+        requested
         """
         qiime_type = self._signature_[selector].qiime_type
 
         if is_collection_type(qiime_type):
-            return ProxyResultCollection(
-                self._future_, selector, qiime_type)
+            return ProxyResultCollection(self._future_, selector, qiime_type)
         elif is_visualization_type(qiime_type):
-            return ProxyVisualization(
-                self._future_, selector, qiime_type)
+            return ProxyVisualization(self._future_, selector, qiime_type)
 
         return ProxyArtifact(self._future_, selector, qiime_type)

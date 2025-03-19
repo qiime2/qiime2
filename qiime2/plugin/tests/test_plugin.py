@@ -13,10 +13,20 @@ import qiime2.plugin
 import qiime2.sdk
 import qiime2.util
 
-from qiime2.core.testing.type import (IntSequence1, IntSequence2, Mapping,
-                                      FourInts, Kennel, Dog, Cat, SingleInt)
-from qiime2.core.testing.format import (IntSequenceDirectoryFormat,
-                                        IntSequenceV2DirectoryFormat)
+from qiime2.core.testing.type import (
+    IntSequence1,
+    IntSequence2,
+    Mapping,
+    FourInts,
+    Kennel,
+    Dog,
+    Cat,
+    SingleInt,
+)
+from qiime2.core.testing.format import (
+    IntSequenceDirectoryFormat,
+    IntSequenceV2DirectoryFormat,
+)
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.testing.plugin import is1_use, is2_use
 from qiime2.plugin.testing import assert_no_nans_in_tables
@@ -28,99 +38,122 @@ class TestPlugin(unittest.TestCase):
 
     def get_data_path(self, filename):
         fp = qiime2.util.get_filepath_from_package(
-            'qiime2.plugin.tests', 'data/%s' % filename)
+            "qiime2.plugin.tests", "data/%s" % filename
+        )
         return str(fp)
 
     def test_name(self):
-        self.assertEqual(self.plugin.name, 'dummy-plugin')
+        self.assertEqual(self.plugin.name, "dummy-plugin")
 
     def test_version(self):
-        self.assertEqual(self.plugin.version, '0.0.0-dev')
+        self.assertEqual(self.plugin.version, "0.0.0-dev")
 
     def test_website(self):
-        self.assertEqual(self.plugin.website,
-                         'https://github.com/qiime2/qiime2')
+        self.assertEqual(self.plugin.website, "https://github.com/qiime2/qiime2")
 
     def test_package(self):
-        self.assertEqual(self.plugin.package, 'qiime2.core.testing')
+        self.assertEqual(self.plugin.package, "qiime2.core.testing")
 
     def test_citations(self):
-        self.assertEqual(self.plugin.citations[0].type, 'article')
+        self.assertEqual(self.plugin.citations[0].type, "article")
 
     def test_user_support_text(self):
-        self.assertEqual(self.plugin.user_support_text,
-                         'For help, see https://qiime2.org')
+        self.assertEqual(
+            self.plugin.user_support_text, "For help, see https://qiime2.org"
+        )
 
     def test_short_description_text(self):
-        self.assertEqual(self.plugin.short_description,
-                         'Dummy plugin for testing.')
+        self.assertEqual(self.plugin.short_description, "Dummy plugin for testing.")
 
     def test_description_text(self):
-        self.assertEqual(self.plugin.description,
-                         'Description of dummy plugin.')
+        self.assertEqual(self.plugin.description, "Description of dummy plugin.")
 
     def test_citations_default(self):
         plugin = qiime2.plugin.Plugin(
-            name='local-dummy-plugin',
-            version='0.0.0-dev',
-            website='https://github.com/qiime2/qiime2',
-            package='qiime2.core.testing')
+            name="local-dummy-plugin",
+            version="0.0.0-dev",
+            website="https://github.com/qiime2/qiime2",
+            package="qiime2.core.testing",
+        )
         self.assertEqual(plugin.citations, ())
 
     def test_user_support_text_default(self):
         plugin = qiime2.plugin.Plugin(
-            name='local-dummy-plugin',
-            version='0.0.0-dev',
-            website='https://github.com/qiime2/qiime2',
-            package='qiime2.core.testing')
-        self.assertTrue(plugin.user_support_text.startswith('Please post'))
-        self.assertTrue(plugin.user_support_text.endswith(
-                            'https://forum.qiime2.org'))
+            name="local-dummy-plugin",
+            version="0.0.0-dev",
+            website="https://github.com/qiime2/qiime2",
+            package="qiime2.core.testing",
+        )
+        self.assertTrue(plugin.user_support_text.startswith("Please post"))
+        self.assertTrue(plugin.user_support_text.endswith("https://forum.qiime2.org"))
 
     def test_actions(self):
         actions = self.plugin.actions
 
         self.assertIsInstance(actions, types.MappingProxyType)
 
-        self.assertEqual(actions.keys(),
-                         {'merge_mappings', 'concatenate_ints', 'split_ints',
-                          'most_common_viz', 'mapping_viz',
-                          'identity_with_metadata',
-                          'identity_with_metadata_column',
-                          'identity_with_categorical_metadata_column',
-                          'identity_with_numeric_metadata_column',
-                          'identity_with_optional_metadata',
-                          'identity_with_optional_metadata_column',
-                          'params_only_method', 'no_input_method',
-                          'optional_artifacts_method', 'variadic_input_method',
-                          'params_only_viz', 'no_input_viz',
-                          'long_description_method', 'parameter_only_pipeline',
-                          'typical_pipeline', 'optional_artifact_pipeline',
-                          'pointless_pipeline', 'visualizer_only_pipeline',
-                          'pipelines_in_pipeline',
-                          'resumable_pipeline',
-                          'resumable_varied_pipeline',
-                          'resumable_nested_varied_pipeline',
-                          'internal_fail_pipeline', 'de_facto_list_pipeline',
-                          'mix_arts_and_proxies', 'de_facto_dict_pipeline',
-                          'de_facto_collection_pipeline', 'list_pipeline',
-                          'collection_pipeline', 'failing_pipeline',
-                          'viz_collection_pipeline',
-                          'docstring_order_method',
-                          'constrained_input_visualization',
-                          'combinatorically_mapped_method',
-                          'double_bound_variable_method',
-                          'bool_flag_swaps_output_method',
-                          'predicates_preserved_method',
-                          'deprecated_method', 'union_inputs',
-                          'unioned_primitives',
-                          'type_match_list_and_set',
-                          'list_of_ints', 'dict_of_ints', 'returns_int',
-                          'collection_inner_union', 'collection_outer_union',
-                          'dict_params', 'list_params', 'varied_method',
-                          '_underscore_method', 'return_four_ints',
-                          'return_many_ints'
-                          })
+        self.assertEqual(
+            actions.keys(),
+            {
+                "merge_mappings",
+                "concatenate_ints",
+                "split_ints",
+                "most_common_viz",
+                "mapping_viz",
+                "identity_with_metadata",
+                "identity_with_metadata_column",
+                "identity_with_categorical_metadata_column",
+                "identity_with_numeric_metadata_column",
+                "identity_with_optional_metadata",
+                "identity_with_optional_metadata_column",
+                "params_only_method",
+                "no_input_method",
+                "optional_artifacts_method",
+                "variadic_input_method",
+                "params_only_viz",
+                "no_input_viz",
+                "long_description_method",
+                "parameter_only_pipeline",
+                "typical_pipeline",
+                "optional_artifact_pipeline",
+                "pointless_pipeline",
+                "visualizer_only_pipeline",
+                "pipelines_in_pipeline",
+                "resumable_pipeline",
+                "resumable_varied_pipeline",
+                "resumable_nested_varied_pipeline",
+                "internal_fail_pipeline",
+                "de_facto_list_pipeline",
+                "mix_arts_and_proxies",
+                "de_facto_dict_pipeline",
+                "de_facto_collection_pipeline",
+                "list_pipeline",
+                "collection_pipeline",
+                "failing_pipeline",
+                "viz_collection_pipeline",
+                "docstring_order_method",
+                "constrained_input_visualization",
+                "combinatorically_mapped_method",
+                "double_bound_variable_method",
+                "bool_flag_swaps_output_method",
+                "predicates_preserved_method",
+                "deprecated_method",
+                "union_inputs",
+                "unioned_primitives",
+                "type_match_list_and_set",
+                "list_of_ints",
+                "dict_of_ints",
+                "returns_int",
+                "collection_inner_union",
+                "collection_outer_union",
+                "dict_params",
+                "list_params",
+                "varied_method",
+                "_underscore_method",
+                "return_four_ints",
+                "return_many_ints",
+            },
+        )
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
 
@@ -133,58 +166,90 @@ class TestPlugin(unittest.TestCase):
     def test_methods(self):
         methods = self.plugin.methods
 
-        self.assertEqual(methods.keys(),
-                         {'merge_mappings', 'concatenate_ints', 'split_ints',
-                          'identity_with_metadata',
-                          'identity_with_metadata_column',
-                          'identity_with_categorical_metadata_column',
-                          'identity_with_numeric_metadata_column',
-                          'identity_with_optional_metadata',
-                          'identity_with_optional_metadata_column',
-                          'params_only_method', 'no_input_method',
-                          'optional_artifacts_method',
-                          'long_description_method',
-                          'variadic_input_method', 'docstring_order_method',
-                          'combinatorically_mapped_method',
-                          'double_bound_variable_method',
-                          'bool_flag_swaps_output_method',
-                          'predicates_preserved_method',
-                          'deprecated_method', 'union_inputs',
-                          'unioned_primitives',
-                          'type_match_list_and_set', 'list_of_ints',
-                          'dict_of_ints', 'returns_int',
-                          'collection_inner_union',
-                          'collection_outer_union', 'dict_params',
-                          'list_params', 'varied_method', '_underscore_method',
-                          'return_four_ints', 'return_many_ints'
-                          })
+        self.assertEqual(
+            methods.keys(),
+            {
+                "merge_mappings",
+                "concatenate_ints",
+                "split_ints",
+                "identity_with_metadata",
+                "identity_with_metadata_column",
+                "identity_with_categorical_metadata_column",
+                "identity_with_numeric_metadata_column",
+                "identity_with_optional_metadata",
+                "identity_with_optional_metadata_column",
+                "params_only_method",
+                "no_input_method",
+                "optional_artifacts_method",
+                "long_description_method",
+                "variadic_input_method",
+                "docstring_order_method",
+                "combinatorically_mapped_method",
+                "double_bound_variable_method",
+                "bool_flag_swaps_output_method",
+                "predicates_preserved_method",
+                "deprecated_method",
+                "union_inputs",
+                "unioned_primitives",
+                "type_match_list_and_set",
+                "list_of_ints",
+                "dict_of_ints",
+                "returns_int",
+                "collection_inner_union",
+                "collection_outer_union",
+                "dict_params",
+                "list_params",
+                "varied_method",
+                "_underscore_method",
+                "return_four_ints",
+                "return_many_ints",
+            },
+        )
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)
 
     def test_visualizers(self):
         visualizers = self.plugin.visualizers
 
-        self.assertEqual(visualizers.keys(),
-                         {'most_common_viz', 'mapping_viz', 'params_only_viz',
-                          'no_input_viz', 'constrained_input_visualization'})
+        self.assertEqual(
+            visualizers.keys(),
+            {
+                "most_common_viz",
+                "mapping_viz",
+                "params_only_viz",
+                "no_input_viz",
+                "constrained_input_visualization",
+            },
+        )
         for viz in visualizers.values():
             self.assertIsInstance(viz, qiime2.sdk.Visualizer)
 
     def test_pipelines(self):
         pipelines = self.plugin.pipelines
 
-        self.assertEqual(pipelines.keys(),
-                         {'parameter_only_pipeline', 'typical_pipeline',
-                          'optional_artifact_pipeline', 'pointless_pipeline',
-                          'visualizer_only_pipeline', 'pipelines_in_pipeline',
-                          'resumable_pipeline',
-                          'resumable_varied_pipeline',
-                          'resumable_nested_varied_pipeline',
-                          'internal_fail_pipeline', 'de_facto_list_pipeline',
-                          'mix_arts_and_proxies', 'de_facto_dict_pipeline',
-                          'de_facto_collection_pipeline', 'list_pipeline',
-                          'collection_pipeline', 'failing_pipeline',
-                          'viz_collection_pipeline'})
+        self.assertEqual(
+            pipelines.keys(),
+            {
+                "parameter_only_pipeline",
+                "typical_pipeline",
+                "optional_artifact_pipeline",
+                "pointless_pipeline",
+                "visualizer_only_pipeline",
+                "pipelines_in_pipeline",
+                "resumable_pipeline",
+                "resumable_varied_pipeline",
+                "resumable_nested_varied_pipeline",
+                "internal_fail_pipeline",
+                "de_facto_list_pipeline",
+                "mix_arts_and_proxies",
+                "de_facto_dict_pipeline",
+                "de_facto_collection_pipeline",
+                "list_pipeline",
+                "collection_pipeline",
+                "failing_pipeline",
+                "viz_collection_pipeline",
+            },
+        )
         for pipeline in pipelines.values():
             self.assertIsInstance(pipeline, qiime2.sdk.Pipeline)
 
@@ -194,18 +259,39 @@ class TestPlugin(unittest.TestCase):
         # Plugin.type_formats was replaced with Plugin.artifact_classes. For
         # backward compatibility the Plugin.type_formats property returns
         # the plugin's artifact_classes
-        self.assertEqual(self.plugin.type_formats,
-                         list(self.plugin.artifact_classes.values()))
+        self.assertEqual(
+            self.plugin.type_formats, list(self.plugin.artifact_classes.values())
+        )
 
     def test_type_fragments(self):
         types = self.plugin.type_fragments.keys()
 
         self.assertEqual(
             set(types),
-            set(['IntSequence1', 'IntSequence2', 'IntSequence3', 'Mapping',
-                 'FourInts', 'Kennel', 'Dog', 'Cat', 'SingleInt', 'C1', 'C2',
-                 'C3', 'Foo', 'Bar', 'Baz', 'AscIntSequence', 'Squid',
-                 'Octopus', 'Cuttlefish']))
+            set(
+                [
+                    "IntSequence1",
+                    "IntSequence2",
+                    "IntSequence3",
+                    "Mapping",
+                    "FourInts",
+                    "Kennel",
+                    "Dog",
+                    "Cat",
+                    "SingleInt",
+                    "C1",
+                    "C2",
+                    "C3",
+                    "Foo",
+                    "Bar",
+                    "Baz",
+                    "AscIntSequence",
+                    "Squid",
+                    "Octopus",
+                    "Cuttlefish",
+                ]
+            ),
+        )
 
     def test_types(self):
         types = self.plugin.types
@@ -213,8 +299,15 @@ class TestPlugin(unittest.TestCase):
         # get just the types out of the ArtifactClassRecords namedtuples
         types = {type_.semantic_type for type_ in types.values()}
 
-        exp = {IntSequence1, IntSequence2, FourInts, Mapping, Kennel[Dog],
-               Kennel[Cat], SingleInt}
+        exp = {
+            IntSequence1,
+            IntSequence2,
+            FourInts,
+            Mapping,
+            Kennel[Dog],
+            Kennel[Cat],
+            SingleInt,
+        }
         self.assertLessEqual(exp, types)
         self.assertNotIn(Cat, types)
         self.assertNotIn(Dog, types)
@@ -222,27 +315,30 @@ class TestPlugin(unittest.TestCase):
 
     def test_register_semantic_type_to_format_deprecated_parameter_name(self):
         plugin = qiime2.plugin.Plugin(
-            name='local-dummy-plugin',
-            version='0.0.0-dev',
-            website='https://github.com/qiime2/qiime2',
-            package='qiime2.core.testing')
+            name="local-dummy-plugin",
+            version="0.0.0-dev",
+            website="https://github.com/qiime2/qiime2",
+            package="qiime2.core.testing",
+        )
 
         # both the new (directory_format) and old (artifact_format) names for
         # the format work
         plugin.register_semantic_type_to_format(
-            IntSequence1, directory_format=IntSequenceDirectoryFormat)
+            IntSequence1, directory_format=IntSequenceDirectoryFormat
+        )
 
         plugin.register_semantic_type_to_format(
-            IntSequence2, artifact_format=IntSequenceV2DirectoryFormat)
+            IntSequence2, artifact_format=IntSequenceV2DirectoryFormat
+        )
 
-        ac = plugin.artifact_classes['IntSequence1']
+        ac = plugin.artifact_classes["IntSequence1"]
         self.assertEqual(ac.semantic_type, IntSequence1)
         self.assertEqual(ac.format, IntSequenceDirectoryFormat)
         self.assertEqual(ac.plugin, plugin)
         self.assertEqual(ac.description, "")
         self.assertEqual(ac.examples, types.MappingProxyType({}))
 
-        ac = plugin.artifact_classes['IntSequence2']
+        ac = plugin.artifact_classes["IntSequence2"]
         self.assertEqual(ac.semantic_type, IntSequence2)
         self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
         self.assertEqual(ac.plugin, plugin)
@@ -252,44 +348,46 @@ class TestPlugin(unittest.TestCase):
         # errors are raised when both or neither the new or old names for the
         # format are provided
         plugin = qiime2.plugin.Plugin(
-            name='local-dummy-plugin',
-            version='0.0.0-dev',
-            website='https://github.com/qiime2/qiime2',
-            package='qiime2.core.testing')
+            name="local-dummy-plugin",
+            version="0.0.0-dev",
+            website="https://github.com/qiime2/qiime2",
+            package="qiime2.core.testing",
+        )
 
-        regex = r'ory_format and artifact_for.*IntSequence1'
+        regex = r"ory_format and artifact_for.*IntSequence1"
         with self.assertRaisesRegex(ValueError, regex):
             plugin.register_semantic_type_to_format(
-                IntSequence1, directory_format=IntSequenceDirectoryFormat,
-                artifact_format=IntSequenceDirectoryFormat)
+                IntSequence1,
+                directory_format=IntSequenceDirectoryFormat,
+                artifact_format=IntSequenceDirectoryFormat,
+            )
 
-        regex = r'ory_format or artifact_for.*IntSequence1'
+        regex = r"ory_format or artifact_for.*IntSequence1"
         with self.assertRaisesRegex(ValueError, regex):
             plugin.register_semantic_type_to_format(IntSequence1)
 
     def test_register_artifact_class(self):
         plugin = qiime2.plugin.Plugin(
-            name='local-dummy-plugin',
-            version='0.0.0-dev',
-            website='https://github.com/qiime2/qiime2',
-            package='qiime2.core.testing')
-        plugin.register_artifact_class(IntSequence1,
-                                       IntSequenceDirectoryFormat)
+            name="local-dummy-plugin",
+            version="0.0.0-dev",
+            website="https://github.com/qiime2/qiime2",
+            package="qiime2.core.testing",
+        )
+        plugin.register_artifact_class(IntSequence1, IntSequenceDirectoryFormat)
 
         # the original approach for registering artifact_class still works
-        plugin.register_semantic_type_to_format(IntSequence2,
-                                                IntSequenceV2DirectoryFormat)
+        plugin.register_semantic_type_to_format(
+            IntSequence2, IntSequenceV2DirectoryFormat
+        )
 
-        plugin.register_artifact_class(Kennel[Dog],
-                                       IntSequenceDirectoryFormat)
+        plugin.register_artifact_class(Kennel[Dog], IntSequenceDirectoryFormat)
 
-        plugin.register_artifact_class(Kennel[Cat],
-                                       IntSequenceV2DirectoryFormat)
+        plugin.register_artifact_class(Kennel[Cat], IntSequenceV2DirectoryFormat)
 
         # all and only the expected artifact classes have been registered
         self.assertEqual(len(plugin.artifact_classes), 4)
 
-        ac = plugin.artifact_classes['IntSequence1']
+        ac = plugin.artifact_classes["IntSequence1"]
         self.assertEqual(ac.semantic_type, IntSequence1)
         self.assertEqual(ac.type_expression, IntSequence1)
         self.assertEqual(ac.format, IntSequenceDirectoryFormat)
@@ -297,7 +395,7 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(ac.description, "")
         self.assertEqual(ac.examples, types.MappingProxyType({}))
 
-        ac = plugin.artifact_classes['IntSequence2']
+        ac = plugin.artifact_classes["IntSequence2"]
         self.assertEqual(ac.semantic_type, IntSequence2)
         self.assertEqual(ac.type_expression, IntSequence2)
         self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
@@ -305,7 +403,7 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(ac.description, "")
         self.assertEqual(ac.examples, types.MappingProxyType({}))
 
-        ac = plugin.artifact_classes['Kennel[Dog]']
+        ac = plugin.artifact_classes["Kennel[Dog]"]
         self.assertEqual(ac.semantic_type, Kennel[Dog])
         self.assertEqual(ac.type_expression, Kennel[Dog])
         self.assertEqual(ac.format, IntSequenceDirectoryFormat)
@@ -313,7 +411,7 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(ac.description, "")
         self.assertEqual(ac.examples, types.MappingProxyType({}))
 
-        ac = plugin.artifact_classes['Kennel[Cat]']
+        ac = plugin.artifact_classes["Kennel[Cat]"]
         self.assertEqual(ac.semantic_type, Kennel[Cat])
         self.assertEqual(ac.type_expression, Kennel[Cat])
         self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
@@ -321,89 +419,96 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(ac.description, "")
         self.assertEqual(ac.examples, types.MappingProxyType({}))
 
-        self.assertFalse(plugin.artifact_classes['IntSequence1'] is
-                         plugin.artifact_classes['IntSequence2'])
+        self.assertFalse(
+            plugin.artifact_classes["IntSequence1"]
+            is plugin.artifact_classes["IntSequence2"]
+        )
 
     def test_duplicate_artifact_class_registration_disallowed(self):
         plugin = qiime2.plugin.Plugin(
-            name='local-dummy-plugin',
-            version='0.0.0-dev',
-            website='https://github.com/qiime2/qiime2',
-            package='qiime2.core.testing')
-        plugin.register_artifact_class(IntSequence1,
-                                       IntSequenceDirectoryFormat)
+            name="local-dummy-plugin",
+            version="0.0.0-dev",
+            website="https://github.com/qiime2/qiime2",
+            package="qiime2.core.testing",
+        )
+        plugin.register_artifact_class(IntSequence1, IntSequenceDirectoryFormat)
 
         # Registration of type to the same format with both registration
         # methods is disallowed
         with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
             plugin.register_semantic_type_to_format(
-                IntSequence1, IntSequenceDirectoryFormat)
+                IntSequence1, IntSequenceDirectoryFormat
+            )
 
         with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
-            plugin.register_artifact_class(
-                IntSequence1, IntSequenceDirectoryFormat)
+            plugin.register_artifact_class(IntSequence1, IntSequenceDirectoryFormat)
 
         # Registration of type to the different format with both registration
         # methods is disallowed
         with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
             plugin.register_semantic_type_to_format(
-                IntSequence1, IntSequenceV2DirectoryFormat)
+                IntSequence1, IntSequenceV2DirectoryFormat
+            )
 
         with self.assertRaisesRegex(NameError, "ct class IntSequence1.*once"):
-            plugin.register_artifact_class(
-                IntSequence1, IntSequenceV2DirectoryFormat)
+            plugin.register_artifact_class(IntSequence1, IntSequenceV2DirectoryFormat)
 
     def test_register_artifact_class_w_annotations(self):
         plugin = qiime2.plugin.Plugin(
-            name='local-dummy-plugin',
-            version='0.0.0-dev',
-            website='https://github.com/qiime2/qiime2',
-            package='qiime2.core.testing')
+            name="local-dummy-plugin",
+            version="0.0.0-dev",
+            website="https://github.com/qiime2/qiime2",
+            package="qiime2.core.testing",
+        )
         plugin.register_artifact_class(
-            IntSequence1, IntSequenceDirectoryFormat,
+            IntSequence1,
+            IntSequenceDirectoryFormat,
             description="A sequence of integers.",
-            examples=types.MappingProxyType({'Import ex 1': is1_use}))
+            examples=types.MappingProxyType({"Import ex 1": is1_use}),
+        )
         plugin.register_artifact_class(
-            IntSequence2, IntSequenceV2DirectoryFormat,
+            IntSequence2,
+            IntSequenceV2DirectoryFormat,
             description="Different seq of ints.",
-            examples=types.MappingProxyType({'Import ex': is2_use}))
+            examples=types.MappingProxyType({"Import ex": is2_use}),
+        )
 
-        ac = plugin.artifact_classes['IntSequence1']
+        ac = plugin.artifact_classes["IntSequence1"]
         self.assertEqual(ac.semantic_type, IntSequence1)
         self.assertEqual(ac.format, IntSequenceDirectoryFormat)
         self.assertEqual(ac.plugin, plugin)
         self.assertEqual(ac.description, "A sequence of integers.")
-        self.assertEqual(ac.examples,
-                         types.MappingProxyType({'Import ex 1': is1_use}))
+        self.assertEqual(ac.examples, types.MappingProxyType({"Import ex 1": is1_use}))
 
-        ac = plugin.artifact_classes['IntSequence2']
+        ac = plugin.artifact_classes["IntSequence2"]
         self.assertEqual(ac.semantic_type, IntSequence2)
         self.assertEqual(ac.format, IntSequenceV2DirectoryFormat)
         self.assertEqual(ac.plugin, plugin)
         self.assertEqual(ac.description, "Different seq of ints.")
-        self.assertEqual(ac.examples,
-                         types.MappingProxyType({'Import ex': is2_use}))
+        self.assertEqual(ac.examples, types.MappingProxyType({"Import ex": is2_use}))
 
     def test_register_artifact_class_multiple(self):
         plugin = qiime2.plugin.Plugin(
-            name='local-dummy-plugin',
-            version='0.0.0-dev',
-            website='https://github.com/qiime2/qiime2',
-            package='qiime2.core.testing')
+            name="local-dummy-plugin",
+            version="0.0.0-dev",
+            website="https://github.com/qiime2/qiime2",
+            package="qiime2.core.testing",
+        )
 
         # multiple artifact_classes can be registered using the original
         # approach, since default descriptions and examples are used
-        plugin.register_semantic_type_to_format(Kennel[Dog | Cat],
-                                                IntSequenceDirectoryFormat)
+        plugin.register_semantic_type_to_format(
+            Kennel[Dog | Cat], IntSequenceDirectoryFormat
+        )
 
-        ac_c = plugin.artifact_classes['Kennel[Cat]']
+        ac_c = plugin.artifact_classes["Kennel[Cat]"]
         self.assertEqual(ac_c.semantic_type, Kennel[Cat])
         self.assertEqual(ac_c.format, IntSequenceDirectoryFormat)
         self.assertEqual(ac_c.plugin, plugin)
         self.assertEqual(ac_c.description, "")
         self.assertEqual(ac_c.examples, types.MappingProxyType({}))
 
-        ac_d = plugin.artifact_classes['Kennel[Dog]']
+        ac_d = plugin.artifact_classes["Kennel[Dog]"]
         self.assertEqual(ac_d.semantic_type, Kennel[Dog])
         self.assertEqual(ac_d.format, IntSequenceDirectoryFormat)
         self.assertEqual(ac_d.plugin, plugin)
@@ -413,19 +518,19 @@ class TestPlugin(unittest.TestCase):
         # multiple artifact_classes cannot be registered using
         # register_artifact_class, since default descriptions and examples
         # should be different from one another
-        with self.assertRaisesRegex(TypeError,
-                                    r'Only a single.*Kennel\[Dog \| Cat\]'):
+        with self.assertRaisesRegex(TypeError, r"Only a single.*Kennel\[Dog \| Cat\]"):
             plugin.register_artifact_class(
-                Kennel[Dog | Cat], IntSequenceDirectoryFormat)
+                Kennel[Dog | Cat], IntSequenceDirectoryFormat
+            )
 
     def test_table_does_not_have_nans(self):
-        noNaN = self.get_data_path('no_nan.html')
+        noNaN = self.get_data_path("no_nan.html")
 
         with open(noNaN) as fh:
             assert_no_nans_in_tables(fh)
 
     def test_table_has_nans(self):
-        hasNaN = self.get_data_path('has_nan.html')
+        hasNaN = self.get_data_path("has_nan.html")
 
         with open(hasNaN) as fh:
             with self.assertRaises(AssertionError):
@@ -435,20 +540,16 @@ class TestPlugin(unittest.TestCase):
         def bad_function() -> list:
             pass
 
-        with self.assertRaisesRegex(TypeError,
-                                    "'bad_output'.*'List'.*'Collection'.*"):
+        with self.assertRaisesRegex(TypeError, "'bad_output'.*'List'.*'Collection'.*"):
             self.plugin.methods.register_function(
                 function=bad_function,
                 inputs={},
                 parameters={},
-                outputs={
-                    'bad_output': qiime2.plugin.List[IntSequence1]
-                },
-                name='Output is registered as returning a List which is bad.',
-                description='Output is registered as returning a List which is'
-                            ' bad.'
+                outputs={"bad_output": qiime2.plugin.List[IntSequence1]},
+                name="Output is registered as returning a List which is bad.",
+                description="Output is registered as returning a List which is" " bad.",
             )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

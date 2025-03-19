@@ -16,7 +16,6 @@ import qiime2.core.type.grammar as grammar
 
 
 class TestIntersectTwoRanges(unittest.TestCase):
-
     def assertIntersectEqual(self, a, b, exp):
         r1 = a & b
         r2 = b & a
@@ -52,71 +51,69 @@ class TestIntersectTwoRanges(unittest.TestCase):
 
 class TestChoices(unittest.TestCase):
     def test_list_constructor(self):
-        choices = primitive.Choices(['a', 'b', 'c'])
+        choices = primitive.Choices(["a", "b", "c"])
 
-        self.assertEqual(choices.template.choices, ('a', 'b', 'c'))
-        self.assertIn('a', choices)
-        self.assertNotIn('x', choices)
+        self.assertEqual(choices.template.choices, ("a", "b", "c"))
+        self.assertIn("a", choices)
+        self.assertNotIn("x", choices)
 
     def test_set_constructor(self):
-        choices = primitive.Choices({'a', 'b', 'c'})
+        choices = primitive.Choices({"a", "b", "c"})
 
-        self.assertEqual(choices.template.choices, ('a', 'b', 'c'))
-        self.assertIn('a', choices)
-        self.assertNotIn('x', choices)
+        self.assertEqual(choices.template.choices, ("a", "b", "c"))
+        self.assertIn("a", choices)
+        self.assertNotIn("x", choices)
 
     def test_varargs_constructor(self):
-        choices = primitive.Choices('a', 'b', 'c')
+        choices = primitive.Choices("a", "b", "c")
 
-        self.assertEqual(choices.template.choices, ('a', 'b', 'c'))
-        self.assertIn('a', choices)
-        self.assertNotIn('x', choices)
+        self.assertEqual(choices.template.choices, ("a", "b", "c"))
+        self.assertIn("a", choices)
+        self.assertNotIn("x", choices)
 
     def test_union(self):
-        a = primitive.Choices('a', 'b', 'c')
-        b = primitive.Choices('x', 'y', 'z')
+        a = primitive.Choices("a", "b", "c")
+        b = primitive.Choices("x", "y", "z")
 
         r = a | b
 
-        self.assertIn('a', r)
-        self.assertIn('x', r)
-        self.assertNotIn('foo', r)
+        self.assertIn("a", r)
+        self.assertIn("x", r)
+        self.assertNotIn("foo", r)
 
     def test_intersection(self):
-        a = primitive.Choices('a', 'b', 'c')
-        b = primitive.Choices('a', 'c', 'z')
+        a = primitive.Choices("a", "b", "c")
+        b = primitive.Choices("a", "c", "z")
 
         r = a & b
 
-        self.assertIn('a', r)
-        self.assertIn('c', r)
-        self.assertNotIn('b', r)
-        self.assertNotIn('z', r)
+        self.assertIn("a", r)
+        self.assertIn("c", r)
+        self.assertNotIn("b", r)
+        self.assertNotIn("z", r)
 
 
 class TestMetadataColumn(unittest.TestCase):
-
     def test_decode_categorical_value(self):
-        value = pd.Series({'a': 'a', 'b': 'b', 'c': 'c'}, name='foo')
-        value.index.name = 'id'
+        value = pd.Series({"a": "a", "b": "b", "c": "c"}, name="foo")
+        value.index.name = "id"
         cat_md = metadata.CategoricalMetadataColumn(value)
 
         res = primitive.MetadataColumn[primitive.Categorical].decode(cat_md)
         self.assertIs(res, cat_md)
 
     def test_decode_numeric_value(self):
-        value = pd.Series({'a': 1, 'b': 2, 'c': 3}, name='foo')
-        value.index.name = 'id'
+        value = pd.Series({"a": 1, "b": 2, "c": 3}, name="foo")
+        value.index.name = "id"
         num_md = metadata.NumericMetadataColumn(value)
 
         res = primitive.MetadataColumn[primitive.Categorical].decode(num_md)
         self.assertIs(res, num_md)
 
     def test_decode_other(self):
-        with self.assertRaisesRegex(TypeError, 'provided.*directly'):
-            primitive.MetadataColumn[primitive.Categorical].decode(
-                "<metadata>")
+        with self.assertRaisesRegex(TypeError, "provided.*directly"):
+            primitive.MetadataColumn[primitive.Categorical].decode("<metadata>")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -18,7 +18,7 @@ from qiime2.core.path import OwnedPath, OutPath
 class TestOwnedPath(unittest.TestCase):
     def setUp(self):
         self.from_dir = tempfile.mkdtemp()
-        (pathlib.Path(self.from_dir) / 'foo.txt').touch()
+        (pathlib.Path(self.from_dir) / "foo.txt").touch()
 
         self.to_dir = tempfile.mkdtemp()
         # assume to_dir is empty for all tests
@@ -31,8 +31,8 @@ class TestOwnedPath(unittest.TestCase):
         d._move_or_copy(self.to_dir)
 
         # since from_dir is owned, _move_or_copy should copy, not move
-        self.assertTrue(os.path.exists(os.path.join(self.from_dir, 'foo.txt')))
-        self.assertTrue(os.path.exists(os.path.join(self.to_dir, 'foo.txt')))
+        self.assertTrue(os.path.exists(os.path.join(self.from_dir, "foo.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.to_dir, "foo.txt")))
 
         shutil.rmtree(self.from_dir)
         shutil.rmtree(self.to_dir)
@@ -45,15 +45,14 @@ class TestOwnedPath(unittest.TestCase):
         d._move_or_copy(self.to_dir)
 
         # since from_dir is not owned, _move_or_copy should move, not copy
-        self.assertFalse(os.path.exists(os.path.join(self.from_dir,
-                                                     'foo.txt')))
-        self.assertTrue(os.path.exists(os.path.join(self.to_dir, 'foo.txt')))
+        self.assertFalse(os.path.exists(os.path.join(self.from_dir, "foo.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.to_dir, "foo.txt")))
 
         with self.assertRaises(FileNotFoundError):
             shutil.rmtree(self.from_dir)
         shutil.rmtree(self.to_dir)
 
-    @unittest.mock.patch('pathlib.Path.rename', side_effect=FileExistsError)
+    @unittest.mock.patch("pathlib.Path.rename", side_effect=FileExistsError)
     def test_move_or_copy_not_owned_copy(self, _):
         d = OwnedPath(self.from_dir)
         # ensure that we are not owned
@@ -64,9 +63,8 @@ class TestOwnedPath(unittest.TestCase):
         # since from_dir is not owned, but the network fs race condition crops
         # up, _move_or_copy should copy, not move, but then we still ensure
         # that the original path has been cleaned up
-        self.assertFalse(os.path.exists(os.path.join(self.from_dir,
-                                                     'foo.txt')))
-        self.assertTrue(os.path.exists(os.path.join(self.to_dir, 'foo.txt')))
+        self.assertFalse(os.path.exists(os.path.join(self.from_dir, "foo.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.to_dir, "foo.txt")))
 
         with self.assertRaises(FileNotFoundError):
             shutil.rmtree(self.from_dir)
@@ -99,5 +97,5 @@ class TestOutPath(unittest.TestCase):
         self.assertFalse(os.path.isfile(path))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

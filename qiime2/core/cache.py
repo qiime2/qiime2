@@ -51,9 +51,15 @@ import flufl.lock
 import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
-from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
-                              load_action_yaml, READ_ONLY_FILE, READ_ONLY_DIR,
-                              USER_GROUP_RWX)
+from qiime2.core.util import (
+    is_uuid4,
+    set_permissions,
+    touch_under_path,
+    load_action_yaml,
+    READ_ONLY_FILE,
+    READ_ONLY_DIR,
+    USER_GROUP_RWX,
+)
 from qiime2.core.archive.archiver import Archiver
 from qiime2.core.type import HashableInvocation, IndexedCollectionElement
 
@@ -108,8 +114,8 @@ def get_cache():
     """
     # If we are on a new thread we may in fact not have a cache attribute here
     # at all
-    if not hasattr(_CACHE, 'cache') or _CACHE.cache is None:
-        if not hasattr(_CACHE, 'temp_cache') or _CACHE.temp_cache is None:
+    if not hasattr(_CACHE, "cache") or _CACHE.cache is None:
+        if not hasattr(_CACHE, "temp_cache") or _CACHE.temp_cache is None:
             _CACHE.temp_cache = Cache()
         return _CACHE.temp_cache
 
@@ -128,7 +134,7 @@ def _get_temp_path():
     """
     tmpdir = tempfile.gettempdir()
 
-    cache_dir = os.path.join(tmpdir, 'qiime2')
+    cache_dir = os.path.join(tmpdir, "qiime2")
 
     # Make sure the sticky bit is set on the cache directory. Documentation on
     # what a sticky bit is can be found here
@@ -151,18 +157,21 @@ def _get_temp_path():
             # this small hack seems not too bad.
         else:
             # skip this if there was an error we ignored
-            sticky_permissions = stat.S_ISVTX | stat.S_IRWXU | stat.S_IRWXG \
-                | stat.S_IRWXO
+            sticky_permissions = (
+                stat.S_ISVTX | stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO
+            )
             os.chmod(cache_dir, sticky_permissions)
     elif os.stat(cache_dir).st_mode != EXPECTED_PERMISSIONS:
-        raise ValueError(f"Directory '{cache_dir}' already exists without "
-                         f"proper permissions '{oct(EXPECTED_PERMISSIONS)}' "
-                         "set. Current permissions are "
-                         f"'{oct(os.stat(cache_dir).st_mode)}.' This most "
-                         "likely means something other than QIIME 2 created "
-                         f"the directory '{cache_dir}' or QIIME 2 failed "
-                         f"between creating '{cache_dir}' and setting "
-                         "permissions on it.")
+        raise ValueError(
+            f"Directory '{cache_dir}' already exists without "
+            f"proper permissions '{oct(EXPECTED_PERMISSIONS)}' "
+            "set. Current permissions are "
+            f"'{oct(os.stat(cache_dir).st_mode)}.' This most "
+            "likely means something other than QIIME 2 created "
+            f"the directory '{cache_dir}' or QIIME 2 failed "
+            f"between creating '{cache_dir}' and setting "
+            "permissions on it."
+        )
 
     user = _get_user()
     user_dir = os.path.join(cache_dir, user)
@@ -174,8 +183,10 @@ def _get_temp_path():
         uid_name = _get_uid_cache_name()
         # This really shouldn't happen
         if user == uid_name:
-            raise ValueError(f'Temp cache for uid path {user} already exists '
-                             'but does not belong to us.')
+            raise ValueError(
+                f"Temp cache for uid path {user} already exists "
+                "but does not belong to us."
+            )
 
         user_dir = os.path.join(cache_dir, uid_name)
 
@@ -212,7 +223,7 @@ def _get_uid_cache_name():
     str
         The aforementioned stand in name.
     """
-    return f'uid=#{os.getuid()}'
+    return f"uid=#{os.getuid()}"
 
 
 @atexit.register
@@ -282,7 +293,7 @@ class MEGALock(tm):
         self.flufl_lock = flufl.lock.Lock(flufl_fp, lifetime=lifetime)
 
     def __enter__(self):
-        """ We acquire the thread lock first because the flufl lock isn't
+        """We acquire the thread lock first because the flufl lock isn't
         thread-safe which is why we need both locks in the first place
         """
         if self.re_entries == 0:
@@ -307,8 +318,8 @@ class MEGALock(tm):
     def __getstate__(self):
         lockless_dict = self.__dict__.copy()
 
-        del lockless_dict['thread_lock']
-        del lockless_dict['flufl_lock']
+        del lockless_dict["thread_lock"]
+        del lockless_dict["flufl_lock"]
 
         return lockless_dict
 
@@ -316,8 +327,7 @@ class MEGALock(tm):
         self.__dict__.update(state)
 
         self.thread_lock = threading.Lock()
-        self.flufl_lock = \
-            flufl.lock.Lock(self.flufl_fp, lifetime=self.lifetime)
+        self.flufl_lock = flufl.lock.Lock(self.flufl_fp, lifetime=self.lifetime)
 
 
 class Cache:
@@ -368,11 +378,11 @@ class Cache:
     cache it is (if we make breaking changes in the future this version number
     will allow for backwards compatibility).
     """
-    CURRENT_FORMAT_VERSION = '1'
+
+    CURRENT_FORMAT_VERSION = "1"
 
     # The files and folders you expect to see at the top level of a cache
-    base_cache_contents = \
-        set(('data', 'keys', 'pools', 'processes', 'VERSION'))
+    base_cache_contents = set(("data", "keys", "pools", "processes", "VERSION"))
 
     def __new__(cls, path=None):
         if path is None:
@@ -382,8 +392,11 @@ class Cache:
         # something as simple as path='/tmp/qiime2/x' and path='/tmp/qiime2/x/'
         # would create two different Cache objects
         for cache in USED_CACHES:
-            if os.path.exists(path) and os.path.exists(cache.path) and \
-                    os.path.samefile(path, cache.path):
+            if (
+                os.path.exists(path)
+                and os.path.exists(cache.path)
+                and os.path.samefile(path, cache.path)
+            ):
                 return cache
 
         return super(Cache, cls).__new__(cls)
@@ -447,8 +460,7 @@ class Cache:
             # QIIME 2 created path
             created_path = True
 
-        self.lock = \
-            MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
+        self.lock = MEGALock(str(self.lockfile), lifetime=timedelta(minutes=10))
 
         # We need to lock here to ensure that if we have multiple processes
         # trying to create the same cache one of them can actually succeed at
@@ -461,16 +473,19 @@ class Cache:
                 # We own the temp_cache_path, so we can recreate it if there
                 # was something wrong with it
                 if self.path == temp_cache_path:
-                    set_permissions(self.path, USER_GROUP_RWX,
-                                    USER_GROUP_RWX, skip_root=True)
+                    set_permissions(
+                        self.path, USER_GROUP_RWX, USER_GROUP_RWX, skip_root=True
+                    )
                     self._remove_cache_contents()
                     self._create_cache_contents()
                     warnings.warn(
                         "Your temporary cache was found to be in an "
-                        "inconsistent state. It has been recreated.")
+                        "inconsistent state. It has been recreated."
+                    )
                 else:
-                    raise ValueError(f"Path: '{self.path}' already exists and"
-                                     " is not a cache.")
+                    raise ValueError(
+                        f"Path: '{self.path}' already exists and" " is not a cache."
+                    )
             elif not Cache.is_cache(self.path):
                 self._create_cache_contents()
             # else: it was a cache with the contents already in it
@@ -489,12 +504,13 @@ class Cache:
         # culled for being too old (only if we are in a temp cache)
         if path == temp_cache_path:
             self._thread_is_done = threading.Event()
-            self._thread_destructor = \
-                weakref.finalize(self, self._thread_is_done.set)
+            self._thread_destructor = weakref.finalize(self, self._thread_is_done.set)
 
             self._thread = threading.Thread(
-                target=monitor_thread, args=(self.path, self._thread_is_done),
-                daemon=True)
+                target=monitor_thread,
+                args=(self.path, self._thread_is_done),
+                daemon=True,
+            )
 
             self._thread.start()
 
@@ -502,17 +518,21 @@ class Cache:
         """Tell QIIME 2 to use this cache in its current invocation (see
         get_cache).
         """
-        if hasattr(_CACHE, 'cache') and _CACHE.cache is not None \
-                and _CACHE.cache.path != self.path:
-            raise ValueError("You cannot enter multiple caches at once, "
-                             "currently entered cache is located at: "
-                             f"'{_CACHE.cache.path}'")
+        if (
+            hasattr(_CACHE, "cache")
+            and _CACHE.cache is not None
+            and _CACHE.cache.path != self.path
+        ):
+            raise ValueError(
+                "You cannot enter multiple caches at once, "
+                "currently entered cache is located at: "
+                f"'{_CACHE.cache.path}'"
+            )
 
         _CACHE.cache = self
 
     def __exit__(self, *args):
-        """Tell QIIME 2 to go back to using the default cache.
-        """
+        """Tell QIIME 2 to go back to using the default cache."""
         _CACHE.cache = None
 
     def __getstate__(self):
@@ -525,10 +545,10 @@ class Cache:
 
         # This will only even exist if we are a temp cache not a named cache.
         # If _thread exists the others should as well
-        if '_thread' in threadless_dict:
-            del threadless_dict['_thread_is_done']
-            del threadless_dict['_thread_destructor']
-            del threadless_dict['_thread']
+        if "_thread" in threadless_dict:
+            del threadless_dict["_thread_is_done"]
+            del threadless_dict["_thread_destructor"]
+            del threadless_dict["_thread"]
 
         return threadless_dict
 
@@ -565,10 +585,8 @@ class Cache:
         if not contents.issuperset(cls.base_cache_contents):
             return False
 
-        regex = \
-            re.compile(
-                r"QIIME 2\ncache: \d+\nframework: 20\d\d\.")
-        with open(path / 'VERSION') as fh:
+        regex = re.compile(r"QIIME 2\ncache: \d+\nframework: 20\d\d\.")
+        with open(path / "VERSION") as fh:
             version_file = fh.read()
             return regex.match(version_file) is not None
 
@@ -589,14 +607,16 @@ class Cache:
             this to ensure no one creates keys that cause issues when we try to
             load them.
         """
-        validation_key = key.replace('-', '_')
+        validation_key = key.replace("-", "_")
         if not validation_key.isidentifier():
-            raise ValueError(f"Key '{key}' is not a valid Python identifier. "
-                             "Keys may contain '-' characters but must "
-                             "otherwise be valid Python identifiers. Python "
-                             "identifier rules may be found here "
-                             "https://www.askpython.com/python/"
-                             "python-identifiers-rules-best-practices")
+            raise ValueError(
+                f"Key '{key}' is not a valid Python identifier. "
+                "Keys may contain '-' characters but must "
+                "otherwise be valid Python identifiers. Python "
+                "identifier rules may be found here "
+                "https://www.askpython.com/python/"
+                "python-identifiers-rules-best-practices"
+            )
 
     def _create_cache_contents(self):
         """Create the cache directory, all sub directories, and the version
@@ -608,8 +628,8 @@ class Cache:
         os.mkdir(self.processes)
 
         self.version.write_text(
-            _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION,
-                                 qiime2.__version__))
+            _VERSION_TEMPLATE % (self.CURRENT_FORMAT_VERSION, qiime2.__version__)
+        )
 
     def _remove_cache_contents(self):
         """Removes everything in a cache that isn't a lock file. If you want to
@@ -622,7 +642,7 @@ class Cache:
         method to maintain its lock on the cache.
         """
         for elem in os.listdir(self.path):
-            if 'LOCK' not in elem:
+            if "LOCK" not in elem:
                 fp = os.path.join(self.path, elem)
                 if os.path.isdir(fp):
                     shutil.rmtree(os.path.join(self.path, fp))
@@ -691,8 +711,7 @@ class Cache:
 
     def _create_collection_pool(self, ref_collection, key):
         pool = Pool(self, name=key, reuse=False)
-        self._register_key(
-            key, key, pool=True, collection=ref_collection)
+        self._register_key(key, key, pool=True, collection=ref_collection)
 
         return pool
 
@@ -747,20 +766,24 @@ class Cache:
 
                 # If the data/pool referenced by the key actually exists then
                 # track it. Otherwise remove the dangling reference
-                if (data := loaded_key.get('data')) is not None:
+                if (data := loaded_key.get("data")) is not None:
                     if not self._check_dangling_reference(
-                            self.data / data, self.keys / key):
+                        self.data / data, self.keys / key
+                    ):
                         referenced_data.add(data)
-                elif (pool := loaded_key.get('pool')) is not None:
+                elif (pool := loaded_key.get("pool")) is not None:
                     if not self._check_dangling_reference(
-                            self.pools / pool, self.keys / key):
+                        self.pools / pool, self.keys / key
+                    ):
                         referenced_pools.add(pool)
                 # This really should never be happening unless someone messes
                 # with things manually
                 else:
-                    raise ValueError(f"The key '{key}' in the cache"
-                                     f" '{self.path}' does not point to"
-                                     " anything")
+                    raise ValueError(
+                        f"The key '{key}' in the cache"
+                        f" '{self.path}' does not point to"
+                        " anything"
+                    )
 
             # Walk over pools and remove any that were not referred to by keys
             # while tracking all data within those that were referenced
@@ -770,20 +793,21 @@ class Cache:
                 else:
                     for data in os.listdir(self.pools / pool):
                         if not self._check_dangling_reference(
-                                self.data / data, self.pools / pool / data):
+                            self.data / data, self.pools / pool / data
+                        ):
                             referenced_data.add(data)
 
             # Add references to data in process pools
             for process_pool in self.get_processes():
                 # Pick the creation time out of the pool name of format
                 # <process-id>-<process-create-time>@<user>
-                create_time = float(process_pool.split('-')[1].split('@')[0])
+                create_time = float(process_pool.split("-")[1].split("@")[0])
 
                 if time.time() - create_time >= self.process_pool_lifespan:
                     shutil.rmtree(self.processes / process_pool)
                 else:
                     for data in os.listdir(self.processes / process_pool):
-                        referenced_data.add(data.split('.')[0])
+                        referenced_data.add(data.split(".")[0])
 
             # Walk over all data and remove any that was not referenced
             for data in self.get_data():
@@ -797,7 +821,7 @@ class Cache:
                     shutil.rmtree(target)
 
     def _check_dangling_reference(self, data_path, key_path):
-        """ If the data specified does not exist then we have a dangling
+        """If the data specified does not exist then we have a dangling
         reference and we warn them about it and remove the reference.
 
         Parameters
@@ -814,8 +838,10 @@ class Cache:
             True if reference was dangling False if not
         """
         if not os.path.exists(data_path):
-            warnings.warn(f"Dangling reference {key_path}. Data at {data_path}"
-                          " does not exist. Reference will be removed.")
+            warnings.warn(
+                f"Dangling reference {key_path}. Data at {data_path}"
+                " does not exist. Reference will be removed."
+            )
             os.remove(key_path)
 
             return True
@@ -895,22 +921,22 @@ class Cache:
         key_fp = self.keys / key
 
         key_dict = {}
-        key_dict['origin'] = key
+        key_dict["origin"] = key
 
         if pool:
-            key_dict['pool'] = value
+            key_dict["pool"] = value
 
             if collection is not None:
-                key_dict['order'] = \
-                    [{k: str(v.uuid)} for k, v in collection.items()]
+                key_dict["order"] = [{k: str(v.uuid)} for k, v in collection.items()]
         else:
-            key_dict['data'] = value
+            key_dict["data"] = value
 
             if collection is not None:
-                raise ValueError('An ordered Collection key can only be made'
-                                 ' for a pool.')
+                raise ValueError(
+                    "An ordered Collection key can only be made" " for a pool."
+                )
 
-        with open(key_fp, 'w') as fh:
+        with open(key_fp, "w") as fh:
             yaml.safe_dump(key_dict, fh)
 
     def read_key(self, key):
@@ -938,8 +964,9 @@ class Cache:
                 with open(self.keys / key) as fh:
                     return yaml.safe_load(fh)
             except FileNotFoundError as e:
-                raise KeyError(f"The cache '{self.path}' does not contain the "
-                               f"key '{key}'") from e
+                raise KeyError(
+                    f"The cache '{self.path}' does not contain the " f"key '{key}'"
+                ) from e
 
     def load(self, key):
         """Loads the data pointed to by a key. Will defer to
@@ -982,16 +1009,18 @@ class Cache:
         with self.lock:
             key_values = self.read_key(key)
 
-            if 'order' in key_values:
+            if "order" in key_values:
                 return self.load_collection(key)
 
-            if 'data' not in key_values:
-                raise ValueError(f"The key file '{key}' does not point to any "
-                                 "data. This most likely occurred because you "
-                                 "tried to load a pool which is not "
-                                 "supported.")
+            if "data" not in key_values:
+                raise ValueError(
+                    f"The key file '{key}' does not point to any "
+                    "data. This most likely occurred because you "
+                    "tried to load a pool which is not "
+                    "supported."
+                )
 
-            path = self.data / key_values['data']
+            path = self.data / key_values["data"]
             archiver = Archiver.load_raw(path, self)
 
         return Result._from_archiver(archiver)
@@ -1005,12 +1034,14 @@ class Cache:
         with self.lock:
             loaded_key = self.read_key(key)
 
-            if 'order' not in loaded_key:
-                raise KeyError(f"The key file '{self.keys / key}' does not"
-                               " contain an order which is necessary for a"
-                               " collection.")
+            if "order" not in loaded_key:
+                raise KeyError(
+                    f"The key file '{self.keys / key}' does not"
+                    " contain an order which is necessary for a"
+                    " collection."
+                )
 
-            for artifact in loaded_key['order']:
+            for artifact in loaded_key["order"]:
                 # We created a list of one element dicts to make sure the yaml
                 # looked as expected. This is how we parse one of those dicts
                 # into its key value pair.
@@ -1084,8 +1115,9 @@ class Cache:
             try:
                 os.remove(self.keys / key)
             except FileNotFoundError as e:
-                raise KeyError(f"The cache '{self.path}' does not contain the"
-                               f" key '{key}'") from e
+                raise KeyError(
+                    f"The cache '{self.path}' does not contain the" f" key '{key}'"
+                ) from e
 
             self.garbage_collection()
 
@@ -1122,13 +1154,11 @@ class Cache:
                 # manually because the uuid isn't a part of the ArchivePath
                 if not isinstance(ref._archiver.path, ArchivePath):
                     os.mkdir(destination)
-                    shutil.copytree(
-                        ref._archiver.path, destination, dirs_exist_ok=True)
+                    shutil.copytree(ref._archiver.path, destination, dirs_exist_ok=True)
                 # Otherwise, the path we are copying should already contain the
                 # uuid, so we don't need to manually create the uuid directory
                 else:
-                    shutil.copytree(
-                        ref._archiver.path, self.data, dirs_exist_ok=True)
+                    shutil.copytree(ref._archiver.path, self.data, dirs_exist_ok=True)
 
                 set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
 
@@ -1222,15 +1252,14 @@ class Cache:
         """Creates a tmp dir inside of the current process pool and returns a
         path to it. If the pool already exists just returns the path
         """
-        path = os.path.join(self.process_pool.path, 'tmp')
+        path = os.path.join(self.process_pool.path, "tmp")
         os.makedirs(path, exist_ok=True)
         return path
 
     @property
     def data(self):
-        """The directory in the cache that stores the data.
-        """
-        return self.path / 'data'
+        """The directory in the cache that stores the data."""
+        return self.path / "data"
 
     def get_data(self):
         """Returns a set of all data in the cache.
@@ -1246,9 +1275,8 @@ class Cache:
 
     @property
     def keys(self):
-        """The directory in the cache that stores the keys.
-        """
-        return self.path / 'keys'
+        """The directory in the cache that stores the keys."""
+        return self.path / "keys"
 
     def get_keys(self):
         """Returns a set of all keys in the cache.
@@ -1264,15 +1292,13 @@ class Cache:
 
     @property
     def lockfile(self):
-        """The path to the flufl lock file.
-        """
-        return self.path / 'LOCK'
+        """The path to the flufl lock file."""
+        return self.path / "LOCK"
 
     @property
     def pools(self):
-        """The directory in the cache that stores the named pools.
-        """
-        return self.path / 'pools'
+        """The directory in the cache that stores the named pools."""
+        return self.path / "pools"
 
     def get_pools(self):
         """Returns a set of all pools in the cache.
@@ -1287,9 +1313,8 @@ class Cache:
 
     @property
     def processes(self):
-        """The directory in the cache that stores the process pools.
-        """
-        return self.path / 'processes'
+        """The directory in the cache that stores the process pools."""
+        return self.path / "processes"
 
     def get_processes(self):
         """Returns a set of all process pools in the cache.
@@ -1304,9 +1329,8 @@ class Cache:
 
     @property
     def version(self):
-        """The path to the version file.
-        """
-        return self.path / 'VERSION'
+        """The path to the version file."""
+        return self.path / "VERSION"
 
     @property
     def named_pool(self):
@@ -1323,9 +1347,11 @@ class Cache:
             return None
 
         if not os.path.exists(self._named_pool_.path):
-            warnings.warn("The named pool path"
-                          f" '{self._named_pool_.path}' does not exist. It was"
-                          " most likely removed by another QIIME 2 process")
+            warnings.warn(
+                "The named pool path"
+                f" '{self._named_pool_.path}' does not exist. It was"
+                " most likely removed by another QIIME 2 process"
+            )
             self._named_pool_ = None
 
         return self._named_pool_
@@ -1387,9 +1413,11 @@ class Pool:
         # Raise a value error if we thought we were making a new pool but
         # actually are not
         if not reuse and os.path.exists(self.path):
-            raise ValueError("Pool already exists, please use reuse=True to "
-                             "reuse existing pool, or remove all keys "
-                             "indicating this pool to remove the pool")
+            raise ValueError(
+                "Pool already exists, please use reuse=True to "
+                "reuse existing pool, or remove all keys "
+                "indicating this pool to remove the pool"
+            )
 
         if not os.path.exists(self.path):
             os.mkdir(self.path)
@@ -1433,21 +1461,28 @@ class Pool:
         >>> test_dir.cleanup()
         """
         # This threadlocal may not even have a cache attribute
-        has_cache = hasattr(_CACHE, 'cache')
+        has_cache = hasattr(_CACHE, "cache")
 
-        if has_cache and _CACHE.cache is not None \
-                and _CACHE.cache.path != self.cache.path:
-            raise ValueError('Cannot enter a pool that is not on the '
-                             'currently set cache. The current cache is '
-                             f'located at: {_CACHE.cache.path}')
+        if (
+            has_cache
+            and _CACHE.cache is not None
+            and _CACHE.cache.path != self.cache.path
+        ):
+            raise ValueError(
+                "Cannot enter a pool that is not on the "
+                "currently set cache. The current cache is "
+                f"located at: {_CACHE.cache.path}"
+            )
         else:
             self.previously_entered_cache = _CACHE.cache if has_cache else None
             _CACHE.cache = self.cache
 
         if self.cache.named_pool is not None:
-            raise ValueError("You cannot enter multiple pools at once, "
-                             "currently entered pool is located at: "
-                             f"'{self.cache.named_pool.path}'")
+            raise ValueError(
+                "You cannot enter multiple pools at once, "
+                "currently entered pool is located at: "
+                f"'{self.cache.named_pool.path}'"
+            )
 
         self.cache._named_pool_ = self
 
@@ -1483,7 +1518,7 @@ class Pool:
         process = psutil.Process(pid)
         time = process.create_time()
 
-        return f'{pid}-{time}@{user}'
+        return f"{pid}-{time}@{user}"
 
     def save(self, ref):
         """Saves the data into the pool then loads a new ref backed by the data
@@ -1557,18 +1592,20 @@ class Pool:
         uuid = str(uuid)
         with self.cache.lock:
             for _ in range(MAX_RETRIES):
-                alias = uuid + '.' + str(randint(0, maxsize))
+                alias = uuid + "." + str(randint(0, maxsize))
                 path = self.path / alias
 
                 # os.path.exists returns false on broken symlinks
                 if not os.path.exists(path) and not os.path.islink(path):
                     break
             else:
-                raise ValueError(f'Too many collisions ({MAX_RETRIES}) '
-                                 'occurred while trying to save artifact '
-                                 f'<{uuid}> to process pool {self.path}. It '
-                                 'is likely you have attempted to load the '
-                                 'same artifact a very large number of times.')
+                raise ValueError(
+                    f"Too many collisions ({MAX_RETRIES}) "
+                    "occurred while trying to save artifact "
+                    f"<{uuid}> to process pool {self.path}. It "
+                    "is likely you have attempted to load the "
+                    "same artifact a very large number of times."
+                )
         return alias
 
     def _allocate(self, uuid):
@@ -1777,26 +1814,27 @@ class Pool:
                 # Get action.yaml from this artifact's provenance
                 path = self.cache.data / _uuid
                 action_yaml = load_action_yaml(path)
-                action = action_yaml['action']
+                action = action_yaml["action"]
 
                 # This means the artifact was created in the pipeline by
                 # ctx.make_artifact, we don't index those because we cannot
                 # guarantee that whatever view they imported was hashable. it
                 # would be better to create an action that produces the
                 # artifact rather than using make_artifact
-                if 'type' in action and action['type'] == 'import':
+                if "type" in action and action["type"] == "import":
                     continue
 
-                plugin_action = action['plugin'] + ':' + action['action']
-                arguments = action['inputs']
-                arguments.extend(action['parameters'])
+                plugin_action = action["plugin"] + ":" + action["action"]
+                arguments = action["inputs"]
+                arguments.extend(action["parameters"])
 
                 invocation = HashableInvocation(plugin_action, arguments)
                 if invocation not in self.index:
                     self.index[invocation] = {}
 
                 self._add_index_output(
-                    self.index[invocation], action['output-name'], _uuid)
+                    self.index[invocation], action["output-name"], _uuid
+                )
 
     def _add_index_output(self, outputs, name, value):
         """Adds a given output to the cache's index under the invocation that
@@ -1840,7 +1878,7 @@ class Pool:
             The uuid of this element in the output collection.
         """
         output_name, item_name, idx_out_of = name
-        idx, total = idx_out_of.split('/')
+        idx, total = idx_out_of.split("/")
 
         if output_name not in outputs:
             outputs[output_name] = {}

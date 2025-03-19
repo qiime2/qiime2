@@ -14,19 +14,36 @@ import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.type.parse as _parse
 from qiime2.core.type import (
-    is_semantic_type, is_primitive_type, is_collection_type, is_metadata_type,
-    is_visualization_type, interrogate_collection_type, parse_primitive,
-    is_union, is_metadata_column_type, is_parallel_type)
+    is_semantic_type,
+    is_primitive_type,
+    is_collection_type,
+    is_metadata_type,
+    is_visualization_type,
+    interrogate_collection_type,
+    parse_primitive,
+    is_union,
+    is_metadata_column_type,
+    is_parallel_type,
+)
 
 if TYPE_CHECKING:
     from qiime2.sdk.usage import UsageDriver
 
 __all__ = [
-    'is_semantic_type', 'is_primitive_type', 'is_collection_type',
-    'is_metadata_type', 'is_visualization_type', 'interrogate_collection_type',
-    'type_from_ast', 'parse_primitive', 'parse_type', 'parse_format',
-    'actions_by_input_type', 'is_union', 'is_metadata_column_type',
-    'is_parallel_type'
+    "is_semantic_type",
+    "is_primitive_type",
+    "is_collection_type",
+    "is_metadata_type",
+    "is_visualization_type",
+    "interrogate_collection_type",
+    "type_from_ast",
+    "parse_primitive",
+    "parse_type",
+    "parse_format",
+    "actions_by_input_type",
+    "is_union",
+    "is_metadata_column_type",
+    "is_parallel_type",
 ]
 
 
@@ -38,10 +55,10 @@ def camel_to_snake(name: str) -> str:
     c/o https://stackoverflow.com/a/1176023/9872253
     """
     # this will frequently be called on QIIME type expressions, so drop [ and ]
-    name = re.sub(r'[\[\]]', '', name)
+    name = re.sub(r"[\[\]]", "", name)
     # camel to snake
-    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+    name = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", name).lower()
 
 
 def type_from_ast(ast, scope=None):
@@ -81,24 +98,24 @@ def parse_type(string, expect=None):
     type expression
 
     """
-    if expect is not None and expect not in {'semantic', 'primitive',
-                                             'visualization'}:
-        raise ValueError("`expect` got %r, must be 'semantic', 'primitive',"
-                         " 'visualization', or None." % (expect,))
+    if expect is not None and expect not in {"semantic", "primitive", "visualization"}:
+        raise ValueError(
+            "`expect` got %r, must be 'semantic', 'primitive',"
+            " 'visualization', or None." % (expect,)
+        )
 
     type_expr = _parse.ast_to_type(_parse.string_to_ast(string))
 
     if expect is None:
         pass
-    elif expect == 'semantic' and qtype.is_semantic_type(type_expr):
+    elif expect == "semantic" and qtype.is_semantic_type(type_expr):
         pass
-    elif expect == 'primitive' and qtype.is_primitive_type(type_expr):
+    elif expect == "primitive" and qtype.is_primitive_type(type_expr):
         pass
-    elif expect == 'visualization' and type_expr == qtype.Visualization:
+    elif expect == "visualization" and type_expr == qtype.Visualization:
         pass
     else:
-        raise TypeError("Type expression %r is not a %s type."
-                        % (type_expr, expect))
+        raise TypeError("Type expression %r is not a %s type." % (type_expr, expect))
     return type_expr
 
 
@@ -132,9 +149,14 @@ def actions_by_input_type(string):
 
         pm = qiime2.sdk.PluginManager()
         for pgn, pg in pm.plugins.items():
-            actions = list({a for an, a in pg.actions.items()
-                            for iname, i in a.signature.inputs.items()
-                            if i.qiime_type >= query_type})
+            actions = list(
+                {
+                    a
+                    for an, a in pg.actions.items()
+                    for iname, i in a.signature.inputs.items()
+                    if i.qiime_type >= query_type
+                }
+            )
             if actions:
                 commands.append((pg, actions))
 
@@ -153,23 +175,25 @@ def validate_result_collection_keys(*args):
     """
     invalid_keys = []
     for key in args:
-        if not isinstance(key, str) or bool(re.search(r'[^\w+-.]', key)):
+        if not isinstance(key, str) or bool(re.search(r"[^\w+-.]", key)):
             invalid_keys.append(key)
 
     if len(invalid_keys) > 0:
-        raise KeyError('Invalid key(s) provided for ResultCollection. '
-                       'ResultCollection keys must be strings and may only '
-                       'contain the following characters: A-Z, a-z, 0-9, +, '
-                       '-, ., and _. Offending keys include: '
-                       f'{", ".join(map(str, invalid_keys))}')
+        raise KeyError(
+            "Invalid key(s) provided for ResultCollection. "
+            "ResultCollection keys must be strings and may only "
+            "contain the following characters: A-Z, a-z, 0-9, +, "
+            "-, ., and _. Offending keys include: "
+            f'{", ".join(map(str, invalid_keys))}'
+        )
 
 
 def view_collection(collection, view_type):
     return {k: v.view(view_type) for k, v in collection.items()}
 
 
-def get_available_usage_drivers() -> Dict[str, 'UsageDriver']:
-    '''
+def get_available_usage_drivers() -> Dict[str, "UsageDriver"]:
+    """
     Discovers all usage drivers registered under the entry point group
     'qiime2.usage_drivers'.
 
@@ -179,8 +203,8 @@ def get_available_usage_drivers() -> Dict[str, 'UsageDriver']:
         Where keys are the entry point names as registered in setup.py and the
         values are types of the available usage drivers (not instances
         themselves).
-    '''
+    """
     return {
-        entry_point.name: entry_point.load() for entry_point in
-        entry_points(group='qiime2.usage_drivers')
+        entry_point.name: entry_point.load()
+        for entry_point in entry_points(group="qiime2.usage_drivers")
     }

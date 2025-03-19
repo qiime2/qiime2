@@ -6,25 +6,75 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .model import (TextFileFormat, BinaryFileFormat, DirectoryFormat,
-                    ValidationError, SingleFileDirectoryFormat)
+from .model import (
+    TextFileFormat,
+    BinaryFileFormat,
+    DirectoryFormat,
+    ValidationError,
+    SingleFileDirectoryFormat,
+)
 from .plugin import Plugin
 from .util import get_available_cores
 from qiime2.core.cite import Citations, CitationRecord
-from qiime2.core.type import (SemanticType, Int, Str, Float, Metadata,
-                              MetadataColumn, Categorical, Numeric, Properties,
-                              Range, Start, End, Choices, Bool, Set, List,
-                              Collection, Visualization, TypeMap, TypeMatch,
-                              Jobs, Threads)
+from qiime2.core.type import (
+    SemanticType,
+    Int,
+    Str,
+    Float,
+    Metadata,
+    MetadataColumn,
+    Categorical,
+    Numeric,
+    Properties,
+    Range,
+    Start,
+    End,
+    Choices,
+    Bool,
+    Set,
+    List,
+    Collection,
+    Visualization,
+    TypeMap,
+    TypeMatch,
+    Jobs,
+    Threads,
+)
 
 
-__all__ = ['TextFileFormat', 'BinaryFileFormat', 'DirectoryFormat', 'Plugin',
-           'SemanticType', 'Set', 'List', 'Collection', 'Bool', 'Int', 'Str',
-           'Float', 'Metadata', 'MetadataColumn', 'Categorical', 'Numeric',
-           'Properties', 'Range', 'Start', 'End', 'Choices', 'Visualization',
-           'Jobs', 'Threads', 'TypeMap', 'TypeMatch', 'ValidationError',
-           'Citations', 'CitationRecord', 'get_available_cores',
-           'SingleFileDirectoryFormat']
+__all__ = [
+    "TextFileFormat",
+    "BinaryFileFormat",
+    "DirectoryFormat",
+    "Plugin",
+    "SemanticType",
+    "Set",
+    "List",
+    "Collection",
+    "Bool",
+    "Int",
+    "Str",
+    "Float",
+    "Metadata",
+    "MetadataColumn",
+    "Categorical",
+    "Numeric",
+    "Properties",
+    "Range",
+    "Start",
+    "End",
+    "Choices",
+    "Visualization",
+    "Jobs",
+    "Threads",
+    "TypeMap",
+    "TypeMatch",
+    "ValidationError",
+    "Citations",
+    "CitationRecord",
+    "get_available_cores",
+    "SingleFileDirectoryFormat",
+]
 
 # IMPORTANT:
 # Autodoc cannot find a docstring unless it is defined in the same module that

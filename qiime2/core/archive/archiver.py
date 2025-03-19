@@ -27,11 +27,10 @@ framework: %s
 """
 
 ArchiveRecord = collections.namedtuple(
-    'ArchiveRecord', ['root', 'version_fp', 'uuid', 'version',
-                      'framework_version'])
+    "ArchiveRecord", ["root", "version_fp", "uuid", "version", "framework_version"]
+)
 
-ChecksumDiff = collections.namedtuple(
-    'ChecksumDiff', ['added', 'removed', 'changed'])
+ChecksumDiff = collections.namedtuple("ChecksumDiff", ["added", "removed", "changed"])
 
 
 class _Archive:
@@ -65,7 +64,8 @@ class _Archive:
     to dispatch to an appropriate format.
 
     """
-    VERSION_FILE = 'VERSION'
+
+    VERSION_FILE = "VERSION"
 
     @classmethod
     def is_archive_type(cls, filepath):
@@ -78,8 +78,7 @@ class _Archive:
 
         version_fp.write_text(_VERSION_TEMPLATE % (version, framework_version))
 
-        return ArchiveRecord(root_dir, version_fp, uuid, version,
-                             framework_version)
+        return ArchiveRecord(root_dir, version_fp, uuid, version, framework_version)
 
     @classmethod
     def save(cls, source, destination):
@@ -93,42 +92,43 @@ class _Archive:
 
     def _get_uuid(self):
         if not self.path.exists():
-            raise TypeError("%s does not exist or is not a filepath."
-                            % self.path)
+            raise TypeError("%s does not exist or is not a filepath." % self.path)
 
         roots = set()
         for relpath in self.relative_iterdir():
-            if not relpath.startswith('.'):
+            if not relpath.startswith("."):
                 roots.add(relpath)
 
         if len(roots) == 0:
             raise ValueError("Archive does not have a visible root directory.")
         if len(roots) > 1:
-            raise ValueError("Archive has multiple root directories: %r"
-                             % roots)
+            raise ValueError("Archive has multiple root directories: %r" % roots)
         uuid = roots.pop()
         if not is_uuid4(uuid):
             raise ValueError(
                 "Archive root directory name %r is not a valid version 4 "
-                "UUID." % uuid)
+                "UUID." % uuid
+            )
         return uuid
 
     def _get_versions(self):
         try:
             with self.open(self.VERSION_FILE) as fh:
-                header, version_line, framework_version_line, eof = \
-                    fh.read().split('\n')
-            if header.strip() != 'QIIME 2':
+                header, version_line, framework_version_line, eof = fh.read().split(
+                    "\n"
+                )
+            if header.strip() != "QIIME 2":
                 raise Exception()  # GOTO except Exception
-            version = version_line.split(':')[1].strip()
-            framework_version = framework_version_line.split(':')[1].strip()
+            version = version_line.split(":")[1].strip()
+            framework_version = framework_version_line.split(":")[1].strip()
             return version, framework_version
         except Exception:
             # TODO: make a "better" parser which isn't just a catch-all
-            raise ValueError("Archive does not contain a correctly formatted"
-                             " VERSION file.")
+            raise ValueError(
+                "Archive does not contain a correctly formatted" " VERSION file."
+            )
 
-    def relative_iterdir(self, relpath='.'):
+    def relative_iterdir(self, relpath="."):
         raise NotImplementedError
 
     def open(self, relpath):
@@ -148,16 +148,19 @@ class _ZipArchive(_Archive):
     @classmethod
     def save(cls, source, destination):
         parent_dir = os.path.split(source)[0]
-        with zipfile.ZipFile(str(destination), mode='w',
-                             compression=zipfile.ZIP_DEFLATED,
-                             allowZip64=True) as zf:
+        with zipfile.ZipFile(
+            str(destination),
+            mode="w",
+            compression=zipfile.ZIP_DEFLATED,
+            allowZip64=True,
+        ) as zf:
             for root, dirs, files in os.walk(str(source)):
                 # Prune hidden directories from traversal. Strategy modified
                 # from http://stackoverflow.com/a/13454267/3776794
-                dirs[:] = [d for d in dirs if not d.startswith('.')]
+                dirs[:] = [d for d in dirs if not d.startswith(".")]
 
                 for file in files:
-                    if file.startswith('.'):
+                    if file.startswith("."):
                         continue
 
                     abspath = pathlib.Path(root) / file
@@ -165,10 +168,10 @@ class _ZipArchive(_Archive):
 
                     zf.write(str(abspath), arcname=cls._as_zip_path(relpath))
 
-    def relative_iterdir(self, relpath=''):
+    def relative_iterdir(self, relpath=""):
         relpath = self._as_zip_path(relpath)
         seen = set()
-        with zipfile.ZipFile(str(self.path), mode='r') as zf:
+        with zipfile.ZipFile(str(self.path), mode="r") as zf:
             for name in zf.namelist():
                 if name.startswith(relpath):
                     parts = pathlib.PurePosixPath(name).parts
@@ -180,7 +183,7 @@ class _ZipArchive(_Archive):
 
     def open(self, relpath):
         relpath = pathlib.Path(str(self.uuid)) / relpath
-        with zipfile.ZipFile(str(self.path), mode='r') as zf:
+        with zipfile.ZipFile(str(self.path), mode="r") as zf:
             # The filehandle will still work even when `zf` is "closed"
             return io.TextIOWrapper(zf.open(self._as_zip_path(relpath)))
 
@@ -194,17 +197,22 @@ class _ZipArchive(_Archive):
         # load an artifact that is already in the cache because data/<uuid>
         # will be read only, so attempting to extract there will error. We also
         # just don't need to put the data there again if it is already there
-        if not os.path.exists(filepath / 'VERSION'):
+        if not os.path.exists(filepath / "VERSION"):
             self.extract(filepath)
 
         root = filepath
-        return ArchiveRecord(root, root / self.VERSION_FILE,
-                             self.uuid, self.version, self.framework_version)
+        return ArchiveRecord(
+            root,
+            root / self.VERSION_FILE,
+            self.uuid,
+            self.version,
+            self.framework_version,
+        )
 
     def extract(self, filepath):
         filepath = pathlib.Path(filepath)
         assert os.path.basename(filepath) == str(self.uuid)
-        with zipfile.ZipFile(str(self.path), mode='r') as zf:
+        with zipfile.ZipFile(str(self.path), mode="r") as zf:
             for name in zf.namelist():
                 if name.startswith(str(self.uuid)):
                     # extract removes `..` components, so as long as we extract
@@ -219,8 +227,8 @@ class _ZipArchive(_Archive):
         # zip files don't work well with '.' which is the identity of a Path
         # obj, so just convert to empty string which is basically the identity
         # of a zip's entry
-        if path == '.':
-            path = ''
+        if path == ".":
+            path = ""
         return path
 
 
@@ -237,7 +245,7 @@ class _NoOpArchive(_Archive):
         """
         return os.path.basename(self.path)
 
-    def relative_iterdir(self, relpath=''):
+    def relative_iterdir(self, relpath=""):
         seen = set()
         for name in os.listdir(str(self.path)):
             if name.startswith(relpath) and name not in seen:
@@ -249,8 +257,13 @@ class _NoOpArchive(_Archive):
 
     def mount(self, path):
         root = path
-        return ArchiveRecord(root, root / self.VERSION_FILE,
-                             self.uuid, self.version, self.framework_version)
+        return ArchiveRecord(
+            root,
+            root / self.VERSION_FILE,
+            self.uuid,
+            self.version,
+            self.framework_version,
+        )
 
 
 class ArchiveCheck(_Archive):
@@ -259,9 +272,9 @@ class ArchiveCheck(_Archive):
     # TODO: make this part of the archiver API at some point
     def open(self, relpath):
         abspath = os.path.join(str(self.path), relpath)
-        return open(abspath, 'r')
+        return open(abspath, "r")
 
-    def relative_iterdir(self, relpath='.'):
+    def relative_iterdir(self, relpath="."):
         for p in pathlib.Path(self.path).iterdir():
             yield str(p.relative_to(self.path))
 
@@ -270,16 +283,16 @@ class ArchiveCheck(_Archive):
 
 
 class Archiver:
-    CURRENT_FORMAT_VERSION = '6'
+    CURRENT_FORMAT_VERSION = "6"
     _FORMAT_REGISTRY = {
         # NOTE: add more archive formats as things change
-        '0': 'qiime2.core.archive.format.v0:ArchiveFormat',
-        '1': 'qiime2.core.archive.format.v1:ArchiveFormat',
-        '2': 'qiime2.core.archive.format.v2:ArchiveFormat',
-        '3': 'qiime2.core.archive.format.v3:ArchiveFormat',
-        '4': 'qiime2.core.archive.format.v4:ArchiveFormat',
-        '5': 'qiime2.core.archive.format.v5:ArchiveFormat',
-        '6': 'qiime2.core.archive.format.v6:ArchiveFormat'
+        "0": "qiime2.core.archive.format.v0:ArchiveFormat",
+        "1": "qiime2.core.archive.format.v1:ArchiveFormat",
+        "2": "qiime2.core.archive.format.v2:ArchiveFormat",
+        "3": "qiime2.core.archive.format.v3:ArchiveFormat",
+        "4": "qiime2.core.archive.format.v4:ArchiveFormat",
+        "5": "qiime2.core.archive.format.v5:ArchiveFormat",
+        "6": "qiime2.core.archive.format.v6:ArchiveFormat",
     }
 
     @classmethod
@@ -303,7 +316,7 @@ class Archiver:
     @classmethod
     def get_format_class(cls, version):
         try:
-            imp, fmt_cls = cls._FORMAT_REGISTRY[version].split(':')
+            imp, fmt_cls = cls._FORMAT_REGISTRY[version].split(":")
         except KeyError:
             return None
         return getattr(importlib.import_module(imp), fmt_cls)
@@ -325,11 +338,11 @@ class Archiver:
 
     @classmethod
     def _futuristic_archive_error(cls, filepath, archive):
-        raise ValueError("%s was created by 'QIIME %s'. The currently"
-                         " installed framework cannot interpret archive"
-                         " version %r."
-                         % (filepath, archive.framework_version,
-                            archive.version))
+        raise ValueError(
+            "%s was created by 'QIIME %s'. The currently"
+            " installed framework cannot interpret archive"
+            " version %r." % (filepath, archive.framework_version, archive.version)
+        )
 
     @classmethod
     def peek(cls, filepath):
@@ -365,18 +378,21 @@ class Archiver:
                 cls._futuristic_archive_error(filepath, archive)
 
             archive.mount(path)
-            process_alias, data_path = \
-                cache._rename_to_data(archive.uuid, path)
+            process_alias, data_path = cache._rename_to_data(archive.uuid, path)
             rec = ArchiveRecord(
-                data_path, data_path / archive.VERSION_FILE, archive.uuid,
-                archive.version, archive.framework_version)
+                data_path,
+                data_path / archive.VERSION_FILE,
+                archive.uuid,
+                archive.version,
+                archive.framework_version,
+            )
             ref = cls(data_path, process_alias, Format(rec), cache)
             return ref
         # We really just want to kill these paths if anything at all goes wrong
         # Exceptions including keyboard interrupts are re-raised
         except:  # noqa: E722
             cls._destroy_temp_path(archive.uuid)
-            if 'process_alias' in vars():
+            if "process_alias" in vars():
                 cls._destroy_temp_path(process_alias)
             raise
 
@@ -402,24 +418,28 @@ class Archiver:
         path, cache = cls._make_temp_path(uuid)
 
         try:
-            rec = _Archive.setup(uuid, path, cls.CURRENT_FORMAT_VERSION,
-                                 qiime2.__version__)
+            rec = _Archive.setup(
+                uuid, path, cls.CURRENT_FORMAT_VERSION, qiime2.__version__
+            )
 
             Format = cls.get_format_class(cls.CURRENT_FORMAT_VERSION)
-            Format.write(rec, type, format, data_initializer,
-                         provenance_capture)
+            Format.write(rec, type, format, data_initializer, provenance_capture)
 
             process_alias, data_path = cache._rename_to_data(uuid, path)
-            rec = ArchiveRecord(data_path, data_path / _Archive.VERSION_FILE,
-                                uuid, cls.CURRENT_FORMAT_VERSION,
-                                qiime2.__version__)
+            rec = ArchiveRecord(
+                data_path,
+                data_path / _Archive.VERSION_FILE,
+                uuid,
+                cls.CURRENT_FORMAT_VERSION,
+                qiime2.__version__,
+            )
             ref = cls(data_path, process_alias, Format(rec), cache)
             return ref
         # We really just want to kill these paths if anything at all goes wrong
         # Exceptions including keyboard interrupts are re-raised
         except:  # noqa: E722
             cls._destroy_temp_path(uuid)
-            if 'process_alias' in vars():
+            if "process_alias" in vars():
                 cls._destroy_temp_path(process_alias)
             raise
 
@@ -427,8 +447,9 @@ class Archiver:
         self.path = path
         self.process_alias = process_alias
         self._fmt = fmt
-        self._destructor = weakref.finalize(self, cache._deallocate,
-                                            str(self.process_alias))
+        self._destructor = weakref.finalize(
+            self, cache._deallocate, str(self.process_alias)
+        )
 
     @property
     def uuid(self):
@@ -452,30 +473,31 @@ class Archiver:
 
     @property
     def provenance_dir(self):
-        return getattr(self._fmt, 'provenance_dir', None)
+        return getattr(self._fmt, "provenance_dir", None)
 
     @property
     def citations(self):
-        return getattr(self._fmt, 'citations', cite.Citations())
+        return getattr(self._fmt, "citations", cite.Citations())
 
     def save(self, filepath):
         _ZipArchive.save(self.path, filepath)
 
     def validate_checksums(self):
-        if not isinstance(self._fmt, self.get_format_class('5')):
+        if not isinstance(self._fmt, self.get_format_class("5")):
             return ChecksumDiff({}, {}, {})
 
-        obs = dict(x for x in md5sum_directory(str(self.root_dir)).items()
-                   if x[0] != self._fmt.CHECKSUM_FILE)
+        obs = dict(
+            x
+            for x in md5sum_directory(str(self.root_dir)).items()
+            if x[0] != self._fmt.CHECKSUM_FILE
+        )
         with open(self.root_dir / self._fmt.CHECKSUM_FILE) as fh:
-            exp = dict(from_checksum_format(line) for line in
-                       fh.readlines())
+            exp = dict(from_checksum_format(line) for line in fh.readlines())
         obs_keys = set(obs)
         exp_keys = set(exp)
 
         added = {x: obs[x] for x in obs_keys - exp_keys}
         removed = {x: exp[x] for x in exp_keys - obs_keys}
-        changed = {x: (exp[x], obs[x]) for x in exp_keys & obs_keys
-                   if exp[x] != obs[x]}
+        changed = {x: (exp[x], obs[x]) for x in exp_keys & obs_keys if exp[x] != obs[x]}
 
         return ChecksumDiff(added=added, removed=removed, changed=changed)

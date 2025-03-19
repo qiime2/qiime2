@@ -5,7 +5,7 @@ id	col1	col2
 #q2:types	numeric	numeric
 id1	1	42
 id2	1	-42.50
-id3	1	
+id3	1
 id4	1	a
 id5	1	foo
 id6	1	1,000

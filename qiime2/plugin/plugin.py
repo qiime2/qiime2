@@ -74,22 +74,28 @@ from qiime2.core.cite import _make_citations_tuple
 
 
 TransformerRecord = collections.namedtuple(
-    'TransformerRecord', ['transformer', 'plugin', 'citations'])
+    "TransformerRecord", ["transformer", "plugin", "citations"]
+)
 SemanticTypeRecord = collections.namedtuple(
-    'SemanticTypeRecord', ['semantic_type', 'plugin'])
+    "SemanticTypeRecord", ["semantic_type", "plugin"]
+)
 SemanticTypeFragmentRecord = collections.namedtuple(
-    'SemanticTypeFragmentRecord', ['fragment', 'plugin'])
-FormatRecord = collections.namedtuple('FormatRecord', ['format', 'plugin'])
+    "SemanticTypeFragmentRecord", ["fragment", "plugin"]
+)
+FormatRecord = collections.namedtuple("FormatRecord", ["format", "plugin"])
 ViewRecord = collections.namedtuple(
-    'ViewRecord', ['name', 'view', 'plugin', 'citations'])
+    "ViewRecord", ["name", "view", "plugin", "citations"]
+)
 # semantic_type and type_expression will point to the same value in
 # ArtifactClassRecords as type_expression is deprecated in favor of
 # semantic_type
 ArtifactClassRecord = collections.namedtuple(
-    'ArtifactClassRecord', ['semantic_type', 'format', 'plugin', 'description',
-                            'examples', 'type_expression'])
+    "ArtifactClassRecord",
+    ["semantic_type", "format", "plugin", "description", "examples", "type_expression"],
+)
 ValidatorRecord = collections.namedtuple(
-    'ValidatorRecord', ['validator', 'view', 'plugin', 'context'])
+    "ValidatorRecord", ["validator", "view", "plugin", "context"]
+)
 
 
 class Plugin:
@@ -101,19 +107,23 @@ class Plugin:
 
     """
 
-    methods: 'PluginMethods'
-    visualizers: 'PluginVisualizers'
-    pipelines: 'PluginPipelines'
+    methods: "PluginMethods"
+    visualizers: "PluginVisualizers"
+    pipelines: "PluginPipelines"
 
-    def __init__(self, name: str, version: str, website: str,
-                 package: Optional[str] = None,
-                 project_name: Optional[str] = None,
-                 citation_text: Optional[Any] = None,
-                 user_support_text: Optional[str] = None,
-                 short_description: Optional[str] = None,
-                 description: Optional[str] = None,
-                 citations: Optional[
-                     Union[Citations, 'list[CitationRecord]']] = None):
+    def __init__(
+        self,
+        name: str,
+        version: str,
+        website: str,
+        package: Optional[str] = None,
+        project_name: Optional[str] = None,
+        citation_text: Optional[Any] = None,
+        user_support_text: Optional[str] = None,
+        short_description: Optional[str] = None,
+        description: Optional[str] = None,
+        citations: Optional[Union[Citations, "list[CitationRecord]"]] = None,
+    ):
         """
         Parameters
         ----------
@@ -149,7 +159,7 @@ class Plugin:
         --------
         >>> plugin = Plugin('my-plugin', __version__, website)
         """
-        self.id = name.replace('-', '_')
+        self.id = name.replace("-", "_")
         self.name = name
         self.version = version
         self.website = website
@@ -159,21 +169,23 @@ class Plugin:
         self.project_name = project_name
 
         if user_support_text is None:
-            self.user_support_text = ('Please post to the QIIME 2 forum for '
-                                      'help with this plugin: https://forum.'
-                                      'qiime2.org')
+            self.user_support_text = (
+                "Please post to the QIIME 2 forum for "
+                "help with this plugin: https://forum."
+                "qiime2.org"
+            )
         else:
             self.user_support_text = user_support_text
 
         if short_description is None:
-            self.short_description = ''
+            self.short_description = ""
         else:
             self.short_description = short_description
 
         if description is None:
-            self.description = ('No description available. '
-                                'See plugin website: %s'
-                                % self.website)
+            self.description = (
+                "No description available. " "See plugin website: %s" % self.website
+            )
         else:
             self.description = description
 
@@ -268,11 +280,13 @@ class Plugin:
 
             name = get_view_name(view)
             if name in self.views:
-                raise NameError("View %r is already registered by this "
-                                "plugin." % name)
+                raise NameError(
+                    "View %r is already registered by this " "plugin." % name
+                )
 
             self.views[name] = ViewRecord(
-                name=name, view=view, plugin=self, citations=citations)
+                name=name, view=view, plugin=self, citations=citations
+            )
 
             if is_format:
                 self.formats[name] = FormatRecord(format=view, plugin=self)
@@ -309,40 +323,42 @@ class Plugin:
         ...         raise ValidationError("This data is empty.")
         """
         if not is_semantic_type(semantic_expression):
-            raise TypeError('%s is not a Semantic Type' % semantic_expression)
+            raise TypeError("%s is not a Semantic Type" % semantic_expression)
 
         def decorator(validator):
-
             validator_signature = inspect.getfullargspec(validator)
 
-            if 'data' not in validator_signature.annotations:
-                raise TypeError('No expected view type provided as annotation'
-                                ' for `data` variable in %r.' %
-                                (validator.__name__))
+            if "data" not in validator_signature.annotations:
+                raise TypeError(
+                    "No expected view type provided as annotation"
+                    " for `data` variable in %r." % (validator.__name__)
+                )
 
-            if not ['data', 'level'] == validator_signature.args:
-                raise TypeError('The function signature: %r does not contain'
-                                ' the required arguments and only the required'
-                                ' arguments: %r' % (
-                                    validator_signature.args,
-                                    ['data', 'level']))
+            if not ["data", "level"] == validator_signature.args:
+                raise TypeError(
+                    "The function signature: %r does not contain"
+                    " the required arguments and only the required"
+                    " arguments: %r" % (validator_signature.args, ["data", "level"])
+                )
 
             for semantic_type in semantic_expression:
                 if semantic_type not in self.validators:
-                    self.validators[semantic_type] = \
-                        ValidationObject(semantic_type)
+                    self.validators[semantic_type] = ValidationObject(semantic_type)
 
                 self.validators[semantic_type].add_validator(
                     ValidatorRecord(
                         validator=validator,
-                        view=validator.__annotations__['data'],
+                        view=validator.__annotations__["data"],
                         plugin=self,
-                        context=semantic_expression))
+                        context=semantic_expression,
+                    )
+                )
             return validator
+
         return decorator
 
     def register_transformer(self, _fn=None, *, citations=None):
-        """ **Decorator** which registers a transformer to convert data
+        """**Decorator** which registers a transformer to convert data
 
         This decorator may be used with or without arguments.
 
@@ -405,28 +421,36 @@ class Plugin:
         def decorator(transformer):
             annotations = transformer.__annotations__.copy()
             if len(annotations) != 2:
-                raise TypeError("A transformer must only have a single input"
-                                " and output annotation.")
+                raise TypeError(
+                    "A transformer must only have a single input"
+                    " and output annotation."
+                )
             try:
-                output = annotations.pop('return')
+                output = annotations.pop("return")
             except KeyError:
                 raise TypeError("A transformer must provide a return type.")
 
             if type(output) is tuple:
-                raise TypeError("A transformer can only return a single type,"
-                                " not %r." % (output,))
+                raise TypeError(
+                    "A transformer can only return a single type,"
+                    " not %r." % (output,)
+                )
 
             input = list(annotations.values())[0]
             if (input, output) in self.transformers:
-                raise TypeError("Duplicate transformer (%r) from %r to %r."
-                                % (transformer, input, output))
+                raise TypeError(
+                    "Duplicate transformer (%r) from %r to %r."
+                    % (transformer, input, output)
+                )
             if input == output:
-                raise TypeError("Plugins should not register identity"
-                                " transformations (%r, %r to %r)."
-                                % (transformer, input, output))
+                raise TypeError(
+                    "Plugins should not register identity"
+                    " transformations (%r, %r to %r)." % (transformer, input, output)
+                )
 
             self.transformers[input, output] = TransformerRecord(
-                transformer=transformer, plugin=self, citations=citations)
+                transformer=transformer, plugin=self, citations=citations
+            )
             return transformer
 
         if _fn is None:
@@ -457,22 +481,22 @@ class Plugin:
             if not is_semantic_type(type_fragment):
                 raise TypeError("%r is not a semantic type." % type_fragment)
 
-            if not (isinstance(type_fragment, grammar.IncompleteExp) or
-                    (type_fragment.is_concrete() and
-                    not type_fragment.fields)):
-                raise ValueError("%r is not a semantic type symbol."
-                                 % type_fragment)
+            if not (
+                isinstance(type_fragment, grammar.IncompleteExp)
+                or (type_fragment.is_concrete() and not type_fragment.fields)
+            ):
+                raise ValueError("%r is not a semantic type symbol." % type_fragment)
 
             if type_fragment.name in self.type_fragments:
-                raise ValueError("Duplicate semantic type symbol %r."
-                                 % type_fragment)
+                raise ValueError("Duplicate semantic type symbol %r." % type_fragment)
 
-            self.type_fragments[type_fragment.name] = \
-                SemanticTypeFragmentRecord(
-                    fragment=type_fragment, plugin=self)
+            self.type_fragments[type_fragment.name] = SemanticTypeFragmentRecord(
+                fragment=type_fragment, plugin=self
+            )
 
-    def _register_artifact_class(self, semantic_type, directory_format,
-                                 description, examples):
+    def _register_artifact_class(
+        self, semantic_type, directory_format, description, examples
+    ):
         if not issubclass(directory_format, DirectoryFormat):
             raise TypeError("%r is not a directory format." % directory_format)
         if not is_semantic_type(semantic_type):
@@ -480,8 +504,10 @@ class Plugin:
 
         for t in semantic_type:
             if t.predicate is not None:
-                raise ValueError("%r has a predicate, differentiating format"
-                                 " on predicate is not supported.")
+                raise ValueError(
+                    "%r has a predicate, differentiating format"
+                    " on predicate is not supported."
+                )
 
         if description is None:
             description = ""
@@ -494,20 +520,24 @@ class Plugin:
         for e in list(semantic_type):
             semantic_type_str = str(e)
             if semantic_type_str in self.artifact_classes:
-                raise NameError("Artifact class %s was registered more than "
-                                "once. Artifact classes can only be "
-                                "registered once." % semantic_type_str)
+                raise NameError(
+                    "Artifact class %s was registered more than "
+                    "once. Artifact classes can only be "
+                    "registered once." % semantic_type_str
+                )
 
-            self.artifact_classes[semantic_type_str] =\
-                ArtifactClassRecord(
-                    semantic_type=e, format=directory_format,
-                    plugin=self, description=description,
-                    examples=types.MappingProxyType(examples),
-                    type_expression=e)
+            self.artifact_classes[semantic_type_str] = ArtifactClassRecord(
+                semantic_type=e,
+                format=directory_format,
+                plugin=self,
+                description=description,
+                examples=types.MappingProxyType(examples),
+                type_expression=e,
+            )
 
-    def register_semantic_type_to_format(self, semantic_type,
-                                         artifact_format=None,
-                                         directory_format=None):
+    def register_semantic_type_to_format(
+        self, semantic_type, artifact_format=None, directory_format=None
+    ):
         """Connect a semantic type expression to a format. **Deprecated**
 
         Permits an arbitrary type expression and expands it to all concrete
@@ -536,27 +566,32 @@ class Plugin:
         # Handle the deprecated parameter name, artifact_format. This is being
         # replaced with directory_format for clarity.
         if artifact_format is not None and directory_format is not None:
-            raise ValueError('directory_format and artifact_format were both'
-                             'provided when registering artifact class %s.'
-                             'Please provide directory_format only as '
-                             'artifact_format is deprecated.'
-                             % str(semantic_type))
+            raise ValueError(
+                "directory_format and artifact_format were both"
+                "provided when registering artifact class %s."
+                "Please provide directory_format only as "
+                "artifact_format is deprecated." % str(semantic_type)
+            )
         elif artifact_format is None and directory_format is None:
-            raise ValueError('directory_format or artifact_format must be '
-                             'provided when registering artifact class %s.'
-                             'Please provide directory_format only as '
-                             'artifact_format is deprecated.'
-                             % str(semantic_type))
+            raise ValueError(
+                "directory_format or artifact_format must be "
+                "provided when registering artifact class %s."
+                "Please provide directory_format only as "
+                "artifact_format is deprecated." % str(semantic_type)
+            )
         else:
             directory_format = directory_format or artifact_format
 
-        self._register_artifact_class(semantic_type=semantic_type,
-                                      directory_format=directory_format,
-                                      description=None,
-                                      examples=None)
+        self._register_artifact_class(
+            semantic_type=semantic_type,
+            directory_format=directory_format,
+            description=None,
+            examples=None,
+        )
 
-    def register_artifact_class(self, semantic_type, directory_format,
-                                description=None, examples=None):
+    def register_artifact_class(
+        self, semantic_type, directory_format, description=None, examples=None
+    ):
         """Register an artifact class which defines an Artifact
 
         Parameters
@@ -591,11 +626,14 @@ class Plugin:
         ... )
         """
         if not semantic_type.is_concrete():
-            raise TypeError("Only a single type can be registered at a time "
-                            "with register_artifact_class. Registration "
-                            "attempted for %s." % str(semantic_type))
+            raise TypeError(
+                "Only a single type can be registered at a time "
+                "with register_artifact_class. Registration "
+                "attempted for %s." % str(semantic_type)
+            )
         self._register_artifact_class(
-            semantic_type, directory_format, description, examples)
+            semantic_type, directory_format, description, examples
+        )
 
 
 class PluginActions(dict):
@@ -606,11 +644,22 @@ class PluginActions(dict):
 
 class PluginMethods(PluginActions):
     """Accessed via ``plugin.methods``"""
-    def register_function(self, function, inputs, parameters, outputs, name,
-                          description, input_descriptions=None,
-                          parameter_descriptions=None,
-                          output_descriptions=None, citations=None,
-                          deprecated=False, examples=None):
+
+    def register_function(
+        self,
+        function,
+        inputs,
+        parameters,
+        outputs,
+        name,
+        description,
+        input_descriptions=None,
+        parameter_descriptions=None,
+        output_descriptions=None,
+        citations=None,
+        deprecated=False,
+        examples=None,
+    ):
         """Register a method to the associated plugin.
 
         Parameters
@@ -684,21 +733,40 @@ class PluginMethods(PluginActions):
         if examples is None:
             examples = {}
 
-        method = qiime2.sdk.Method._init(function, inputs, parameters, outputs,
-                                         self._plugin_id, name, description,
-                                         input_descriptions,
-                                         parameter_descriptions,
-                                         output_descriptions, citations,
-                                         deprecated, examples)
+        method = qiime2.sdk.Method._init(
+            function,
+            inputs,
+            parameters,
+            outputs,
+            self._plugin_id,
+            name,
+            description,
+            input_descriptions,
+            parameter_descriptions,
+            output_descriptions,
+            citations,
+            deprecated,
+            examples,
+        )
         self[method.id] = method
 
 
 class PluginVisualizers(PluginActions):
     """Accessed via ``plugin.visualizers``"""
-    def register_function(self, function, inputs, parameters, name,
-                          description, input_descriptions=None,
-                          parameter_descriptions=None, citations=None,
-                          deprecated=False, examples=None):
+
+    def register_function(
+        self,
+        function,
+        inputs,
+        parameters,
+        name,
+        description,
+        input_descriptions=None,
+        parameter_descriptions=None,
+        citations=None,
+        deprecated=False,
+        examples=None,
+    ):
         """Register a visualizer to the associated plugin.
 
         Parameters
@@ -755,23 +823,40 @@ class PluginVisualizers(PluginActions):
         if examples is None:
             examples = {}
 
-        visualizer = qiime2.sdk.Visualizer._init(function, inputs, parameters,
-                                                 self._plugin_id, name,
-                                                 description,
-                                                 input_descriptions,
-                                                 parameter_descriptions,
-                                                 citations, deprecated,
-                                                 examples)
+        visualizer = qiime2.sdk.Visualizer._init(
+            function,
+            inputs,
+            parameters,
+            self._plugin_id,
+            name,
+            description,
+            input_descriptions,
+            parameter_descriptions,
+            citations,
+            deprecated,
+            examples,
+        )
         self[visualizer.id] = visualizer
 
 
 class PluginPipelines(PluginActions):
     """Accessed via ``plugin.pipelines``"""
-    def register_function(self, function, inputs, parameters, outputs, name,
-                          description, input_descriptions=None,
-                          parameter_descriptions=None,
-                          output_descriptions=None, citations=None,
-                          deprecated=False, examples=None):
+
+    def register_function(
+        self,
+        function,
+        inputs,
+        parameters,
+        outputs,
+        name,
+        description,
+        input_descriptions=None,
+        parameter_descriptions=None,
+        output_descriptions=None,
+        citations=None,
+        deprecated=False,
+        examples=None,
+    ):
         """Register a pipeline to the associated plugin.
 
         Parameters
@@ -833,10 +918,19 @@ class PluginPipelines(PluginActions):
         if examples is None:
             examples = {}
 
-        pipeline = qiime2.sdk.Pipeline._init(function, inputs, parameters,
-                                             outputs, self._plugin_id, name,
-                                             description, input_descriptions,
-                                             parameter_descriptions,
-                                             output_descriptions, citations,
-                                             deprecated, examples)
+        pipeline = qiime2.sdk.Pipeline._init(
+            function,
+            inputs,
+            parameters,
+            outputs,
+            self._plugin_id,
+            name,
+            description,
+            input_descriptions,
+            parameter_descriptions,
+            output_descriptions,
+            citations,
+            deprecated,
+            examples,
+        )
         self[pipeline.id] = pipeline

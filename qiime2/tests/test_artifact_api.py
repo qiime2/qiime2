@@ -39,54 +39,62 @@ class TestImports(unittest.TestCase):
         self.assertIsInstance(module, types.ModuleType)
         self.assertEqual(module.__name__, name)
         self.assertEqual(module.__spec__.name, name)
-        self.assertEqual(module.__spec__.submodule_search_locations,
-                         [] if is_package else None)
+        self.assertEqual(
+            module.__spec__.submodule_search_locations, [] if is_package else None
+        )
         self.assertFalse(module.__spec__.has_location)
-        self.assertIn('generated QIIME 2 API', repr(module))
+        self.assertIn("generated QIIME 2 API", repr(module))
 
     def _check_plugin(self, module):
-        self._check_spec(module, 'qiime2.plugins.dummy_plugin', True)
+        self._check_spec(module, "qiime2.plugins.dummy_plugin", True)
         self._check_methods(module.methods)
         self._check_visualizers(module.visualizers)
-        self.assertEqual(set(x for x in dir(module) if not x.startswith('_')),
-                         {'visualizers', 'methods', 'actions', 'pipelines'})
+        self.assertEqual(
+            set(x for x in dir(module) if not x.startswith("_")),
+            {"visualizers", "methods", "actions", "pipelines"},
+        )
 
     def _check_methods(self, module):
-        self._check_spec(module, 'qiime2.plugins.dummy_plugin.methods', False)
-        self.assertTrue(hasattr(module, 'concatenate_ints'))
-        self.assertFalse(hasattr(module, 'most_common_viz'))
+        self._check_spec(module, "qiime2.plugins.dummy_plugin.methods", False)
+        self.assertTrue(hasattr(module, "concatenate_ints"))
+        self.assertFalse(hasattr(module, "most_common_viz"))
 
         self.assertIsInstance(module.concatenate_ints, qiime2.sdk.Action)
 
     def _check_visualizers(self, module):
-        self._check_spec(
-            module, 'qiime2.plugins.dummy_plugin.visualizers', False)
-        self.assertTrue(hasattr(module, 'most_common_viz'))
-        self.assertFalse(hasattr(module, 'concatenate_ints'))
+        self._check_spec(module, "qiime2.plugins.dummy_plugin.visualizers", False)
+        self.assertTrue(hasattr(module, "most_common_viz"))
+        self.assertFalse(hasattr(module, "concatenate_ints"))
         self.assertIsInstance(module.most_common_viz, qiime2.sdk.Action)
 
     def test_import_root(self):
         import qiime2.plugins.dummy_plugin
+
         self._check_plugin(qiime2.plugins.dummy_plugin)
 
     def test_import_root_from(self):
         from qiime2.plugins import dummy_plugin
+
         self._check_plugin(dummy_plugin)
 
     def test_import_methods(self):
         import qiime2.plugins.dummy_plugin.methods
+
         self._check_methods(qiime2.plugins.dummy_plugin.methods)
 
     def test_import_visualizers(self):
         import qiime2.plugins.dummy_plugin.visualizers
+
         self._check_visualizers(qiime2.plugins.dummy_plugin.visualizers)
 
     def test_import_methods_from(self):
         from qiime2.plugins.dummy_plugin import methods
+
         self._check_methods(methods)
 
     def test_import_visualizers_from(self):
         from qiime2.plugins.dummy_plugin import visualizers
+
         self._check_visualizers(visualizers)
 
     def test_import_non_plugin(self):
@@ -101,6 +109,7 @@ class TestImports(unittest.TestCase):
         # Certain implementations of __PATH__ can cause a module to load
         # siblings (__PATH__ = ['.'] for example)
         import qiime2.metadata
+
         self.assertIsInstance(qiime2.metadata, types.ModuleType)
         with self.assertRaises(ImportError):
             import qiime2.plugins.metadata  # noqa
@@ -115,6 +124,7 @@ class TestImports(unittest.TestCase):
 
     def test_reload_fails(self):
         import qiime2.plugins.dummy_plugin
+
         with self.assertRaises(ImportError):
             importlib.reload(qiime2.plugins.dummy_plugin)
 
@@ -125,32 +135,37 @@ class TestImports(unittest.TestCase):
         from qiime2.core.util import load_action_yaml
         from qiime2.plugin.util import transform
 
-        ff = transform([1, 2, 3,], to_type=IntSequenceFormat)
-        ff2 = Artifact.import_data(IntSequence2, ff,
-                                   view_type=IntSequenceFormat)
+        ff = transform(
+            [
+                1,
+                2,
+                3,
+            ],
+            to_type=IntSequenceFormat,
+        )
+        ff2 = Artifact.import_data(IntSequence2, ff, view_type=IntSequenceFormat)
 
         # If the checksum is not stored, this will raise a KeyError
-        action = load_action_yaml(ff2._archiver.path)['action']['manifest']
-        self.assertIn('md5sum', action[0].keys())
+        action = load_action_yaml(ff2._archiver.path)["action"]["manifest"]
+        self.assertIn("md5sum", action[0].keys())
         # This ensures that the checksum is exactly what we expect and will
         # catch empty strings or other weird values that could arise
-        self.assertEqual(action[0]['md5sum'],
-                         'c0710d6b4f15dfa88f600b0e6b624077')
+        self.assertEqual(action[0]["md5sum"], "c0710d6b4f15dfa88f600b0e6b624077")
 
 
 class TestArtifactAPIUsage(unittest.TestCase):
     def setUp(self):
         # TODO standardize temporary directories created by QIIME 2
-        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        self.test_dir = tempfile.TemporaryDirectory(prefix="qiime2-test-temp-")
         self.plugin = get_dummy_plugin()
 
     def tearDown(self):
         self.test_dir.cleanup()
 
     def test_basic(self):
-        action = self.plugin.actions['concatenate_ints']
+        action = self.plugin.actions["concatenate_ints"]
         use = ArtifactAPIUsage()
-        action.examples['concatenate_ints_simple'](use)
+        action.examples["concatenate_ints_simple"](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
@@ -165,9 +180,9 @@ ints_d, = dummy_plugin_actions.concatenate_ints(
         self.assertEqual(exp, use.render())
 
     def test_chained(self):
-        action = self.plugin.actions['concatenate_ints']
+        action = self.plugin.actions["concatenate_ints"]
         use = ArtifactAPIUsage()
-        action.examples['concatenate_ints_complex'](use)
+        action.examples["concatenate_ints_complex"](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
@@ -190,9 +205,9 @@ concatenated_ints, = dummy_plugin_actions.concatenate_ints(
         self.assertEqual(exp, use.render())
 
     def test_dereferencing(self):
-        action = self.plugin.actions['typical_pipeline']
+        action = self.plugin.actions["typical_pipeline"]
         use = ArtifactAPIUsage()
-        action.examples['typical_pipeline_simple'](use)
+        action.examples["typical_pipeline_simple"](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
@@ -209,9 +224,9 @@ right_viz_viz = action_results.right_viz"""
         self.assertEqual(exp, use.render())
 
     def test_chained_dereferencing(self):
-        action = self.plugin.actions['typical_pipeline']
+        action = self.plugin.actions["typical_pipeline"]
         use = ArtifactAPIUsage()
-        action.examples['typical_pipeline_complex'](use)
+        action.examples["typical_pipeline_complex"](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
@@ -238,9 +253,9 @@ right_viz2_viz = action_results.right_viz"""
         self.assertEqual(exp, use.render())
 
     def test_metadata_merging(self):
-        action = self.plugin.actions['identity_with_metadata']
+        action = self.plugin.actions["identity_with_metadata"]
         use = ArtifactAPIUsage()
-        action.examples['identity_with_metadata_merging'](use)
+        action.examples["identity_with_metadata_merging"](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
@@ -252,9 +267,9 @@ out, = dummy_plugin_actions.identity_with_metadata(
         self.assertEqual(exp, use.render())
 
     def test_metadata_column_from_helper(self):
-        action = self.plugin.actions['identity_with_metadata_column']
+        action = self.plugin.actions["identity_with_metadata_column"]
         use = ArtifactAPIUsage()
-        action.examples['identity_with_metadata_column_get_mdc'](use)
+        action.examples["identity_with_metadata_column_get_mdc"](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
@@ -266,9 +281,9 @@ out, = dummy_plugin_actions.identity_with_metadata_column(
         self.assertEqual(exp, use.render())
 
     def test_optional_inputs(self):
-        action = self.plugin.actions['optional_artifacts_method']
+        action = self.plugin.actions["optional_artifacts_method"]
         use = ArtifactAPIUsage()
-        action.examples['optional_inputs'](use)
+        action.examples["optional_inputs"](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
@@ -296,9 +311,9 @@ output4, = dummy_plugin_actions.optional_artifacts_method(
         self.assertEqual(exp, use.render())
 
     def test_artifact_collection_dict_of_ints(self):
-        action = self.plugin.actions['dict_of_ints']
+        action = self.plugin.actions["dict_of_ints"]
         use = ArtifactAPIUsage(enable_assertions=True)
-        action.examples['collection_dict_of_ints'](use)
+        action.examples["collection_dict_of_ints"](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 import re
@@ -318,9 +333,9 @@ if match is None:
         self.assertEqual(exp, use.render())
 
     def test_collection_of_visualizations(self):
-        action = self.plugin.actions['viz_collection_pipeline']
+        action = self.plugin.actions["viz_collection_pipeline"]
         use = ArtifactAPIUsage(enable_assertions=True)
-        action.examples['collection_of_visualizations'](use)
+        action.examples["collection_of_visualizations"](use)
         exp = """\
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
 
@@ -333,9 +348,9 @@ if str(visualizations_viz_collection.type) != 'Collection[Visualization]':
         self.assertEqual(exp, use.render())
 
     def test_construct_and_access_collection(self):
-        action = self.plugin.actions['dict_of_ints']
+        action = self.plugin.actions["dict_of_ints"]
         use = ArtifactAPIUsage()
-        action.examples['construct_and_access_collection'](use)
+        action.examples["construct_and_access_collection"](use)
         exp = """\
 from qiime2 import ResultCollection
 import qiime2.plugins.dummy_plugin.actions as dummy_plugin_actions
@@ -352,5 +367,5 @@ ints_b_from_collection = rc_out_artifact_collection['b']"""
         self.assertEqual(exp, use.render())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

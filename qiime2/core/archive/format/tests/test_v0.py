@@ -28,13 +28,16 @@ class TestArchiveFormat(unittest.TestCase):
     def test_format_metadata(self):
         uuid = _uuid.uuid4()
         with io.StringIO() as fh:
-            ArchiveFormat._format_metadata(fh, uuid, IntSequence1,
-                                           IntSequenceDirectoryFormat)
+            ArchiveFormat._format_metadata(
+                fh, uuid, IntSequence1, IntSequenceDirectoryFormat
+            )
             result = fh.getvalue()
 
-        self.assertEqual(result,
-                         "uuid: %s\ntype: IntSequence1\nformat: "
-                         "IntSequenceDirectoryFormat\n" % uuid)
+        self.assertEqual(
+            result,
+            "uuid: %s\ntype: IntSequence1\nformat: "
+            "IntSequenceDirectoryFormat\n" % uuid,
+        )
 
     def test_format_metadata_none(self):
         uuid = _uuid.uuid4()
@@ -42,24 +45,29 @@ class TestArchiveFormat(unittest.TestCase):
             ArchiveFormat._format_metadata(fh, uuid, IntSequence1, None)
             result = fh.getvalue()
 
-        self.assertEqual(result,
-                         "uuid: %s\ntype: IntSequence1\nformat: null\n" % uuid)
+        self.assertEqual(result, "uuid: %s\ntype: IntSequence1\nformat: null\n" % uuid)
 
     def test_load_root_dir_metadata_uuid_mismatch(self):
-        fp = pathlib.Path(self.temp_dir.name) / 'root-dir-metadata-mismatch'
+        fp = pathlib.Path(self.temp_dir.name) / "root-dir-metadata-mismatch"
         fp.mkdir()
 
-        r = _ZipArchive.setup(_uuid.uuid4(), fp, 'foo', 'bar')
-        fake = ArchiveRecord(r.root, r.version_fp,
-                             _uuid.uuid4(),  # This will trick the format
-                             r.version, r.framework_version)
+        r = _ZipArchive.setup(_uuid.uuid4(), fp, "foo", "bar")
+        fake = ArchiveRecord(
+            r.root,
+            r.version_fp,
+            _uuid.uuid4(),  # This will trick the format
+            r.version,
+            r.framework_version,
+        )
 
-        ArchiveFormat.write(fake, IntSequence1, IntSequenceDirectoryFormat,
-                            lambda x: None, None)
+        ArchiveFormat.write(
+            fake, IntSequence1, IntSequenceDirectoryFormat, lambda x: None, None
+        )
         with self.assertRaisesRegex(
-                ValueError, 'root directory must match UUID.*metadata'):
+            ValueError, "root directory must match UUID.*metadata"
+        ):
             ArchiveFormat(r)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

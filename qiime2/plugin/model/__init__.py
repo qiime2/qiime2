@@ -7,12 +7,23 @@
 # ----------------------------------------------------------------------------
 
 from .directory_format import (
-    DirectoryFormat, File, FileCollection, SingleFileDirectoryFormat,
-    SingleFileDirectoryFormatBase)
+    DirectoryFormat,
+    File,
+    FileCollection,
+    SingleFileDirectoryFormat,
+    SingleFileDirectoryFormatBase,
+)
 from .file_format import TextFileFormat, BinaryFileFormat
 from .base import ValidationError
 
 
-__all__ = ['DirectoryFormat', 'File', 'FileCollection', 'TextFileFormat',
-           'BinaryFileFormat', 'SingleFileDirectoryFormat',
-           'SingleFileDirectoryFormatBase', 'ValidationError']
+__all__ = [
+    "DirectoryFormat",
+    "File",
+    "FileCollection",
+    "TextFileFormat",
+    "BinaryFileFormat",
+    "SingleFileDirectoryFormat",
+    "SingleFileDirectoryFormatBase",
+    "ValidationError",
+]

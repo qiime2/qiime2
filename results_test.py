@@ -31,8 +31,9 @@ class Results(tuple):
 
         if len(fields) != len(values):
             raise ValueError(
-                "`fields` and `values` must have matching length: %d != %d" %
-                (len(fields), len(values)))
+                "`fields` and `values` must have matching length: %d != %d"
+                % (len(fields), len(values))
+            )
 
         # Create tuple instance, store fields, and create read-only attributes
         # for each field name. Fields must be stored for pickling/copying (see
@@ -44,17 +45,18 @@ class Results(tuple):
 
         # Must set attributes this way because `__setattr__` prevents
         # setting directly (necessary for immutability).
-        object.__setattr__(self, '_fields', fields)
+        object.__setattr__(self, "_fields", fields)
 
         # Attach field names as instance attributes.
         for field, value in zip(fields, values):
             object.__setattr__(self, field, value)
 
         return self
+
     def __iter__(self):
-        """Allow iteration over (key, value) pairs. """
-        return iter(zip(self._fields,super().__iter__()))
-    
+        """Allow iteration over (key, value) pairs."""
+        return iter(zip(self._fields, super().__iter__()))
+
     def to_dict(self):
         """Return the results as a dictionary"""
         return dict(self)
@@ -82,9 +84,9 @@ class Results(tuple):
         # Results with different field names should not compare equal, even if
         # their values are equal.
         return (
-            isinstance(other, Results) and
-            self._fields == other._fields and
-            tuple(self) == tuple(other)
+            isinstance(other, Results)
+            and self._fields == other._fields
+            and tuple(self) == tuple(other)
         )
 
     def __ne__(self, other):
@@ -95,8 +97,8 @@ class Results(tuple):
         # not make the field/value pairs apparent. If the constructor accepted
         # **kwargs, the order of field/value pairs would be lost.
         lines = []
-        lines.append('%s (name = value)' % self.__class__.__name__)
-        lines.append('')
+        lines.append("%s (name = value)" % self.__class__.__name__)
+        lines.append("")
 
         max_len = -1
         for field in self._fields:
@@ -104,38 +106,37 @@ class Results(tuple):
                 max_len = len(field)
 
         for field, value in zip(self._fields, self):
-            field_padding = ' ' * (max_len - len(field))
-            lines.append('%s%s = %r' % (field, field_padding, value))
+            field_padding = " " * (max_len - len(field))
+            lines.append("%s%s = %r" % (field, field_padding, value))
 
         max_len = -1
         for line in lines:
             if len(line) > max_len:
                 max_len = len(line)
-        lines[1] = '-' * max_len
+        lines[1] = "-" * max_len
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _asdict(self):
         return dict(zip(self._fields, self))
 
     def _result(self):
-        """ This exists to provide a standardized interface with ProxyResults.
-            Check the 'result' method on ProxyResults for a full
-            explanation.
+        """This exists to provide a standardized interface with ProxyResults.
+        Check the 'result' method on ProxyResults for a full
+        explanation.
         """
         return self
+
+
 if __name__ == "__main__":
     results = Results(["out1", "out2"], ["Artifact1", "Artifact2"])
-    
+
     # Print results as tuple
     print("Tuple format:", results)
-    
+
     # Print results as dictionary
     print("Dictionary format:", results.to_dict())
-    
+
     # Iterate over key-value pairs
     for key, value in results:
         print(f"{key}: {value}")
-
-
-

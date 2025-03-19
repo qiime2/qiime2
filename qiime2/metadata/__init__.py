@@ -6,10 +6,19 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .metadata import (Metadata, MetadataColumn, NumericMetadataColumn,
-                       CategoricalMetadataColumn)
+from .metadata import (
+    Metadata,
+    MetadataColumn,
+    NumericMetadataColumn,
+    CategoricalMetadataColumn,
+)
 from .io import MetadataFileError
 
 
-__all__ = ['Metadata', 'MetadataColumn', 'NumericMetadataColumn',
-           'CategoricalMetadataColumn', 'MetadataFileError']
+__all__ = [
+    "Metadata",
+    "MetadataColumn",
+    "NumericMetadataColumn",
+    "CategoricalMetadataColumn",
+    "MetadataFileError",
+]

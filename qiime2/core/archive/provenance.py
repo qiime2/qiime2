@@ -41,12 +41,12 @@ def _ts_to_date(ts):
 
 
 # Used to give PyYAML something to recognize for custom tags
-ForwardRef = collections.namedtuple('ForwardRef', ['reference'])
-NoProvenance = collections.namedtuple('NoProvenance', ['uuid'])
-MetadataPath = collections.namedtuple('MetadataPath', ['path'])
-ColorPrimitive = collections.namedtuple('ColorPrimitive', ['hex'])
-LiteralString = collections.namedtuple('LiteralString', ['string'])
-CitationKey = collections.namedtuple('CitationKey', ['key'])
+ForwardRef = collections.namedtuple("ForwardRef", ["reference"])
+NoProvenance = collections.namedtuple("NoProvenance", ["uuid"])
+MetadataPath = collections.namedtuple("MetadataPath", ["path"])
+ColorPrimitive = collections.namedtuple("ColorPrimitive", ["hex"])
+LiteralString = collections.namedtuple("LiteralString", ["string"])
+CitationKey = collections.namedtuple("CitationKey", ["key"])
 
 
 class OrderedKeyValue(collections.OrderedDict):
@@ -56,60 +56,73 @@ class OrderedKeyValue(collections.OrderedDict):
 # Used for yaml that looks like:
 #   - key1: value1
 #   - key2: value2
-yaml.add_representer(OrderedKeyValue, lambda dumper, data:
-                     dumper.represent_list([
-                        {k: v} for k, v in data.items()]))
+yaml.add_representer(
+    OrderedKeyValue,
+    lambda dumper, data: dumper.represent_list([{k: v} for k, v in data.items()]),
+)
 
 
 # Controlling the order of dictionaries (even if semantically irrelevant) is
 # important to making it look nice.
-yaml.add_representer(collections.OrderedDict, lambda dumper, data:
-                     dumper.represent_dict(data.items()))
+yaml.add_representer(
+    collections.OrderedDict, lambda dumper, data: dumper.represent_dict(data.items())
+)
 
 
 # YAML libraries aren't good at writing a clean version of this, and typically
 # the fact that it is a set is irrelevant to tools that use provenance
 # so add a custom tag and treat it like a sequence. Then code doesn't need to
 # special case set vs list in their business logic when it isn't important.
-yaml.add_representer(set, lambda dumper, data:
-                     dumper.represent_sequence('!set', data))
+yaml.add_representer(set, lambda dumper, data: dumper.represent_sequence("!set", data))
 
 
 # LiteralString uses the | character and has literal newlines
-yaml.add_representer(LiteralString, lambda dumper, data:
-                     dumper.represent_scalar('tag:yaml.org,2002:str',
-                                             data.string, style='|'))
+yaml.add_representer(
+    LiteralString,
+    lambda dumper, data: dumper.represent_scalar(
+        "tag:yaml.org,2002:str", data.string, style="|"
+    ),
+)
 
 
 # Make our timestamps pretty (unquoted).
-yaml.add_representer(datetime, lambda dumper, data:
-                     dumper.represent_scalar('tag:yaml.org,2002:timestamp',
-                                             data.isoformat()))
+yaml.add_representer(
+    datetime,
+    lambda dumper, data: dumper.represent_scalar(
+        "tag:yaml.org,2002:timestamp", data.isoformat()
+    ),
+)
 
 
 # Forward reference to something else in the document, namespaces are
 # delimited by colons (:).
-yaml.add_representer(ForwardRef, lambda dumper, data:
-                     dumper.represent_scalar('!ref', data.reference))
+yaml.add_representer(
+    ForwardRef, lambda dumper, data: dumper.represent_scalar("!ref", data.reference)
+)
 
 
 # This tag represents an artifact without provenance, this is to support
 # archive format v0. Ideally this won't be seen in the wild in practice.
-yaml.add_representer(NoProvenance, lambda dumper, data:
-                     dumper.represent_scalar('!no-provenance', str(data.uuid)))
+yaml.add_representer(
+    NoProvenance,
+    lambda dumper, data: dumper.represent_scalar("!no-provenance", str(data.uuid)),
+)
 
 
 # A reference to Metadata and MetadataColumn whose data can be found at the
 # relative path indicated as its value
-yaml.add_representer(MetadataPath, lambda dumper, data:
-                     dumper.represent_scalar('!metadata', data.path))
+yaml.add_representer(
+    MetadataPath, lambda dumper, data: dumper.represent_scalar("!metadata", data.path)
+)
 
 # A color primitive.
-yaml.add_representer(ColorPrimitive, lambda dumper, data:
-                     dumper.represent_scalar('!color', data.hex))
+yaml.add_representer(
+    ColorPrimitive, lambda dumper, data: dumper.represent_scalar("!color", data.hex)
+)
 
-yaml.add_representer(CitationKey, lambda dumper, data:
-                     dumper.represent_scalar('!cite', data.key))
+yaml.add_representer(
+    CitationKey, lambda dumper, data: dumper.represent_scalar("!cite", data.key)
+)
 
 
 def citation_key_constructor(loader, node) -> str:
@@ -154,6 +167,7 @@ class MetadataInfo(NamedTuple):
         The md5sum hash of the contents of the corresponding metadata file,
         needed by qiime2.core.cache to tell if two metadata inputs are equal.
     """
+
     input_artifact_uuids: List[str]
     relative_fp: str
     md5sum_hash: str
@@ -189,9 +203,9 @@ def metadata_path_constructor(loader, node) -> MetadataInfo:
     to find the corresponding metadata file.
     """
     raw = loader.construct_scalar(node)
-    if ':' in raw:
-        artifact_uuids, rel_fp = raw.split(':')
-        artifact_uuids = artifact_uuids.split(',')
+    if ":" in raw:
+        artifact_uuids, rel_fp = raw.split(":")
+        artifact_uuids = artifact_uuids.split(",")
     else:
         artifact_uuids = []
         rel_fp = raw
@@ -217,8 +231,11 @@ def no_provenance_constructor(loader, node) -> str:
     no-provenance-ness of these. The v0 parser deals with them directly anyway.
     """
     uuid = loader.construct_scalar(node)
-    warnings.warn(f"Artifact {uuid} was created prior to provenance tracking. "
-                  + "Provenance data will be incomplete.", UserWarning)
+    warnings.warn(
+        f"Artifact {uuid} was created prior to provenance tracking. "
+        + "Provenance data will be incomplete.",
+        UserWarning,
+    )
     return uuid
 
 
@@ -239,8 +256,8 @@ def ref_constructor(loader, node) -> Union[str, List[str]]:
     in the event ForwardRef is used more broadly in future.
     """
     value = loader.construct_scalar(node)
-    keys = value.split(':')
-    if keys[0:2] == ['environment', 'plugins']:
+    keys = value.split(":")
+    if keys[0:2] == ["environment", "plugins"]:
         plugin_name = keys[2]
         return plugin_name
     else:
@@ -258,12 +275,12 @@ def set_constructor(loader, node) -> Set[Any]:
 # NOTE: New yaml tag constructors must be added to this registry, or tags will
 # raise ConstructorErrors
 CONSTRUCTOR_REGISTRY = {
-    '!cite': citation_key_constructor,
-    '!color': color_constructor,
-    '!metadata': metadata_path_constructor,
-    '!no-provenance': no_provenance_constructor,
-    '!ref': ref_constructor,
-    '!set': set_constructor,
+    "!cite": citation_key_constructor,
+    "!color": color_constructor,
+    "!metadata": metadata_path_constructor,
+    "!no-provenance": no_provenance_constructor,
+    "!ref": ref_constructor,
+    "!set": set_constructor,
 }
 
 for key in CONSTRUCTOR_REGISTRY:
@@ -271,10 +288,10 @@ for key in CONSTRUCTOR_REGISTRY:
 
 
 class ProvenanceCapture:
-    ANCESTOR_DIR = 'artifacts'
-    ACTION_DIR = 'action'
-    ACTION_FILE = 'action.yaml'
-    CITATION_FILE = 'citations.bib'
+    ANCESTOR_DIR = "artifacts"
+    ACTION_DIR = "action"
+    ACTION_FILE = "action.yaml"
+    CITATION_FILE = "citations.bib"
 
     def __init__(self):
         self.start = time.time()
@@ -290,7 +307,7 @@ class ProvenanceCapture:
         self._framework_citations = []
 
         for idx, citation in enumerate(qiime2.__citations__):
-            citation_key = self.make_citation_key('framework')
+            citation_key = self.make_citation_key("framework")
             self.citations[citation_key.key] = citation
             self._framework_citations.append(citation_key)
 
@@ -327,8 +344,10 @@ class ProvenanceCapture:
         if not destination.exists():
             # Handle root node of ancestor
             shutil.copytree(
-                str(other_path), str(destination),
-                ignore=shutil.ignore_patterns(self.ANCESTOR_DIR + '*'))
+                str(other_path),
+                str(destination),
+                ignore=shutil.ignore_patterns(self.ANCESTOR_DIR + "*"),
+            )
 
             # Handle ancestral nodes of ancestor
             grandcestor_path = other_path / self.ANCESTOR_DIR
@@ -340,63 +359,65 @@ class ProvenanceCapture:
 
         return str(artifact.uuid)
 
-    def make_citation_key(self, domain, package=None, identifier=None,
-                          index=0):
-        if domain == 'framework':
-            package, version = 'qiime2', qiime2.__version__
+    def make_citation_key(self, domain, package=None, identifier=None, index=0):
+        if domain == "framework":
+            package, version = "qiime2", qiime2.__version__
         else:
             package, version = package.name, package.version
         id_block = [] if identifier is None else [identifier]
 
-        return CitationKey('|'.join(
-            [domain, package + ':' + version] + id_block + [str(index)]))
+        return CitationKey(
+            "|".join([domain, package + ":" + version] + id_block + [str(index)])
+        )
 
     def make_software_entry(self, version, website, citations=()):
         entry = collections.OrderedDict()
 
-        entry['version'] = version
-        entry['website'] = website
+        entry["version"] = version
+        entry["website"] = website
         if citations:
-            entry['citations'] = citations
+            entry["citations"] = citations
 
         return entry
 
     def reference_plugin(self, plugin):
         plugin_citations = []
         for idx, citation in enumerate(plugin.citations):
-            citation_key = self.make_citation_key('plugin', plugin, index=idx)
+            citation_key = self.make_citation_key("plugin", plugin, index=idx)
             self.citations[citation_key.key] = citation
             plugin_citations.append(citation_key)
 
         self.plugins[plugin.name] = self.make_software_entry(
-            plugin.version, plugin.website, plugin_citations)
+            plugin.version, plugin.website, plugin_citations
+        )
 
-        return ForwardRef('environment:plugins:' + plugin.name)
+        return ForwardRef("environment:plugins:" + plugin.name)
 
     def capture_env(self):
         return collections.OrderedDict(
-            (d.metadata["Name"], d.metadata["Version"]) for d in
-            importlib.metadata.distributions()
+            (d.metadata["Name"], d.metadata["Version"])
+            for d in importlib.metadata.distributions()
         )
 
     def transformation_recorder(self, name):
         section = self.transformers[name] = []
 
-        def recorder(transformer_record, input_name, input_record, output_name,
-                     output_record):
+        def recorder(
+            transformer_record, input_name, input_record, output_name, output_record
+        ):
             entry = collections.OrderedDict()
-            entry['from'] = input_name
-            entry['to'] = output_name
+            entry["from"] = input_name
+            entry["to"] = output_name
             citation_keys = []
 
             if transformer_record is not None:
                 plugin = transformer_record.plugin
-                entry['plugin'] = self.reference_plugin(plugin)
+                entry["plugin"] = self.reference_plugin(plugin)
 
                 for idx, citation in enumerate(transformer_record.citations):
                     citation_key = self.make_citation_key(
-                        'transformer', plugin,
-                        '%s->%s' % (input_name, output_name), idx)
+                        "transformer", plugin, "%s->%s" % (input_name, output_name), idx
+                    )
                     self.citations[citation_key.key] = citation
                     citation_keys.append(citation_key)
 
@@ -409,12 +430,13 @@ class ProvenanceCapture:
                 self.reference_plugin(record.plugin)
                 for idx, citation in enumerate(record.citations):
                     citation_key = self.make_citation_key(
-                        'view', record.plugin, record.name, idx)
+                        "view", record.plugin, record.name, idx
+                    )
                     self.citations[citation_key.key] = citation
                     citation_keys.append(citation_key)
 
             if citation_keys:
-                entry['citations'] = citation_keys
+                entry["citations"] = citation_keys
 
             # Don't create duplicate transformer records. These were happening
             # with collections of inputs. If we have a method that takes a
@@ -431,65 +453,70 @@ class ProvenanceCapture:
 
     def make_execution_section(self):
         execution = collections.OrderedDict()
-        execution['uuid'] = str(self.uuid)
-        execution['runtime'] = runtime = collections.OrderedDict()
-        runtime['start'] = start = _ts_to_date(self.start)
-        runtime['end'] = end = _ts_to_date(self.end)
-        runtime['duration'] = \
-            util.duration_time(relativedelta.relativedelta(end, start))
+        execution["uuid"] = str(self.uuid)
+        execution["runtime"] = runtime = collections.OrderedDict()
+        runtime["start"] = start = _ts_to_date(self.start)
+        runtime["end"] = end = _ts_to_date(self.end)
+        runtime["duration"] = util.duration_time(
+            relativedelta.relativedelta(end, start)
+        )
 
         if not isinstance(self, ImportProvenanceCapture):
-            execution['execution_context'] = collections.OrderedDict(
-                {k: v for k, v in self.execution_context.items()})
+            execution["execution_context"] = collections.OrderedDict(
+                {k: v for k, v in self.execution_context.items()}
+            )
 
         return execution
 
     def make_transformers_section(self):
         transformers = collections.OrderedDict()
         data = self.transformers.copy()
-        output = data.pop('return', None)
+        output = data.pop("return", None)
         if data:
-            transformers['inputs'] = data
+            transformers["inputs"] = data
         if output is not None:
-            transformers['output'] = output
+            transformers["output"] = output
         return transformers
 
     def make_env_section(self):
         env = collections.OrderedDict()
-        env['platform'] = platform.platform()
+        env["platform"] = platform.platform()
         # There is a trailing whitespace in sys.version, strip so that YAML can
         # use literal formatting.
-        env['python'] = LiteralString('\n'.join(line.strip() for line in
-                                      sys.version.split('\n')))
-        env['framework'] = self.make_software_entry(
-            qiime2.__version__, qiime2.__website__, self._framework_citations)
-        env['plugins'] = self.plugins
+        env["python"] = LiteralString(
+            "\n".join(line.strip() for line in sys.version.split("\n"))
+        )
+        env["framework"] = self.make_software_entry(
+            qiime2.__version__, qiime2.__website__, self._framework_citations
+        )
+        env["plugins"] = self.plugins
 
         # sort pkgs alphabetically, ignoring upper/lower casing
         unsorted_packages = self.capture_env()
         sorted_packages = collections.OrderedDict(
             sorted(unsorted_packages.items(), key=lambda x: x[0].lower())
         )
-        env['python-packages'] = sorted_packages
+        env["python-packages"] = sorted_packages
 
         return env
 
     def write_action_yaml(self):
         settings = dict(default_flow_style=False, indent=4)
-        with (self.action_dir / self.ACTION_FILE).open(mode='w') as fh:
-            fh.write(yaml.dump({'execution': self.make_execution_section()},
-                               **settings))
-            fh.write('\n')
-            fh.write(yaml.dump({'action': self.make_action_section()},
-                               **settings))
+        with (self.action_dir / self.ACTION_FILE).open(mode="w") as fh:
+            fh.write(
+                yaml.dump({"execution": self.make_execution_section()}, **settings)
+            )
+            fh.write("\n")
+            fh.write(yaml.dump({"action": self.make_action_section()}, **settings))
             if self.transformers:  # pipelines don't have these
-                fh.write('\n')
-                fh.write(yaml.dump(
-                    {'transformers': self.make_transformers_section()},
-                    **settings))
-            fh.write('\n')
-            fh.write(yaml.dump({'environment': self.make_env_section()},
-                               **settings))
+                fh.write("\n")
+                fh.write(
+                    yaml.dump(
+                        {"transformers": self.make_transformers_section()}, **settings
+                    )
+                )
+            fh.write("\n")
+            fh.write(yaml.dump({"environment": self.make_env_section()}, **settings))
 
     def write_citations_bib(self):
         self.citations.save(str(self.path / self.CITATION_FILE))
@@ -508,8 +535,11 @@ class ProvenanceCapture:
         try:
             os.rename(self.path, final_path)
         except (FileExistsError, OSError) as err:
-            if isinstance(err, FileExistsError) or isinstance(err, OSError) \
-                 and err.errno == 18:
+            if (
+                isinstance(err, FileExistsError)
+                or isinstance(err, OSError)
+                and err.errno == 18
+            ):
                 distutils.dir_util.copy_tree(str(self.path), str(final_path))
                 distutils.dir_util.remove_tree(str(self.path))
             else:
@@ -537,13 +567,14 @@ class ImportProvenanceCapture(ProvenanceCapture):
 
     def make_action_section(self):
         action = collections.OrderedDict()
-        action['type'] = 'import'
+        action["type"] = "import"
         if self.format_name is not None:
-            action['format'] = self.format_name
+            action["format"] = self.format_name
         if self.checksums is not None:
-            action['manifest'] = [
-                collections.OrderedDict([('name', name), ('md5sum', md5sum)])
-                for name, md5sum in self.checksums.items()]
+            action["manifest"] = [
+                collections.OrderedDict([("name", name), ("md5sum", md5sum)])
+                for name, md5sum in self.checksums.items()
+            ]
 
         return action
 
@@ -558,14 +589,17 @@ class ActionProvenanceCapture(ProvenanceCapture):
         self.action_type = action_type
         self.inputs = OrderedKeyValue()
         self.parameters = OrderedKeyValue()
-        self.output_name = ''
+        self.output_name = ""
         self.execution_context = execution_context
 
         self._action_citations = []
         for idx, citation in enumerate(self.action.citations):
             citation_key = self.make_citation_key(
-                'action', self._plugin,
-                ':'.join([self.action_type, self.action.id]), idx)
+                "action",
+                self._plugin,
+                ":".join([self.action_type, self.action.id]),
+                idx,
+            )
             self.citations[citation_key.key] = citation
             self._action_citations.append(citation_key)
 
@@ -581,16 +615,16 @@ class ActionProvenanceCapture(ProvenanceCapture):
                 self.add_ancestor(artifact)
             uuid_ref = ",".join(uuids) + ":"
 
-        relpath = name + '.tsv'
+        relpath = name + ".tsv"
         value.save(str(self.action_dir / relpath))
 
         return MetadataPath(uuid_ref + relpath)
 
     def add_parameter(self, name, type_expr, parameter):
         type_map = {
-            'Color': ColorPrimitive,
-            'Metadata': lambda x: self.handle_metadata(name, x),
-            'MetadataColumn': lambda x: self.handle_metadata(name, x)
+            "Color": ColorPrimitive,
+            "Metadata": lambda x: self.handle_metadata(name, x),
+            "MetadataColumn": lambda x: self.handle_metadata(name, x)
             # TODO: handle collection primitives (not currently used)
         }
 
@@ -599,7 +633,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
         if isinstance(parameter, dict):
             parameter = [{k: v} for k, v in parameter.items()]
 
-        handler = type_map.get(type_expr.to_ast().get('name'), lambda x: x)
+        handler = type_map.get(type_expr.to_ast().get("name"), lambda x: x)
         self.parameters[name] = handler(parameter)
 
     def add_input(self, name, input):
@@ -609,25 +643,25 @@ class ActionProvenanceCapture(ProvenanceCapture):
             # If we took a Collection input, we will have a ResultCollection,
             # and we want the keys to line up with the processed values we were
             # given, so we can maintain the order of the artifacts
-            self.inputs[name] = \
-                [{k: self.add_ancestor(v)} for k, v in input.items()]
+            self.inputs[name] = [{k: self.add_ancestor(v)} for k, v in input.items()]
         elif isinstance(input, collections.abc.Iterable):
             self.inputs[name] = type(input)(
-                [self.add_ancestor(artifact) for artifact in input])
+                [self.add_ancestor(artifact) for artifact in input]
+            )
         else:
             self.inputs[name] = self.add_ancestor(input)
 
     def make_action_section(self):
         action = collections.OrderedDict()
-        action['type'] = self.action_type
-        action['plugin'] = self.reference_plugin(self._plugin)
-        action['action'] = self.action.id
-        action['inputs'] = self.inputs
-        action['parameters'] = self.parameters
-        action['output-name'] = self.output_name
+        action["type"] = self.action_type
+        action["plugin"] = self.reference_plugin(self._plugin)
+        action["action"] = self.action.id
+        action["inputs"] = self.inputs
+        action["parameters"] = self.parameters
+        action["output-name"] = self.output_name
 
         if self._action_citations:
-            action['citations'] = self._action_citations
+            action["citations"] = self._action_citations
 
         return action
 
@@ -640,7 +674,7 @@ class ActionProvenanceCapture(ProvenanceCapture):
 class PipelineProvenanceCapture(ActionProvenanceCapture):
     def make_action_section(self):
         action = super().make_action_section()
-        action['alias-of'] = str(self.alias.uuid)
+        action["alias-of"] = str(self.alias.uuid)
 
         return action
 

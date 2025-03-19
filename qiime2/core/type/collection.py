@@ -12,7 +12,7 @@ from qiime2.core.type.template import TypeTemplate
 
 
 class _CollectionBase(TypeTemplate):
-    public_proxy = 'encode', 'decode'
+    public_proxy = "encode", "decode"
 
     def __init__(self):
         # For semantic types
@@ -48,7 +48,7 @@ class _CollectionBase(TypeTemplate):
         raise NotImplementedError
 
     def get_union_membership_expr(self, self_expr):
-        return self.get_name() + '-' + self.get_kind_expr(self_expr)
+        return self.get_name() + "-" + self.get_kind_expr(self_expr)
 
     # For primitive types
     def encode(self, value):
@@ -62,11 +62,11 @@ class _1DCollectionBase(_CollectionBase):
     def validate_field(self, name, field):
         if isinstance(field, _1DCollectionBase):
             raise TypeError("Cannot nest collection types.")
-        if field.get_name() in {'MetadataColumn', 'Metadata'}:
+        if field.get_name() in {"MetadataColumn", "Metadata"}:
             raise TypeError("Cannot use %r with metadata." % self.get_name())
 
     def get_field_names(self):
-        return ['type']
+        return ["type"]
 
 
 class _Set(_1DCollectionBase):
@@ -88,8 +88,9 @@ class _List(_1DCollectionBase):
             return all(v in contained_expr for v in value)
         # The List's default type is unsurprisingly list, but we also want to
         # be able to pass in a Collection (dict)
-        elif (isinstance(value, ResultCollection) or isinstance(value, dict)) \
-                and len(value) > 0:
+        elif (isinstance(value, ResultCollection) or isinstance(value, dict)) and len(
+            value
+        ) > 0:
             return all(v in contained_expr for v in value.values())
 
         return False
@@ -102,7 +103,7 @@ class _Tuple(_CollectionBase):
         return ""
 
     def get_field_names(self):
-        return ['*types']
+        return ["*types"]
 
     def validate_field_count(self, count):
         if not count:
@@ -124,8 +125,9 @@ class _Collection(_1DCollectionBase):
 
         contained_expr = self_expr.fields[0]
 
-        if (isinstance(value, ResultCollection) or
-                isinstance(value, self._view)) and len(value) > 0:
+        if (
+            isinstance(value, ResultCollection) or isinstance(value, self._view)
+        ) and len(value) > 0:
             return all(v in contained_expr for v in value.values())
         elif isinstance(value, list) and len(value) > 0:
             return all(v in contained_expr for v in value)

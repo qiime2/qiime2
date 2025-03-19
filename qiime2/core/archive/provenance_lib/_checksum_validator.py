@@ -18,7 +18,7 @@ from .util import get_root_uuid, parse_version
 
 
 class ValidationCode(IntEnum):
-    '''
+    """
     Codes indicating the level of validation a ProvDAG has passed.
 
     The code that determines which ValidationCode an archive receives is by
@@ -44,17 +44,16 @@ class ValidationCode(IntEnum):
         The archive has passed checksum validation and is "known" to be
         valid. Md5 checksums are technically falsifiable, so this is not a
         guarantee of correctness/authenticity.
-    '''
+    """
+
     INVALID = 0
     VALIDATION_OPTOUT = 1
     PREDATES_CHECKSUMS = 2
     VALID = 3
 
 
-def validate_checksums(
-    zf: ZipFile
-) -> Tuple[ValidationCode, Optional[ChecksumDiff]]:
-    '''
+def validate_checksums(zf: ZipFile) -> Tuple[ValidationCode, Optional[ChecksumDiff]]:
+    """
     Uses diff_checksums to validate the archive's provenance, warning the user
     if checksums.md5 is missing, or if the archive is corrupt or has been
     modified.
@@ -69,18 +68,18 @@ def validate_checksums(
     tuple of (ValidationCode, ChecksumDiff)
         If the checksums.md5 fle isn't present set ChecksumDiff to None
         and ValidationCode to INVALID and return.
-    '''
+    """
     checksum_diff: Optional[ChecksumDiff]
     provenance_is_valid = ValidationCode.VALID
 
     for fp in zf.namelist():
-        if 'checksums.md5' in fp:
+        if "checksums.md5" in fp:
             break
     else:
         warnings.warn(
-            'The checksums.md5 file is missing from the archive. '
-            'Archive may be corrupt or provenance may be false.',
-            UserWarning
+            "The checksums.md5 file is missing from the archive. "
+            "Archive may be corrupt or provenance may be false.",
+            UserWarning,
         )
         return ValidationCode.INVALID, None
 
@@ -88,14 +87,14 @@ def validate_checksums(
     if checksum_diff != ChecksumDiff({}, {}, {}):
         root_uuid = get_root_uuid(zf)
         warnings.warn(
-            f'Checksums are invalid for Archive {root_uuid}\n'
-            'Archive may be corrupt or provenance may be false.\n'
-            f'Files added since archive creation: {checksum_diff.added}\n'
-            'Files removed since archive creation: '
-            f'{checksum_diff.removed}\n'
-            'Files changed since archive creation: '
-            f'{checksum_diff.changed}',
-            UserWarning
+            f"Checksums are invalid for Archive {root_uuid}\n"
+            "Archive may be corrupt or provenance may be false.\n"
+            f"Files added since archive creation: {checksum_diff.added}\n"
+            "Files removed since archive creation: "
+            f"{checksum_diff.removed}\n"
+            "Files changed since archive creation: "
+            f"{checksum_diff.changed}",
+            UserWarning,
         )
         provenance_is_valid = ValidationCode.INVALID
 
@@ -103,7 +102,7 @@ def validate_checksums(
 
 
 def diff_checksums(zf: ZipFile) -> ChecksumDiff:
-    '''
+    """
     Calculates checksums for all files in an archive (except checksums.md5).
     Compares these against the checksums stored in checksums.md5, returning
     a summary ChecksumDiff.
@@ -120,19 +119,19 @@ def diff_checksums(zf: ZipFile) -> ChecksumDiff:
         files. Keys are filepaths. For the added and removed dicts
         values are the checksum of the added or removed file. For the changed
         dict values are a tuple of (expected checksum, observed checksum).
-    '''
+    """
     archive_version, _ = parse_version(zf)
     # TODO: don't think this is ever called
     if int(archive_version) < 5:
         return ChecksumDiff({}, {}, {})
 
     root_dir = pathlib.Path(get_root_uuid(zf))
-    checksum_fp = str(root_dir / 'checksums.md5')
+    checksum_fp = str(root_dir / "checksums.md5")
     obs = md5sum_directory_zip(zf)
 
     exp = {}
     for line in zf.open(checksum_fp):
-        fp, checksum = from_checksum_format(str(line, 'utf-8'))
+        fp, checksum = from_checksum_format(str(line, "utf-8"))
         exp[fp] = checksum
 
     obs_fps = set(obs)
@@ -140,9 +139,6 @@ def diff_checksums(zf: ZipFile) -> ChecksumDiff:
 
     added = {fp: obs[fp] for fp in obs_fps - exp_fps}
     removed = {fp: exp[fp] for fp in exp_fps - obs_fps}
-    changed = {
-        fp: (exp[fp], obs[fp]) for fp in exp_fps & obs_fps
-        if exp[fp] != obs[fp]
-    }
+    changed = {fp: (exp[fp], obs[fp]) for fp in exp_fps & obs_fps if exp[fp] != obs[fp]}
 
     return ChecksumDiff(added=added, removed=removed, changed=changed)

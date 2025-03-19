@@ -11,19 +11,24 @@ import unittest
 from qiime2.core.validate import ValidationObject
 from qiime2.sdk import PluginManager
 from qiime2.plugin.plugin import ValidatorRecord, Plugin
-from qiime2.core.testing.type import (IntSequence1, AscIntSequence,
-                                      Kennel, Dog, Squid, Octopus)
+from qiime2.core.testing.type import (
+    IntSequence1,
+    AscIntSequence,
+    Kennel,
+    Dog,
+    Squid,
+    Octopus,
+)
 from qiime2.core.testing.format import IntSequenceFormat, Cephalapod
 
 
 class TestValidationObject(unittest.TestCase):
-
     def setUp(self):
         self.simple_int_seq = IntSequenceFormat()
 
         with self.simple_int_seq.open() as fh:
-            fh.write('\n'.join(map(str, range(3))))
-        self.simple_int_seq.validate(level='max')
+            fh.write("\n".join(map(str, range(3))))
+        self.simple_int_seq.validate(level="max")
 
     def test_initialization(self):
         validator_object = ValidationObject(IntSequence1)
@@ -31,20 +36,21 @@ class TestValidationObject(unittest.TestCase):
         self.assertEqual(validator_object.concrete_type, IntSequence1)
 
     def test_add_validator(self):
-
         def test_validator_method(data: list, level):
             pass
 
-        test_record = ValidatorRecord(validator=test_validator_method,
-                                      view=list, plugin='this_plugin',
-                                      context=IntSequence1)
+        test_record = ValidatorRecord(
+            validator=test_validator_method,
+            view=list,
+            plugin="this_plugin",
+            context=IntSequence1,
+        )
 
         validator_object = ValidationObject(IntSequence1)
 
         validator_object.add_validator(test_record)
 
-        self.assertEqual(validator_object._validators,
-                         [test_record])
+        self.assertEqual(validator_object._validators, [test_record])
 
     def test_add_validation_object(self):
         first_VO = ValidationObject(IntSequence1)
@@ -56,13 +62,19 @@ class TestValidationObject(unittest.TestCase):
         def second_validator(data: list, level):
             pass
 
-        first_record = ValidatorRecord(validator=first_validator,
-                                       view=list, plugin='this_plugin',
-                                       context=IntSequence1)
+        first_record = ValidatorRecord(
+            validator=first_validator,
+            view=list,
+            plugin="this_plugin",
+            context=IntSequence1,
+        )
 
-        second_record = ValidatorRecord(validator=second_validator,
-                                        view=list, plugin='this_plugin',
-                                        context=IntSequence1)
+        second_record = ValidatorRecord(
+            validator=second_validator,
+            view=list,
+            plugin="this_plugin",
+            context=IntSequence1,
+        )
 
         first_VO.add_validator(first_record)
 
@@ -87,15 +99,19 @@ class TestValidationObject(unittest.TestCase):
         def octopus_validator(data: Cephalapod, level):
             pass
 
-        squid_record = ValidatorRecord(validator=squid_validator,
-                                       view=Cephalapod,
-                                       plugin='ocean_plugin',
-                                       context=Squid)
+        squid_record = ValidatorRecord(
+            validator=squid_validator,
+            view=Cephalapod,
+            plugin="ocean_plugin",
+            context=Squid,
+        )
 
-        octopus_record = ValidatorRecord(validator=octopus_validator,
-                                         view=Cephalapod,
-                                         plugin='sea_plugin',
-                                         context=Octopus)
+        octopus_record = ValidatorRecord(
+            validator=octopus_validator,
+            view=Cephalapod,
+            plugin="sea_plugin",
+            context=Octopus,
+        )
 
         squid_vo.add_validator(squid_record)
         octopus_vo.add_validator(octopus_record)
@@ -104,7 +120,6 @@ class TestValidationObject(unittest.TestCase):
             squid_vo.add_validation_object(octopus_vo)
 
     def test_public_validators_generation(self):
-
         validator_object = ValidationObject(IntSequence1)
 
         def first_validator(data: list, level):
@@ -113,23 +128,27 @@ class TestValidationObject(unittest.TestCase):
         def second_validator(data: list, level):
             pass
 
-        first_record = ValidatorRecord(validator=first_validator,
-                                       view=list, plugin='this_plugin',
-                                       context=IntSequence1)
+        first_record = ValidatorRecord(
+            validator=first_validator,
+            view=list,
+            plugin="this_plugin",
+            context=IntSequence1,
+        )
 
-        second_record = ValidatorRecord(validator=second_validator,
-                                        view=list, plugin='this_plugin',
-                                        context=IntSequence1)
+        second_record = ValidatorRecord(
+            validator=second_validator,
+            view=list,
+            plugin="this_plugin",
+            context=IntSequence1,
+        )
 
         validator_object.add_validator(first_record)
         validator_object.add_validator(second_record)
 
-        self.assertEqual(validator_object.validators,
-                         [first_record, second_record])
+        self.assertEqual(validator_object.validators, [first_record, second_record])
         self.assertTrue(validator_object._is_sorted)
 
     def test_run_validators(self):
-
         validator_object = ValidationObject(IntSequence1)
 
         has_run = False
@@ -139,25 +158,30 @@ class TestValidationObject(unittest.TestCase):
             nonlocal has_run
             has_run = True
             self.assertEqual(data, [0, 1, 2])
-            self.assertEqual(level, 'max')
+            self.assertEqual(level, "max")
 
         def test_another_validator(data: IntSequenceFormat, level):
             nonlocal has_also_run
             has_also_run = True
-            self.assertEqual(level, 'max')
+            self.assertEqual(level, "max")
 
-        test_record1 = ValidatorRecord(validator=test_validator_method,
-                                       view=list, plugin='this_plugin',
-                                       context=IntSequence1 | AscIntSequence)
-        test_record2 = ValidatorRecord(validator=test_another_validator,
-                                       view=IntSequenceFormat,
-                                       plugin='this_plugin',
-                                       context=IntSequence1)
+        test_record1 = ValidatorRecord(
+            validator=test_validator_method,
+            view=list,
+            plugin="this_plugin",
+            context=IntSequence1 | AscIntSequence,
+        )
+        test_record2 = ValidatorRecord(
+            validator=test_another_validator,
+            view=IntSequenceFormat,
+            plugin="this_plugin",
+            context=IntSequence1,
+        )
 
         validator_object.add_validator(test_record1)
         validator_object.add_validator(test_record2)
 
-        validator_object(self.simple_int_seq, level='max')
+        validator_object(self.simple_int_seq, level="max")
 
         self.assertTrue(has_run)
         self.assertTrue(has_also_run)
@@ -169,14 +193,15 @@ class TestValidationObject(unittest.TestCase):
             raise ValidationError("2021-08-24")
 
         test_record = ValidatorRecord(
-                          validator=test_raising_validation_exception,
-                          view=list, plugin='this_plugin',
-                          context=AscIntSequence)
+            validator=test_raising_validation_exception,
+            view=list,
+            plugin="this_plugin",
+            context=AscIntSequence,
+        )
 
         validator_object.add_validator(test_record)
 
-        with self.assertRaisesRegex(ValidationError,
-                                    "2021-08-24"):
+        with self.assertRaisesRegex(ValidationError, "2021-08-24"):
             validator_object(data=[], level=None)
 
     def test_run_validators_unknown_exception(self):
@@ -186,14 +211,15 @@ class TestValidationObject(unittest.TestCase):
             raise KeyError("2021-08-24")
 
         test_record = ValidatorRecord(
-                          validator=test_raising_validation_exception,
-                          view=list, plugin='this_plugin',
-                          context=AscIntSequence)
+            validator=test_raising_validation_exception,
+            view=list,
+            plugin="this_plugin",
+            context=AscIntSequence,
+        )
 
         validator_object.add_validator(test_record)
 
-        with self.assertRaisesRegex(ImplementationError,
-                                    "attempted to validate"):
+        with self.assertRaisesRegex(ImplementationError, "attempted to validate"):
             validator_object(data=[], level=None)
 
     def test_validator_sorts(self):
@@ -203,15 +229,19 @@ class TestValidationObject(unittest.TestCase):
 
         self.assertFalse(test_object._is_sorted)
 
-        exp = ['validator_sort_first',
-               'validator_sort_middle',
-               'validator_sort_middle_b',
-               'validator_sort_last']
+        exp = [
+            "validator_sort_first",
+            "validator_sort_middle",
+            "validator_sort_middle_b",
+            "validator_sort_last",
+        ]
 
-        exp2 = ['validator_sort_first',
-                'validator_sort_middle_b',
-                'validator_sort_middle',
-                'validator_sort_last']
+        exp2 = [
+            "validator_sort_first",
+            "validator_sort_middle_b",
+            "validator_sort_middle",
+            "validator_sort_last",
+        ]
 
         obs = [record.validator.__name__ for record in test_object.validators]
 
@@ -220,16 +250,16 @@ class TestValidationObject(unittest.TestCase):
 
 
 class TestValidatorIntegration(unittest.TestCase):
-
     def setUp(self):
-
         # setup test plugin
 
-        self.test_plugin = Plugin(name='validator_test_plugin',
-                                  version='0.0.1',
-                                  website='test.com',
-                                  package='qiime2.core.tests',
-                                  project_name='validator_test')
+        self.test_plugin = Plugin(
+            name="validator_test_plugin",
+            version="0.0.1",
+            website="test.com",
+            package="qiime2.core.tests",
+            project_name="validator_test",
+        )
 
         self.pm = PluginManager()
 
@@ -237,8 +267,8 @@ class TestValidatorIntegration(unittest.TestCase):
         self.simple_int_seq = IntSequenceFormat()
 
         with self.simple_int_seq.open() as fh:
-            fh.write('\n'.join(map(str, range(3))))
-        self.simple_int_seq.validate(level='max')
+            fh.write("\n".join(map(str, range(3))))
+        self.simple_int_seq.validate(level="max")
 
     def tearDown(self):
         # This is a deadman switch to ensure that the test_plugin has been
@@ -259,27 +289,27 @@ class TestValidatorIntegration(unittest.TestCase):
             pass
 
         with self.assertRaisesRegex(
-                AssertionError,
-                r"Kennel\[Dog\].*blank_validator.*transform.*builtins:list"):
+            AssertionError, r"Kennel\[Dog\].*blank_validator.*transform.*builtins:list"
+        ):
             self.pm.add_plugin(self.test_plugin)
 
 
 class TestValidatorRegistration(unittest.TestCase):
-
     def setUp(self):
-
-        self.test_plugin = Plugin(name='validator_test_plugin',
-                                  version='0.0.1',
-                                  website='test.com',
-                                  package='qiime2.core.tests',
-                                  project_name='validator_test')
+        self.test_plugin = Plugin(
+            name="validator_test_plugin",
+            version="0.0.1",
+            website="test.com",
+            package="qiime2.core.tests",
+            project_name="validator_test",
+        )
 
     def test_catch_missing_validator_arg(self):
-
         run_checker = False
 
-        with self.assertRaisesRegex(TypeError, "does not contain the"
-                                    " required arguments"):
+        with self.assertRaisesRegex(
+            TypeError, "does not contain the" " required arguments"
+        ):
             run_checker = True
 
             @self.test_plugin.register_validator(IntSequence1)
@@ -289,11 +319,11 @@ class TestValidatorRegistration(unittest.TestCase):
         assert run_checker
 
     def test_catch_extra_validator_arg(self):
-
         run_checker = False
 
-        with self.assertRaisesRegex(TypeError, "does not contain the"
-                                    " required arguments"):
+        with self.assertRaisesRegex(
+            TypeError, "does not contain the" " required arguments"
+        ):
             run_checker = True
 
             @self.test_plugin.register_validator(IntSequence1)
@@ -305,9 +335,10 @@ class TestValidatorRegistration(unittest.TestCase):
     def test_catch_no_data_annotation_in_validator(self):
         run_checker = False
 
-        with self.assertRaisesRegex(TypeError, "No expected view type"
-                                    " provided as annotation for `data`"
-                                    " variable"):
+        with self.assertRaisesRegex(
+            TypeError,
+            "No expected view type" " provided as annotation for `data`" " variable",
+        ):
             run_checker = True
 
             @self.test_plugin.register_validator(IntSequence1)

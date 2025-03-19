@@ -15,13 +15,17 @@ def load_jupyter_server_extension(nb_server):
     app = nb_server.web_app
 
     def route(path):
-        return url_path_join(app.settings['base_url'], 'qiime2', path)
+        return url_path_join(app.settings["base_url"], "qiime2", path)
 
-    app.add_handlers(r'.*', [
-        (route(r'redirect'), QIIME2RedirectHandler,
-         {'result_store': result_store}),
-        (route(r'view/(.*)'), QIIME2ResultHandler,
-         # This *is* odd, but it's because we are tricking StaticFileHandler
-         {'path': result_store,
-          'default_filename': 'index.html'})
-    ])
+    app.add_handlers(
+        r".*",
+        [
+            (route(r"redirect"), QIIME2RedirectHandler, {"result_store": result_store}),
+            (
+                route(r"view/(.*)"),
+                QIIME2ResultHandler,
+                # This *is* odd, but it's because we are tricking StaticFileHandler
+                {"path": result_store, "default_filename": "index.html"},
+            ),
+        ],
+    )

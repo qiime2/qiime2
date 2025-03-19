@@ -25,31 +25,30 @@ class TestIsSemanticType(unittest.TestCase):
         self.assertTrue(looped)
 
     def test_visualization_not_semantic(self):
-        self.assertFalse(
-            semantic.is_semantic_type(visualization.Visualization))
+        self.assertFalse(semantic.is_semantic_type(visualization.Visualization))
 
     def test_type_expr_not_semantic(self):
         TypeExpr = grammar.TypeExp(None)
         self.assertFalse(semantic.is_semantic_type(TypeExpr))
 
     def test_simple_semantic_type(self):
-        A = semantic.SemanticType('A')
-        X = semantic.SemanticType('X')
-        Foo = semantic.SemanticType('Foo', field_names=['a', 'b'])
+        A = semantic.SemanticType("A")
+        X = semantic.SemanticType("X")
+        Foo = semantic.SemanticType("Foo", field_names=["a", "b"])
 
         self.assertTrue(semantic.is_semantic_type(A))
         self.assertTrue(semantic.is_semantic_type(X))
         self.assertTrue(semantic.is_semantic_type(Foo))
 
     def test_composite_semantic_type(self):
-        Foo = semantic.SemanticType('Foo', field_names=['a', 'b'])
-        A = semantic.SemanticType('A', variant_of=Foo.field['a'])
-        B = semantic.SemanticType('B', variant_of=Foo.field['b'])
+        Foo = semantic.SemanticType("Foo", field_names=["a", "b"])
+        A = semantic.SemanticType("A", variant_of=Foo.field["a"])
+        B = semantic.SemanticType("B", variant_of=Foo.field["b"])
 
         self.assertTrue(semantic.is_semantic_type(A))
         self.assertTrue(semantic.is_semantic_type(B))
         self.assertTrue(semantic.is_semantic_type(Foo[A, B]))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

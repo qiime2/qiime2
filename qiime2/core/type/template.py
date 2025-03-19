@@ -11,8 +11,12 @@ import itertools
 import inspect
 
 
-from qiime2.core.type.grammar import (IncompleteExp, TypeExp, PredicateExp,
-                                      IntersectionExp)
+from qiime2.core.type.grammar import (
+    IncompleteExp,
+    TypeExp,
+    PredicateExp,
+    IntersectionExp,
+)
 
 
 class _BaseTemplate(metaclass=ABCMeta):
@@ -89,7 +93,7 @@ class TypeTemplate(_BaseTemplate):
             return TypeExp(self)
 
     def __getnewargs_ex__(self):
-        return ((), {'_pickle': True})
+        return ((), {"_pickle": True})
 
     def get_field_names_expr(self, expr):
         return self.get_field_names()
@@ -101,8 +105,10 @@ class TypeTemplate(_BaseTemplate):
     def validate_fields_expr(self, self_expr, fields_expr):
         self.validate_field_count(len(fields_expr))
         for expr, name in itertools.zip_longest(
-                fields_expr, self.get_field_names_expr(self_expr),
-                fillvalue=IntersectionExp()):
+            fields_expr,
+            self.get_field_names_expr(self_expr),
+            fillvalue=IntersectionExp(),
+        ):
             if expr.template is None:
                 for exp in expr.members:
                     if exp.template is None:
@@ -144,7 +150,7 @@ class PredicateTemplate(_BaseTemplate):
         return PredicateExp(self)
 
     def __getnewargs_ex__(self):
-        return ((), {'_pickle': True})
+        return ((), {"_pickle": True})
 
     @abstractmethod
     def __hash__(self, other):

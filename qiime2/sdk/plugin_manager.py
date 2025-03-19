@@ -29,7 +29,7 @@ class UninitializedPluginManagerError(Exception):
 
 
 class PluginManager:
-    entry_point_group = 'qiime2.plugins'
+    entry_point_group = "qiime2.plugins"
     __instance = None
 
     @classmethod
@@ -42,13 +42,12 @@ class PluginManager:
         yielded.
 
         """
-        for entry_point in importlib.metadata.entry_points(
-                group=cls.entry_point_group):
-            if 'QIIMETEST' in os.environ:
-                if entry_point.name in ('dummy-plugin', 'other-plugin'):
+        for entry_point in importlib.metadata.entry_points(group=cls.entry_point_group):
+            if "QIIMETEST" in os.environ:
+                if entry_point.name in ("dummy-plugin", "other-plugin"):
                     yield entry_point
             else:
-                if entry_point.name not in ('dummy-plugin', 'other-plugin'):
+                if entry_point.name not in ("dummy-plugin", "other-plugin"):
                     yield entry_point
 
     @classmethod
@@ -71,8 +70,9 @@ class PluginManager:
         else:
             if add_plugins is False:
                 raise ValueError(
-                    'PluginManager singleton already exists, cannot change '
-                    'current value for `add_plugins`.')
+                    "PluginManager singleton already exists, cannot change "
+                    "current value for `add_plugins`."
+                )
         return cls.__instance
 
     def forget_singleton(self):
@@ -101,21 +101,22 @@ class PluginManager:
             # be completed.
             for entry_point in self.iter_entry_points():
                 project_name = entry_point.name
-                package = entry_point.value.split('.')[0]
+                package = entry_point.value.split(".")[0]
                 plugin = entry_point.load()
 
-                self.add_plugin(plugin, package, project_name,
-                                consistency_check=False)
+                self.add_plugin(plugin, package, project_name, consistency_check=False)
 
             self._consistency_check()
 
     def _consistency_check(self):
         for semantic_type, validator_obj in self.validators.items():
             validator_obj.assert_transformation_available(
-                self.get_directory_format(semantic_type))
+                self.get_directory_format(semantic_type)
+            )
 
-    def add_plugin(self, plugin, package=None, project_name=None,
-                   consistency_check=True):
+    def add_plugin(
+        self, plugin, package=None, project_name=None, consistency_check=True
+    ):
         self.plugins[plugin.name] = plugin
         self._plugin_by_id[plugin.id] = plugin
         if plugin.package is None:
@@ -126,12 +127,14 @@ class PluginManager:
         # validate _after_ applying arguments
         if plugin.package is None:
             raise ValueError(
-                'No value specified for package - must provide a value for '
-                '`package` or set `plugin.package`.')
+                "No value specified for package - must provide a value for "
+                "`package` or set `plugin.package`."
+            )
         if plugin.project_name is None:
             raise ValueError(
-                'No value specified for project_name - must proved a value '
-                'for `project_name` or set `plugin.project_name`.')
+                "No value specified for project_name - must proved a value "
+                "for `project_name` or set `plugin.project_name`."
+            )
 
         self._integrate_plugin(plugin)
         plugin.freeze()
@@ -145,31 +148,38 @@ class PluginManager:
             try:
                 return self._plugin_by_id[id]
             except KeyError:
-                raise KeyError('No plugin currently registered '
-                               'with id: "%s".' % (id,))
+                raise KeyError(
+                    "No plugin currently registered " 'with id: "%s".' % (id,)
+                )
         else:
             try:
                 return self.plugins[name]
             except KeyError:
-                raise KeyError('No plugin currently registered '
-                               'with name: "%s".' % (name,))
+                raise KeyError(
+                    "No plugin currently registered " 'with name: "%s".' % (name,)
+                )
 
     def _integrate_plugin(self, plugin):
         for type_name, type_record in plugin.type_fragments.items():
             if type_name in self.type_fragments:
-                conflicting_type_record = \
-                    self.type_fragments[type_name]
-                raise ValueError("Duplicate semantic type (%r) defined in"
-                                 " plugins: %r and %r"
-                                 % (type_name, type_record.plugin.name,
-                                    conflicting_type_record.plugin.name))
+                conflicting_type_record = self.type_fragments[type_name]
+                raise ValueError(
+                    "Duplicate semantic type (%r) defined in"
+                    " plugins: %r and %r"
+                    % (
+                        type_name,
+                        type_record.plugin.name,
+                        conflicting_type_record.plugin.name,
+                    )
+                )
 
             self.type_fragments[type_name] = type_record
 
         for (input, output), transformer_record in plugin.transformers.items():
             if output in self.transformers[input]:
-                raise ValueError("Transformer from %r to %r already exists."
-                                 % (input, output))
+                raise ValueError(
+                    "Transformer from %r to %r already exists." % (input, output)
+                )
             self.transformers[input][output] = transformer_record
             self._reverse_transformers[output][input] = transformer_record
 
@@ -177,27 +187,26 @@ class PluginManager:
             if name in self.views:
                 raise NameError(
                     "Duplicate view registration (%r) defined in plugins: %r"
-                    " and %r" %
-                    (name, record.plugin.name, self.formats[name].plugin.name)
+                    " and %r"
+                    % (name, record.plugin.name, self.formats[name].plugin.name)
                 )
             self.views[name] = record
 
         for name, record in plugin.formats.items():
             fmt = record.format
 
-            if issubclass(
-                    fmt, qiime2.plugin.model.SingleFileDirectoryFormatBase):
+            if issubclass(fmt, qiime2.plugin.model.SingleFileDirectoryFormatBase):
                 if fmt.file.format in self._ff_to_sfdf.keys():
                     self._ff_to_sfdf[fmt.file.format].add(fmt)
                 else:
                     self._ff_to_sfdf[fmt.file.format] = {fmt}
 
             # TODO: remove this when `sniff` is removed
-            if hasattr(fmt, 'sniff') and hasattr(fmt, '_validate_'):
+            if hasattr(fmt, "sniff") and hasattr(fmt, "_validate_"):
                 raise RuntimeError(
-                    'Format %r registered in plugin %r defines sniff and'
-                    '_validate_ methods - only one is permitted.' %
-                    (name, record.plugin.name)
+                    "Format %r registered in plugin %r defines sniff and"
+                    "_validate_ methods - only one is permitted."
+                    % (name, record.plugin.name)
                 )
 
             self.formats[name] = record
@@ -206,20 +215,21 @@ class PluginManager:
             if name in self.artifact_classes:
                 raise NameError(
                     "Duplicate artifact class registration (%r) defined in "
-                    "plugins %r and %r." %
-                    (name, record.plugin.name,
-                     self.artifact_classes[name].plugin.name)
+                    "plugins %r and %r."
+                    % (
+                        name,
+                        record.plugin.name,
+                        self.artifact_classes[name].plugin.name,
+                    )
                 )
             else:
                 self.artifact_classes[name] = record
 
         for semantic_type, validation_object in plugin.validators.items():
             if semantic_type not in self.validators:
-                self.validators[semantic_type] = \
-                    ValidationObject(semantic_type)
+                self.validators[semantic_type] = ValidationObject(semantic_type)
 
-            self.validators[semantic_type].add_validation_object(
-                validation_object)
+            self.validators[semantic_type].add_validation_object(validation_object)
 
     def get_semantic_types(self):
         result = {}
@@ -249,12 +259,16 @@ class PluginManager:
         the user and the semantic type. The return is a dictionary of filtered
         formats keyed on their string names.
         """
-        filter_map = {"IMPORTABLE": GetFormatFilters.IMPORTABLE,
-                      "EXPORTABLE": GetFormatFilters.EXPORTABLE}
-        if filter is not None and not isinstance(filter, GetFormatFilters) \
-                and filter not in filter_map:
-            raise ValueError(
-                f"The provided format filter {filter} is not valid.")
+        filter_map = {
+            "IMPORTABLE": GetFormatFilters.IMPORTABLE,
+            "EXPORTABLE": GetFormatFilters.EXPORTABLE,
+        }
+        if (
+            filter is not None
+            and not isinstance(filter, GetFormatFilters)
+            and filter not in filter_map
+        ):
+            raise ValueError(f"The provided format filter {filter} is not valid.")
         if isinstance(filter, str):
             filter = filter_map[filter]
 
@@ -274,21 +288,23 @@ class PluginManager:
                         break
 
                 if not formats:
-                    raise ValueError("No formats associated with the type "
-                                     f"{semantic_type}.")
+                    raise ValueError(
+                        "No formats associated with the type " f"{semantic_type}."
+                    )
             else:
-                raise ValueError(f"{semantic_type} is not a valid semantic "
-                                 "type.")
+                raise ValueError(f"{semantic_type} is not a valid semantic " "type.")
 
         transformable_formats = set(formats)
 
         if filter is None or GetFormatFilters.IMPORTABLE in filter:
             transformable_formats.update(
-                self._get_formats_helper(formats, self._reverse_transformers))
+                self._get_formats_helper(formats, self._reverse_transformers)
+            )
 
         if filter is None or GetFormatFilters.EXPORTABLE in filter:
             transformable_formats.update(
-                self._get_formats_helper(formats, self.transformers))
+                self._get_formats_helper(formats, self.transformers)
+            )
 
         result_formats = {}
         for format_ in transformable_formats:
@@ -326,13 +342,11 @@ class PluginManager:
                 if issubclass(transformed_format, FormatBase):
                     result_formats.add(transformed_format)
 
-                    if issubclass(transformed_format,
-                                  SingleFileDirectoryFormatBase):
+                    if issubclass(transformed_format, SingleFileDirectoryFormatBase):
                         result_formats.add(transformed_format.file.format)
 
                     if transformed_format in self._ff_to_sfdf:
-                        result_formats.update(
-                            self._ff_to_sfdf[transformed_format])
+                        result_formats.update(self._ff_to_sfdf[transformed_format])
 
         return result_formats
 
@@ -369,8 +383,9 @@ class PluginManager:
     def get_directory_format(self, semantic_type):
         if not qiime2.core.type.is_semantic_type(semantic_type):
             raise TypeError(
-                "Must provide a semantic type via `semantic_type`, not %r" %
-                semantic_type)
+                "Must provide a semantic type via `semantic_type`, not %r"
+                % semantic_type
+            )
 
         # TODO: ideally we could just lookup semantic_type in
         # self.artifact_classes but properties get in the way. Is there a way
@@ -388,4 +403,5 @@ class PluginManager:
         raise TypeError(
             "Semantic type %r is invalid, either because it doesn't have a "
             "compatible directory format, or because it's not registered."
-            % semantic_type)
+            % semantic_type
+        )

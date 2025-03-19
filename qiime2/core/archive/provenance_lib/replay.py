@@ -29,7 +29,7 @@ from qiime2.sdk.util import camel_to_snake
 
 @dataclass
 class ReplayConfig:
-    '''
+    """
     Dataclass that stores various user-selected configuration options and
     other bits of information relevant to provenance replay.
 
@@ -55,7 +55,8 @@ class ReplayConfig:
         If True, progress is reported to stdout.
     md_out_dir : str
         The directory where caputred metadata should be written.
-    '''
+    """
+
     def __init__(
         self,
         use: Usage,
@@ -65,14 +66,15 @@ class ReplayConfig:
         no_provenance_context_has_been_printed: bool = False,
         header: bool = True,
         verbose: bool = False,
-        md_out_dir: str = ''
+        md_out_dir: str = "",
     ):
         self.use = use
         self.dump_recorded_metadata = dump_recorded_metadata
         self.use_recorded_metadata = use_recorded_metadata
         self.md_context_has_been_printed = md_context_has_been_printed
-        self.no_provenance_context_has_been_printed = \
+        self.no_provenance_context_has_been_printed = (
             no_provenance_context_has_been_printed
+        )
         self.header = header
         self.verbose = verbose
         self.md_out_dir = md_out_dir
@@ -80,8 +82,8 @@ class ReplayConfig:
 
 
 @dataclass
-class ActionCollections():
-    '''
+class ActionCollections:
+    """
     std_actions are all normal provenance-tracked q2 actions, arranged as:
 
     {
@@ -94,7 +96,8 @@ class ActionCollections():
 
     no_provenance_nodes can't be organized by action, and in some cases we
     don't know anything but UUID for them, so we can fit these in a list.
-    '''
+    """
+
     std_actions: Dict[str, Dict[str, str]] = field(default_factory=dict)
     no_provenance_nodes: List[str] = field(default_factory=list)
 
@@ -112,7 +115,7 @@ class ResultCollectionRecord:
 
 
 class ReplayNamespaces:
-    '''
+    """
     A dataclass collection of objects that each track some useful bit of
     information relevant to replay/usage namespaces.
 
@@ -147,22 +150,24 @@ class ReplayNamespaces:
         `usg_var_namespace`, and the `artifacts` key stores all result
         collection members along with their keys so they can be accessed
         properly.
-    '''
+    """
+
     def __init__(self, dag=None):
         self._usg_var_ns = {}
         self._action_ns = set()
         if dag:
-            self.result_collection_ns = \
-                self.make_result_collection_namespace(dag)
-            self.artifact_uuid_to_rc_uuid, self.rc_contents_to_rc_uuid = \
-                self.make_result_collection_mappings()
+            self.result_collection_ns = self.make_result_collection_namespace(dag)
+            (
+                self.artifact_uuid_to_rc_uuid,
+                self.rc_contents_to_rc_uuid,
+            ) = self.make_result_collection_mappings()
         else:
             self.result_collection_ns = {}
             self.artifact_uuid_to_rc_uuid = {}
             self.rc_contents_to_rc_uuid = {}
 
     def add_usg_var_record(self, uuid, name, variable=None):
-        '''
+        """
         Given a uuid, name, and optionally a usage variable, create a usage
         variable record and add it to the namespace.
 
@@ -179,7 +184,7 @@ class ReplayNamespaces:
         -------
         str
             The now-unique name of the artifact or result collection.
-        '''
+        """
         unique_name = self._make_unique_name(name)
 
         self._usg_var_ns[uuid] = UsageVariableRecord(unique_name, variable)
@@ -187,7 +192,7 @@ class ReplayNamespaces:
         return unique_name
 
     def update_usg_var_record(self, uuid, variable):
-        '''
+        """
         Given a uuid update the record to contain the passed usage variable.
         The record is assumed to already be present in the namespace.
 
@@ -198,11 +203,11 @@ class ReplayNamespaces:
             the usage variable instance.
         variable : UsageVariable
             The usage variable to add to the record.
-        '''
+        """
         self._usg_var_ns[uuid].variable = variable
 
     def get_usg_var_record(self, uuid):
-        '''
+        """
         Given a uuid, return the corresponding usage variable record, or none
         if the uuid is not in the namespace.
 
@@ -216,14 +221,14 @@ class ReplayNamespaces:
         -------
         UsageVariableRecord or None
             The record if the uuid was found, otherwise None.
-        '''
+        """
         try:
             return self._usg_var_ns[uuid]
         except KeyError:
             return None
 
     def get_usg_var_uuid(self, name: str) -> str:
-        '''
+        """
         Given a usage variable name, return its uuid, or raise KeyError if the
         name is not in the namespace.
 
@@ -241,17 +246,15 @@ class ReplayNamespaces:
         ------
         KeyError
             If the name is not found in the namespace.
-        '''
+        """
         for uuid, record in self._usg_var_ns.items():
             if name == record.name:
                 return uuid
 
-        raise KeyError(
-            f'The queried name \'{name}\' does not exist in the namespace.'
-        )
+        raise KeyError(f"The queried name '{name}' does not exist in the namespace.")
 
     def _make_unique_name(self, name: str) -> str:
-        '''
+        """
         Appends `_<some int>` to name, such that the returned name won't
         collide with any variable names that already exist in `usg_var_ns`.
 
@@ -264,20 +267,20 @@ class ReplayNamespaces:
         -------
         str
             The unique integer-appended variable name.
-        '''
+        """
         counter = 0
-        unique_name = f'{name}_{counter}'
+        unique_name = f"{name}_{counter}"
         names = [record.name for record in self._usg_var_ns.values()]
 
         # no-provenance nodes are stored with angle brackets around them
-        while unique_name in names or f'<{unique_name}>' in names:
+        while unique_name in names or f"<{unique_name}>" in names:
             counter += 1
-            unique_name = f'{name}_{counter}'
+            unique_name = f"{name}_{counter}"
 
         return unique_name
 
     def make_result_collection_namespace(self, dag: nx.digraph) -> dict:
-        '''
+        """
         Constructs the result collections namespaces from the parsed digraph.
 
         Parameters
@@ -289,7 +292,7 @@ class ReplayNamespaces:
         -------
         dict
             The result collection namespace.
-        '''
+        """
         rc_ns = {}
         for node in dag:
             provnode = dag.get_node_data(node)
@@ -306,13 +309,12 @@ class ReplayNamespaces:
                         collection_uuid=str(uuid4()), members=artifacts
                     )
                 else:
-                    rc_ns[action_id][output_name].members[rc_key] = \
-                        provnode._uuid
+                    rc_ns[action_id][output_name].members[rc_key] = provnode._uuid
 
         return rc_ns
 
     def make_result_collection_mappings(self) -> Tuple[Dict]:
-        '''
+        """
         Builds two mappings:
             - one from artifact uuid to a tuple of the uuid of the result
               collection of which it is a member and its key in the collection
@@ -323,7 +325,7 @@ class ReplayNamespaces:
         -------
         tuple of dict
             The two result collection mappings.
-        '''
+        """
         a_to_c = {}  # artifact uuid -> collection uuid
         c_to_c = {}  # hash of collection contents -> collection uuid
         for action_id in self.result_collection_ns:
@@ -333,8 +335,9 @@ class ReplayNamespaces:
                     a_to_c[uuid] = (record.collection_uuid, key)
 
                 hashed_contents = self.hash_result_collection(record.members)
-                hashed_contents_with_keys = \
-                    self.hash_result_collection_with_keys(record.members)
+                hashed_contents_with_keys = self.hash_result_collection_with_keys(
+                    record.members
+                )
 
                 c_to_c[hashed_contents] = record.collection_uuid
                 c_to_c[hashed_contents_with_keys] = record.collection_uuid
@@ -342,7 +345,7 @@ class ReplayNamespaces:
         return a_to_c, c_to_c
 
     def hash_result_collection_with_keys(self, members: Dict) -> int:
-        '''
+        """
         Hashes the contents of a result collection. Useful for finding
         corresponding usage variables when rendering the replay of result
         collections. Order of the input result collection is not taken into
@@ -363,7 +366,7 @@ class ReplayNamespaces:
         -------
         int
             The hashed contents.
-        '''
+        """
         sorted_members = {key: members[key] for key in sorted(members)}
         hashable_members_with_keys = tuple(
             (key, value) for key, value in sorted_members.items()
@@ -372,7 +375,7 @@ class ReplayNamespaces:
         return hash(hashable_members_with_keys)
 
     def hash_result_collection(self, members: Union[Dict, List]) -> int:
-        '''
+        """
         Hashes a list of uuids. Useful for finding corresponding result
         collections that may have been cast to list of uuids. If a dict is
         input it is first converted to a list of values (uuids).
@@ -386,7 +389,7 @@ class ReplayNamespaces:
         -------
         int
             The hashed contents.
-        '''
+        """
         if type(members) is dict:
             members = list(members.values())
 
@@ -396,7 +399,7 @@ class ReplayNamespaces:
         return hash(hashable_members)
 
     def add_rc_member_to_ns(self, uuid, name, use):
-        '''
+        """
         Accesses a result collection member of interest and adds it the
         central usage variable namespace.
 
@@ -408,20 +411,18 @@ class ReplayNamespaces:
             The desired name of the to-be-made usage variable.
         use : Usage
             The currently executing usage driver.
-        '''
+        """
         collection_uuid, key = self.artifact_uuid_to_rc_uuid[uuid]
         collection_var = self.get_usg_var_record(collection_uuid).variable
 
         var_name = self.add_usg_var_record(uuid, name)
 
-        usg_var = use.get_artifact_collection_member(
-            var_name, collection_var, key
-        )
+        usg_var = use.get_artifact_collection_member(var_name, collection_var, key)
 
         self.update_usg_var_record(uuid, usg_var)
 
     def uniquify_action_name(self, plugin: str, action: str) -> str:
-        '''
+        """
         Creates a unique name by concatenating plugin, action, and a counter,
         and adds this name to _action_ns before returning it.
 
@@ -438,12 +439,12 @@ class ReplayNamespaces:
         -------
         str
             The unique action name.
-        '''
+        """
         counter = 0
-        plg_action_name = f'{plugin}_{action}_{counter}'
+        plg_action_name = f"{plugin}_{action}_{counter}"
         while plg_action_name in self._action_ns:
             counter += 1
-            plg_action_name = f'{plugin}_{action}_{counter}'
+            plg_action_name = f"{plugin}_{action}_{counter}"
         self._action_ns.add(plg_action_name)
 
         return plg_action_name
@@ -460,9 +461,9 @@ def replay_provenance(
     suppress_header: bool = False,
     verbose: bool = False,
     dump_recorded_metadata: bool = True,
-    md_out_dir: str = ''
+    md_out_dir: str = "",
 ):
-    '''
+    """
     Renders usage examples describing a ProvDAG, producing an interface-
     specific executable.
 
@@ -497,45 +498,43 @@ def replay_provenance(
         Whether to write the metadata recorded in provenance to disk.
     md_out_dir : str
         The directory in which to write the recorded metadata if desired.
-    '''
+    """
     if type(payload) is ProvDAG:
         parse_metadata = payload.cfg.parse_study_metadata
 
     if not parse_metadata:
         if use_recorded_metadata:
             raise ValueError(
-                'Metadata not parsed for replay. Re-run with parse_metadata, '
-                'or set use_recorded_metadata to False.'
+                "Metadata not parsed for replay. Re-run with parse_metadata, "
+                "or set use_recorded_metadata to False."
             )
         if dump_recorded_metadata:
             raise ValueError(
-                'Metadata not parsed, so cannot be written to disk. Re-run '
-                'with parse_metadata, or set dump_recorded_metadata to False.'
+                "Metadata not parsed, so cannot be written to disk. Re-run "
+                "with parse_metadata, or set dump_recorded_metadata to False."
             )
         if md_out_dir:
             raise ValueError(
-                'Metadata not parsed, so cannot be written to disk. Re-run '
-                'with parse_metadata, or do not pass a metadata output '
-                'filepath argument.'
+                "Metadata not parsed, so cannot be written to disk. Re-run "
+                "with parse_metadata, or do not pass a metadata output "
+                "filepath argument."
             )
 
     if use_recorded_metadata and not dump_recorded_metadata:
         raise NotImplementedError(
-            'In order to produce a replay script that uses metadata '
-            'captured in provenance, that metadata must first be written to '
-            'disk. Re-run with dump-recorded-metadata set to True, or '
-            'use-recorded-metadata set to False.'
+            "In order to produce a replay script that uses metadata "
+            "captured in provenance, that metadata must first be written to "
+            "disk. Re-run with dump-recorded-metadata set to True, or "
+            "use-recorded-metadata set to False."
         )
 
-    dag = ProvDAG(
-        payload, validate_checksums, parse_metadata, recurse, verbose
-    )
+    dag = ProvDAG(payload, validate_checksums, parse_metadata, recurse, verbose)
     cfg = ReplayConfig(
         use=usage_driver(),
         use_recorded_metadata=use_recorded_metadata,
         dump_recorded_metadata=dump_recorded_metadata,
         verbose=verbose,
-        md_out_dir=md_out_dir
+        md_out_dir=md_out_dir,
     )
 
     ns = ReplayNamespaces(dag)
@@ -546,17 +545,15 @@ def replay_provenance(
         cfg.use.build_footer(dag)
 
     if cfg.dump_recorded_metadata:
-        print('metadata written to recorded_metadata/')
+        print("metadata written to recorded_metadata/")
 
     output = cfg.use.render(flush=True)
-    with open(out_fp, mode='w') as out_fh:
+    with open(out_fp, mode="w") as out_fh:
         out_fh.write(output)
 
 
-def build_usage_examples(
-    dag: ProvDAG, cfg: ReplayConfig, ns: ReplayNamespaces
-):
-    '''
+def build_usage_examples(dag: ProvDAG, cfg: ReplayConfig, ns: ReplayNamespaces):
+    """
     Builds a chained usage example representing the analysis `dag`.
 
     Parameters
@@ -567,7 +564,7 @@ def build_usage_examples(
         Replay configuration options.
     ns : ReplayNamespaces
         Info tracking usage and result collection namespaces.
-    '''
+    """
     sorted_nodes = nx.topological_sort(dag.collapsed_view)
     actions = group_by_action(dag, sorted_nodes, ns)
 
@@ -583,13 +580,16 @@ def build_usage_examples(
         except KeyError:
             # we have result collection
             some_output_name = next(iter(ns.result_collection_ns[action_id]))
-            some_node_id = next(iter(
-                ns.result_collection_ns[action_id][
-                    some_output_name].members.values()
-            ))
+            some_node_id = next(
+                iter(
+                    ns.result_collection_ns[action_id][
+                        some_output_name
+                    ].members.values()
+                )
+            )
             node = dag.get_node_data(some_node_id)
 
-        if node.action.action_type == 'import':
+        if node.action.action_type == "import":
             build_import_usage(node, ns, cfg)
         else:
             build_action_usage(node, ns, std_actions, action_id, cfg)
@@ -598,7 +598,7 @@ def build_usage_examples(
 def group_by_action(
     dag: ProvDAG, nodes: Iterator[str], ns: ReplayNamespaces
 ) -> ActionCollections:
-    '''
+    """
     This groups the nodes from a DAG by action, returning an ActionCollections
     aggregating the outputs related to each action.
 
@@ -622,7 +622,7 @@ def group_by_action(
     -------
     ActionCollections
         The outputs grouped by action.
-    '''
+    """
     actions = ActionCollections()
     for node_id in nodes:
         if dag.node_has_provenance(node_id):
@@ -648,12 +648,9 @@ def group_by_action(
 
 
 def build_no_provenance_node_usage(
-    node: Optional[ProvNode],
-    uuid: str,
-    ns: ReplayNamespaces,
-    cfg: ReplayConfig
+    node: Optional[ProvNode], uuid: str, ns: ReplayNamespaces, cfg: ReplayConfig
 ):
-    '''
+    """
     Given a ProvNode (with no provenance), make sure comments will be rendered
     explaining this, add an empty usage variable to the namespace and log the
     node. Returns nothing, modifying the passed usage instance in place.
@@ -669,21 +666,19 @@ def build_no_provenance_node_usage(
         Info tracking usage and result collection namespaces.
     cfg : ReplayConfig
         Replay configuration options. Contains the modified usage driver.
-    '''
+    """
     if not cfg.no_provenance_context_has_been_printed:
         cfg.no_provenance_context_has_been_printed = True
         cfg.use.comment(
-            'One or more nodes have no provenance, so full replay is '
-            'impossible. Any commands we were able to reconstruct have been '
-            'rendered, with the string descriptions below replacing actual '
-            'inputs.'
+            "One or more nodes have no provenance, so full replay is "
+            "impossible. Any commands we were able to reconstruct have been "
+            "rendered, with the string descriptions below replacing actual "
+            "inputs."
         )
-        cfg.use.comment(
-            'Original Node ID                       String Description'
-        )
+        cfg.use.comment("Original Node ID                       String Description")
     if node is None:
         # the node is a !no-provenance input and we have only UUID
-        var_name = 'no-provenance-node'
+        var_name = "no-provenance-node"
     else:
         var_name = camel_to_snake(node.type)
 
@@ -691,7 +686,7 @@ def build_no_provenance_node_usage(
 
     # make a usage variable for downstream consumption
     empty_var = cfg.use.usage_variable(
-        ns.get_usg_var_record(uuid).name, lambda: None, 'artifact'
+        ns.get_usg_var_record(uuid).name, lambda: None, "artifact"
     )
     ns.update_usg_var_record(uuid, empty_var)
 
@@ -700,10 +695,8 @@ def build_no_provenance_node_usage(
     cfg.use.comment(f"{uuid}   {usg_var.to_interface_name()}")
 
 
-def build_import_usage(
-    node: ProvNode, ns: ReplayNamespaces, cfg: ReplayConfig
-):
-    '''
+def build_import_usage(node: ProvNode, ns: ReplayNamespaces, cfg: ReplayConfig):
+    """
     Given a ProvNode, adds an import usage example for it, roughly
     resembling the below. Returns nothing, modifying the passed usage instance
     in place.
@@ -725,9 +718,9 @@ def build_import_usage(
         Info tracking usage and result collection namespaces.
     cfg : ReplayConfig
         Replay configuration options. Contains the modified usage driver.
-    '''
-    format_id = node._uuid + '_f'
-    ns.add_usg_var_record(format_id, camel_to_snake(node.type) + '_f')
+    """
+    format_id = node._uuid + "_f"
+    ns.add_usg_var_record(format_id, camel_to_snake(node.type) + "_f")
 
     format_for_import = cfg.use.init_format(
         ns.get_usg_var_record(format_id).name, lambda: None
@@ -735,9 +728,7 @@ def build_import_usage(
 
     var_name = ns.add_usg_var_record(node._uuid, camel_to_snake(node.type))
 
-    use_var = cfg.use.import_from_format(
-        var_name, node.type, format_for_import
-    )
+    use_var = cfg.use.import_from_format(var_name, node.type, format_for_import)
     ns.update_usg_var_record(node._uuid, use_var)
 
 
@@ -746,9 +737,9 @@ def build_action_usage(
     ns: ReplayNamespaces,
     std_actions: Dict[str, Dict[str, str]],
     action_id: str,
-    cfg: ReplayConfig
+    cfg: ReplayConfig,
 ):
-    '''
+    """
     Adds an action usage example to `use` for some ProvNode.
     Returns nothing, modifying the passed usage instance in place.
 
@@ -771,7 +762,7 @@ def build_action_usage(
         The uuid of the action.
     cfg : ReplayConfig
         Replay configuration options. Contains the modified usage driver.
-    '''
+    """
     command_specific_md_context_has_been_printed = False
     plugin = node.action.plugin
     action = node.action.action_name
@@ -796,20 +787,18 @@ def build_action_usage(
         if isinstance(param_val, MetadataInfo):
             # we only need this identifier to be unique; the rendered interface
             # name will not contain this identifier
-            unique_md_id = node._uuid + '_' + param_name
+            unique_md_id = node._uuid + "_" + param_name
 
-            md_fn = ns.add_usg_var_record(
-                unique_md_id, camel_to_snake(param_name)
-            )
+            md_fn = ns.add_usg_var_record(unique_md_id, camel_to_snake(param_name))
             if cfg.dump_recorded_metadata:
-                md_with_ext = md_fn + '.tsv'
+                md_with_ext = md_fn + ".tsv"
                 dump_recorded_md_file(
                     cfg, node, plg_action_name, param_name, md_with_ext
                 )
 
             if cfg.use_recorded_metadata:
                 # the local dir and fp where md will be saved (if at all) is:
-                md_fn = f'{plg_action_name}/{md_fn}'
+                md_fn = f"{plg_action_name}/{md_fn}"
                 md = init_md_from_recorded_md(
                     node, param_name, unique_md_id, ns, cfg, md_fn
                 )
@@ -822,24 +811,24 @@ def build_action_usage(
                         "automatically by some interfaces, rendering "
                         "distinctions between file inputs invisible in "
                         "provenance. We output the recorded metadata to disk "
-                        "to enable visual inspection.")
+                        "to enable visual inspection."
+                    )
 
                 if not command_specific_md_context_has_been_printed:
                     if cfg.md_out_dir:
-                        fp = f'{cfg.md_out_dir}/{plg_action_name}'
+                        fp = f"{cfg.md_out_dir}/{plg_action_name}"
                     else:
-                        fp = f'./recorded_metadata/{plg_action_name}/'
+                        fp = f"./recorded_metadata/{plg_action_name}/"
 
                     cfg.use.comment(
                         "The following command may have received additional "
                         "metadata .tsv files. To confirm you have covered "
                         "your metadata needs adequately, review the original "
-                        f"metadata, saved at '{fp}'")
+                        f"metadata, saved at '{fp}'"
+                    )
 
                 if not param_val.input_artifact_uuids:
-                    md = init_md_from_md_file(
-                        node, param_name, unique_md_id, ns, cfg
-                    )
+                    md = init_md_from_md_file(node, param_name, unique_md_id, ns, cfg)
                 else:
                     md = init_md_from_artifacts(param_val, ns, cfg)
 
@@ -850,7 +839,7 @@ def build_action_usage(
     usg_var = cfg.use.action(
         cfg.use.UsageAction(plugin_id=plugin, action_id=action),
         cfg.use.UsageInputs(**inputs),
-        cfg.use.UsageOutputNames(**outputs)
+        cfg.use.UsageOutputNames(**outputs),
     )
 
     # add the usage variable(s) to the namespace
@@ -859,10 +848,8 @@ def build_action_usage(
         ns.update_usg_var_record(uuid_key, res)
 
 
-def _collect_action_inputs(
-    use: Usage, ns: ReplayNamespaces, node: ProvNode
-) -> dict:
-    '''
+def _collect_action_inputs(use: Usage, ns: ReplayNamespaces, node: ProvNode) -> dict:
+    """
     Returns a dict containing the action Inputs for a ProvNode.
     Dict structure: {input_name: input_var} or {input_name: [input_var1, ...]}.
 
@@ -879,7 +866,7 @@ def _collect_action_inputs(
     -------
     dict
         Mapping input names to their corresponding usage variables.
-    '''
+    """
     inputs_dict = {}
     for input_name, input_value in node.action.inputs.items():
         # Currently we can only have a None as a default value, so we can skip
@@ -901,9 +888,7 @@ def _collect_action_inputs(
             input_hash = ns.hash_result_collection(input_value)
             if collection_uuid := ns.rc_contents_to_rc_uuid.get(input_hash):
                 # corresponding rc found
-                resolved_input = ns.get_usg_var_record(
-                    collection_uuid
-                ).variable
+                resolved_input = ns.get_usg_var_record(collection_uuid).variable
             else:
                 # find each artifact and assemble into a list
                 input_list = []
@@ -911,9 +896,7 @@ def _collect_action_inputs(
                     if ns.get_usg_var_record(input_value) is None:
                         ns.add_rc_member_to_ns(input_value, input_name, use)
 
-                    input_list.append(
-                        ns.get_usg_var_record(input_value).variable
-                    )
+                    input_list.append(ns.get_usg_var_record(input_value).variable)
 
                 resolved_input = input_list
 
@@ -924,9 +907,7 @@ def _collect_action_inputs(
             input_hash = ns.hash_result_collection_with_keys(rc)
             if collection_uuid := ns.rc_contents_to_rc_uuid.get(input_hash):
                 # corresponding rc found
-                resolved_input = ns.get_usg_var_record(
-                    collection_uuid
-                ).variable
+                resolved_input = ns.get_usg_var_record(collection_uuid).variable
             else:
                 # build new rc
                 new_rc = {}
@@ -938,21 +919,19 @@ def _collect_action_inputs(
 
                 # make new rc usg var
                 new_collection_uuid = uuid4()
-                var_name = ns.add_usg_var_record(
-                    new_collection_uuid, input_name
-                )
+                var_name = ns.add_usg_var_record(new_collection_uuid, input_name)
                 usg_var = use.construct_artifact_collection(var_name, new_rc)
                 ns.update_usg_var_record(new_collection_uuid, usg_var)
-                resolved_input = ns.get_usg_var_record(
-                    new_collection_uuid
-                ).variable
+                resolved_input = ns.get_usg_var_record(new_collection_uuid).variable
 
         # If we ever mess with inputs again and add a new type here this should
         # trip otherwise we should never see it
         else:
-            msg = f"Got a '{input_value}' as input which is of type" \
-                  f" '{type(input_value)}'. Supported types are str, list," \
-                  " and dict."
+            msg = (
+                f"Got a '{input_value}' as input which is of type"
+                f" '{type(input_value)}'. Supported types are str, list,"
+                " and dict."
+            )
             raise ValueError(msg)
 
         inputs_dict[input_name] = resolved_input
@@ -960,10 +939,8 @@ def _collect_action_inputs(
     return inputs_dict
 
 
-def _uniquify_output_names(
-    ns: ReplayNamespaces, raw_outputs: dict
-) -> dict:
-    '''
+def _uniquify_output_names(ns: ReplayNamespaces, raw_outputs: dict) -> dict:
+    """
     Returns a dict containing the uniquified output names from a ProvNode.
     Dict structure: {output_name: uniquified_output_name}.
 
@@ -978,7 +955,7 @@ def _uniquify_output_names(
     -------
     dict
         Mapping of original output-name to output-name after being made unique.
-    '''
+    """
     outputs = {}
     for uuid, output_name in raw_outputs:
         var_name = ns.add_usg_var_record(uuid, output_name)
@@ -993,9 +970,9 @@ def init_md_from_recorded_md(
     md_id: str,
     ns: ReplayNamespaces,
     cfg: ReplayConfig,
-    md_fn: str
+    md_fn: str,
 ) -> UsageVariable:
-    '''
+    """
     Initializes and returns a Metadata UsageVariable from Metadata parsed
     from provenance.
 
@@ -1023,23 +1000,24 @@ def init_md_from_recorded_md(
     ------
     ValueError
         If the node has no metadata.
-    '''
+    """
     if not node.metadata:
         raise ValueError(
-            'This function should only be called if the node has metadata.'
+            "This function should only be called if the node has metadata."
         )
 
     md_df = node.metadata[param_name]
 
     def factory():
         from qiime2 import Metadata
+
         return Metadata(md_df)
 
     cwd = pathlib.Path.cwd()
     if cfg.md_out_dir:
         fn = str(cwd / cfg.md_out_dir / md_fn)
     else:
-        fn = str(cwd / 'recorded_metadata' / md_fn)
+        fn = str(cwd / "recorded_metadata" / md_fn)
 
     md = cfg.use.init_metadata(
         ns.get_usg_var_record(md_id).name, factory, dumped_md_fn=fn
@@ -1048,22 +1026,18 @@ def init_md_from_recorded_md(
     action = node.action.action_name
 
     if param_is_metadata_column(cfg, param_name, plugin, action):
-        mdc_id = node._uuid + '_mdc'
-        mdc_name = ns.get_usg_var_record(md_id).name + '_mdc'
+        mdc_id = node._uuid + "_mdc"
+        mdc_name = ns.get_usg_var_record(md_id).name + "_mdc"
         var_name = ns.add_usg_var_record(mdc_id, mdc_name)
-        md = cfg.use.get_metadata_column(var_name, '<column name>', md)
+        md = cfg.use.get_metadata_column(var_name, "<column name>", md)
 
     return md
 
 
 def init_md_from_md_file(
-    node: ProvNode,
-    param_name: str,
-    md_id: str,
-    ns: ReplayNamespaces,
-    cfg: ReplayConfig
+    node: ProvNode, param_name: str, md_id: str, ns: ReplayNamespaces, cfg: ReplayConfig
 ) -> UsageVariable:
-    '''
+    """
     Initializes and returns a Metadata UsageVariable with no real data,
     mimicking a user passing md as a .tsv file.
 
@@ -1084,24 +1058,24 @@ def init_md_from_md_file(
     -------
     UsageVariable
         Of type metadata or metadata column.
-    '''
+    """
     plugin = node.action.plugin
     action = node.action.action_name
     md = cfg.use.init_metadata(ns.get_usg_var_record(md_id).name, lambda: None)
 
     if param_is_metadata_column(cfg, param_name, plugin, action):
-        mdc_id = node._uuid + '_mdc'
-        mdc_name = ns.get_usg_var_record(md_id).name + '_mdc'
+        mdc_id = node._uuid + "_mdc"
+        mdc_name = ns.get_usg_var_record(md_id).name + "_mdc"
         var_name = ns.add_usg_var_record(mdc_id, mdc_name)
-        md = cfg.use.get_metadata_column(var_name, '<column name>', md)
+        md = cfg.use.get_metadata_column(var_name, "<column name>", md)
 
     return md
 
 
 def init_md_from_artifacts(
-        md_inf: MetadataInfo, ns: ReplayNamespaces, cfg: ReplayConfig
+    md_inf: MetadataInfo, ns: ReplayNamespaces, cfg: ReplayConfig
 ) -> UsageVariable:
-    '''
+    """
     Initializes and returns a Metadata UsageVariable with no real data,
     mimicking a user passing one or more QIIME 2 Artifacts as metadata.
 
@@ -1128,17 +1102,17 @@ def init_md_from_artifacts(
     ------
     ValueError
         If no input artifact uuids are present in MetadataInfo.
-    '''
+    """
     if not md_inf.input_artifact_uuids:
         raise ValueError(
-            'This funtion should not be used if '
-            'MetadataInfo.input_artifact_uuids is empty.'
+            "This funtion should not be used if "
+            "MetadataInfo.input_artifact_uuids is empty."
         )
 
     md_files_in = []
     for artifact_uuid in md_inf.input_artifact_uuids:
-        amd_id = artifact_uuid + '_a'
-        var_name = ns.get_usg_var_record(artifact_uuid).variable.name + '_a'
+        amd_id = artifact_uuid + "_a"
+        var_name = ns.get_usg_var_record(artifact_uuid).variable.name + "_a"
         if ns.get_usg_var_record(amd_id) is None:
             var_name = ns.add_usg_var_record(amd_id, var_name)
             art_as_md = cfg.use.view_as_metadata(
@@ -1153,24 +1127,18 @@ def init_md_from_artifacts(
     if len(md_inf.input_artifact_uuids) > 1:
         # we can't uniquify this normally, because one uuid can be merged with
         # combinations of others
-        merge_id = '-'.join(md_inf.input_artifact_uuids)
-        var_name = ns.add_usg_var_record(merge_id, 'merged_artifacts')
-        merged_md = cfg.use.merge_metadata(
-            var_name, *md_files_in
-        )
+        merge_id = "-".join(md_inf.input_artifact_uuids)
+        var_name = ns.add_usg_var_record(merge_id, "merged_artifacts")
+        merged_md = cfg.use.merge_metadata(var_name, *md_files_in)
         ns.update_usg_var_record(merge_id, merged_md)
 
     return art_as_md
 
 
 def dump_recorded_md_file(
-    cfg: ReplayConfig,
-    node: ProvNode,
-    action_name: str,
-    md_id: str,
-    fn: str
+    cfg: ReplayConfig, node: ProvNode, action_name: str, md_id: str, fn: str
 ):
-    '''
+    """
     Writes one metadata DataFrame pointed to by `md_id` to a .tsv file.
     Each action gets its own directory containing relevant md files.
 
@@ -1194,30 +1162,30 @@ def dump_recorded_md_file(
     ------
     ValueError
         If the passed node does not have metadata in its creating action.
-    '''
+    """
     if node.metadata is None:
         raise ValueError(
-            'This function should only be called if the node has metadata.'
+            "This function should only be called if the node has metadata."
         )
 
     if cfg.md_out_dir:
         md_out_dir_base = pathlib.Path(cfg.md_out_dir)
     else:
         cwd = pathlib.Path.cwd()
-        md_out_dir_base = cwd / 'recorded_metadata'
+        md_out_dir_base = cwd / "recorded_metadata"
 
     action_dir = md_out_dir_base / action_name
     action_dir.mkdir(parents=True, exist_ok=True)
 
     md_df = node.metadata[md_id]
     out_fp = action_dir / (fn)
-    md_df.to_csv(out_fp, sep='\t', index=False)
+    md_df.to_csv(out_fp, sep="\t", index=False)
 
 
 def param_is_metadata_column(
     cfg: ReplayConfig, param: str, plugin: str, action: str
 ) -> bool:
-    '''
+    """
     Returns True if the parameter name `param` is registered as a
     MetadataColumn.
 
@@ -1243,31 +1211,27 @@ def param_is_metadata_column(
         - If the plugin of interest is not registered with the plugin manager.
         - If the action of interest is not registered with the plugin.
         - If the parameter is not in the signature of the action.
-    '''
+    """
     plugin = cfg.pm.get_plugin(id=plugin)
 
     try:
         action_f = plugin.actions[action]
     except KeyError:
-        raise KeyError(
-            f'No action registered with name {action} in plugin {plugin}.'
-        )
+        raise KeyError(f"No action registered with name {action} in plugin {plugin}.")
 
     try:
         param_spec = action_f.signature.parameters[param]
     except KeyError:
-        raise KeyError(
-            f'No parameter registered with name {param} in action {action}.'
-        )
+        raise KeyError(f"No parameter registered with name {param} in action {action}.")
 
     # HACK, but it works without relying on Q2's type system
-    return 'MetadataColumn' in str(param_spec.qiime_type)
+    return "MetadataColumn" in str(param_spec.qiime_type)
 
 
 def collect_citations(
     dag: ProvDAG, deduplicate: bool = True
 ) -> bp.bibdatabase.BibDatabase:
-    '''
+    """
     Returns a BibDatabase of all unique citations from a ProvDAG.
     If `deduplicate` is True references will be heuristically deduplicated.
 
@@ -1283,7 +1247,7 @@ def collect_citations(
     bp.bibdatabase.BibDatabase
         A BibDatabase object containing the collected citations in bibtex
         format.
-    '''
+    """
     bdb = bp.bibdatabase.BibDatabase()
     citations = []
     for node_uuid in dag:
@@ -1299,8 +1263,8 @@ def collect_citations(
     return bdb
 
 
-class BibContent():
-    '''
+class BibContent:
+    """
     A hashable data container capturing common bibtex fields
 
     Has many fields because keeping true duplicates is preferable to
@@ -1310,24 +1274,25 @@ class BibContent():
     ----------
     entry : dict
         A dictionary of bibtex entries.
-    '''
+    """
+
     def __init__(self, entry):
-        self.title = entry.get('title'),
-        self.author = entry.get('author'),
-        self.journal = entry.get('journal')
-        self.booktitle = entry.get('booktitle')
-        self.year = entry.get('year')
-        self.pages = entry.get('pages')
+        self.title = (entry.get("title"),)
+        self.author = (entry.get("author"),)
+        self.journal = entry.get("journal")
+        self.booktitle = entry.get("booktitle")
+        self.year = entry.get("year")
+        self.pages = entry.get("pages")
 
     def __eq__(self, other):
         return (
-            type(self) is type(other) and
-            self.title == other.title and
-            self.author == other.author and
-            self.journal == other.journal and
-            self.booktitle == other.booktitle and
-            self.year == other.year and
-            self.pages == other.pages
+            type(self) is type(other)
+            and self.title == other.title
+            and self.author == other.author
+            and self.journal == other.journal
+            and self.booktitle == other.booktitle
+            and self.year == other.year
+            and self.pages == other.pages
         )
 
     def __hash__(self):
@@ -1343,7 +1308,7 @@ class BibContent():
 
 
 def dedupe_citations(citations: List[Dict]) -> List[Dict]:
-    '''
+    """
     Deduplicates citations based on bibtex id, bibtex content, and DOI.
     Citations are not guaranteed to be truly unique after deduplicating based
     on these values.
@@ -1359,22 +1324,23 @@ def dedupe_citations(citations: List[Dict]) -> List[Dict]:
     -------
     list of dict
         The deduplicated citations.
-    '''
+    """
     deduped_citations = []
     is_framework_cited = False
     id_set = set()
     doi_set = set()
     content_set = set()
     for entry in citations:
-        citation_id = entry['ID']
+        citation_id = entry["ID"]
 
-        if 'framework|qiime2' in citation_id:
+        if "framework|qiime2" in citation_id:
             if not is_framework_cited:
                 with importlib.resources.open_text(
-                        'qiime2', 'citations.bib') as bibtex_file:
+                    "qiime2", "citations.bib"
+                ) as bibtex_file:
                     q2_entry = bp.load(bibtex_file).entries.pop()
 
-                q2_entry['ID'] = citation_id
+                q2_entry["ID"] = citation_id
                 id_set.add(citation_id)
                 deduped_citations.append(q2_entry)
                 is_framework_cited = True
@@ -1392,7 +1358,7 @@ def dedupe_citations(citations: List[Dict]) -> List[Dict]:
             content_set.add(entry_content)
 
         # dedupe on doi if present
-        doi = entry.get('doi')
+        doi = entry.get("doi")
         if doi is None:
             id_set.add(citation_id)
             deduped_citations.append(entry)
@@ -1405,12 +1371,9 @@ def dedupe_citations(citations: List[Dict]) -> List[Dict]:
 
 
 def replay_citations(
-    dag: ProvDAG,
-    out_fp: str,
-    deduplicate: bool = True,
-    suppress_header: bool = False
+    dag: ProvDAG, out_fp: str, deduplicate: bool = True, suppress_header: bool = False
 ):
-    '''
+    """
     Writes a bibtex file containing all citations from a ProvDAG to disk.
     If `deduplicate` is True citations will be deduplicated, see
     `dedupe_citations()` for details.
@@ -1425,30 +1388,30 @@ def replay_citations(
         Whether to deduplicate the collected citations.
     suppress_header : bool
         Whether to forgo adding a header and footer to the output file.
-    '''
+    """
     bib_db = collect_citations(dag, deduplicate=deduplicate)
-    boundary = '#' * 79
+    boundary = "#" * 79
     header = []
     footer = []
     extra = [
-        '',
-        '# This bibtex-formatted citation file can be imported into '
-        'popular citation ',
-        '# managers like Zotero and Mendeley, simplifying management and '
-        'formatting.'
+        "",
+        "# This bibtex-formatted citation file can be imported into "
+        "popular citation ",
+        "# managers like Zotero and Mendeley, simplifying management and "
+        "formatting.",
     ]
     if not suppress_header:
-        header = build_header(boundary=boundary, extra_text=extra) + ['\n']
+        header = build_header(boundary=boundary, extra_text=extra) + ["\n"]
         footer = build_footer(dag=dag, boundary=boundary)
     if bib_db.entries_dict == {}:
-        bib_db = 'No citations were registered to the used Actions.'
-        with open(out_fp, 'w') as bibfile:
+        bib_db = "No citations were registered to the used Actions."
+        with open(out_fp, "w") as bibfile:
             bibfile.write(bib_db)
     else:
-        with open(out_fp, 'w') as bibfile:
-            bibfile.write('\n'.join(header))
+        with open(out_fp, "w") as bibfile:
+            bibfile.write("\n".join(header))
             bibfile.write(BibTexWriter().write(bib_db))
-            bibfile.write('\n'.join(footer))
+            bibfile.write("\n".join(footer))
 
 
 def replay_supplement(
@@ -1462,9 +1425,9 @@ def replay_supplement(
     deduplicate: bool = True,
     suppress_header: bool = False,
     verbose: bool = True,
-    dump_recorded_metadata: bool = True
+    dump_recorded_metadata: bool = True,
 ):
-    '''
+    """
     Produces a zipfile package of useful documentation for in silico
     reproducibility of some QIIME 2 Result(s) from a ProvDAG, a QIIME 2
     Artifact, or a directory of Artifacts.
@@ -1504,13 +1467,13 @@ def replay_supplement(
         Whether to print status messages during processing.
     dump_recorded_metadata : bool
         Whether to write the metadata recorded in provenance to disk.
-    '''
+    """
     dag = ProvDAG(
         artifact_data=payload,
         validate_checksums=validate_checksums,
         parse_metadata=parse_metadata,
         recurse=recurse,
-        verbose=verbose
+        verbose=verbose,
     )
     with tempfile.TemporaryDirectory() as tempdir:
         tempdir_path = pathlib.Path(tempdir)
@@ -1518,8 +1481,8 @@ def replay_supplement(
         os.makedirs(arc_root)
 
         drivers_to_filenames = {
-            'ReplayPythonUsage': 'python3_replay.py',
-            'ReplayCLIUsage': 'cli_replay.sh',
+            "ReplayPythonUsage": "python3_replay.py",
+            "ReplayCLIUsage": "cli_replay.sh",
         }
 
         for usage_driver in usage_drivers:
@@ -1527,7 +1490,7 @@ def replay_supplement(
                 continue
 
             rel_fp = drivers_to_filenames[usage_driver.__name__]
-            md_out_dir = arc_root / 'recorded_metadata'
+            md_out_dir = arc_root / "recorded_metadata"
             tmp_fp = arc_root / rel_fp
             replay_provenance(
                 usage_driver=usage_driver,
@@ -1537,25 +1500,25 @@ def replay_supplement(
                 suppress_header=suppress_header,
                 verbose=verbose,
                 dump_recorded_metadata=dump_recorded_metadata,
-                md_out_dir=md_out_dir
+                md_out_dir=md_out_dir,
             )
             print(
-                f'The {usage_driver.__name__} replay script was written to '
-                f'{rel_fp}.'
+                f"The {usage_driver.__name__} replay script was written to "
+                f"{rel_fp}."
             )
 
-        citations_fp = arc_root / 'citations.bib'
+        citations_fp = arc_root / "citations.bib"
         replay_citations(
             dag,
             out_fp=str(citations_fp),
             deduplicate=deduplicate,
-            suppress_header=suppress_header
+            suppress_header=suppress_header,
         )
-        print('The citations bibtex file was written to citations.bib.')
+        print("The citations bibtex file was written to citations.bib.")
 
         out_fp = pathlib.Path(os.path.realpath(out_fp))
-        if out_fp.suffix == '.zip':
-            out_fp = out_fp.with_suffix('')
+        if out_fp.suffix == ".zip":
+            out_fp = out_fp.with_suffix("")
 
-        shutil.make_archive(out_fp, 'zip', tempdir)
-        print(f'The reproducibility package was written to {out_fp}.zip.')
+        shutil.make_archive(out_fp, "zip", tempdir)
+        print(f"The reproducibility package was written to {out_fp}.zip.")

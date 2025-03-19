@@ -37,19 +37,19 @@ def get_next_arguments(action, type="input"):
             if not v.has_default():
                 req.append([k, v.qiime_type])
             else:
-                non_req.append(["."+k, v.qiime_type])
+                non_req.append(["." + k, v.qiime_type])
     elif type == "param":
         for k, v in action.signature.parameters.items():
             if not v.has_default():
                 req.append([k, v.qiime_type])
             else:
-                non_req.append(["."+k, v.qiime_type])
+                non_req.append(["." + k, v.qiime_type])
     else:
         for k, v in action.signature.outputs.items():
             if not v.has_default():
                 req.append([k, v.qiime_type])
             else:
-                non_req.append(["."+k, v.qiime_type])
+                non_req.append(["." + k, v.qiime_type])
 
     return req, non_req
 
@@ -119,17 +119,23 @@ def generate_nodes_by_action(action, opt=False):
         opt_in_list += input_nr
         opt_in_list += param_nr
         opt_in_list = unravel(opt_in_list)
-        ins = [dict(x) for x in
-               [list(chain.from_iterable(i)) for i in
-                list(product(input, param, opt_in_list))]]
+        ins = [
+            dict(x)
+            for x in [
+                list(chain.from_iterable(i))
+                for i in list(product(input, param, opt_in_list))
+            ]
+        ]
         outs = dict(output + output_nr)
-        results = [{'inputs': i, 'outputs': outs} for i in ins]
+        results = [{"inputs": i, "outputs": outs} for i in ins]
         return results
 
-    ins = [dict(x) for x in
-           [list(chain.from_iterable(i)) for i in list(product(input, param))]]
+    ins = [
+        dict(x)
+        for x in [list(chain.from_iterable(i)) for i in list(product(input, param))]
+    ]
     outs = dict(output)
-    results = [{'inputs': i, 'outputs': outs} for i in ins]
+    results = [{"inputs": i, "outputs": outs} for i in ins]
     return results
 
 
@@ -170,47 +176,47 @@ def build_graph(action_list=[], opt=False):
                 # renaming dictionary to remove '.'
                 action_node = {}
                 for x, y in v.items():
-                    if x[0] == '.':
+                    if x[0] == ".":
                         action_node[x[1:]] = y
                     else:
                         action_node[x] = y
                 dict_[k] = action_node
 
                 if not G.has_node(str(dict_)):
-                    G.add_node(str(dict_), value=action, node='action')
+                    G.add_node(str(dict_), value=action, node="action")
 
-                if k == 'inputs':
+                if k == "inputs":
                     for in_k, in_v in v.items():
                         if not in_v:
                             continue
-                        if in_k[0] == '.':
-                            name = "opt_"+str(in_v)
+                        if in_k[0] == ".":
+                            name = "opt_" + str(in_v)
                             G.add_edge(name, str(dict_))
-                            G[name][str(dict_)]['name'] = in_k[1:]
-                            G.nodes[name]['type'] = in_v
-                            G.nodes[name]['optional'] = True
-                            G.nodes[name]['node'] = 'type'
+                            G[name][str(dict_)]["name"] = in_k[1:]
+                            G.nodes[name]["type"] = in_v
+                            G.nodes[name]["optional"] = True
+                            G.nodes[name]["node"] = "type"
                         else:
                             G.add_edge(in_v, str(dict_))
-                            G[in_v][str(dict_)]['name'] = in_k
-                            G.nodes[in_v]['type'] = in_v
-                            G.nodes[in_v]['optional'] = False
-                            G.nodes[in_v]['node'] = 'type'
+                            G[in_v][str(dict_)]["name"] = in_k
+                            G.nodes[in_v]["type"] = in_v
+                            G.nodes[in_v]["optional"] = False
+                            G.nodes[in_v]["node"] = "type"
                 else:
                     for out_k, out_v in v.items():
                         if not out_v:
                             continue
-                        if out_k[0] == '.':
-                            name = "opt_"+str(out_v)
-                            G.add_edge("opt_"+str(out_v), str(dict_))
-                            G[str(dict_)][name]['name'] = out_k[1:]
-                            G.nodes[name]['type'] = in_v
-                            G.nodes[name]['optional'] = True
-                            G.nodes[name]['node'] = 'type'
+                        if out_k[0] == ".":
+                            name = "opt_" + str(out_v)
+                            G.add_edge("opt_" + str(out_v), str(dict_))
+                            G[str(dict_)][name]["name"] = out_k[1:]
+                            G.nodes[name]["type"] = in_v
+                            G.nodes[name]["optional"] = True
+                            G.nodes[name]["node"] = "type"
                         else:
                             G.add_edge(str(dict_), out_v)
-                            G[str(dict_)][out_v]['name'] = out_k
-                            G.nodes[out_v]['type'] = out_v
-                            G.nodes[out_v]['optional'] = False
-                            G.nodes[out_v]['node'] = 'type'
+                            G[str(dict_)][out_v]["name"] = out_k
+                            G.nodes[out_v]["type"] = out_v
+                            G.nodes[out_v]["optional"] = False
+                            G.nodes[out_v]["node"] = "type"
     return G

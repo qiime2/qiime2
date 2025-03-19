@@ -10,7 +10,6 @@ import abc
 
 
 class IResult(metaclass=abc.ABCMeta):
-
     @abc.abstractmethod
     def _alias(self, name, provenance, ctx):
         """

@@ -18,6 +18,7 @@ class IntSequenceFormat(TextFileFormat):
     to be valid.
 
     """
+
     def _validate_n_ints(self, n):
         with self.open() as fh:
             last_val = None
@@ -25,16 +26,17 @@ class IntSequenceFormat(TextFileFormat):
                 if n is not None and idx >= n:
                     break
                 try:
-                    val = int(line.rstrip('\n'))
+                    val = int(line.rstrip("\n"))
                 except (TypeError, ValueError):
                     raise ValidationError("Line %d is not an integer." % idx)
                 if last_val is not None and last_val + 3 == val:
-                    raise ValidationError("Line %d is 3 more than line %d"
-                                          % (idx, idx-1))
+                    raise ValidationError(
+                        "Line %d is 3 more than line %d" % (idx, idx - 1)
+                    )
                 last_val = val
 
     def _validate_(self, level):
-        record_map = {'min': 5, 'max': None}
+        record_map = {"min": 5, "max": None}
         self._validate_n_ints(record_map[level])
 
 
@@ -43,9 +45,10 @@ class IntSequenceFormatV2(IntSequenceFormat):
     Same as IntSequenceFormat, but has a header "VERSION 2"
 
     """
+
     def _validate_(self, level):
         with self.open() as fh:
-            if fh.readline() != 'VERSION 2\n':
+            if fh.readline() != "VERSION 2\n":
                 raise ValidationError("Missing header: VERSION 2")
 
 
@@ -56,13 +59,16 @@ class MappingFormat(TextFileFormat):
     disallowed.
 
     """
+
     def _validate_(self, level):
         with self.open() as fh:
             for line, idx in zip(fh, range(1, 6)):
-                cells = line.rstrip('\n').split('\t')
+                cells = line.rstrip("\n").split("\t")
                 if len(cells) != 2:
-                    raise ValidationError("Line %d does not have exactly 2 "
-                                          "elements seperated by a tab." % idx)
+                    raise ValidationError(
+                        "Line %d does not have exactly 2 "
+                        "elements seperated by a tab." % idx
+                    )
 
 
 class SingleIntFormat(TextFileFormat):
@@ -70,10 +76,11 @@ class SingleIntFormat(TextFileFormat):
     Exactly one int on a single line in the file.
 
     """
+
     def _validate_(self, level):
         with self.open() as fh:
             try:
-                int(fh.readline().rstrip('\n'))
+                int(fh.readline().rstrip("\n"))
             except (TypeError, ValueError):
                 raise ValidationError("File does not contain an integer")
             if fh.readline():
@@ -81,10 +88,12 @@ class SingleIntFormat(TextFileFormat):
 
 
 IntSequenceDirectoryFormat = model.SingleFileDirectoryFormat(
-    'IntSequenceDirectoryFormat', 'ints.txt', IntSequenceFormat)
+    "IntSequenceDirectoryFormat", "ints.txt", IntSequenceFormat
+)
 
 IntSequenceV2DirectoryFormat = model.SingleFileDirectoryFormat(
-    'IntSequenceV2DirectoryFormat', 'integers.txt', IntSequenceFormatV2)
+    "IntSequenceV2DirectoryFormat", "integers.txt", IntSequenceFormatV2
+)
 
 
 class IntSequenceMultiFileDirectoryFormat(model.DirectoryFormat):
@@ -94,7 +103,7 @@ class IntSequenceMultiFileDirectoryFormat(model.DirectoryFormat):
 # This could have been a `SingleFileDirectoryFormat`, but isn't for testing
 # purposes
 class MappingDirectoryFormat(model.DirectoryFormat):
-    mapping = model.File('mapping.tsv', format=MappingFormat)
+    mapping = model.File("mapping.tsv", format=MappingFormat)
 
 
 class FourIntsDirectoryFormat(model.DirectoryFormat):
@@ -105,17 +114,19 @@ class FourIntsDirectoryFormat(model.DirectoryFormat):
     filename) and repetition of elements is allowed.
 
     """
+
     single_ints = model.FileCollection(
-        r'file[1-2]\.txt|nested/file[3-4]\.txt', format=SingleIntFormat)
+        r"file[1-2]\.txt|nested/file[3-4]\.txt", format=SingleIntFormat
+    )
 
     @single_ints.set_path_maker
     def single_ints_path_maker(self, num):
         if not 0 < num < 5:
             raise ValueError("`num` must be 1-4, not %r." % num)
         if num > 2:
-            return 'nested/file%d.txt' % num
+            return "nested/file%d.txt" % num
         else:
-            return 'file%d.txt' % num
+            return "file%d.txt" % num
 
 
 class RedundantSingleIntDirectoryFormat(model.DirectoryFormat):
@@ -123,8 +134,9 @@ class RedundantSingleIntDirectoryFormat(model.DirectoryFormat):
     Two files of SingleIntFormat which are exactly the same.
 
     """
-    int1 = model.File('file1.txt', format=SingleIntFormat)
-    int2 = model.File('file2.txt', format=SingleIntFormat)
+
+    int1 = model.File("file1.txt", format=SingleIntFormat)
+    int2 = model.File("file2.txt", format=SingleIntFormat)
 
     def _validate_(self, level):
         if self.int1.view(int) != self.int2.view(int):
@@ -138,7 +150,8 @@ class UnimportableFormat(TextFileFormat):
 
 
 UnimportableDirectoryFormat = model.SingleFileDirectoryFormat(
-    'UnimportableDirectoryFormat', 'ints.txt', UnimportableFormat)
+    "UnimportableDirectoryFormat", "ints.txt", UnimportableFormat
+)
 
 
 class EchoFormat(TextFileFormat):
@@ -147,7 +160,8 @@ class EchoFormat(TextFileFormat):
 
 
 EchoDirectoryFormat = model.SingleFileDirectoryFormat(
-    'EchoDirectoryFormat', 'echo.txt', EchoFormat)
+    "EchoDirectoryFormat", "echo.txt", EchoFormat
+)
 
 
 class Cephalapod(TextFileFormat):
@@ -158,7 +172,8 @@ class Cephalapod(TextFileFormat):
 
 
 CephalapodDirectoryFormat = model.SingleFileDirectoryFormat(
-    'CephalapodDirectoryFormat', 'squids.tsv', Cephalapod)
+    "CephalapodDirectoryFormat", "squids.tsv", Cephalapod
+)
 
 
 class ImportableOnlyFormat(TextFileFormat):

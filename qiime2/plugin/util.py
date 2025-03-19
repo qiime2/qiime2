@@ -23,7 +23,7 @@ def transform(data, *, from_type=None, to_type):
 
 
 def get_available_cores(n_less: int = 0):
-    '''
+    """
     Finds the number of currently available (logical) cores. Useful for plugins
     that need to convert a 0 to a concrete number of cores when 0 is not
     supported by the underlying/called software.
@@ -39,7 +39,7 @@ def get_available_cores(n_less: int = 0):
     -------
     int
         The number of cores to be requested.
-    '''
+    """
     cpus = psutil.cpu_count()
     if cpus is not None:
         return cpus - n_less
@@ -48,18 +48,22 @@ def get_available_cores(n_less: int = 0):
 
 
 def run_commands(cmds, verbose=True):
-    '''
+    """
     Helper method for subprocess calls. Typically used when wrapping
     external tools/methods within a QIIME 2 plugin.
-    '''
+    """
     if verbose:
-        print("Running external command line application(s). This may print "
-              "messages to stdout and/or stderr.")
-        print("The command(s) being run are below. These commands cannot "
-              "be manually re-run as they will depend on temporary files that "
-              "no longer exist.")
+        print(
+            "Running external command line application(s). This may print "
+            "messages to stdout and/or stderr."
+        )
+        print(
+            "The command(s) being run are below. These commands cannot "
+            "be manually re-run as they will depend on temporary files that "
+            "no longer exist."
+        )
     for cmd in cmds:
         if verbose:
-            print("\nCommand:", end=' ')
-            print(" ".join(cmd), end='\n\n')
+            print("\nCommand:", end=" ")
+            print(" ".join(cmd), end="\n\n")
         subprocess.run(cmd, check=True)

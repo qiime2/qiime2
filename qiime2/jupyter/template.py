@@ -11,21 +11,25 @@ import urllib.parse
 
 def make_html(location):
     url = "/qiime2/redirect?location={location}".format(
-        location=urllib.parse.quote(location))
+        location=urllib.parse.quote(location)
+    )
     # This is dark magic. An image has an onload handler, which let's me
     # grab the parent dom in an anonymous way without needing to scope the
     # output cells of Jupyter with some kind of random ID.
     # Using transparent pixel from: https://stackoverflow.com/a/14115340/579416
-    return ('<div><img onload="({anon_func})(this.parentElement, \'{url}\')"'
-            ' src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAAL'
-            'AAAAAABAAEAAAICRAEAOw==" /></div>'.format(
-                anon_func=_anonymous_function, url=url))
+    return (
+        "<div><img onload=\"({anon_func})(this.parentElement, '{url}')\""
+        ' src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAAL'
+        'AAAAAABAAEAAAICRAEAOw==" /></div>'.format(
+            anon_func=_anonymous_function, url=url
+        )
+    )
 
 
 # 404 - the extension isn't installed
 # 428 - the result went out of scope, re-run cell
 # 302->200 - set up the iframe for that location
-_anonymous_function = '''\
+_anonymous_function = """\
 function(div, url){
 if (typeof require !== 'undefined') {
     var baseURL = require.toUrl('').split('/').slice(0, -2).join('/');
@@ -56,4 +60,4 @@ fetch(url).then(function(res) {
                         ' errors.';
     }
 });
-}'''
+}"""

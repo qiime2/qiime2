@@ -30,7 +30,7 @@ def _encode_terms(namespace):
 
 
 def _handle_insdc_missing(series):
-    return series.apply(_encode_terms('INSDC:missing'))
+    return series.apply(_encode_terms("INSDC:missing"))
 
 
 def _handle_blank(series):
@@ -39,27 +39,32 @@ def _handle_blank(series):
 
 def _handle_no_missing(series):
     if series.isna().any():
-        raise ValueError("Missing values are not allowed in series/column"
-                         " (name=%r) when using scheme 'no-missing'."
-                         % series.name)
+        raise ValueError(
+            "Missing values are not allowed in series/column"
+            " (name=%r) when using scheme 'no-missing'." % series.name
+        )
     return series
 
 
 BUILTIN_MISSING = {
-    'INSDC:missing': _handle_insdc_missing,
-    'blank': _handle_blank,
-    'no-missing': _handle_no_missing
+    "INSDC:missing": _handle_insdc_missing,
+    "blank": _handle_blank,
+    "no-missing": _handle_no_missing,
 }
 _MISSING_ENUMS = {
-    'INSDC:missing': (
-        'not applicable', 'missing', 'not collected', 'not provided',
-        'restricted access')
+    "INSDC:missing": (
+        "not applicable",
+        "missing",
+        "not collected",
+        "not provided",
+        "restricted access",
+    )
 }
 
 # list index reflects the nan namespace, the "blank"/"no-missing" enums don't
 # apply here, since they aren't actually encoded in the NaNs
-_NAMESPACE_LOOKUP = ['INSDC:missing']
-DEFAULT_MISSING = 'blank'
+_NAMESPACE_LOOKUP = ["INSDC:missing"]
+DEFAULT_MISSING = "blank"
 
 
 def series_encode_missing(series: pd.Series, enumeration: str) -> pd.Series:
@@ -68,8 +73,10 @@ def series_encode_missing(series: pd.Series, enumeration: str) -> pd.Series:
     try:
         encoder = BUILTIN_MISSING[enumeration]
     except KeyError:
-        raise ValueError("Unknown enumeration: %r, (available: %r)"
-                         % (enumeration, list(BUILTIN_MISSING.keys())))
+        raise ValueError(
+            "Unknown enumeration: %r, (available: %r)"
+            % (enumeration, list(BUILTIN_MISSING.keys()))
+        )
 
     new = encoder(series)
     if series.dtype == object and new.isna().all():

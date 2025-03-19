@@ -20,10 +20,8 @@ from ..replay import replay_provenance
 class ReplayPythonUsageTests(unittest.TestCase):
     def setUp(self):
         self.pm = PluginManager()
-        self.dp = self.pm.plugins['dummy-plugin']
-        self.tempdir = tempfile.mkdtemp(
-            prefix='qiime2-test-usage-drivers-temp-'
-        )
+        self.dp = self.pm.plugins["dummy-plugin"]
+        self.tempdir = tempfile.mkdtemp(prefix="qiime2-test-usage-drivers-temp-")
 
         def return_many_ints() -> (list, list, list, list, list, list):
             return ([1, 2, 3], [4, 5, 6], [7], [4, 4], [0], [9, 8])
@@ -33,23 +31,23 @@ class ReplayPythonUsageTests(unittest.TestCase):
             inputs={},
             parameters={},
             outputs=[
-                ('ints1', IntSequence1),
-                ('ints2', IntSequence1),
-                ('ints3', IntSequence1),
-                ('ints4', IntSequence1),
-                ('ints5', IntSequence1),
-                ('ints6', IntSequence1),
+                ("ints1", IntSequence1),
+                ("ints2", IntSequence1),
+                ("ints3", IntSequence1),
+                ("ints4", IntSequence1),
+                ("ints5", IntSequence1),
+                ("ints6", IntSequence1),
             ],
             output_descriptions={
-                'ints1': 'ints',
-                'ints2': 'ints',
-                'ints3': 'ints',
-                'ints4': 'ints',
-                'ints5': 'ints',
-                'ints6': 'ints',
+                "ints1": "ints",
+                "ints2": "ints",
+                "ints3": "ints",
+                "ints4": "ints",
+                "ints5": "ints",
+                "ints6": "ints",
             },
-            name='return_many_ints',
-            description=''
+            name="return_many_ints",
+            description="",
         )
 
         def return_four_ints() -> (list, list, list, list):
@@ -60,19 +58,19 @@ class ReplayPythonUsageTests(unittest.TestCase):
             inputs={},
             parameters={},
             outputs=[
-                ('ints1', IntSequence1),
-                ('ints2', IntSequence1),
-                ('ints3', IntSequence1),
-                ('ints4', IntSequence1),
+                ("ints1", IntSequence1),
+                ("ints2", IntSequence1),
+                ("ints3", IntSequence1),
+                ("ints4", IntSequence1),
             ],
             output_descriptions={
-                'ints1': 'ints',
-                'ints2': 'ints',
-                'ints3': 'ints',
-                'ints4': 'ints',
+                "ints1": "ints",
+                "ints2": "ints",
+                "ints3": "ints",
+                "ints4": "ints",
             },
-            name='return_four_ints',
-            description=''
+            name="return_four_ints",
+            description="",
         )
 
     def tearDown(self):
@@ -89,14 +87,14 @@ class ReplayPythonUsageTests(unittest.TestCase):
         instead of:
         `_, _, thing3, _, _, _ = plugin_actions.action()...`
         """
-        ints = self.dp.actions['return_many_ints']()
+        ints = self.dp.actions["return_many_ints"]()
         first_ints = ints[0]
-        first_ints.save(os.path.join(self.tempdir, 'int-seq.qza'))
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        out_fp = os.path.join(self.tempdir, 'action_collection.txt')
+        first_ints.save(os.path.join(self.tempdir, "int-seq.qza"))
+        fp = os.path.join(self.tempdir, "int-seq.qza")
+        out_fp = os.path.join(self.tempdir, "action_collection.txt")
         replay_provenance(ReplayPythonUsage, fp, out_fp)
 
-        exp = 'action_results = dummy_plugin_actions.return_many_ints'
+        exp = "action_results = dummy_plugin_actions.return_many_ints"
         with open(out_fp) as fh:
             rendered = fh.read()
         self.assertRegex(rendered, exp)
@@ -113,14 +111,14 @@ class ReplayPythonUsageTests(unittest.TestCase):
         instead of:
         `action_results = plugin_actions.action()...`
         """
-        ints = self.dp.actions['return_four_ints']()
+        ints = self.dp.actions["return_four_ints"]()
         first_ints = ints[0]
-        first_ints.save(os.path.join(self.tempdir, 'int-seq.qza'))
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        out_fp = os.path.join(self.tempdir, 'action_collection.txt')
+        first_ints.save(os.path.join(self.tempdir, "int-seq.qza"))
+        fp = os.path.join(self.tempdir, "int-seq.qza")
+        out_fp = os.path.join(self.tempdir, "action_collection.txt")
         replay_provenance(ReplayPythonUsage, fp, out_fp)
 
-        exp = 'ints1_0, _, _, _ = dummy_plugin_actions.return_four_ints'
+        exp = "ints1_0, _, _, _ = dummy_plugin_actions.return_four_ints"
         with open(out_fp) as fh:
             rendered = fh.read()
         self.assertRegex(rendered, exp)
@@ -140,22 +138,21 @@ class ReplayPythonUsageTests(unittest.TestCase):
         instead of:
         `thing1, _, thing3, _, thing5, _ = plugin_actions.action()...`
         """
-        ints = self.dp.actions['return_four_ints']()
-        os.mkdir(os.path.join(self.tempdir, 'three-ints-dir'))
+        ints = self.dp.actions["return_four_ints"]()
+        os.mkdir(os.path.join(self.tempdir, "three-ints-dir"))
         for i in range(3):
-            out_path = os.path.join(self.tempdir, 'three-ints-dir',
-                                    f'int-seq-{i}.qza')
+            out_path = os.path.join(self.tempdir, "three-ints-dir", f"int-seq-{i}.qza")
             ints[i].save(out_path)
 
-        fp = os.path.join(self.tempdir, 'three-ints-dir')
-        out_fp = os.path.join(self.tempdir, 'action_collection.txt')
+        fp = os.path.join(self.tempdir, "three-ints-dir")
+        out_fp = os.path.join(self.tempdir, "action_collection.txt")
         replay_provenance(ReplayPythonUsage, fp, out_fp)
 
         exp = (
-            'action_results = dummy_plugin_actions.return_four_ints',
-            'ints1_0 = action_results.ints1',
-            'ints2_0 = action_results.ints2',
-            'ints3_0 = action_results.ints3'
+            "action_results = dummy_plugin_actions.return_four_ints",
+            "ints1_0 = action_results.ints1",
+            "ints2_0 = action_results.ints2",
+            "ints3_0 = action_results.ints3",
         )
         with open(out_fp) as fh:
             rendered = fh.read()
@@ -174,15 +171,15 @@ class ReplayPythonUsageTests(unittest.TestCase):
         instead of:
         `action_results = plugin_actions.action()...`
         """
-        ints1, ints2, _, _ = self.dp.actions['return_four_ints']()
-        os.mkdir(os.path.join(self.tempdir, 'two-ints-dir'))
-        ints1.save(os.path.join(self.tempdir, 'two-ints-dir', 'int-seq-1.qza'))
-        ints2.save(os.path.join(self.tempdir, 'two-ints-dir', 'int-seq-2.qza'))
-        fp = os.path.join(self.tempdir, 'two-ints-dir')
-        out_fp = os.path.join(self.tempdir, 'action_collection.txt')
+        ints1, ints2, _, _ = self.dp.actions["return_four_ints"]()
+        os.mkdir(os.path.join(self.tempdir, "two-ints-dir"))
+        ints1.save(os.path.join(self.tempdir, "two-ints-dir", "int-seq-1.qza"))
+        ints2.save(os.path.join(self.tempdir, "two-ints-dir", "int-seq-2.qza"))
+        fp = os.path.join(self.tempdir, "two-ints-dir")
+        out_fp = os.path.join(self.tempdir, "action_collection.txt")
         replay_provenance(ReplayPythonUsage, fp, out_fp)
 
-        exp = 'ints1_0, ints2_0, _, _ = dummy_plugin_actions.return_four_ints'
+        exp = "ints1_0, ints2_0, _, _ = dummy_plugin_actions.return_four_ints"
         with open(out_fp) as fh:
             rendered = fh.read()
         self.assertRegex(rendered, exp)

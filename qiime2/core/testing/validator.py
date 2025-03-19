@@ -8,8 +8,7 @@
 
 from qiime2 import Metadata
 from qiime2.plugin import ValidationError
-from .type import (Kennel, Dog, Cat, AscIntSequence, Squid, Octopus,
-                   Cuttlefish)
+from .type import Kennel, Dog, Cat, AscIntSequence, Squid, Octopus, Cuttlefish
 from .format import Cephalapod
 from .plugin import dummy_plugin
 
@@ -30,7 +29,7 @@ def validate_ascending_seq(data: list, level):
     if data == [2021, 8, 24]:
         raise KeyError
 
-    prev = float('-inf')
+    prev = float("-inf")
     for number in data:
         if not number > prev:
             raise ValidationError("%s is not greater than %s" % (number, prev))

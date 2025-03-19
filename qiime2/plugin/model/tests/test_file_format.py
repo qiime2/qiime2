@@ -18,26 +18,26 @@ class TestTextFileFormat(unittest.TestCase):
     PAYLOAD = "Somewhere over the rainbow."
 
     def setUp(self):
-        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        self.test_dir = tempfile.TemporaryDirectory(prefix="qiime2-test-temp-")
 
     def tearDown(self):
         self.test_dir.cleanup()
 
     def test_open_read_good(self):
-        path = os.path.join(self.test_dir.name, 'file')
-        with open(path, 'w', encoding='utf-8') as fh:
+        path = os.path.join(self.test_dir.name, "file")
+        with open(path, "w", encoding="utf-8") as fh:
             fh.write(self.PAYLOAD)
 
-        ff = model.TextFileFormat(path, mode='r')
+        ff = model.TextFileFormat(path, mode="r")
         with ff.open() as fh:
             self.assertEqual(self.PAYLOAD, fh.read())
 
     def test_open_read_ignore_bom(self):
-        path = os.path.join(self.test_dir.name, 'file')
-        with open(path, 'w', encoding='utf-8-sig') as fh:
+        path = os.path.join(self.test_dir.name, "file")
+        with open(path, "w", encoding="utf-8-sig") as fh:
             fh.write(self.PAYLOAD)
 
-        ff = model.TextFileFormat(path, mode='r')
+        ff = model.TextFileFormat(path, mode="r")
         with ff.open() as fh:
             self.assertEqual(self.PAYLOAD, fh.read())
 
@@ -47,7 +47,7 @@ class TestTextFileFormat(unittest.TestCase):
         with ff.open() as fh:
             fh.write(self.PAYLOAD)
 
-        with open(str(ff), mode='r', encoding='utf-8') as fh:
+        with open(str(ff), mode="r", encoding="utf-8") as fh:
             self.assertEqual(self.PAYLOAD, fh.read())
 
     def test_open_write_no_bom(self):
@@ -56,19 +56,19 @@ class TestTextFileFormat(unittest.TestCase):
         with ff.open() as fh:
             fh.write(self.PAYLOAD)
 
-        with open(str(ff), mode='rb') as fh:
-            self.assertEqual(b'S', fh.read(1))
+        with open(str(ff), mode="rb") as fh:
+            self.assertEqual(b"S", fh.read(1))
 
 
 class TestFileFormat(unittest.TestCase):
     def setUp(self):
-        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        self.test_dir = tempfile.TemporaryDirectory(prefix="qiime2-test-temp-")
 
-        path = os.path.join(self.test_dir.name, 'int')
-        with open(path, 'w') as fh:
-            fh.write('1')
+        path = os.path.join(self.test_dir.name, "int")
+        with open(path, "w") as fh:
+            fh.write("1")
 
-        self.format = SingleIntFormat(path, mode='r')
+        self.format = SingleIntFormat(path, mode="r")
 
     def tearDown(self):
         self.test_dir.cleanup()
@@ -79,9 +79,10 @@ class TestFileFormat(unittest.TestCase):
 
     def test_view_invalid_type(self):
         with self.assertRaisesRegex(
-                Exception, "No transformation.*SingleIntFormat.*float"):
+            Exception, "No transformation.*SingleIntFormat.*float"
+        ):
             self.format.view(float)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

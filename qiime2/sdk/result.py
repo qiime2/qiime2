@@ -34,8 +34,7 @@ from qiime2.sdk.iresult import IResult
 # explicit.
 
 
-ResultMetadata = collections.namedtuple('ResultMetadata',
-                                        ['uuid', 'type', 'format'])
+ResultMetadata = collections.namedtuple("ResultMetadata", ["uuid", "type", "format"])
 
 
 class Result(IResult):
@@ -83,11 +82,13 @@ class Result(IResult):
             except OSError as e:
                 if e.errno == 28:
                     temp = tempfile.tempdir
-                    raise ValueError(f'There was not enough space left on '
-                                     f'{temp!r} to extract the artifact '
-                                     f'{filepath!r}. (Try setting $TMPDIR to '
-                                     'a directory with more space, or '
-                                     f'increasing the size of {temp!r})')
+                    raise ValueError(
+                        f"There was not enough space left on "
+                        f"{temp!r} to extract the artifact "
+                        f"{filepath!r}. (Try setting $TMPDIR to "
+                        "a directory with more space, or "
+                        f"increasing the size of {temp!r})"
+                    )
                 else:
                     raise e
 
@@ -98,14 +99,14 @@ class Result(IResult):
         else:
             raise TypeError(
                 "Cannot load filepath %r into an Artifact or Visualization "
-                "because type %r is not supported."
-                % (filepath, archiver.type))
+                "because type %r is not supported." % (filepath, archiver.type)
+            )
 
         if type(result) is not cls and cls is not Result:
             raise TypeError(
                 "Attempting to load %s with `%s.load`. Use `%s.load` instead."
-                % (type(result).__name__, cls.__name__,
-                   type(result).__name__))
+                % (type(result).__name__, cls.__name__, type(result).__name__)
+            )
 
         result._archiver = archiver
         return result
@@ -119,14 +120,14 @@ class Result(IResult):
         else:
             raise TypeError(
                 "Cannot load filepath %r into an Artifact or Visualization "
-                "because type %r is not supported."
-                % (archiver.path, archiver.type))
+                "because type %r is not supported." % (archiver.path, archiver.type)
+            )
 
         if type(result) is not cls and cls is not Result:
             raise TypeError(
                 "Attempting to load %s with `%s.load`. Use `%s.load` instead."
-                % (type(result).__name__, cls.__name__,
-                   type(result).__name__))
+                % (type(result).__name__, cls.__name__, type(result).__name__)
+            )
 
         result._archiver = archiver
         return result
@@ -151,7 +152,8 @@ class Result(IResult):
         raise NotImplementedError(
             "%(classname)s constructor is private, use `%(classname)s.load`, "
             "`%(classname)s.peek`, or `%(classname)s.extract`."
-            % {'classname': self.__class__.__name__})
+            % {"classname": self.__class__.__name__}
+        )
 
     def __new__(cls):
         result = object.__new__(cls)
@@ -159,8 +161,11 @@ class Result(IResult):
         return result
 
     def __repr__(self):
-        return ("<%s: %r uuid: %s>"
-                % (self.__class__.__name__.lower(), self.type, self.uuid))
+        return "<%s: %r uuid: %s>" % (
+            self.__class__.__name__.lower(),
+            self.type,
+            self.uuid,
+        )
 
     def __hash__(self):
         return hash(self.uuid)
@@ -171,17 +176,13 @@ class Result(IResult):
         # different type that happens to have a `.uuid` property. We want to
         # ensure (as best as we can) that the UUIDs we are comparing are linked
         # to the same type of QIIME 2 object.
-        return (
-            type(self) is type(other) and
-            self.uuid == other.uuid
-        )
+        return type(self) is type(other) and self.uuid == other.uuid
 
     def __ne__(self, other):
         return not (self == other)
 
     def export_data(self, output_dir):
-        distutils.dir_util.copy_tree(
-            str(self._archiver.data_dir), str(output_dir))
+        distutils.dir_util.copy_tree(str(self._archiver.data_dir), str(output_dir))
         # Return None for now, although future implementations that include
         # format tranformations may return the invoked transformers
         return None
@@ -226,8 +227,8 @@ class Result(IResult):
         # and ensures that there is only a single period in the ext.
         # Caste to str incase we received a pathlib.Path or similar
         filepath = str(filepath)
-        filepath = filepath.rstrip('.')
-        ext = '.' + ext.lstrip('.')
+        filepath = filepath.rstrip(".")
+        ext = "." + ext.lstrip(".")
 
         if not filepath.endswith(ext):
             filepath += ext
@@ -243,17 +244,22 @@ class Result(IResult):
             # can rmdir so that copytree is happy
             into.rmdir()
             try:
-                shutil.copytree(str(self._archiver.data_dir), str(into),
-                                copy_function=qiime2.util.duplicate)
+                shutil.copytree(
+                    str(self._archiver.data_dir),
+                    str(into),
+                    copy_function=qiime2.util.duplicate,
+                )
             except shutil.Error:
                 # Try again with full copy not links
-                shutil.copytree(str(self._archiver.data_dir), str(into),
-                                dirs_exist_ok=True)
+                shutil.copytree(
+                    str(self._archiver.data_dir), str(into), dirs_exist_ok=True
+                )
 
         cls = type(self)
         alias = cls.__new__(cls)
         alias._archiver = archive.Archiver.from_data(
-            self.type, self.format, clone_original, provenance_capture)
+            self.type, self.format, clone_original, provenance_capture
+        )
 
         return ctx.add_reference(alias)
 
@@ -272,19 +278,18 @@ class Result(IResult):
                 error += "  - %r\n" % key
             if diff.changed:
                 error += "Changed files:\n"
-            for (key, (exp, obs)) in diff.changed.items():
+            for key, (exp, obs) in diff.changed.items():
                 error += "  - %r: %s -> %s\n" % (key, exp, obs)
 
             raise exceptions.ValidationError(error)
 
     def result(self):
-        """ Noop to provide standardized interface with ProxyResult.
-        """
+        """Noop to provide standardized interface with ProxyResult."""
         return self
 
 
 class Artifact(Result):
-    extension = '.qza'
+    extension = ".qza"
 
     @classmethod
     def _is_valid_type(cls, type_):
@@ -294,10 +299,10 @@ class Artifact(Result):
             return False
 
     @classmethod
-    def import_data(cls, type, view, view_type=None, validate_level='max'):
-        type_, type = type, __builtins__['type']
+    def import_data(cls, type, view, view_type=None, validate_level="max"):
+        type_, type = type, __builtins__["type"]
 
-        if validate_level not in ('min', 'max'):
+        if validate_level not in ("min", "max"):
             raise ValueError("Expected 'min' or 'max' for `validate_level`.")
 
         is_format = False
@@ -309,8 +314,9 @@ class Artifact(Result):
             is_format = True
         # This ensures that when view_type is provided as a python class
         # or base class, the checksum is still performed
-        elif (isinstance(view_type, type) and
-              issubclass(view_type, qiime2.core.format.FormatBase)):
+        elif isinstance(view_type, type) and issubclass(
+            view_type, qiime2.core.format.FormatBase
+        ):
             is_format = True
 
         if view_type is None:
@@ -319,11 +325,13 @@ class Artifact(Result):
                 pm = qiime2.sdk.PluginManager()
                 output_dir_fmt = pm.get_directory_format(type_)
                 if pathlib.Path(view).is_file():
-                    if not issubclass(output_dir_fmt,
-                                      model.SingleFileDirectoryFormatBase):
+                    if not issubclass(
+                        output_dir_fmt, model.SingleFileDirectoryFormatBase
+                    ):
                         raise qiime2.plugin.ValidationError(
                             "Importing %r requires a directory, not %s"
-                            % (output_dir_fmt.__name__, view))
+                            % (output_dir_fmt.__name__, view)
+                        )
                     view_type = output_dir_fmt.file.format
                 else:
                     view_type = output_dir_fmt
@@ -343,25 +351,26 @@ class Artifact(Result):
             elif path.is_dir():
                 md5sums = util.md5sum_directory(path)
             else:
-                raise qiime2.plugin.ValidationError(
-                    "Path '%s' does not exist." % path)
+                raise qiime2.plugin.ValidationError("Path '%s' does not exist." % path)
             format_ = view_type
 
         provenance_capture = archive.ImportProvenanceCapture(format_, md5sums)
-        return cls._from_view(type_, view, view_type, provenance_capture,
-                              validate_level=validate_level)
+        return cls._from_view(
+            type_, view, view_type, provenance_capture, validate_level=validate_level
+        )
 
     @classmethod
-    def _from_view(cls, type, view, view_type, provenance_capture,
-                   validate_level='min'):
+    def _from_view(
+        cls, type, view, view_type, provenance_capture, validate_level="min"
+    ):
         type_raw = type
         if isinstance(type, str):
             type = qiime2.sdk.parse_type(type)
 
         if not cls._is_valid_type(type):
             raise TypeError(
-                "An artifact requires a concrete semantic type, not type %r."
-                % type)
+                "An artifact requires a concrete semantic type, not type %r." % type
+            )
 
         pm = qiime2.sdk.PluginManager()
         output_dir_fmt = pm.get_directory_format(type)
@@ -373,9 +382,8 @@ class Artifact(Result):
         from_type = transform.ModelType.from_view_type(view_type)
         to_type = transform.ModelType.from_view_type(output_dir_fmt)
 
-        recorder = provenance_capture.transformation_recorder('return')
-        transformation = from_type.make_transformation(to_type,
-                                                       recorder=recorder)
+        recorder = provenance_capture.transformation_recorder("return")
+        transformation = from_type.make_transformation(to_type, recorder=recorder)
         result = transformation(view, validate_level)
 
         if type_raw in pm.validators:
@@ -384,9 +392,11 @@ class Artifact(Result):
 
         artifact = cls.__new__(cls)
         artifact._archiver = archive.Archiver.from_data(
-            type, output_dir_fmt,
+            type,
+            output_dir_fmt,
             data_initializer=result.path._move_or_copy,
-            provenance_capture=provenance_capture)
+            provenance_capture=provenance_capture,
+        )
         return artifact
 
     def view(self, view_type):
@@ -394,8 +404,7 @@ class Artifact(Result):
 
     def _view(self, view_type, recorder=None):
         if view_type is qiime2.Metadata and not self.has_metadata():
-            raise TypeError(
-                "Artifact %r cannot be viewed as QIIME 2 Metadata." % self)
+            raise TypeError("Artifact %r cannot be viewed as QIIME 2 Metadata." % self)
 
         from_type = transform.ModelType.from_view_type(self.format)
 
@@ -405,7 +414,8 @@ class Artifact(Result):
                 to_type = transform.ModelType.from_view_type(arg)
                 try:
                     transformation = from_type.make_transformation(
-                        to_type, recorder=recorder)
+                        to_type, recorder=recorder
+                    )
                     if transformation:
                         break
                 except Exception as e:
@@ -415,13 +425,12 @@ class Artifact(Result):
                         raise e
             if not transformation:
                 raise Exception(
-                    "No transformation into either of %s was found" %
-                    ", ".join([str(x) for x in view_type.__args__])
+                    "No transformation into either of %s was found"
+                    % ", ".join([str(x) for x in view_type.__args__])
                 )
         else:
             to_type = transform.ModelType.from_view_type(view_type)
-            transformation = from_type.make_transformation(to_type,
-                                                           recorder=recorder)
+            transformation = from_type.make_transformation(to_type, recorder=recorder)
         result = transformation(self._archiver.data_dir)
 
         if view_type is qiime2.Metadata:
@@ -431,7 +440,7 @@ class Artifact(Result):
         return result
 
     def has_metadata(self):
-        """ Checks for metadata within an artifact
+        """Checks for metadata within an artifact
 
         Returns
         -------
@@ -444,8 +453,8 @@ class Artifact(Result):
         to_type = transform.ModelType.from_view_type(qiime2.Metadata)
         return from_type.has_transformation(to_type)
 
-    def validate(self, level='max'):
-        """ Validates the data contents of an artifact
+    def validate(self, level="max"):
+        """Validates the data contents of an artifact
 
         Raises
         ------
@@ -458,7 +467,7 @@ class Artifact(Result):
 
 
 class Visualization(Result):
-    extension = '.qzv'
+    extension = ".qzv"
 
     @classmethod
     def _is_valid_type(cls, type_):
@@ -468,57 +477,60 @@ class Visualization(Result):
     def _from_data_dir(cls, data_dir, provenance_capture):
         # shutil.copytree doesn't allow the destination directory to exist.
         def data_initializer(destination):
-            return distutils.dir_util.copy_tree(
-                str(data_dir), str(destination))
+            return distutils.dir_util.copy_tree(str(data_dir), str(destination))
 
         viz = cls.__new__(cls)
         viz._archiver = archive.Archiver.from_data(
-            qiime2.core.type.Visualization, None,
+            qiime2.core.type.Visualization,
+            None,
             data_initializer=data_initializer,
-            provenance_capture=provenance_capture)
+            provenance_capture=provenance_capture,
+        )
         return viz
 
     def get_index_paths(self, relative=True):
         result = {}
         for abspath in self._archiver.data_dir.iterdir():
             data_path = str(abspath.relative_to(self._archiver.data_dir))
-            if data_path.startswith('index.'):
+            if data_path.startswith("index."):
                 relpath = abspath.relative_to(self._archiver.root_dir)
                 ext = relpath.suffix[1:]
                 if ext in result:
                     raise ValueError(
                         "Multiple index files identified with %s "
                         "extension (%s, %s). This is currently "
-                        "unsupported." %
-                        (ext, result[ext], relpath))
+                        "unsupported." % (ext, result[ext], relpath)
+                    )
                 else:
                     result[ext] = str(relpath) if relative else str(abspath)
         return result
 
     def _repr_html_(self):
         from qiime2.jupyter import make_html
+
         return make_html(str(self._archiver.path))
 
 
 class ResultCollection:
     @classmethod
     def load(cls, directory):
-        """ Determines how to load a Collection of QIIME 2 Artifacts in a
-            directory and dispatches to helpers
+        """Determines how to load a Collection of QIIME 2 Artifacts in a
+        directory and dispatches to helpers
         """
         if not os.path.isdir(directory):
-            raise ValueError(
-                f"Given filepath '{directory}' is not a directory")
+            raise ValueError(f"Given filepath '{directory}' is not a directory")
 
-        order_fp = os.path.join(directory, '.order')
+        order_fp = os.path.join(directory, ".order")
 
         if os.path.isfile(order_fp):
             collection = cls._load_ordered(directory, order_fp)
         else:
-            warnings.warn(f"The directory '{directory}' does not contain a "
-                          ".order file. The files will be read into the "
-                          "collection in the order the filesystem provides "
-                          "them in.")
+            warnings.warn(
+                f"The directory '{directory}' does not contain a "
+                ".order file. The files will be read into the "
+                "collection in the order the filesystem provides "
+                "them in."
+            )
             collection = cls._load_unordered(directory)
 
         return collection
@@ -527,7 +539,7 @@ class ResultCollection:
     def _load_ordered(cls, directory, order_fp):
         collection = cls()
 
-        with open(order_fp, 'r') as order_fh:
+        with open(order_fp, "r") as order_fh:
             for result_name in order_fh.read().splitlines():
                 result_fp = cls._get_result_fp(directory, result_name)
                 collection[result_name] = Result.load(result_fp)
@@ -540,8 +552,8 @@ class ResultCollection:
 
         for result in os.listdir(directory):
             result_fp = os.path.join(directory, result)
-            result_name = result.rstrip('.qza')
-            result_name = result_name.rstrip('.qzv')
+            result_name = result.rstrip(".qza")
+            result_name = result_name.rstrip(".qzv")
 
             collection[result_name] = Result.load(result_fp)
 
@@ -554,17 +566,18 @@ class ResultCollection:
         # Check if thing in .order file exists and if not try it with .qza at
         # the end and if not try it with .qzv at the end
         if not os.path.isfile(result_fp):
-            result_fp += '.qza'
+            result_fp += ".qza"
 
             if not os.path.isfile(result_fp):
                 # Get rid of the trailing .qza before adding .qzv
                 result_fp = result_fp[:-4]
-                result_fp += '.qzv'
+                result_fp += ".qzv"
 
                 if not os.path.isfile(result_fp):
                     raise ValueError(
                         f"The Result '{result_name}' is referenced in the "
-                        "order file but does not exist in the directory.")
+                        "order file but does not exist in the directory."
+                    )
 
         return result_fp
 
@@ -587,8 +600,10 @@ class ResultCollection:
         elif isinstance(other, ResultCollection):
             return self.collection == other.collection
         else:
-            raise TypeError(f"Equality between '{type(other)}' and "
-                            "ResultCollection is undefined.")
+            raise TypeError(
+                f"Equality between '{type(other)}' and "
+                "ResultCollection is undefined."
+            )
 
     def __len__(self):
         return len(self.collection)
@@ -609,37 +624,40 @@ class ResultCollection:
     @property
     def type(self):
         inner_type = qiime2.core.type.grammar.UnionExp(
-            v.type for v in self.collection.values()).normalize()
+            v.type for v in self.collection.values()
+        ).normalize()
 
         return qiime2.core.type.Collection[inner_type]
 
     @property
     def extension(self):
-        if str(self.type) == 'Collection[Visualization]':
-            return '.qzv'
+        if str(self.type) == "Collection[Visualization]":
+            return ".qzv"
 
-        return '.qza'
+        return ".qza"
 
     def save(self, directory):
         """Saves a collection of QIIME 2 Results into a given directory with
-           an order file.
+        an order file.
 
-           NOTE: The directory given must not exist
+        NOTE: The directory given must not exist
         """
         if os.path.exists(directory):
-            raise ValueError(f"The given directory '{directory}' already "
-                             "exists. A new directory must be given to save "
-                             "the collection to.")
+            raise ValueError(
+                f"The given directory '{directory}' already "
+                "exists. A new directory must be given to save "
+                "the collection to."
+            )
 
         os.makedirs(directory)
 
-        order_string = ''
+        order_string = ""
         for name, result in self.collection.items():
             result_fp = os.path.join(directory, name)
             result.save(result_fp)
-            order_string += f'{name}\n'
+            order_string += f"{name}\n"
 
-        with open(os.path.join(directory, '.order'), 'w') as fh:
+        with open(os.path.join(directory, ".order"), "w") as fh:
             fh.write(order_string)
 
         # Do this to give us a unified API with Result.save
@@ -647,16 +665,18 @@ class ResultCollection:
 
     def save_unordered(self, directory):
         """Saves a collection of QIIME 2 Results into a given directory without
-           an order file. This is used by q2galaxy where an order file will be
-           interpreted as another dataset in the collection which is not
-           desirable
+        an order file. This is used by q2galaxy where an order file will be
+        interpreted as another dataset in the collection which is not
+        desirable
 
-           NOTE: The directory given must not exist
+        NOTE: The directory given must not exist
         """
         if os.path.exists(directory):
-            raise ValueError(f"The given directory '{directory}' already "
-                             "exists. A new directory must be given to save "
-                             "the collection to.")
+            raise ValueError(
+                f"The given directory '{directory}' already "
+                "exists. A new directory must be given to save "
+                "the collection to."
+            )
 
         os.makedirs(directory)
 
@@ -681,6 +701,5 @@ class ResultCollection:
             result.validate(view, level)
 
     def result(self):
-        """ Noop to provide standardized interface with ProxyResultCollection.
-        """
+        """Noop to provide standardized interface with ProxyResultCollection."""
         return self

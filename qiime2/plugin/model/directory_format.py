@@ -54,9 +54,10 @@ class FileCollection(File):
 
         if self._path_maker is None:
             raise NotImplementedError(
-                    "FileCollection: {} missing pathmaker"
-                    " definition. To set one add use `@{}.set_path_maker`"
-                    " decorator to assign one".format(self.name, self.name))
+                "FileCollection: {} missing pathmaker"
+                " definition. To set one add use `@{}.set_path_maker`"
+                " decorator to assign one".format(self.name, self.name)
+            )
 
         return BoundFileCollection(self, obj, path_maker=self._path_maker)
 
@@ -83,7 +84,7 @@ class BoundFile:
 
     def write_data(self, view, view_type, **kwargs):
         # TODO: make `view_type` optional like in `Artifact.import_data`
-        if self.mode != 'w':
+        if self.mode != "w":
             raise TypeError("Cannot use `set`/`add` when mode=%r" % self.mode)
         from_type = transform.ModelType.from_view_type(view_type)
         to_type = transform.ModelType.from_view_type(self.format)
@@ -99,29 +100,34 @@ class BoundFile:
             if re.fullmatch(self.pathspec, str(path.relative_to(root))):
                 if collected_paths[path]:
                     # Not a ValidationError, this just shouldn't happen.
-                    raise ValueError("%r was already validated by another"
-                                     " field, the pathspecs (regexes) must"
-                                     " overlap." % path)
+                    raise ValueError(
+                        "%r was already validated by another"
+                        " field, the pathspecs (regexes) must"
+                        " overlap." % path
+                    )
                 collected_paths[path] = True
                 found_members = True
-                self.format(path, mode='r').validate(level)
+                self.format(path, mode="r").validate(level)
         if not found_members and not self.optional:
             raise ValidationError(
                 "Missing one or more files for %s: %r"
-                % (self._directory_format.__class__.__name__, self.pathspec))
+                % (self._directory_format.__class__.__name__, self.pathspec)
+            )
 
     @property
     def path_maker(self):
         def bound_path_maker(**kwargs):
             # Must wrap in a naive Path, otherwise an OutPath would be summoned
             # into this world, and would destroy everything in its path.
-            path = (pathlib.Path(self._directory_format.path) /
-                    self._path_maker(self._directory_format, **kwargs))
+            path = pathlib.Path(self._directory_format.path) / self._path_maker(
+                self._directory_format, **kwargs
+            )
             # NOTE: path makers are bound to the directory format, so must be
             # provided as the first argument which will look like `self` to
             # the plugin-dev.
             path.parent.mkdir(parents=True, exist_ok=True)
             return path
+
         return bound_path_maker
 
 
@@ -136,8 +142,11 @@ class BoundFileCollection(BoundFile):
     def iter_views(self, view_type):
         # Don't want an OutPath, just a Path
         root = pathlib.Path(self._directory_format.path)
-        paths = [fp for fp in sorted(root.glob('**/*'))
-                 if re.match(self.pathspec, str(fp.relative_to(root)))]
+        paths = [
+            fp
+            for fp in sorted(root.glob("**/*"))
+            if re.match(self.pathspec, str(fp.relative_to(root)))
+        ]
         from_type = transform.ModelType.from_view_type(self.format)
         to_type = transform.ModelType.from_view_type(view_type)
 
@@ -150,7 +159,7 @@ class BoundFileCollection(BoundFile):
 class _DirectoryMeta(type):
     def __init__(self, name, bases, dct):
         super().__init__(name, bases, dct)
-        if hasattr(self, '_fields'):
+        if hasattr(self, "_fields"):
             fields = self._fields.copy()
         else:
             fields = []
@@ -165,14 +174,16 @@ class _DirectoryMeta(type):
 
 
 class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
-    def validate(self, level='max'):
+    def validate(self, level="max"):
         _check_validation_level(level)
 
         if not self.path.is_dir():
             raise ValidationError("%s is not a directory." % self.path)
-        collected_paths = {p: None for p in self.path.glob('**/*')
-                           if not p.name.startswith('.') and
-                           p.is_file()}
+        collected_paths = {
+            p: None
+            for p in self.path.glob("**/*")
+            if not p.name.startswith(".") and p.is_file()
+        }
         for field in self._fields:
             getattr(self, field)._validate_members(collected_paths, level)
 
@@ -180,20 +191,21 @@ class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
             if value:
                 continue
             if value is None:
-                raise ValidationError("Unrecognized file (%s) for %s."
-                                      % (path, self.__class__.__name__))
-        if hasattr(self, '_validate_'):
+                raise ValidationError(
+                    "Unrecognized file (%s) for %s." % (path, self.__class__.__name__)
+                )
+        if hasattr(self, "_validate_"):
             try:
                 self._validate_(level)
             except ValidationError as e:
                 raise ValidationError(
                     "%s is not a(n) %s:\n\n%s"
                     % (self.path, self.__class__.__name__, str(e))
-                    ) from e
+                ) from e
 
     def save(self, path, ext=None):
         path = str(path)  # in case of pathlib.Path
-        path = path.rstrip('.')
+        path = path.rstrip(".")
 
         # ignore the extension when saving a directory
         shutil.copytree(self.path, path)
@@ -209,7 +221,8 @@ def SingleFileDirectoryFormat(name, pathspec, format):
     # (arguably the code is going to be broken if defined dynamically anyways,
     # but better to find that out later than writing in the module namespace
     # even if it isn't called module-level [which is must be!])
-    df = type(name, (SingleFileDirectoryFormatBase,),
-              {'file': File(pathspec, format=format)})
-    df.__module__ = sys._getframe(1).f_globals.get('__name__', '__main__')
+    df = type(
+        name, (SingleFileDirectoryFormatBase,), {"file": File(pathspec, format=format)}
+    )
+    df.__module__ = sys._getframe(1).f_globals.get("__name__", "__main__")
     return df

@@ -17,14 +17,22 @@ Core objects:
 
 from .parse import ProvDAG, archive_not_parsed
 from .replay import (
-    replay_provenance, replay_citations, replay_supplement,
+    replay_provenance,
+    replay_citations,
+    replay_supplement,
 )
 from .util import get_root_uuid, get_nonroot_uuid
 from .usage_drivers import ReplayPythonUsage
 from .tests.testing_utilities import DummyArtifacts
 
 __all__ = [
-    'ProvDAG', 'archive_not_parsed', 'get_root_uuid', 'get_nonroot_uuid',
-    'replay_provenance', 'replay_citations', 'replay_supplement',
-    'ReplayPythonUsage', 'DummyArtifacts'
+    "ProvDAG",
+    "archive_not_parsed",
+    "get_root_uuid",
+    "get_nonroot_uuid",
+    "replay_provenance",
+    "replay_citations",
+    "replay_supplement",
+    "ReplayPythonUsage",
+    "DummyArtifacts",
 ]

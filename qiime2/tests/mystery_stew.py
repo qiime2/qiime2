@@ -16,13 +16,14 @@ import pytest
 
 
 def _labeler(val):
-    if hasattr(val, 'id'):
+    if hasattr(val, "id"):
         return val.id
     return val
 
 
 def get_tests():
     import qiime2.sdk
+
     tests = []
 
     try:
@@ -30,7 +31,7 @@ def get_tests():
     except qiime2.sdk.UninitializedPluginManagerError:
         import os
 
-        if 'MYSTERY_STEW' in os.environ:
+        if "MYSTERY_STEW" in os.environ:
             from q2_mystery_stew.plugin_setup import create_plugin
 
             the_stew = create_plugin()
@@ -40,7 +41,7 @@ def get_tests():
         pm = qiime2.sdk.PluginManager()
 
     try:
-        plugin = pm.plugins['mystery-stew']
+        plugin = pm.plugins["mystery-stew"]
     except KeyError:
         return tests
     for action in plugin.actions.values():
@@ -49,7 +50,7 @@ def get_tests():
     return tests
 
 
-@pytest.mark.parametrize('action,example', get_tests(), ids=_labeler)
+@pytest.mark.parametrize("action,example", get_tests(), ids=_labeler)
 def test_mystery_stew(action, example):
     example_f = action.examples[example]
     use = ArtifactAPIUsage(enable_assertions=True)

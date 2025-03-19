@@ -12,8 +12,7 @@ from .base import Context
 
 
 def _subprocess_apply(ctx, args, kwargs):
-    exe = ctx.action_obj._bind(
-        lambda: Context(ctx), {'type': 'asynchronous'})
+    exe = ctx.action_obj._bind(lambda: Context(ctx), {"type": "asynchronous"})
     results = exe(*args, **kwargs)
 
     return results
@@ -25,9 +24,9 @@ class AsynchronousContext(Context):
         # https://github.com/qiime2/qiime2/issues/73
         try:
             import matplotlib as plt
-            if plt.rcParams['backend'].lower() == 'macosx':
-                raise EnvironmentError(backend_error_template %
-                                       plt.matplotlib_fname())
+
+            if plt.rcParams["backend"].lower() == "macosx":
+                raise EnvironmentError(backend_error_template % plt.matplotlib_fname())
         except ImportError:
             pass
 

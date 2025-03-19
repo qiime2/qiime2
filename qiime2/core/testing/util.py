@@ -16,13 +16,14 @@ import qiime2.sdk
 
 def get_dummy_plugin():
     plugin_manager = qiime2.sdk.PluginManager()
-    if 'dummy-plugin' not in plugin_manager.plugins:
+    if "dummy-plugin" not in plugin_manager.plugins:
         raise RuntimeError(
             "When running QIIME 2 unit tests, the QIIMETEST environment "
             "variable must be defined so that plugins required by unit tests "
             "are loaded. The value of the QIIMETEST environment variable can "
-            "be anything. Example command: QIIMETEST=1 nosetests")
-    return plugin_manager.plugins['dummy-plugin']
+            "be anything. Example command: QIIMETEST=1 nosetests"
+        )
+    return plugin_manager.plugins["dummy-plugin"]
 
 
 class ArchiveTestingMixin:
@@ -48,12 +49,12 @@ class ArchiveTestingMixin:
         """
         archive_filepath = str(archive_filepath)
         root_dir = str(root_dir)
-        with zipfile.ZipFile(archive_filepath, mode='r') as zf:
+        with zipfile.ZipFile(archive_filepath, mode="r") as zf:
             observed = set(zf.namelist())
 
         # Path separator '/' is hardcoded because paths in the zipfile will
         # always use this separator.
-        expected = {root_dir + '/' + member for member in expected}
+        expected = {root_dir + "/" + member for member in expected}
 
         self.assertEqual(observed, expected)
 
@@ -81,8 +82,7 @@ class ArchiveTestingMixin:
             for filename in filenames:
                 observed.add(os.path.join(root, filename))
 
-        expected = {os.path.join(extract_dir, root_dir, member)
-                    for member in expected}
+        expected = {os.path.join(extract_dir, root_dir, member) for member in expected}
 
         self.assertEqual(observed, expected)
 
@@ -121,5 +121,6 @@ class PipelineError(Exception):
     """This error is raised by the dummy-plugin pipelines that are designed to
     fail and be rerun to test pipeline resumption.
     """
+
     def __init__(self, uuids):
         self.uuids = uuids

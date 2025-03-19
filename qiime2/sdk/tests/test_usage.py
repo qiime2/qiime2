@@ -18,7 +18,7 @@ from qiime2 import Metadata, Artifact, ResultCollection
 
 class TestCaseUsage(unittest.TestCase):
     def setUp(self):
-        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        self.test_dir = tempfile.TemporaryDirectory(prefix="qiime2-test-temp-")
         self.plugin = get_dummy_plugin()
 
     def tearDown(self):
@@ -27,71 +27,71 @@ class TestCaseUsage(unittest.TestCase):
 
 class TestAssertUsageVarType(TestCaseUsage):
     def test_success(self):
-        var = usage.UsageVariable('a', lambda: None, 'artifact', None)
-        usage.assert_usage_var_type(var, 'artifact')
+        var = usage.UsageVariable("a", lambda: None, "artifact", None)
+        usage.assert_usage_var_type(var, "artifact")
         self.assertTrue(True)
 
     def test_failure(self):
-        var = usage.UsageVariable('a', lambda: None, 'artifact', None)
-        with self.assertRaisesRegex(AssertionError,
-                                    'Incorrect.*a,.*visualization.*artifact'):
-            usage.assert_usage_var_type(var, 'visualization')
+        var = usage.UsageVariable("a", lambda: None, "artifact", None)
+        with self.assertRaisesRegex(
+            AssertionError, "Incorrect.*a,.*visualization.*artifact"
+        ):
+            usage.assert_usage_var_type(var, "visualization")
 
 
 class TestUsageAction(TestCaseUsage):
     def test_successful_init(self):
-        obs = usage.UsageAction(plugin_id='foo', action_id='bar')
-        self.assertEqual('foo', obs.plugin_id)
-        self.assertEqual('bar', obs.action_id)
+        obs = usage.UsageAction(plugin_id="foo", action_id="bar")
+        self.assertEqual("foo", obs.plugin_id)
+        self.assertEqual("bar", obs.action_id)
 
     def test_invalid_plugin_id(self):
-        with self.assertRaisesRegex(ValueError,
-                                    'specify a value for plugin_id'):
-            usage.UsageAction(plugin_id='', action_id='bar')
+        with self.assertRaisesRegex(ValueError, "specify a value for plugin_id"):
+            usage.UsageAction(plugin_id="", action_id="bar")
 
     def test_invalid_action_id(self):
-        with self.assertRaisesRegex(ValueError,
-                                    'specify a value for action_id'):
-            usage.UsageAction(plugin_id='foo', action_id='')
+        with self.assertRaisesRegex(ValueError, "specify a value for action_id"):
+            usage.UsageAction(plugin_id="foo", action_id="")
 
     def test_successful_get_action(self):
-        ua = usage.UsageAction(
-            plugin_id='dummy_plugin', action_id='concatenate_ints')
+        ua = usage.UsageAction(plugin_id="dummy_plugin", action_id="concatenate_ints")
         obs_action_f = ua.get_action()
 
         self.assertTrue(isinstance(obs_action_f, action.Method))
 
     def test_unknown_action_get_action(self):
         ua = usage.UsageAction(
-            plugin_id='dummy_plugin', action_id='concatenate_spleens')
-        with self.assertRaisesRegex(KeyError,
-                                    'No action.*concatenate_spleens'):
+            plugin_id="dummy_plugin", action_id="concatenate_spleens"
+        )
+        with self.assertRaisesRegex(KeyError, "No action.*concatenate_spleens"):
             ua.get_action()
 
-    @mock.patch('qiime2.sdk.PluginManager.reuse_existing',
-                side_effect=UninitializedPluginManagerError)
+    @mock.patch(
+        "qiime2.sdk.PluginManager.reuse_existing",
+        side_effect=UninitializedPluginManagerError,
+    )
     def test_uninitialized_plugin_manager(self, _):
-        with self.assertRaisesRegex(UninitializedPluginManagerError,
-                                    'create an instance of sdk.PluginManager'):
-            usage.UsageAction(
-                plugin_id='dummy_plugin', action_id='concatenate_ints')
+        with self.assertRaisesRegex(
+            UninitializedPluginManagerError, "create an instance of sdk.PluginManager"
+        ):
+            usage.UsageAction(plugin_id="dummy_plugin", action_id="concatenate_ints")
 
 
 class TestUsageInputs(TestCaseUsage):
     def test_successful_init(self):
-        obs = usage.UsageInputs(foo='bar')
-        self.assertEqual(['foo'], list(obs.values.keys()))
-        self.assertEqual(['bar'], list(obs.values.values()))
+        obs = usage.UsageInputs(foo="bar")
+        self.assertEqual(["foo"], list(obs.values.keys()))
+        self.assertEqual(["bar"], list(obs.values.values()))
 
 
 class TestUsageOutputNames(TestCaseUsage):
     def test_successful_init(self):
-        obs = usage.UsageOutputNames(foo='bar')
-        self.assertEqual(['foo'], list(obs.values.keys()))
-        self.assertEqual(['bar'], list(obs.values.values()))
+        obs = usage.UsageOutputNames(foo="bar")
+        self.assertEqual(["foo"], list(obs.values.keys()))
+        self.assertEqual(["bar"], list(obs.values.values()))
 
     def test_invalid_init(self):
-        with self.assertRaisesRegex(TypeError, 'key.*foo.*string, not.*bool'):
+        with self.assertRaisesRegex(TypeError, "key.*foo.*string, not.*bool"):
             usage.UsageOutputNames(foo=True)
 
 
@@ -105,27 +105,30 @@ class TestUsageBaseClass(TestCaseUsage):
 
     def test_action_invalid_action_provided(self):
         use = usage.Usage()
-        with self.assertRaisesRegex(ValueError, 'expected.*UsageAction'):
+        with self.assertRaisesRegex(ValueError, "expected.*UsageAction"):
             use.action({}, {}, {})
 
     def test_merge_metadata_one_input(self):
         use = usage.Usage()
-        with self.assertRaisesRegex(ValueError, 'two or more'):
-            use.merge_metadata('foo')
+        with self.assertRaisesRegex(ValueError, "two or more"):
+            use.merge_metadata("foo")
 
     def test_action_cache_is_working(self):
         use = usage.Usage()
 
-        ints = use.init_artifact('ints', examples.ints1_factory)
-        mapper = use.init_artifact('mapper', examples.mapping1_factory)
+        ints = use.init_artifact("ints", examples.ints1_factory)
+        mapper = use.init_artifact("mapper", examples.mapping1_factory)
 
         obs = use.action(
-            use.UsageAction(plugin_id='dummy_plugin',
-                            action_id='typical_pipeline'),
-            use.UsageInputs(int_sequence=ints, mapping=mapper,
-                            do_extra_thing=True),
-            use.UsageOutputNames(out_map='out_map', left='left', right='right',
-                                 left_viz='left_viz', right_viz='right_viz')
+            use.UsageAction(plugin_id="dummy_plugin", action_id="typical_pipeline"),
+            use.UsageInputs(int_sequence=ints, mapping=mapper, do_extra_thing=True),
+            use.UsageOutputNames(
+                out_map="out_map",
+                left="left",
+                right="right",
+                left_viz="left_viz",
+                right_viz="right_viz",
+            ),
         )
 
         # nothing has been executed yet...
@@ -183,31 +186,30 @@ class TestUsageVariable(TestCaseUsage):
 
 class TestDiagnosticUsage(TestCaseUsage):
     def test_basic(self):
-        action = self.plugin.actions['concatenate_ints']
+        action = self.plugin.actions["concatenate_ints"]
         use = usage.DiagnosticUsage()
-        action.examples['concatenate_ints_simple'](use)
+        action.examples["concatenate_ints_simple"](use)
 
         self.assertEqual(5, len(use.render()))
 
         obs1, obs2, obs3, obs4, obs5 = use.render()
 
-        self.assertEqual('init_artifact', obs1.source)
-        self.assertEqual('init_artifact', obs2.source)
-        self.assertEqual('init_artifact', obs3.source)
-        self.assertEqual('comment', obs4.source)
-        self.assertEqual('action', obs5.source)
+        self.assertEqual("init_artifact", obs1.source)
+        self.assertEqual("init_artifact", obs2.source)
+        self.assertEqual("init_artifact", obs3.source)
+        self.assertEqual("comment", obs4.source)
+        self.assertEqual("action", obs5.source)
 
-        self.assertEqual('ints_a', obs1.variable.name)
-        self.assertEqual('ints_b', obs2.variable.name)
-        self.assertEqual('ints_c', obs3.variable.name)
-        self.assertEqual('This example demonstrates basic usage.',
-                         obs4.variable)
-        self.assertEqual('ints_d', obs5.variable[0].name)
+        self.assertEqual("ints_a", obs1.variable.name)
+        self.assertEqual("ints_b", obs2.variable.name)
+        self.assertEqual("ints_c", obs3.variable.name)
+        self.assertEqual("This example demonstrates basic usage.", obs4.variable)
+        self.assertEqual("ints_d", obs5.variable[0].name)
 
-        self.assertEqual('artifact', obs1.variable.var_type)
-        self.assertEqual('artifact', obs2.variable.var_type)
-        self.assertEqual('artifact', obs3.variable.var_type)
-        self.assertEqual('artifact', obs5.variable[0].var_type)
+        self.assertEqual("artifact", obs1.variable.var_type)
+        self.assertEqual("artifact", obs2.variable.var_type)
+        self.assertEqual("artifact", obs3.variable.var_type)
+        self.assertEqual("artifact", obs5.variable[0].var_type)
 
         self.assertTrue(obs1.variable.is_deferred)
         self.assertTrue(obs2.variable.is_deferred)
@@ -215,37 +217,39 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertTrue(obs5.variable[0].is_deferred)
 
     def test_chained(self):
-        action = self.plugin.actions['concatenate_ints']
+        action = self.plugin.actions["concatenate_ints"]
         use = usage.DiagnosticUsage()
-        action.examples['concatenate_ints_complex'](use)
+        action.examples["concatenate_ints_complex"](use)
 
         self.assertEqual(7, len(use.render()))
 
         obs1, obs2, obs3, obs4, obs5, obs6, obs7 = use.render()
 
-        self.assertEqual('init_artifact', obs1.source)
-        self.assertEqual('init_artifact', obs2.source)
-        self.assertEqual('init_artifact', obs3.source)
-        self.assertEqual('comment', obs4.source)
-        self.assertEqual('action', obs5.source)
-        self.assertEqual('comment', obs6.source)
-        self.assertEqual('action', obs7.source)
+        self.assertEqual("init_artifact", obs1.source)
+        self.assertEqual("init_artifact", obs2.source)
+        self.assertEqual("init_artifact", obs3.source)
+        self.assertEqual("comment", obs4.source)
+        self.assertEqual("action", obs5.source)
+        self.assertEqual("comment", obs6.source)
+        self.assertEqual("action", obs7.source)
 
-        self.assertEqual('ints_a', obs1.variable.name)
-        self.assertEqual('ints_b', obs2.variable.name)
-        self.assertEqual('ints_c', obs3.variable.name)
-        self.assertEqual('This example demonstrates chained usage (pt 1).',
-                         obs4.variable)
-        self.assertEqual('ints_d', obs5.variable[0].name)
-        self.assertEqual('This example demonstrates chained usage (pt 2).',
-                         obs6.variable)
-        self.assertEqual('concatenated_ints', obs7.variable[0].name)
+        self.assertEqual("ints_a", obs1.variable.name)
+        self.assertEqual("ints_b", obs2.variable.name)
+        self.assertEqual("ints_c", obs3.variable.name)
+        self.assertEqual(
+            "This example demonstrates chained usage (pt 1).", obs4.variable
+        )
+        self.assertEqual("ints_d", obs5.variable[0].name)
+        self.assertEqual(
+            "This example demonstrates chained usage (pt 2).", obs6.variable
+        )
+        self.assertEqual("concatenated_ints", obs7.variable[0].name)
 
-        self.assertEqual('artifact', obs1.variable.var_type)
-        self.assertEqual('artifact', obs2.variable.var_type)
-        self.assertEqual('artifact', obs3.variable.var_type)
-        self.assertEqual('artifact', obs5.variable[0].var_type)
-        self.assertEqual('artifact', obs7.variable[0].var_type)
+        self.assertEqual("artifact", obs1.variable.var_type)
+        self.assertEqual("artifact", obs2.variable.var_type)
+        self.assertEqual("artifact", obs3.variable.var_type)
+        self.assertEqual("artifact", obs5.variable[0].var_type)
+        self.assertEqual("artifact", obs7.variable[0].var_type)
 
         self.assertTrue(obs1.variable.is_deferred)
         self.assertTrue(obs2.variable.is_deferred)
@@ -254,46 +258,46 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertTrue(obs7.variable[0].is_deferred)
 
     def test_comments_only(self):
-        action = self.plugin.actions['concatenate_ints']
+        action = self.plugin.actions["concatenate_ints"]
         use = usage.DiagnosticUsage()
-        action.examples['comments_only'](use)
+        action.examples["comments_only"](use)
 
         self.assertEqual(2, len(use.render()))
 
         obs1, obs2 = use.render()
 
-        self.assertEqual('comment', obs1.source)
-        self.assertEqual('comment', obs2.source)
+        self.assertEqual("comment", obs1.source)
+        self.assertEqual("comment", obs2.source)
 
-        self.assertEqual('comment 1', obs1.variable)
-        self.assertEqual('comment 2', obs2.variable)
+        self.assertEqual("comment 1", obs1.variable)
+        self.assertEqual("comment 2", obs2.variable)
 
     def test_metadata_merging(self):
-        action = self.plugin.actions['identity_with_metadata']
+        action = self.plugin.actions["identity_with_metadata"]
         use = usage.DiagnosticUsage()
-        action.examples['identity_with_metadata_merging'](use)
+        action.examples["identity_with_metadata_merging"](use)
 
         self.assertEqual(5, len(use.render()))
 
         obs1, obs2, obs3, obs4, obs5 = use.render()
 
-        self.assertEqual('init_artifact', obs1.source)
-        self.assertEqual('init_metadata', obs2.source)
-        self.assertEqual('init_metadata', obs3.source)
-        self.assertEqual('merge_metadata', obs4.source)
-        self.assertEqual('action', obs5.source)
+        self.assertEqual("init_artifact", obs1.source)
+        self.assertEqual("init_metadata", obs2.source)
+        self.assertEqual("init_metadata", obs3.source)
+        self.assertEqual("merge_metadata", obs4.source)
+        self.assertEqual("action", obs5.source)
 
-        self.assertEqual('ints', obs1.variable.name)
-        self.assertEqual('md1', obs2.variable.name)
-        self.assertEqual('md2', obs3.variable.name)
-        self.assertEqual('md3', obs4.variable.name)
-        self.assertEqual('out', obs5.variable[0].name)
+        self.assertEqual("ints", obs1.variable.name)
+        self.assertEqual("md1", obs2.variable.name)
+        self.assertEqual("md2", obs3.variable.name)
+        self.assertEqual("md3", obs4.variable.name)
+        self.assertEqual("out", obs5.variable[0].name)
 
-        self.assertEqual('artifact', obs1.variable.var_type)
-        self.assertEqual('metadata', obs2.variable.var_type)
-        self.assertEqual('metadata', obs3.variable.var_type)
-        self.assertEqual('metadata', obs4.variable.var_type)
-        self.assertEqual('artifact', obs5.variable[0].var_type)
+        self.assertEqual("artifact", obs1.variable.var_type)
+        self.assertEqual("metadata", obs2.variable.var_type)
+        self.assertEqual("metadata", obs3.variable.var_type)
+        self.assertEqual("metadata", obs4.variable.var_type)
+        self.assertEqual("artifact", obs5.variable[0].var_type)
 
         self.assertTrue(obs1.variable.is_deferred)
         self.assertTrue(obs2.variable.is_deferred)
@@ -302,28 +306,28 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertTrue(obs5.variable[0].is_deferred)
 
     def test_get_metadata_column(self):
-        action = self.plugin.actions['identity_with_metadata_column']
+        action = self.plugin.actions["identity_with_metadata_column"]
         use = usage.DiagnosticUsage()
-        action.examples['identity_with_metadata_column_get_mdc'](use)
+        action.examples["identity_with_metadata_column_get_mdc"](use)
 
         self.assertEqual(4, len(use.render()))
 
         obs1, obs2, obs3, obs4 = use.render()
 
-        self.assertEqual('init_artifact', obs1.source)
-        self.assertEqual('init_metadata', obs2.source)
-        self.assertEqual('get_metadata_column', obs3.source)
-        self.assertEqual('action', obs4.source)
+        self.assertEqual("init_artifact", obs1.source)
+        self.assertEqual("init_metadata", obs2.source)
+        self.assertEqual("get_metadata_column", obs3.source)
+        self.assertEqual("action", obs4.source)
 
-        self.assertEqual('ints', obs1.variable.name)
-        self.assertEqual('md', obs2.variable.name)
-        self.assertEqual('mdc', obs3.variable.name)
-        self.assertEqual('out', obs4.variable[0].name)
+        self.assertEqual("ints", obs1.variable.name)
+        self.assertEqual("md", obs2.variable.name)
+        self.assertEqual("mdc", obs3.variable.name)
+        self.assertEqual("out", obs4.variable[0].name)
 
-        self.assertEqual('artifact', obs1.variable.var_type)
-        self.assertEqual('metadata', obs2.variable.var_type)
-        self.assertEqual('column', obs3.variable.var_type)
-        self.assertEqual('artifact', obs4.variable[0].var_type)
+        self.assertEqual("artifact", obs1.variable.var_type)
+        self.assertEqual("metadata", obs2.variable.var_type)
+        self.assertEqual("column", obs3.variable.var_type)
+        self.assertEqual("artifact", obs4.variable[0].var_type)
 
         self.assertTrue(obs1.variable.is_deferred)
         self.assertTrue(obs2.variable.is_deferred)
@@ -331,31 +335,31 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertTrue(obs4.variable[0].is_deferred)
 
     def test_optional_inputs(self):
-        action = self.plugin.actions['optional_artifacts_method']
+        action = self.plugin.actions["optional_artifacts_method"]
         use = usage.DiagnosticUsage()
-        action.examples['optional_inputs'](use)
+        action.examples["optional_inputs"](use)
 
         self.assertEqual(5, len(use.render()))
 
         obs1, obs2, obs3, obs4, obs5 = use.render()
 
-        self.assertEqual('init_artifact', obs1.source)
-        self.assertEqual('action', obs2.source)
-        self.assertEqual('action', obs3.source)
-        self.assertEqual('action', obs4.source)
-        self.assertEqual('action', obs5.source)
+        self.assertEqual("init_artifact", obs1.source)
+        self.assertEqual("action", obs2.source)
+        self.assertEqual("action", obs3.source)
+        self.assertEqual("action", obs4.source)
+        self.assertEqual("action", obs5.source)
 
-        self.assertEqual('ints', obs1.variable.name)
-        self.assertEqual('output1', obs2.variable[0].name)
-        self.assertEqual('output2', obs3.variable[0].name)
-        self.assertEqual('output3', obs4.variable[0].name)
-        self.assertEqual('output4', obs5.variable[0].name)
+        self.assertEqual("ints", obs1.variable.name)
+        self.assertEqual("output1", obs2.variable[0].name)
+        self.assertEqual("output2", obs3.variable[0].name)
+        self.assertEqual("output3", obs4.variable[0].name)
+        self.assertEqual("output4", obs5.variable[0].name)
 
-        self.assertEqual('artifact', obs1.variable.var_type)
-        self.assertEqual('artifact', obs2.variable[0].var_type)
-        self.assertEqual('artifact', obs3.variable[0].var_type)
-        self.assertEqual('artifact', obs4.variable[0].var_type)
-        self.assertEqual('artifact', obs5.variable[0].var_type)
+        self.assertEqual("artifact", obs1.variable.var_type)
+        self.assertEqual("artifact", obs2.variable[0].var_type)
+        self.assertEqual("artifact", obs3.variable[0].var_type)
+        self.assertEqual("artifact", obs4.variable[0].var_type)
+        self.assertEqual("artifact", obs5.variable[0].var_type)
 
         self.assertTrue(obs1.variable.is_deferred)
         self.assertTrue(obs2.variable[0].is_deferred)
@@ -364,44 +368,45 @@ class TestDiagnosticUsage(TestCaseUsage):
         self.assertTrue(obs5.variable[0].is_deferred)
 
     def test_artifact_collection_list_of_ints(self):
-        action = self.plugin.actions['list_of_ints']
+        action = self.plugin.actions["list_of_ints"]
         use = usage.DiagnosticUsage()
-        action.examples['collection_list_of_ints'](use)
+        action.examples["collection_list_of_ints"](use)
 
         self.assertEqual(2, len(use.render()))
 
         obs1, obs2 = use.render()
 
-        self.assertEqual('init_artifact_collection', obs1.source)
-        self.assertEqual('action', obs2.source)
+        self.assertEqual("init_artifact_collection", obs1.source)
+        self.assertEqual("action", obs2.source)
 
-        self.assertEqual('ints', obs1.variable.name)
-        self.assertEqual('out', obs2.variable[0].name)
+        self.assertEqual("ints", obs1.variable.name)
+        self.assertEqual("out", obs2.variable[0].name)
 
-        self.assertEqual('artifact_collection', obs1.variable.var_type)
-        self.assertEqual('artifact_collection', obs2.variable[0].var_type)
+        self.assertEqual("artifact_collection", obs1.variable.var_type)
+        self.assertEqual("artifact_collection", obs2.variable[0].var_type)
 
         self.assertTrue(obs1.variable.is_deferred)
         self.assertTrue(obs2.variable[0].is_deferred)
 
     def test_visualization_collection(self):
-        action = self.plugin.actions['viz_collection_pipeline']
+        action = self.plugin.actions["viz_collection_pipeline"]
         use = usage.DiagnosticUsage()
-        action.examples['collection_of_visualizations'](use)
+        action.examples["collection_of_visualizations"](use)
 
         self.assertEqual(2, len(use.render()))
 
         ints, visualizations = use.render()
 
-        self.assertEqual('init_artifact', ints.source)
-        self.assertEqual('action', visualizations.source)
+        self.assertEqual("init_artifact", ints.source)
+        self.assertEqual("action", visualizations.source)
 
-        self.assertEqual('ints', ints.variable.name)
-        self.assertEqual('visualizations', visualizations.variable[0].name)
+        self.assertEqual("ints", ints.variable.name)
+        self.assertEqual("visualizations", visualizations.variable[0].name)
 
-        self.assertCountEqual('artifact', ints.variable.var_type)
-        self.assertEqual('visualization_collection',
-                         visualizations.variable[0].var_type)
+        self.assertCountEqual("artifact", ints.variable.var_type)
+        self.assertEqual(
+            "visualization_collection", visualizations.variable[0].var_type
+        )
 
         self.assertTrue(ints.variable.is_deferred)
         self.assertTrue(visualizations.variable[0].is_deferred)
@@ -409,32 +414,32 @@ class TestDiagnosticUsage(TestCaseUsage):
 
 class TestExecutionUsage(TestCaseUsage):
     def test_basic(self):
-        action = self.plugin.actions['concatenate_ints']
+        action = self.plugin.actions["concatenate_ints"]
         use = usage.ExecutionUsage()
-        action.examples['concatenate_ints_simple'](use)
+        action.examples["concatenate_ints_simple"](use)
 
         # TODO
         ...
 
     def test_pipeline(self):
-        action = self.plugin.actions['typical_pipeline']
+        action = self.plugin.actions["typical_pipeline"]
         use = usage.ExecutionUsage()
-        action.examples['typical_pipeline_simple'](use)
+        action.examples["typical_pipeline_simple"](use)
 
         # TODO
         ...
 
     def test_merge_metadata(self):
         use = usage.ExecutionUsage()
-        md1 = use.init_metadata('md1', examples.md1_factory)
-        md2 = use.init_metadata('md2', examples.md2_factory)
-        merged = use.merge_metadata('md3', md1, md2)
+        md1 = use.init_metadata("md1", examples.md1_factory)
+        md2 = use.init_metadata("md2", examples.md2_factory)
+        merged = use.merge_metadata("md3", md1, md2)
         self.assertIsInstance(merged.execute(), Metadata)
 
     def test_variadic_input_simple(self):
         use = usage.ExecutionUsage()
-        action = self.plugin.actions['variadic_input_method']
-        action.examples['variadic_input_simple'](use)
+        action = self.plugin.actions["variadic_input_method"]
+        action.examples["variadic_input_simple"](use)
 
         ints_a, ints_b, single_int1, single_int2, out = use.render().values()
 
@@ -446,8 +451,8 @@ class TestExecutionUsage(TestCaseUsage):
 
     def test_variadic_input_simple_async(self):
         use = usage.ExecutionUsage(asynchronous=True)
-        action = self.plugin.actions['variadic_input_method']
-        action.examples['variadic_input_simple'](use)
+        action = self.plugin.actions["variadic_input_method"]
+        action.examples["variadic_input_simple"](use)
 
         ints_a, ints_b, single_int1, single_int2, out = use.render().values()
 
@@ -459,8 +464,8 @@ class TestExecutionUsage(TestCaseUsage):
 
     def test_artifact_collection_list_of_ints(self):
         use = usage.ExecutionUsage()
-        action = self.plugin.actions['list_of_ints']
-        action.examples['collection_list_of_ints'](use)
+        action = self.plugin.actions["list_of_ints"]
+        action.examples["collection_list_of_ints"](use)
 
         ints, out = use.render().values()
 
@@ -470,18 +475,20 @@ class TestExecutionUsage(TestCaseUsage):
     def test_init_artifact_from_url_error(self):
         use = usage.ExecutionUsage()
 
-        with self.assertRaisesRegex(ValueError, 'Could no.*not-a-url'):
+        with self.assertRaisesRegex(ValueError, "Could no.*not-a-url"):
             use.init_artifact_from_url(
-                'bad_url_artifact',
-                'https://not-a-url.qiime2.org/junk.qza',)
+                "bad_url_artifact",
+                "https://not-a-url.qiime2.org/junk.qza",
+            )
 
     def test_init_metadata_from_url_error(self):
         use = usage.ExecutionUsage()
 
-        with self.assertRaisesRegex(ValueError, 'Could no.*https://not-a-url'):
+        with self.assertRaisesRegex(ValueError, "Could no.*https://not-a-url"):
             use.init_metadata_from_url(
-                'bad_url_metadata',
-                'https://not-a-url.qiime2.org/junk.tsv',)
+                "bad_url_metadata",
+                "https://not-a-url.qiime2.org/junk.tsv",
+            )
 
     # def _test_init_artifact_from_url(self):
     #     TODO: need a url to an artifact that the test suite plugin manager
@@ -494,27 +501,29 @@ class TestExecutionUsage(TestCaseUsage):
     #     self.assertIsInstance(a, Artifact)
 
     def test_init_artifact_from_url_error_on_non_artifact(self):
-        metadata_url = \
-            'https://data.qiime2.org/2022.11/tutorials/' \
-            'moving-pictures/sample_metadata.tsv'
+        metadata_url = (
+            "https://data.qiime2.org/2022.11/tutorials/"
+            "moving-pictures/sample_metadata.tsv"
+        )
         use = usage.ExecutionUsage()
 
         with self.assertRaisesRegex(ValueError, "Could not.*\n.*a QIIME arc"):
-            use.init_artifact_from_url('a', metadata_url)
+            use.init_artifact_from_url("a", metadata_url)
 
     def test_init_metadata_from_url_error_on_non_metadata(self):
-        url = 'https://docs.qiime2.org/'
+        url = "https://docs.qiime2.org/"
         use = usage.ExecutionUsage()
 
         with self.assertRaisesRegex(ValueError, "Could not.*\n.*nized ID"):
-            use.init_metadata_from_url('a', url)
+            use.init_metadata_from_url("a", url)
 
     def test_init_metadata_from_url(self):
-        metadata_url = \
-            'https://data.qiime2.org/2022.11/tutorials/' \
-            'moving-pictures/sample_metadata.tsv'
+        metadata_url = (
+            "https://data.qiime2.org/2022.11/tutorials/"
+            "moving-pictures/sample_metadata.tsv"
+        )
         use = usage.ExecutionUsage()
 
-        md = use.init_metadata_from_url('md', metadata_url)
+        md = use.init_metadata_from_url("md", metadata_url)
 
         self.assertIsInstance(md.value, Metadata)

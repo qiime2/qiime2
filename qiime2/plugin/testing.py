@@ -25,14 +25,13 @@ from qiime2.plugin.model.base import FormatBase
 # config not beholden to potential issues with vendored configs being
 # different.
 NON_QIIMETEST_TEST_CONFIG = {
-    'parsl': {
-        'strategy': 'None',
-        'executors': [
-            {'class': 'ThreadPoolExecutor', 'label': 'default',
-                'max_threads': 1}
-            ]
-        }
+    "parsl": {
+        "strategy": "None",
+        "executors": [
+            {"class": "ThreadPoolExecutor", "label": "default", "max_threads": 1}
+        ],
     }
+}
 
 
 # TODO Split out into more specific subclasses if necessary.
@@ -54,7 +53,7 @@ class TestPluginBase(unittest.TestCase):
     """
 
     package = None
-    test_dir_prefix = 'qiime2-plugin'
+    test_dir_prefix = "qiime2-plugin"
     test_config = ParallelConfig(NON_QIIMETEST_TEST_CONFIG)
 
     def setUp(self):
@@ -67,9 +66,9 @@ class TestPluginBase(unittest.TestCase):
         """
 
         try:
-            package = self.package.split('.')[0]
+            package = self.package.split(".")[0]
         except AttributeError:
-            self.fail('Test class must have a package property.')
+            self.fail("Test class must have a package property.")
 
         # plugins are keyed by their names, so a search inside the plugin
         # object is required to match to the correct plugin
@@ -81,12 +80,13 @@ class TestPluginBase(unittest.TestCase):
         if plugin is not None:
             self.plugin = plugin
         else:
-            self.fail('%s is not a registered QIIME 2 plugin.' % package)
+            self.fail("%s is not a registered QIIME 2 plugin." % package)
 
         # TODO use qiime2 temp dir when ported to framework, and when the
         # configurable temp dir exists
         self.temp_dir = tempfile.TemporaryDirectory(
-            prefix='%s-test-temp-' % self.test_dir_prefix)
+            prefix="%s-test-temp-" % self.test_dir_prefix
+        )
 
     def tearDown(self):
         """Test runner teardown hook.
@@ -120,8 +120,7 @@ class TestPluginBase(unittest.TestCase):
             The materialized filepath to the requested test data.
 
         """
-        fp = qiime2.util.get_filepath_from_package(
-            self.package, 'data/%s' % filename)
+        fp = qiime2.util.get_filepath_from_package(self.package, "data/%s" % filename)
         if result_as_str:
             return str(fp)
         else:
@@ -152,8 +151,9 @@ class TestPluginBase(unittest.TestCase):
             transformer_record = self.plugin.transformers[from_type, to_type]
         except KeyError:
             self.fail(
-                "Could not find registered transformer from %r to %r." %
-                (from_type, to_type))
+                "Could not find registered transformer from %r to %r."
+                % (from_type, to_type)
+            )
 
         return transformer_record.transformer
 
@@ -174,8 +174,8 @@ class TestPluginBase(unittest.TestCase):
             record = self.plugin.type_fragments[semantic_type.name]
         except KeyError:
             self.fail(
-                "Semantic type %r is not registered on the plugin." %
-                semantic_type)
+                "Semantic type %r is not registered on the plugin." % semantic_type
+            )
 
         self.assertEqual(record.fragment, semantic_type)
 
@@ -203,16 +203,17 @@ class TestPluginBase(unittest.TestCase):
                 obs_format = self.plugin.artifact_classes[str(t)].format
             except KeyError:
                 self.assertIsNotNone(
-                    obs_format,
-                    "Semantic type %r is not registered to a format." % t)
+                    obs_format, "Semantic type %r is not registered to a format." % t
+                )
 
             self.assertEqual(
-                obs_format, exp_format,
+                obs_format,
+                exp_format,
                 "Expected semantic type %r to be registered to format %r, "
-                "not %r." % (t, exp_format, obs_format))
+                "not %r." % (t, exp_format, obs_format),
+            )
 
-    def transform_format(self, source_format, target, filename=None,
-                         filenames=None):
+    def transform_format(self, source_format, target, filename=None, filenames=None):
         """Helper utility for loading data and transforming it.
 
         Combines several other utilities in this class, will load files from
@@ -248,13 +249,13 @@ class TestPluginBase(unittest.TestCase):
 
         # Guard any non-QIIME2 Format sources from being tested
         if not issubclass(source_format, FormatBase):
-            raise ValueError("`source_format` must be a subclass of "
-                             "FormatBase.")
+            raise ValueError("`source_format` must be a subclass of " "FormatBase.")
 
         # Guard against invalid filename(s) usage
         if filename is not None and filenames is not None:
-            raise ValueError("Cannot use both `filename` and `filenames` at "
-                             "the same time.")
+            raise ValueError(
+                "Cannot use both `filename` and `filenames` at " "the same time."
+            )
 
         # Handle format initialization
         source_path = None
@@ -265,7 +266,7 @@ class TestPluginBase(unittest.TestCase):
             for filename in filenames:
                 filepath = self.get_data_path(filename)
                 shutil.copy(filepath, source_path)
-        input = source_format(source_path, mode='r')
+        input = source_format(source_path, mode="r")
 
         obs = transform(input, from_type=source_format, to_type=target)
 
@@ -279,10 +280,13 @@ class TestPluginBase(unittest.TestCase):
     def execute_examples(self):
         """Runs all usage examples defined in the plugin."""
         if self.plugin is None:
-            raise ValueError('Attempted to run `execute_examples` without '
-                             'configuring test harness.')
-        for _, action in itertools.chain(self.plugin.actions.items(),
-                                         self.plugin.types.items()):
+            raise ValueError(
+                "Attempted to run `execute_examples` without "
+                "configuring test harness."
+            )
+        for _, action in itertools.chain(
+            self.plugin.actions.items(), self.plugin.types.items()
+        ):
             for name, example_f in action.examples.items():
                 with self.subTest(example=name):
                     use = usage.ExecutionUsage()
@@ -290,10 +294,10 @@ class TestPluginBase(unittest.TestCase):
 
 
 def assert_no_nans_in_tables(fh):
-    '''
+    """
     Checks for NaNs present in any of the tables in the indicated file then
     resets to the head of the file.
-    '''
+    """
     from pandas import read_html
 
     tables = read_html(fh)

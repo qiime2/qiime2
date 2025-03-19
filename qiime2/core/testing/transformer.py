@@ -23,7 +23,7 @@ from .format import (
     RedundantSingleIntDirectoryFormat,
     EchoFormat,
     ImportableOnlyFormat,
-    ExportableOnlyFormat
+    ExportableOnlyFormat,
 )
 from .plugin import dummy_plugin, citations
 
@@ -32,7 +32,7 @@ from .plugin import dummy_plugin, citations
 def _2(data: int) -> SingleIntFormat:
     ff = SingleIntFormat()
     with ff.open() as fh:
-        fh.write('%d\n' % data)
+        fh.write("%d\n" % data)
     return ff
 
 
@@ -42,12 +42,12 @@ def _5(ff: SingleIntFormat) -> int:
         return int(fh.read())
 
 
-@dummy_plugin.register_transformer(citations=[citations['krauth2012depth']])
+@dummy_plugin.register_transformer(citations=[citations["krauth2012depth"]])
 def _7(data: list) -> IntSequenceFormat:
     ff = IntSequenceFormat()
     with ff.open() as fh:
         for int_ in data:
-            fh.write(f'{int_}\n')
+            fh.write(f"{int_}\n")
     return ff
 
 
@@ -55,9 +55,9 @@ def _7(data: list) -> IntSequenceFormat:
 def _77(data: list) -> IntSequenceFormatV2:
     ff = IntSequenceFormatV2()
     with ff.open() as fh:
-        fh.write('VERSION 2\n')
+        fh.write("VERSION 2\n")
         for int_ in data:
-            fh.write('%d\n' % int_)
+            fh.write("%d\n" % int_)
     return ff
 
 
@@ -101,14 +101,12 @@ def _1000(ff: IntSequenceFormat) -> IntSequenceFormatV2:
 
 # This only exists to test `get_formats` and is functionally useless otherwise
 @dummy_plugin.register_transformer
-def _1100(df: IntSequenceMultiFileDirectoryFormat) -> \
-        IntSequenceDirectoryFormat:
+def _1100(df: IntSequenceMultiFileDirectoryFormat) -> IntSequenceDirectoryFormat:
     return IntSequenceDirectoryFormat()
 
 
 @dummy_plugin.register_transformer
-def _1001(df: IntSequenceV2DirectoryFormat) -> \
-        IntSequenceMultiFileDirectoryFormat:
+def _1001(df: IntSequenceV2DirectoryFormat) -> IntSequenceMultiFileDirectoryFormat:
     return IntSequenceMultiFileDirectoryFormat()
 
 
@@ -137,11 +135,11 @@ def _12(data: dict) -> MappingFormat:
     ff = MappingFormat()
     with ff.open() as fh:
         for key, value in data.items():
-            fh.write('%s\t%s\n' % (key, value))
+            fh.write("%s\t%s\n" % (key, value))
     return ff
 
 
-@dummy_plugin.register_transformer(citations=[citations['silvers1997effects']])
+@dummy_plugin.register_transformer(citations=[citations["silvers1997effects"]])
 def _13(df: MappingDirectoryFormat) -> dict:
     # If this had been a `SingleFileDirectoryFormat` then this entire
     # transformer would have been redundant (the framework could infer it).
@@ -153,11 +151,12 @@ def _14(ff: MappingFormat) -> dict:
     data = {}
     with ff.open() as fh:
         for line in fh:
-            key, value = line.rstrip('\n').split('\t')
+            key, value = line.rstrip("\n").split("\t")
             if key in data:
                 raise ValueError(
                     "mapping.txt file must have unique keys. Key %r was "
-                    "observed more than once." % key)
+                    "observed more than once." % key
+                )
             data[key] = value
     return data
 
@@ -165,7 +164,7 @@ def _14(ff: MappingFormat) -> dict:
 @dummy_plugin.register_transformer
 def _15(df: MappingDirectoryFormat) -> Metadata:
     d = df.mapping.view(dict)
-    return Metadata(pd.DataFrame(d, index=pd.Index(["0"], name='id')))
+    return Metadata(pd.DataFrame(d, index=pd.Index(["0"], name="id")))
 
 
 @dummy_plugin.register_transformer

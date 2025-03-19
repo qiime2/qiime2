@@ -19,69 +19,65 @@ import qiime2.util
 from qiime2.core.util import load_action_yaml
 from qiime2.core.testing.type import SingleInt
 from qiime2.core.testing.util import get_dummy_plugin
-from qiime2.sdk.parallel_config import (PARALLEL_CONFIG, _TEST_EXECUTOR_,
-                                        _MASK_CONDA_ENV_, ParallelConfig,
-                                        load_config_from_file)
+from qiime2.sdk.parallel_config import (
+    PARALLEL_CONFIG,
+    _TEST_EXECUTOR_,
+    _MASK_CONDA_ENV_,
+    ParallelConfig,
+    load_config_from_file,
+)
 
 
 class TestConfig(unittest.TestCase):
     # Get actions
     plugin = get_dummy_plugin()
-    pipeline = plugin.pipelines['resumable_pipeline']
-    method = plugin.methods['list_of_ints']
+    pipeline = plugin.pipelines["resumable_pipeline"]
+    method = plugin.methods["list_of_ints"]
 
     mapping = {
-        'dummy_plugin': {
-            'list_of_ints': 'test',
-            'concatenate_ints': 'test'
-        },
-        'other_plugin': {
-            'concatenate_ints': 'default'
-        }
+        "dummy_plugin": {"list_of_ints": "test", "concatenate_ints": "test"},
+        "other_plugin": {"concatenate_ints": "default"},
     }
 
     # Expected provenance based on type of executor used
-    tpool_expected = [{
-        'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'}, {
-        'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'}]
-    test_expected = [{
-        'type': 'parsl', 'parsl_type': '_TEST_EXECUTOR_'}, {
-        'type': 'parsl', 'parsl_type': '_TEST_EXECUTOR_'}]
+    tpool_expected = [
+        {"type": "parsl", "parsl_type": "ThreadPoolExecutor"},
+        {"type": "parsl", "parsl_type": "ThreadPoolExecutor"},
+    ]
+    test_expected = [
+        {"type": "parsl", "parsl_type": "_TEST_EXECUTOR_"},
+        {"type": "parsl", "parsl_type": "_TEST_EXECUTOR_"},
+    ]
 
     def setUp(self):
         # Create config
         self.test_default = parsl.Config(
             executors=[
-                ThreadPoolExecutor(
-                    max_threads=1,
-                    label='tpool'
-                ),
-                _TEST_EXECUTOR_(
-                    max_threads=1,
-                    label='default'
-                )
+                ThreadPoolExecutor(max_threads=1, label="tpool"),
+                _TEST_EXECUTOR_(max_threads=1, label="default"),
             ],
             # AdHoc Clusters should not be setup with scaling strategy.
-            strategy='none',
+            strategy="none",
         )
 
         # Create temp test dir and cache in dir
-        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
-        self.cache = Cache(os.path.join(self.test_dir.name, 'new_cache'))
+        self.test_dir = tempfile.TemporaryDirectory(prefix="qiime2-test-temp-")
+        self.cache = Cache(os.path.join(self.test_dir.name, "new_cache"))
 
         # Create artifacts here so we have unique inputs in each test
-        self.art = [Artifact.import_data(SingleInt, 0),
-                    Artifact.import_data(SingleInt, 1)]
+        self.art = [
+            Artifact.import_data(SingleInt, 0),
+            Artifact.import_data(SingleInt, 1),
+        ]
 
         # Get paths to config files
-        self.config_fp = self.get_data_path('test_config.toml')
-        self.mapping_config_fp = self.get_data_path('mapping_config.toml')
-        self.mapping_only_config_fp = \
-            self.get_data_path('mapping_only_config.toml')
-        self.mapping_only_config_old_fp = \
-            self.get_data_path('mapping_only_config_old.toml')
-        self.complex_config_fp = \
-            self.get_data_path('complex_config.toml')
+        self.config_fp = self.get_data_path("test_config.toml")
+        self.mapping_config_fp = self.get_data_path("mapping_config.toml")
+        self.mapping_only_config_fp = self.get_data_path("mapping_only_config.toml")
+        self.mapping_only_config_old_fp = self.get_data_path(
+            "mapping_only_config_old.toml"
+        )
+        self.complex_config_fp = self.get_data_path("complex_config.toml")
 
     def tearDown(self):
         self.test_dir.cleanup()
@@ -92,13 +88,13 @@ class TestConfig(unittest.TestCase):
 
     def get_data_path(self, filename):
         fp = qiime2.util.get_filepath_from_package(
-            'qiime2.sdk.tests', 'data/%s' % filename)
+            "qiime2.sdk.tests", "data/%s" % filename
+        )
         return str(fp)
 
     def test_default_config(self):
         with ParallelConfig():
-            self.assertIsInstance(
-                PARALLEL_CONFIG.parallel_config, parsl.Config)
+            self.assertIsInstance(PARALLEL_CONFIG.parallel_config, parsl.Config)
             self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_mapping_from_config(self):
@@ -111,10 +107,8 @@ class TestConfig(unittest.TestCase):
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
 
-        list_execution_contexts = self._load_alias_execution_contexts(
-            list_return)
-        dict_execution_contexts = self._load_alias_execution_contexts(
-            dict_return)
+        list_execution_contexts = self._load_alias_execution_contexts(list_return)
+        dict_execution_contexts = self._load_alias_execution_contexts(dict_return)
 
         self.assertEqual(list_execution_contexts, self.test_expected)
         self.assertEqual(dict_execution_contexts, self.tpool_expected)
@@ -129,10 +123,8 @@ class TestConfig(unittest.TestCase):
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
 
-        list_execution_contexts = self._load_alias_execution_contexts(
-            list_return)
-        dict_execution_contexts = self._load_alias_execution_contexts(
-            dict_return)
+        list_execution_contexts = self._load_alias_execution_contexts(list_return)
+        dict_execution_contexts = self._load_alias_execution_contexts(dict_return)
 
         self.assertEqual(list_execution_contexts, self.test_expected)
         self.assertEqual(dict_execution_contexts, self.tpool_expected)
@@ -143,10 +135,8 @@ class TestConfig(unittest.TestCase):
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
 
-        list_execution_contexts = self._load_alias_execution_contexts(
-            list_return)
-        dict_execution_contexts = self._load_alias_execution_contexts(
-            dict_return)
+        list_execution_contexts = self._load_alias_execution_contexts(list_return)
+        dict_execution_contexts = self._load_alias_execution_contexts(dict_return)
 
         self.assertEqual(list_execution_contexts, self.test_expected)
         self.assertEqual(dict_execution_contexts, self.tpool_expected)
@@ -157,10 +147,8 @@ class TestConfig(unittest.TestCase):
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
 
-            list_execution_contexts = self._load_alias_execution_contexts(
-                list_return)
-            dict_execution_contexts = self._load_alias_execution_contexts(
-                dict_return)
+            list_execution_contexts = self._load_alias_execution_contexts(list_return)
+            dict_execution_contexts = self._load_alias_execution_contexts(dict_return)
 
             self.assertEqual(list_execution_contexts, self.tpool_expected)
             self.assertEqual(dict_execution_contexts, self.tpool_expected)
@@ -169,10 +157,8 @@ class TestConfig(unittest.TestCase):
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
 
-            list_execution_contexts = self._load_alias_execution_contexts(
-                list_return)
-            dict_execution_contexts = self._load_alias_execution_contexts(
-                dict_return)
+            list_execution_contexts = self._load_alias_execution_contexts(list_return)
+            dict_execution_contexts = self._load_alias_execution_contexts(dict_return)
 
             self.assertEqual(list_execution_contexts, self.test_expected)
             self.assertEqual(dict_execution_contexts, self.test_expected)
@@ -180,23 +166,23 @@ class TestConfig(unittest.TestCase):
             # At this point we should be using the default config again which
             # does not have an executor called tpool
             with ParallelConfig(
-                    action_executor_mapping={
-                        'dummy_plugin': {'list_of_ints': 'tpool'}}):
-                with self.assertRaisesRegex(KeyError, 'tpool'):
+                action_executor_mapping={"dummy_plugin": {"list_of_ints": "tpool"}}
+            ):
+                with self.assertRaisesRegex(KeyError, "tpool"):
                     future = self.pipeline.parallel(self.art, self.art)
                     list_return, dict_return = future._result()
 
     def test_nested_configs(self):
         with self.cache:
-            with self.assertRaisesRegex(
-                    ValueError, 'cannot nest ParallelConfigs'):
+            with self.assertRaisesRegex(ValueError, "cannot nest ParallelConfigs"):
                 with ParallelConfig():
                     with ParallelConfig(self.test_default):
                         pass
 
     def test_parallel_non_pipeline(self):
         with self.assertRaisesRegex(
-                ValueError, 'Only pipelines may be run in parallel'):
+            ValueError, "Only pipelines may be run in parallel"
+        ):
             self.method.parallel(self.art)
 
     def test_no_vendored_fp(self):
@@ -206,71 +192,69 @@ class TestConfig(unittest.TestCase):
                     future = self.pipeline.parallel(self.art, self.art)
                     list_return, dict_return = future._result()
 
-            list_execution_contexts = self._load_alias_execution_contexts(
-                list_return)
-            dict_execution_contexts = self._load_alias_execution_contexts(
-                dict_return)
+            list_execution_contexts = self._load_alias_execution_contexts(list_return)
+            dict_execution_contexts = self._load_alias_execution_contexts(dict_return)
 
             self.assertEqual(list_execution_contexts, self.tpool_expected)
             self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def test_load_complex_config(self):
-        """ Test that all parsl modules we currently map are correct
-        """
+        """Test that all parsl modules we currently map are correct"""
         config, mapping = load_config_from_file(self.complex_config_fp)
 
         self.assertEqual(mapping, {})
 
         # Just assert that we were able to parse the file and get a config out
         with ParallelConfig(config, mapping):
-            self.assertIsInstance(
-                PARALLEL_CONFIG.parallel_config, parsl.Config)
+            self.assertIsInstance(PARALLEL_CONFIG.parallel_config, parsl.Config)
             self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_no_config(self):
-        with self.assertRaisesRegex(ValueError,
-                                    'You must load a parallel config'):
+        with self.assertRaisesRegex(ValueError, "You must load a parallel config"):
             self.pipeline.parallel(self.art, self.art)
 
     def test_config_unset(self):
         with ParallelConfig():
             self.pipeline.parallel(self.art, self.art)
 
-        with self.assertRaisesRegex(ValueError,
-                                    'You must load a parallel config'):
+        with self.assertRaisesRegex(ValueError, "You must load a parallel config"):
             self.pipeline.parallel(self.art, self.art)
 
     def test_concatenate_ints_mapping(self):
         pm = qiime2.sdk.PluginManager()
-        other_plugin = pm.plugins['other-plugin']
+        other_plugin = pm.plugins["other-plugin"]
 
-        parameter_only_dummy = self.plugin.pipelines['parameter_only_pipeline']
-        parameter_only_other = \
-            other_plugin.pipelines['parameter_only_pipeline']
+        parameter_only_dummy = self.plugin.pipelines["parameter_only_pipeline"]
+        parameter_only_other = other_plugin.pipelines["parameter_only_pipeline"]
 
         config, mapping = load_config_from_file(self.mapping_config_fp)
 
         with self.cache:
             with ParallelConfig(config, mapping):
-                _, concate_output_dummy = \
-                    parameter_only_dummy.parallel(0)._result()
-                _, concate_output_other = \
-                    parameter_only_other.parallel(0, other=True)._result()
+                _, concate_output_dummy = parameter_only_dummy.parallel(0)._result()
+                _, concate_output_other = parameter_only_other.parallel(
+                    0, other=True
+                )._result()
 
-        dummy_execution_context = \
-            self._load_alias_execution_context(concate_output_dummy)
-        other_execution_context = \
-            self._load_alias_execution_context(concate_output_other)
+        dummy_execution_context = self._load_alias_execution_context(
+            concate_output_dummy
+        )
+        other_execution_context = self._load_alias_execution_context(
+            concate_output_other
+        )
 
-        self.assertEqual(dummy_execution_context,
-                         {'type': 'parsl', 'parsl_type': '_TEST_EXECUTOR_'})
-        self.assertEqual(other_execution_context,
-                         {'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'})
+        self.assertEqual(
+            dummy_execution_context, {"type": "parsl", "parsl_type": "_TEST_EXECUTOR_"}
+        )
+        self.assertEqual(
+            other_execution_context,
+            {"type": "parsl", "parsl_type": "ThreadPoolExecutor"},
+        )
 
     def test_old_mapping(self):
-        with self.assertRaisesRegex(TypeError,
-                                    'The provided mapping:\n\n'
-                                    "{'list_of_ints': 'test'}"):
+        with self.assertRaisesRegex(
+            TypeError, "The provided mapping:\n\n" "{'list_of_ints': 'test'}"
+        ):
             load_config_from_file(self.mapping_only_config_old_fp)
 
     def _load_alias_execution_contexts(self, collection):
@@ -283,7 +267,7 @@ class TestConfig(unittest.TestCase):
         return execution_contexts
 
     def _load_alias_execution_context(self, result):
-        alias_uuid = load_action_yaml(
-            result._archiver.path)['action']['alias-of']
-        return load_action_yaml(
-            self.cache.data / alias_uuid)['execution']['execution_context']
+        alias_uuid = load_action_yaml(result._archiver.path)["action"]["alias-of"]
+        return load_action_yaml(self.cache.data / alias_uuid)["execution"][
+            "execution_context"
+        ]

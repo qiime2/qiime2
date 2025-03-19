@@ -42,9 +42,7 @@ import re
 
 import qiime2
 from qiime2 import sdk
-from qiime2.core.type import (
-    is_semantic_type, is_visualization_type, is_collection_type
-)
+from qiime2.core.type import is_semantic_type, is_visualization_type, is_collection_type
 
 
 def assert_usage_var_type(usage_variable, *valid_types):
@@ -65,10 +63,11 @@ def assert_usage_var_type(usage_variable, *valid_types):
     """
     if usage_variable.var_type not in valid_types:
         tmpl = (
-            usage_variable.name, valid_types, usage_variable.var_type,
+            usage_variable.name,
+            valid_types,
+            usage_variable.var_type,
         )
-        raise AssertionError('Incorrect var_type for %s, need %s got %s'
-                             % tmpl)
+        raise AssertionError("Incorrect var_type for %s, need %s got %s" % tmpl)
 
 
 class UsageAction:
@@ -78,6 +77,7 @@ class UsageAction:
     are :class:`UsageInputs` and :class:`UsageOutputNames`.
 
     """
+
     def __init__(self, plugin_id: str, action_id: str):
         """Constructor for UsageAction.
 
@@ -121,11 +121,11 @@ class UsageAction:
         Usage.action
         qiime2.sdk.PluginManager
         """
-        if plugin_id == '':
-            raise ValueError('Must specify a value for plugin_id.')
+        if plugin_id == "":
+            raise ValueError("Must specify a value for plugin_id.")
 
-        if action_id == '':
-            raise ValueError('Must specify a value for action_id.')
+        if action_id == "":
+            raise ValueError("Must specify a value for action_id.")
 
         self.plugin_id: str = plugin_id
         """The (typically under-scored) name of a plugin, e.g. "my_plugin".
@@ -148,12 +148,14 @@ class UsageAction:
             self._plugin_manager = sdk.PluginManager.reuse_existing()
         except sdk.UninitializedPluginManagerError:
             raise sdk.UninitializedPluginManagerError(
-                'Please create an instance of sdk.PluginManager'
+                "Please create an instance of sdk.PluginManager"
             )
 
     def __repr__(self):
-        return 'UsageAction(plugin_id=%r, action_id=%r)' %\
-            (self.plugin_id, self.action_id)
+        return "UsageAction(plugin_id=%r, action_id=%r)" % (
+            self.plugin_id,
+            self.action_id,
+        )
 
     def get_action(self) -> sdk.Action:
         """Retrieve the actual SDK object (qiime2.sdk.Action)
@@ -177,8 +179,9 @@ class UsageAction:
         try:
             action_f = plugin.actions[self.action_id]
         except KeyError:
-            raise KeyError('No action currently registered with '
-                           'id: "%s".' % (self.action_id,))
+            raise KeyError(
+                "No action currently registered with " 'id: "%s".' % (self.action_id,)
+            )
         return action_f
 
 
@@ -192,6 +195,7 @@ class UsageInputs:
     arguments may be `UsageVariable` s or primitive values.
 
     """
+
     def __init__(self, **kwargs):
         """Constructor for UsageInputs.
 
@@ -222,7 +226,7 @@ class UsageInputs:
         self.values = kwargs
 
     def __repr__(self):
-        return 'UsageInputs(**%r)' % (self.values,)
+        return "UsageInputs(**%r)" % (self.values,)
 
     def __getitem__(self, key):
         """Same as a dictionary.
@@ -315,9 +319,14 @@ class UsageInputs:
 
         def mapped(v):
             if isinstance(v, UsageVariable):
-                assert_usage_var_type(v, 'artifact', 'artifact_collection',
-                                      'visualization_collection',
-                                      'metadata', 'column')
+                assert_usage_var_type(
+                    v,
+                    "artifact",
+                    "artifact_collection",
+                    "visualization_collection",
+                    "metadata",
+                    "column",
+                )
                 v = function(v)
             return v
 
@@ -348,6 +357,7 @@ class UsageOutputNames:
     returned by :meth:`Usage.action`.
 
     """
+
     def __init__(self, **kwargs):
         """Constructor for UsageOutputNames.
 
@@ -382,13 +392,14 @@ class UsageOutputNames:
         for key, val in kwargs.items():
             if not isinstance(val, str):
                 raise TypeError(
-                    'Name provided for key %r must be a string, not a %r.' %
-                    (key, type(val)))
+                    "Name provided for key %r must be a string, not a %r."
+                    % (key, type(val))
+                )
 
         self.values = kwargs
 
     def __repr__(self):
-        return 'UsageOutputNames(**%r)' % (self.values, )
+        return "UsageOutputNames(**%r)" % (self.values,)
 
     def __getitem__(self, key):
         """Same as a dictionary.
@@ -447,15 +458,29 @@ class UsageOutputs(sdk.Results):
     Returned by :meth:`Usage.action` with order defined by
     :class:`UsageOutputNames`.
     """
+
     pass
 
 
-VAR_TYPES = ('artifact', 'artifact_collection', 'visualization',
-             'visualization_collection', 'metadata', 'column', 'format')
-T_VAR_TYPES = Literal['artifact', 'artifact_collection', 'visualization',
-                      'visualization_collection',
-                      'metadata', 'column', 'format']
-COLLECTION_VAR_TYPES = ('artifact_collection', 'visualization_collection')
+VAR_TYPES = (
+    "artifact",
+    "artifact_collection",
+    "visualization",
+    "visualization_collection",
+    "metadata",
+    "column",
+    "format",
+)
+T_VAR_TYPES = Literal[
+    "artifact",
+    "artifact_collection",
+    "visualization",
+    "visualization_collection",
+    "metadata",
+    "column",
+    "format",
+]
+COLLECTION_VAR_TYPES = ("artifact_collection", "visualization_collection")
 
 
 class UsageVariable:
@@ -465,12 +490,18 @@ class UsageVariable:
     numbers, booleans, or lists/sets thereof.
 
     """
+
     DEFERRED = object()
     VAR_TYPES = VAR_TYPES
     COLLECTION_VAR_TYPES = COLLECTION_VAR_TYPES
 
-    def __init__(self, name: str, factory: Callable[[], Any],
-                 var_type: T_VAR_TYPES, usage: 'Usage'):
+    def __init__(
+        self,
+        name: str,
+        factory: Callable[[], Any],
+        var_type: T_VAR_TYPES,
+        usage: "Usage",
+    ):
         """Constructor for UsageVariable. Generally initialized for you.
 
         Warning
@@ -495,12 +526,16 @@ class UsageVariable:
             The currently executing usage driver. Provided for convenience.
         """
         if not callable(factory):
-            raise TypeError('value for `factory` should be a `callable`, '
-                            'recieved %s' % (type(factory),))
+            raise TypeError(
+                "value for `factory` should be a `callable`, "
+                "recieved %s" % (type(factory),)
+            )
 
         if var_type not in self.VAR_TYPES:
-            raise ValueError('value for `var_type` should be one of %r, '
-                             'received %s' % (self.VAR_TYPES, var_type))
+            raise ValueError(
+                "value for `var_type` should be one of %r, "
+                "received %s" % (self.VAR_TYPES, var_type)
+            )
 
         self.name: str = name
         """The name of the variable, may differ from :meth:`to_interface_name`.
@@ -520,9 +555,15 @@ class UsageVariable:
         For use by interface drivers only (and rarely at that).
         Do not use in a written usage example.
         """
-        self.var_type: Literal['artifact', 'artifact_collection',
-                               'visualization', 'visualization_collection',
-                               'metadata', 'column', 'format'] = var_type
+        self.var_type: Literal[
+            "artifact",
+            "artifact_collection",
+            "visualization",
+            "visualization_collection",
+            "metadata",
+            "column",
+            "format",
+        ] = var_type
         """The general type of this variable.
 
         Warning
@@ -550,8 +591,11 @@ class UsageVariable:
         """
 
     def __repr__(self):
-        return '<%s name=%r, var_type=%r>' % (self.__class__.__name__,
-                                              self.name, self.var_type)
+        return "<%s name=%r, var_type=%r>" % (
+            self.__class__.__name__,
+            self.name,
+            self.var_type,
+        )
 
     @property
     def is_deferred(self) -> bool:
@@ -640,8 +684,7 @@ class UsageVariable:
         """
         return self.name
 
-    def assert_has_line_matching(self, path: str, expression: str,
-                                 key: str = None):
+    def assert_has_line_matching(self, path: str, expression: str, key: str = None):
         """Communicate that the result of this variable should match a regex.
 
         The default implementation is to do nothing.
@@ -779,6 +822,7 @@ class Usage:
     implementations of: :class:`DiagnosticUsage`, :class:`ExecutionUsage`, and
     :class:`qiime2.plugins.ArtifactAPIUsage`
     """
+
     # these are here for namespace/import convenience
     UsageAction: Type[UsageAction] = UsageAction
     UsageInputs: Type[UsageInputs] = UsageInputs
@@ -825,13 +869,13 @@ class Usage:
         variable = self.usage_variable(name, factory, var_type)
         var_name = variable.to_interface_name()
         if var_name in self.namespace:
-            raise ValueError(
-                '%r namespace collision (%r)' % (variable, var_name))
+            raise ValueError("%r namespace collision (%r)" % (variable, var_name))
         self.namespace.add(var_name)
         return variable
 
-    def usage_variable(self, name: str, factory: Callable[[], Any],
-                       var_type: T_VAR_TYPES) -> UsageVariable:
+    def usage_variable(
+        self, name: str, factory: Callable[[], Any], var_type: T_VAR_TYPES
+    ) -> UsageVariable:
         """Initialize a UsageVariable class (called by the base implementation)
 
         Warning
@@ -874,8 +918,9 @@ class Usage:
         """
         raise NotImplementedError
 
-    def init_artifact(self, name: str,
-                      factory: Callable[[], qiime2.Artifact]) -> UsageVariable:
+    def init_artifact(
+        self, name: str, factory: Callable[[], qiime2.Artifact]
+    ) -> UsageVariable:
         """Communicate that an artifact will be needed.
 
         Driver implementations may use this to intialize data for an example.
@@ -908,11 +953,11 @@ class Usage:
         >>> my_artifact
         <ExecutionUsageVariable name='my_artifact', var_type='artifact'>
         """
-        return self._usage_variable(name, factory, 'artifact')
+        return self._usage_variable(name, factory, "artifact")
 
     def init_artifact_collection(
-        self, name: str,
-            factory: Callable[[], qiime2.ResultCollection]) -> UsageVariable:
+        self, name: str, factory: Callable[[], qiime2.ResultCollection]
+    ) -> UsageVariable:
         """Communicate that a result collection containing artifacts will be needed.
 
         Driver implementations may use this to intialize data for an example.
@@ -949,10 +994,11 @@ class Usage:
         >>> int_seq_collection
         <ExecutionUsageVariable name='int_seq_collection', var_type='artifact_collection'>
         """  # noqa: E501
-        return self._usage_variable(name, factory, 'artifact_collection')
+        return self._usage_variable(name, factory, "artifact_collection")
 
-    def init_metadata(self, name: str,
-                      factory: Callable[[], qiime2.Metadata]) -> UsageVariable:
+    def init_metadata(
+        self, name: str, factory: Callable[[], qiime2.Metadata]
+    ) -> UsageVariable:
         """Communicate that metadata will be needed.
 
         Driver implementations may use this to intialize data for an example.
@@ -985,11 +1031,14 @@ class Usage:
         >>> my_metadata
         <ExecutionUsageVariable name='my_metadata', var_type='metadata'>
         """
-        return self._usage_variable(name, factory, 'metadata')
+        return self._usage_variable(name, factory, "metadata")
 
-    def init_format(self, name: str,
-                    factory: Callable[[], 'qiime2.core.format.FormatBase'],
-                    ext: str = None) -> UsageVariable:
+    def init_format(
+        self,
+        name: str,
+        factory: Callable[[], "qiime2.core.format.FormatBase"],
+        ext: str = None,
+    ) -> UsageVariable:
         """Communicate that a file/directory format will be needed.
 
         Driver implementations may use this to intialize data for an example.
@@ -1024,7 +1073,7 @@ class Usage:
         >>> my_ints
         <ExecutionUsageVariable name='my_ints', var_type='format'>
         """
-        return self._usage_variable(name, factory, 'format')
+        return self._usage_variable(name, factory, "format")
 
     def _request_url(self, url):
         import urllib.request
@@ -1034,13 +1083,16 @@ class Usage:
             data = urllib.request.urlopen(url)
         except urllib.error.URLError as ex:
             raise ValueError(
-                'Could not obtain URL: %s\n Exception: %s' %
-                (url, str(ex)))
+                "Could not obtain URL: %s\n Exception: %s" % (url, str(ex))
+            )
 
         return data
 
-    def init_artifact_from_url(self, name: str, url: str,
-                               ) -> UsageVariable:
+    def init_artifact_from_url(
+        self,
+        name: str,
+        url: str,
+    ) -> UsageVariable:
         """Obtain an artifact from a url.
 
         Driver implementations may use this to intialize data for an example.
@@ -1062,6 +1114,7 @@ class Usage:
             This particular return class can be changed by a driver which
             overrides :meth:`usage_variable`.
         """
+
         # The following example needs to use an Artifact that the test suite's
         # plugin manager can handle.
         # Examples
@@ -1085,16 +1138,19 @@ class Usage:
                     result = qiime2.Artifact.load(f.name)
                 except ValueError as ex:
                     raise ValueError(
-                        'Could not load Artifact from URL data: %s\n'
-                        ' Original exception: %s'
-                        % (url, str(ex)))
+                        "Could not load Artifact from URL data: %s\n"
+                        " Original exception: %s" % (url, str(ex))
+                    )
 
             return result
 
         return self.init_artifact(name, factory)
 
-    def init_metadata_from_url(self, name: str, url: str,
-                               ) -> UsageVariable:
+    def init_metadata_from_url(
+        self,
+        name: str,
+        url: str,
+    ) -> UsageVariable:
         """Obtain metadata from a url.
 
         Driver implementations may use this to intialize example metadata.
@@ -1127,6 +1183,7 @@ class Usage:
         >>> md
         <ExecutionUsageVariable name='md', var_type='metadata'>
         """
+
         # the print statement in the above doc string provides an illustration
         # of how F-strings are interpreted
         def factory():
@@ -1141,18 +1198,21 @@ class Usage:
                     md = qiime2.Metadata.load(f.name)
                 except qiime2.metadata.io.MetadataFileError as ex:
                     raise ValueError(
-                        'Could not load Metadata from URL data: %s\n'
-                        ' Original exception: %s'
-                        % (url, str(ex)))
+                        "Could not load Metadata from URL data: %s\n"
+                        " Original exception: %s" % (url, str(ex))
+                    )
 
                 return md
 
         return self.init_metadata(name, factory)
 
-    def import_from_format(self, name: str, semantic_type: str,
-                           variable: UsageVariable,
-                           view_type: 'qiime2.core.format.FormatBase' = None
-                           ) -> UsageVariable:
+    def import_from_format(
+        self,
+        name: str,
+        semantic_type: str,
+        variable: UsageVariable,
+        view_type: "qiime2.core.format.FormatBase" = None,
+    ) -> UsageVariable:
         """Communicate that an import should be done.
 
         Parameters
@@ -1198,22 +1258,24 @@ class Usage:
         --------
         init_format
         """
-        assert_usage_var_type(variable, 'format')
+        assert_usage_var_type(variable, "format")
 
         def factory():
             from qiime2 import Artifact
 
             fmt = variable.execute()
             artifact = Artifact.import_data(
-                semantic_type, str(fmt), view_type=view_type)
+                semantic_type, str(fmt), view_type=view_type
+            )
 
             return artifact
-        return self._usage_variable(name, factory, 'artifact')
+
+        return self._usage_variable(name, factory, "artifact")
 
     def construct_artifact_collection(
         self, name: str, members: Union[dict, list]
     ) -> UsageVariable:
-        '''
+        """
         Return a UsageVariable of type artifact_collection given a list or dict
         of its members.
 
@@ -1243,45 +1305,42 @@ class Usage:
         ... )
         >>> collection_1
         <ExecutionUsageVariable name='collection_1', var_type='artifact_collection'>
-        '''  # noqa: E501
+        """  # noqa: E501
 
         # make sure members is dict to avoid repeated type checking
         if type(members) is list:
             members = {str(i): member for i, member in enumerate(members)}
 
-        if not all(
-            member.var_type == 'artifact' for member in members.values()
-        ):
-            raise ValueError('Expected only artifacts in the collection.')
+        if not all(member.var_type == "artifact" for member in members.values()):
+            raise ValueError("Expected only artifacts in the collection.")
 
         str_ns = {str(name) for name in self.namespace}
-        diff = set(
-            str(member.to_interface_name()) for member in members.values()
-        ) - str_ns
+        diff = (
+            set(str(member.to_interface_name()) for member in members.values()) - str_ns
+        )
         if diff:
             msg = (
-                f'{diff} not found in driver\'s namespace. Make sure '
-                'that all ResultCollection members have been properly '
-                'created.'
+                f"{diff} not found in driver's namespace. Make sure "
+                "that all ResultCollection members have been properly "
+                "created."
             )
             raise ValueError(msg)
 
         def factory():
             from qiime2 import ResultCollection
+
             # NOTE: these usage variables are assumed to have been
             # materialized at this point
-            members_dict = {
-                key: member.execute() for key, member in members.items()
-            }
+            members_dict = {key: member.execute() for key, member in members.items()}
 
             return ResultCollection(members_dict)
 
-        return self._usage_variable(name, factory, 'artifact_collection')
+        return self._usage_variable(name, factory, "artifact_collection")
 
     def get_artifact_collection_member(
-            self, name: str, variable: UsageVariable, key: str
+        self, name: str, variable: UsageVariable, key: str
     ) -> UsageVariable:
-        '''
+        """
         Accesses and returns a member of a ResultCollection as a UsageVariable.
 
         Parameters
@@ -1318,14 +1377,14 @@ class Usage:
         ... )
         >>> first_member
         <ExecutionUsageVariable name='first_member', var_type='artifact'>
-        '''  # noqa: E501
+        """  # noqa: E501
+
         def factory():
             return variable.execute()[key]
 
-        return self._usage_variable(name, factory, 'artifact')
+        return self._usage_variable(name, factory, "artifact")
 
-    def merge_metadata(self, name: str,
-                       *variables: UsageVariable) -> UsageVariable:
+    def merge_metadata(self, name: str, *variables: UsageVariable) -> UsageVariable:
         """Communicate that these metadata should be merged.
 
         Parameters
@@ -1381,18 +1440,20 @@ class Usage:
         view_as_metadata
         """
         if len(variables) < 2:
-            raise ValueError('Must provide two or more Metadata inputs.')
+            raise ValueError("Must provide two or more Metadata inputs.")
 
         for variable in variables:
-            assert_usage_var_type(variable, 'metadata')
+            assert_usage_var_type(variable, "metadata")
 
         def factory():
             mds = [v.execute() for v in variables]
             return mds[0].merge(*mds[1:])
-        return self._usage_variable(name, factory, 'metadata')
 
-    def get_metadata_column(self, name: str, column_name: str,
-                            variable: UsageVariable) -> UsageVariable:
+        return self._usage_variable(name, factory, "metadata")
+
+    def get_metadata_column(
+        self, name: str, column_name: str, variable: UsageVariable
+    ) -> UsageVariable:
         """Communicate that a column should be retrieved.
 
         Parameters
@@ -1437,14 +1498,14 @@ class Usage:
         --------
         init_metadata
         """
-        assert_usage_var_type(variable, 'metadata')
+        assert_usage_var_type(variable, "metadata")
 
         def factory():
             return variable.execute().get_column(column_name)
-        return self._usage_variable(name, factory, 'column')
 
-    def view_as_metadata(self, name: str,
-                         variable: UsageVariable) -> UsageVariable:
+        return self._usage_variable(name, factory, "column")
+
+    def view_as_metadata(self, name: str, variable: UsageVariable) -> UsageVariable:
         """Communicate that an artifact should be views as metadata.
 
         Parameters
@@ -1482,12 +1543,14 @@ class Usage:
         init_artifact
         get_metadata_column
         """
-        assert_usage_var_type(variable, 'artifact')
+        assert_usage_var_type(variable, "artifact")
 
         def factory():
             from qiime2 import Metadata
+
             return variable.execute().view(Metadata)
-        return self._usage_variable(name, factory, 'metadata')
+
+        return self._usage_variable(name, factory, "metadata")
 
     def peek(self, variable: UsageVariable):
         """Communicate that an artifact should be peeked at.
@@ -1513,7 +1576,7 @@ class Usage:
         >>> a_boo = use.init_artifact('a_boo', factory)
         >>> use.peek(a_boo)
         """
-        assert_usage_var_type(variable, 'artifact', 'visualization')
+        assert_usage_var_type(variable, "artifact", "visualization")
 
     def comment(self, text: str):
         """Communicate that a comment should be made.
@@ -1531,7 +1594,7 @@ class Usage:
         """
         pass
 
-    def help(self, action: 'qiime2.sdk.usage.UsageAction'):
+    def help(self, action: "qiime2.sdk.usage.UsageAction"):
         """Communicate that help text should be displayed.
 
         Default implementation is to do nothing.
@@ -1547,11 +1610,12 @@ class Usage:
         """
         pass
 
-    def action(self,
-               action: 'qiime2.sdk.usage.UsageAction',
-               inputs: 'qiime2.sdk.usage.UsageInputs',
-               outputs: 'qiime2.sdk.usage.UsageOutputNames'
-               ) -> 'qiime2.sdk.usage.UsageOutputs':
+    def action(
+        self,
+        action: "qiime2.sdk.usage.UsageAction",
+        inputs: "qiime2.sdk.usage.UsageInputs",
+        outputs: "qiime2.sdk.usage.UsageOutputNames",
+    ) -> "qiime2.sdk.usage.UsageOutputs":
         """Communicate that some action should be performed.
 
         Parameters
@@ -1599,17 +1663,22 @@ class Usage:
 
         """
         if not isinstance(action, UsageAction):
-            raise ValueError('Invalid value for `action`: expected %r, '
-                             'received %r.' % (UsageAction, type(action)))
+            raise ValueError(
+                "Invalid value for `action`: expected %r, "
+                "received %r." % (UsageAction, type(action))
+            )
 
         if not isinstance(inputs, UsageInputs):
-            raise ValueError('Invalid value for `inputs`: expected %r, '
-                             'received %r.' % (UsageInputs, type(inputs)))
+            raise ValueError(
+                "Invalid value for `inputs`: expected %r, "
+                "received %r." % (UsageInputs, type(inputs))
+            )
 
         if not isinstance(outputs, UsageOutputNames):
-            raise ValueError('Invalid value for `outputs`: expected %r, '
-                             'received %r.' % (UsageOutputNames,
-                                               type(outputs)))
+            raise ValueError(
+                "Invalid value for `outputs`: expected %r, "
+                "received %r." % (UsageOutputNames, type(outputs))
+            )
 
         action_f = action.get_action()
 
@@ -1627,16 +1696,16 @@ class Usage:
         for param_name, var_name in outputs.items():
             qiime_type = action_f.signature.outputs[param_name].qiime_type
             if is_collection_type(qiime_type):
-                if str(qiime_type) == 'Collection[Visualization]':
-                    var_type = 'visualization_collection'
+                if str(qiime_type) == "Collection[Visualization]":
+                    var_type = "visualization_collection"
                 else:
-                    var_type = 'artifact_collection'
+                    var_type = "artifact_collection"
             elif is_visualization_type(qiime_type):
-                var_type = 'visualization'
+                var_type = "visualization"
             elif is_semantic_type(qiime_type):
-                var_type = 'artifact'
+                var_type = "artifact"
             else:
-                raise ValueError('unknown output type: %r' % (qiime_type,))
+                raise ValueError("unknown output type: %r" % (qiime_type,))
 
             def factory(name=param_name):
                 results = memoized_action()
@@ -1650,8 +1719,8 @@ class Usage:
         cache_info = memoized_action.cache_info
         cache_clear = memoized_action.cache_clear
         # manually graft on cache operations
-        object.__setattr__(results, '_cache_info', cache_info)
-        object.__setattr__(results, '_cache_reset', cache_clear)
+        object.__setattr__(results, "_cache_info", cache_info)
+        object.__setattr__(results, "_cache_reset", cache_clear)
         return results
 
 
@@ -1659,6 +1728,7 @@ class DiagnosticUsage(Usage):
     @dataclasses.dataclass(frozen=True)
     class DiagnosticUsageRecord:
         """A dataclass storing the invoked method name and variable/param."""
+
         source: str
         variable: Any
 
@@ -1696,58 +1766,58 @@ class DiagnosticUsage(Usage):
 
     def init_artifact(self, name, factory):
         variable = super().init_artifact(name, factory)
-        self._append_record('init_artifact', variable)
+        self._append_record("init_artifact", variable)
         return variable
 
     def init_artifact_collection(self, name, factory):
         variable = super().init_artifact_collection(name, factory)
-        self._append_record('init_artifact_collection', variable)
+        self._append_record("init_artifact_collection", variable)
         return variable
 
     def init_metadata(self, name, factory):
         variable = super().init_metadata(name, factory)
-        self._append_record('init_metadata', variable)
+        self._append_record("init_metadata", variable)
         return variable
 
     def init_format(self, name, factory, ext=None):
         variable = super().init_format(name, factory, ext=ext)
-        self._append_record('init_format', variable)
+        self._append_record("init_format", variable)
         return variable
 
-    def import_from_format(self, name, semantic_type,
-                           variable, view_type=None):
+    def import_from_format(self, name, semantic_type, variable, view_type=None):
         variable = super().import_from_format(
-            name, semantic_type, variable, view_type=view_type)
-        self._append_record('import_from_format', variable)
+            name, semantic_type, variable, view_type=view_type
+        )
+        self._append_record("import_from_format", variable)
         return variable
 
     def merge_metadata(self, name, *variables):
         variable = super().merge_metadata(name, *variables)
-        self._append_record('merge_metadata', variable)
+        self._append_record("merge_metadata", variable)
         return variable
 
     def get_metadata_column(self, name, column_name, variable):
         variable = super().get_metadata_column(name, column_name, variable)
-        self._append_record('get_metadata_column', variable)
+        self._append_record("get_metadata_column", variable)
         return variable
 
     def view_as_metadata(self, name, artifact_variable):
         variable = super().view_as_metadata(name, artifact_variable)
-        self._append_record('view_as_metadata', variable)
+        self._append_record("view_as_metadata", variable)
         return variable
 
     def peek(self, variable):
-        self._append_record('peek', variable)
+        self._append_record("peek", variable)
 
     def comment(self, text):
-        self._append_record('comment', text)
+        self._append_record("comment", text)
 
     def help(self, action):
-        self._append_record('help', action)
+        self._append_record("help", action)
 
     def action(self, action, input_opts, output_opts):
         variables = super().action(action, input_opts, output_opts)
-        self._append_record('action', variables)
+        self._append_record("action", variables)
         return variables
 
 
@@ -1757,10 +1827,11 @@ class ExecutionUsageVariable(UsageVariable):
     # Utility method for key handling within result collections
     def _collection_key_util(self, data, key):
         if self.var_type not in self.COLLECTION_VAR_TYPES:
-            raise TypeError("Key can only be provided for output of type"
-                            " artifact_collection or visualization_collection."
-                            " Output of type %s was provided."
-                            % (self.var_type))
+            raise TypeError(
+                "Key can only be provided for output of type"
+                " artifact_collection or visualization_collection."
+                " Output of type %s was provided." % (self.var_type)
+            )
         if key not in data.keys():
             raise ValueError("Provided key %s not found in output" % (key))
 
@@ -1768,9 +1839,13 @@ class ExecutionUsageVariable(UsageVariable):
         return data
 
     def assert_has_line_matching(self, path, expression, key=None):
-        assert_usage_var_type(self, 'artifact', 'visualization',
-                              'artifact_collection',
-                              'visualization_collection')
+        assert_usage_var_type(
+            self,
+            "artifact",
+            "visualization",
+            "artifact_collection",
+            "visualization_collection",
+        )
 
         data = self.value
 
@@ -1782,14 +1857,15 @@ class ExecutionUsageVariable(UsageVariable):
 
         hits = sorted(data._archiver.data_dir.glob(path))
         if len(hits) != 1:
-            raise ValueError('Value provided for path (%s) did not produce '
-                             'exactly one hit: %s' % (path, hits))
+            raise ValueError(
+                "Value provided for path (%s) did not produce "
+                "exactly one hit: %s" % (path, hits)
+            )
 
         target = hits[0].read_text()
         match = re.search(expression, target, flags=re.MULTILINE)
         if match is None:
-            raise AssertionError('Expression %r not found in %s.' %
-                                 (expression, path))
+            raise AssertionError("Expression %r not found in %s." % (expression, path))
 
     def assert_output_type(self, semantic_type, key=None):
         data = self.value
@@ -1803,9 +1879,10 @@ class ExecutionUsageVariable(UsageVariable):
             name = "%s[%s]" % (self.name, key)
 
         if str(data.type) != str(semantic_type):
-            raise AssertionError("Output %r has type %s, which does not match"
-                                 " expected output type of %s"
-                                 % (name, data.type, semantic_type))
+            raise AssertionError(
+                "Output %r has type %s, which does not match"
+                " expected output type of %s" % (name, data.type, semantic_type)
+            )
 
 
 class ExecutionUsage(Usage):
@@ -1890,10 +1967,10 @@ class ExecutionUsage(Usage):
 
         return variable
 
-    def import_from_format(self, name, semantic_type,
-                           variable, view_type=None):
+    def import_from_format(self, name, semantic_type, variable, view_type=None):
         variable = super().import_from_format(
-            name, semantic_type, variable, view_type=view_type)
+            name, semantic_type, variable, view_type=view_type
+        )
 
         variable.execute()
         self._recorder[variable.name] = variable

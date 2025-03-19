@@ -23,14 +23,21 @@ import subprocess
 import decorator
 
 READ_ONLY_FILE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
-READ_ONLY_DIR = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH | stat.S_IRUSR \
-    | stat.S_IRGRP | stat.S_IROTH
+READ_ONLY_DIR = (
+    stat.S_IXUSR
+    | stat.S_IXGRP
+    | stat.S_IXOTH
+    | stat.S_IRUSR
+    | stat.S_IRGRP
+    | stat.S_IROTH
+)
 USER_GROUP_RWX = stat.S_IRWXU | stat.S_IRWXG
 OTHER_NO_WRITE = stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH
 
 
 def get_view_name(view):
     from .format import FormatBase
+
     if not isinstance(view, type):
         view = view.__class__
 
@@ -38,7 +45,7 @@ def get_view_name(view):
         # Not qualname because we don't have a notion of "nested" formats
         return view.__name__
 
-    return ':'.join([view.__module__, view.__qualname__])
+    return ":".join([view.__module__, view.__qualname__])
 
 
 def tuplize(x):
@@ -50,20 +57,29 @@ def tuplize(x):
 def overrides(cls):
     def decorator(func):
         if not hasattr(cls, func.__name__):
-            raise AssertionError("%r does not override %r"
-                                 % (func, cls.__name__))
+            raise AssertionError("%r does not override %r" % (func, cls.__name__))
         return func
+
     return decorator
 
 
 def superscript(number):
     table = {
-        '0': chr(8304), '1': chr(185), '2': chr(178), '3': chr(179),
+        "0": chr(8304),
+        "1": chr(185),
+        "2": chr(178),
+        "3": chr(179),
         **{str(i): chr(x) for i, x in enumerate(range(8308, 8314), 4)},
-        'a': chr(7491), 'e': chr(7497), 'f': chr(7584), 'i': chr(8305),
-        'n': chr(8319), '-': chr(8315), '.': chr(39), ',': chr(39)
+        "a": chr(7491),
+        "e": chr(7497),
+        "f": chr(7584),
+        "i": chr(8305),
+        "n": chr(8319),
+        "-": chr(8315),
+        ".": chr(39),
+        ",": chr(39),
     }
-    return ''.join([table[d] for d in str(number)])
+    return "".join([table[d] for d in str(number)])
 
 
 def find_duplicates(iterable):
@@ -98,8 +114,7 @@ def find_duplicates(iterable):
 
 # Concept from: http://stackoverflow.com/a/11157649/579416
 def duration_time(relative_delta):
-    attrs = ['years', 'months', 'days', 'hours', 'minutes', 'seconds',
-             'microseconds']
+    attrs = ["years", "months", "days", "hours", "minutes", "seconds", "microseconds"]
     results = []
     for attr in attrs:
         value = getattr(relative_delta, attr)
@@ -111,15 +126,15 @@ def duration_time(relative_delta):
     if results:
         text = results[-1]
         if results[:-1]:
-            text = ', and '.join([', '.join(results[:-1]), text])
+            text = ", and ".join([", ".join(results[:-1]), text])
         return text
     else:
         # Great Scott! No time has passed!
-        return '0 %s' % attrs[-1]
+        return "0 %s" % attrs[-1]
 
 
 def has_md5sum_native():
-    return shutil.which('md5sum') is not None
+    return shutil.which("md5sum") is not None
 
 
 def md5sum(filepath):
@@ -131,15 +146,16 @@ def md5sum(filepath):
 
 def md5sum_python(filepath):
     md5 = hashlib.md5()
-    with open(str(filepath), mode='rb') as fh:
+    with open(str(filepath), mode="rb") as fh:
         for chunk in iter(lambda: fh.read(io.DEFAULT_BUFFER_SIZE), b""):
             md5.update(chunk)
     return md5.hexdigest()
 
 
 def md5sum_native(filepath):
-    result = subprocess.run(['md5sum', str(filepath)],
-                            check=True, capture_output=True, text=True)
+    result = subprocess.run(
+        ["md5sum", str(filepath)], check=True, capture_output=True, text=True
+    )
     _, digest = from_checksum_format(result.stdout)
     return digest
 
@@ -165,9 +181,9 @@ def md5sum_directory(directory):
     directory = str(directory)
     sums = collections.OrderedDict()
     for root, dirs, files in os.walk(directory, topdown=True):
-        dirs[:] = sorted([d for d in dirs if not d[0] == '.'])
+        dirs[:] = sorted([d for d in dirs if not d[0] == "."])
         for file in sorted(files):
-            if file[0] == '.':
+            if file[0] == ".":
                 continue
 
             path = os.path.join(root, file)
@@ -186,7 +202,7 @@ def md5sum_directory_zip(zf: zipfile.ZipFile) -> dict:
     sums = dict()
     for file in zf.namelist():
         fp = pathlib.Path(file)
-        if fp.name != 'checksums.md5':
+        if fp.name != "checksums.md5":
             file_parts = list(fp.parts)
             fp_w_o_root_uuid = pathlib.Path(*(file_parts[1:]))
             sums[str(fp_w_o_root_uuid)] = md5sum_zip(zf, file)
@@ -196,38 +212,38 @@ def md5sum_directory_zip(zf: zipfile.ZipFile) -> dict:
 def to_checksum_format(filepath, checksum):
     # see https://www.gnu.org
     # /software/coreutils/manual/html_node/md5sum-invocation.html
-    if '\\' in filepath or '\n' in filepath:
-        filepath = filepath.replace('\\', '\\\\').replace('\n', '\\n')
-        checksum = '\\' + checksum
+    if "\\" in filepath or "\n" in filepath:
+        filepath = filepath.replace("\\", "\\\\").replace("\n", "\\n")
+        checksum = "\\" + checksum
 
-    return '%s  %s' % (checksum, filepath)
+    return "%s  %s" % (checksum, filepath)
 
 
 def from_checksum_format(line):
-    line = line.rstrip('\n')
-    parts = line.split('  ', 1)
+    line = line.rstrip("\n")
+    parts = line.split("  ", 1)
     if len(parts) < 2:
-        parts = line.split(' *', 1)
+        parts = line.split(" *", 1)
 
     checksum, filepath = parts
 
-    if checksum[0] == '\\':
-        chars = ''
+    if checksum[0] == "\\":
+        chars = ""
         escape = False
         # Gross, but regular `.replace` will overlap with itself and
         # negative lookbehind in regex is *probably* harder than scanning
         for char in filepath:
             # 1) Escape next character
-            if not escape and char == '\\':
+            if not escape and char == "\\":
                 escape = True
                 continue
 
             # 2) Handle escape sequence
             if escape:
                 try:
-                    chars += {'\\': '\\', 'n': '\n'}[char]
+                    chars += {"\\": "\\", "n": "\n"}[char]
                 except KeyError:
-                    chars += '\\' + char  # Wasn't an escape after all
+                    chars += "\\" + char  # Wasn't an escape after all
                 escape = False
                 continue
 
@@ -243,12 +259,12 @@ def from_checksum_format(line):
 @contextlib.contextmanager
 def warning():
     def _warnformat(msg, category, filename, lineno, file=None, line=None):
-        return '%s:%s: %s: %s\n' % (filename, lineno, category.__name__, msg)
+        return "%s:%s: %s: %s\n" % (filename, lineno, category.__name__, msg)
 
     default_warn_format = warnings.formatwarning
     try:
         warnings.formatwarning = _warnformat
-        warnings.filterwarnings('always')
+        warnings.filterwarnings("always")
         yield warnings.warn
     finally:
         warnings.formatwarning = default_warn_format
@@ -261,7 +277,7 @@ class LateBindingAttribute:
         self._attribute = attribute
 
     def __get__(self, obj, cls=None):
-        attrs = self._attribute.split('.')
+        attrs = self._attribute.split(".")
         curr_attr = obj
         for attr in attrs:
             curr_attr = getattr(curr_attr, attr)
@@ -280,11 +296,11 @@ class DropFirstParameter(decorator.FunctionMaker):
         self.shortsignature = self._remove_first_arg(self.shortsignature)
 
     def _remove_first_arg(self, string):
-        return ",".join(string.split(',')[1:])[1:]
+        return ",".join(string.split(",")[1:])[1:]
 
 
 def _immutable_error(obj, *args):
-    raise TypeError('%s is immutable.' % obj.__class__.__name__)
+    raise TypeError("%s is immutable." % obj.__class__.__name__)
 
 
 class ImmutableBase:
@@ -298,7 +314,7 @@ class ImmutableBase:
         # This doesn't stop silly things like
         # object.__setattr__(obj, ...), but that's a pretty rude thing
         # to do anyways. We are just trying to avoid accidental mutation.
-        if hasattr(self, '_frozen'):
+        if hasattr(self, "_frozen"):
             _immutable_error(self)
         super().__setattr__(*args)
 
@@ -338,10 +354,8 @@ def is_uuid4(uuid_str):
     return str(uuid) == uuid_str
 
 
-def set_permissions(path, file_permissions=None, dir_permissions=None,
-                    skip_root=False):
-    """Set permissions on all directories and files under and including path
-    """
+def set_permissions(path, file_permissions=None, dir_permissions=None, skip_root=False):
+    """Set permissions on all directories and files under and including path"""
     # Panfs is currently causing issues for us setting permissions. We still
     # want to set rwx for user and group before we remove things to ensure we
     # can remove them, but we want to temporarily no-op other permission
@@ -385,8 +399,7 @@ def touch_under_path(path):
 
         for file in files:
             try:
-                os.utime(
-                    os.path.join(directory, file), None, follow_symlinks=False)
+                os.utime(os.path.join(directory, file), None, follow_symlinks=False)
             except FileNotFoundError:
                 pass
 
@@ -395,13 +408,14 @@ def load_action_yaml(path):
     """Takes a path to an unzipped Aritfact and loads its action.yaml with
     yaml.safe_load
     """
+
     # TODO: Make these actually do something useful at least for the tags
     # that are relevant to what we need out of provenance (this is partially
     # done)
     def ref_constructor(loader, node):
         # We only care about the name of the thing we are referencing which
         # is at the end of this list
-        return node.value.split(':')[-1]
+        return node.value.split(":")[-1]
 
     def cite_constructor(loader, node):
         return node.value
@@ -412,13 +426,12 @@ def load_action_yaml(path):
         metadata_path = prov_path / node.value
         return md5sum(metadata_path)
 
-    yaml.constructor.SafeConstructor.add_constructor('!ref', ref_constructor)
-    yaml.constructor.SafeConstructor.add_constructor('!cite', cite_constructor)
-    yaml.constructor.SafeConstructor.add_constructor(
-        '!metadata', metadata_constructor)
+    yaml.constructor.SafeConstructor.add_constructor("!ref", ref_constructor)
+    yaml.constructor.SafeConstructor.add_constructor("!cite", cite_constructor)
+    yaml.constructor.SafeConstructor.add_constructor("!metadata", metadata_constructor)
 
-    prov_path = path / 'provenance' / 'action'
-    action_path = prov_path / 'action.yaml'
+    prov_path = path / "provenance" / "action"
+    action_path = prov_path / "action.yaml"
 
     with open(action_path) as fh:
         prov = yaml.safe_load(fh)
@@ -427,7 +440,7 @@ def load_action_yaml(path):
 
 
 def create_collection_name(*, name, key, idx, size):
-    """ Only accepts kwargs. Creates a name for a collection item in a
-        standardized way. Assumes 0 based indexing.
+    """Only accepts kwargs. Creates a name for a collection item in a
+    standardized way. Assumes 0 based indexing.
     """
-    return [name, key, f'{idx + 1}/{size}']
+    return [name, key, f"{idx + 1}/{size}"]

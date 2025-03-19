@@ -21,8 +21,12 @@ from .collection import List, Set, Collection
 from .primitive import infer_primitive_type
 from .visualization import Visualization
 from . import meta
-from .util import (is_semantic_type, is_collection_type, is_primitive_type,
-                   parse_primitive)
+from .util import (
+    is_semantic_type,
+    is_collection_type,
+    is_primitive_type,
+    parse_primitive,
+)
 from ..util import ImmutableBase, md5sum, create_collection_name
 
 
@@ -40,8 +44,13 @@ class _NOVALUE(metaclass=__NoValueMeta):
 class ParameterSpec(ImmutableBase):
     NOVALUE = _NOVALUE
 
-    def __init__(self, qiime_type=NOVALUE, view_type=NOVALUE, default=NOVALUE,
-                 description=NOVALUE):
+    def __init__(
+        self,
+        qiime_type=NOVALUE,
+        view_type=NOVALUE,
+        default=NOVALUE,
+        description=NOVALUE,
+    ):
         self.qiime_type = qiime_type
         self.view_type = view_type
         self.default = default
@@ -62,36 +71,47 @@ class ParameterSpec(ImmutableBase):
         return self.description is not self.NOVALUE
 
     def duplicate(self, **kwargs):
-        qiime_type = kwargs.pop('qiime_type', self.qiime_type)
-        view_type = kwargs.pop('view_type', self.view_type)
-        default = kwargs.pop('default', self.default)
-        description = kwargs.pop('description', self.description)
+        qiime_type = kwargs.pop("qiime_type", self.qiime_type)
+        view_type = kwargs.pop("view_type", self.view_type)
+        default = kwargs.pop("default", self.default)
+        description = kwargs.pop("description", self.description)
         if kwargs:
             raise TypeError("Unknown arguments: %r" % kwargs)
 
         return ParameterSpec(qiime_type, view_type, default, description)
 
     def __repr__(self):
-        return ("ParameterSpec(qiime_type=%r, view_type=%r, default=%r, "
-                "description=%r)" % (self.qiime_type, self.view_type,
-                                     self.default, self.description))
+        return (
+            "ParameterSpec(qiime_type=%r, view_type=%r, default=%r, "
+            "description=%r)"
+            % (self.qiime_type, self.view_type, self.default, self.description)
+        )
 
     def __eq__(self, other):
-        return (self.qiime_type == other.qiime_type and
-                self.view_type == other.view_type and
-                self.default == other.default and
-                self.description == other.description)
+        return (
+            self.qiime_type == other.qiime_type
+            and self.view_type == other.view_type
+            and self.default == other.default
+            and self.description == other.description
+        )
 
     def __ne__(self, other):
         return not (self == other)
 
 
 class PipelineSignature:
-    builtin_args = ('ctx',)
+    builtin_args = ("ctx",)
 
-    def __init__(self, callable, inputs, parameters, outputs,
-                 input_descriptions=None, parameter_descriptions=None,
-                 output_descriptions=None):
+    def __init__(
+        self,
+        callable,
+        inputs,
+        parameters,
+        outputs,
+        input_descriptions=None,
+        parameter_descriptions=None,
+        output_descriptions=None,
+    ):
         """
 
         Parameters
@@ -117,14 +137,20 @@ class PipelineSignature:
         if type(outputs) is list:
             outputs = dict(outputs)
         elif type(outputs) is set:
-            raise ValueError("Plugin registration for %r cannot use a set()"
-                             " to define the outputs, as the order is random."
-                             % callable.__name__)
+            raise ValueError(
+                "Plugin registration for %r cannot use a set()"
+                " to define the outputs, as the order is random." % callable.__name__
+            )
 
-        inputs, parameters, outputs, signature_order = \
-            self._parse_signature(callable, inputs, parameters, outputs,
-                                  input_descriptions, parameter_descriptions,
-                                  output_descriptions)
+        inputs, parameters, outputs, signature_order = self._parse_signature(
+            callable,
+            inputs,
+            parameters,
+            outputs,
+            input_descriptions,
+            parameter_descriptions,
+            output_descriptions,
+        )
 
         self._assert_valid_inputs(inputs)
         self._assert_valid_parameters(parameters)
@@ -135,9 +161,16 @@ class PipelineSignature:
         self.outputs = outputs
         self.signature_order = signature_order
 
-    def _parse_signature(self, callable, inputs, parameters, outputs,
-                         input_descriptions=None, parameter_descriptions=None,
-                         output_descriptions=None):
+    def _parse_signature(
+        self,
+        callable,
+        inputs,
+        parameters,
+        outputs,
+        input_descriptions=None,
+        parameter_descriptions=None,
+        output_descriptions=None,
+    ):
         #  Initialize dictionaries if non-existant.
         if input_descriptions is None:
             input_descriptions = {}
@@ -160,15 +193,17 @@ class PipelineSignature:
         signature_order = collections.OrderedDict()
 
         for name, parameter in inspect.signature(callable).parameters.items():
-            if (parameter.kind == parameter.VAR_POSITIONAL or
-                    parameter.kind == parameter.VAR_KEYWORD):
-                raise TypeError("Variadic definitions are unsupported: %r" %
-                                name)
+            if (
+                parameter.kind == parameter.VAR_POSITIONAL
+                or parameter.kind == parameter.VAR_KEYWORD
+            ):
+                raise TypeError("Variadic definitions are unsupported: %r" % name)
 
             if builtin_args:
                 if builtin_args[0] != name:
-                    raise TypeError("Missing builtin argument %r, got %r" %
-                                    (builtin_args[0], name))
+                    raise TypeError(
+                        "Missing builtin argument %r, got %r" % (builtin_args[0], name)
+                    )
                 builtin_args = builtin_args[1:]
                 continue
 
@@ -180,67 +215,77 @@ class PipelineSignature:
                 default = parameter.default
 
             if name in inputs:
-                description = input_descriptions.pop(name,
-                                                     ParameterSpec.NOVALUE)
+                description = input_descriptions.pop(name, ParameterSpec.NOVALUE)
                 param_spec = ParameterSpec(
-                    qiime_type=inputs.pop(name), view_type=view_type,
-                    default=default, description=description)
+                    qiime_type=inputs.pop(name),
+                    view_type=view_type,
+                    default=default,
+                    description=description,
+                )
                 annotated_inputs[name] = param_spec
                 signature_order[name] = param_spec
             elif name in parameters:
-                description = parameter_descriptions.pop(name,
-                                                         ParameterSpec.NOVALUE)
+                description = parameter_descriptions.pop(name, ParameterSpec.NOVALUE)
                 param_spec = ParameterSpec(
-                    qiime_type=parameters.pop(name), view_type=view_type,
-                    default=default, description=description)
+                    qiime_type=parameters.pop(name),
+                    view_type=view_type,
+                    default=default,
+                    description=description,
+                )
                 annotated_parameters[name] = param_spec
                 signature_order[name] = param_spec
             elif name not in self.builtin_args:
-                raise TypeError("Parameter in callable without QIIME type:"
-                                " %r" % name)
+                raise TypeError(
+                    "Parameter in callable without QIIME type:" " %r" % name
+                )
         # we should have popped both of these empty by this point
         if inputs or parameters:
-            raise TypeError("Callable does not have parameter(s): %r"
-                            % (list(inputs) + list(parameters)))
+            raise TypeError(
+                "Callable does not have parameter(s): %r"
+                % (list(inputs) + list(parameters))
+            )
 
-        if 'return' in callable.__annotations__:
-            output_views = qiime2.core.util.tuplize(
-                callable.__annotations__['return'])
+        if "return" in callable.__annotations__:
+            output_views = qiime2.core.util.tuplize(callable.__annotations__["return"])
 
             if len(output_views) != len(outputs):
-                raise TypeError("Number of registered outputs (%r) does not"
-                                " match annotation (%r)" %
-                                (len(outputs), len(output_views)))
+                raise TypeError(
+                    "Number of registered outputs (%r) does not"
+                    " match annotation (%r)" % (len(outputs), len(output_views))
+                )
 
-            for (name, qiime_type), view_type in zip(outputs.items(),
-                                                     output_views):
-                description = output_descriptions.pop(name,
-                                                      ParameterSpec.NOVALUE)
+            for (name, qiime_type), view_type in zip(outputs.items(), output_views):
+                description = output_descriptions.pop(name, ParameterSpec.NOVALUE)
                 annotated_outputs[name] = ParameterSpec(
-                    qiime_type=qiime_type, view_type=view_type,
-                    description=description)
+                    qiime_type=qiime_type, view_type=view_type, description=description
+                )
         else:
             for name, qiime_type in outputs.items():
-                description = output_descriptions.pop(name,
-                                                      ParameterSpec.NOVALUE)
+                description = output_descriptions.pop(name, ParameterSpec.NOVALUE)
                 annotated_outputs[name] = ParameterSpec(
-                    qiime_type=qiime_type, description=description)
+                    qiime_type=qiime_type, description=description
+                )
 
         # we should have popped the descriptions empty by this point
         if input_descriptions or parameter_descriptions or output_descriptions:
             raise TypeError(
                 "Callable does not have parameter(s)/output(s) found in "
-                "descriptions: %r" % [*input_descriptions,
-                                      *parameter_descriptions,
-                                      *output_descriptions])
+                "descriptions: %r"
+                % [*input_descriptions, *parameter_descriptions, *output_descriptions]
+            )
 
-        return (annotated_inputs, annotated_parameters, annotated_outputs,
-                signature_order)
+        return (
+            annotated_inputs,
+            annotated_parameters,
+            annotated_outputs,
+            signature_order,
+        )
 
     def collate_inputs(self, *args, **kwargs):
         # Collate positional inputs
-        collated_inputs = {name: value for name, value in
-                           zip(self.signature_order, args)}
+        collated_inputs = {
+            name: value for name, value in zip(self.signature_order, args)
+        }
         collated_inputs.update(kwargs)
         return collated_inputs
 
@@ -249,94 +294,109 @@ class PipelineSignature:
             if not is_semantic_type(spec.qiime_type):
                 raise TypeError(
                     "Input %r must be a semantic QIIME type, not %r"
-                    % (input_name, spec.qiime_type))
+                    % (input_name, spec.qiime_type)
+                )
 
             if not isinstance(spec.qiime_type, (TypeExp, UnionExp)):
                 raise TypeError(
                     "Input %r must be a complete semantic type expression, "
-                    "not %r" % (input_name, spec.qiime_type))
+                    "not %r" % (input_name, spec.qiime_type)
+                )
 
             if spec.has_default() and spec.default is not None:
                 raise ValueError(
                     "Input %r has a default value of %r. Only a default "
                     "value of `None` is supported for inputs."
-                    % (input_name, spec.default))
+                    % (input_name, spec.default)
+                )
 
             for var_selector in meta.select_variables(spec.qiime_type):
                 var = var_selector(spec.qiime_type)
                 if not var.input:
-                    raise TypeError("An output variable has been associated"
-                                    " with an input type: %r"
-                                    % spec.qiime_type)
+                    raise TypeError(
+                        "An output variable has been associated"
+                        " with an input type: %r" % spec.qiime_type
+                    )
 
     def _assert_valid_parameters(self, parameters):
         for param_name, spec in parameters.items():
             if not is_primitive_type(spec.qiime_type):
                 raise TypeError(
                     "Parameter %r must be a primitive QIIME type, not %r"
-                    % (param_name, spec.qiime_type))
+                    % (param_name, spec.qiime_type)
+                )
 
             if not isinstance(spec.qiime_type, (TypeExp, UnionExp)):
                 raise TypeError(
                     "Parameter %r must be a complete primitive type "
-                    "expression, not %r" % (param_name, spec.qiime_type))
+                    "expression, not %r" % (param_name, spec.qiime_type)
+                )
 
-            if (spec.has_default() and
-                    spec.default is not None and
-                    spec.default not in spec.qiime_type):
-                raise TypeError("Default value for parameter %r is not of "
-                                "semantic QIIME type %r or `None`."
-                                % (param_name, spec.qiime_type))
+            if (
+                spec.has_default()
+                and spec.default is not None
+                and spec.default not in spec.qiime_type
+            ):
+                raise TypeError(
+                    "Default value for parameter %r is not of "
+                    "semantic QIIME type %r or `None`." % (param_name, spec.qiime_type)
+                )
 
             for var_selector in meta.select_variables(spec.qiime_type):
                 var = var_selector(spec.qiime_type)
                 if not var.input:
-                    raise TypeError("An output variable has been associated"
-                                    " with an input type: %r"
-                                    % spec.qiime_type)
+                    raise TypeError(
+                        "An output variable has been associated"
+                        " with an input type: %r" % spec.qiime_type
+                    )
 
     def _assert_valid_outputs(self, outputs):
         if len(outputs) == 0:
-            raise TypeError("%s requires at least one output"
-                            % self.__class__.__name__)
+            raise TypeError("%s requires at least one output" % self.__class__.__name__)
 
         for output_name, spec in outputs.items():
-            if not (is_semantic_type(spec.qiime_type) or
-                    spec.qiime_type == Visualization or
-                    spec.qiime_type == Collection[Visualization]):
+            if not (
+                is_semantic_type(spec.qiime_type)
+                or spec.qiime_type == Visualization
+                or spec.qiime_type == Collection[Visualization]
+            ):
                 raise TypeError(
                     "Output %r must be a semantic QIIME type or "
-                    "Visualization, not %r"
-                    % (output_name, spec.qiime_type))
+                    "Visualization, not %r" % (output_name, spec.qiime_type)
+                )
 
             if spec.qiime_type.name == "List":
                 raise TypeError(
                     f"Output '{output_name}' has been registered as a 'List', "
-                    "please register it as a 'Collection'")
+                    "please register it as a 'Collection'"
+                )
 
             if not isinstance(spec.qiime_type, (TypeVarExp, TypeExp)):
                 raise TypeError(
                     "Output %r must be a complete type expression, not %r"
-                    % (output_name, spec.qiime_type))
+                    % (output_name, spec.qiime_type)
+                )
 
             for var_selector in meta.select_variables(spec.qiime_type):
                 var = var_selector(spec.qiime_type)
                 if not var.output:
-                    raise TypeError("An input variable has been associated"
-                                    " with an input type: %r")
+                    raise TypeError(
+                        "An input variable has been associated"
+                        " with an input type: %r"
+                    )
 
     def _assert_valid_views(self, inputs, parameters, outputs):
-        for name, spec in itertools.chain(inputs.items(),
-                                          parameters.items(),
-                                          outputs.items()):
+        for name, spec in itertools.chain(
+            inputs.items(), parameters.items(), outputs.items()
+        ):
             if spec.has_view_type():
                 raise TypeError(
                     " Pipelines do not support function annotations (found one"
-                    " for parameter: %r)." % name)
+                    " for parameter: %r)." % name
+                )
 
     def coerce_user_input(self, **user_input):
-        """ Coerce user inputs to be appropriate for callable
-        """
+        """Coerce user inputs to be appropriate for callable"""
         callable_args = {}
 
         for name, spec in self.signature_order.items():
@@ -347,22 +407,20 @@ class PipelineSignature:
                 if name in self.inputs:
                     callable_args[name] = self._coerce_given_input(arg, spec)
                 else:
-                    callable_args[name] = \
-                        self._coerce_given_parameter(arg, spec)
+                    callable_args[name] = self._coerce_given_parameter(arg, spec)
 
         return callable_args
 
     def _coerce_given_input(self, _input, spec):
-        """ Coerce input to be appropriate for callable
-        """
+        """Coerce input to be appropriate for callable"""
         _, qiime_name = self._get_qiime_type_and_name(spec)
 
         # Transform collection from list to dict and vice versa if needed
-        if qiime_name == 'Collection' and isinstance(_input, list):
+        if qiime_name == "Collection" and isinstance(_input, list):
             _input = self._list_to_dict(_input)
-        elif qiime_name == 'List' and \
-                (isinstance(_input, dict) or
-                 isinstance(_input, qiime2.sdk.ResultCollection)):
+        elif qiime_name == "List" and (
+            isinstance(_input, dict) or isinstance(_input, qiime2.sdk.ResultCollection)
+        ):
             _input = self._dict_to_list(_input)
 
         if isinstance(_input, dict):
@@ -371,8 +429,7 @@ class PipelineSignature:
         return _input
 
     def _coerce_given_parameter(self, param, spec):
-        """ Coerce parameter to be appropriate for callable
-        """
+        """Coerce parameter to be appropriate for callable"""
         view_type = spec.view_type
         qiime_type = spec.qiime_type
 
@@ -381,33 +438,32 @@ class PipelineSignature:
         elif view_type == list and isinstance(param, dict):
             param = self._dict_to_list(param)
 
-        if qiime_type is qtype.Threads and param == 'auto':
+        if qiime_type is qtype.Threads and param == "auto":
             param = 0
 
         return param
 
-    def transform_and_add_callable_args_to_prov(self, provenance,
-                                                **callable_args):
-        """ Transform inputs to views and add all callable arguments to
-            provenance. Needs to be done together so we can add transformation
-            records to provenance and because we want transformers to run
-            outside the DFK in parsl
+    def transform_and_add_callable_args_to_prov(self, provenance, **callable_args):
+        """Transform inputs to views and add all callable arguments to
+        provenance. Needs to be done together so we can add transformation
+        records to provenance and because we want transformers to run
+        outside the DFK in parsl
         """
         for name, spec in self.signature_order.items():
             arg = callable_args[name]
 
             if name in self.inputs:
-                callable_args[name] = \
-                    self._transform_and_add_input_to_prov(
-                        provenance, name, spec, arg)
+                callable_args[name] = self._transform_and_add_input_to_prov(
+                    provenance, name, spec, arg
+                )
             else:
                 provenance.add_parameter(name, spec.qiime_type, arg)
 
         return callable_args
 
     def _transform_and_add_input_to_prov(self, provenance, name, spec, _input):
-        """ Transform the input and add both the input and the transformation
-            record to provenance
+        """Transform the input and add both the input and the transformation
+        record to provenance
         """
         transformed_input = None
 
@@ -425,11 +481,15 @@ class PipelineSignature:
             if qtype.is_collection_type(qiime_type):
                 if isinstance(_input, qiime2.sdk.result.ResultCollection):
                     transformed_input = qiime2.sdk.result.ResultCollection(
-                        {k: v._view(spec.view_type,
-                                    recorder) for k, v in _input.items()})
+                        {
+                            k: v._view(spec.view_type, recorder)
+                            for k, v in _input.items()
+                        }
+                    )
                 else:
                     transformed_input = [
-                        i._view(spec.view_type, recorder) for i in _input]
+                        i._view(spec.view_type, recorder) for i in _input
+                    ]
             else:
                 transformed_input = _input._view(spec.view_type, recorder)
         else:
@@ -438,14 +498,13 @@ class PipelineSignature:
         return transformed_input
 
     def _get_qiime_type_and_name(self, spec):
-        """ Get concrete qiime type and name from nested spec
-        """
+        """Get concrete qiime type and name from nested spec"""
         qiime_type = spec.qiime_type
         qiime_name = spec.qiime_type.name
 
         # I don't think this will necessarily work if we nest collection
         # types in the future
-        if qiime_name == '':
+        if qiime_name == "":
             # If we have an outer union as our semantic type, the name will
             # be the empty string, and the type will be the entire union
             # expression. In order to get a meaningful name and a type
@@ -459,21 +518,20 @@ class PipelineSignature:
 
         return qiime_type, qiime_name
 
-    def coerce_given_outputs(self, output_views, output_types, ctx,
-                             provenance):
-        """ Coerce the outputs produced by the method into the desired types if
-            possible. Primarily useful to create collections of outputs
+    def coerce_given_outputs(self, output_views, output_types, ctx, provenance):
+        """Coerce the outputs produced by the method into the desired types if
+        possible. Primarily useful to create collections of outputs
         """
         outputs = []
 
-        for output_view, (name, spec) in zip(output_views,
-                                             output_types.items()):
-            if spec.qiime_type.name == 'Collection':
+        for output_view, (name, spec) in zip(output_views, output_types.items()):
+            if spec.qiime_type.name == "Collection":
                 output = qiime2.sdk.ResultCollection()
                 size = len(output_view)
 
-                if isinstance(output_view, qiime2.sdk.ResultCollection) or \
-                        isinstance(output_view, dict):
+                if isinstance(output_view, qiime2.sdk.ResultCollection) or isinstance(
+                    output_view, dict
+                ):
                     keys = list(output_view.keys())
                     values = list(output_view.values())
                 else:
@@ -487,24 +545,27 @@ class PipelineSignature:
                         key = str(idx)
 
                     collection_name = create_collection_name(
-                        name=name, key=key, idx=idx, size=size)
+                        name=name, key=key, idx=idx, size=size
+                    )
                     output[key] = self._create_output_artifact(
-                        provenance, collection_name, ctx, spec, view)
+                        provenance, collection_name, ctx, spec, view
+                    )
             elif type(output_view) is not spec.view_type:
                 raise TypeError(
-                    "Expected output view type %r, received %r" %
-                    (spec.view_type.__name__, type(output_view).__name__))
+                    "Expected output view type %r, received %r"
+                    % (spec.view_type.__name__, type(output_view).__name__)
+                )
             else:
                 output = self._create_output_artifact(
-                    provenance, name, ctx, spec, output_view)
+                    provenance, name, ctx, spec, output_view
+                )
 
             outputs.append(output)
 
         return outputs
 
     def _create_output_artifact(self, provenance, name, ctx, spec, view):
-        """ Create an output artifact from a view and add it to provenance
-        """
+        """Create an output artifact from a view and add it to provenance"""
         prov = provenance.fork(name)
         qiime_type = spec.qiime_type
 
@@ -518,7 +579,8 @@ class PipelineSignature:
             qiime_type = qiime_type.fields[0]
 
         artifact = qiime2.sdk.Artifact._from_view(
-            qiime_type, view, spec.view_type, prov)
+            qiime_type, view, spec.view_type, prov
+        )
         artifact = ctx.add_reference(artifact)
 
         return artifact
@@ -526,22 +588,18 @@ class PipelineSignature:
     def decode_parameters(self, **kwargs):
         params = {}
         for key, spec in self.parameters.items():
-            if (spec.has_default() and
-                    spec.default is None and
-                    kwargs[key] is None):
+            if spec.has_default() and spec.default is None and kwargs[key] is None:
                 params[key] = None
             else:
                 params[key] = parse_primitive(spec.qiime_type, kwargs[key])
         return params
 
     def _dict_to_list(self, _input):
-        """ Turn dict to list
-        """
+        """Turn dict to list"""
         return list(_input.values())
 
     def _list_to_dict(self, _input):
-        """ Turn list to dict
-        """
+        """Turn list to dict"""
         return {str(idx): v for idx, v in enumerate(_input)}
 
     def check_types(self, **kwargs):
@@ -549,39 +607,41 @@ class PipelineSignature:
             parameter = kwargs[name]
             # A type mismatch is unacceptable unless the value is None
             # and this parameter's default value is None.
-            if ((parameter not in spec.qiime_type) and
-                    not (spec.has_default() and spec.default is None
-                         and parameter is None)):
-
+            if (parameter not in spec.qiime_type) and not (
+                spec.has_default() and spec.default is None and parameter is None
+            ):
                 if isinstance(parameter, qiime2.sdk.Visualization):
                     raise TypeError(
                         "Parameter %r received a Visualization as an "
-                        "argument. Visualizations may not be used as inputs."
-                        % name)
+                        "argument. Visualizations may not be used as inputs." % name
+                    )
 
                 elif isinstance(parameter, qiime2.sdk.Artifact):
                     raise TypeError(
                         "Parameter %r requires an argument of type %r. An "
-                        "argument of type %r was passed." % (
-                            name, spec.qiime_type, parameter.type))
+                        "argument of type %r was passed."
+                        % (name, spec.qiime_type, parameter.type)
+                    )
 
                 elif isinstance(parameter, qiime2.Metadata):
                     raise TypeError(
                         "Parameter %r received Metadata as an "
                         "argument, which is incompatible with parameter "
-                        "type: %r" % (name, spec.qiime_type))
+                        "type: %r" % (name, spec.qiime_type)
+                    )
 
                 else:  # handle primitive types
                     raise TypeError(
                         "Parameter %r received %r as an argument, which is "
                         "incompatible with parameter type: %r"
-                        % (name, parameter, spec.qiime_type))
+                        % (name, parameter, spec.qiime_type)
+                    )
 
     def solve_output(self, **kwargs):
         solved_outputs = None
-        for _, spec in itertools.chain(self.inputs.items(),
-                                       self.parameters.items(),
-                                       self.outputs.items()):
+        for _, spec in itertools.chain(
+            self.inputs.items(), self.parameters.items(), self.outputs.items()
+        ):
             if list(meta.select_variables(spec.qiime_type)):
                 break  # a variable exists, do the hard work
         else:
@@ -589,22 +649,24 @@ class PipelineSignature:
             solved_outputs = self.outputs
 
         if solved_outputs is None:
-            inputs = {**{k: s.qiime_type for k, s in self.inputs.items()},
-                      **{k: s.qiime_type for k, s in self.parameters.items()}}
+            inputs = {
+                **{k: s.qiime_type for k, s in self.inputs.items()},
+                **{k: s.qiime_type for k, s in self.parameters.items()},
+            }
             outputs = {k: s.qiime_type for k, s in self.outputs.items()}
-            input_types = {
-                k: self._infer_type(k, v) for k, v in kwargs.items()}
+            input_types = {k: self._infer_type(k, v) for k, v in kwargs.items()}
 
             solved = meta.match(input_types, inputs, outputs)
             solved_outputs = collections.OrderedDict(
-                (k, s.duplicate(qiime_type=solved[k]))
-                for k, s in self.outputs.items())
+                (k, s.duplicate(qiime_type=solved[k])) for k, s in self.outputs.items()
+            )
 
         for output_name, spec in solved_outputs.items():
             if not spec.qiime_type.is_concrete():
                 raise TypeError(
-                    "Solved output %r must be a concrete type, not %r" %
-                    (output_name, spec.qiime_type))
+                    "Solved output %r must be a concrete type, not %r"
+                    % (output_name, spec.qiime_type)
+                )
 
         return solved_outputs
 
@@ -622,32 +684,31 @@ class PipelineSignature:
         if type(value) is set:
             inner = UnionExp((self._infer_type(key, v) for v in value))
             return Set[inner.normalize()]
-        if type(value) is dict or \
-                isinstance(value, qiime2.sdk.ResultCollection):
-            inner = UnionExp(
-                (self._infer_type(key, v) for v in value.values()))
+        if type(value) is dict or isinstance(value, qiime2.sdk.ResultCollection):
+            inner = UnionExp((self._infer_type(key, v) for v in value.values()))
             return Collection[inner.normalize()]
-        if isinstance(
-                value, (qiime2.sdk.Artifact, qiime2.sdk.proxy.ProxyArtifact)):
+        if isinstance(value, (qiime2.sdk.Artifact, qiime2.sdk.proxy.ProxyArtifact)):
             return value.type
         else:
             return infer_primitive_type(value)
 
     def __repr__(self):
         lines = []
-        for group in 'inputs', 'parameters', 'outputs':
+        for group in "inputs", "parameters", "outputs":
             lookup = getattr(self, group)
-            lines.append('%s:' % group)
+            lines.append("%s:" % group)
             for name, spec in lookup.items():
-                lines.append('    %s: %r' % (name, spec))
-        return '\n'.join(lines)
+                lines.append("    %s: %r" % (name, spec))
+        return "\n".join(lines)
 
     def __eq__(self, other):
-        return (type(self) is type(other) and
-                self.inputs == other.inputs and
-                self.parameters == other.parameters and
-                self.outputs == other.outputs and
-                self.signature_order == other.signature_order)
+        return (
+            type(self) is type(other)
+            and self.inputs == other.inputs
+            and self.parameters == other.parameters
+            and self.outputs == other.outputs
+            and self.signature_order == other.signature_order
+        )
 
     def __ne__(self, other):
         return not (self == other)
@@ -663,50 +724,69 @@ class MethodSignature(PipelineSignature):
         for output_name, spec in outputs.items():
             if not is_semantic_type(spec.qiime_type):
                 raise TypeError(
-                    "Output %r must be a semantic QIIME type, not %r" %
-                    (output_name, spec.qiime_type))
+                    "Output %r must be a semantic QIIME type, not %r"
+                    % (output_name, spec.qiime_type)
+                )
 
     def _assert_valid_views(self, inputs, parameters, outputs):
-        for name, spec in itertools.chain(inputs.items(),
-                                          parameters.items(),
-                                          outputs.items()):
+        for name, spec in itertools.chain(
+            inputs.items(), parameters.items(), outputs.items()
+        ):
             if not spec.has_view_type():
-                raise TypeError("Method is missing a function annotation for"
-                                " parameter: %r" % name)
+                raise TypeError(
+                    "Method is missing a function annotation for"
+                    " parameter: %r" % name
+                )
 
 
 class VisualizerSignature(PipelineSignature):
-    builtin_args = ('output_dir',)
+    builtin_args = ("output_dir",)
 
-    def __init__(self, callable, inputs, parameters, input_descriptions=None,
-                 parameter_descriptions=None):
-        outputs = {'visualization': Visualization}
+    def __init__(
+        self,
+        callable,
+        inputs,
+        parameters,
+        input_descriptions=None,
+        parameter_descriptions=None,
+    ):
+        outputs = {"visualization": Visualization}
         output_descriptions = None
-        super().__init__(callable, inputs, parameters, outputs,
-                         input_descriptions, parameter_descriptions,
-                         output_descriptions)
+        super().__init__(
+            callable,
+            inputs,
+            parameters,
+            outputs,
+            input_descriptions,
+            parameter_descriptions,
+            output_descriptions,
+        )
 
     def _assert_valid_outputs(self, outputs):
         super()._assert_valid_outputs(outputs)
-        output = outputs['visualization']
+        output = outputs["visualization"]
         if output.has_view_type() and output.view_type is not None:
             raise TypeError(
                 "Visualizer callable cannot return anything. Its return "
                 "annotation must be `None`, not %r. Write output to "
-                "`output_dir`." % output.view_type)
+                "`output_dir`." % output.view_type
+            )
 
     def _assert_valid_views(self, inputs, parameters, outputs):
         for name, spec in itertools.chain(inputs.items(), parameters.items()):
             if not spec.has_view_type():
-                raise TypeError("Visualizer is missing a function annotation"
-                                " for parameter: %r" % name)
+                raise TypeError(
+                    "Visualizer is missing a function annotation"
+                    " for parameter: %r" % name
+                )
 
 
 IndexedCollectionElement = collections.namedtuple(
-    'IndexedCollectionElement', ['item_name', 'idx', 'total'])
+    "IndexedCollectionElement", ["item_name", "idx", "total"]
+)
 
 
-class HashableInvocation():
+class HashableInvocation:
     def __init__(self, plugin_action, arguments):
         self.plugin_action = plugin_action
 
@@ -714,15 +794,17 @@ class HashableInvocation():
         self.arguments = self._make_hashable(unified_arguments)
 
     def __eq__(self, other):
-        return (self.plugin_action == other.plugin_action) \
-              and (self.arguments == other.arguments)
+        return (self.plugin_action == other.plugin_action) and (
+            self.arguments == other.arguments
+        )
 
     def __hash__(self):
         return hash((self.plugin_action, self.arguments))
 
     def __repr__(self):
-        return (f'\nPLUGIN_ACTION: {self.plugin_action}\nARGUMENTS:'
-                f' {self.arguments}\n')
+        return (
+            f"\nPLUGIN_ACTION: {self.plugin_action}\nARGUMENTS:" f" {self.arguments}\n"
+        )
 
     def _unify_dicts(self, arguments):
         """Check if action.yaml gave us any lists of single element dicts to
@@ -730,15 +812,13 @@ class HashableInvocation():
         """
         for idx, argument in enumerate(arguments):
             name, value = list(argument.items())[0]
-            if isinstance(value, list) and \
-                    all(isinstance(x, dict) for x in value):
+            if isinstance(value, list) and all(isinstance(x, dict) for x in value):
                 arguments[idx] = {name: self._unify_dict(value)}
 
         return arguments
 
     def _unify_dict(self, collection):
-        """If we do have a list of single element dicts, turn it into one dict
-        """
+        """If we do have a list of single element dicts, turn it into one dict"""
         unified_dict = {}
 
         for elem in collection:
@@ -758,8 +838,7 @@ class HashableInvocation():
 
         new_collection = []
 
-        if isinstance(collection, dict) or \
-                isinstance(collection, ResultCollection):
+        if isinstance(collection, dict) or isinstance(collection, ResultCollection):
             for k, v in collection.items():
                 new_collection.append((k, self._make_hashable(v)))
         elif isinstance(collection, list):
@@ -768,7 +847,7 @@ class HashableInvocation():
         elif isinstance(collection, Artifact):
             return str(collection.uuid)
         elif isinstance(collection, _MetadataBase):
-            with tempfile.NamedTemporaryFile('w') as fh:
+            with tempfile.NamedTemporaryFile("w") as fh:
                 fp = fh.name
                 collection.save(fp)
                 collection = md5sum(fp)

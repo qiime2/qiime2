@@ -13,18 +13,20 @@ import importlib.machinery
 
 from qiime2.sdk import usage
 
-__all__ = ['available_plugins', 'ArtifactAPIUsage']
+__all__ = ["available_plugins", "ArtifactAPIUsage"]
 __path__ = []
 
 
 def available_plugins():
     import qiime2.sdk
+
     pm = qiime2.sdk.PluginManager()
-    return set('qiime2.plugins.' + s.replace('-', '_') for s in pm.plugins)
+    return set("qiime2.plugins." + s.replace("-", "_") for s in pm.plugins)
 
 
 class ArtifactAPIUsageVariable(usage.UsageVariable):
     """A specialized implementation for :class:`ArtifactAPIUsage`."""
+
     # this lets us repr all inputs (including parameters) and have
     # them template out in a consistent manner. without this we would wind
     # up with `foo('my_artifact')` rather than `foo(my_artifact)`.
@@ -36,28 +38,28 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
             return self.value
 
     def to_interface_name(self):
-        if self.var_type == 'format':
+        if self.var_type == "format":
             return self.name
 
         parts = {
-            'artifact': [self.name],
-            'artifact_collection': [self.name, 'artifact_collection'],
-            'visualization': [self.name, 'viz'],
-            'visualization_collection': [self.name, 'viz_collection'],
-            'metadata': [self.name, 'md'],
-            'column': [self.name, 'mdc'],
+            "artifact": [self.name],
+            "artifact_collection": [self.name, "artifact_collection"],
+            "visualization": [self.name, "viz"],
+            "visualization_collection": [self.name, "viz_collection"],
+            "metadata": [self.name, "md"],
+            "column": [self.name, "mdc"],
             # No format here - it shouldn't be possible to make it this far
         }[self.var_type]
-        var_name = '_'.join(parts)
+        var_name = "_".join(parts)
         # ensure var_name is a valid python identifier
-        var_name = re.sub(r'\W|^(?=\d)', '_', var_name)
+        var_name = re.sub(r"\W|^(?=\d)", "_", var_name)
         return self.repr_raw_variable_name(var_name)
 
     def assert_has_line_matching(self, path, expression, key=None):
         if not self.use.enable_assertions:
             return
 
-        self.use._update_imports(import_='re')
+        self.use._update_imports(import_="re")
         name = self.to_interface_name()
         expr = expression
 
@@ -65,13 +67,13 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
             name = "%r[%r]" % (name, key)
 
         lines = [
-            'hits = sorted(%s._archiver.data_dir.glob(%r))' % (name, path),
-            'if len(hits) != 1:',
-            self.use.INDENT + 'raise ValueError',
-            'target = hits[0].read_text()',
-            'match = re.search(%r, target, flags=re.MULTILINE)' % (expr,),
-            'if match is None:',
-            self.use.INDENT + 'raise AssertionError',
+            "hits = sorted(%s._archiver.data_dir.glob(%r))" % (name, path),
+            "if len(hits) != 1:",
+            self.use.INDENT + "raise ValueError",
+            "target = hits[0].read_text()",
+            "match = re.search(%r, target, flags=re.MULTILINE)" % (expr,),
+            "if match is None:",
+            self.use.INDENT + "raise AssertionError",
         ]
 
         self.use._add(lines)
@@ -86,15 +88,15 @@ class ArtifactAPIUsageVariable(usage.UsageVariable):
             name = "%r[%r]" % (name, key)
 
         lines = [
-            'if str(%s.type) != %r:' % (name, str(semantic_type)),
-            self.use.INDENT + 'raise AssertionError',
+            "if str(%s.type) != %r:" % (name, str(semantic_type)),
+            self.use.INDENT + "raise AssertionError",
         ]
 
         self.use._add(lines)
 
 
 class ArtifactAPIUsage(usage.Usage):
-    INDENT = ' ' * 4
+    INDENT = " " * 4
 
     @dataclass(frozen=True)
     class ImporterRecord:
@@ -103,15 +105,16 @@ class ArtifactAPIUsage(usage.Usage):
         as_: str = None
 
         def render(self):
-            tmpl = 'import %s' % (self.import_,)
+            tmpl = "import %s" % (self.import_,)
             if self.from_ is not None:
-                tmpl = 'from %s %s' % (self.from_, tmpl)
+                tmpl = "from %s %s" % (self.from_, tmpl)
             if self.as_ is not None:
-                tmpl = '%s as %s' % (tmpl, self.as_)
+                tmpl = "%s as %s" % (tmpl, self.as_)
             return tmpl
 
-    def __init__(self, enable_assertions: bool = False,
-                 action_collection_size: int = 3):
+    def __init__(
+        self, enable_assertions: bool = False, action_collection_size: int = 3
+    ):
         """Constructor for ArtifactAPIUsage
 
         Warning
@@ -162,8 +165,8 @@ class ArtifactAPIUsage(usage.Usage):
         """
         sorted_imps = sorted(self.local_imports)
         if sorted_imps:
-            sorted_imps = sorted_imps + ['']
-        rendered = '\n'.join(sorted_imps + self.recorder)
+            sorted_imps = sorted_imps + [""]
+        rendered = "\n".join(sorted_imps + self.recorder)
         if flush:
             self._reset_state()
         return rendered
@@ -197,31 +200,27 @@ class ArtifactAPIUsage(usage.Usage):
 
         var_name = variable.to_interface_name()
 
-        lines = [f'{var_name} = ResultCollection({{']
+        lines = [f"{var_name} = ResultCollection({{"]
         for key, member in members.items():
             lines.append(self.INDENT + f"'{key}': {member.name},")
-        lines.append('})')
+        lines.append("})")
 
-        self._update_imports(from_='qiime2', import_='ResultCollection')
+        self._update_imports(from_="qiime2", import_="ResultCollection")
         self._add(lines)
 
         return variable
 
     def get_artifact_collection_member(self, name, variable, key):
-        accessed_variable = super().get_artifact_collection_member(
-            name, variable, key
-        )
+        accessed_variable = super().get_artifact_collection_member(name, variable, key)
 
-        lines = [
-            f"{name} = {variable.to_interface_name()}['{key}']"
-        ]
+        lines = [f"{name} = {variable.to_interface_name()}['{key}']"]
         self._add(lines)
 
         return accessed_variable
 
     def init_format(self, name, factory, ext=None):
         if ext is not None:
-            name = '%s.%s' % (name, ext.lstrip('.'))
+            name = "%s.%s" % (name, ext.lstrip("."))
 
         variable = super().init_format(name, factory, ext=ext)
 
@@ -230,18 +229,18 @@ class ArtifactAPIUsage(usage.Usage):
 
         return variable
 
-    def import_from_format(self, name, semantic_type,
-                           variable, view_type=None):
+    def import_from_format(self, name, semantic_type, variable, view_type=None):
         imported_var = super().import_from_format(
-            name, semantic_type, variable, view_type=view_type)
+            name, semantic_type, variable, view_type=view_type
+        )
 
         interface_name = imported_var.to_interface_name()
         import_fp = variable.to_interface_name()
 
         lines = [
-            '%s = Artifact.import_data(' % (interface_name,),
-            self.INDENT + '%r,' % (semantic_type,),
-            self.INDENT + '%r,' % (import_fp,),
+            "%s = Artifact.import_data(" % (interface_name,),
+            self.INDENT + "%r," % (semantic_type,),
+            self.INDENT + "%r," % (import_fp,),
         ]
 
         if view_type is not None:
@@ -251,8 +250,7 @@ class ArtifactAPIUsage(usage.Usage):
                 import_path = _canonical_module(view_type)
                 view_type = view_type.__name__
                 if import_path is not None:
-                    self._update_imports(from_=import_path,
-                                         import_=view_type)
+                    self._update_imports(from_=import_path, import_=view_type)
                 else:
                     # May be in scope already, but something is quite wrong at
                     # this point, so assume the plugin_manager is sufficiently
@@ -261,11 +259,11 @@ class ArtifactAPIUsage(usage.Usage):
             else:
                 view_type = repr(view_type)
 
-            lines.append(self.INDENT + '%s,' % (view_type,))
+            lines.append(self.INDENT + "%s," % (view_type,))
 
-        lines.append(')')
+        lines.append(")")
 
-        self._update_imports(from_='qiime2', import_='Artifact')
+        self._update_imports(from_="qiime2", import_="Artifact")
         self._add(lines)
 
         return imported_var
@@ -277,10 +275,10 @@ class ArtifactAPIUsage(usage.Usage):
         first_md = first_var.to_interface_name()
 
         names = [str(r.to_interface_name()) for r in remaining_vars]
-        remaining = ', '.join(names)
+        remaining = ", ".join(names)
         var_name = variable.to_interface_name()
 
-        lines = ['%r = %r.merge(%s)' % (var_name, first_md, remaining)]
+        lines = ["%r = %r.merge(%s)" % (var_name, first_md, remaining)]
 
         self._add(lines)
 
@@ -292,7 +290,7 @@ class ArtifactAPIUsage(usage.Usage):
         to_name = col_variable.to_interface_name()
         from_name = variable.to_interface_name()
 
-        lines = ['%s = %s.get_column(%r)' % (to_name, from_name, column_name)]
+        lines = ["%s = %s.get_column(%r)" % (to_name, from_name, column_name)]
 
         self._add(lines)
 
@@ -304,9 +302,9 @@ class ArtifactAPIUsage(usage.Usage):
         from_name = from_variable.to_interface_name()
         to_name = to_variable.to_interface_name()
 
-        lines = ['%r = %r.view(Metadata)' % (to_name, from_name)]
+        lines = ["%r = %r.view(Metadata)" % (to_name, from_name)]
 
-        self._update_imports(from_='qiime2', import_='Metadata')
+        self._update_imports(from_="qiime2", import_="Metadata")
         self._add(lines)
 
         return to_variable
@@ -315,15 +313,15 @@ class ArtifactAPIUsage(usage.Usage):
         var_name = variable.to_interface_name()
 
         lines = []
-        for attr in ('uuid', 'type', 'format'):
-            lines.append('print(%r.%s)' % (var_name, attr))
+        for attr in ("uuid", "type", "format"):
+            lines.append("print(%r.%s)" % (var_name, attr))
 
         self._add(lines)
 
         return variable
 
     def comment(self, text):
-        lines = ['# %s' % (text,)]
+        lines = ["# %s" % (text,)]
 
         self._add(lines)
 
@@ -331,7 +329,7 @@ class ArtifactAPIUsage(usage.Usage):
         action_name = self._plugin_import_as_name(action)
 
         # TODO: this isn't pretty, but it gets the job done
-        lines = ['help(%s.%s.__call__)' % (action_name, action.action_id)]
+        lines = ["help(%s.%s.__call__)" % (action_name, action.action_id)]
 
         self._add(lines)
 
@@ -351,33 +349,33 @@ class ArtifactAPIUsage(usage.Usage):
     def _plugin_import_as_name(self, action):
         action_f = action.get_action()
         full_import = action_f.get_import_path()
-        base, _, _ = full_import.rsplit('.', 2)
-        as_ = '%s_actions' % (action.plugin_id,)
-        self._update_imports(import_='%s.actions' % (base,), as_=as_)
+        base, _, _ = full_import.rsplit(".", 2)
+        as_ = "%s_actions" % (action.plugin_id,)
+        self._update_imports(import_="%s.actions" % (base,), as_=as_)
         return as_
 
     def _template_action(self, action, input_opts, variables):
         if len(variables) > self.action_collection_size:
-            output_vars = 'action_results'
+            output_vars = "action_results"
         else:
             output_vars = self._template_outputs(action, variables)
 
         plugin_id = action.plugin_id
         action_id = action.action_id
         lines = [
-            '%s = %s_actions.%s(' % (output_vars, plugin_id, action_id),
+            "%s = %s_actions.%s(" % (output_vars, plugin_id, action_id),
         ]
 
         for k, v in input_opts.items():
             line = self._template_input(k, v)
             lines.append(line)
 
-        lines.append(')')
+        lines.append(")")
 
         if len(variables) > self.action_collection_size:
             for k, v in variables._asdict().items():
                 var_name = v.to_interface_name()
-                lines.append('%s = action_results.%s' % (var_name, k))
+                lines.append("%s = action_results.%s" % (var_name, k))
 
         self._add(lines)
 
@@ -391,24 +389,23 @@ class ArtifactAPIUsage(usage.Usage):
             output_vars.append(str(variable.to_interface_name()))
 
         if len(output_vars) == 1:
-            output_vars.append('')
+            output_vars.append("")
 
-        return ', '.join(output_vars).strip()
+        return ", ".join(output_vars).strip()
 
     def _template_input(self, input_name, value):
         if isinstance(value, list):
-            t = ', '.join(repr(el) for el in value)
-            return self.INDENT + '%s=[%s],' % (input_name, t)
+            t = ", ".join(repr(el) for el in value)
+            return self.INDENT + "%s=[%s]," % (input_name, t)
 
         if isinstance(value, set):
-            t = ', '.join(repr(el) for el in sorted(value, key=str))
-            return self.INDENT + '%s={%s},' % (input_name, t)
+            t = ", ".join(repr(el) for el in sorted(value, key=str))
+            return self.INDENT + "%s={%s}," % (input_name, t)
 
-        return self.INDENT + '%s=%r,' % (input_name, value)
+        return self.INDENT + "%s=%r," % (input_name, value)
 
     def _update_imports(self, import_, from_=None, as_=None):
-        import_record = self.ImporterRecord(
-            import_=import_, from_=from_, as_=as_)
+        import_record = self.ImporterRecord(import_=import_, from_=from_, as_=as_)
 
         if as_ is not None:
             self.namespace.add(as_)
@@ -424,16 +421,16 @@ class ArtifactAPIUsage(usage.Usage):
 def _canonical_module(obj):
     last_module = None
     module_str = obj.__module__
-    parts = module_str.split('.')
+    parts = module_str.split(".")
     while parts:
         try:
-            module = importlib.import_module('.'.join(parts))
+            module = importlib.import_module(".".join(parts))
         except ModuleNotFoundError:
             return last_module
         if not hasattr(module, obj.__name__):
             return last_module
 
-        last_module = '.'.join(parts)
+        last_module = ".".join(parts)
         parts.pop()
 
     return None
@@ -442,26 +439,28 @@ def _canonical_module(obj):
 class QIIMEArtifactAPIImporter:
     def _plugin_lookup(self, plugin_name):
         import qiime2.sdk
+
         pm = qiime2.sdk.PluginManager()
-        lookup = {s.replace('-', '_'): s for s in pm.plugins}
+        lookup = {s.replace("-", "_"): s for s in pm.plugins}
         if plugin_name not in lookup:
             return None
         return pm.plugins[lookup[plugin_name]]
 
     def find_spec(self, name, path=None, target=None):
         # Don't waste time doing anything if it's not a qiime2 plugin
-        if not name.startswith('qiime2.plugins.'):
+        if not name.startswith("qiime2.plugins."):
             return None
 
         if target is not None:
             # TODO: experiment with this to see if it is possible
-            raise ImportError("Reloading the QIIME 2 Artifact API is not"
-                              " currently supported.")
+            raise ImportError(
+                "Reloading the QIIME 2 Artifact API is not" " currently supported."
+            )
 
         # We couldn't care less about path, it is useless to us
         # (It is the __path__ of the parent module)
 
-        fqn = name.split('.')
+        fqn = name.split(".")
         plugin_details = fqn[2:]  # fqn[len(['qiime2', 'plugins']):]
         plugin_name = plugin_details[0]
 
@@ -471,15 +470,16 @@ class QIIMEArtifactAPIImporter:
 
         if len(plugin_details) == 1:
             return self._make_spec(name, plugin)
-        elif plugin_details[1] == 'visualizers':
-            return self._make_spec(name, plugin, ('visualizers',))
-        elif plugin_details[1] == 'methods':
-            return self._make_spec(name, plugin, ('methods',))
-        elif plugin_details[1] == 'pipelines':
-            return self._make_spec(name, plugin, ('pipelines',))
-        elif plugin_details[1] == 'actions':
-            return self._make_spec(name, plugin, ('methods', 'visualizers',
-                                                  'pipelines'))
+        elif plugin_details[1] == "visualizers":
+            return self._make_spec(name, plugin, ("visualizers",))
+        elif plugin_details[1] == "methods":
+            return self._make_spec(name, plugin, ("methods",))
+        elif plugin_details[1] == "pipelines":
+            return self._make_spec(name, plugin, ("pipelines",))
+        elif plugin_details[1] == "actions":
+            return self._make_spec(
+                name, plugin, ("methods", "visualizers", "pipelines")
+            )
         return None
 
     def _make_spec(self, name, plugin, action_types=None):
@@ -488,9 +488,9 @@ class QIIMEArtifactAPIImporter:
         return importlib.machinery.ModuleSpec(
             name,
             loader=self,
-            origin='generated QIIME 2 API',
-            loader_state={'plugin': plugin, 'action_types': action_types},
-            is_package=action_types is None
+            origin="generated QIIME 2 API",
+            loader_state={"plugin": plugin, "action_types": action_types},
+            is_package=action_types is None,
         )
 
     def create_module(self, spec):
@@ -499,19 +499,17 @@ class QIIMEArtifactAPIImporter:
 
     def exec_module(self, module):
         spec = module.__spec__
-        plugin = spec.loader_state['plugin']
-        action_types = spec.loader_state['action_types']
+        plugin = spec.loader_state["plugin"]
+        action_types = spec.loader_state["action_types"]
         module.__plugin__ = plugin
 
         if action_types is None:
-            module.methods = importlib.import_module('.methods',
-                                                     package=spec.name)
-            module.visualizers = importlib.import_module('.visualizers',
-                                                         package=spec.name)
-            module.pipelines = importlib.import_module('.pipelines',
-                                                       package=spec.name)
-            module.actions = importlib.import_module('.actions',
-                                                     package=spec.name)
+            module.methods = importlib.import_module(".methods", package=spec.name)
+            module.visualizers = importlib.import_module(
+                ".visualizers", package=spec.name
+            )
+            module.pipelines = importlib.import_module(".pipelines", package=spec.name)
+            module.actions = importlib.import_module(".actions", package=spec.name)
         else:
             for action_type in action_types:
                 actions = getattr(plugin, action_type)

@@ -16,27 +16,26 @@ from qiime2.plugin.testing import TestPluginBase
 
 
 class TestTesting(TestPluginBase):
-    package = 'qiime2.sdk.tests'
+    package = "qiime2.sdk.tests"
 
     def setUp(self):
         self.plugin = get_dummy_plugin()
 
         # TODO standardize temporary directories created by QIIME 2
         # create a temporary data_dir for sample Visualizations
-        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        self.test_dir = tempfile.TemporaryDirectory(prefix="qiime2-test-temp-")
 
     def tearDown(self):
         self.test_dir.cleanup()
 
     def test_transformer_in_other_plugin(self):
-        _, obs = self.transform_format(SingleIntFormat, str,
-                                       filename='singleint.txt')
+        _, obs = self.transform_format(SingleIntFormat, str, filename="singleint.txt")
 
-        self.assertEqual('42', obs)
+        self.assertEqual("42", obs)
 
     def test_examples(self):
         self.execute_examples()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

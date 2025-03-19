@@ -61,12 +61,12 @@ def _redirected_fd(to=os.devnull, stdio=None):
     # copy stdio_fd before it is overwritten
     # NOTE: `copied` is inheritable on Windows when duplicating a standard
     # stream
-    with os.fdopen(os.dup(stdio_fd), 'wb') as copied:
+    with os.fdopen(os.dup(stdio_fd), "wb") as copied:
         stdio.flush()  # flush library buffers that dup2 knows nothing about
         try:
             os.dup2(_get_fileno(to), stdio_fd)  # $ exec >&to
         except ValueError:  # filename
-            with open(to, 'wb') as to_file:
+            with open(to, "wb") as to_file:
                 os.dup2(to_file.fileno(), stdio_fd)  # $ exec > to
         try:
             yield stdio  # allow code to be run with the redirected stdio
@@ -78,7 +78,7 @@ def _redirected_fd(to=os.devnull, stdio=None):
 
 
 def _get_fileno(file_or_fd):
-    fd = getattr(file_or_fd, 'fileno', lambda: file_or_fd)()
+    fd = getattr(file_or_fd, "fileno", lambda: file_or_fd)()
     if not isinstance(fd, int):
         raise ValueError("Expected a file (`.fileno()`) or a file descriptor")
     return fd
@@ -140,7 +140,6 @@ def get_filepath_from_package(package, relative_filepath):
     """
     fp = importlib.resources.files(package) / relative_filepath
     if not fp.exists():
-        raise FileNotFoundError(
-            f'The requested data asset {fp} does not exist.')
+        raise FileNotFoundError(f"The requested data asset {fp} does not exist.")
     else:
         return fp

@@ -16,8 +16,7 @@ def _validate_collection(collection_order):
     """Validate that all indexed items in the collection agree on how
     large the collection should be and that we have that many elements.
     """
-    assert all([elem.total == collection_order[0].total
-                for elem in collection_order])
+    assert all([elem.total == collection_order[0].total for elem in collection_order])
     assert len(collection_order) == collection_order[0].total
 
 
@@ -34,8 +33,9 @@ class Context:
                     self.cache.named_pool.create_index()
 
         if action_obj is None and parent is not None:
-            raise ValueError('Only parentless contexts can be instantiated '
-                             'without an action_obj')
+            raise ValueError(
+                "Only parentless contexts can be instantiated " "without an action_obj"
+            )
 
         self.action_obj = action_obj
         self._parent = parent
@@ -51,7 +51,7 @@ class Context:
         This function is aware of the pipeline context and manages its own
         cleanup as appropriate.
         """
-        plugin = plugin.replace('_', '-')
+        plugin = plugin.replace("_", "-")
 
         pm = qiime2.sdk.PluginManager()
         try:
@@ -63,15 +63,16 @@ class Context:
             new_action_obj = plugin_obj.actions[action]
         except KeyError:
             raise ValueError(
-                "An action named %r was not found for plugin %r"
-                % (action, plugin))
+                "An action named %r was not found for plugin %r" % (action, plugin)
+            )
 
         # Create a context for the new action
         child_context = self.__class__(new_action_obj, parent=self)
 
         # Return a callable for the new action
         callable_action = child_context.action_obj._rewrite_wrapper_signature(
-            child_context._callable_action_)
+            child_context._callable_action_
+        )
         child_context.action_obj._set_wrapper_properties(callable_action)
         return callable_action
 
@@ -81,8 +82,9 @@ class Context:
 
         # If we have a named_pool, we need to check for cached results that
         # we can reuse.
-        if self.cache.named_pool is not None and \
-                (cached_results := self._check_cache(args, kwargs)):
+        if self.cache.named_pool is not None and (
+            cached_results := self._check_cache(args, kwargs)
+        ):
             return cached_results
 
         # If we didn't have cached results to reuse, we need to execute
@@ -90,14 +92,12 @@ class Context:
         return self._dispatch_(args, kwargs)
 
     def _check_cache(self, args, kwargs):
-        plugin = self.action_obj.plugin_id.replace('_', '-')
-        plugin_action = f'{plugin}:{self.action_obj.id}'
+        plugin = self.action_obj.plugin_id.replace("_", "-")
+        plugin_action = f"{plugin}:{self.action_obj.id}"
 
         # Type management for inputs
-        collated_inputs = self.action_obj.signature.collate_inputs(
-            *args, **kwargs)
-        callable_args = self.action_obj.signature.coerce_user_input(
-            **collated_inputs)
+        collated_inputs = self.action_obj.signature.collate_inputs(*args, **kwargs)
+        callable_args = self.action_obj.signature.coerce_user_input(**collated_inputs)
 
         # Make args and kwargs look how they do when we read them
         # out of a .yaml file (list of single value dicts of
@@ -117,8 +117,7 @@ class Context:
                 pass
 
     def _load_cache(self, invocation):
-        """Load cached results
-        """
+        """Load cached results"""
         cached_outputs = self.cache.named_pool.index[invocation]
         loaded_outputs = {}
 
@@ -135,17 +134,14 @@ class Context:
                 for elem_info in collection_order:
                     elem = cached_collection[elem_info]
                     loaded_elem = self.cache.named_pool.load(elem)
-                    loaded_collection[
-                        elem_info.item_name] = loaded_elem
+                    loaded_collection[elem_info.item_name] = loaded_elem
 
                 loaded_outputs[name] = loaded_collection
             else:
                 output = cached_outputs[name]
-                loaded_outputs[name] = \
-                    self.cache.named_pool.load(output)
+                loaded_outputs[name] = self.cache.named_pool.load(output)
 
-        return qiime2.sdk.Results(
-            loaded_outputs.keys(), loaded_outputs.values())
+        return qiime2.sdk.Results(loaded_outputs.keys(), loaded_outputs.values())
 
     def make_artifact(self, type, view, view_type=None):
         """Return a new artifact from a given view.
@@ -162,9 +158,9 @@ class Context:
     # process pool
     def add_reference(self, ref):
         """Add a reference to something destructable that will be owned by the
-           parent scope. The reason it needs to be tracked is so that on
-           failure, a context can still identify what will (no longer) be
-           returned.
+        parent scope. The reason it needs to be tracked is so that on
+        failure, a context can still identify what will (no longer) be
+        returned.
         """
         with self.cache.lock:
             new_ref = self.cache.process_pool.save(ref)

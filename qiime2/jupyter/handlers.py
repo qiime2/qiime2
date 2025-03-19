@@ -17,20 +17,21 @@ from qiime2.core.archive.archiver import ArchiveCheck
 
 class QIIME2RedirectHandler(IPythonHandler):
     """Add a location to location_store for later retrieval"""
+
     def initialize(self, result_store):
         self.result_store = result_store
 
     def get(self):
-        location = self.get_query_argument('location')
+        location = self.get_query_argument("location")
         if not os.path.exists(location):
             # Client DOM should explain that the user should re-run the cell
             self.send_error(409)  # Conflict
             return
         # is it actually a QIIME 2 result, or a random part of the filesystem
         archive = ArchiveCheck(pathlib.Path(location))
-        self.result_store[archive.uuid] = os.path.join(location, 'data')
+        self.result_store[archive.uuid] = os.path.join(location, "data")
 
-        self.redirect('view/%s/' % archive.uuid)
+        self.redirect("view/%s/" % archive.uuid)
 
 
 class QIIME2ResultHandler(web.StaticFileHandler):
@@ -40,7 +41,7 @@ class QIIME2ResultHandler(web.StaticFileHandler):
 
     @classmethod
     def get_absolute_path(cls, root, path):
-        uuid, path = path.split('/', 1)
+        uuid, path = path.split("/", 1)
         root = root[uuid]
         # This is janky, but validate_absolute_path is the only thing
         # that will use this data, so it can know to unpack the tuple again

@@ -15,7 +15,7 @@ from ..type import IntSequence1, IntSequence2
 
 
 class ActionTester(unittest.TestCase):
-    ACTION = 'N/A'
+    ACTION = "N/A"
 
     def setUp(self):
         plugin = get_dummy_plugin()
@@ -32,200 +32,195 @@ class ActionTester(unittest.TestCase):
 
 
 class TestConstrainedInputVisualization(ActionTester):
-    ACTION = 'constrained_input_visualization'
+    ACTION = "constrained_input_visualization"
 
     def test_match_foo(self):
-        a = Artifact.import_data('Foo', "element 1", view_type=str)
-        b = Artifact.import_data('Foo', "element 2", view_type=str)
+        a = Artifact.import_data("Foo", "element 1", view_type=str)
+        b = Artifact.import_data("Foo", "element 2", view_type=str)
 
-        viz, = self.run_action(a=a, b=b)
+        (viz,) = self.run_action(a=a, b=b)
 
-        contents = (viz._archiver.data_dir / 'index.html').read_text()
-        self.assertIn('element 1', contents)
-        self.assertIn('element 2', contents)
+        contents = (viz._archiver.data_dir / "index.html").read_text()
+        self.assertIn("element 1", contents)
+        self.assertIn("element 2", contents)
 
     def test_match_nested(self):
-        a = Artifact.import_data('C1[Baz]', "element 1", view_type=str)
-        b = Artifact.import_data('C1[Baz]', "element 2", view_type=str)
+        a = Artifact.import_data("C1[Baz]", "element 1", view_type=str)
+        b = Artifact.import_data("C1[Baz]", "element 2", view_type=str)
 
-        viz, = self.run_action(a=a, b=b)
+        (viz,) = self.run_action(a=a, b=b)
 
-        contents = (viz._archiver.data_dir / 'index.html').read_text()
-        self.assertIn('element 1', contents)
-        self.assertIn('element 2', contents)
+        contents = (viz._archiver.data_dir / "index.html").read_text()
+        self.assertIn("element 1", contents)
+        self.assertIn("element 2", contents)
 
     def test_mismatch_foo_bar(self):
-        a = Artifact.import_data('Foo', "element 1", view_type=str)
-        b = Artifact.import_data('Bar', "element 2", view_type=str)
+        a = Artifact.import_data("Foo", "element 1", view_type=str)
+        b = Artifact.import_data("Bar", "element 2", view_type=str)
 
-        with self.assertRaisesRegex(ValueError, 'No solution.*Foo'):
-            viz, = self.run_action(a=a, b=b)
+        with self.assertRaisesRegex(ValueError, "No solution.*Foo"):
+            (viz,) = self.run_action(a=a, b=b)
 
     def test_mismatch_nested(self):
-        a = Artifact.import_data('C1[Foo]', "element 1", view_type=str)
-        b = Artifact.import_data('Foo', "element 2", view_type=str)
+        a = Artifact.import_data("C1[Foo]", "element 1", view_type=str)
+        b = Artifact.import_data("Foo", "element 2", view_type=str)
 
-        with self.assertRaisesRegex(ValueError, 'No solution.*C1'):
-            viz, = self.run_action(a=a, b=b)
+        with self.assertRaisesRegex(ValueError, "No solution.*C1"):
+            (viz,) = self.run_action(a=a, b=b)
 
 
 class TestCombinatoricallyMappedMethod(ActionTester):
-    ACTION = 'combinatorically_mapped_method'
+    ACTION = "combinatorically_mapped_method"
 
     def test_match_foo(self):
-        a = Artifact.import_data('C1[Foo]', 'element 1', view_type=str)
-        b = Artifact.import_data('C3[Foo, Foo, Foo]',
-                                 'element 2', view_type=str)
+        a = Artifact.import_data("C1[Foo]", "element 1", view_type=str)
+        b = Artifact.import_data("C3[Foo, Foo, Foo]", "element 2", view_type=str)
 
         x, y = self.run_action(a=a, b=b)
 
-        self.assertEqual(repr(x.type), 'C2[Bar, Bar]')
-        self.assertEqual(repr(y.type), 'Foo')
+        self.assertEqual(repr(x.type), "C2[Bar, Bar]")
+        self.assertEqual(repr(y.type), "Foo")
 
     def test_match_bar_foo(self):
-        a = Artifact.import_data('C1[Bar]', 'element 1', view_type=str)
-        b = Artifact.import_data('C3[Foo, Foo, Foo]',
-                                 'element 2', view_type=str)
+        a = Artifact.import_data("C1[Bar]", "element 1", view_type=str)
+        b = Artifact.import_data("C3[Foo, Foo, Foo]", "element 2", view_type=str)
 
         x, y = self.run_action(a=a, b=b)
 
-        self.assertEqual(repr(x.type), 'C2[Baz, Baz]')
-        self.assertEqual(repr(y.type), 'Foo')
+        self.assertEqual(repr(x.type), "C2[Baz, Baz]")
+        self.assertEqual(repr(y.type), "Foo")
 
     def test_match_baz_misc(self):
-        a = Artifact.import_data('C1[Baz]', 'element 1', view_type=str)
-        b = Artifact.import_data('C3[Foo, Bar, Baz]',
-                                 'element 2', view_type=str)
+        a = Artifact.import_data("C1[Baz]", "element 1", view_type=str)
+        b = Artifact.import_data("C3[Foo, Bar, Baz]", "element 2", view_type=str)
 
         x, y = self.run_action(a=a, b=b)
 
-        self.assertEqual(repr(x.type), 'C2[Foo, Foo]')
-        self.assertEqual(repr(y.type), 'Baz')
+        self.assertEqual(repr(x.type), "C2[Foo, Foo]")
+        self.assertEqual(repr(y.type), "Baz")
 
     def test_mismatch(self):
-        a = Artifact.import_data('Bar', 'element 1', view_type=str)
-        b = Artifact.import_data('C3[Foo, Foo, Foo]',
-                                 'element 2', view_type=str)
+        a = Artifact.import_data("Bar", "element 1", view_type=str)
+        b = Artifact.import_data("C3[Foo, Foo, Foo]", "element 2", view_type=str)
 
         with self.assertRaises(TypeError):
             self.run_action(a=a, b=b)
 
 
 class TestDoubleBoundVariableMethod(ActionTester):
-    ACTION = 'double_bound_variable_method'
+    ACTION = "double_bound_variable_method"
 
     def test_predicate_on_second(self):
-        a = Artifact.import_data('Bar', 'element 1', view_type=str)
-        b = Artifact.import_data('Bar % Properties("A")',
-                                 'element 2', view_type=str)
-        extra = Artifact.import_data('Foo', 'always foo', view_type=str)
+        a = Artifact.import_data("Bar", "element 1", view_type=str)
+        b = Artifact.import_data('Bar % Properties("A")', "element 2", view_type=str)
+        extra = Artifact.import_data("Foo", "always foo", view_type=str)
 
-        x, = self.run_action(a=a, b=b, extra=extra)
+        (x,) = self.run_action(a=a, b=b, extra=extra)
 
-        self.assertEqual(repr(x.type), 'Baz')
+        self.assertEqual(repr(x.type), "Baz")
 
     def test_mismatch(self):
-        a = Artifact.import_data('Foo', 'element 1', view_type=str)
-        b = Artifact.import_data('Bar', 'element 2', view_type=str)
-        extra = Artifact.import_data('Foo', 'always foo', view_type=str)
+        a = Artifact.import_data("Foo", "element 1", view_type=str)
+        b = Artifact.import_data("Bar", "element 2", view_type=str)
+        extra = Artifact.import_data("Foo", "always foo", view_type=str)
 
-        with self.assertRaisesRegex(ValueError, 'match.*same output'):
+        with self.assertRaisesRegex(ValueError, "match.*same output"):
             self.run_action(a=a, b=b, extra=extra)
 
 
 class TestBoolFlagSwapsOutputMethod(ActionTester):
-    ACTION = 'bool_flag_swaps_output_method'
+    ACTION = "bool_flag_swaps_output_method"
 
     def test_true(self):
-        a = Artifact.import_data('Bar', 'element', view_type=str)
+        a = Artifact.import_data("Bar", "element", view_type=str)
 
-        x, = self.run_action(a=a, b=True)
+        (x,) = self.run_action(a=a, b=True)
 
-        self.assertEqual(repr(x.type), 'C1[Foo]')
+        self.assertEqual(repr(x.type), "C1[Foo]")
 
     def test_false(self):
-        a = Artifact.import_data('Bar', 'element', view_type=str)
+        a = Artifact.import_data("Bar", "element", view_type=str)
 
-        x, = self.run_action(a=a, b=False)
+        (x,) = self.run_action(a=a, b=False)
 
-        self.assertEqual(repr(x.type), 'Foo')
+        self.assertEqual(repr(x.type), "Foo")
 
 
 class TestPredicatesPreservedMethod(ActionTester):
-    ACTION = 'predicates_preserved_method'
+    ACTION = "predicates_preserved_method"
 
     def test_simple(self):
-        a = Artifact.import_data("Foo % Properties('A')",
-                                 'element 1', view_type=str)
+        a = Artifact.import_data("Foo % Properties('A')", "element 1", view_type=str)
 
-        x, = self.run_action(a=a)
+        (x,) = self.run_action(a=a)
 
         self.assertEqual(repr(x.type), "Foo % Properties('A')")
 
     def test_mismatch(self):
-        a = Artifact.import_data("Foo % Properties('X')",
-                                 'element 1', view_type=str)
+        a = Artifact.import_data("Foo % Properties('X')", "element 1", view_type=str)
 
         with self.assertRaises(TypeError):
             self.run_action(a=a)
 
     def test_combinations_preserved(self):
-        a = Artifact.import_data("Foo % Properties('A', 'B')",
-                                 'element 1', view_type=str)
+        a = Artifact.import_data(
+            "Foo % Properties('A', 'B')", "element 1", view_type=str
+        )
 
-        x, = self.run_action(a=a)
+        (x,) = self.run_action(a=a)
 
         self.assertEqual(repr(x.type), "Foo % Properties('A', 'B')")
 
     def test_extra_dropped(self):
-        a = Artifact.import_data("Foo % Properties('Extra', 'A', 'B')",
-                                 'element 1', view_type=str)
+        a = Artifact.import_data(
+            "Foo % Properties('Extra', 'A', 'B')", "element 1", view_type=str
+        )
 
-        x, = self.run_action(a=a)
+        (x,) = self.run_action(a=a)
 
         self.assertEqual(repr(x.type), "Foo % Properties('A', 'B')")
 
 
 class TestTypeMatchWithListAndSet(ActionTester):
-    ACTION = 'type_match_list_and_set'
+    ACTION = "type_match_list_and_set"
 
     def test_intsequence1(self):
-        a = Artifact.import_data('IntSequence1', [1])
+        a = Artifact.import_data("IntSequence1", [1])
 
-        x = self.run_action(ints=a, strs1=['a'], strs2={'a'})
+        x = self.run_action(ints=a, strs1=["a"], strs2={"a"})
         self.assertEqual(x.output.type, IntSequence1)
 
     def test_intsequence2(self):
-        a = Artifact.import_data('IntSequence2', [1])
+        a = Artifact.import_data("IntSequence2", [1])
 
-        x = self.run_action(ints=a, strs1=['a'], strs2={'a'})
+        x = self.run_action(ints=a, strs1=["a"], strs2={"a"})
         self.assertEqual(x.output.type, IntSequence2)
 
 
 class TestUnionedPrimitiveDecode(ActionTester):
-    ACTION = 'unioned_primitives'
+    ACTION = "unioned_primitives"
 
     def test_decode_int(self):
         exp = dict(foo=1, bar=1)
 
-        res = self.action.signature.decode_parameters(foo='1', bar='1')
+        res = self.action.signature.decode_parameters(foo="1", bar="1")
 
         self.assertEqual(res, exp)
 
     def test_decode_str(self):
-        exp = dict(foo='auto_foo', bar='auto_bar')
+        exp = dict(foo="auto_foo", bar="auto_bar")
 
         res = self.action.signature.decode_parameters(**exp)
 
         self.assertEqual(res, exp)
 
     def test_decode_mix(self):
-        exp = dict(foo=1, bar='auto_bar')
+        exp = dict(foo=1, bar="auto_bar")
 
-        res = self.action.signature.decode_parameters(foo='1', bar='auto_bar')
+        res = self.action.signature.decode_parameters(foo="1", bar="auto_bar")
 
         self.assertEqual(res, exp)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

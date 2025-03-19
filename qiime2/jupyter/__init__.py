@@ -9,4 +9,4 @@
 from .hooks import load_jupyter_server_extension
 from .template import make_html
 
-__all__ = ['make_html', 'load_jupyter_server_extension']
+__all__ = ["make_html", "load_jupyter_server_extension"]

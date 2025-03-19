@@ -16,9 +16,27 @@ from .util import parse_type, parse_format, type_from_ast
 from ..core.cite import Citations
 from ..core.exceptions import ValidationError, ImplementationError
 
-__all__ = ['Result', 'IResult', 'Results', 'Artifact', 'Visualization',
-           'ResultCollection', 'Action', 'Method', 'Visualizer', 'Pipeline',
-           'PluginManager', 'parse_type', 'parse_format', 'type_from_ast',
-           'Context', 'ParallelContext', 'AsynchronousContext', 'Citations',
-           'PARALLEL_CONFIG', 'ValidationError', 'ImplementationError',
-           'UninitializedPluginManagerError']
+__all__ = [
+    "Result",
+    "IResult",
+    "Results",
+    "Artifact",
+    "Visualization",
+    "ResultCollection",
+    "Action",
+    "Method",
+    "Visualizer",
+    "Pipeline",
+    "PluginManager",
+    "parse_type",
+    "parse_format",
+    "type_from_ast",
+    "Context",
+    "ParallelContext",
+    "AsynchronousContext",
+    "Citations",
+    "PARALLEL_CONFIG",
+    "ValidationError",
+    "ImplementationError",
+    "UninitializedPluginManagerError",
+]
