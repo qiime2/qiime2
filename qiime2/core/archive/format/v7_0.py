@@ -37,7 +37,6 @@ class ArchiveFormat(v6.ArchiveFormat):
         # conda-env.yaml
         conda_fp = \
             archive_record.root / cls.PROVENANCE_DIR / cls.CONDA_ENV_FILE
-
         conda_prefix = os.environ.get('CONDA_PREFIX')
 
         if conda_prefix:
@@ -57,6 +56,8 @@ class ArchiveFormat(v6.ArchiveFormat):
             with conda_fp.open(mode='w') as fh:
                 fh.write('error: no conda environment detected.\n')
 
+        # md_fp = archive_record.root / cls.METADATA_FILE
+        raise ValueError(cls.load_metadata(archive_record))
         # make sure checksums are written last
         cls.write_checksums(archive_record)
 
