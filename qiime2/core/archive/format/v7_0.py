@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import os
+import humanize
 import pathlib
 
 import qiime2.core.archive.format.v1 as v1
@@ -56,8 +57,16 @@ class ArchiveFormat(v6.ArchiveFormat):
             with conda_fp.open(mode='w') as fh:
                 fh.write('error: no conda environment detected.\n')
 
-        # md_fp = archive_record.root / cls.METADATA_FILE
-        raise ValueError(cls.load_metadata(archive_record))
+        # now add total file size for contents of datadir into metadata.yaml
+        data_fp = archive_record.root / cls.DATA_DIR
+        total_size = sum(path.stat().st_size for path in data_fp.iterdir()
+                         if path.is_file())
+        datadir_size = humanize.naturalsize(total_size, binary=True)
+
+        md_fp = archive_record.root / cls.METADATA_FILE
+        with md_fp.open(mode='a') as fh:
+            fh.write(f'data-size: {datadir_size}')
+
         # make sure checksums are written last
         cls.write_checksums(archive_record)
 

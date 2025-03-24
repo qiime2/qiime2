@@ -25,7 +25,6 @@ import cpuinfo
 import distutils
 import yaml
 import tzlocal
-import humanize
 import dateutil.relativedelta as relativedelta
 
 import qiime2
@@ -341,27 +340,6 @@ class ProvenanceCapture:
                         shutil.copytree(str(grandcestor), str(destination))
 
         return str(artifact.uuid)
-
-    # def _get_datadir_size(self):
-    #     # TODO: correct path for data dir
-    #     data_fp = artifact._archiver.data_dir
-
-    #     total_size = sum(path.stat().st_size for path in data_fp.iterdir()
-    #                      if path.is_file())
-    #     datadir_size = humanize.naturalsize(total_size, binary=True)
-
-    #     action_yaml_path = self.action_dir / 'action.yaml'
-
-    #     with action_yaml_path.open('r') as fp:
-    #         action_yaml = yaml.safe_load(fp)
-
-    #     execution = action_yaml.get('execution', {})
-    #     execution['datadir-size'] = datadir_size
-    #     action_yaml['execution'] = execution
-
-    #     # Write back the modified YAML
-    #     with action_yaml_path.open('w') as fp:
-    #         yaml.safe_dump(action_yaml, fp, default_flow_style=False, indent=4)
 
     def make_citation_key(self, domain, package=None, identifier=None,
                           index=0):
