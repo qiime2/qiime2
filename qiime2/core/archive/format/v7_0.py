@@ -16,6 +16,10 @@ import qiime2.core.archive.format.v6 as v6
 
 class ArchiveFormat(v6.ArchiveFormat):
     CONDA_ENV_FILE = 'conda-env.yaml'
+    ANNOTATIONS_DIR = 'annotations'
+    # DELETE ME LATER
+    # TEST_FILE = 'test.txt'
+
     # TODO: NEW annotations dir
     # This will live under prov and can contain license, notes, etc
     # Contains its own self-signed sha256checksum
@@ -66,6 +70,17 @@ class ArchiveFormat(v6.ArchiveFormat):
         md_fp = archive_record.root / cls.METADATA_FILE
         with md_fp.open(mode='a') as fh:
             fh.write(f'data-size: {datadir_size}')
+
+        # now add empty annotations dir
+        annotations_dir = \
+            archive_record.root / cls.PROVENANCE_DIR / cls.ANNOTATIONS_DIR
+        annotations_dir.mkdir()
+
+        # DELETE ME LATER
+        # test_file = annotations_dir / cls.TEST_FILE
+
+        # with test_file.open('w') as fh:
+        #     fh.write('This is a test.')
 
         # make sure checksums are written last
         cls.write_checksums(archive_record)
