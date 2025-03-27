@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import os
-import humanize
 import pathlib
 
 import qiime2.core.archive.format.v1 as v1
@@ -18,7 +17,16 @@ class ArchiveFormat(v6.ArchiveFormat):
     CONDA_ENV_FILE = 'conda-env.yaml'
     ANNOTATIONS_DIR = 'annotations'
     # DELETE ME LATER
-    # TEST_FILE = 'test.txt'
+    TEST_FILE = 'test.txt'
+
+    # file size converter
+    @staticmethod
+    def _human_readable_size(num, suffix="B"):
+        for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
+            if abs(num) < 1024.0:
+                return f"{num:3.1f} {unit}{suffix}"
+            num /= 1024.0
+        return f"{num:.1f} Yi{suffix}"
 
     # TODO: NEW annotations dir
     # This will live under prov and can contain license, notes, etc
@@ -65,7 +73,7 @@ class ArchiveFormat(v6.ArchiveFormat):
         data_fp = archive_record.root / cls.DATA_DIR
         total_size = sum(path.stat().st_size for path in data_fp.iterdir()
                          if path.is_file())
-        datadir_size = humanize.naturalsize(total_size, binary=True)
+        datadir_size = cls._human_readable_size(total_size)
 
         md_fp = archive_record.root / cls.METADATA_FILE
         with md_fp.open(mode='a') as fh:
@@ -77,10 +85,10 @@ class ArchiveFormat(v6.ArchiveFormat):
         annotations_dir.mkdir()
 
         # DELETE ME LATER
-        # test_file = annotations_dir / cls.TEST_FILE
+        test_file = annotations_dir / cls.TEST_FILE
 
-        # with test_file.open('w') as fh:
-        #     fh.write('This is a test.')
+        with test_file.open('w') as fh:
+            fh.write('This is a test.')
 
         # make sure checksums are written last
         cls.write_checksums(archive_record)

@@ -1080,8 +1080,20 @@ class ParserV6(ParserV5):
 class ParserV7(ParserV6):
     # TODO: add completed new features here.
     '''
-    Parser for V7 archives.
+    Parser for V7 archives. New additions include:
+
+    - CPU flags under `action.yaml`
+    - Total size of all files in `data/` under `metadata.yaml`
+    - A new `conda-env.yaml` file that contains a list of all dependencies
+      in a user's current environment
+    - A new `annotations/` directory that includes:
+      - TODO: finish me
     '''
+    expected_files_root_only = ParserV6.expected_files_root_only
+    expected_files_all_nodes = (
+        *ParserV6.expected_files_all_nodes,
+        'conda-env.yaml', 'annotations'
+    )
 
 
 FORMAT_REGISTRY = {

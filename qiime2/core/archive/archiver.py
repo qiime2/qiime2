@@ -467,7 +467,7 @@ class Archiver:
 
     @property
     def annotations_dir(self):
-        return getattr(self._fmt, 'annotations_dir')
+        return getattr(self._fmt, 'annotations_dir', None)
 
     @property
     def citations(self):
