@@ -1087,13 +1087,13 @@ class ParserV7(ParserV6):
     - A new `conda-env.yaml` file that contains a list of all dependencies
       in a user's current environment
     - A new `annotations/` directory that includes:
-      - TODO: finish me
+      - TODO: finish me!!!
+    Something to note here is that the annotations directory has been excluded
+    from provlib's view since this is essentially an optional output.
     '''
     expected_files_root_only = ParserV6.expected_files_root_only
     expected_files_all_nodes = (
-        *ParserV6.expected_files_all_nodes,
-        'conda-env.yaml', 'annotations'
-    )
+        *ParserV6.expected_files_all_nodes, 'conda-env.yaml')
 
 
 FORMAT_REGISTRY = {

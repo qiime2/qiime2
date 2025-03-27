@@ -16,7 +16,6 @@ import qiime2.core.archive.format.v6 as v6
 class ArchiveFormat(v6.ArchiveFormat):
     CONDA_ENV_FILE = 'conda-env.yaml'
     ANNOTATIONS_DIR = 'annotations'
-    ANNOTATIONS_MD = 'metadata.yaml'
 
     # file size converter
     @staticmethod
@@ -82,11 +81,6 @@ class ArchiveFormat(v6.ArchiveFormat):
         annotations_dir = \
             archive_record.root / cls.PROVENANCE_DIR / cls.ANNOTATIONS_DIR
         annotations_dir.mkdir()
-
-        # add empty metadata.yaml so that zip doesn't delete annotations/
-        annotations_md = annotations_dir / cls.ANNOTATIONS_MD
-        with annotations_md.open('w'):
-            pass
 
         # make sure checksums are written last
         cls.write_checksums(archive_record)

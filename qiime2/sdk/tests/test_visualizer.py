@@ -249,21 +249,16 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
             'provenance/action/action.yaml',
-            'provenance/annotations/metadata.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/VERSION' % artifact1.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact1.uuid,
             'provenance/artifacts/%s/conda-env.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact1.uuid,
-            ('provenance/artifacts/%s/annotations/metadata.yaml'
-             % artifact1.uuid),
             'provenance/artifacts/%s/metadata.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/VERSION' % artifact2.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact2.uuid,
             'provenance/artifacts/%s/conda-env.yaml' % artifact2.uuid,
-            'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid,
-            ('provenance/artifacts/%s/annotations/metadata.yaml'
-             % artifact2.uuid)
+            'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid
         }
 
         self.assertArchiveMembers(filepath, root_dir, expected)
@@ -306,13 +301,11 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
             'provenance/action/action.yaml',
-            'provenance/annotations/metadata.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact.uuid,
             'provenance/artifacts/%s/VERSION' % artifact.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact.uuid,
             'provenance/artifacts/%s/conda-env.yaml' % artifact.uuid,
-            'provenance/artifacts/%s/action/action.yaml' % artifact.uuid,
-            'provenance/artifacts/%s/annotations/metadata.yaml' % artifact.uuid
+            'provenance/artifacts/%s/action/action.yaml' % artifact.uuid
         }
 
         self.assertArchiveMembers(filepath, root_dir, expected)
@@ -340,8 +333,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/VERSION',
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
-            'provenance/action/action.yaml',
-            'provenance/annotations/metadata.yaml'
+            'provenance/action/action.yaml'
         }
 
         self.assertArchiveMembers(filepath, root_dir, expected)
@@ -368,8 +360,7 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/VERSION',
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
-            'provenance/action/action.yaml',
-            'provenance/annotations/metadata.yaml'
+            'provenance/action/action.yaml'
         }
 
         self.assertArchiveMembers(filepath, root_dir, expected)
@@ -416,21 +407,16 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
             'provenance/action/action.yaml',
-            'provenance/annotations/metadata.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/VERSION' % artifact1.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact1.uuid,
             'provenance/artifacts/%s/conda-env.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact1.uuid,
-            ('provenance/artifacts/%s/annotations/metadata.yaml'
-             % artifact1.uuid),
             'provenance/artifacts/%s/metadata.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/VERSION' % artifact2.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact2.uuid,
             'provenance/artifacts/%s/conda-env.yaml' % artifact2.uuid,
-            'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid,
-            ('provenance/artifacts/%s/annotations/metadata.yaml'
-             % artifact2.uuid)
+            'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid
         }
 
         self.assertArchiveMembers(filepath, root_dir, expected)

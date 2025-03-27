@@ -282,6 +282,21 @@ class Result(IResult):
         """
         return self
 
+    # TODO: this at a very low level will take the particular subclass from
+    # annotations which will include all of the requisite params associated
+    # with it (i.e. a citations.bib file if it's of subtype Citations, etc)
+    # Structure should essentially mirror what a Jupyter Notebook user will
+    # want to see when adding an annotation to a Result
+
+    # Example:
+    # from qiime2.core.annotations import Notes
+    # Notes(
+    #   input=<Artifact OR Visualization>,
+    #   content=<Inline Text OR .txt file>
+    # )
+    def annotate(self):
+        pass
+
 
 class Artifact(Result):
     extension = '.qza'

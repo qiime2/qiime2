@@ -103,8 +103,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
             'provenance/VERSION',
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
-            'provenance/action/action.yaml',
-            'provenance/annotations/metadata.yaml'
+            'provenance/action/action.yaml'
         }
 
         self.assertExtractedArchiveMembers(output_dir, root_dir, expected)
@@ -130,8 +129,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
             'provenance/VERSION',
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
-            'provenance/action/action.yaml',
-            'provenance/annotations/metadata.yaml'
+            'provenance/action/action.yaml'
         }
 
         self.assertExtractedArchiveMembers(output_dir, root_dir, expected)
