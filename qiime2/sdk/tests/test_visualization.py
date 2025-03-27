@@ -86,7 +86,8 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
             'provenance/VERSION',
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
-            'provenance/action/action.yaml'
+            'provenance/action/action.yaml',
+            'provenance/annotations/metadata.yaml'
         }
 
         self.assertArchiveMembers(fp, root_dir, expected)
@@ -126,7 +127,8 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
             'provenance/VERSION',
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
-            'provenance/action/action.yaml'
+            'provenance/action/action.yaml',
+            'provenance/annotations/metadata.yaml'
         }
 
         self.assertArchiveMembers(fp1, root_dir, expected)
@@ -142,7 +144,8 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
             'provenance/VERSION',
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
-            'provenance/action/action.yaml'
+            'provenance/action/action.yaml',
+            'provenance/annotations/metadata.yaml'
         }
 
         self.assertArchiveMembers(fp2, root_dir, expected)
@@ -219,7 +222,8 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
             'provenance/VERSION',
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
-            'provenance/action/action.yaml'
+            'provenance/action/action.yaml',
+            'provenance/annotations/metadata.yaml'
         }
 
         self.assertExtractedArchiveMembers(output_dir, root_dir, expected)

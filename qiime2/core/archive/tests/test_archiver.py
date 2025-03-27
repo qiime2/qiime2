@@ -95,7 +95,8 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'provenance/VERSION',
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
-            'provenance/action/action.yaml'
+            'provenance/action/action.yaml',
+            'provenance/annotations/metadata.yaml'
         }
 
         self.assertArchiveMembers(fp, root_dir, expected)
@@ -115,7 +116,8 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'provenance/VERSION',
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
-            'provenance/action/action.yaml'
+            'provenance/action/action.yaml',
+            'provenance/annotations/metadata.yaml'
         }
 
         self.assertArchiveMembers(fp, root_dir, expected)
@@ -161,7 +163,8 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '%s/provenance/VERSION' % root_dir,
                 '%s/provenance/citations.bib' % root_dir,
                 '%s/provenance/conda-env.yaml' % root_dir,
-                '%s/provenance/action/action.yaml' % root_dir
+                '%s/provenance/action/action.yaml' % root_dir,
+                '%s/provenance/annotations/metadata.yaml' % root_dir
             }
 
             observed = set(zf.namelist())
@@ -240,6 +243,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '%s/provenance/citations.bib' % root_dir,
                 '%s/provenance/conda-env.yaml' % root_dir,
                 '%s/provenance/action/action.yaml' % root_dir,
+                '%s/provenance/annotations/metadata.yaml' % root_dir,
                 '%s/VERSION' % second_root_dir
             }
 
