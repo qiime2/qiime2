@@ -77,11 +77,6 @@ class ArchiveFormat(v6.ArchiveFormat):
         with md_fp.open(mode='a') as fh:
             fh.write(f'data-size: {datadir_size}')
 
-        # now add empty annotations dir
-        annotations_dir = \
-            archive_record.root / cls.PROVENANCE_DIR / cls.ANNOTATIONS_DIR
-        annotations_dir.mkdir()
-
         # make sure checksums are written last
         cls.write_checksums(archive_record)
 

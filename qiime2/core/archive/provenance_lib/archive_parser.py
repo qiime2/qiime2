@@ -1092,6 +1092,11 @@ class ParserV7(ParserV6):
     from provlib's view since this is essentially an optional output.
     '''
     expected_files_root_only = ParserV6.expected_files_root_only
+    # TODO: we need to come up with a consistent way of verifying
+    # whether or not we expect annotations/ to exist
+    # (and what the contents should be) otherwise
+    # we're just making an empty promise about what kind of crap
+    # we're adding into this archive
     expected_files_all_nodes = (
         *ParserV6.expected_files_all_nodes, 'conda-env.yaml')
 

@@ -24,6 +24,7 @@ import qiime2.core.archive as archive
 import qiime2.plugin.model as model
 import qiime2.core.util as util
 import qiime2.core.exceptions as exceptions
+import qiime2.core.annotate as annotations
 
 from qiime2.sdk.iresult import IResult
 
@@ -289,12 +290,30 @@ class Result(IResult):
     # want to see when adding an annotation to a Result
 
     # Example:
-    # from qiime2.core.annotations import Notes
-    # Notes(
-    #   input=<Artifact OR Visualization>,
-    #   content=<Inline Text OR .txt file>
-    # )
-    def annotate(self):
+
+    # artyfax = Artifact.load(fp_on_disk_somewhere)
+    # Notes example
+    # annotated_rslt1 = artyfax.annotate(type=Note, content='hello world')
+    # Citations example
+    # annotated_rslt2 = artyfax.annotate(type=Citation, content='citation.bib')
+    # Signature example
+    # annotated_rslt3 = artyfax.annotate(type=Signature, content='sig.sha256')
+    def add_note(self, contents):
+        annotations.Note.write(
+            contents=contents,
+            annotations_dir=self._archiver.annotations_dir,
+            root_result_uuid=self.uuid
+        )
+        # verification on correct input for this type in the write method
+        # so that read_annotation can assume everything is correct when reading
+
+    def add_citation(self):
+        pass
+
+    def add_signature(self):
+        pass
+
+    def read_annotation(self):
         pass
 
 
