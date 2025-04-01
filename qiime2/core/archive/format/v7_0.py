@@ -87,3 +87,9 @@ class ArchiveFormat(v6.ArchiveFormat):
     def write_checksums(cls, archive_record):
         super().write_checksums(archive_record)
         # now we write sha256 instead of md5
+
+    def __init__(self, archive_record):
+        super().__init__(archive_record)
+
+        self.annotations_dir = \
+            archive_record.root / self.PROVENANCE_DIR / self.ANNOTATIONS_DIR

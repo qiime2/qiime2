@@ -109,6 +109,11 @@ class Result(IResult):
                    type(result).__name__))
 
         result._archiver = archiver
+        # TODO: add machinery here to read the contents of annotations/
+        # TODO: figure out if another method should be added here
+        # that will update the Result object (really just append the
+        # annotation in question into the annotations/ dir - or remove
+        # an annotation in a similar manner)
         return result
 
     @classmethod
@@ -289,31 +294,25 @@ class Result(IResult):
     # Structure should essentially mirror what a Jupyter Notebook user will
     # want to see when adding an annotation to a Result
 
-    # Example:
-
-    # artyfax = Artifact.load(fp_on_disk_somewhere)
-    # Notes example
-    # annotated_rslt1 = artyfax.annotate(type=Note, content='hello world')
-    # Citations example
-    # annotated_rslt2 = artyfax.annotate(type=Citation, content='citation.bib')
-    # Signature example
-    # annotated_rslt3 = artyfax.annotate(type=Signature, content='sig.sha256')
-    def add_note(self, contents):
+    # we're either going to instantiate a note separately and then attach
+    # onto a Result object or we're going to attach a note onto a Result
+    # directly by instantiating it while adding to the Result
+    def add_note(self, name, contents):
         annotations.Note.write(
+            name=name,
             contents=contents,
             annotations_dir=self._archiver.annotations_dir,
-            root_result_uuid=self.uuid
+            root_uuid=str(self.uuid)
         )
-        # verification on correct input for this type in the write method
-        # so that read_annotation can assume everything is correct when reading
+        # TODO: now attach to Result object
 
-    def add_citation(self):
+    def list_notes(self, name=None, uuid=None):
         pass
 
-    def add_signature(self):
+    def display_note(self, uuid):
         pass
 
-    def read_annotation(self):
+    def remove_note(self, uuid):
         pass
 
 
