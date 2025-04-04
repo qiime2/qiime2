@@ -24,9 +24,9 @@ import qiime2.core.archive as archive
 import qiime2.plugin.model as model
 import qiime2.core.util as util
 import qiime2.core.exceptions as exceptions
-import qiime2.core.annotate as annotations
 
 from qiime2.sdk.iresult import IResult
+from qiime2.core.annotate import Annotation
 
 # Note: Result, Artifact, and Visualization classes are in this file to avoid
 # circular dependencies between Result and its subclasses. Result is tightly
@@ -109,6 +109,7 @@ class Result(IResult):
                    type(result).__name__))
 
         result._archiver = archiver
+        result._read_annotations()
         # TODO: add machinery here to read the contents of annotations/
         # TODO: figure out if another method should be added here
         # that will update the Result object (really just append the
@@ -288,32 +289,27 @@ class Result(IResult):
         """
         return self
 
-    # TODO: this at a very low level will take the particular subclass from
-    # annotations which will include all of the requisite params associated
-    # with it (i.e. a citations.bib file if it's of subtype Citations, etc)
-    # Structure should essentially mirror what a Jupyter Notebook user will
-    # want to see when adding an annotation to a Result
+    def _read_annotations(self):
+        self._annotations = []
+        if os.path.exists(self._archiver.annotations_dir):
+            for annotation in os.listdir(self._archiver.annotations_dir):
+                # load each annotation into an annotation object and append
+                self._annotations.append(
+                    Annotation.load(
+                        os.path.join(self._archiver.annotations_dir,
+                                     annotation)
+                    )
+                )
 
-    # we're either going to instantiate a note separately and then attach
-    # onto a Result object or we're going to attach a note onto a Result
-    # directly by instantiating it while adding to the Result
-    def add_note(self, name, contents):
-        annotations.Note.write(
-            name=name,
-            contents=contents,
-            annotations_dir=self._archiver.annotations_dir,
-            root_uuid=str(self.uuid)
-        )
-        # TODO: now attach to Result object
-
-    def list_notes(self, name=None, uuid=None):
-        pass
-
-    def display_note(self, uuid):
-        pass
-
-    def remove_note(self, uuid):
-        pass
+    # this will take an instantiated annotation subclass
+    # all result associated params are passed into write
+    # while the annotation instance handles everything else
+    def add_annotation(self, annotation):
+        # annotations dir, root/ref result uuids pulled off of result instance
+        annotation.write(annotations_dir=self._archiver.annotations_dir,
+                         root_result_uuid=str(self.uuid),
+                         referenced_result_uuid=str(self.uuid))
+        self._annotations.append(annotation)
 
 
 class Artifact(Result):

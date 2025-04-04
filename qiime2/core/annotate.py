@@ -7,8 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import os
-import pathlib
-import shutil
 import uuid as _uuid
 import yaml
 
@@ -41,15 +39,28 @@ class Annotation():
         referenced_result in future minor vers.
     """
 
-    def __init__(self, root_result):
+    @classmethod
+    def load(cls, filepath):
+        with open(os.path.join(filepath, 'metadata.yaml'), 'r') as fh:
+            meta_yaml = yaml.safe_load(fh)
+            annotation_type = meta_yaml['type']
+
+            if annotation_type == 'Note':
+                pass
+                # run validation that it's an annotation and that the stuff
+                # matches what we'd expect from a Note
+
+                annotation = Note.__new__(Note)
+
+        return annotation
+
+    def __init__(self, name):
+        self.name = name
         self.uuid = _uuid.uuid4()
         self.created_at = datetime.now()
-        self.root_result = root_result
-        # this is set as the root_result for now, but in the future
-        # we will allow for the root and referenced results to be separate
-        self.referenced_result = root_result
 
-    def write_meta_yaml(self, name, annotations_dir, root_uuid):
+    def write_meta_yaml(self, annotations_dir,
+                        root_result_uuid, referenced_result_uuid):
         # create the annotation directory if it's not already present
         # we don't care if it exists & is empty, just whether or not it exists
         if not os.path.exists(annotations_dir):
@@ -61,11 +72,11 @@ class Annotation():
         os.mkdir(annotation_uuid_dirname)
 
         metadata = {
-            'name': name,
+            'name': self.name,
             'created_at': self.created_at,
             'type': self.annotation_type,
-            'root_uuid': root_uuid,
-            'referenced_uuid': root_uuid
+            'root_result_uuid': root_result_uuid,
+            'referenced_result_uuid': referenced_result_uuid
         }
 
         meta_yaml = os.path.join(annotation_uuid_dirname, 'metadata.yaml')
@@ -81,21 +92,58 @@ class Note(Annotation):
     Note subclass, inherits from Annotations
     - input: either inline text or a .txt file
     """
+    def __init__(self, name, *, text=None, filepath=None):
+        # We only want text OR filepath to be provided so ensure
+        # exactly one of these gets called
+        if text and filepath:
+            raise ValueError(
+                'Cannot set both `text` and `filepath` params. '
+                'Please provide either inline text or a filepath only.'
+            )
+        if not text and not filepath:
+            raise ValueError(
+                'No inputs provided to either `text` or `filepath`. '
+                'Please provide either inline text or a filepath.'
+            )
+
+        # Start by setting self.contents to text - this is fine if it's None
+        # but will be replaced by file contents if filepath provided
+        self.contents = text
+
+        # Validate that filepath is of the correct type and file exists
+        if filepath:
+            if not isinstance(filepath, (str, os.PathLike)):
+                raise TypeError(
+                    f'Unexpected input for `filepath`: {filepath} '
+                    '`filepath` should either be a '
+                    '`string` or an `os.PathLike` object.'
+                )
+            if not os.path.exists(filepath):
+                raise ValueError(
+                    f'File not found from provided `filepath`: {filepath} '
+                    'Double check that the provided file exists '
+                    ' and is in the expected location.'
+                )
+
+            with open(filepath, 'r') as fh:
+                # if we hit this branch, self.contents is now set to
+                # whatever is contained in the provided file
+                self.contents = fh.read()
+
+        # Construct Annotation class
+        super().__init__(name)
+
     # TODO: now that a Note's creation isn't immediately tied to a result,
     # need to confirm that it can be instantiated without the root_uuid
     # since this should only be attached once the Note is added
     # to a particular Result
-    def write(self, name, contents, annotations_dir, root_uuid):
-        # make sure we're getting either a string or filepath
-        if not isinstance(contents, (str, pathlib.Path)):
-            raise TypeError(
-                f'Unexpected input {contents}.'
-                ' Accepted inputs are either a string or a filepath.'
-            )
-        # now call write_meta_yaml to write the stuff that's the same
+    def write(self, annotations_dir, root_result_uuid, referenced_result_uuid):
+        # call write_meta_yaml to write the stuff that's the same
         # across both input types
         annotation_uuid_dirname = \
-            self.write_meta_yaml(annotations_dir, root_uuid)
+            self.write_meta_yaml(annotations_dir,
+                                 root_result_uuid,
+                                 referenced_result_uuid)
 
         # TODO: for now we're going to ignore the potential file system issues
         # associated with writing from a user provided file, but this will need
@@ -103,33 +151,5 @@ class Note(Annotation):
         # of some sort
         note_path = os.path.join(annotation_uuid_dirname, 'note.txt')
 
-        if isinstance(contents, str):
-            with open(note_path, 'w') as fh:
-                fh.write(contents)
-        else:
-            shutil.copy(contents, note_path)
-
-
-class Signature(Annotation):
-    annotation_type = 'Signature'
-    """
-    Signature subclass, inherits from Annotations
-    """
-
-# TODO: depending on time, may bump this to the next minor version update
-# class Citation(Annotation):
-#     annotation_type = 'Citation'
-#     """
-#     Citation subclass, inherits from Annotations
-#     Should be very similar to the Citation class
-#     Should probably use the CitationRecord named tuple for contents
-#     """
-
-# TODO: depending on time, may bump this to the next minor version update
-# class License(Annotation):
-#     annotation_type = 'License'
-#     """
-#     License subclass, inherits from Annotations
-#     Similar in concept to Citations
-#     Will use standard Licensing formatting for validation
-#     """
+        with open(note_path, 'w') as fh:
+            fh.write(self.contents)
