@@ -66,7 +66,7 @@ class Annotation():
         Returns
         -------
         obj
-            The instantiated sub-class Annotation.
+            The instantiated Annotation sub-class.
 
         """
         with open(os.path.join(filepath, 'metadata.yaml'), 'r') as fh:
@@ -98,8 +98,8 @@ class Annotation():
         Parameters
         ----------
         annotations_dir
-            The path to the `annotations/` directory within a Result object.
-            Located under `provenance/`.
+            The path to the `annotations` directory within a Result object.
+            Located under `provenance`.
 
         root_result_uuid
             The uuid of the Result object where an Annotation is being added.
@@ -223,8 +223,8 @@ class Note(Annotation):
         Parameters
         ----------
         annotations_dir
-            The path to the `annotations/` directory within a Result object.
-            Located under `provenance/`.
+            The path to the `annotations` directory within a Result object.
+            Located under `provenance`.
 
         root_result_uuid
             The uuid of the Result object where an Annotation is being added.
