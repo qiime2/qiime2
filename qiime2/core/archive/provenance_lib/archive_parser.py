@@ -1078,25 +1078,18 @@ class ParserV6(ParserV5):
 
 
 class ParserV7(ParserV6):
-    # TODO: add completed new features here.
     '''
     Parser for V7 archives. New additions include:
 
     - CPU flags under `action.yaml`
-    - Total size of all files in `data/` under `metadata.yaml`
+    - Total size of all files in `data` directory under `metadata.yaml`
     - A new `conda-env.yaml` file that contains a list of all dependencies
       in a user's current environment
-    - A new `annotations/` directory that includes:
-      - TODO: finish me!!!
-    Something to note here is that the annotations directory has been excluded
+
+    NOTE: the annotations directory has been excluded
     from provlib's view since this is essentially an optional output.
     '''
     expected_files_root_only = ParserV6.expected_files_root_only
-    # TODO: we need to come up with a consistent way of verifying
-    # whether or not we expect annotations/ to exist
-    # (and what the contents should be) otherwise
-    # we're just making an empty promise about what kind of crap
-    # we're adding into this archive
     expected_files_all_nodes = (
         *ParserV6.expected_files_all_nodes, 'conda-env.yaml')
 

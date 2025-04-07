@@ -17,6 +17,7 @@ from qiime2.core.archive import Archiver
 from qiime2.core.archive import ImportProvenanceCapture
 from qiime2.core.archive.archiver import _ZipArchive, ArchiveCheck
 from qiime2.core.archive.format.util import artifact_version
+from qiime2.core.archive.provenance_lib.archive_parser import FORMAT_REGISTRY
 from qiime2.core.testing.format import IntSequenceDirectoryFormat
 from qiime2.core.testing.type import IntSequence1
 from qiime2.core.testing.util import ArchiveTestingMixin
@@ -347,6 +348,16 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
 
         observed = set(file for file in archive.relative_iterdir())
         self.assertEqual(observed, expected)
+
+    def test_format_registry(self):
+        """Deadman switches to assert the archiver's _FORMAT_REGISTRY
+        and archive_parser's FORMAT_REGISTRY match exactly and that the
+        CURRENT_FORMAT_VERSION matches the last key in each FORMAT_REGISTRY
+        """
+        self.assertEqual(Archiver._FORMAT_REGISTRY.keys(),
+                         FORMAT_REGISTRY.keys())
+        self.assertEqual(Archiver.CURRENT_FORMAT_VERSION,
+                         list(FORMAT_REGISTRY.keys())[-1])
 
 
 if __name__ == '__main__':

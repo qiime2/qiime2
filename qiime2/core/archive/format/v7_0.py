@@ -14,6 +14,86 @@ import qiime2.core.archive.format.v6 as v6
 
 
 class ArchiveFormat(v6.ArchiveFormat):
+    """ArchiveFormat version 7.0
+
+    Versioning Updates
+    ------------------
+    Semantic Versioning
+        Starting with 7.0, version updates now allow for major vs. minor
+        version bumps.
+
+    New Features
+    ------------
+    `annotations`:
+        This new directory (when present) lives under `provenance` and contains
+        Annotations that can be added either via the Python API or the cli.
+
+        Supported Annotation sub-types in 7.0:
+
+            Note
+                Can contain inline text or the contents of a file.
+
+        `annotations` directory structure (containing example Notes):
+
+        ::
+
+            provenance/
+            ├── annotations/
+            │   ├── uuid1/
+            │   │   ├── metadata.yaml
+            │   │   ├── note.txt
+            │   │   ├── checksums.sha256
+            │   ├── uuid2/
+            │   │   ├── metadata.yaml
+            │   │   ├── note.txt
+            │   │   ├── checksums.sha256
+
+        With each uuid representing an individual Annotation object that's been
+        attached to the Result object.
+
+        The `metadata.yaml` file within each Annotation sub-directory contains
+        the following details for a given Annotation:
+
+        ::
+
+            created_at:
+                datetime an Annotation was created.
+
+            name:
+                User-provided name for the Annotation.
+                Must be unique per Result.
+
+            referenced_result_uuid:
+                The result uuid that the Annotation is in reference to.
+                Self-referential Annotations are currently the only supported
+                Annotation type in 7.0.
+
+            root_result_uuid:
+                The result uuid that the Annotation is attached to.
+
+            type:
+                The type of Annotation. Notes are currently the only supported
+                Annotation type in 7.0.
+
+    New Files
+    ---------
+    `conda-env.yaml`:
+        This file lives under `provenance` and contains the dependencies
+        present within a user's active conda environment.
+
+    New Fields
+    ----------
+    `data-size`:
+        This field has been added within the top-level `metadata.yaml` file
+        of a Result. It represents the total file size of all files under
+        the `data` directory.
+
+    `cpu-flags`:
+        This field has been added under the `environment` section
+        of `action.yaml` and contains an alphabetized list of all
+        CPU flags present
+
+    """
     CONDA_ENV_FILE = 'conda-env.yaml'
     ANNOTATIONS_DIR = 'annotations'
 
@@ -26,26 +106,16 @@ class ArchiveFormat(v6.ArchiveFormat):
             num /= 1024.0
         return f"{num:.1f} Yi{suffix}"
 
-    # TODO: NEW annotations dir
-    # This will live under prov and can contain license, notes, etc
-    # Contains its own self-signed sha256checksum
-    # Also references the machine generated md5checksum from top level
-    # For any notes files (something like note-1.txt, note-2.txt, etc)
-    # Author is required, and this can either be added manually to each note
-    # or can be added to the QIIME 2 config with a 'pull default author' flag
-    # that can be enabled
-
     @classmethod
     def write(cls, archive_record, type, format,
               data_initializer, provenance_capture):
-        # pulling from the most recent write version that doesn't include
-        # checksums - that way we ensure those are only calculated once
+        # Pulling from the most recent write version that doesn't include
+        # checksums - this ensures that checksums are only calculated
         # after all requisite files are present.
         v1.ArchiveFormat.write(archive_record, type, format,
                                data_initializer, provenance_capture)
 
-        # now we add extras within prov specific to v7
-        # conda-env.yaml
+        # Write `conda-env.yaml` file
         conda_fp = \
             archive_record.root / cls.PROVENANCE_DIR / cls.CONDA_ENV_FILE
         conda_prefix = os.environ.get('CONDA_PREFIX')
@@ -67,7 +137,7 @@ class ArchiveFormat(v6.ArchiveFormat):
             with conda_fp.open(mode='w') as fh:
                 fh.write('error: no conda environment detected.\n')
 
-        # now add total file size for contents of datadir into metadata.yaml
+        # Add `data-size` field under top-level `metadata.yaml` file
         data_fp = archive_record.root / cls.DATA_DIR
         total_size = sum(path.stat().st_size for path in data_fp.iterdir()
                          if path.is_file())
@@ -77,12 +147,9 @@ class ArchiveFormat(v6.ArchiveFormat):
         with md_fp.open(mode='a') as fh:
             fh.write(f'data-size: {datadir_size}')
 
-        # make sure checksums are written last
+        # Write checksums last
         cls.write_checksums(archive_record)
 
-    # TODO: figure out how to separate checksum type by self-signed vs.
-    # machine generated to ensure that we use sha256 for all self-signed
-    # checksums, while all machine generated checksums can remain md5
     @classmethod
     def write_checksums(cls, archive_record):
         super().write_checksums(archive_record)
