@@ -110,7 +110,6 @@ class Result(IResult):
 
         result._archiver = archiver
         result._read_annotations()
-        # TODO: add machinery here to read the contents of annotations/
         # TODO: figure out if another method should be added here
         # that will update the Result object (really just append the
         # annotation in question into the annotations/ dir - or remove
@@ -290,22 +289,42 @@ class Result(IResult):
         return self
 
     def _read_annotations(self):
+        """
+        Append any existing Annotations to `self._annotations`.
+        Helper method for `add_annotation`, after a given Annotation
+        has been written to disk.
+        """
         self._annotations = []
-        if os.path.exists(self._archiver.annotations_dir):
-            for annotation in os.listdir(self._archiver.annotations_dir):
-                # load each annotation into an annotation object and append
+        annotations_dir = self._archiver.annotations_dir
+
+        if os.path.exists(annotations_dir):
+            for annotation in os.listdir(annotations_dir):
                 self._annotations.append(
-                    Annotation.load(
-                        os.path.join(self._archiver.annotations_dir,
-                                     annotation)
-                    )
+                    Annotation.load(os.path.join(annotations_dir, annotation))
                 )
 
-    # this will take an instantiated annotation subclass
-    # all result associated params are passed into write
-    # while the annotation instance handles everything else
     def add_annotation(self, annotation):
-        # annotations dir, root/ref result uuids pulled off of result instance
+        """Add an Annotation onto a Result object.
+        All Result-associated parameters are passed into the sub-class's
+        `write` method, while the Annotation instance handles everything else.
+
+        Parameters
+        ----------
+        annotation
+            An instantiated Annotation subclass (Note, etc).
+
+        Notes
+        -----
+            In Archive Format 7.0, `referenced_result_uuid` is set to
+            the same value as `root_result_uuid`, but this will change
+            in future versions to allow for Annotations that may reference
+            a different Result than the one they are attached to.
+
+        See Also
+        --------
+        Annotation.write
+
+        """
         annotation.write(annotations_dir=self._archiver.annotations_dir,
                          root_result_uuid=str(self.uuid),
                          referenced_result_uuid=str(self.uuid))

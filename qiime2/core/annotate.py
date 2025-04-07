@@ -13,34 +13,62 @@ import yaml
 from datetime import datetime
 
 
-# Instances of each subclass are instantiated prior to being attached
-# to a Result object rather than having them be created and attached to
-# the Result object directly. this allows for more flexibility
-# (i.e. if the same annotation should get added to multiple Result objects)
-
 class Annotation():
+    """General base class for all Annotation sub-classes.
+
+    Parameters
+    ----------
+    name : str
+        Name of the annotation.
+        For each Result object, all Annotations must have a unique name.
+        e.g. The same named Annotation can be attached to multiple Results,
+        but each Result cannot contain multiple Annotations with the same name.
+
+    Properties
+    ----------
+    uuid
+        The minted uuid4 for each new Annotation that's added.
+        This will be the name of each new Annotation's sub-directory within the
+        `annotations` directory and is separate from any Result's uuid.
+
+    created_at
+        The minted date/time when an Annotation is created.
+        Note that this is separate from when an Annotation is attached to a
+        Results object, as this can occur at multiple times.
+
+    Returns
+    -------
+    obj
+        An instantiated Annotation of the specified sub-class.
+        Note that instantiation of the Annotation base class is not supported.
+
+    See Also
+    --------
+    Note
+
+    """
+
+    # We never expect this to be hit as the base class for Annotations
+    # shouldn't ever be instantiated - only the supported sub-classes.
     @property
     def annotation_type(cls):
         raise NotImplementedError
-    """
-    General base class for all annotation subtypes.
-
-    Stuff that's the same here:
-    - annotation uuid: uuid4 for each new annotation that's added.
-        Separate from any Result's uuid.
-
-    - created_at: datetime when an annotation is created.
-
-    - root_result: where this annotation is physically being added.
-
-    - referenced_result: which result (artifact/viz) this annotation refers to.
-        NOTE: 7.0 only supports self-referential annotations, but this param
-        is added as a note here as we would like to utilize
-        referenced_result in future minor vers.
-    """
 
     @classmethod
     def load(cls, filepath):
+        """Load an Annotation.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to load the Annotation from.
+
+        Returns
+        -------
+        obj
+            The instantiated sub-class Annotation.
+
+        """
         with open(os.path.join(filepath, 'metadata.yaml'), 'r') as fh:
             meta_yaml = yaml.safe_load(fh)
             annotation_type = meta_yaml['type']
@@ -55,14 +83,43 @@ class Annotation():
         return annotation
 
     def __init__(self, name):
+        """
+        Construction for an instantiated Annotation.
+
+        """
         self.name = name
         self.uuid = _uuid.uuid4()
         self.created_at = datetime.now()
 
     def write_meta_yaml(self, annotations_dir,
                         root_result_uuid, referenced_result_uuid):
+        """Write the contents of `metadata.yaml` for a given Annotation.
+
+        Parameters
+        ----------
+        annotations_dir
+            The path to the `annotations/` directory within a Result object.
+            Located under `provenance/`.
+
+        root_result_uuid
+            The uuid of the Result object where an Annotation is being added.
+
+        referenced_result_uuid
+            The uuid of the Result object that an Annotation is referring to.
+            Note that in 7.0, `root_result_uuid` and `referenced_result_uuid`
+            are the same (i.e. Annotations can only refer to the same Result
+            they are being attached to) but separate root and referenced uuids
+            will be supported in future versions.
+
+        Returns
+        -------
+        str
+            The filepath where the Annotation's uuid-specific subdirectory
+            containing the `metadata.yaml` file was written to.
+
+        """
         # create the annotation directory if it's not already present
-        # we don't care if it exists & is empty, just whether or not it exists
+        # we don't care if it contains anything, just whether or not it exists
         if not os.path.exists(annotations_dir):
             os.mkdir(annotations_dir)
 
@@ -87,14 +144,41 @@ class Annotation():
 
 
 class Note(Annotation):
+    """Note sub-class, inherits from Annotations.
+
+    Parameters
+    ----------
+    text : str
+        Inline text that will be written inside the Note's `note.txt` file.
+        This parameter is optional, but either `text` OR `filepath` must be
+        provided.
+
+    filepath : str
+        Path to a file whose contents should be written inside the Note's
+        `note.txt` file.
+        This parameter is optional, but either `text` OR `filepath` must be
+        provided.
+
+    Properties
+    ----------
+    type : Note
+        The type of Annotation being instantiated.
+
+    Returns
+    -------
+    obj
+        The instantiated Note.
+
+    See Also
+    --------
+    Annotation
+
+    """
     annotation_type = 'Note'
-    """
-    Note subclass, inherits from Annotations
-    - input: either inline text or a .txt file
-    """
+
     def __init__(self, name, *, text=None, filepath=None):
-        # We only want text OR filepath to be provided so ensure
-        # exactly one of these gets called
+        # We only want text OR filepath to be provided
+        # so ensure exactly one of these gets called
         if text and filepath:
             raise ValueError(
                 'Cannot set both `text` and `filepath` params. '
@@ -133,11 +217,30 @@ class Note(Annotation):
         # Construct Annotation class
         super().__init__(name)
 
-    # TODO: now that a Note's creation isn't immediately tied to a result,
-    # need to confirm that it can be instantiated without the root_uuid
-    # since this should only be attached once the Note is added
-    # to a particular Result
     def write(self, annotations_dir, root_result_uuid, referenced_result_uuid):
+        """Write the contents of an instantiated Note.
+
+        Parameters
+        ----------
+        annotations_dir
+            The path to the `annotations/` directory within a Result object.
+            Located under `provenance/`.
+
+        root_result_uuid
+            The uuid of the Result object where an Annotation is being added.
+
+        referenced_result_uuid
+            The uuid of the Result object that an Annotation is referring to.
+            Note that in 7.0, `root_result_uuid` and `referenced_result_uuid`
+            are the same (i.e. Annotations can only refer to the same Result
+            they are being attached to) but separate root and referenced uuids
+            will be supported in future versions.
+
+        See Also
+        --------
+        write_meta_yaml
+
+        """
         # call write_meta_yaml to write the stuff that's the same
         # across both input types
         annotation_uuid_dirname = \
