@@ -14,17 +14,17 @@ import qiime2.core.archive.format.v6 as v6
 
 
 class ArchiveFormat(v6.ArchiveFormat):
-    """ArchiveFormat version 7.0
+    """QIIME 2 Archive Format Version 7.0
 
     Versioning Updates
     ------------------
-    Semantic Versioning
+    Semantic Versioning\n
         Starting with 7.0, version updates now allow for major vs. minor
         version bumps.
 
     New Features
     ------------
-    `annotations`:
+    `annotations`\n
         This new directory (when present) lives under `provenance` and contains
         Annotations that can be added either via the Python API or the cli.
 
@@ -34,8 +34,6 @@ class ArchiveFormat(v6.ArchiveFormat):
                 Can contain inline text or the contents of a file.
 
         `annotations` directory structure (containing example Notes):
-
-        ::
 
             provenance/
             ├── annotations/
@@ -54,41 +52,39 @@ class ArchiveFormat(v6.ArchiveFormat):
         The `metadata.yaml` file within each Annotation sub-directory contains
         the following details for a given Annotation:
 
-        ::
-
-            created_at:
+            `created_at`\n
                 datetime an Annotation was created.
 
-            name:
+            `name`\n
                 User-provided name for the Annotation.
                 Must be unique per Result.
 
-            referenced_result_uuid:
+            `referenced_result_uuid`\n
                 The result uuid that the Annotation is in reference to.
                 Self-referential Annotations are currently the only supported
                 Annotation type in 7.0.
 
-            root_result_uuid:
+            `root_result_uuid`\n
                 The result uuid that the Annotation is attached to.
 
-            type:
+            `type`\n
                 The type of Annotation. Notes are currently the only supported
                 Annotation type in 7.0.
 
     New Files
     ---------
-    `conda-env.yaml`:
+    `conda-env.yaml`\n
         This file lives under `provenance` and contains the dependencies
         present within a user's active conda environment.
 
     New Fields
     ----------
-    `data-size`:
+    `data-size`\n
         This field has been added within the top-level `metadata.yaml` file
         of a Result. It represents the total file size of all files under
         the `data` directory.
 
-    `cpu-flags`:
+    `cpu-flags`\n
         This field has been added under the `environment` section
         of `action.yaml` and contains an alphabetized list of all
         CPU flags present

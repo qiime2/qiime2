@@ -433,7 +433,6 @@ class ProvenanceCapture:
     def make_execution_section(self):
         execution = collections.OrderedDict()
         execution['uuid'] = str(self.uuid)
-        # execution['datadir-size'] = self._get_datadir_size()
         execution['runtime'] = runtime = collections.OrderedDict()
         runtime['start'] = start = _ts_to_date(self.start)
         runtime['end'] = end = _ts_to_date(self.end)

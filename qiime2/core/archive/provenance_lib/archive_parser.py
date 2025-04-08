@@ -1078,16 +1078,22 @@ class ParserV6(ParserV5):
 
 
 class ParserV7(ParserV6):
-    '''
-    Parser for V7 archives. New additions include:
+    '''Parser for V7 archives.
 
+    New Features
+    ------------
     - CPU flags under `action.yaml`
     - Total size of all files in `data` directory under `metadata.yaml`
     - A new `conda-env.yaml` file that contains a list of all dependencies
       in a user's current environment
 
-    NOTE: the annotations directory has been excluded
-    from provlib's view since this is essentially an optional output.
+    Notes
+    -----
+    The `annotations` directory has been excluded from
+    the parser's view since this is essentially an optional output.
+    Please see `core -> archive -> format -> v7_0`
+    for more details on Annotations.
+
     '''
     expected_files_root_only = ParserV6.expected_files_root_only
     expected_files_all_nodes = (

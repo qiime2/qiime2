@@ -350,9 +350,12 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(observed, expected)
 
     def test_format_registry(self):
-        """Deadman switches to assert the archiver's _FORMAT_REGISTRY
-        and archive_parser's FORMAT_REGISTRY match exactly and that the
-        CURRENT_FORMAT_VERSION matches the last key in each FORMAT_REGISTRY
+        """
+        Deadman switches to assert the following:
+            - The archiver's `_FORMAT_REGISTRY` and archive_parser's
+            `FORMAT_REGISTRY` match exactly
+            - The `CURRENT_FORMAT_VERSION` matches the last key
+            in each `FORMAT_REGISTRY`
         """
         self.assertEqual(Archiver._FORMAT_REGISTRY.keys(),
                          FORMAT_REGISTRY.keys())

@@ -111,10 +111,7 @@ class Result(IResult):
 
         result._archiver = archiver
         result._read_annotations()
-        # TODO: figure out if another method should be added here
-        # that will update the Result object (really just append the
-        # annotation in question into the annotations/ dir - or remove
-        # an annotation in a similar manner)
+
         return result
 
     @classmethod
