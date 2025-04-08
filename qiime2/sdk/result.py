@@ -346,6 +346,48 @@ class Result(IResult):
                          referenced_result_uuid=str(self.uuid))
         self._annotations.append(annotation)
 
+    def get_annotation(self, name):
+        """Retrieve an Annotation given by `name` from the Result object.
+
+        Parameters
+        ----------
+        name : str\n
+            The name of the Annotation to retrieve.
+
+        Returns
+        -------
+        Annotation : obj\n
+            The Annotation object associated with the provided name.
+
+        Raises
+        ------
+        ValueError\n
+            If no Annotation with the provided name is found.
+
+        """
+        for annotation in self._annotations:
+            if annotation.name == name:
+                return annotation
+
+        raise ValueError(f'No Annotation with name: "{name}" was found.')
+
+    # TODO: add support to filter by type
+    # once additional annotation types are added in 7.1
+    def iter_annotations(self):
+        """Constructs an iterable containing all Annotations associated with
+        the Result object.
+
+        Raises
+        ------
+        ValueError\n
+            If no Annotations are found associated with the Result.
+
+        """
+        if self._annotations:
+            return iter(self._annotations)
+
+        raise ValueError('No Annotations found.')
+
     def remove_annotation(self, name):
         """
         Remove an Annotation given by `name` from the Result object.
@@ -400,31 +442,6 @@ class Result(IResult):
 
         shutil.rmtree(annotation_disk_dir)
         self._annotations.remove(annotation_to_remove)
-
-    def get_annotation(self, name):
-        """Retrieve an Annotation given by `name` from the Result object.
-
-        Parameters
-        ----------
-        name : str\n
-            The name of the Annotation to retrieve.
-
-        Returns
-        -------
-        Annotation : obj\n
-            The Annotation object associated with the provided name.
-
-        Raises
-        ------
-        ValueError\n
-            If no Annotation with the provided name is found.
-
-        """
-        for annotation in self._annotations:
-            if annotation.name == name:
-                return annotation
-
-        raise ValueError(f'No Annotation with name: "{name}" was found.')
 
 
 class Artifact(Result):
