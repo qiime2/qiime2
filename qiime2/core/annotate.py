@@ -74,17 +74,13 @@ class Annotation():
             annotation_type = meta_yaml['type']
 
             if annotation_type == 'Note':
-                pass
-                # run validation that it's an annotation and that the stuff
-                # matches what we'd expect from a Note
-
                 annotation = Note.__new__(Note)
                 # Now attach Note attrs from metadata.yaml
                 annotation.name = meta_yaml['name']
                 annotation.created_at = meta_yaml['created_at']
                 annotation.annotation_type = meta_yaml['type']
 
-                # Guard to check that `note.txt` exists
+                # Validate that `note.txt` exists
                 note_fp = os.path.join(filepath, 'note.txt')
                 if not os.path.exists(note_fp):
                     raise ValueError(
