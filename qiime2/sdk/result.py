@@ -110,9 +110,7 @@ class Result(IResult):
                    type(result).__name__))
 
         result._archiver = archiver
-        # Need to add this guard so this doesn't break prov for vers < 7.0
-        if result._archive_version >= 7.0:
-            result._read_annotations()
+        result._read_annotations()
 
         return result
 
@@ -296,8 +294,10 @@ class Result(IResult):
         """
         self._annotations = []
         annotations_dir = self._archiver.annotations_dir
-
-        if os.path.exists(annotations_dir):
+        # Not sure if there's a better way to do this, but this accounts for
+        # the fact that the annotations_dir will be None for all
+        # previous archive versions < 7.0
+        if annotations_dir and os.path.exists(annotations_dir):
             for annotation in os.listdir(annotations_dir):
                 self._annotations.append(
                     Annotation.load(os.path.join(annotations_dir, annotation))

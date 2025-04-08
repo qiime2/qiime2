@@ -170,7 +170,8 @@ class ProvDAG:
         for terminal_uuid in self._parsed_artifact_uuids:
             outer_nodes |= self.get_outer_provenance_nodes(terminal_uuid)
 
-        return nx.subgraph_view(self.dag, lambda node: node in outer_nodes)
+        return nx.subgraph_view(self.dag, filter_node=lambda
+                                node: node in outer_nodes)
 
     def has_edge(self, start_node: str, end_node: str) -> bool:
         return self.dag.has_edge(start_node, end_node)
