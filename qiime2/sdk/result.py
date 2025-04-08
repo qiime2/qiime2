@@ -110,7 +110,9 @@ class Result(IResult):
                    type(result).__name__))
 
         result._archiver = archiver
-        result._read_annotations()
+        # Need to add this guard so this doesn't break prov for vers < 7.0
+        if result._archive_version >= 7.0:
+            result._read_annotations()
 
         return result
 
