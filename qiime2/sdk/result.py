@@ -348,12 +348,12 @@ class Result(IResult):
 
     def remove_annotation(self, name):
         """
-        Remove an annotation given by `name` from the Result object.
+        Remove an Annotation given by `name` from the Result object.
 
         Parameters
         ----------
         name : str\n
-            The unique name of the annotation to be removed.
+            The name of the Annotation to be removed.
 
         Raises
         ------
@@ -376,7 +376,7 @@ class Result(IResult):
 
         # Guard against provided Annotation name not found on Result object
         if annotation_to_remove is None:
-            raise ValueError(f'No annotation found with name: "{name}"')
+            raise ValueError(f'No Annotation found with name: "{name}"')
 
         # Check for corresponding Annotation entry on disk
         annotation_disk_dir = None
@@ -396,10 +396,35 @@ class Result(IResult):
         # Guard against Annotation name not found on disk
         if annotation_disk_dir is None:
             raise ValueError('Unable to locate on-disk directory '
-                             f'for annotation with name: "{name}"')
+                             f'for Annotation with name: "{name}"')
 
         shutil.rmtree(annotation_disk_dir)
         self._annotations.remove(annotation_to_remove)
+
+    def get_annotation(self, name):
+        """Retrieve an Annotation given by `name` from the Result object.
+
+        Parameters
+        ----------
+        name : str\n
+            The name of the Annotation to retrieve.
+
+        Returns
+        -------
+        Annotation : obj\n
+            The Annotation object associated with the provided name.
+
+        Raises
+        ------
+        ValueError\n
+            If no Annotation with the provided name is found.
+
+        """
+        for annotation in self._annotations:
+            if annotation.name == name:
+                return annotation
+
+        raise ValueError(f'No Annotation with name: "{name}" was found.')
 
 
 class Artifact(Result):
