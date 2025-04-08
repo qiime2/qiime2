@@ -18,7 +18,7 @@ class Annotation():
 
     Parameters
     ----------
-    name : str
+    name : str\n
         Name of the annotation.
         For each Result object, all Annotations must have a unique name.
         e.g. The same named Annotation can be attached to multiple Results,
@@ -26,19 +26,19 @@ class Annotation():
 
     Properties
     ----------
-    uuid
+    uuid\n
         The minted uuid4 for each new Annotation that's added.
         This will be the name of each new Annotation's sub-directory within the
         `annotations` directory and is separate from any Result's uuid.
 
-    created_at
+    created_at\n
         The minted date/time when an Annotation is created.
         Note that this is separate from when an Annotation is attached to a
         Results object, as this can occur at multiple times.
 
     Returns
     -------
-    obj
+    obj\n
         An instantiated Annotation of the specified sub-class.
         Note that instantiation of the Annotation base class is not supported.
 
@@ -48,25 +48,25 @@ class Annotation():
 
     """
 
-    # We never expect this to be hit as the base class for Annotations
-    # shouldn't ever be instantiated - only the supported sub-classes.
-    @property
-    def annotation_type(cls):
-        raise NotImplementedError
-
     @classmethod
     def load(cls, filepath):
         """Load an Annotation.
 
         Parameters
         ----------
-        filepath : str
+        filepath : str\n
             Path to load the Annotation from.
 
         Returns
         -------
-        obj
+        obj\n
             The instantiated Annotation sub-class.
+
+        Raises
+        ------
+        ValueError\n
+            If no `note.txt` file is found under the
+            corresponding annotation directory.
 
         """
         with open(os.path.join(filepath, 'metadata.yaml'), 'r') as fh:
@@ -79,8 +79,30 @@ class Annotation():
                 # matches what we'd expect from a Note
 
                 annotation = Note.__new__(Note)
+                # Now attach Note attrs from metadata.yaml
+                annotation.name = meta_yaml['name']
+                annotation.created_at = meta_yaml['created_at']
+                annotation.annotation_type = meta_yaml['type']
+
+                # Guard to check that `note.txt` exists
+                note_fp = os.path.join(filepath, 'note.txt')
+                if not os.path.exists(note_fp):
+                    raise ValueError(
+                        'Unable to load malformed Note with name: '
+                        f'"{annotation.name}" due to missing `note.txt` file.'
+                    )
+                # Attach contents to Note
+                else:
+                    with open(note_fp, 'r') as fh:
+                        annotation.contents = fh.read()
 
         return annotation
+
+    # We never expect this to be hit as the base class for Annotations
+    # shouldn't ever be instantiated - only the supported sub-classes.
+    @property
+    def annotation_type(cls):
+        raise NotImplementedError
 
     def __init__(self, name):
         """
@@ -97,14 +119,14 @@ class Annotation():
 
         Parameters
         ----------
-        annotations_dir
+        annotations_dir\n
             The path to the `annotations` directory within a Result object.
             Located under `provenance`.
 
-        root_result_uuid
+        root_result_uuid\n
             The uuid of the Result object where an Annotation is being added.
 
-        referenced_result_uuid
+        referenced_result_uuid\n
             The uuid of the Result object that an Annotation is referring to.
             Note that in 7.0, `root_result_uuid` and `referenced_result_uuid`
             are the same (i.e. Annotations can only refer to the same Result
@@ -113,7 +135,7 @@ class Annotation():
 
         Returns
         -------
-        str
+        str\n
             The filepath where the Annotation's uuid-specific subdirectory
             containing the `metadata.yaml` file was written to.
 
@@ -148,12 +170,12 @@ class Note(Annotation):
 
     Parameters
     ----------
-    text : str
+    text : str\n
         Inline text that will be written inside the Note's `note.txt` file.
         This parameter is optional, but either `text` OR `filepath` must be
         provided.
 
-    filepath : str
+    filepath : str\n
         Path to a file whose contents should be written inside the Note's
         `note.txt` file.
         This parameter is optional, but either `text` OR `filepath` must be
@@ -161,12 +183,12 @@ class Note(Annotation):
 
     Properties
     ----------
-    type : Note
+    type : Note\n
         The type of Annotation being instantiated.
 
     Returns
     -------
-    obj
+    Note : obj\n
         The instantiated Note.
 
     See Also
@@ -222,14 +244,14 @@ class Note(Annotation):
 
         Parameters
         ----------
-        annotations_dir
+        annotations_dir\n
             The path to the `annotations` directory within a Result object.
             Located under `provenance`.
 
-        root_result_uuid
+        root_result_uuid\n
             The uuid of the Result object where an Annotation is being added.
 
-        referenced_result_uuid
+        referenced_result_uuid\n
             The uuid of the Result object that an Annotation is referring to.
             Note that in 7.0, `root_result_uuid` and `referenced_result_uuid`
             are the same (i.e. Annotations can only refer to the same Result

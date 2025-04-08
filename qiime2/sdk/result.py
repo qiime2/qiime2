@@ -13,6 +13,7 @@ import tempfile
 import collections
 import distutils.dir_util
 import pathlib
+import yaml
 from typing import Union, get_args, get_origin
 
 import qiime2.metadata
@@ -310,8 +311,14 @@ class Result(IResult):
 
         Parameters
         ----------
-        annotation
+        annotation\n
             An instantiated Annotation subclass (Note, etc).
+
+        Raises
+        ------
+        ValueError\n
+            If the Annotation name matches an existing Annotation name
+            attached to the Result in question.
 
         Notes
         -----
@@ -325,10 +332,75 @@ class Result(IResult):
         Annotation.write
 
         """
+        # Guard to ensure Annotation names are unique per Result object
+        for existing_annotation in self._annotations:
+            if annotation.name == existing_annotation.name:
+                raise ValueError(
+                    'Namespace collision occurred when attempting to add '
+                    f'Annotation with name: "{annotation.name}"\n'
+                    'Annotation names must be unique within each Result '
+                    'they are attached to.'
+                )
+
         annotation.write(annotations_dir=self._archiver.annotations_dir,
                          root_result_uuid=str(self.uuid),
                          referenced_result_uuid=str(self.uuid))
         self._annotations.append(annotation)
+
+    def remove_annotation(self, name):
+        """
+        Remove an annotation given by `name` from the Result object.
+
+        Parameters
+        ----------
+        name : str\n
+            The unique name of the annotation to be removed.
+
+        Raises
+        ------
+        ValueError\n
+            1. If there are no Annotations associated with the Result object.
+            2. If no Annotation with the specified name is found.
+            3. If the corresponding annotation directory cannot be located.
+
+        """
+        # First check that annotations dir exists for the Result
+        annotations_dir = self._archiver.annotations_dir
+        if not os.path.exists(annotations_dir):
+            raise ValueError('No existing annotations found.')
+
+        annotation_to_remove = None
+        for annotation in self._annotations:
+            if annotation.name == name:
+                annotation_to_remove = annotation
+                break
+
+        # Guard against provided Annotation name not found on Result object
+        if annotation_to_remove is None:
+            raise ValueError(f'No annotation found with name: "{name}"')
+
+        # Check for corresponding Annotation entry on disk
+        annotation_disk_dir = None
+
+        for entry in os.listdir(annotations_dir):
+            subdir = os.path.join(annotations_dir, entry)
+            meta_filepath = os.path.join(subdir, 'metadata.yaml')
+
+            if os.path.isfile(meta_filepath):
+                with open(meta_filepath, 'r') as fh:
+                    meta = yaml.safe_load(fh)
+
+                if meta.get('name') == name:
+                    annotation_disk_dir = subdir
+                    break
+
+        # Guard against Annotation name not found on disk
+        if annotation_disk_dir is None:
+            raise ValueError('Unable to locate on-disk directory '
+                             f'for annotation with name: "{name}"')
+
+        shutil.rmtree(annotation_disk_dir)
+        self._annotations.remove(annotation_to_remove)
 
 
 class Artifact(Result):
