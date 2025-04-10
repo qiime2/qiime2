@@ -29,7 +29,6 @@ requirements:
   - lxml
   - py-cpuinfo
   - ruamel.yaml
-  - humanize
   build:
   - python {{ python }}
   - setuptools

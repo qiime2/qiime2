@@ -14,6 +14,7 @@ from datetime import datetime
 
 
 class Annotation():
+    # TODO: define __new__ and have it explode
     """General base class for all Annotation sub-classes.
 
     Parameters
