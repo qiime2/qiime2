@@ -144,11 +144,12 @@ class Annotation():
 
         # create the unique dir for a particular annotation
         annotation_uuid_dirname = \
-            os.path.join(annotations_dir, str(_uuid.uuid4()))
+            os.path.join(annotations_dir, str(self.uuid))
         os.mkdir(annotation_uuid_dirname)
 
         metadata = {
             'name': self.name,
+            'id': str(self.uuid),
             'created_at': self.created_at,
             'type': self.annotation_type,
             'root_result_uuid': root_result_uuid,

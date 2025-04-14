@@ -77,9 +77,9 @@ class TestAnnotationEndpoints(unittest.TestCase):
             self.assertEqual(annotation.name, 'mynote')
             self.assertEqual(annotation.annotation_type, 'Note')
             self.assertEqual(annotation.contents, 'my special text')
-
-            # TODO: pull out annotation dir name for systematic usage
-            # add test to assert contents of annotation dir
+            # testing for actual contents of the saved archive can be found
+            # under core -> archive -> format -> test_util.py
+            # where other version-specific tests live
 
     def test_add_annotation_with_same_name_error(self):
         self.artifact.add_annotation(self.note1)

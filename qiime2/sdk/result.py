@@ -548,6 +548,8 @@ class Artifact(Result):
             type, output_dir_fmt,
             data_initializer=result.path._move_or_copy,
             provenance_capture=provenance_capture)
+        artifact._read_annotations()
+
         return artifact
 
     def view(self, view_type):
