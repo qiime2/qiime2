@@ -22,6 +22,7 @@ from typing import Any, List, NamedTuple, Set, Union
 from pathlib import Path
 
 import cpuinfo
+import concurrent.futures
 import distutils
 import yaml
 import tzlocal
@@ -458,7 +459,17 @@ class ProvenanceCapture:
     def make_env_section(self):
         env = collections.OrderedDict()
         env['platform'] = platform.platform()
-        env['cpu-flags'] = cpuinfo.get_cpu_info().get('flags', [])
+
+        # Attempt to pull cpu flags with a timeout of 3 secs
+        try:
+            with (concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                  as executor):
+                future = executor.submit(cpuinfo.get_cpu_info)
+                cpu_info = future.result(timeout=3)
+                env['cpu-flags'] = cpu_info.get('flags', [])
+        except concurrent.futures.TimeoutError:
+            env['cpu-flags'] = []
+
         # There is a trailing whitespace in sys.version, strip so that YAML can
         # use literal formatting.
         env['python'] = LiteralString('\n'.join(line.strip() for line in

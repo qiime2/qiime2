@@ -15,7 +15,39 @@ from qiime2.core.testing.type import FourInts
 from qiime2.sdk.result import Artifact, Result
 
 
-class TestAnnotations(unittest.TestCase):
+class TestAnnotationClass(unittest.TestCase):
+    # TODO: instantiating a base class annotation (E)
+
+    # Note subclass tests
+    def test_note_instantiation_no_text_or_fp_error(self):
+        with self.assertRaisesRegex(
+            ValueError, 'No inputs provided to either `text` or `filepath`.'
+        ):
+            Note(name='note')
+
+    def test_note_instantiation_text_and_fp_error(self):
+        with self.assertRaisesRegex(
+            ValueError, 'Cannot set both `text` and `filepath` params.'
+        ):
+            Note(name='name', text='text', filepath='filepath.txt')
+
+    def test_note_instantiation_incorrect_fp_type_error(self):
+        fp = 42
+        with self.assertRaisesRegex(
+            TypeError, f'Unexpected input for `filepath`: {fp} '
+        ):
+            Note(name='name', filepath=fp)
+
+    def test_note_instantiation_fp_not_found_error(self):
+        fp = 'foo.txt'
+        with self.assertRaisesRegex(
+            ValueError, f'File not found from provided `filepath`: {fp} '
+        ):
+            Note(name='name', filepath=fp)
+
+
+class TestAnnotationEndpoints(unittest.TestCase):
+    # setup for endpoint testing
     def setUp(self):
         # Create Artifact
         test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
@@ -30,6 +62,7 @@ class TestAnnotations(unittest.TestCase):
         self.note2 = Note(name='mynote', text='my other special text')
         self.note3 = Note(name='mynote3', text='my extra special text')
 
+    # `ADD_ANNOTATION` ENDPOINT TESTS
     def test_add_annotation_roundtrip(self):
         # confirm that annotations starts as an empty list
         self.assertEqual(self.artifact._annotations, [])
@@ -48,26 +81,80 @@ class TestAnnotations(unittest.TestCase):
             # TODO: pull out annotation dir name for systematic usage
             # add test to assert contents of annotation dir
 
-# class specs ##
-# instantiating a base class annotation (E)
-# incorrectly instantiating note (E)
-# correctly instantiating two notes for use in downstream testing
+    def test_add_annotation_with_same_name_error(self):
+        self.artifact.add_annotation(self.note1)
+        with self.assertRaisesRegex(
+            ValueError, 'Namespace collision occurred when attempting '
+                        f'to add.*{self.note2.name}'
+        ):
+            self.artifact.add_annotation(self.note2)
 
-# endpoints ##
-# add_annotation
-# - attempt to add another annotation with non-unique name (E)
+    # `GET_ANNOTATION` ENDPOINT TESTS
+    def test_get_annotation_name_not_found_error(self):
+        name = 'foo'
+        with self.assertRaisesRegex(
+            ValueError, f'No Annotation with name: "{name}" was found.'
+        ):
+            self.artifact.get_annotation(name=name)
 
-# get_annotation
-# - attempt to get an annotation from a result wo any annotations (E)
-# - get annotation from above result w/added annotation
-# - attempt to get an annotation w/name not found (E)
+    def test_get_annotation_round_trip(self):
+        self.artifact.add_annotation(self.note1)
+        note1 = self.artifact.get_annotation(name='mynote')
 
-# iter_annotations
-# - get annotations from result with multiple notes & check
-# expected details match per annotation
-# - attempt to call on result wo any annotations (E)
+        self.assertEqual(note1.name, 'mynote')
+        self.assertEqual(note1.annotation_type, 'Note')
+        self.assertEqual(note1.contents, 'my special text')
 
-# remove_annotation
-# - attempt to remove annotation from result wo any annotations (E)
-# - attempt to remove annotation wo found name (E)
-# - remove annotation from above result
+    # `ITER_ANNOTATIONS` ENDPOINT TESTS
+    def test_iter_annotations_on_empty_result_error(self):
+        with self.assertRaisesRegex(
+            ValueError, 'No Annotations found.'
+        ):
+            self.artifact.iter_annotations()
+
+    def test_iter_annotations_with_multiple_notes(self):
+        self.artifact.add_annotation(self.note1)
+        self.artifact.add_annotation(self.note3)
+
+        annotation_list = list(self.artifact.iter_annotations())
+        # make sure the number of annotations is correct
+        self.assertEqual(len(annotation_list), 2)
+
+        exp_names = ['mynote', 'mynote3']
+        exp_contents = ['my special text', 'my extra special text']
+        names = []
+        contents = []
+        for annotation in self.artifact.iter_annotations():
+            # we expect both to be notes
+            self.assertEqual(annotation.annotation_type, 'Note')
+            names.append(annotation.name)
+            contents.append(annotation.contents)
+
+        # make sure the ordering & members for names/contents are correct
+        self.assertEqual(names, exp_names)
+        self.assertEqual(contents, exp_contents)
+
+    # `REMOVE_ANNOTATION` ENDPOINT TESTS
+    def test_remove_annotation_from_empty_result_error(self):
+        with self.assertRaisesRegex(
+            ValueError, 'No existing annotations found.'
+        ):
+            self.artifact.remove_annotation(name='mynote')
+
+    def test_remove_annotation_from_result_with_wrong_name_error(self):
+        self.artifact.add_annotation(self.note1)
+        name = 'foo'
+
+        with self.assertRaisesRegex(
+            ValueError, f'No Annotation found with name: "{name}"'
+        ):
+            self.artifact.remove_annotation(name=name)
+
+    def test_remove_annotation_round_trip(self):
+        self.artifact.add_annotation(self.note1)
+        # confirm there's currently one annotation
+        self.assertEqual(len(self.artifact._annotations), 1)
+
+        self.artifact.remove_annotation(name='mynote')
+        # now confirm _annotations is empty
+        self.assertEqual(len(self.artifact._annotations), 0)
