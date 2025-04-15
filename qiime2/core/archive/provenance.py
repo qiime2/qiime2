@@ -42,7 +42,7 @@ def _ts_to_date(ts):
     return datetime.fromtimestamp(ts, tz=time_zone)
 
 
-def _get_cpu_flags(timeout=3):
+def _get_cpu_flags(timeout):
     try:
         with (concurrent.futures.ThreadPoolExecutor(max_workers=1)
                 as executor):
@@ -471,8 +471,8 @@ class ProvenanceCapture:
         env = collections.OrderedDict()
         env['platform'] = platform.platform()
 
-        # Attempt to pull cpu flags with a timeout of 3 secs
-        env['cpu-flags'] = _get_cpu_flags(timeout=3)
+        # Attempt to pull cpu flags with a timeout of 0.5 sec
+        env['cpu-flags'] = _get_cpu_flags(timeout=0.5)
 
         # There is a trailing whitespace in sys.version, strip so that YAML can
         # use literal formatting.

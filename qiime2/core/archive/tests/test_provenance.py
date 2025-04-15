@@ -23,13 +23,13 @@ import qiime2.core.archive.provenance as provenance
 # monkey patch testing to check that the timeout works as expected when
 # attempting to pull CPU flags from a user's machine to add to action.yaml
 def _fake_cpu_info():
-    time.sleep(5)
+    time.sleep(1)
     return {'cpu-flags': ['foo', 'bar']}
 
 
 def test_get_cpu_flags_timeout(monkeypatch):
     monkeypatch.setattr(cpuinfo, 'get_cpu_info', _fake_cpu_info)
-    cpu_flags = provenance._get_cpu_flags(timeout=3)
+    cpu_flags = provenance._get_cpu_flags(timeout=0.5)
     assert cpu_flags == []
 
 
