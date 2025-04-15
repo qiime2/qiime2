@@ -10,13 +10,19 @@ import os
 import tempfile
 import unittest
 
-from qiime2.core.annotate import Note
+from qiime2.core.annotate import Note, Annotation
 from qiime2.core.testing.type import FourInts
 from qiime2.sdk.result import Artifact, Result
 
 
 class TestAnnotationClass(unittest.TestCase):
-    # TODO: instantiating a base class annotation (E)
+    # Annotation base class instantiation failure
+    def test_annotation_instantiation_type_error(self):
+        with self.assertRaisesRegex(
+            TypeError, 'Annotation is an abstract class'
+                       ' and cannot be instantiated directly.'
+        ):
+            Annotation(name='foo')
 
     # Note subclass tests
     def test_note_instantiation_bad_name_error(self):

@@ -14,7 +14,6 @@ from datetime import datetime
 
 
 class Annotation():
-    # TODO: define __new__ and have it explode
     """General base class for all Annotation sub-classes.
 
     Parameters
@@ -103,9 +102,28 @@ class Annotation():
 
     def __init__(self, name):
         """
-        Construction for an instantiated Annotation.
+        Construction for an initialized Annotation.
+
+        Attributes
+        ----------
+        name\n
+            The user-provided name of the Annotation.
+
+        uuid\n
+            The uuid4 ID associated with the Annotation.
+
+        created_at\n
+            The datetime when the Annotation was created.
+
+        Raises
+        ------
+        TypeError\n
+            If the Annotation base class is instantiated.
 
         """
+        if type(self) is Annotation:
+            raise TypeError('Annotation is an abstract class'
+                            ' and cannot be instantiated directly.')
         self.name = name
         self.uuid = _uuid.uuid4()
         self.created_at = datetime.now()
