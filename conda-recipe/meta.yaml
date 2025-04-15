@@ -28,7 +28,6 @@ requirements:
   - tomlkit
   - lxml
   - py-cpuinfo
-  - ruamel.yaml
   build:
   - python {{ python }}
   - setuptools
