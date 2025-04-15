@@ -84,11 +84,6 @@ class ArchiveFormat(v6.ArchiveFormat):
         of a Result. It represents the total file size of all files under
         the `data` directory.
 
-    `cpu-flags`\n
-        This field has been added under the `environment` section
-        of `action.yaml` and contains an alphabetized list of all
-        CPU flags present
-
     """
     CONDA_ENV_FILE = 'conda-env.yaml'
     ANNOTATIONS_DIR = 'annotations'
