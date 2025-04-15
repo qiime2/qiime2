@@ -110,6 +110,29 @@ class Annotation():
         self.uuid = _uuid.uuid4()
         self.created_at = datetime.now()
 
+    def validate_name(self, name):
+        """Validates that the given name is a valid Python idenitifier with the
+        exception that `-` is allowed.
+
+        Parameters
+        ----------
+        name : str\n
+            The name to validate.
+
+        Raises
+        ------
+        ValueError\n
+            If the name passed in is not a valid Python identifier.
+        """
+        validate_name = name.replace('-', '_')
+        if not validate_name.isidentifier():
+            raise ValueError(f'Name "{name}" is not a valid Python identifier.'
+                             ' Keys may contain `-` characters but must'
+                             ' otherwise be valid Python identifiers. Python'
+                             ' identifier rules may be found here'
+                             ' https://www.askpython.com/python/'
+                             'python-identifiers-rules-best-practices')
+
     def write_meta_yaml(self, annotations_dir,
                         root_result_uuid, referenced_result_uuid):
         """Write the contents of `metadata.yaml` for a given Annotation.
@@ -196,7 +219,10 @@ class Note(Annotation):
     """
     annotation_type = 'Note'
 
+    # NOTE: in future versions, name will become optional & the default value
+    # will be the annotation's UUID (if name isn't provided by the user)
     def __init__(self, name, *, text=None, filepath=None):
+        self.validate_name(name)
         # We only want text OR filepath to be provided
         # so ensure exactly one of these gets called
         if text and filepath:

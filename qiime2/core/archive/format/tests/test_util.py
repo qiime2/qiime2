@@ -137,6 +137,7 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
                          f'^.*id: {note.uuid}.*name: mynote.*type: Note.*$')
         self.assertRegex(str(note_contents), 'my special text')
 
+    # testing file size conversion helper
     def test_human_readable_size_util(self):
         cases = [
             (0, "0.0 B"),

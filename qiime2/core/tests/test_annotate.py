@@ -19,6 +19,12 @@ class TestAnnotationClass(unittest.TestCase):
     # TODO: instantiating a base class annotation (E)
 
     # Note subclass tests
+    def test_note_instantiation_bad_name_error(self):
+        with self.assertRaisesRegex(
+            ValueError, 'Name "foo bar" is not a valid Python identifier.'
+        ):
+            Note(name='foo bar')
+
     def test_note_instantiation_no_text_or_fp_error(self):
         with self.assertRaisesRegex(
             ValueError, 'No inputs provided to either `text` or `filepath`.'
