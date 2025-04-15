@@ -21,8 +21,8 @@ from datetime import datetime, timezone
 from typing import Any, List, NamedTuple, Set, Union
 from pathlib import Path
 
-import cpuinfo
-import concurrent.futures
+# import cpuinfo
+# import concurrent.futures
 import distutils
 import yaml
 import tzlocal
@@ -42,15 +42,15 @@ def _ts_to_date(ts):
     return datetime.fromtimestamp(ts, tz=time_zone)
 
 
-def _get_cpu_flags(timeout):
-    try:
-        with (concurrent.futures.ThreadPoolExecutor(max_workers=1)
-                as executor):
-            future = executor.submit(cpuinfo.get_cpu_info)
-            cpu_info = future.result(timeout=timeout)
-            return cpu_info.get('flags', [])
-    except concurrent.futures.TimeoutError:
-        return []
+# def _get_cpu_flags(timeout):
+#     try:
+#         with (concurrent.futures.ThreadPoolExecutor(max_workers=1)
+#                 as executor):
+#             future = executor.submit(cpuinfo.get_cpu_info)
+#             cpu_info = future.result(timeout=timeout)
+#             return cpu_info.get('flags', [])
+#     except concurrent.futures.TimeoutError:
+#         return []
 
 
 # Used to give PyYAML something to recognize for custom tags
@@ -472,7 +472,7 @@ class ProvenanceCapture:
         env['platform'] = platform.platform()
 
         # Attempt to pull cpu flags with a timeout of 0.5 sec
-        env['cpu-flags'] = _get_cpu_flags(timeout=0.5)
+        # env['cpu-flags'] = _get_cpu_flags(timeout=0.5)
 
         # There is a trailing whitespace in sys.version, strip so that YAML can
         # use literal formatting.
