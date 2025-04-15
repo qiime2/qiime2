@@ -6,8 +6,10 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import cpuinfo
 import unittest
 import re
+import time
 import unittest.mock as mock
 
 import pandas as pd
@@ -16,6 +18,19 @@ import qiime2
 from qiime2.plugins import dummy_plugin
 from qiime2.core.testing.type import IntSequence1, Mapping
 import qiime2.core.archive.provenance as provenance
+
+
+# monkey patch testing to check that the timeout works as expected when
+# attempting to pull CPU flags from a user's machine to add to action.yaml
+def _fake_cpu_info():
+    time.sleep(5)
+    return {'cpu-flags': ['foo', 'bar']}
+
+
+def test_get_cpu_flags_timeout(monkeypatch):
+    monkeypatch.setattr(cpuinfo, 'get_cpu_info', _fake_cpu_info)
+    cpu_flags = provenance._get_cpu_flags(timeout=3)
+    assert cpu_flags == []
 
 
 class TestProvenanceIntegration(unittest.TestCase):
