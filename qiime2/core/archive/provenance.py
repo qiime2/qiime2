@@ -198,7 +198,7 @@ def metadata_path_constructor(loader, node) -> MetadataInfo:
 
     action_fp = Path(loader.name)
     metadata_fp = action_fp.parent / rel_fp
-    md5sum_hash = util.md5sum(metadata_fp)
+    md5sum_hash = util.checksum(metadata_fp, checksum_type='md5')
 
     return MetadataInfo(artifact_uuids, rel_fp, md5sum_hash)
 

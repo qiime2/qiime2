@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import hashlib
 import shutil
 import unittest
 import tempfile
@@ -13,8 +14,6 @@ import pathlib
 import collections
 import datetime
 import dateutil.relativedelta as relativedelta
-
-import pytest
 
 import qiime2.core.util as util
 from qiime2.core.testing.type import Foo, Bar, Baz
@@ -129,8 +128,11 @@ class TestDurationTime(unittest.TestCase):
             util.duration_time(reldelta), '1955 microseconds')
 
 
-class TestMD5Sum(unittest.TestCase):
-    # All expected results where generated via GNU coreutils md5sum
+class ChecksumTestMixin:
+    """Mixin for checksum testing to handle any hash algorithm"""
+    checksum_type = None
+    hashfunc = None
+
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
         self.test_path = pathlib.Path(self.test_dir.name)
@@ -138,149 +140,168 @@ class TestMD5Sum(unittest.TestCase):
     def tearDown(self):
         self.test_dir.cleanup()
 
-    def make_file(self, bytes_):
-        path = self.test_path / 'file'
-        with path.open(mode='wb') as fh:
-            fh.write(bytes_)
-
+    def make_file(self, data: bytes, relpath: str = "file"):
+        path = self.test_path / relpath
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
         return path
 
     def test_empty_file(self):
-        self.assertEqual(util.md5sum(self.make_file(b'')),
-                         'd41d8cd98f00b204e9800998ecf8427e')
+        data = b''
+        path = self.make_file(data)
+        expected = self.hashfunc(data).hexdigest()
+        self.assertEqual(util.checksum(path, self.checksum_type), expected)
 
     def test_single_byte_file(self):
-        self.assertEqual(util.md5sum(self.make_file(b'a')),
-                         '0cc175b9c0f1b6a831c399e269772661')
+        data = b'a'
+        path = self.make_file(data)
+        expected = self.hashfunc(data).hexdigest()
+        self.assertEqual(util.checksum(path, self.checksum_type), expected)
 
     def test_large_file(self):
-        path = self.make_file(b'verybigfile' * (1024 * 50))
-        self.assertEqual(util.md5sum(path),
-                         '27d64211ee283283ad866c18afa26611')
+        data = b'verybigfile' * (1024 * 50)
+        path = self.make_file(data)
+        expected = self.hashfunc(data).hexdigest()
+        self.assertEqual(util.checksum(path, self.checksum_type), expected)
 
     def test_can_use_string(self):
-        string_path = str(self.make_file(b'Normal text\nand things\n'))
-        self.assertEqual(util.md5sum(string_path),
-                         '93b048d0202e4b06b658f3aef1e764d3')
+        data = b'Normal text\nand things\n'
+        path = self.make_file(data)
+        expected = self.hashfunc(data).hexdigest()
+        self.assertEqual(util.checksum(str(path), self.checksum_type),
+                         expected)
 
 
-class TestMD5SumDirectory(unittest.TestCase):
-    # All expected results where generated via GNU coreutils md5sum
+class TestMD5Sum(ChecksumTestMixin, unittest.TestCase):
+    checksum_type = 'md5'
+    hashfunc = hashlib.md5
+
+
+class TestSHA512Sum(ChecksumTestMixin, unittest.TestCase):
+    checksum_type = 'sha512'
+    hashfunc = hashlib.sha512
+
+
+class ChecksumDirectoryMixin:
+    """Mixin for testing checksum_directory against any hash algorithm."""
+    checksum_type = None
+    hashfunc = None
+
     def setUp(self):
-        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
-        self.test_path = pathlib.Path(self.test_dir.name)
+        self.tempdir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        self.test_path = pathlib.Path(self.tempdir.name)
 
     def tearDown(self):
-        self.test_dir.cleanup()
+        self.tempdir.cleanup()
 
-    def make_file(self, bytes_, relpath):
-        path = self.test_path / relpath
-        with path.open(mode='wb') as fh:
-            fh.write(bytes_)
-
-        return path
+    def make_file(self, data: bytes, relpath: str):
+        p = self.test_path / relpath
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(data)
+        return p.relative_to(self.test_path)
 
     def test_empty_directory(self):
-        self.assertEqual(util.md5sum_directory(self.test_path),
-                         collections.OrderedDict())
+        self.assertEqual(
+            util.checksum_directory(self.test_path, self.checksum_type),
+            collections.OrderedDict()
+        )
 
     def test_nested_empty_directories(self):
         (self.test_path / 'foo').mkdir()
         (self.test_path / 'foo' / 'bar').mkdir()
         (self.test_path / 'baz').mkdir()
-
-        self.assertEqual(util.md5sum_directory(self.test_path),
-                         collections.OrderedDict())
+        self.assertEqual(
+            util.checksum_directory(self.test_path, self.checksum_type),
+            collections.OrderedDict()
+        )
 
     def test_single_file(self):
-        self.make_file(b'Normal text\nand things\n', 'foobarbaz.txt')
-
+        rel = self.make_file(b'Normal text\nand things\n', 'foobarbaz.txt')
+        full = self.test_path / rel
+        expected = self.hashfunc(full.read_bytes()).hexdigest()
         self.assertEqual(
-            util.md5sum_directory(self.test_path),
-            collections.OrderedDict([
-                ('foobarbaz.txt', '93b048d0202e4b06b658f3aef1e764d3')
-            ]))
+            util.checksum_directory(self.test_path, self.checksum_type),
+            collections.OrderedDict([(str(rel), expected)])
+        )
 
-    def test_single_file_md5sum_python(self):
-        with tempfile.TemporaryDirectory() as tempdir:
-            fp = pathlib.Path(tempdir) / 'test.txt'
-            with open(fp, 'w') as fh:
-                fh.write('contents\n')
+    def test_single_file_checksum_python(self):
+        with tempfile.TemporaryDirectory() as td:
+            fp = pathlib.Path(td) / 'test.txt'
+            fp.write_text('contents\n')
+            expected = self.hashfunc(fp.read_bytes()).hexdigest()
+            obs = util.checksum_python(fp, self.checksum_type)
+            self.assertEqual(expected, obs)
 
-            exp = 'e66545a2155380046fce3fdbd32a6b4f'
-            obs = util.md5sum_python(fp)
-
-            self.assertEqual(exp, obs)
-
-    @pytest.mark.skipif(
-        shutil.which('md5sum') is None,
-        reason='md5sum executable is required'
-    )
-    def test_single_file_md5sum_native(self):
-        with tempfile.TemporaryDirectory() as tempdir:
-            fp = pathlib.Path(tempdir) / 'test.txt'
-            with open(fp, 'w') as fh:
-                fh.write('contents\n')
-
-            exp = 'e66545a2155380046fce3fdbd32a6b4f'
-            obs = util.md5sum_native(fp)
-            self.assertEqual(exp, obs)
+    def test_single_file_checksum_native(self):
+        tool = f'{self.checksum_type}sum'
+        if shutil.which(tool) is None:
+            self.skipTest(f"'{tool}' executable is required")
+        with tempfile.TemporaryDirectory() as td:
+            fp = pathlib.Path(td) / 'test.txt'
+            fp.write_text('contents\n')
+            expected = self.hashfunc(fp.read_bytes()).hexdigest()
+            obs = util.checksum_native(fp, self.checksum_type)
+            self.assertEqual(expected, obs)
 
     def test_single_file_nested(self):
-        nested_dir = self.test_path / 'bar'
-        nested_dir.mkdir()
-
-        filepath = (nested_dir / 'foo.baz').relative_to(self.test_path)
-        self.make_file(b'anything at all', filepath)
-
+        (self.test_path / 'bar').mkdir()
+        rel = (self.test_path / 'bar' / 'foo.baz').relative_to(self.test_path)
+        self.make_file(b'anything at all', rel)
+        expected = \
+            self.hashfunc((self.test_path / rel).read_bytes()).hexdigest()
         self.assertEqual(
-            util.md5sum_directory(self.test_path),
-            collections.OrderedDict([
-                ('bar/foo.baz', 'dcc0975b66728be0315abae5968379cb')
-            ]))
+            util.checksum_directory(self.test_path, self.checksum_type),
+            collections.OrderedDict([(str(rel), expected)])
+        )
 
     def test_sorted_decent(self):
-        nested_dir = self.test_path / 'beta'
-        nested_dir.mkdir()
-        filepath = (nested_dir / '10').relative_to(self.test_path)
-        self.make_file(b'10', filepath)
-        filepath = (nested_dir / '1').relative_to(self.test_path)
-        self.make_file(b'1', filepath)
-        filepath = (nested_dir / '2').relative_to(self.test_path)
-        self.make_file(b'2', filepath)
-
-        nested_dir = self.test_path / 'alpha'
-        nested_dir.mkdir()
-        filepath = (nested_dir / 'foo').relative_to(self.test_path)
-        self.make_file(b'foo', filepath)
-        filepath = (nested_dir / 'bar').relative_to(self.test_path)
-        self.make_file(b'bar', filepath)
-
+        # beta files
+        beta = self.test_path / 'beta'
+        beta.mkdir()
+        for name in ['10', '1', '2']:
+            self.make_file(name.encode(), f'beta/{name}')
+        # alpha files
+        alpha = self.test_path / 'alpha'
+        alpha.mkdir()
+        for name in ['foo', 'bar']:
+            self.make_file(name.encode(), f'alpha/{name}')
+        # top‑level
         self.make_file(b'z', 'z')
 
+        exp = [
+            ('z', self.hashfunc(b'z').hexdigest()),
+            ('alpha/bar', self.hashfunc(b'bar').hexdigest()),
+            ('alpha/foo', self.hashfunc(b'foo').hexdigest()),
+            ('beta/1', self.hashfunc(b'1').hexdigest()),
+            ('beta/10', self.hashfunc(b'10').hexdigest()),
+            ('beta/2',  self.hashfunc(b'2').hexdigest()),
+        ]
         self.assertEqual(
-            list(util.md5sum_directory(self.test_path).items()),
-            [
-                ('z', 'fbade9e36a3f36d3d676c1b808451dd7'),
-                ('alpha/bar', '37b51d194a7513e45b56f6524f2d51f2'),
-                ('alpha/foo', 'acbd18db4cc2f85cedef654fccc4a4d8'),
-                ('beta/1', 'c4ca4238a0b923820dcc509a6f75849b'),
-                ('beta/10', 'd3d9446802a44259755d38e6d163e820'),
-                ('beta/2', 'c81e728d9d4c2f636f067f89cc14862c'),
-            ])
+            list(util.checksum_directory(self.test_path,
+                                         self.checksum_type).items()),
+            exp
+        )
 
     def test_can_use_string(self):
-        nested_dir = self.test_path / 'bar'
-        nested_dir.mkdir()
-
-        filepath = (nested_dir / 'foo.baz').relative_to(self.test_path)
-        self.make_file(b'anything at all', filepath)
-
+        (self.test_path / 'bar').mkdir()
+        rel = (self.test_path / 'bar' / 'foo.baz').relative_to(self.test_path)
+        self.make_file(b'anything at all', rel)
+        expected = \
+            self.hashfunc((self.test_path / rel).read_bytes()).hexdigest()
         self.assertEqual(
-            util.md5sum_directory(str(self.test_path)),
-            collections.OrderedDict([
-                ('bar/foo.baz', 'dcc0975b66728be0315abae5968379cb')
-            ]))
+            util.checksum_directory(str(self.test_path), self.checksum_type),
+            collections.OrderedDict([(str(rel), expected)])
+        )
+
+
+class TestMD5SumDirectory(ChecksumDirectoryMixin, unittest.TestCase):
+    checksum_type = 'md5'
+    hashfunc = hashlib.md5
+
+
+class TestSHA512SumDirectory(ChecksumDirectoryMixin, unittest.TestCase):
+    checksum_type = 'sha512'
+    hashfunc = hashlib.sha512
 
 
 class TestChecksumFormat(unittest.TestCase):

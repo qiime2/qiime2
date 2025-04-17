@@ -23,7 +23,7 @@ from .visualization import Visualization
 from . import meta
 from .util import (is_semantic_type, is_collection_type, is_primitive_type,
                    parse_primitive)
-from ..util import ImmutableBase, md5sum, create_collection_name
+from ..util import ImmutableBase, checksum, create_collection_name
 
 
 class __NoValueMeta(type):
@@ -771,7 +771,7 @@ class HashableInvocation():
             with tempfile.NamedTemporaryFile('w') as fh:
                 fp = fh.name
                 collection.save(fp)
-                collection = md5sum(fp)
+                collection = checksum(fp, checksum_type='md5')
                 return collection
         elif isinstance(collection, MetadataInfo):
             return collection.md5sum_hash

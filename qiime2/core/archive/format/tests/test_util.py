@@ -101,7 +101,7 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
         expected = {
             'VERSION',
             'metadata.yaml',
-            'checksums.md5',
+            'checksums.sha512',
             'data/file1.txt',
             'data/file2.txt',
             'data/nested/file3.txt',

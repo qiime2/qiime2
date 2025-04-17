@@ -209,16 +209,16 @@ class DummyArtifacts:
 
     def init_no_checksum_dag(self):
         '''
-        create archive with missing checksums.md5
+        create archive with missing checksums.sha512
         '''
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=UserWarning)
             with generate_archive_with_file_removed(
                 self.single_int.filepath,
                 self.single_int.uuid,
-                'checksums.md5'
+                'checksums.sha512'
             ) as altered_archive:
-                self.dag_missing_md5 = ProvDAG(altered_archive)
+                self.dag_missing_sha512 = ProvDAG(altered_archive)
 
     @property
     def all_artifact_versions(self):
@@ -262,7 +262,7 @@ def is_root_provnode_data(fp):
 
     # then handle files available at root, which require a cast
     if pathlib.Path(fp).parts[1] in (
-        'VERSION', 'metadata.yaml', 'checksums.md5'
+        'VERSION', 'metadata.yaml', 'checksums.sha512'
     ):
         return True
 

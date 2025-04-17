@@ -89,7 +89,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(archiver.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/ints.txt',
             'provenance/metadata.yaml',
@@ -109,7 +109,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(self.archiver.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/ints.txt',
             'provenance/metadata.yaml',
@@ -155,7 +155,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '.hidden-file',
                 '.hidden-dir/ignored-file',
                 '%s/VERSION' % root_dir,
-                '%s/checksums.md5' % root_dir,
+                '%s/checksums.sha512' % root_dir,
                 '%s/metadata.yaml' % root_dir,
                 '%s/data/ints.txt' % root_dir,
                 '%s/provenance/metadata.yaml' % root_dir,
@@ -233,7 +233,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             root_dir = str(self.archiver.uuid)
             expected = {
                 '%s/VERSION' % root_dir,
-                '%s/checksums.md5' % root_dir,
+                '%s/checksums.sha512' % root_dir,
                 '%s/metadata.yaml' % root_dir,
                 '%s/data/ints.txt' % root_dir,
                 '%s/provenance/metadata.yaml' % root_dir,
@@ -307,15 +307,26 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         (self.archiver.root_dir / 'VERSION').unlink()
 
         diff = self.archiver.validate_checksums()
-
+        # NOTE: as of 4/17/25 the 'expected' checksums have been modified
+        # from the md5sum to the sha512sum to accommodate the updated
+        # checksum calculations in archive v7.0
         self.assertEqual(diff.added,
-                         {'tamper.txt': '296583001b00d2b811b5871b19e0ad28'})
+                         {'tamper.txt': '4606a32b183684fd02c813c143683d1c4ac6'
+                                        'cc1d14ab1594aaf38dc4ca16034072e90439'
+                                        '57474b9e67784c87e3bdc57eea8d4787cf0e'
+                                        '9eb74754440c553f4670'})
         # The contents of most files is either stochastic, or has the current
         # version (which is an unknown commit sha1), so just check name
         self.assertEqual(list(diff.removed.keys()), ['VERSION'])
         self.assertEqual(diff.changed,
-                         {'data/ints.txt': ('c0710d6b4f15dfa88f600b0e6b624077',
-                                            'f47bc36040d5c7db08e4b3a457dcfbb2')
+                         {'data/ints.txt': ('6a8e8f13f75c3dead6c5b542d2282b182'
+                                            'd94619292e7c31c551b719a65af7093a6'
+                                            '21b008868d47d2e85973ae3fa1df5c8ca'
+                                            '23f2bcb27919229ad0c5b9a59c8cc',
+                                            '5eaa9c06b3b65d64fde15deeb8bdee993'
+                                            '98d403cc1ac0f8face6da4ac71cea8139'
+                                            'c99c8dbc6d1709cca6b76e94a246dcc1c'
+                                            '00adf512ee3c1bf5fd20f96f7e7b6')
                           })
 
     def test_checksum_backwards_compat(self):
@@ -341,7 +352,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         expected = set([
             'metadata.yaml',
             'data',
-            'checksums.md5',
+            'checksums.sha512',
             'provenance',
             'VERSION'
         ])

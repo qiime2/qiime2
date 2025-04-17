@@ -13,7 +13,7 @@ import yaml
 
 from ...provenance import MetadataInfo
 
-from qiime2.core.util import md5sum
+from qiime2.core.util import checksum
 
 
 class YamlConstructorTests(unittest.TestCase):
@@ -70,7 +70,7 @@ class YamlConstructorTests(unittest.TestCase):
             with open(action_fp, 'r') as fh:
                 actual = yaml.safe_load(fh)
 
-            md5sum_hash = md5sum(md_fp)
+            md5sum_hash = checksum(md_fp, checksum_type='md5')
 
         self.assertEqual(actual, MetadataInfo([], 'metadata.tsv', md5sum_hash))
 
@@ -89,7 +89,7 @@ class YamlConstructorTests(unittest.TestCase):
             with open(action_fp, 'r') as fh:
                 actual = yaml.safe_load(fh)
 
-            md5sum_hash = md5sum(md_fp)
+            md5sum_hash = checksum(md_fp, checksum_type='md5')
 
         self.assertEqual(
             actual,
@@ -118,7 +118,7 @@ class YamlConstructorTests(unittest.TestCase):
             with open(action_fp, 'r') as fh:
                 actual = yaml.safe_load(fh)
 
-            md5sum_hash = md5sum(md_fp)
+            md5sum_hash = checksum(md_fp, checksum_type='md5')
 
         self.assertEqual(
             actual,

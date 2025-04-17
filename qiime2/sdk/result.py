@@ -500,9 +500,9 @@ class Artifact(Result):
                 path = pathlib.Path(view)
 
             if path.is_file():
-                md5sums = {path.name: util.md5sum(path)}
+                md5sums = {path.name: util.checksum(path, checksum_type='md5')}
             elif path.is_dir():
-                md5sums = util.md5sum_directory(path)
+                md5sums = util.checksum_directory(path, checksum_type='md5')
             else:
                 raise qiime2.plugin.ValidationError(
                     "Path '%s' does not exist." % path)

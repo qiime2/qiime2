@@ -292,7 +292,7 @@ class ProvDAGTests(unittest.TestCase):
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_invalid_provenance(self):
         '''
-        Mangle an intact v5 Archive so that its checksums.md5 is invalid,
+        Mangle an intact Archive so that its checksums.sha512 is invalid,
         and then build a ProvDAG with it to confirm the ProvDAG constructor
         handles broken checksums appropriately
         '''
@@ -330,15 +330,15 @@ class ProvDAGTests(unittest.TestCase):
             self.assertEqual(list(diff.changed.keys()),
                              ['provenance/citations.bib'])
 
-    def test_missing_checksums_md5(self):
+    def test_missing_checksums_sha512(self):
         uuid = self.das.single_int.uuid
         with generate_archive_with_file_removed(
             self.das.single_int.filepath,
             uuid,
-            'checksums.md5'
+            'checksums.sha512'
         ) as altered_archive:
             expected = (
-                'The checksums.md5 file is missing from the archive.*'
+                'The checksums.sha512 file is missing from the archive.*'
                 'Archive may be corrupt'
             )
             with self.assertWarnsRegex(UserWarning, expected):
@@ -515,9 +515,9 @@ class ProvDAGTests(unittest.TestCase):
             nx.number_weakly_connected_components(unioned_dag.dag), 3
         )
 
-    def test_union_self_missing_checksums_md5(self):
+    def test_union_self_missing_checksums_sha512(self):
         unioned_dag = ProvDAG.union(
-            [self.das.dag_missing_md5, self.das.single_int.dag]
+            [self.das.dag_missing_sha512, self.das.single_int.dag]
         )
 
         self.assertRegex(
@@ -538,13 +538,13 @@ class ProvDAGTests(unittest.TestCase):
             nx.number_weakly_connected_components(unioned_dag.dag), 1
         )
 
-    def test_union_other_missing_checksums_md5(self):
+    def test_union_other_missing_checksums_sha512(self):
         '''
-        Tests unions of v5 dags where the other ProvDAG is missing its
-        checksums.md5 but the calling ProvDAG is not
+        Tests unions of dags where the other ProvDAG is missing its
+        checksums.sha512 but the calling ProvDAG is not
         '''
         unioned_dag = ProvDAG.union([self.das.single_int.dag,
-                                     self.das.dag_missing_md5])
+                                     self.das.dag_missing_sha512])
 
         self.assertRegex(repr(unioned_dag),
                          'ProvDAG representing the provenance.*Artifacts.*'
@@ -560,13 +560,13 @@ class ProvDAGTests(unittest.TestCase):
             nx.number_weakly_connected_components(unioned_dag.dag), 1
         )
 
-    def test_union_both_missing_checksums_md5(self):
+    def test_union_both_missing_checksums_sha512(self):
         '''
-        Tests unions of v5 dags where both artifacts are missing their
-        checksums.md5 files.
+        Tests unions of dags where both artifacts are missing their
+        checksums.sha512 files.
         '''
         unioned_dag = ProvDAG.union(
-            [self.das.dag_missing_md5, self.das.dag_missing_md5])
+            [self.das.dag_missing_sha512, self.das.dag_missing_sha512])
 
         self.assertRegex(
             repr(unioned_dag),
@@ -778,11 +778,11 @@ class ProvDAGTests(unittest.TestCase):
         )
         self.assertEqual(no_validation_dag.checksum_diff, None)
 
-    def test_no_checksum_validation_missing_checksums_md5(self):
+    def test_no_checksum_validation_missing_checksums_sha512(self):
         with generate_archive_with_file_removed(
             self.das.concated_ints.filepath,
             self.das.concated_ints.uuid,
-            'checksums.md5'
+            'checksums.sha512'
         ) as altered_archive:
             dag = ProvDAG(altered_archive, validate_checksums=False)
 

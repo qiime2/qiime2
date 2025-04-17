@@ -93,7 +93,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/file1.txt',
             'data/file2.txt',
@@ -121,7 +121,7 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
 
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/index.html',
             'data/css/style.css',

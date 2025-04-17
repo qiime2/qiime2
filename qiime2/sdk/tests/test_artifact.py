@@ -142,7 +142,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(artifact.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/file1.txt',
             'data/file2.txt',
@@ -205,7 +205,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(artifact.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/file1.txt',
             'data/file2.txt',
@@ -223,7 +223,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(artifact.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/file1.txt',
             'data/file2.txt',
@@ -318,7 +318,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
 
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/file1.txt',
             'data/file2.txt',

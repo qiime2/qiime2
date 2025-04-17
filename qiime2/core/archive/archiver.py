@@ -18,7 +18,7 @@ import io
 import qiime2
 import qiime2.core.cite as cite
 
-from qiime2.core.util import md5sum_directory, from_checksum_format, is_uuid4
+from qiime2.core.util import checksum_directory, from_checksum_format, is_uuid4
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -477,11 +477,17 @@ class Archiver:
         _ZipArchive.save(self.path, filepath)
 
     def validate_checksums(self):
-        if not isinstance(self._fmt, self.get_format_class('5')):
+        checksum_file = getattr(self._fmt, 'CHECKSUM_FILE', None)
+
+        if not checksum_file:
             return ChecksumDiff({}, {}, {})
 
-        obs = dict(x for x in md5sum_directory(str(self.root_dir)).items()
-                   if x[0] != self._fmt.CHECKSUM_FILE)
+        obs = \
+            dict(x for x in
+                 checksum_directory(str(self.root_dir),
+                                    checksum_type=self._fmt.CHECKSUM_TYPE)
+                 .items()
+                 if x[0] != self._fmt.CHECKSUM_FILE)
         with open(self.root_dir / self._fmt.CHECKSUM_FILE) as fh:
             exp = dict(from_checksum_format(line) for line in
                        fh.readlines())
