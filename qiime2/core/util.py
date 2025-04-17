@@ -119,7 +119,12 @@ def duration_time(relative_delta):
 
 
 def has_checksum_native(checksum_type):
-    return shutil.which(f'{checksum_type}') is not None
+    if checksum_type == 'md5':
+        checksum_util = 'md5sum'
+    elif checksum_type == 'sha512':
+        checksum_util = 'sha512'
+
+    return shutil.which(f'{checksum_util}') is not None
 
 
 def checksum(filepath, checksum_type):
