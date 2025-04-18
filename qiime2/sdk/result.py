@@ -351,15 +351,15 @@ class Result(IResult):
         annotation_dir = \
             pathlib.Path(self._archiver.annotations_dir) / str(annotation.uuid)
         checksum_ext = self._archiver._fmt.CHECKSUM_TYPE
-        manifest_name = f'checksums.{checksum_ext}'
+        manifest = self._archiver._fmt.CHECKSUM_FILE
 
-        raw_checksums = util.checksum_directory(str(annotation_dir),
-                                                checksum_type=checksum_ext)
-        raw_checksums.pop(manifest_name, None)
+        checksums = util.checksum_directory(str(annotation_dir),
+                                            checksum_type=checksum_ext)
+        checksums.pop(manifest, None)
 
-        with (annotation_dir / manifest_name).open('w') as fh:
-            for relpath, digest in raw_checksums.items():
-                fh.write(util.to_checksum_format(relpath, digest))
+        with (annotation_dir / manifest).open('w') as fh:
+            for item in checksums.items():
+                fh.write(util.to_checksum_format(*item))
                 fh.write('\n')
 
     def get_annotation(self, name):

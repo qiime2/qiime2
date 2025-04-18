@@ -7,13 +7,11 @@
 # ----------------------------------------------------------------------------
 
 import qiime2.core.archive.format.v4 as v4
-from qiime2.core.util import checksum_directory, to_checksum_format
+from qiime2.core.archive.format.util import write_checksums
 
 
 class ArchiveFormat(v4.ArchiveFormat):
-    # Adds `checksums.md5` to root of directory structure
     CHECKSUM_FILE = 'checksums.md5'
-    # just pull the file extension for the checksum type
     CHECKSUM_TYPE = CHECKSUM_FILE.split('.')[1]
 
     @classmethod
@@ -27,9 +25,8 @@ class ArchiveFormat(v4.ArchiveFormat):
 
     @classmethod
     def write_checksums(cls, archive_record):
-        checksums = checksum_directory(str(archive_record.root),
-                                       checksum_type=cls.CHECKSUM_TYPE)
-        with (archive_record.root / cls.CHECKSUM_FILE).open('w') as fh:
-            for item in checksums.items():
-                fh.write(to_checksum_format(*item))
-                fh.write('\n')
+        write_checksums(
+            directory=str(archive_record.root),
+            checksum_file=cls.CHECKSUM_FILE,
+            checksum_type=cls.CHECKSUM_TYPE
+        )
