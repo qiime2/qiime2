@@ -153,3 +153,39 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
         for num, expected in cases:
             result = ArchiveFormat._human_readable_size(num)
             self.assertEqual(result, expected)
+
+    def test_annotation_actions_on_older_archive_version(self):
+        note = Note(name='mynote', text='my special text')
+
+        with artifact_version(4):
+            artifact = Artifact._from_view(FourInts, [-1, 42, 0, 43], list,
+                                           self.provenance_capture)
+
+        # add_annotation
+        with self.assertRaisesRegex(
+            ValueError, 'Artifact or Visualization being used is'
+                        ' associated with a QIIME 2 archive format of < 7.0.'
+        ):
+            artifact.add_annotation(note)
+
+        # remove_annotation
+        with self.assertRaisesRegex(
+            ValueError, 'Artifact or Visualization being used is'
+                        ' associated with a QIIME 2 archive format of < 7.0.'
+        ):
+            artifact.remove_annotation('foo')
+
+        # get_annotation
+        with self.assertRaisesRegex(
+            ValueError, 'Artifact or Visualization being used is'
+                        ' associated with a QIIME 2 archive format of < 7.0.'
+        ):
+            artifact.get_annotation('foo')
+
+        # iter_annotations
+        with self.assertRaisesRegex(
+            ValueError, 'Artifact or Visualization being used is'
+                        ' associated with a QIIME 2 archive format of < 7.0.'
+        ):
+            for annotation in artifact.iter_annotations():
+                print(annotation.name)

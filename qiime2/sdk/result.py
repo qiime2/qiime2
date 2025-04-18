@@ -286,6 +286,26 @@ class Result(IResult):
         """
         return self
 
+    def _validate_annotation_support(self):
+        """Checks for the existance of `annotations_dir` on a Result's
+        format class to guard against annotation actions being called on
+        Results with versions < 7.0.
+
+        Raises
+        ------
+        ValueError\n
+            If the Result's format class has no `annotations_dir` and is
+            thus a format version < 7.0.
+
+        """
+        if self._archiver.annotations_dir is None:
+            raise ValueError(
+                'The Artifact or Visualization being used is associated with '
+                'a QIIME 2 archive format of < 7.0. '
+                'Annotation actions are only supported for QIIME 2 archive '
+                'formats of 7.0 and above.'
+            )
+
     def _read_annotations(self):
         """
         Append any existing Annotations to `self._annotations`.
@@ -331,6 +351,7 @@ class Result(IResult):
         Annotation.write
 
         """
+        self._validate_annotation_support()
         # Guard to ensure Annotation names are unique per Result object
         for existing_annotation in self._annotations:
             if annotation.name == existing_annotation.name:
@@ -381,6 +402,8 @@ class Result(IResult):
             If no Annotation with the provided name is found.
 
         """
+        self._validate_annotation_support()
+
         for annotation in self._annotations:
             if annotation.name == name:
                 return annotation
@@ -399,6 +422,8 @@ class Result(IResult):
             If no Annotations are found associated with the Result.
 
         """
+        self._validate_annotation_support()
+
         if self._annotations:
             return iter(self._annotations)
 
@@ -421,6 +446,7 @@ class Result(IResult):
             3. If the corresponding annotation directory cannot be located.
 
         """
+        self._validate_annotation_support()
         # First check that annotations dir exists for the Result
         annotations_dir = self._archiver.annotations_dir
         if not os.path.exists(annotations_dir):
