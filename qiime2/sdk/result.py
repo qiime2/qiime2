@@ -346,6 +346,22 @@ class Result(IResult):
                          referenced_result_uuid=str(self.uuid))
         self._annotations.append(annotation)
 
+        # now calculate checksums for all files within the newly minted
+        # annotation subdir
+        annotation_dir = \
+            pathlib.Path(self._archiver.annotations_dir) / str(annotation.uuid)
+        checksum_ext = self._archiver._fmt.CHECKSUM_TYPE
+        manifest_name = f'checksums.{checksum_ext}'
+
+        raw_checksums = util.checksum_directory(str(annotation_dir),
+                                                checksum_type=checksum_ext)
+        raw_checksums.pop(manifest_name, None)
+
+        with (annotation_dir / manifest_name).open('w') as fh:
+            for relpath, digest in raw_checksums.items():
+                fh.write(util.to_checksum_format(relpath, digest))
+                fh.write('\n')
+
     def get_annotation(self, name):
         """Retrieve an Annotation given by `name` from the Result object.
 
