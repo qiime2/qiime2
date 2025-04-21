@@ -457,7 +457,6 @@ class ProvenanceCapture:
     def make_env_section(self):
         env = collections.OrderedDict()
         env['platform'] = platform.platform()
-
         # There is a trailing whitespace in sys.version, strip so that YAML can
         # use literal formatting.
         env['python'] = LiteralString('\n'.join(line.strip() for line in
