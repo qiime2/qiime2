@@ -369,14 +369,14 @@ class Result(IResult):
                 )
 
         annotation.write(annotations_dir=self._archiver.annotations_dir,
-                         root_result_uuid=str(self.uuid),
-                         referenced_result_uuid=str(self.uuid))
+                         root_result_uuid=str(self.id),
+                         referenced_result_uuid=str(self.id))
         self._annotations.append(annotation)
 
         # now calculate checksums for all files within the newly minted
         # annotation subdir
         annotation_dir = \
-            pathlib.Path(self._archiver.annotations_dir) / str(annotation.uuid)
+            pathlib.Path(self._archiver.annotations_dir) / str(annotation.id)
         checksum_ext = self._archiver._fmt.CHECKSUM_TYPE
         manifest = self._archiver._fmt.CHECKSUM_FILE
 

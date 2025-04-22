@@ -115,7 +115,7 @@ class Annotation():
         name
             The user-provided name of the Annotation.
 
-        uuid
+        id
             The uuid4 ID associated with the Annotation.
 
         created_at
@@ -131,7 +131,7 @@ class Annotation():
             raise TypeError('Annotation is an abstract class'
                             ' and cannot be instantiated directly.')
         self.name = name
-        self.uuid = _uuid.uuid4()
+        self.id = _uuid.uuid4()
         self.created_at = datetime.now()
 
     def validate_name(self, name):
@@ -191,12 +191,12 @@ class Annotation():
 
         # create the unique dir for a particular annotation
         annotation_uuid_dirname = \
-            os.path.join(annotations_dir, str(self.uuid))
+            os.path.join(annotations_dir, str(self.id))
         os.mkdir(annotation_uuid_dirname)
 
         metadata = {
             'name': self.name,
-            'id': str(self.uuid),
+            'id': str(self.id),
             'created_at': self.created_at,
             'type': self.annotation_type,
             'root_result_uuid': root_result_uuid,
