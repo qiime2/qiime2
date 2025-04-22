@@ -316,7 +316,7 @@ class Result(IResult):
 
         Raises
         ------
-        ValueError\n
+        ValueError
             If the Result's format class has no `annotations_dir` and is
             thus a format version < 7.0.
 
@@ -336,12 +336,12 @@ class Result(IResult):
 
         Parameters
         ----------
-        annotation\n
+        annotation
             An instantiated Annotation subclass (Note, etc).
 
         Raises
         ------
-        ValueError\n
+        ValueError
             If the Annotation name matches an existing Annotation name
             attached to the Result in question.
 
@@ -394,17 +394,17 @@ class Result(IResult):
 
         Parameters
         ----------
-        name : str\n
+        name : str
             The name of the Annotation to retrieve.
 
         Returns
         -------
-        Annotation : obj\n
+        Annotation : obj
             The Annotation object associated with the provided name.
 
         Raises
         ------
-        ValueError\n
+        ValueError
             If no Annotation with the provided name is found.
 
         """
@@ -424,7 +424,7 @@ class Result(IResult):
 
         Raises
         ------
-        ValueError\n
+        ValueError
             If no Annotations are found associated with the Result.
 
         """
@@ -441,12 +441,12 @@ class Result(IResult):
 
         Parameters
         ----------
-        name : str\n
+        name : str
             The name of the Annotation to be removed.
 
         Raises
         ------
-        ValueError\n
+        ValueError
             1. If there are no Annotations associated with the Result object.
             2. If no Annotation with the specified name is found.
             3. If the corresponding annotation directory cannot be located.

@@ -19,13 +19,13 @@ class ArchiveFormat(v6.ArchiveFormat):
 
     Versioning Updates
     ------------------
-    Semantic Versioning\n
+    Semantic Versioning
         Starting with 7.0, version updates now allow for major vs. minor
         version bumps.
 
     New Features
     ------------
-    `annotations`\n
+    `annotations`
         This new directory (when present) lives under `provenance` and contains
         Annotations that can be added either via the Python API or the cli.
 
@@ -53,34 +53,34 @@ class ArchiveFormat(v6.ArchiveFormat):
         The `metadata.yaml` file within each Annotation sub-directory contains
         the following details for a given Annotation:
 
-            `created_at`\n
+            `created_at`
                 datetime an Annotation was created.
 
-            `name`\n
+            `name`
                 User-provided name for the Annotation.
                 Must be unique per Result.
 
-            `referenced_result_uuid`\n
+            `referenced_result_uuid`
                 The result uuid that the Annotation is in reference to.
                 Self-referential Annotations are currently the only supported
                 Annotation type in 7.0.
 
-            `root_result_uuid`\n
+            `root_result_uuid`
                 The result uuid that the Annotation is attached to.
 
-            `type`\n
+            `type`
                 The type of Annotation. Notes are currently the only supported
                 Annotation type in 7.0.
 
     New Files
     ---------
-    `conda-env.yaml`\n
+    `conda-env.yaml`
         This file lives under `provenance` and contains the dependencies
         present within a user's active conda environment.
 
     New Fields
     ----------
-    `data-size`\n
+    `data-size`
         This field has been added within the top-level `metadata.yaml` file
         of a Result. It represents the total file size of all files under
         the `data` directory.

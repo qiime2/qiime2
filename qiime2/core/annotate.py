@@ -18,7 +18,7 @@ class Annotation():
 
     Parameters
     ----------
-    name : str\n
+    name : str
         Name of the annotation.
         For each Result object, all Annotations must have a unique name.
         e.g. The same named Annotation can be attached to multiple Results,
@@ -26,19 +26,19 @@ class Annotation():
 
     Properties
     ----------
-    uuid\n
+    uuid
         The minted uuid4 for each new Annotation that's added.
         This will be the name of each new Annotation's sub-directory within the
         `annotations` directory and is separate from any Result's uuid.
 
-    created_at\n
+    created_at
         The minted date/time when an Annotation is created.
         Note that this is separate from when an Annotation is attached to a
         Results object, as this can occur at multiple times.
 
     Returns
     -------
-    obj\n
+    obj
         An instantiated Annotation of the specified sub-class.
         Note that instantiation of the Annotation base class is not supported.
 
@@ -54,17 +54,17 @@ class Annotation():
 
         Parameters
         ----------
-        filepath : str\n
+        filepath : str
             Path to load the Annotation from.
 
         Returns
         -------
-        obj\n
+        obj
             The instantiated Annotation sub-class.
 
         Raises
         ------
-        ValueError\n
+        ValueError
             If no `note.txt` file is found under the
             corresponding annotation directory.
 
@@ -112,18 +112,18 @@ class Annotation():
 
         Attributes
         ----------
-        name\n
+        name
             The user-provided name of the Annotation.
 
-        uuid\n
+        uuid
             The uuid4 ID associated with the Annotation.
 
-        created_at\n
+        created_at
             The datetime when the Annotation was created.
 
         Raises
         ------
-        TypeError\n
+        TypeError
             If the Annotation base class is instantiated.
 
         """
@@ -140,12 +140,12 @@ class Annotation():
 
         Parameters
         ----------
-        name : str\n
+        name : str
             The name to validate.
 
         Raises
         ------
-        ValueError\n
+        ValueError
             If the name passed in is not a valid Python identifier.
         """
         validate_name = name.replace('-', '_')
@@ -163,14 +163,14 @@ class Annotation():
 
         Parameters
         ----------
-        annotations_dir\n
+        annotations_dir
             The path to the `annotations` directory within a Result object.
             Located under `provenance`.
 
-        root_result_uuid\n
+        root_result_uuid
             The uuid of the Result object where an Annotation is being added.
 
-        referenced_result_uuid\n
+        referenced_result_uuid
             The uuid of the Result object that an Annotation is referring to.
             Note that in 7.0, `root_result_uuid` and `referenced_result_uuid`
             are the same (i.e. Annotations can only refer to the same Result
@@ -179,7 +179,7 @@ class Annotation():
 
         Returns
         -------
-        str\n
+        str
             The filepath where the Annotation's uuid-specific subdirectory
             containing the `metadata.yaml` file was written to.
 
@@ -229,12 +229,12 @@ class Note(Annotation):
 
     Parameters
     ----------
-    text : str\n
+    text : str
         Inline text that will be written inside the Note's `note.txt` file.
         This parameter is optional, but either `text` OR `filepath` must be
         provided.
 
-    filepath : str\n
+    filepath : str
         Path to a file whose contents should be written inside the Note's
         `note.txt` file.
         This parameter is optional, but either `text` OR `filepath` must be
@@ -242,12 +242,12 @@ class Note(Annotation):
 
     Properties
     ----------
-    type : Note\n
+    type : Note
         The type of Annotation being instantiated.
 
     Returns
     -------
-    Note : obj\n
+    Note : obj
         The instantiated Note.
 
     See Also
@@ -306,14 +306,14 @@ class Note(Annotation):
 
         Parameters
         ----------
-        annotations_dir\n
+        annotations_dir
             The path to the `annotations` directory within a Result object.
             Located under `provenance`.
 
-        root_result_uuid\n
+        root_result_uuid
             The uuid of the Result object where an Annotation is being added.
 
-        referenced_result_uuid\n
+        referenced_result_uuid
             The uuid of the Result object that an Annotation is referring to.
             Note that in 7.0, `root_result_uuid` and `referenced_result_uuid`
             are the same (i.e. Annotations can only refer to the same Result

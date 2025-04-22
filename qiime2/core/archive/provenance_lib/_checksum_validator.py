@@ -65,12 +65,12 @@ def validate_checksums(
 
     Parameters
     ----------
-    zf : ZipFile\n
+    zf : ZipFile
         The zipfile object of the archive.
 
     Returns
     -------
-    tuple of (ValidationCode, ChecksumDiff)\n
+    tuple of (ValidationCode, ChecksumDiff)
         If the checksums.md5/checksums.sha512 file isn't present,
         set ChecksumDiff to None and ValidationCode to INVALID and return.
 
@@ -118,12 +118,12 @@ def diff_checksums(zf: ZipFile) -> ChecksumDiff:
 
     Parameters
     ----------
-    zf : ZipFile\n
+    zf : ZipFile
         The zipfile object of the archive.
 
     Returns
     -------
-    ChecksumDiff\n
+    ChecksumDiff
         A tuple of three dicts, one each for added, removed, and changed
         files. Keys are filepaths. For the added and removed dicts
         values are the checksum of the added or removed file. For the changed
