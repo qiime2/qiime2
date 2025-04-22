@@ -63,12 +63,6 @@ class ArchiveFormat:
 
         data_initializer(data_dir)
 
-        cls.write_checksums(archive_record)
-
-    @classmethod
-    def write_checksums(cls, archive_record):
-        pass
-
     def __init__(self, archive_record):
         path = archive_record.root
 

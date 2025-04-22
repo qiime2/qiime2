@@ -141,6 +141,15 @@ class ArchiveFormat(v6.ArchiveFormat):
         with md_fp.open(mode='a') as fh:
             fh.write(f'data-size: {datadir_size}')
 
+        # now move temporary annotations dir from within provenance
+        # so that we prevent duplication of each result's annotations
+        temp_annotations_dir = \
+            (archive_record.root / cls.PROVENANCE_DIR /
+             provenance_capture.TEMP_ANNOTATIONS_DIR)
+        if temp_annotations_dir.exists():
+            os.rename(temp_annotations_dir,
+                      archive_record.root / cls.ANNOTATIONS_DIR)
+
         # Write checksums last
         cls.write_checksums(archive_record)
 
@@ -156,4 +165,4 @@ class ArchiveFormat(v6.ArchiveFormat):
         super().__init__(archive_record)
 
         self.annotations_dir = \
-            archive_record.root / self.PROVENANCE_DIR / self.ANNOTATIONS_DIR
+            archive_record.root / self.ANNOTATIONS_DIR

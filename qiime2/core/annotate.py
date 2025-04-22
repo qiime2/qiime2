@@ -92,6 +92,12 @@ class Annotation():
                     with open(note_fp, 'r') as fh:
                         annotation.contents = fh.read()
 
+            else:
+                annotation = UnknownAnnotation.__new__(UnknownAnnotation)
+                annotation.name = meta_yaml['name']
+                annotation.created_at = meta_yaml['created_at']
+                annotation.annotation_type = meta_yaml['type']
+
         return annotation
 
     # We never expect this to be hit as the base class for Annotations
@@ -151,8 +157,8 @@ class Annotation():
                              ' https://www.askpython.com/python/'
                              'python-identifiers-rules-best-practices')
 
-    def write_meta_yaml(self, annotations_dir,
-                        root_result_uuid, referenced_result_uuid):
+    def _write_meta_yaml(self, annotations_dir,
+                         root_result_uuid, referenced_result_uuid):
         """Write the contents of `metadata.yaml` for a given Annotation.
 
         Parameters
@@ -202,6 +208,20 @@ class Annotation():
             fh.write(yaml.dump(metadata))
 
         return annotation_uuid_dirname
+
+
+class UnknownAnnotation(Annotation):
+    """Utility sub-class that handles loading newer Annotation types on an
+    older version of QIIME 2 that supports Annotations.
+    """
+    def __init__(*args):
+        raise NotImplementedError('`UnknownAnnotation` is an abstract class'
+                                  ' used for handling Annotations associated'
+                                  ' with future versions of QIIME 2.'
+                                  ' It should not be instantiated directly.')
+
+    _write_meta_yaml = __init__
+    write = __init__
 
 
 class Note(Annotation):
@@ -302,15 +322,15 @@ class Note(Annotation):
 
         See Also
         --------
-        write_meta_yaml
+        _write_meta_yaml
 
         """
-        # call write_meta_yaml to write the stuff that's the same
+        # call _write_meta_yaml to write the stuff that's the same
         # across both input types
         annotation_uuid_dirname = \
-            self.write_meta_yaml(annotations_dir,
-                                 root_result_uuid,
-                                 referenced_result_uuid)
+            self._write_meta_yaml(annotations_dir,
+                                  root_result_uuid,
+                                  referenced_result_uuid)
 
         # TODO: for now we're going to ignore the potential file system issues
         # associated with writing from a user provided file, but this will need

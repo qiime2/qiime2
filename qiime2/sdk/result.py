@@ -110,7 +110,6 @@ class Result(IResult):
                    type(result).__name__))
 
         result._archiver = archiver
-        result._read_annotations()
 
         return result
 
@@ -150,6 +149,30 @@ class Result(IResult):
     @property
     def citations(self):
         return self._archiver.citations
+
+    @property
+    def _annotations(self, _memoize=[]):
+        """
+        Append any existing Annotations to `self._annotations`.
+        Helper method for `add_annotation`, after a given Annotation
+        has been written to disk.
+        """
+        if _memoize:
+            return _memoize[0]
+
+        annotations = []
+        annotations_dir = self._archiver.annotations_dir
+        # Not sure if there's a better way to do this, but this accounts for
+        # the fact that the annotations_dir will be None for all
+        # previous archive versions < 7.0
+        if annotations_dir and os.path.exists(annotations_dir):
+            for annotation in os.listdir(annotations_dir):
+                annotations.append(
+                    Annotation.load(os.path.join(annotations_dir, annotation))
+                )
+        _memoize.append(annotations)
+
+        return annotations
 
     def __init__(self):
         raise NotImplementedError(
@@ -305,23 +328,6 @@ class Result(IResult):
                 'Annotation actions are only supported for QIIME 2 archive '
                 'formats of 7.0 and above.'
             )
-
-    def _read_annotations(self):
-        """
-        Append any existing Annotations to `self._annotations`.
-        Helper method for `add_annotation`, after a given Annotation
-        has been written to disk.
-        """
-        self._annotations = []
-        annotations_dir = self._archiver.annotations_dir
-        # Not sure if there's a better way to do this, but this accounts for
-        # the fact that the annotations_dir will be None for all
-        # previous archive versions < 7.0
-        if annotations_dir and os.path.exists(annotations_dir):
-            for annotation in os.listdir(annotations_dir):
-                self._annotations.append(
-                    Annotation.load(os.path.join(annotations_dir, annotation))
-                )
 
     def add_annotation(self, annotation):
         """Add an Annotation onto a Result object.
@@ -590,7 +596,6 @@ class Artifact(Result):
             type, output_dir_fmt,
             data_initializer=result.path._move_or_copy,
             provenance_capture=provenance_capture)
-        artifact._read_annotations()
 
         return artifact
 

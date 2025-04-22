@@ -273,6 +273,7 @@ for key in CONSTRUCTOR_REGISTRY:
 class ProvenanceCapture:
     ANCESTOR_DIR = 'artifacts'
     ACTION_DIR = 'action'
+    TEMP_ANNOTATIONS_DIR = 'annotations'
     ACTION_FILE = 'action.yaml'
     CITATION_FILE = 'citations.bib'
 
@@ -309,6 +310,9 @@ class ProvenanceCapture:
         self.action_dir = self.path / self.ACTION_DIR
         self.action_dir.mkdir()
 
+        self.temp_annotations_dir = self.path / self.TEMP_ANNOTATIONS_DIR
+        self.temp_annotations_dir.mkdir()
+
     def add_ancestor(self, artifact):
         other_path = artifact._archiver.provenance_dir
         if other_path is None:
@@ -337,6 +341,13 @@ class ProvenanceCapture:
                     destination = self.ancestor_dir / grandcestor.name
                     if not destination.exists():
                         shutil.copytree(str(grandcestor), str(destination))
+
+        # preserve ancestral annotations
+        if artifact._archiver.annotations_dir:
+            for annotation in artifact._archiver.annotations_dir.iterdir():
+                destination = self.temp_annotations_dir / annotation.name
+                if not destination.exists():
+                    shutil.copytree(str(annotation), str(destination))
 
         return str(artifact.uuid)
 
