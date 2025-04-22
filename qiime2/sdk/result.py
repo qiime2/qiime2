@@ -354,7 +354,7 @@ class Result(IResult):
 
         See Also
         --------
-        Annotation.write
+        Annotation._write
 
         """
         self._validate_annotation_support()
@@ -368,9 +368,9 @@ class Result(IResult):
                     'they are attached to.'
                 )
 
-        annotation.write(annotations_dir=self._archiver.annotations_dir,
-                         root_result_uuid=str(self.id),
-                         referenced_result_uuid=str(self.id))
+        annotation._write(annotations_dir=self._archiver.annotations_dir,
+                          root_result_uuid=str(self.id),
+                          referenced_result_uuid=str(self.id))
         self._annotations.append(annotation)
 
         # now calculate checksums for all files within the newly minted

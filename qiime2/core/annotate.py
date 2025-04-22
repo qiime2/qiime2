@@ -221,7 +221,7 @@ class UnknownAnnotation(Annotation):
                                   ' It should not be instantiated directly.')
 
     _write_meta_yaml = __init__
-    write = __init__
+    _write = __init__
 
 
 class Note(Annotation):
@@ -301,7 +301,8 @@ class Note(Annotation):
         # Construct Annotation class
         super().__init__(name)
 
-    def write(self, annotations_dir, root_result_uuid, referenced_result_uuid):
+    def _write(self, annotations_dir, root_result_uuid,
+               referenced_result_uuid):
         """Write the contents of an instantiated Note.
 
         Parameters
