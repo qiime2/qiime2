@@ -162,9 +162,7 @@ class Result(IResult):
 
         annotations = []
         annotations_dir = self._archiver.annotations_dir
-        # Not sure if there's a better way to do this, but this accounts for
-        # the fact that the annotations_dir will be None for all
-        # previous archive versions < 7.0
+        # annotations_dir will be None for all previous archive versions < 7.0
         if annotations_dir and os.path.exists(annotations_dir):
             for annotation in os.listdir(annotations_dir):
                 annotations.append(
