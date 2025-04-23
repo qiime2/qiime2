@@ -6,13 +6,12 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import os
 import tempfile
 import unittest
 
 from qiime2.core.annotate import Note, Annotation
 from qiime2.core.testing.type import FourInts
-from qiime2.sdk.result import Artifact, Result
+from qiime2.sdk.result import Artifact
 
 
 class TestAnnotationClass(unittest.TestCase):
@@ -62,12 +61,8 @@ class TestAnnotationEndpoints(unittest.TestCase):
     # setup for endpoint testing
     def setUp(self):
         # Create Artifact
-        test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
-        saved_artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
-        saved_artifact.save(os.path.join(test_dir.name, 'artifact.qza'))
-
-        self.artifact = \
-            Result.load(os.path.join(test_dir.name, 'artifact.qza'))
+        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        self.artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
 
         # Create Notes
         self.note1 = Note(name='mynote', text='my special text')
@@ -149,7 +144,7 @@ class TestAnnotationEndpoints(unittest.TestCase):
     # `REMOVE_ANNOTATION` ENDPOINT TESTS
     def test_remove_annotation_from_empty_result_error(self):
         with self.assertRaisesRegex(
-            ValueError, 'No existing annotations found.'
+            ValueError, 'No Annotation found with name: "mynote"'
         ):
             self.artifact.remove_annotation(name='mynote')
 

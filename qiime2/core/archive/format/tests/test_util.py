@@ -111,9 +111,9 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
             'provenance/citations.bib',
             'provenance/conda-env.yaml',
             'provenance/action/action.yaml',
-            f'provenance/annotations/{note.uuid}/metadata.yaml',
-            f'provenance/annotations/{note.uuid}/note.txt',
-            f'provenance/annotations/{note.uuid}/checksums.sha512'
+            f'annotations/{note.id}/metadata.yaml',
+            f'annotations/{note.id}/note.txt',
+            f'annotations/{note.id}/checksums.sha512'
         }
         self.assertArchiveMembers(fp, root_dir, expected)
 
@@ -123,19 +123,19 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
             conda_env = \
                 zf.read(os.path.join(root_dir, 'provenance', 'conda-env.yaml'))
             annotation_metadata = \
-                zf.read(os.path.join(root_dir, 'provenance', 'annotations',
-                                     f'{note.uuid}', 'metadata.yaml'))
+                zf.read(os.path.join(root_dir, 'annotations',
+                                     f'{note.id}', 'metadata.yaml'))
             note_contents = \
-                zf.read(os.path.join(root_dir, 'provenance', 'annotations',
-                                     f'{note.uuid}', 'note.txt'))
+                zf.read(os.path.join(root_dir, 'annotations',
+                                     f'{note.id}', 'note.txt'))
             checksums = \
-                zf.read(os.path.join(root_dir, 'provenance', 'annotations',
-                                     f'{note.uuid}', 'checksums.sha512'))
+                zf.read(os.path.join(root_dir, 'annotations',
+                                     f'{note.id}', 'checksums.sha512'))
         self.assertRegex(str(version), '^.*archive: 7.0.*$')
         self.assertRegex(str(metadata), '^.*data-size: .*B.*$')
         self.assertRegex(str(conda_env), '^.*dependencies:.*- .*$')
         self.assertRegex(str(annotation_metadata),
-                         f'^.*id: {note.uuid}.*name: mynote.*type: Note.*$')
+                         f'^.*id: {note.id}.*name: mynote.*type: Note.*$')
         self.assertRegex(str(note_contents), 'my special text')
         self.assertRegex(str(checksums), '^.*metadata.yaml.*note.txt.*$')
 

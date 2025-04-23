@@ -151,14 +151,14 @@ class Result(IResult):
         return self._archiver.citations
 
     @property
-    def _annotations(self, _memoize=[]):
+    def _annotations(self):
         """
         Append any existing Annotations to `self._annotations`.
         Helper method for `add_annotation`, after a given Annotation
         has been written to disk.
         """
-        if _memoize:
-            return _memoize[0]
+        if self._memoize_annotations:
+            return self._memoize_annotations[0]
 
         annotations = []
         annotations_dir = self._archiver.annotations_dir
@@ -168,7 +168,7 @@ class Result(IResult):
                 annotations.append(
                     Annotation.load(os.path.join(annotations_dir, annotation))
                 )
-        _memoize.append(annotations)
+        self._memoize_annotations.append(annotations)
 
         return annotations
 
@@ -181,6 +181,7 @@ class Result(IResult):
     def __new__(cls):
         result = object.__new__(cls)
         result._archiver = None
+        result._memoize_annotations = []
         return result
 
     def __repr__(self):
@@ -367,8 +368,8 @@ class Result(IResult):
                 )
 
         annotation._write(annotations_dir=self._archiver.annotations_dir,
-                          root_result_uuid=str(self.id),
-                          referenced_result_uuid=str(self.id))
+                          root_result_uuid=str(self.uuid),
+                          referenced_result_uuid=str(self.uuid))
         self._annotations.append(annotation)
 
         # now calculate checksums for all files within the newly minted
@@ -451,11 +452,8 @@ class Result(IResult):
 
         """
         self._validate_annotation_support()
-        # First check that annotations dir exists for the Result
-        annotations_dir = self._archiver.annotations_dir
-        if not os.path.exists(annotations_dir):
-            raise ValueError('No existing annotations found.')
 
+        # Check for Annotation entry on Result object
         annotation_to_remove = None
         for annotation in self._annotations:
             if annotation.name == name:
@@ -467,6 +465,7 @@ class Result(IResult):
             raise ValueError(f'No Annotation found with name: "{name}"')
 
         # Check for corresponding Annotation entry on disk
+        annotations_dir = self._archiver.annotations_dir
         annotation_disk_dir = None
 
         for entry in os.listdir(annotations_dir):

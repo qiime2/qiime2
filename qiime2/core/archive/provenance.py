@@ -343,8 +343,9 @@ class ProvenanceCapture:
                         shutil.copytree(str(grandcestor), str(destination))
 
         # preserve ancestral annotations
-        if artifact._archiver.annotations_dir:
-            for annotation in artifact._archiver.annotations_dir.iterdir():
+        annotations_dir = artifact._archiver.annotations_dir
+        if annotations_dir and annotations_dir.exists():
+            for annotation in annotations_dir.iterdir():
                 destination = self.temp_annotations_dir / annotation.name
                 if not destination.exists():
                     shutil.copytree(str(annotation), str(destination))

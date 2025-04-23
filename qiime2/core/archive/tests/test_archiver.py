@@ -354,6 +354,7 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
             'data',
             'checksums.sha512',
             'provenance',
+            'annotations',
             'VERSION'
         ])
 
