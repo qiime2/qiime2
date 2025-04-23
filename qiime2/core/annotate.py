@@ -10,6 +10,7 @@ import os
 import uuid as _uuid
 import yaml
 
+from collections import OrderedDict
 from datetime import datetime
 
 
@@ -194,14 +195,13 @@ class Annotation():
             os.path.join(annotations_dir, str(self.id))
         os.mkdir(annotation_uuid_dirname)
 
-        metadata = {
-            'name': self.name,
-            'id': str(self.id),
-            'created_at': self.created_at,
-            'type': self.annotation_type,
-            'root_result_uuid': root_result_uuid,
-            'referenced_result_uuid': referenced_result_uuid
-        }
+        metadata = OrderedDict()
+        metadata['id'] = str(self.id)
+        metadata['name'] = self.name
+        metadata['type'] = self.annotation_type
+        metadata['created_at'] = self.created_at
+        metadata['root_result_uuid'] = root_result_uuid
+        metadata['referenced_result_uuid'] = referenced_result_uuid
 
         meta_yaml = os.path.join(annotation_uuid_dirname, 'metadata.yaml')
         with open(meta_yaml, 'w') as fh:
