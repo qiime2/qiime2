@@ -261,8 +261,7 @@ class Note(Annotation):
     # will be the annotation's UUID (if name isn't provided by the user)
     def __init__(self, name, *, text=None, filepath=None):
         self.validate_name(name)
-        # We only want text OR filepath to be provided
-        # so ensure exactly one of these gets called
+        # Ensure exactly one of text or filepath is provided
         if text and filepath:
             raise ValueError(
                 'Cannot set both `text` and `filepath` params. '
@@ -274,12 +273,10 @@ class Note(Annotation):
                 'Please provide either inline text or a filepath.'
             )
 
-        # Start by setting self.contents to text - this is fine if it's None
-        # but will be replaced by file contents if filepath provided
-        self.contents = text
-
-        # Validate that filepath is of the correct type and file exists
-        if filepath:
+        if text is not None:
+            self.contents = text
+            self._filepath = None
+        else:
             if not isinstance(filepath, (str, os.PathLike)):
                 raise TypeError(
                     f'Unexpected input for `filepath`: {filepath} '
@@ -293,10 +290,8 @@ class Note(Annotation):
                     ' and is in the expected location.'
                 )
 
-            with open(filepath, 'r') as fh:
-                # if we hit this branch, self.contents is now set to
-                # whatever is contained in the provided file
-                self.contents = fh.read()
+            self._filepath = str(filepath)
+            self.contents = None
 
         # Construct Annotation class
         super().__init__(name)
@@ -333,11 +328,24 @@ class Note(Annotation):
                                   root_result_uuid,
                                   referenced_result_uuid)
 
-        # TODO: for now we're going to ignore the potential file system issues
-        # associated with writing from a user provided file, but this will need
-        # to be addressed prior to release via parsing/writing validation test
-        # of some sort
         note_path = os.path.join(annotation_uuid_dirname, 'note.txt')
 
-        with open(note_path, 'w') as fh:
-            fh.write(self.contents)
+        if self._filepath:
+            with open(self._filepath, 'rb') as fh:
+                contents = fh.read()
+        else:
+            contents = self.contents.encode('utf-8')
+
+        # validation for max size and parsability
+        max_size = 10 * 1024 * 1024
+
+        if len(contents) > max_size:
+            raise ValueError('Note contents exceed maximum size of 10 MiB')
+
+        try:
+            contents.decode('utf-8')
+        except UnicodeDecodeError:
+            raise ValueError('Note contents are not valid UTF-8')
+
+        with open(note_path, 'wb') as fh:
+            fh.write(contents)

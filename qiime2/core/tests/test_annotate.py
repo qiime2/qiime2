@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import os
 import tempfile
 import unittest
 
@@ -69,6 +70,17 @@ class TestAnnotationEndpoints(unittest.TestCase):
         self.note2 = Note(name='mynote', text='my other special text')
         self.note3 = Note(name='mynote3', text='my extra special text')
 
+        # Note that exceeds size limit of 10 MiB
+        bignote_path = os.path.join(self.test_dir.name, 'bignote.txt')
+        with open(bignote_path, 'wb') as fh:
+            fh.write(b'A' * (10 * 1024 * 1024 + 1))
+        self.bignote = Note(name='mybignote', filepath=bignote_path)
+
+        # Note that doesn't contain valid utf-8
+        self.trashnote_path = os.path.join(self.test_dir.name, 'trashnote.txt')
+        with open(self.trashnote_path, 'wb') as fh:
+            fh.write(b'\xff\xfe\xfa\xfb')
+
     # `ADD_ANNOTATION` ENDPOINT TESTS
     def test_add_annotation_roundtrip(self):
         # confirm that annotations starts as an empty list
@@ -95,6 +107,20 @@ class TestAnnotationEndpoints(unittest.TestCase):
                         f'to add.*{self.note2.name}'
         ):
             self.artifact.add_annotation(self.note2)
+
+    def test_add_annotation_note_too_big_error(self):
+        with self.assertRaisesRegex(
+            ValueError, 'Note contents exceed maximum size of 10 MiB'
+        ):
+            self.artifact.add_annotation(self.bignote)
+
+    def test_add_annotation_note_invalid_error(self):
+        with self.assertRaisesRegex(
+            ValueError, 'Note contents are not valid UTF-8'
+        ):
+            self.artifact.add_annotation(
+                Note(name='mytrashnote', filepath=self.trashnote_path)
+            )
 
     # `GET_ANNOTATION` ENDPOINT TESTS
     def test_get_annotation_name_not_found_error(self):
