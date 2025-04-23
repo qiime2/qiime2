@@ -26,7 +26,7 @@ class ArchiveFormat(v6.ArchiveFormat):
     New Features
     ------------
     `annotations`
-        This new directory (when present) lives under `provenance` and contains
+        This new directory (when present) lives under the root and contains
         Annotations that can be added either via the Python API or the cli.
 
         Supported Annotation sub-types in 7.0:
@@ -36,16 +36,15 @@ class ArchiveFormat(v6.ArchiveFormat):
 
         `annotations` directory structure (containing example Notes):
 
-            provenance/
-            ├── annotations/
-            │   ├── uuid1/
-            │   │   ├── metadata.yaml
-            │   │   ├── note.txt
-            │   │   ├── checksums.sha256
-            │   ├── uuid2/
-            │   │   ├── metadata.yaml
-            │   │   ├── note.txt
-            │   │   ├── checksums.sha256
+            annotations/
+            ├── uuid1/
+            │   ├── metadata.yaml
+            │   ├── note.txt
+            │   ├── checksums.sha256
+            ├── uuid2/
+            │   ├── metadata.yaml
+            │   ├── note.txt
+            │   ├── checksums.sha256
 
         With each uuid representing an individual Annotation object that's been
         attached to the Result object.
@@ -53,23 +52,26 @@ class ArchiveFormat(v6.ArchiveFormat):
         The `metadata.yaml` file within each Annotation sub-directory contains
         the following details for a given Annotation:
 
-            `created_at`
-                datetime an Annotation was created.
+            `id`
+                The minted uuid4 ID associated with the Annotation.
 
             `name`
                 User-provided name for the Annotation.
                 Must be unique per Result.
 
-            `referenced_result_uuid`
-                The result uuid that the Annotation is in reference to.
-                Self-referential Annotations are currently the only supported
+            `type`
+                The type of Annotation. Notes are currently the only supported
                 Annotation type in 7.0.
+
+            `created_at`
+                datetime an Annotation was created.
 
             `root_result_uuid`
                 The result uuid that the Annotation is attached to.
 
-            `type`
-                The type of Annotation. Notes are currently the only supported
+            `referenced_result_uuid`
+                The result uuid that the Annotation is in reference to.
+                Self-referential Annotations are currently the only supported
                 Annotation type in 7.0.
 
     New Files
@@ -118,14 +120,15 @@ class ArchiveFormat(v6.ArchiveFormat):
             conda_meta_dir = pathlib.Path(conda_prefix) / 'conda-meta'
 
             if conda_meta_dir.exists():
-                meta_files = \
+                dependency_list = \
                     [file.stem for file in conda_meta_dir.iterdir()
                      if file.is_file()]
 
                 with conda_fp.open(mode='w') as fh:
                     fh.write('dependencies:\n')
-                    fh.writelines(f'- {filename}\n'
-                                  for filename in sorted(meta_files))
+                    for unformatted_dep in sorted(dependency_list):
+                        dep = '='.join(unformatted_dep.rsplit('-', 2))
+                        fh.write(f'- {dep}\n')
 
         else:
             with conda_fp.open(mode='w') as fh:
