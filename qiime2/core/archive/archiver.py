@@ -312,6 +312,9 @@ class Archiver:
                 if ver in cls._FORMAT_REGISTRY:
                     imp, fmt_cls = cls._FORMAT_REGISTRY[ver].split(':')
                     return getattr(importlib.import_module(imp), fmt_cls)
+            # explicitly handle when no version match is found
+            else:
+                return None
         else:
             try:
                 imp, fmt_cls = cls._FORMAT_REGISTRY[version].split(':')

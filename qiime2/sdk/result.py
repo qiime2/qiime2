@@ -329,39 +329,38 @@ class Result(IResult):
             )
 
     def add_annotation(self, annotation):
-        """Add an Annotation onto a Result object.
-        All Result-associated parameters are passed into the sub-class's
-        `write` method, while the Annotation instance handles everything else.
+        # Add an Annotation onto a Result object.
+        # All Result-associated parameters are passed into the sub-class's
+        # `write` method, while the Annotation instance handles everything else
 
-        Parameters
-        ----------
-        annotation
-            An instantiated Annotation subclass (Note, etc).
+        # Parameters
+        # ----------
+        # annotation
+        #     An instantiated Annotation subclass (Note, etc).
 
-        Raises
-        ------
-        ValueError
-            If the Annotation name matches an existing Annotation name
-            attached to the Result in question.
+        # Raises
+        # ------
+        # ValueError
+        #     If the Annotation name matches an existing Annotation name
+        #     attached to the Result in question.
 
-        Notes
-        -----
-            In Archive Format 7.0, `referenced_result_uuid` is set to
-            the same value as `root_result_uuid`, but this will change
-            in future versions to allow for Annotations that may reference
-            a different Result than the one they are attached to.
+        # Notes
+        # -----
+        #     In Archive Format 7.0, `referenced_result_uuid` is set to
+        #     the same value as `root_result_uuid`, but this will change
+        #     in future versions to allow for Annotations that may reference
+        #     a different Result than the one they are attached to.
 
-        See Also
-        --------
-        Annotation._write
+        # See Also
+        # --------
+        # Annotation._write
 
-        """
         self._validate_annotation_support()
         # Guard to ensure Annotation names are unique per Result object
         for existing_annotation in self._annotations:
             if annotation.name == existing_annotation.name:
                 raise ValueError(
-                    'Namespace collision occurred when attempting to add '
+                    'Duplicate name detected when attempting to add '
                     f'Annotation with name: "{annotation.name}"\n'
                     'Annotation names must be unique within each Result '
                     'they are attached to.'
