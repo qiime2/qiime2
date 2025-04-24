@@ -136,7 +136,7 @@ class ArchiveFormat(v6.ArchiveFormat):
 
         # Add `data-size` field under top-level `metadata.yaml` file
         data_fp = archive_record.root / cls.DATA_DIR
-        total_size = sum(path.stat().st_size for path in data_fp.iterdir()
+        total_size = sum(path.stat().st_size for path in data_fp.rglob('*')
                          if path.is_file())
         datadir_size = cls._human_readable_size(total_size)
 

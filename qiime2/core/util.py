@@ -420,7 +420,7 @@ def touch_under_path(path):
 
 
 def load_action_yaml(path):
-    """Takes a path to an unzipped Aritfact and loads its action.yaml with
+    """Takes a path to an unzipped Artifact and loads its action.yaml with
     yaml.safe_load
     """
     # TODO: Make these actually do something useful at least for the tags
@@ -434,7 +434,7 @@ def load_action_yaml(path):
     def cite_constructor(loader, node):
         return node.value
 
-    def metadata_constructor(loader, node, checksum_type):
+    def metadata_constructor(loader, node, checksum_type='md5'):
         # Use the checksum of the metadata as its identifier, so we can tell
         # if two artifacts used the same metadata input
         metadata_path = prov_path / node.value

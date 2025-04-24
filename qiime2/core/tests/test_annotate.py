@@ -103,8 +103,8 @@ class TestAnnotationEndpoints(unittest.TestCase):
     def test_add_annotation_with_same_name_error(self):
         self.artifact.add_annotation(self.note1)
         with self.assertRaisesRegex(
-            ValueError, 'Namespace collision occurred when attempting '
-                        f'to add.*{self.note2.name}'
+            ValueError, 'Duplicate name detected when attempting'
+                        f' to add.*{self.note2.name}'
         ):
             self.artifact.add_annotation(self.note2)
 
