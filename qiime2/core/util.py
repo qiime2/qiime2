@@ -214,10 +214,18 @@ def checksum_directory_zip(zf: zipfile.ZipFile, checksum_type: str) -> dict:
     sums = dict()
     for file in zf.namelist():
         fp = pathlib.Path(file)
-        if fp.name != f'checksums.{checksum_type}':
-            file_parts = list(fp.parts)
-            fp_w_o_root_uuid = pathlib.Path(*(file_parts[1:]))
-            sums[str(fp_w_o_root_uuid)] = checksum_zip(zf, file, checksum_type)
+        if fp.name == f'checksums.{checksum_type}':
+            continue
+
+        file_parts = list(fp.parts)
+        internal_path_parts = file_parts[1:]
+
+        if internal_path_parts and internal_path_parts[0] == 'annotations':
+            continue
+
+        fp_w_o_root_uuid = pathlib.Path(*(file_parts[1:]))
+        sums[str(fp_w_o_root_uuid)] = checksum_zip(zf, file, checksum_type)
+
     return sums
 
 

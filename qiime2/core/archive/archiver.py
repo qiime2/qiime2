@@ -490,10 +490,15 @@ class Archiver:
                  checksum_directory(str(self.root_dir),
                                     checksum_type=self._fmt.CHECKSUM_TYPE)
                  .items()
-                 if x[0] != self._fmt.CHECKSUM_FILE)
+                 if (x[0] != self._fmt.CHECKSUM_FILE and
+                     pathlib.Path(x[0]).parts[0] != 'annotations')
+                 )
         with open(self.root_dir / self._fmt.CHECKSUM_FILE) as fh:
             exp = dict(from_checksum_format(line) for line in
-                       fh.readlines())
+                       fh.readlines()
+                       if (pathlib.Path(from_checksum_format(line)[0]).parts[0]
+                           != 'annotations')
+                       )
         obs_keys = set(obs)
         exp_keys = set(exp)
 

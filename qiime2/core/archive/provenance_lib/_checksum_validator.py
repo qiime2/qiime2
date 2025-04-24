@@ -144,7 +144,8 @@ def diff_checksums(zf: ZipFile) -> ChecksumDiff:
     exp = {}
     for line in zf.open(checksum_fp):
         fp, checksum = from_checksum_format(str(line, 'utf-8'))
-        exp[fp] = checksum
+        if pathlib.Path(fp).parts[0] != 'annotations':
+            exp[fp] = checksum
 
     obs_fps = set(obs)
     exp_fps = set(exp)
