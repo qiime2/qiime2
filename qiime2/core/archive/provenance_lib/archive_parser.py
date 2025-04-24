@@ -626,6 +626,7 @@ class ArchiveParser(Parser):
         if os.path.isdir(artifact):
             raise ValueError('ArchiveParser expects a file, not a directory.')
 
+        # TODO: add in semantic versioning here as well
         try:
             with ZipFile(artifact, 'r') as zf:
                 archive_version, _ = parse_version(zf)

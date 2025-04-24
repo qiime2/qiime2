@@ -442,16 +442,19 @@ def load_action_yaml(path):
     def cite_constructor(loader, node):
         return node.value
 
-    def metadata_constructor(loader, node, checksum_type='md5'):
+    def metadata_constructor(loader, node):
         # Use the checksum of the metadata as its identifier, so we can tell
         # if two artifacts used the same metadata input
         metadata_path = prov_path / node.value
-        return checksum(metadata_path, checksum_type)
+        return checksum(filepath=metadata_path, checksum_type='md5')
 
+    # these are backstops and are generally superceded by yaml.SafeLoader
+    # which has the preferred constructors from provenance
+    # found under CONSTRUCTOR_REGISTRY within provenance.py
     yaml.constructor.SafeConstructor.add_constructor('!ref', ref_constructor)
     yaml.constructor.SafeConstructor.add_constructor('!cite', cite_constructor)
-    yaml.constructor.SafeConstructor.add_constructor(
-        '!metadata', metadata_constructor)
+    yaml.constructor.SafeConstructor.add_constructor('!metadata',
+                                                     metadata_constructor)
 
     prov_path = path / 'provenance' / 'action'
     action_path = prov_path / 'action.yaml'

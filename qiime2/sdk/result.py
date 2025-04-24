@@ -369,6 +369,7 @@ class Result(IResult):
 
         # now calculate checksums for all files within the newly minted
         # annotation subdir
+        # TODO: think about moving these into annotation._write after 7.1
         annotation_dir = \
             pathlib.Path(self._archiver.annotations_dir) / str(annotation.id)
         checksum_ext = self._archiver._fmt.CHECKSUM_TYPE
