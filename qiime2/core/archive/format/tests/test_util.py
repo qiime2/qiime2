@@ -9,6 +9,7 @@ import unittest
 import tempfile
 import os
 import zipfile
+import pathlib
 
 from qiime2.core.testing.type import FourInts
 from qiime2.core.testing.util import ArchiveTestingMixin
@@ -139,7 +140,23 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
         self.assertRegex(str(note_contents), 'my special text')
         self.assertRegex(str(checksums), '^.*metadata.yaml.*note.txt.*$')
 
-    # testing file size conversion helper
+    # testing data directory size helpers
+    # total file size calculation within a provided directory
+    def test_calculate_directory_size_util(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = pathlib.Path(tmpdir)
+
+            f1 = tmpdir / 'a.txt'
+            f2 = tmpdir / 'subdir' / 'b.txt'
+            f2.parent.mkdir()
+
+            f1.write_text('abc')        # 3 bytes
+            f2.write_text('12345')      # 5 bytes
+
+            result = ArchiveFormat._calculate_directory_size(tmpdir)
+            self.assertEqual(result, 8)
+
+    # conversion from bytes to human readable output (MiB, KiB, etc)
     def test_human_readable_size_util(self):
         cases = [
             (0, "0.0 B"),

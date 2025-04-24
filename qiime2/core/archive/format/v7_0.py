@@ -93,7 +93,15 @@ class ArchiveFormat(v6.ArchiveFormat):
     CHECKSUM_FILE = 'checksums.sha512'
     CHECKSUM_TYPE = CHECKSUM_FILE.split('.')[1]
 
-    # file size converter
+    # file size converters
+    @staticmethod
+    def _calculate_directory_size(directory: pathlib.Path) -> int:
+        # Recursively calculates total file size in bytes under a directory.
+        return sum(
+            path.stat().st_size for path in directory.rglob('*')
+            if path.is_file()
+        )
+
     @staticmethod
     def _human_readable_size(num, suffix="B"):
         for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
@@ -136,8 +144,7 @@ class ArchiveFormat(v6.ArchiveFormat):
 
         # Add `data-size` field under top-level `metadata.yaml` file
         data_fp = archive_record.root / cls.DATA_DIR
-        total_size = sum(path.stat().st_size for path in data_fp.rglob('*')
-                         if path.is_file())
+        total_size = cls._calculate_directory_size(data_fp)
         datadir_size = cls._human_readable_size(total_size)
 
         md_fp = archive_record.root / cls.METADATA_FILE

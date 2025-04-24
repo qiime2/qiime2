@@ -13,6 +13,8 @@ import uuid
 import zipfile
 import pathlib
 
+from qiime2.sdk.result import Result
+from qiime2.core.annotate import Note
 from qiime2.core.archive import Archiver
 from qiime2.core.archive import ImportProvenanceCapture
 from qiime2.core.archive.archiver import _ZipArchive, ArchiveCheck
@@ -373,6 +375,24 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                          FORMAT_REGISTRY.keys())
         self.assertEqual(Archiver.CURRENT_FORMAT_VERSION,
                          list(FORMAT_REGISTRY.keys())[-1])
+
+    def test_annotations_excluded_from_checksum_diff(self):
+        fp = os.path.join(self.temp_dir.name, 'archive.qza')
+        self.archiver.save(fp)
+
+        artifact = Result.load(fp)
+        note = Note(name='mynote', text='my special text')
+        artifact.add_annotation(note)
+
+        # confirm that validation doesn't explode
+        artifact.validate()
+
+        diff = artifact._archiver.validate_checksums()
+
+        # confirm that all checksum diffs are zero
+        self.assertEqual(diff.added, {})
+        self.assertEqual(diff.removed, {})
+        self.assertEqual(diff.changed, {})
 
 
 if __name__ == '__main__':
