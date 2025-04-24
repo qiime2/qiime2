@@ -616,9 +616,9 @@ class ArchiveParser(Parser):
             An ArchiveParser object for the version of the artifact. One of
             ParserV[0-6].
         '''
-        if type(artifact) is pathlib.PosixPath:
+        if isinstance(artifact, pathlib.PosixPath):
             artifact = str(artifact)
-        if type(artifact) is not str:
+        if not isinstance(artifact, str):
             raise TypeError(
                 'ArchiveParser expects a string or pathlib.PosixPath path to '
                 f'an archive, not an object of type {str(type(artifact))}.'
@@ -626,11 +626,24 @@ class ArchiveParser(Parser):
         if os.path.isdir(artifact):
             raise ValueError('ArchiveParser expects a file, not a directory.')
 
-        # TODO: add in semantic versioning here as well
         try:
             with ZipFile(artifact, 'r') as zf:
                 archive_version, _ = parse_version(zf)
-            return FORMAT_REGISTRY[archive_version]()
+
+            if '.' in archive_version:
+                major, minor = archive_version.split('.')
+                minor = int(minor)
+
+                for minor_version in range(minor, -1, -1):
+                    ver = f'{major}.{minor_version}'
+                    if ver in FORMAT_REGISTRY:
+                        return FORMAT_REGISTRY[ver]()
+                else:
+                    raise KeyError('No matching parser found for version: '
+                                   f'{archive_version}')
+            else:
+                return FORMAT_REGISTRY[archive_version]()
+
         except KeyError as e:
             raise KeyError(
                 f'While trying to parse artifact {artifact}, '

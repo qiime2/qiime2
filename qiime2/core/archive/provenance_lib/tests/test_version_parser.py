@@ -11,17 +11,34 @@ import shutil
 import tempfile
 import unittest
 import zipfile
+import contextlib
 
 import qiime2
 from qiime2 import Artifact
 from qiime2.sdk.plugin_manager import PluginManager
 from qiime2.core.archive.archiver import Archiver
+from qiime2.core.archive.provenance_lib.archive_parser import (FORMAT_REGISTRY,
+                                                               ArchiveParser)
 
 from .testing_utilities import (
     write_zip_archive, monkeypatch_archive_version,
     monkeypatch_framework_version
 )
 from ..util import _VERSION_MATCHER, parse_version
+
+
+@contextlib.contextmanager
+def monkey_patch_format_registry(patch):
+    original = FORMAT_REGISTRY.copy()
+
+    try:
+        FORMAT_REGISTRY.clear()
+        FORMAT_REGISTRY.update(patch)
+        yield
+
+    finally:
+        FORMAT_REGISTRY.clear()
+        FORMAT_REGISTRY.update(original)
 
 
 class TestVersionParser(unittest.TestCase):
@@ -207,3 +224,26 @@ class TestVersionParser(unittest.TestCase):
 
     def test_fmwk_version_invalid_year(self):
         self.assertNotRegex('framework: 1953.3.0', self.re_l3)
+
+    def test_parser_semantic_versioning_fallback(self):
+        class DummyParser:
+            pass
+
+        with monkey_patch_format_registry({'7.0': DummyParser}):
+            with tempfile.TemporaryDirectory() as tempdir:
+                archive_dir = os.path.join(tempdir, 'artifact')
+                os.makedirs(archive_dir)
+
+                uuid = 'mock-uuid'
+                archive_root = os.path.join(archive_dir, uuid)
+                os.makedirs(archive_root)
+                with open(os.path.join(archive_root, 'VERSION'), 'w') as fh:
+                    fh.write('QIIME 2\n')
+                    fh.write('archive: 7.2\n')
+                    fh.write('framework: 2025.4.0\n')
+
+                archive_fp = os.path.join(tempdir, 'fake-artifact.qza')
+                write_zip_archive(archive_fp, archive_dir)
+
+                parser = ArchiveParser.get_parser(archive_fp)
+                self.assertIsInstance(parser, DummyParser)
