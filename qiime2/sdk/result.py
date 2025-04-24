@@ -380,7 +380,6 @@ class Result(IResult):
 
         checksums = util.checksum_directory(str(annotation_dir),
                                             checksum_type=checksum_ext)
-        checksums.pop(manifest, None)
 
         with (annotation_dir / manifest).open('w') as fh:
             for item in checksums.items():
