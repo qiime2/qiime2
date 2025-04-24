@@ -418,19 +418,9 @@ class Result(IResult):
     def iter_annotations(self):
         """Constructs an iterable containing all Annotations associated with
         the Result object.
-
-        Raises
-        ------
-        ValueError
-            If no Annotations are found associated with the Result.
-
         """
         self._validate_annotation_support()
-
-        if self._annotations:
-            return iter(self._annotations)
-
-        raise ValueError('No Annotations found.')
+        yield from self._annotations
 
     def remove_annotation(self, name):
         """

@@ -139,11 +139,13 @@ class TestAnnotationEndpoints(unittest.TestCase):
         self.assertEqual(note1.contents, 'my special text')
 
     # `ITER_ANNOTATIONS` ENDPOINT TESTS
-    def test_iter_annotations_on_empty_result_error(self):
-        with self.assertRaisesRegex(
-            ValueError, 'No Annotations found.'
-        ):
-            self.artifact.iter_annotations()
+    def test_iter_annotations_on_empty_result(self):
+        exp = []
+        obs = []
+        for annotation in self.artifact.iter_annotations():
+            obs.append(annotation)
+
+        self.assertEqual(exp, obs)
 
     def test_iter_annotations_with_multiple_notes(self):
         self.artifact.add_annotation(self.note1)
