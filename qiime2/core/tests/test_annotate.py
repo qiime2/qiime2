@@ -84,7 +84,7 @@ class TestAnnotationEndpoints(unittest.TestCase):
     # `ADD_ANNOTATION` ENDPOINT TESTS
     def test_add_annotation_roundtrip(self):
         # confirm that annotations starts as an empty list
-        self.assertEqual(self.artifact._annotations, [])
+        self.assertEqual(self.artifact._annotations, {})
 
         # add note1 to ints1 artifact
         self.artifact.add_annotation(self.note1)
@@ -126,7 +126,7 @@ class TestAnnotationEndpoints(unittest.TestCase):
     def test_get_annotation_name_not_found_error(self):
         name = 'foo'
         with self.assertRaisesRegex(
-            ValueError, f'No Annotation with name: "{name}" was found.'
+            KeyError, f'No Annotation with name: "{name}" was found.'
         ):
             self.artifact.get_annotation(name=name)
 
@@ -172,7 +172,7 @@ class TestAnnotationEndpoints(unittest.TestCase):
     # `REMOVE_ANNOTATION` ENDPOINT TESTS
     def test_remove_annotation_from_empty_result_error(self):
         with self.assertRaisesRegex(
-            ValueError, 'No Annotation found with name: "mynote"'
+            KeyError, 'No Annotation found with name: "mynote"'
         ):
             self.artifact.remove_annotation(name='mynote')
 
@@ -181,7 +181,7 @@ class TestAnnotationEndpoints(unittest.TestCase):
         name = 'foo'
 
         with self.assertRaisesRegex(
-            ValueError, f'No Annotation found with name: "{name}"'
+            KeyError, f'No Annotation found with name: "{name}"'
         ):
             self.artifact.remove_annotation(name=name)
 

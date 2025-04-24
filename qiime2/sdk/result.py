@@ -13,7 +13,6 @@ import tempfile
 import collections
 import distutils.dir_util
 import pathlib
-import yaml
 from typing import Union, get_args, get_origin
 
 import qiime2.metadata
@@ -160,14 +159,15 @@ class Result(IResult):
         if self._memoize_annotations:
             return self._memoize_annotations[0]
 
-        annotations = []
+        annotations = {}
         annotations_dir = self._archiver.annotations_dir
         # annotations_dir will be None for all previous archive versions < 7.0
         if annotations_dir and os.path.exists(annotations_dir):
-            for annotation in os.listdir(annotations_dir):
-                annotations.append(
-                    Annotation.load(os.path.join(annotations_dir, annotation))
-                )
+            for annotation_id in os.listdir(annotations_dir):
+                annotation_path = os.path.join(annotations_dir, annotation_id)
+                annotation = Annotation.load(annotation_path)
+                annotations[annotation.name] = annotation
+
         self._memoize_annotations.append(annotations)
 
         return annotations
@@ -309,17 +309,16 @@ class Result(IResult):
         return self
 
     def _validate_annotation_support(self):
-        """Checks for the existance of `annotations_dir` on a Result's
-        format class to guard against annotation actions being called on
-        Results with versions < 7.0.
+        # Checks for the existance of `annotations_dir` on a Result's
+        # format class to guard against annotation actions being called on
+        # Results with versions < 7.0.
 
-        Raises
-        ------
-        ValueError
-            If the Result's format class has no `annotations_dir` and is
-            thus a format version < 7.0.
+        # Raises
+        # ------
+        # ValueError
+        #     If the Result's format class has no `annotations_dir` and is
+        #     thus a format version < 7.0.
 
-        """
         if self._archiver.annotations_dir is None:
             raise ValueError(
                 'The Artifact or Visualization being used is associated with '
@@ -329,47 +328,44 @@ class Result(IResult):
             )
 
     def add_annotation(self, annotation):
-        # Add an Annotation onto a Result object.
-        # All Result-associated parameters are passed into the sub-class's
-        # `write` method, while the Annotation instance handles everything else
+        """
+        Add an Annotation onto a Result object.
+        All Result-associated parameters are passed into the sub-class's
+        `write` method, while the Annotation instance handles everything else
 
-        # Parameters
-        # ----------
-        # annotation
-        #     An instantiated Annotation subclass (Note, etc).
+        Parameters
+        ----------
+        annotation
+            An instantiated Annotation subclass (Note, etc).
 
-        # Raises
-        # ------
-        # ValueError
-        #     If the Annotation name matches an existing Annotation name
-        #     attached to the Result in question.
+        Raises
+        ------
+        ValueError
+            If the Annotation name matches an existing Annotation name
+            attached to the Result in question.
 
-        # Notes
-        # -----
-        #     In Archive Format 7.0, `referenced_result_uuid` is set to
-        #     the same value as `root_result_uuid`, but this will change
-        #     in future versions to allow for Annotations that may reference
-        #     a different Result than the one they are attached to.
+        Notes
+        -----
+            In Archive Format 7.0, `referenced_result_uuid` is set to
+            the same value as `root_result_uuid`, but this will change
+            in future versions to allow for Annotations that may reference
+            a different Result than the one they are attached to.
 
-        # See Also
-        # --------
-        # Annotation._write
-
+        """
         self._validate_annotation_support()
         # Guard to ensure Annotation names are unique per Result object
-        for existing_annotation in self._annotations:
-            if annotation.name == existing_annotation.name:
-                raise ValueError(
-                    'Duplicate name detected when attempting to add '
-                    f'Annotation with name: "{annotation.name}"\n'
-                    'Annotation names must be unique within each Result '
-                    'they are attached to.'
-                )
+        if annotation.name in self._annotations:
+            raise ValueError(
+                'Duplicate name detected when attempting to add '
+                f'Annotation with name: "{annotation.name}"\n'
+                'Annotation names must be unique within each Result '
+                'they are attached to.'
+            )
 
         annotation._write(annotations_dir=self._archiver.annotations_dir,
                           root_result_uuid=str(self.uuid),
                           referenced_result_uuid=str(self.uuid))
-        self._annotations.append(annotation)
+        self._annotations[annotation.name] = annotation
 
         # now calculate checksums for all files within the newly minted
         # annotation subdir
@@ -401,17 +397,16 @@ class Result(IResult):
 
         Raises
         ------
-        ValueError
+        KeyError
             If no Annotation with the provided name is found.
 
         """
         self._validate_annotation_support()
 
-        for annotation in self._annotations:
-            if annotation.name == name:
-                return annotation
+        if name in self._annotations:
+            return self._annotations[name]
 
-        raise ValueError(f'No Annotation with name: "{name}" was found.')
+        raise KeyError(f'No Annotation with name: "{name}" was found.')
 
     # TODO: add support to filter by type
     # once additional annotation types are added in 7.1
@@ -420,7 +415,7 @@ class Result(IResult):
         the Result object.
         """
         self._validate_annotation_support()
-        yield from self._annotations
+        yield from self._annotations.values()
 
     def remove_annotation(self, name):
         """
@@ -433,48 +428,31 @@ class Result(IResult):
 
         Raises
         ------
+        KeyError
+            If no Annotation with the specified name is found.
+
         ValueError
-            1. If there are no Annotations associated with the Result object.
-            2. If no Annotation with the specified name is found.
-            3. If the corresponding annotation directory cannot be located.
+            If the corresponding annotation directory cannot be located.
 
         """
         self._validate_annotation_support()
-
-        # Check for Annotation entry on Result object
-        annotation_to_remove = None
-        for annotation in self._annotations:
-            if annotation.name == name:
-                annotation_to_remove = annotation
-                break
+        annotations = self._annotations
 
         # Guard against provided Annotation name not found on Result object
-        if annotation_to_remove is None:
-            raise ValueError(f'No Annotation found with name: "{name}"')
+        if name not in annotations:
+            raise KeyError(f'No Annotation found with name: "{name}"')
 
         # Check for corresponding Annotation entry on disk
         annotations_dir = self._archiver.annotations_dir
-        annotation_disk_dir = None
+        annotation_disk_dir = os.path.join(annotations_dir,
+                                           str(annotations[name].id))
 
-        for entry in os.listdir(annotations_dir):
-            subdir = os.path.join(annotations_dir, entry)
-            meta_filepath = os.path.join(subdir, 'metadata.yaml')
-
-            if os.path.isfile(meta_filepath):
-                with open(meta_filepath, 'r') as fh:
-                    meta = yaml.safe_load(fh)
-
-                if meta.get('name') == name:
-                    annotation_disk_dir = subdir
-                    break
-
-        # Guard against Annotation name not found on disk
-        if annotation_disk_dir is None:
+        if not os.path.exists(annotation_disk_dir):
             raise ValueError('Unable to locate on-disk directory '
                              f'for Annotation with name: "{name}"')
 
         shutil.rmtree(annotation_disk_dir)
-        self._annotations.remove(annotation_to_remove)
+        del annotations[name]
 
 
 class Artifact(Result):
