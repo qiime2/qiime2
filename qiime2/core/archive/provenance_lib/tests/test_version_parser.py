@@ -237,6 +237,7 @@ class TestVersionParser(unittest.TestCase):
                 uuid = 'mock-uuid'
                 archive_root = os.path.join(archive_dir, uuid)
                 os.makedirs(archive_root)
+
                 with open(os.path.join(archive_root, 'VERSION'), 'w') as fh:
                     fh.write('QIIME 2\n')
                     fh.write('archive: 7.2\n')
