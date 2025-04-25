@@ -120,7 +120,9 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
 
         with zipfile.ZipFile(fp, mode='r') as zf:
             version = zf.read(os.path.join(root_dir, 'VERSION'))
-            metadata = zf.read(os.path.join(root_dir, 'metadata.yaml'))
+            root_metadata = zf.read(os.path.join(root_dir, 'metadata.yaml'))
+            prov_metadata = \
+                zf.read(os.path.join(root_dir, 'provenance', 'metadata.yaml'))
             conda_env = \
                 zf.read(os.path.join(root_dir, 'provenance', 'conda-env.yaml'))
             annotation_metadata = \
@@ -132,12 +134,21 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
             checksums = \
                 zf.read(os.path.join(root_dir, 'annotations',
                                      f'{note.id}', 'checksums.sha512'))
+
+        # check that version is what we expect
         self.assertRegex(str(version), '^.*archive: 7.0.*$')
-        self.assertRegex(str(metadata), '^.*data-size: .*B.*$')
+        # check that root md contains data-size attr
+        # and that root & prov md are identical
+        self.assertRegex(str(root_metadata), '^.*data-size: .*B.*$')
+        self.assertEqual(str(root_metadata), str(prov_metadata))
+        # check that conda env exists & isn't empty
         self.assertRegex(str(conda_env), '^.*dependencies:.*- .*$')
+        # check that annotation md contains what we expect
         self.assertRegex(str(annotation_metadata),
                          rf'id: {note.id}\nname: mynote\ntype: Note')
+        # check that the contents of the note is what we expect
         self.assertRegex(str(note_contents), 'my special text')
+        # check that the checksums file contains the two files we expect
         self.assertRegex(str(checksums), '^.*metadata.yaml.*note.txt.*$')
 
     # testing data directory size helpers

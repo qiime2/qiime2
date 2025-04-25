@@ -147,9 +147,13 @@ class ArchiveFormat(v6.ArchiveFormat):
         total_size = cls._calculate_directory_size(data_fp)
         datadir_size = cls._human_readable_size(total_size)
 
-        md_fp = archive_record.root / cls.METADATA_FILE
-        with md_fp.open(mode='a') as fh:
-            fh.write(f'data-size: {datadir_size}')
+        root_md_fp = archive_record.root / cls.METADATA_FILE
+        prov_md_fp = \
+            archive_record.root / cls.PROVENANCE_DIR / cls.METADATA_FILE
+
+        for md_fp in [root_md_fp, prov_md_fp]:
+            with md_fp.open(mode='a') as fh:
+                fh.write(f'data-size: {datadir_size}')
 
         # now move temporary annotations dir from within provenance
         # so that we prevent duplication of each result's annotations
