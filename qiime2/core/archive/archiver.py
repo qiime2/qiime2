@@ -494,11 +494,8 @@ class Archiver:
                      pathlib.Path(x[0]).parts[0] != 'annotations')
                  )
         with open(self.root_dir / self._fmt.CHECKSUM_FILE) as fh:
-            exp = dict(from_checksum_format(line) for line in
-                       fh.readlines()
-                       if (pathlib.Path(from_checksum_format(line)[0]).parts[0]
-                           != 'annotations')
-                       )
+            exp = dict(from_checksum_format(line) for line in fh.readlines())
+
         obs_keys = set(obs)
         exp_keys = set(exp)
 
