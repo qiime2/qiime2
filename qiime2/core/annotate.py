@@ -95,9 +95,10 @@ class Annotation():
 
             else:
                 annotation = UnknownAnnotation.__new__(UnknownAnnotation)
+                annotation.id = meta_yaml['id']
                 annotation.name = meta_yaml['name']
-                annotation.created_at = meta_yaml['created_at']
                 annotation.annotation_type = meta_yaml['type']
+                annotation.created_at = meta_yaml['created_at']
 
         return annotation
 
