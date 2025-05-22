@@ -202,34 +202,21 @@ class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
 
 class SingleFileDirectoryFormatBase(DirectoryFormat):
     def validate(self, level='max'):
-        _check_validation_level(level)
+        super().validate(level=level)
 
-        # check if path is a directory, else raise an error
-        if not self.path.is_dir():
-            raise ValidationError(f"{self.path} is not a directory.")
+        collected_files = [
+            p for p in self.path.glob('**/*')
+            if not p.name.startswith('.') and p.is_file()
+        ]
 
-        # Collect all files that are not hidden (starting with '.') and are files
-        collected_files = [p for p in self.path.glob('**/*') 
-                           if not p.name.startswith('.') and p.is_file()]
+        print('collected file are: ', collected_files)
 
-        # Ensure that exactly one file exists in the directory
         if len(collected_files) != 1:
-            raise ValidationError(f"{self.__class__.__name__} should contain exactly one file, "
-                                  f"but found {len(collected_files)} files.")
+            raise ValidationError(
+                f"{self.__class__.__name__} should contain exactly one file, "
+                f"but found {len(collected_files)} files."
+            )
 
-        # Validate the single file according to the format
-        for field in self._fields:
-            getattr(self, field)._validate_members({collected_files[0]: None}, level)
-
-        # Perform additional validation, if any
-        if hasattr(self, '_validate_'):
-            try:
-                self._validate_(level)
-            except ValidationError as e:
-                raise ValidationError(
-                    f"{self.path} is not a(n) {self.__class__.__name__}:\n\n{str(e)}"
-                    ) from e
-                
 
 def SingleFileDirectoryFormat(name, pathspec, format):
     # TODO: do the same hack namedtuple does so we don't mangle globals
