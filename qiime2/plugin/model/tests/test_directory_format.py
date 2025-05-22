@@ -7,9 +7,12 @@
 # ----------------------------------------------------------------------------
 
 
+from pathlib import Path
+import tempfile
 import unittest
 
 from qiime2.plugin import model
+from qiime2.plugin.model import SingleFileDirectoryFormat
 import qiime2.util
 
 from qiime2.core.testing.format import IntSequenceFormat
@@ -112,3 +115,19 @@ class TestDirectoryFormat(unittest.TestCase):
                                 mode='r',
                                 )
             format_object.validate()
+
+    def test_single_file_dirfmt_errors_with_more_than_one_file(self):
+        DummySingleFileDirFmt = SingleFileDirectoryFormat(
+            'DummySingleFileDirFmt', r'ints.\.txt', IntSequenceFormat
+        )
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            with open(Path(tempdir) / 'ints1.txt', 'w') as fh:
+                fh.write('1\n5\n')
+            with open(Path(tempdir) / 'ints2.txt', 'w') as fh:
+                fh.write('7\n8\n')
+
+            with self.assertRaisesRegex(
+                ValidationError, r'should contain exactly one file.*found 2'
+            ):
+                DummySingleFileDirFmt(path=tempdir, mode='r').validate()
