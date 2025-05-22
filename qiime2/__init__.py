@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -10,11 +10,13 @@ from qiime2.sdk import Artifact, Visualization, ResultCollection
 from qiime2.metadata import (Metadata, MetadataColumn,
                              CategoricalMetadataColumn, NumericMetadataColumn)
 from qiime2.plugin import Citations
-from qiime2.core.cache import Cache, Pool
-from ._version import get_versions
+from qiime2.core.cache import Cache, Pool, get_cache
+from qiime2.core.annotate import Note
 
-__version__ = get_versions()['version']
-del get_versions
+try:
+    from ._version import __version__
+except ModuleNotFoundError:
+    __version__ = '0.0.0+notfound'
 
 # "Train release" version includes <year>.<month> and excludes patch numbers
 # and pre/post-release tags. All versions within a train release are expected
@@ -25,7 +27,7 @@ __website__ = 'https://qiime2.org'
 
 __all__ = ['Artifact', 'Visualization', 'ResultCollection', 'Metadata',
            'MetadataColumn', 'CategoricalMetadataColumn',
-           'NumericMetadataColumn', 'Cache', 'Pool']
+           'NumericMetadataColumn', 'Cache', 'Pool', 'get_cache', 'Note']
 
 
 # Used by `jupyter serverextension enable`

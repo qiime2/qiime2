@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -118,49 +118,76 @@ def duration_time(relative_delta):
         return '0 %s' % attrs[-1]
 
 
-def has_md5sum_native():
-    return shutil.which('md5sum') is not None
+def has_checksum_native(checksum_type):
+    if checksum_type == 'md5':
+        checksum_util = 'md5sum'
+    elif checksum_type == 'sha512':
+        checksum_util = 'sha512'
+
+    return shutil.which(f'{checksum_util}') is not None
 
 
-def md5sum(filepath):
-    if has_md5sum_native():
-        return md5sum_native(filepath)
+def checksum(filepath, checksum_type):
+    if has_checksum_native(checksum_type):
+        return checksum_native(filepath, checksum_type)
     else:
-        return md5sum_python(filepath)
+        return checksum_python(filepath, checksum_type)
 
 
-def md5sum_python(filepath):
-    md5 = hashlib.md5()
+def checksum_python(filepath, checksum_type):
+    if checksum_type == 'md5':
+        hash_obj = hashlib.md5()
+    elif checksum_type == 'sha512':
+        hash_obj = hashlib.sha512()
+    # we shouldn't ever hit this branch, but just in case
+    else:
+        raise TypeError(f'Unsupported checksum type: {checksum_type!r}')
+
     with open(str(filepath), mode='rb') as fh:
         for chunk in iter(lambda: fh.read(io.DEFAULT_BUFFER_SIZE), b""):
-            md5.update(chunk)
-    return md5.hexdigest()
+            hash_obj.update(chunk)
+    return hash_obj.hexdigest()
 
 
-def md5sum_native(filepath):
-    result = subprocess.run(['md5sum', str(filepath)],
-                            check=True, capture_output=True, text=True)
+def checksum_native(filepath, checksum_type):
+    if checksum_type == 'md5':
+        cmd = ['md5sum', str(filepath)]
+    elif checksum_type == 'sha512':
+        cmd = ['sha512sum', str(filepath)]
+    # we shouldn't ever hit this branch, but just in case
+    else:
+        raise TypeError(f'Unsupported checksum type: {checksum_type!r}')
+
+    result = subprocess.run(cmd, check=True, capture_output=True, text=True)
     _, digest = from_checksum_format(result.stdout)
     return digest
 
 
-def md5sum_zip(zf: zipfile.ZipFile, filepath: str) -> str:
+def checksum_zip(zf: zipfile.ZipFile, filepath: str,
+                 checksum_type: str) -> str:
     """
     Given a ZipFile object and relative filepath within the zip archive,
-    returns the md5sum of the file
+    returns the checksum of the file
     """
-    md5 = hashlib.md5()
+    if checksum_type == 'md5':
+        hash_obj = hashlib.md5()
+    elif checksum_type == 'sha512':
+        hash_obj = hashlib.sha512()
+    # we shouldn't ever hit this branch, but just in case
+    else:
+        raise TypeError(f'Unsupported checksum type: {checksum_type!r}')
+
     with zf.open(filepath) as fh:
         for chunk in iter(lambda: fh.read(io.DEFAULT_BUFFER_SIZE), b""):
-            md5.update(chunk)
-    return md5.hexdigest()
+            hash_obj.update(chunk)
+    return hash_obj.hexdigest()
 
 
-def md5sum_directory(directory):
-    if has_md5sum_native():
-        md5sum = md5sum_native
+def checksum_directory(directory, checksum_type):
+    if has_checksum_native(checksum_type):
+        checksum = checksum_native
     else:
-        md5sum = md5sum_python
+        checksum = checksum_python
 
     directory = str(directory)
     sums = collections.OrderedDict()
@@ -171,11 +198,12 @@ def md5sum_directory(directory):
                 continue
 
             path = os.path.join(root, file)
-            sums[os.path.relpath(path, start=directory)] = md5sum(path)
+            sums[os.path.relpath(path, start=directory)] = \
+                checksum(path, checksum_type)
     return sums
 
 
-def md5sum_directory_zip(zf: zipfile.ZipFile) -> dict:
+def checksum_directory_zip(zf: zipfile.ZipFile, checksum_type: str) -> dict:
     """
     Returns a mapping of fp/checksum pairs for all files in zf.
 
@@ -186,10 +214,18 @@ def md5sum_directory_zip(zf: zipfile.ZipFile) -> dict:
     sums = dict()
     for file in zf.namelist():
         fp = pathlib.Path(file)
-        if fp.name != 'checksums.md5':
-            file_parts = list(fp.parts)
-            fp_w_o_root_uuid = pathlib.Path(*(file_parts[1:]))
-            sums[str(fp_w_o_root_uuid)] = md5sum_zip(zf, file)
+        if fp.name == f'checksums.{checksum_type}':
+            continue
+
+        file_parts = list(fp.parts)
+        internal_path_parts = file_parts[1:]
+
+        if internal_path_parts and internal_path_parts[0] == 'annotations':
+            continue
+
+        fp_w_o_root_uuid = pathlib.Path(*(file_parts[1:]))
+        sums[str(fp_w_o_root_uuid)] = checksum_zip(zf, file, checksum_type)
+
     return sums
 
 
@@ -392,7 +428,7 @@ def touch_under_path(path):
 
 
 def load_action_yaml(path):
-    """Takes a path to an unzipped Aritfact and loads its action.yaml with
+    """Takes a path to an unzipped Artifact and loads its action.yaml with
     yaml.safe_load
     """
     # TODO: Make these actually do something useful at least for the tags
@@ -407,15 +443,18 @@ def load_action_yaml(path):
         return node.value
 
     def metadata_constructor(loader, node):
-        # Use the md5sum of the metadata as its identifier, so we can tell
+        # Use the checksum of the metadata as its identifier, so we can tell
         # if two artifacts used the same metadata input
         metadata_path = prov_path / node.value
-        return md5sum(metadata_path)
+        return checksum(filepath=metadata_path, checksum_type='md5')
 
+    # these are backstops and are generally superceded by yaml.SafeLoader
+    # which has the preferred constructors from provenance
+    # found under CONSTRUCTOR_REGISTRY within provenance.py
     yaml.constructor.SafeConstructor.add_constructor('!ref', ref_constructor)
     yaml.constructor.SafeConstructor.add_constructor('!cite', cite_constructor)
-    yaml.constructor.SafeConstructor.add_constructor(
-        '!metadata', metadata_constructor)
+    yaml.constructor.SafeConstructor.add_constructor('!metadata',
+                                                     metadata_constructor)
 
     prov_path = path / 'provenance' / 'action'
     action_path = prov_path / 'action.yaml'

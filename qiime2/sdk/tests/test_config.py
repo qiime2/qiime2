@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2022, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -12,7 +12,6 @@ import unittest
 
 import parsl
 from parsl.executors.threads import ThreadPoolExecutor
-from parsl.errors import NoDataFlowKernelError
 
 from qiime2 import Artifact, Cache
 
@@ -30,6 +29,16 @@ class TestConfig(unittest.TestCase):
     plugin = get_dummy_plugin()
     pipeline = plugin.pipelines['resumable_pipeline']
     method = plugin.methods['list_of_ints']
+
+    mapping = {
+        'dummy_plugin': {
+            'list_of_ints': 'test',
+            'concatenate_ints': 'test'
+        },
+        'other_plugin': {
+            'concatenate_ints': 'default'
+        }
+    }
 
     # Expected provenance based on type of executor used
     tpool_expected = [{
@@ -69,6 +78,8 @@ class TestConfig(unittest.TestCase):
         self.mapping_config_fp = self.get_data_path('mapping_config.toml')
         self.mapping_only_config_fp = \
             self.get_data_path('mapping_only_config.toml')
+        self.mapping_only_config_old_fp = \
+            self.get_data_path('mapping_only_config_old.toml')
         self.complex_config_fp = \
             self.get_data_path('complex_config.toml')
 
@@ -93,6 +104,8 @@ class TestConfig(unittest.TestCase):
     def test_mapping_from_config(self):
         config, mapping = load_config_from_file(self.mapping_config_fp)
 
+        self.assertEqual(mapping, self.mapping)
+
         with self.cache:
             with ParallelConfig(config, mapping):
                 future = self.pipeline.parallel(self.art, self.art)
@@ -109,6 +122,8 @@ class TestConfig(unittest.TestCase):
     def test_mapping_only_config(self):
         _, mapping = load_config_from_file(self.mapping_only_config_fp)
 
+        self.assertEqual(mapping, self.mapping)
+
         with self.cache:
             with ParallelConfig(action_executor_mapping=mapping):
                 future = self.pipeline.parallel(self.art, self.art)
@@ -123,10 +138,8 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
     def test_mapping_from_dict(self):
-        mapping = {'list_of_ints': 'test'}
-
         with self.cache:
-            with ParallelConfig(action_executor_mapping=mapping):
+            with ParallelConfig(action_executor_mapping=self.mapping):
                 future = self.pipeline.parallel(self.art, self.art)
                 list_return, dict_return = future._result()
 
@@ -167,7 +180,8 @@ class TestConfig(unittest.TestCase):
             # At this point we should be using the default config again which
             # does not have an executor called tpool
             with ParallelConfig(
-                    action_executor_mapping={'list_of_ints': 'tpool'}):
+                    action_executor_mapping={
+                        'dummy_plugin': {'list_of_ints': 'tpool'}}):
                 with self.assertRaisesRegex(KeyError, 'tpool'):
                     future = self.pipeline.parallel(self.art, self.art)
                     list_return, dict_return = future._result()
@@ -204,6 +218,9 @@ class TestConfig(unittest.TestCase):
         """ Test that all parsl modules we currently map are correct
         """
         config, mapping = load_config_from_file(self.complex_config_fp)
+
+        self.assertEqual(mapping, {})
+
         # Just assert that we were able to parse the file and get a config out
         with ParallelConfig(config, mapping):
             self.assertIsInstance(
@@ -211,26 +228,62 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
 
     def test_no_config(self):
-        with self.assertRaisesRegex(NoDataFlowKernelError,
-                                    'Must first load config'):
+        with self.assertRaisesRegex(ValueError,
+                                    'You must load a parallel config'):
             self.pipeline.parallel(self.art, self.art)
 
     def test_config_unset(self):
         with ParallelConfig():
             self.pipeline.parallel(self.art, self.art)
 
-        with self.assertRaisesRegex(NoDataFlowKernelError,
-                                    'Must first load config'):
+        with self.assertRaisesRegex(ValueError,
+                                    'You must load a parallel config'):
             self.pipeline.parallel(self.art, self.art)
+
+    def test_concatenate_ints_mapping(self):
+        pm = qiime2.sdk.PluginManager()
+        other_plugin = pm.plugins['other-plugin']
+
+        parameter_only_dummy = self.plugin.pipelines['parameter_only_pipeline']
+        parameter_only_other = \
+            other_plugin.pipelines['parameter_only_pipeline']
+
+        config, mapping = load_config_from_file(self.mapping_config_fp)
+
+        with self.cache:
+            with ParallelConfig(config, mapping):
+                _, concate_output_dummy = \
+                    parameter_only_dummy.parallel(0)._result()
+                _, concate_output_other = \
+                    parameter_only_other.parallel(0, other=True)._result()
+
+        dummy_execution_context = \
+            self._load_alias_execution_context(concate_output_dummy)
+        other_execution_context = \
+            self._load_alias_execution_context(concate_output_other)
+
+        self.assertEqual(dummy_execution_context,
+                         {'type': 'parsl', 'parsl_type': '_TEST_EXECUTOR_'})
+        self.assertEqual(other_execution_context,
+                         {'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'})
+
+    def test_old_mapping(self):
+        with self.assertRaisesRegex(TypeError,
+                                    'The provided mapping:\n\n'
+                                    "{'list_of_ints': 'test'}"):
+            load_config_from_file(self.mapping_only_config_old_fp)
 
     def _load_alias_execution_contexts(self, collection):
         execution_contexts = []
 
         for result in collection.values():
-            alias_uuid = load_action_yaml(
-                result._archiver.path)['action']['alias-of']
-            execution_contexts.append(load_action_yaml(
-                self.cache.data / alias_uuid)
-                ['execution']['execution_context'])
+            execution_context = self._load_alias_execution_context(result)
+            execution_contexts.append(execution_context)
 
         return execution_contexts
+
+    def _load_alias_execution_context(self, result):
+        alias_uuid = load_action_yaml(
+            result._archiver.path)['action']['alias-of']
+        return load_action_yaml(
+            self.cache.data / alias_uuid)['execution']['execution_context']

@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -24,7 +24,7 @@ from .testing_utilities import (
 from ..archive_parser import (
     ProvNode, Config, _Action, _Citations, _ResultMetadata, ParserResults,
     ArchiveParser, ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
-    ParserV6,
+    ParserV6, ParserV7
 )
 from ...provenance import MetadataInfo
 
@@ -165,7 +165,7 @@ class ArchiveParserTests(unittest.TestCase):
     def test_get_parser(self):
         parsers = [
             ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
-            ParserV6
+            ParserV6, ParserV7
         ]
         for artifact, parser_version in zip(
             self.das.all_artifact_versions, parsers

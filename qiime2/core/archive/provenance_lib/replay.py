@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -10,7 +10,7 @@ from bibtexparser.bwriter import BibTexWriter
 import networkx as nx
 import os
 import pathlib
-import pkg_resources
+import importlib.resources
 import shutil
 import tempfile
 from uuid import uuid4
@@ -28,7 +28,7 @@ from qiime2.sdk.util import camel_to_snake
 
 
 @dataclass
-class ReplayConfig():
+class ReplayConfig:
     '''
     Dataclass that stores various user-selected configuration options and
     other bits of information relevant to provenance replay.
@@ -42,8 +42,6 @@ class ReplayConfig():
         disk in .tsv format.
     use_recorded_metadata : bool
         If True, replay should use the metadata recorded in provenance.
-    pm : PluginManager
-        The active instance of the QIIME 2 PluginManager.
     md_context_has_been_printed : bool
         A flag set by default and used internally, allows context to be
         printed once and only once.
@@ -58,15 +56,27 @@ class ReplayConfig():
     md_out_dir : str
         The directory where caputred metadata should be written.
     '''
-    use: Usage
-    dump_recorded_metadata: bool = True
-    use_recorded_metadata: bool = False
-    pm: PluginManager = PluginManager()
-    md_context_has_been_printed: bool = False
-    no_provenance_context_has_been_printed: bool = False
-    header: bool = True
-    verbose: bool = False
-    md_out_dir: str = ''
+    def __init__(
+        self,
+        use: Usage,
+        dump_recorded_metadata: bool = True,
+        use_recorded_metadata: bool = False,
+        md_context_has_been_printed: bool = False,
+        no_provenance_context_has_been_printed: bool = False,
+        header: bool = True,
+        verbose: bool = False,
+        md_out_dir: str = ''
+    ):
+        self.use = use
+        self.dump_recorded_metadata = dump_recorded_metadata
+        self.use_recorded_metadata = use_recorded_metadata
+        self.md_context_has_been_printed = md_context_has_been_printed
+        self.no_provenance_context_has_been_printed = \
+            no_provenance_context_has_been_printed
+        self.header = header
+        self.verbose = verbose
+        self.md_out_dir = md_out_dir
+        self.pm = PluginManager.reuse_existing()
 
 
 @dataclass
@@ -524,7 +534,8 @@ def replay_provenance(
         use=usage_driver(),
         use_recorded_metadata=use_recorded_metadata,
         dump_recorded_metadata=dump_recorded_metadata,
-        verbose=verbose, md_out_dir=md_out_dir
+        verbose=verbose,
+        md_out_dir=md_out_dir
     )
 
     ns = ReplayNamespaces(dag)
@@ -770,6 +781,9 @@ def build_action_usage(
 
     # Process outputs before params so we can access the unique output name
     # from the namespace when dumping metadata to files below
+    # NOTE: artifact collection members are not detected here; we don't care
+    # because we don't need to name them until they are used individually as
+    # inputs to another action
     raw_outputs = std_actions[action_id].items()
     outputs = _uniquify_output_names(ns, raw_outputs)
 
@@ -780,8 +794,10 @@ def build_action_usage(
             continue
 
         if isinstance(param_val, MetadataInfo):
-            unique_md_id = ns.get_usg_var_record(node._uuid).name \
-                           + '_' + param_name
+            # we only need this identifier to be unique; the rendered interface
+            # name will not contain this identifier
+            unique_md_id = node._uuid + '_' + param_name
+
             md_fn = ns.add_usg_var_record(
                 unique_md_id, camel_to_snake(param_name)
             )
@@ -1354,10 +1370,8 @@ def dedupe_citations(citations: List[Dict]) -> List[Dict]:
 
         if 'framework|qiime2' in citation_id:
             if not is_framework_cited:
-                root = pkg_resources.resource_filename('qiime2', '.')
-                root = os.path.abspath(root)
-                path = os.path.join(root, 'citations.bib')
-                with open(path) as bibtex_file:
+                with importlib.resources.open_text(
+                        'qiime2', 'citations.bib') as bibtex_file:
                     q2_entry = bp.load(bibtex_file).entries.pop()
 
                 q2_entry['ID'] = citation_id

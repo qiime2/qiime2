@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -22,8 +22,7 @@ class FormatBase:
         if mode == 'w':
             self.path = qpath.OutPath(
                 # TODO: parents shouldn't know about their children
-                dir=isinstance(self, model.DirectoryFormat),
-                prefix='q2-%s-' % self.__class__.__name__)
+                dir=isinstance(self, model.DirectoryFormat))
         else:
             self.path = qpath.InPath(path)
 

@@ -10,3 +10,4 @@ jobs:
     uses: qiime2/distributions/.github/workflows/lib-ci-dev.yaml@dev
     with:
       distro: amplicon
+      recipe-path: 'conda-recipe'

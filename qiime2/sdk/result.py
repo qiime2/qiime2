@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -25,6 +25,9 @@ import qiime2.plugin.model as model
 import qiime2.core.util as util
 import qiime2.core.exceptions as exceptions
 
+from qiime2.sdk.iresult import IResult
+from qiime2.core.annotate import Annotation
+
 # Note: Result, Artifact, and Visualization classes are in this file to avoid
 # circular dependencies between Result and its subclasses. Result is tightly
 # coupled to Artifact and Visualization because it is a base class and a
@@ -36,7 +39,7 @@ ResultMetadata = collections.namedtuple('ResultMetadata',
                                         ['uuid', 'type', 'format'])
 
 
-class Result:
+class Result(IResult):
     """Base class for QIIME 2 result classes (Artifact and Visualization).
 
     This class is not intended to be instantiated. Instead, it acts as a public
@@ -106,6 +109,7 @@ class Result:
                    type(result).__name__))
 
         result._archiver = archiver
+
         return result
 
     @classmethod
@@ -145,6 +149,29 @@ class Result:
     def citations(self):
         return self._archiver.citations
 
+    @property
+    def _annotations(self):
+        """
+        Append any existing Annotations to `self._annotations`.
+        Helper method for `add_annotation`, after a given Annotation
+        has been written to disk.
+        """
+        if self._memoize_annotations:
+            return self._memoize_annotations[0]
+
+        annotations = {}
+        annotations_dir = self._archiver.annotations_dir
+        # annotations_dir will be None for all previous archive versions < 7.0
+        if annotations_dir and os.path.exists(annotations_dir):
+            for annotation_id in os.listdir(annotations_dir):
+                annotation_path = os.path.join(annotations_dir, annotation_id)
+                annotation = Annotation.load(annotation_path)
+                annotations[annotation.name] = annotation
+
+        self._memoize_annotations.append(annotations)
+
+        return annotations
+
     def __init__(self):
         raise NotImplementedError(
             "%(classname)s constructor is private, use `%(classname)s.load`, "
@@ -154,6 +181,7 @@ class Result:
     def __new__(cls):
         result = object.__new__(cls)
         result._archiver = None
+        result._memoize_annotations = []
         return result
 
     def __repr__(self):
@@ -233,19 +261,27 @@ class Result:
         self._archiver.save(filepath)
         return filepath
 
-    def _alias(self, provenance_capture):
+    def _alias(self, name, provenance, ctx):
+        provenance_capture = provenance.fork(name, self)
+
         def clone_original(into):
             # directory is empty, this function is meant to fix that, so we
             # can rmdir so that copytree is happy
             into.rmdir()
-            shutil.copytree(str(self._archiver.data_dir), str(into),
-                            copy_function=os.link)  # Use hardlinks
+            try:
+                shutil.copytree(str(self._archiver.data_dir), str(into),
+                                copy_function=qiime2.util.duplicate)
+            except shutil.Error:
+                # Try again with full copy not links
+                shutil.copytree(str(self._archiver.data_dir), str(into),
+                                dirs_exist_ok=True)
 
         cls = type(self)
         alias = cls.__new__(cls)
         alias._archiver = archive.Archiver.from_data(
             self.type, self.format, clone_original, provenance_capture)
-        return alias
+
+        return ctx.add_reference(alias)
 
     def validate(self, level=NotImplemented):
         diff = self._archiver.validate_checksums()
@@ -271,6 +307,153 @@ class Result:
         """ Noop to provide standardized interface with ProxyResult.
         """
         return self
+
+    def _validate_annotation_support(self):
+        # Checks for the existance of `annotations_dir` on a Result's
+        # format class to guard against annotation actions being called on
+        # Results with versions < 7.0.
+
+        # Raises
+        # ------
+        # ValueError
+        #     If the Result's format class has no `annotations_dir` and is
+        #     thus a format version < 7.0.
+
+        if self._archiver.annotations_dir is None:
+            raise ValueError(
+                'The Artifact or Visualization being used is associated with '
+                'a QIIME 2 archive format of < 7.0. '
+                'Annotation actions are only supported for QIIME 2 archive '
+                'formats of 7.0 and above.'
+            )
+
+    def add_annotation(self, annotation):
+        """
+        Add an Annotation onto a Result object.
+        All Result-associated parameters are passed into the sub-class's
+        `write` method, while the Annotation instance handles everything else
+
+        Parameters
+        ----------
+        annotation
+            An instantiated Annotation subclass (Note, etc).
+
+        Raises
+        ------
+        ValueError
+            If the Annotation name matches an existing Annotation name
+            attached to the Result in question.
+
+        Notes
+        -----
+            In Archive Format 7.0, `referenced_result_uuid` is set to
+            the same value as `root_result_uuid`, but this will change
+            in future versions to allow for Annotations that may reference
+            a different Result than the one they are attached to.
+
+        """
+        self._validate_annotation_support()
+        # Guard to ensure Annotation names are unique per Result object
+        if annotation.name in self._annotations:
+            raise ValueError(
+                'Duplicate name detected when attempting to add '
+                f'Annotation with name: "{annotation.name}"\n'
+                'Annotation names must be unique within each Result '
+                'they are attached to.'
+            )
+
+        annotation._write(annotations_dir=self._archiver.annotations_dir,
+                          root_result_uuid=str(self.uuid),
+                          referenced_result_uuid=str(self.uuid))
+        self._annotations[annotation.name] = annotation
+
+        # now calculate checksums for all files within the newly minted
+        # annotation subdir
+        # TODO: think about moving these into annotation._write after 7.1
+        annotation_dir = \
+            pathlib.Path(self._archiver.annotations_dir) / str(annotation.id)
+        checksum_ext = self._archiver._fmt.CHECKSUM_TYPE
+        manifest = self._archiver._fmt.CHECKSUM_FILE
+
+        checksums = util.checksum_directory(str(annotation_dir),
+                                            checksum_type=checksum_ext)
+
+        with (annotation_dir / manifest).open('w') as fh:
+            for item in checksums.items():
+                fh.write(util.to_checksum_format(*item))
+                fh.write('\n')
+
+    def get_annotation(self, name):
+        """Retrieve an Annotation given by `name` from the Result object.
+
+        Parameters
+        ----------
+        name : str
+            The name of the Annotation to retrieve.
+
+        Returns
+        -------
+        Annotation : obj
+            The Annotation object associated with the provided name.
+
+        Raises
+        ------
+        KeyError
+            If no Annotation with the provided name is found.
+
+        """
+        self._validate_annotation_support()
+
+        if name in self._annotations:
+            return self._annotations[name]
+
+        raise KeyError(f'No Annotation with name: "{name}" was found.')
+
+    # TODO: add support to filter by type
+    # once additional annotation types are added in 7.1
+    def iter_annotations(self):
+        """Constructs an iterable containing all Annotations associated with
+        the Result object.
+        """
+        self._validate_annotation_support()
+        yield from self._annotations.values()
+
+    def remove_annotation(self, name):
+        """
+        Remove an Annotation given by `name` from the Result object.
+
+        Parameters
+        ----------
+        name : str
+            The name of the Annotation to be removed.
+
+        Raises
+        ------
+        KeyError
+            If no Annotation with the specified name is found.
+
+        ValueError
+            If the corresponding annotation directory cannot be located.
+
+        """
+        self._validate_annotation_support()
+        annotations = self._annotations
+
+        # Guard against provided Annotation name not found on Result object
+        if name not in annotations:
+            raise KeyError(f'No Annotation found with name: "{name}"')
+
+        # Check for corresponding Annotation entry on disk
+        annotations_dir = self._archiver.annotations_dir
+        annotation_disk_dir = os.path.join(annotations_dir,
+                                           str(annotations[name].id))
+
+        if not os.path.exists(annotation_disk_dir):
+            raise ValueError('Unable to locate on-disk directory '
+                             f'for Annotation with name: "{name}"')
+
+        shutil.rmtree(annotation_disk_dir)
+        del annotations[name]
 
 
 class Artifact(Result):
@@ -329,9 +512,9 @@ class Artifact(Result):
                 path = pathlib.Path(view)
 
             if path.is_file():
-                md5sums = {path.name: util.md5sum(path)}
+                md5sums = {path.name: util.checksum(path, checksum_type='md5')}
             elif path.is_dir():
-                md5sums = util.md5sum_directory(path)
+                md5sums = util.checksum_directory(path, checksum_type='md5')
             else:
                 raise qiime2.plugin.ValidationError(
                     "Path '%s' does not exist." % path)
@@ -377,6 +560,7 @@ class Artifact(Result):
             type, output_dir_fmt,
             data_initializer=result.path._move_or_copy,
             provenance_capture=provenance_capture)
+
         return artifact
 
     def view(self, view_type):

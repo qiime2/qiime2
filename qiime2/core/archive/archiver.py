@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -18,7 +18,7 @@ import io
 import qiime2
 import qiime2.core.cite as cite
 
-from qiime2.core.util import md5sum_directory, from_checksum_format, is_uuid4
+from qiime2.core.util import checksum_directory, from_checksum_format, is_uuid4
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -270,7 +270,7 @@ class ArchiveCheck(_Archive):
 
 
 class Archiver:
-    CURRENT_FORMAT_VERSION = '6'
+    CURRENT_FORMAT_VERSION = '7.0'
     _FORMAT_REGISTRY = {
         # NOTE: add more archive formats as things change
         '0': 'qiime2.core.archive.format.v0:ArchiveFormat',
@@ -279,7 +279,8 @@ class Archiver:
         '3': 'qiime2.core.archive.format.v3:ArchiveFormat',
         '4': 'qiime2.core.archive.format.v4:ArchiveFormat',
         '5': 'qiime2.core.archive.format.v5:ArchiveFormat',
-        '6': 'qiime2.core.archive.format.v6:ArchiveFormat'
+        '6': 'qiime2.core.archive.format.v6:ArchiveFormat',
+        '7.0': 'qiime2.core.archive.format.v7_0:ArchiveFormat'
     }
 
     @classmethod
@@ -302,11 +303,24 @@ class Archiver:
 
     @classmethod
     def get_format_class(cls, version):
-        try:
-            imp, fmt_cls = cls._FORMAT_REGISTRY[version].split(':')
-        except KeyError:
-            return None
-        return getattr(importlib.import_module(imp), fmt_cls)
+        if '.' in version:
+            major, minor = version.split('.')
+            minor = int(minor)
+
+            for minor_version in range(minor, -1, -1):
+                ver = f'{major}.{minor_version}'
+                if ver in cls._FORMAT_REGISTRY:
+                    imp, fmt_cls = cls._FORMAT_REGISTRY[ver].split(':')
+                    return getattr(importlib.import_module(imp), fmt_cls)
+            # explicitly handle when no version match is found
+            else:
+                return None
+        else:
+            try:
+                imp, fmt_cls = cls._FORMAT_REGISTRY[version].split(':')
+            except KeyError:
+                return None
+            return getattr(importlib.import_module(imp), fmt_cls)
 
     @classmethod
     def get_archive(cls, filepath):
@@ -455,6 +469,10 @@ class Archiver:
         return getattr(self._fmt, 'provenance_dir', None)
 
     @property
+    def annotations_dir(self):
+        return getattr(self._fmt, 'annotations_dir', None)
+
+    @property
     def citations(self):
         return getattr(self._fmt, 'citations', cite.Citations())
 
@@ -462,14 +480,22 @@ class Archiver:
         _ZipArchive.save(self.path, filepath)
 
     def validate_checksums(self):
-        if not isinstance(self._fmt, self.get_format_class('5')):
+        checksum_file = getattr(self._fmt, 'CHECKSUM_FILE', None)
+
+        if not checksum_file:
             return ChecksumDiff({}, {}, {})
 
-        obs = dict(x for x in md5sum_directory(str(self.root_dir)).items()
-                   if x[0] != self._fmt.CHECKSUM_FILE)
+        obs = \
+            dict(x for x in
+                 checksum_directory(str(self.root_dir),
+                                    checksum_type=self._fmt.CHECKSUM_TYPE)
+                 .items()
+                 if (x[0] != self._fmt.CHECKSUM_FILE and
+                     pathlib.Path(x[0]).parts[0] != 'annotations')
+                 )
         with open(self.root_dir / self._fmt.CHECKSUM_FILE) as fh:
-            exp = dict(from_checksum_format(line) for line in
-                       fh.readlines())
+            exp = dict(from_checksum_format(line) for line in fh.readlines())
+
         obs_keys = set(obs)
         exp_keys = set(exp)
 

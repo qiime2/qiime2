@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -240,21 +240,24 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(result.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/index.html',
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/VERSION' % artifact1.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact1.uuid,
+            'provenance/artifacts/%s/conda-env.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/metadata.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/VERSION' % artifact2.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact2.uuid,
+            'provenance/artifacts/%s/conda-env.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid
         }
 
@@ -289,17 +292,19 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(result.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/index.html',
             'data/index.tsv',
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact.uuid,
             'provenance/artifacts/%s/VERSION' % artifact.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact.uuid,
+            'provenance/artifacts/%s/conda-env.yaml' % artifact.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact.uuid
         }
 
@@ -321,12 +326,13 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(result.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/index.html',
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -347,12 +353,13 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(result.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/index.html',
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -391,21 +398,24 @@ class TestVisualizer(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(result.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/index.html',
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml',
             'provenance/artifacts/%s/metadata.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/VERSION' % artifact1.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact1.uuid,
+            'provenance/artifacts/%s/conda-env.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact1.uuid,
             'provenance/artifacts/%s/metadata.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/VERSION' % artifact2.uuid,
             'provenance/artifacts/%s/citations.bib' % artifact2.uuid,
+            'provenance/artifacts/%s/conda-env.yaml' % artifact2.uuid,
             'provenance/artifacts/%s/action/action.yaml' % artifact2.uuid
         }
 

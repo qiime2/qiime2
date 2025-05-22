@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -120,7 +120,10 @@ class ProvNode:
 
     @property
     def has_provenance(self) -> bool:
-        return int(self.archive_version) > 1
+        if '.' in self.archive_version:
+            return float(self.archive_version) >= 7.0
+        else:
+            return int(self.archive_version) > 1
 
     @property
     def citations(self) -> Dict:
@@ -613,9 +616,9 @@ class ArchiveParser(Parser):
             An ArchiveParser object for the version of the artifact. One of
             ParserV[0-6].
         '''
-        if type(artifact) is pathlib.PosixPath:
+        if isinstance(artifact, pathlib.PosixPath):
             artifact = str(artifact)
-        if type(artifact) is not str:
+        if not isinstance(artifact, str):
             raise TypeError(
                 'ArchiveParser expects a string or pathlib.PosixPath path to '
                 f'an archive, not an object of type {str(type(artifact))}.'
@@ -626,7 +629,21 @@ class ArchiveParser(Parser):
         try:
             with ZipFile(artifact, 'r') as zf:
                 archive_version, _ = parse_version(zf)
-            return FORMAT_REGISTRY[archive_version]()
+
+            if '.' in archive_version:
+                major, minor = archive_version.split('.')
+                minor = int(minor)
+
+                for minor_version in range(minor, -1, -1):
+                    ver = f'{major}.{minor_version}'
+                    if ver in FORMAT_REGISTRY:
+                        return FORMAT_REGISTRY[ver]()
+                else:
+                    raise KeyError('No matching parser found for version: '
+                                   f'{archive_version}')
+            else:
+                return FORMAT_REGISTRY[archive_version]()
+
         except KeyError as e:
             raise KeyError(
                 f'While trying to parse artifact {artifact}, '
@@ -1074,6 +1091,29 @@ class ParserV6(ParserV5):
     expected_files_all_nodes = ParserV5.expected_files_all_nodes
 
 
+class ParserV7(ParserV6):
+    '''Parser for V7 archives.
+
+    New Features
+    ------------
+    - CPU flags under `action.yaml`
+    - Total size of all files in `data` directory under `metadata.yaml`
+    - A new `conda-env.yaml` file that contains a list of all dependencies
+      in a user's current environment
+
+    Notes
+    -----
+    The `annotations` directory has been excluded from
+    the parser's view since this is essentially an optional output.
+    Please see `core -> archive -> format -> v7_0`
+    for more details on Annotations.
+
+    '''
+    expected_files_root_only = ParserV6.expected_files_root_only
+    expected_files_all_nodes = (
+        *ParserV6.expected_files_all_nodes, 'conda-env.yaml')
+
+
 FORMAT_REGISTRY = {
     # NOTE: update for new format versions in qiime2.core.archive.Archiver
     '0': ParserV0,
@@ -1082,5 +1122,6 @@ FORMAT_REGISTRY = {
     '3': ParserV3,
     '4': ParserV4,
     '5': ParserV5,
-    '6': ParserV6
+    '6': ParserV6,
+    '7.0': ParserV7
 }

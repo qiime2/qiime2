@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -10,7 +10,8 @@ import os
 import time
 import collections
 import collections.abc
-import pkg_resources
+import platform
+import importlib.metadata
 import uuid
 import copy
 import shutil
@@ -197,7 +198,7 @@ def metadata_path_constructor(loader, node) -> MetadataInfo:
 
     action_fp = Path(loader.name)
     metadata_fp = action_fp.parent / rel_fp
-    md5sum_hash = util.md5sum(metadata_fp)
+    md5sum_hash = util.checksum(metadata_fp, checksum_type='md5')
 
     return MetadataInfo(artifact_uuids, rel_fp, md5sum_hash)
 
@@ -272,6 +273,7 @@ for key in CONSTRUCTOR_REGISTRY:
 class ProvenanceCapture:
     ANCESTOR_DIR = 'artifacts'
     ACTION_DIR = 'action'
+    TEMP_ANNOTATIONS_DIR = 'annotations'
     ACTION_FILE = 'action.yaml'
     CITATION_FILE = 'citations.bib'
 
@@ -308,6 +310,9 @@ class ProvenanceCapture:
         self.action_dir = self.path / self.ACTION_DIR
         self.action_dir.mkdir()
 
+        self.temp_annotations_dir = self.path / self.TEMP_ANNOTATIONS_DIR
+        self.temp_annotations_dir.mkdir()
+
     def add_ancestor(self, artifact):
         other_path = artifact._archiver.provenance_dir
         if other_path is None:
@@ -336,6 +341,14 @@ class ProvenanceCapture:
                     destination = self.ancestor_dir / grandcestor.name
                     if not destination.exists():
                         shutil.copytree(str(grandcestor), str(destination))
+
+        # preserve ancestral annotations
+        annotations_dir = artifact._archiver.annotations_dir
+        if annotations_dir and annotations_dir.exists():
+            for annotation in annotations_dir.iterdir():
+                destination = self.temp_annotations_dir / annotation.name
+                if not destination.exists():
+                    shutil.copytree(str(annotation), str(destination))
 
         return str(artifact.uuid)
 
@@ -374,7 +387,9 @@ class ProvenanceCapture:
 
     def capture_env(self):
         return collections.OrderedDict(
-            (d.project_name, d.version) for d in pkg_resources.working_set)
+            (d.metadata["Name"], d.metadata["Version"]) for d in
+            importlib.metadata.distributions()
+        )
 
     def transformation_recorder(self, name):
         section = self.transformers[name] = []
@@ -453,7 +468,7 @@ class ProvenanceCapture:
 
     def make_env_section(self):
         env = collections.OrderedDict()
-        env['platform'] = pkg_resources.get_build_platform()
+        env['platform'] = platform.platform()
         # There is a trailing whitespace in sys.version, strip so that YAML can
         # use literal formatting.
         env['python'] = LiteralString('\n'.join(line.strip() for line in
@@ -461,7 +476,13 @@ class ProvenanceCapture:
         env['framework'] = self.make_software_entry(
             qiime2.__version__, qiime2.__website__, self._framework_citations)
         env['plugins'] = self.plugins
-        env['python-packages'] = self.capture_env()
+
+        # sort pkgs alphabetically, ignoring upper/lower casing
+        unsorted_packages = self.capture_env()
+        sorted_packages = collections.OrderedDict(
+            sorted(unsorted_packages.items(), key=lambda x: x[0].lower())
+        )
+        env['python-packages'] = sorted_packages
 
         return env
 

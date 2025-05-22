@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -78,13 +78,14 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(visualization.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/index.html',
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -117,13 +118,14 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(visualization.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/index.html',
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -132,13 +134,14 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         root_dir = str(visualization.uuid)
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/index.html',
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 
@@ -208,13 +211,14 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
 
         expected = {
             'VERSION',
-            'checksums.md5',
+            'checksums.sha512',
             'metadata.yaml',
             'data/index.html',
             'data/css/style.css',
             'provenance/metadata.yaml',
             'provenance/VERSION',
             'provenance/citations.bib',
+            'provenance/conda-env.yaml',
             'provenance/action/action.yaml'
         }
 

@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -92,7 +92,7 @@ class ValidateChecksumTests(unittest.TestCase):
                 zf.extractall(tempdir)
 
             uuid = os.listdir(tempdir)[0]
-            os.remove(os.path.join(tempdir, uuid, 'checksums.md5'))
+            os.remove(os.path.join(tempdir, uuid, 'checksums.sha512'))
 
             write_zip_archive(fp, tempdir)
 

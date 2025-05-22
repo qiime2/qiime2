@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -200,7 +200,8 @@ class SemanticTemplate(TypeTemplate):
 
     def is_element_expr(self, self_expr, value):
         import qiime2.sdk
-        if not isinstance(value, qiime2.sdk.Artifact):
+        if not (isinstance(value, qiime2.sdk.Artifact) or
+                isinstance(value, qiime2.sdk.proxy.ProxyArtifact)):
             return False
         return value.type <= self_expr
 

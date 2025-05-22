@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -49,13 +49,15 @@ class ArchiveFormat:
             return self._parse_metadata(fh, expected_uuid=archive.uuid)
 
     @classmethod
-    def write(cls, archive_record, type, format, data_initializer, _):
+    def write(cls, archive_record, type, format,
+              data_initializer, provenance_capture):
         root = archive_record.root
         metadata_fp = root / cls.METADATA_FILE
 
         with metadata_fp.open(mode='w') as fh:
             cls._format_metadata(fh, archive_record.uuid, type, format)
 
+        # contents of data dir written here
         data_dir = root / cls.DATA_DIR
         data_dir.mkdir()
 

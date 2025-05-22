@@ -1,5 +1,5 @@
 # ----------------------------------------------------------------------------
-# Copyright (c) 2016-2023, QIIME 2 development team.
+# Copyright (c) 2016-2025, QIIME 2 development team.
 #
 # Distributed under the terms of the Modified BSD License.
 #
@@ -11,7 +11,7 @@ import warnings
 from typing import Optional, Tuple
 from zipfile import ZipFile
 
-from qiime2.core.util import md5sum_directory_zip, from_checksum_format
+from qiime2.core.util import checksum_directory_zip, from_checksum_format
 from qiime2.core.archive.archiver import ChecksumDiff
 
 from .util import get_root_uuid, parse_version
@@ -28,22 +28,26 @@ class ValidationCode(IntEnum):
         One or more files are known to be missing or unparseable. Occurs
         either when checksum validation fails, or when expected files are
         absent or unparseable.
+
     VALIDATION_OPTOUT:
         The user opted out of checksum validation. This will be overridden by
         INVALID iff a required file is missing. In this context,
         `checksums.md5` is not required. If data files, for example, have been
         manually modified, the code will remain VALIDATION_OPTOUT, but if an
         action.yaml file is missing, INVALID will result.
+
     PREDATES_CHECKSUMS:
         The archive format predates the creation of checksums.md5, so full
         validation is impossible. We initially assume validity. This will be
         overridden by INVALID iff an expected file is missing or unparseable.
         If data files, for example, have been manually modified, the code will
         remain PREDATES_CHECKSUMS.
+
     VALID:
         The archive has passed checksum validation and is "known" to be
         valid. Md5 checksums are technically falsifiable, so this is not a
         guarantee of correctness/authenticity.
+
     '''
     INVALID = 0
     VALIDATION_OPTOUT = 1
@@ -55,9 +59,9 @@ def validate_checksums(
     zf: ZipFile
 ) -> Tuple[ValidationCode, Optional[ChecksumDiff]]:
     '''
-    Uses diff_checksums to validate the archive's provenance, warning the user
-    if checksums.md5 is missing, or if the archive is corrupt or has been
-    modified.
+    Uses diff_checksums to validate the archive's provenance,
+    warning the user if checksums.md5/checksums.sha512 is missing,
+    or if the archive is corrupt or has been modified.
 
     Parameters
     ----------
@@ -67,18 +71,20 @@ def validate_checksums(
     Returns
     -------
     tuple of (ValidationCode, ChecksumDiff)
-        If the checksums.md5 fle isn't present set ChecksumDiff to None
-        and ValidationCode to INVALID and return.
+        If the checksums.md5/checksums.sha512 file isn't present,
+        set ChecksumDiff to None and ValidationCode to INVALID and return.
+
     '''
     checksum_diff: Optional[ChecksumDiff]
     provenance_is_valid = ValidationCode.VALID
+    checksum_ext = _parse_checksum_ext(zf)
 
     for fp in zf.namelist():
-        if 'checksums.md5' in fp:
+        if f'checksums.{checksum_ext}' in fp:
             break
     else:
         warnings.warn(
-            'The checksums.md5 file is missing from the archive. '
+            f'The checksums.{checksum_ext} file is missing from the archive. '
             'Archive may be corrupt or provenance may be false.',
             UserWarning
         )
@@ -104,9 +110,11 @@ def validate_checksums(
 
 def diff_checksums(zf: ZipFile) -> ChecksumDiff:
     '''
-    Calculates checksums for all files in an archive (except checksums.md5).
-    Compares these against the checksums stored in checksums.md5, returning
-    a summary ChecksumDiff.
+    Calculates checksums for all files in an archive
+    (except checksums.md5 or checksums.sha512,
+    depending on the archive version).
+    Compares these against the checksums stored in
+    checksums.md5/checksums.sha512, returning a summary ChecksumDiff.
 
     Parameters
     ----------
@@ -120,15 +128,18 @@ def diff_checksums(zf: ZipFile) -> ChecksumDiff:
         files. Keys are filepaths. For the added and removed dicts
         values are the checksum of the added or removed file. For the changed
         dict values are a tuple of (expected checksum, observed checksum).
+
     '''
     archive_version, _ = parse_version(zf)
     # TODO: don't think this is ever called
-    if int(archive_version) < 5:
+    if float(archive_version) < 5.0:
         return ChecksumDiff({}, {}, {})
 
+    checksum_ext = _parse_checksum_ext(zf)
+
     root_dir = pathlib.Path(get_root_uuid(zf))
-    checksum_fp = str(root_dir / 'checksums.md5')
-    obs = md5sum_directory_zip(zf)
+    checksum_fp = str(root_dir / f'checksums.{checksum_ext}')
+    obs = checksum_directory_zip(zf, checksum_type=checksum_ext)
 
     exp = {}
     for line in zf.open(checksum_fp):
@@ -146,3 +157,14 @@ def diff_checksums(zf: ZipFile) -> ChecksumDiff:
     }
 
     return ChecksumDiff(added=added, removed=removed, changed=changed)
+
+
+def _parse_checksum_ext(zf):
+    archive_version, _ = parse_version(zf)
+
+    if float(archive_version) >= 5.0 and float(archive_version) < 7.0:
+        checksum_ext = 'md5'
+    elif float(archive_version) >= 7.0:
+        checksum_ext = 'sha512'
+
+    return checksum_ext
