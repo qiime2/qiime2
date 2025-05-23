@@ -209,8 +209,6 @@ class SingleFileDirectoryFormatBase(DirectoryFormat):
             if not p.name.startswith('.') and p.is_file()
         ]
 
-        print('collected file are: ', collected_files)
-
         if len(collected_files) != 1:
             raise ValidationError(
                 f"{self.__class__.__name__} should contain exactly one file, "
