@@ -52,7 +52,8 @@ import qiime2
 from .path import ArchivePath
 from qiime2.sdk.result import Result
 from qiime2.core.util import (is_uuid4, set_permissions, touch_under_path,
-                              load_action_yaml, USER_GROUP_RWX)
+                              load_action_yaml, READ_ONLY_FILE, READ_ONLY_DIR,
+                              USER_GROUP_RWX)
 from qiime2.core.archive.archiver import Archiver
 from qiime2.core.type import HashableInvocation, IndexedCollectionElement
 
@@ -262,33 +263,6 @@ def monitor_thread(cache_dir, is_done):
         time.sleep(60 * 60 * 6)
 
 
-def lock_thread(flufl_lock, lifetime, is_done):
-    """It is conceivable that something could need to hold the lock for longer
-    than the lifetime, so this thread will periodically refresh the duration
-    of the lock provided we are still holding it. We still want to set a
-    limited lifetime on the lock so that if whatever is holding the lock
-    terminates abnormally the next process that comes along and wants the lock
-    will break the expired lock
-
-    Parameters
-    ----------
-    flufl_lock: flufl.lock.Lock
-        The lock we are refreshing the duration on.
-    lifetime: datetime.timedelta
-        Represents how long the lifetime of the lock should be. We use this to
-        determine how long to wait before refreshing the lock.
-    is_done : threading.Event
-        The process that invoked this daemon sets this flag when releasing the
-        lock to notify this daemon to terminate.
-    """
-    while not is_done.is_set():
-        try:
-            flufl_lock.refresh()
-        except flufl.lock._lockfile.NotLockedError:
-            break
-        time.sleep(lifetime.seconds * .9)
-
-
 # This is very important to our trademark
 tm = object
 
@@ -308,7 +282,7 @@ class MEGALock(tm):
         self.flufl_lock = flufl.lock.Lock(flufl_fp, lifetime=lifetime)
 
     def __enter__(self):
-        """We acquire the thread lock first because the flufl lock isn't
+        """ We acquire the thread lock first because the flufl lock isn't
         thread-safe which is why we need both locks in the first place
         """
         if self.re_entries == 0:
@@ -319,14 +293,6 @@ class MEGALock(tm):
             except Exception:
                 self.thread_lock.release()
                 raise
-            else:
-                self._thread_is_done = threading.Event()
-                self._thread = threading.Thread(
-                    target=lock_thread,
-                    args=(self.flufl_lock, self.lifetime,
-                          self._thread_is_done),
-                    daemon=True)
-                self._thread.start()
 
         self.re_entries += 1
 
@@ -335,7 +301,6 @@ class MEGALock(tm):
             self.re_entries -= 1
 
         if self.re_entries == 0:
-            self._thread_is_done.set()
             self.flufl_lock.unlock()
             self.thread_lock.release()
 
@@ -344,8 +309,6 @@ class MEGALock(tm):
 
         del lockless_dict['thread_lock']
         del lockless_dict['flufl_lock']
-        del lockless_dict['_thread']
-        del lockless_dict['_thread_is_done']
 
         return lockless_dict
 
@@ -869,6 +832,8 @@ class Cache:
 
                 if data not in referenced_data:
                     target = self.data / data
+
+                    set_permissions(target, None, USER_GROUP_RWX)
                     shutil.rmtree(target)
 
     def _check_dangling_reference(self, data_path, key_path):
@@ -1205,6 +1170,8 @@ class Cache:
                     shutil.copytree(
                         ref._archiver.path, self.data, dirs_exist_ok=True)
 
+                set_permissions(destination, READ_ONLY_FILE, READ_ONLY_DIR)
+
     def _rename_to_data(self, uuid, src):
         """Takes some data in src and renames it into the cache's data dir. It
         then ensures there are symlinks for this data in the process pool and
@@ -1234,6 +1201,7 @@ class Cache:
             # Rename errors if the destination already exists
             if not os.path.exists(dest):
                 os.rename(src, dest)
+                set_permissions(dest, READ_ONLY_FILE, READ_ONLY_DIR)
 
             # Create a new alias whether we renamed or not because this is
             # still loading a new reference to the data even if the data is
