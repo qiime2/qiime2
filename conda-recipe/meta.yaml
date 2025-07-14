@@ -36,11 +36,12 @@ test:
   - pytest
   - tornado
   - notebook <7
+  - pytest-xdist
   imports:
   - qiime2
   commands:
   - QIIMETEST= python -c "import qiime2.plugins.dummy_plugin"
-  - QIIMETEST= py.test --pyargs --doctest-modules qiime2
+  - QIIMETEST= py.test -n auto --pyargs --doctest-modules qiime2
 about:
   home: https://qiime2.org
   license: BSD-3-Clause
