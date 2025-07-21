@@ -652,6 +652,28 @@ class Visualization(Result):
             provenance_capture=provenance_capture)
         return viz
 
+    @classmethod
+    def make_report(cls, template, collection):
+        provenance_capture = archive.ReportProvenanceCapture()
+
+        def data_initializer(destination):
+            paths = {}
+            for key, value in collection.items():
+                paths[key] = f'subfigures/{key}/index.html'
+                provenance_capture.add_input(key, value)
+                shutil.copytree(value._archiver.data_dir,
+                                os.path.join(destination, 'subfigures', key))
+
+            template(destination, **paths)
+
+        viz = cls.__new__(cls)
+        viz._archiver = archive.Archiver.from_data(
+            qiime2.core.type.Visualization, None,
+            data_initializer=data_initializer,
+            provenance_capture=provenance_capture
+        )
+        return viz
+
     def get_index_paths(self, relative=True):
         result = {}
         for abspath in self._archiver.data_dir.iterdir():

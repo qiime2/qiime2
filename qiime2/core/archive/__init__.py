@@ -7,9 +7,9 @@
 # ----------------------------------------------------------------------------
 
 from .provenance import (ImportProvenanceCapture, ActionProvenanceCapture,
-                         PipelineProvenanceCapture)
+                         PipelineProvenanceCapture, ReportProvenanceCapture)
 from .archiver import Archiver
 
 
 __all__ = ['Archiver', 'ImportProvenanceCapture', 'ActionProvenanceCapture',
-           'PipelineProvenanceCapture']
+           'PipelineProvenanceCapture', 'ReportProvenanceCapture']
