@@ -14,12 +14,12 @@ requirements:
   run:
   - python {{ python }}
   - pyyaml
-  - decorator {{ decorator }}
+  - decorator >=4,<5
   - pandas {{ pandas }}
-  - tzlocal {{ tzlocal }}
+  - tzlocal <3
   - python-dateutil
   - bibtexparser
-  - networkx {{ networkx }}
+  - networkx =3.1
   - dill
   - psutil
   - flufl.lock
@@ -35,7 +35,7 @@ test:
   requires:
   - pytest
   - tornado
-  - notebook {{ notebook }}
+  - notebook <7
   imports:
   - qiime2
   commands:
