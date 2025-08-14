@@ -10,12 +10,12 @@ import os
 import pathlib
 
 import tornado.web as web
-from notebook.base.handlers import IPythonHandler
+from jupyter_server.base.handlers import JupyterHandler
 
 from qiime2.core.archive.archiver import ArchiveCheck
 
 
-class QIIME2RedirectHandler(IPythonHandler):
+class QIIME2RedirectHandler(JupyterHandler):
     """Add a location to location_store for later retrieval"""
     def initialize(self, result_store):
         self.result_store = result_store

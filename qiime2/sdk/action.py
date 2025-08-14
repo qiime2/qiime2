@@ -273,8 +273,27 @@ class Action(metaclass=abc.ABCMeta):
     def _rewrite_wrapper_signature(self, wrapper):
         # Convert the callable's signature into the wrapper's signature and set
         # it on the wrapper.
-        return decorator.decorator(
-            wrapper, self._callable_sig_converter_(self._callable))
+        callable = decorator.decorate(
+            self._callable_sig_converter_(self._callable), wrapper)
+
+        # In decorator 5 a Signature object is used instead of an exec of code
+        # so we need to massage the signature a little bit. Mostly it's only
+        # the annotations that come out wrong because
+        # `inspect.Signature.from_callable()` will short-circuit on
+        # __signature__ ignoring the annotations, so we have to update the
+        # signature with the annotations (and the __annotations__)
+        annotations = self._build_annotations()
+        callable.__annotations__ = annotations
+        sig = callable.__signature__
+
+        new_params = []
+        for name, param in sig.parameters.items():
+            new_params.append(param.replace(annotation=annotations[name]))
+
+        callable.__signature__ = inspect.Signature(
+            parameters=new_params, return_annotation=annotations['return'])
+
+        return callable
 
     def _set_wrapper_name(self, wrapper, name):
         wrapper.__name__ = wrapper.__qualname__ = name
@@ -282,7 +301,6 @@ class Action(metaclass=abc.ABCMeta):
     def _set_wrapper_properties(self, wrapper):
         wrapper.__module__ = self.get_import_path(include_self=False)
         wrapper.__doc__ = self._build_numpydoc()
-        wrapper.__annotations__ = self._build_annotations()
         # This is necessary so that `inspect` doesn't display the wrapped
         # function's annotations (the annotations apply to the "view API" and
         # not the "artifact API").

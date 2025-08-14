@@ -6,7 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .hooks import load_jupyter_server_extension
+from .hooks import _load_jupyter_server_extension
 from .template import make_html
 
-__all__ = ['make_html', 'load_jupyter_server_extension']
+__all__ = ['make_html', '_load_jupyter_server_extension']

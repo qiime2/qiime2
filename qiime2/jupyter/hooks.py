@@ -7,9 +7,10 @@
 # ----------------------------------------------------------------------------
 
 
-def load_jupyter_server_extension(nb_server):
+# Hook for jupyter is `_load_jupyter_server_extension`
+def _load_jupyter_server_extension(nb_server):
     from .handlers import QIIME2RedirectHandler, QIIME2ResultHandler
-    from notebook.utils import url_path_join
+    from jupyter_server.utils import url_path_join
 
     result_store = {}
     app = nb_server.web_app

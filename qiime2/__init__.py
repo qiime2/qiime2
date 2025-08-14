@@ -30,6 +30,6 @@ __all__ = ['Artifact', 'Visualization', 'ResultCollection', 'Metadata',
            'NumericMetadataColumn', 'Cache', 'Pool', 'get_cache', 'Note']
 
 
-# Used by `jupyter serverextension enable`
-def _jupyter_server_extension_paths():
+# Used by `jupyter server extension enable`
+def _jupyter_server_extension_points():
     return [{"module": "qiime2.jupyter"}]
