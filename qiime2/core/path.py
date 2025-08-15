@@ -13,18 +13,15 @@ import distutils
 import tempfile
 import weakref
 
-_ConcretePath = type(pathlib.Path())
-
 
 def _party_parrot(self, *args):
     raise TypeError("Cannot mutate %r." % self)
 
 
-class OwnedPath(_ConcretePath):
-    def __new__(cls, *args, **kwargs):
-        self = super().__new__(cls, *args, **kwargs)
+class OwnedPath(pathlib.Path):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._user_owned = True
-        return self
 
     def _copy_dir_or_file(self, other):
         if self.is_dir():
@@ -45,7 +42,7 @@ class OwnedPath(_ConcretePath):
             # Certain networked filesystems will experience a race
             # condition on `rename`, so fall back to copying.
             try:
-                return _ConcretePath.rename(self, other)
+                return pathlib.Path.rename(self, other)
             except (FileExistsError, OSError) as e:
                 # OSError errno 18 is cross device link, if we have this error
                 # we can solve it by copying. If we have a different OSError we
@@ -59,14 +56,18 @@ class OwnedPath(_ConcretePath):
                 self._destruct()
                 return copied
 
+    def with_segments(self, *args):
+        path = os.path.join(*args)
+        return self.__class__(path)
+
 
 class InPath(OwnedPath):
-    def __new__(cls, path):
-        self = super().__new__(cls, path)
+    def __init__(self, path):
+        super().__init__(path)
+        # pls don't delete me so that this path doesn't get destroyed
         self.__backing_path = path
         if hasattr(path, '_user_owned'):
             self._user_owned = path._user_owned
-        return self
 
     chmod = lchmod = rename = replace = rmdir = symlink_to = touch = unlink = \
         write_bytes = write_text = _party_parrot
@@ -90,7 +91,7 @@ class OutPath(OwnedPath):
         else:
             os.unlink(path)
 
-    def __new__(cls, dir=False):
+    def __init__(self, dir=False):
         """
         Create a tempfile, return pathlib.Path reference to it.
         """
@@ -98,7 +99,7 @@ class OutPath(OwnedPath):
 
         cache = get_cache()
         tmp_path = cache.get_tmp_path()
-        prefix = 'q2-%s-' % cls.__name__
+        prefix = 'q2-%s-' % self.__class__.__name__
 
         if dir:
             name = tempfile.mkdtemp(prefix=prefix, dir=tmp_path)
@@ -109,29 +110,26 @@ class OutPath(OwnedPath):
             # producing a different file descriptor, so close this one to
             # prevent a resource leak.
             os.close(fd)
-        obj = super().__new__(cls, name)
-        obj._destructor = weakref.finalize(obj, cls._destruct, str(obj))
-        return obj
+
+        super().__init__(name)
+        self._destructor = weakref.finalize(self, self._destruct, str(self))
 
     def __exit__(self, t, v, tb):
         self._destructor()
 
+    def with_segments(self, *args):
+        path = os.path.join(*args)
+        return pathlib.Path(path)
 
-class InternalDirectory(_ConcretePath):
+
+class InternalDirectory(pathlib.Path):
     DEFAULT_PREFIX = 'qiime2-'
 
-    @classmethod
-    def __new(cls, *args):
-        self = super().__new__(cls, *args)
-        return self
-
-    def __new__(cls, *args, prefix=None):
+    def __init__(self, *args, prefix=None):
         if args and prefix is not None:
             raise TypeError("Cannot pass a path and a prefix at the same time")
         elif args:
-            # This happens when the base-class's __reduce__ method is invoked
-            # for pickling.
-            return cls.__new(*args)
+            pass
         else:
             from qiime2.core.cache import get_cache
 
@@ -139,21 +137,21 @@ class InternalDirectory(_ConcretePath):
             tmp_path = cache.get_tmp_path()
 
             if prefix is None:
-                prefix = cls.DEFAULT_PREFIX
-            elif not prefix.startswith(cls.DEFAULT_PREFIX):
-                prefix = cls.DEFAULT_PREFIX + prefix
+                prefix = self.DEFAULT_PREFIX
+            elif not prefix.startswith(self.DEFAULT_PREFIX):
+                prefix = self.DEFAULT_PREFIX + prefix
             # TODO: normalize when temp-directories are configurable
             path = tempfile.mkdtemp(prefix=prefix, dir=tmp_path)
-            return cls.__new(path)
+            super().__init__(path)
 
     def __truediv__(self, path):
         # We don't want to create self-destructing paths when using the join
         # operator
-        return _ConcretePath(str(self), path)
+        return pathlib.Path(str(self), path)
 
     def __rtruediv__(self, path):
         # Same reasoning as truediv
-        return _ConcretePath(path, str(self))
+        return pathlib.Path(path, str(self))
 
 
 class ArchivePath(InternalDirectory):
