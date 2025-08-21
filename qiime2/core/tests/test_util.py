@@ -13,6 +13,7 @@ import tempfile
 import pathlib
 import collections
 import datetime
+import os
 import dateutil.relativedelta as relativedelta
 
 import qiime2.core.util as util
@@ -468,5 +469,73 @@ class TestSortedPoset(unittest.TestCase):
         self.assertLess(idx_bar, idx_foobar)
 
 
-if __name__ == '__main__':
-    unittest.main()
+class TestReplaceBytesInFile(unittest.TestCase):
+    def _run_test(self, content, old_bytes, new_bytes, expected,
+                  buffer_size=None):
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+
+        try:
+            util.replace_bytes_in_file(temp_file_path, old_bytes, new_bytes,
+                                       buffer_size=buffer_size)
+
+            with open(temp_file_path, 'rb') as f:
+                self.assertEqual(f.read(), expected)
+        finally:
+            os.remove(temp_file_path)
+
+    def test_basic_replacement(self):
+        self._run_test(b"Hello World", b"Hello", b"Hi", b"Hi World")
+
+    def test_simple_overlapping_pattern(self):
+        self._run_test(b"ababab", b"abab", b"ABAB", b"ABABab")
+
+    def test_cross_boundary_replacement(self):
+        content = b"abc" * 1000
+        expected = b"ABCABC" * 500
+        self._run_test(content, b"abcabc", b"ABCABC", expected, buffer_size=16)
+
+    def test_empty_file(self):
+        self._run_test(b"", b"Hello", b"Hi", b"")
+
+    def test_single_char_replacement(self):
+        self._run_test(b"aaaa", b"a", b"b", b"bbbb")
+
+    def test_different_length_replacement(self):
+        self._run_test(
+            b"Hello World", b"Hello", b"Greetings", b"Greetings World")
+
+
+class TestReplaceBytesInDirectory(unittest.TestCase):
+    def test_basic_replacement(self):
+        # Test basic replacement
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Create test files
+            test_file1 = os.path.join(temp_dir, "test1.txt")
+            test_file2 = os.path.join(temp_dir, "test2.txt")
+            # Different extension
+            test_file3 = os.path.join(temp_dir, "test3.dat")
+
+            with open(test_file1, 'wb') as f:
+                f.write(b"Hello World")
+            with open(test_file2, 'wb') as f:
+                f.write(b"Hello World Hello")
+            with open(test_file3, 'wb') as f:
+                f.write(b"Hello World")
+
+            # Test basic replacement
+            util.replace_bytes_in_directory(
+                temp_dir,
+                b"Hello",
+                b"Hi",
+                {'.txt'}
+            )
+
+            # Check results
+            with open(test_file1, 'rb') as f:
+                self.assertEqual(f.read(), b"Hi World")
+            with open(test_file2, 'rb') as f:
+                self.assertEqual(f.read(), b"Hi World Hi")
+            with open(test_file3, 'rb') as f:
+                self.assertEqual(f.read(), b"Hello World")  # Shouldn't change

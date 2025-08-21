@@ -13,8 +13,10 @@ import tempfile
 import collections
 import distutils.dir_util
 import pathlib
+import json
 from typing import Union, get_args, get_origin
 
+from qiime2.core.format import report
 import qiime2.metadata
 import qiime2.plugin
 import qiime2.sdk
@@ -657,18 +659,47 @@ class Visualization(Result):
         provenance_capture = archive.ReportProvenanceCapture()
 
         def data_initializer(destination):
-            paths = {}
-            for key, value in collection.items():
-                paths[key] = f'subfigures/{key}/index.html'
-                provenance_capture.add_input(key, value)
-                shutil.copytree(value._archiver.data_dir,
-                                os.path.join(destination, 'subfigures', key))
+            index = {}
+            for key, viz in collection.items():
+                index[key] = f'subfigures/{str(viz.uuid)}/index.html'
+                provenance_capture.add_input(key, viz)
 
-            template(destination, **paths)
+                subfigure_dir = os.path.join(
+                    destination, 'subfigures', str(viz.uuid))
+                if not os.path.exists(subfigure_dir):
+                    shutil.copytree(viz._archiver.data_dir, subfigure_dir)
+
+
+                if viz.format is report:
+                    with open(os.path.join(subfigure_dir, 'subfigures', 'index.json')) as fh:
+                        inner = json.load(fh)
+                    for k, value in inner.items():
+                        uuid = value.split('/')[-2]
+                        index[f'{key}.{k}'] = f'subfigures/{uuid}/index.html'
+                        sub_subfig = os.path.join(subfigure_dir, 'subfigures', uuid)
+                        dest = os.path.join(destination, 'subfigures', uuid)
+                        if os.path.exists(sub_subfig):
+                            if os.path.exists(dest):
+                                shutil.rmtree(sub_subfig)
+                            else:
+                                shutil.move(sub_subfig, dest)
+
+                    for k, value in inner.items():
+                        uuid = value.split('/')[-2]
+                        util.replace_bytes_in_directory(subfigure_dir,
+                                                        f'subfigures/{uuid}/index.html'.encode(),
+                                                        f'../{uuid}/index.html'.encode(),
+                                                        {'.json', '.jsonp', '.js', '.htm', '.html'}
+                                                        )
+
+            with open(os.path.join(destination, 'subfigures', 'index.json'), 'w') as fh:
+                json.dump(index, fh)
+
+            template(destination, index)
 
         viz = cls.__new__(cls)
         viz._archiver = archive.Archiver.from_data(
-            qiime2.core.type.Visualization, None,
+            qiime2.core.type.Visualization, report,
             data_initializer=data_initializer,
             provenance_capture=provenance_capture
         )

@@ -10,6 +10,7 @@ import re
 from importlib.metadata import entry_points
 from typing import Dict, TYPE_CHECKING
 
+from qiime2.core.format import report
 import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.type.parse as _parse
@@ -105,6 +106,8 @@ def parse_type(string, expect=None):
 def parse_format(format_str):
     if format_str is None:
         return None
+    if format_str == 'report':
+        return report
 
     pm = qiime2.sdk.PluginManager()
     try:
