@@ -658,42 +658,55 @@ class Visualization(Result):
     def make_report(cls, template, collection):
         provenance_capture = archive.ReportProvenanceCapture()
 
+        to_reindex = {}
         def data_initializer(destination):
             index = {}
+            subfigures_dir = os.path.join(destination, 'subfigures')
             for key, viz in collection.items():
-                index[key] = f'subfigures/{str(viz.uuid)}/index.html'
+                viz_uuid = str(viz.uuid)
                 provenance_capture.add_input(key, viz)
-
-                subfigure_dir = os.path.join(
-                    destination, 'subfigures', str(viz.uuid))
-                if not os.path.exists(subfigure_dir):
-                    shutil.copytree(viz._archiver.data_dir, subfigure_dir)
+                index[key] = {
+                    "index": f'subfigures/{viz_uuid}/index.html',
+                    "children": {}
+                }
+                subfigure_root = os.path.join(subfigures_dir, viz_uuid)
+                if not os.path.exists(subfigure_root):
+                    shutil.copytree(viz._archiver.data_dir, subfigure_root)
 
 
                 if viz.format is report:
-                    with open(os.path.join(subfigure_dir, 'subfigures', 'index.json')) as fh:
-                        inner = json.load(fh)
-                    for k, value in inner.items():
-                        uuid = value.split('/')[-2]
-                        index[f'{key}.{k}'] = f'subfigures/{uuid}/index.html'
-                        sub_subfig = os.path.join(subfigure_dir, 'subfigures', uuid)
-                        dest = os.path.join(destination, 'subfigures', uuid)
-                        if os.path.exists(sub_subfig):
-                            if os.path.exists(dest):
-                                shutil.rmtree(sub_subfig)
+                    to_reindex[viz_uuid] = set()
+                    child_figs = os.path.join(subfigure_root, 'subfigures')
+                    with open(os.path.join(child_figs, 'index.json')) as fh:
+                        inner_index = json.load(fh)
+                        index[key]['children'] = inner_index
+                        to_reindex[viz_uuid] = \
+                            set(map(lambda x: x['index'].split('/')[-2],
+                                    util.flatten_children(inner_index)))
+
+                    for uuid in os.listdir(child_figs):
+                        if not os.path.isdir(os.path.join(child_figs, uuid)):
+                            continue
+                        child_root = os.path.join(child_figs, uuid)
+                        flattened_dest = os.path.join(subfigures_dir, uuid)
+                        if os.path.exists(child_root):
+                            if os.path.exists(flattened_dest):
+                                shutil.rmtree(child_root)
                             else:
-                                shutil.move(sub_subfig, dest)
+                                shutil.move(child_root, flattened_dest)
 
-                    for k, value in inner.items():
-                        uuid = value.split('/')[-2]
-                        util.replace_bytes_in_directory(subfigure_dir,
-                                                        f'subfigures/{uuid}/index.html'.encode(),
-                                                        f'../{uuid}/index.html'.encode(),
-                                                        {'.json', '.jsonp', '.js', '.htm', '.html'}
-                                                        )
+            for report_uuid, children in to_reindex.items():
+                subfigure_root = os.path.join(subfigures_dir, report_uuid)
+                for uuid in children:
+                    util.replace_bytes_in_directory(
+                        subfigure_root,
+                        f'subfigures/{uuid}/index.html'.encode(),
+                        f'../{uuid}/index.html'.encode(),
+                        {'.json', '.jsonp', '.js', '.htm', '.html'}
+                    )
 
-            with open(os.path.join(destination, 'subfigures', 'index.json'), 'w') as fh:
-                json.dump(index, fh)
+            with open(os.path.join(subfigures_dir, 'index.json'), 'w') as fh:
+                json.dump(index, fh, indent=2)
 
             template(destination, index)
 

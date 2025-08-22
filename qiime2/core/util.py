@@ -564,3 +564,13 @@ def replace_bytes_in_file(filepath, old_bytes, new_bytes, buffer_size=None):
 
     # Replace the original file with the modified file
     os.replace(tempfile, filepath)
+
+
+def flatten_children(dictionary, child_key='children'):
+    results = []
+    for key, value in dictionary.items():
+        value = value.copy()
+        results.append(value)
+        children = value.pop(child_key, {})
+        results.extend(flatten_children(children, child_key))
+    return results
