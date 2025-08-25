@@ -568,7 +568,7 @@ def replace_bytes_in_file(filepath, old_bytes, new_bytes, buffer_size=None):
 
 def flatten_children(dictionary, child_key='children'):
     results = []
-    for key, value in dictionary.items():
+    for value in dictionary.values():
         value = value.copy()
         results.append(value)
         children = value.pop(child_key, {})

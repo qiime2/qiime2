@@ -666,8 +666,8 @@ class Visualization(Result):
                 viz_uuid = str(viz.uuid)
                 provenance_capture.add_input(key, viz)
                 index[key] = {
+                    "name": key,
                     "index": f'subfigures/{viz_uuid}/index.html',
-                    "children": {}
                 }
                 subfigure_root = os.path.join(subfigures_dir, viz_uuid)
                 if not os.path.exists(subfigure_root):
