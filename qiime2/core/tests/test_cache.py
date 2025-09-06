@@ -9,6 +9,7 @@
 import os
 import gc
 import pwd
+import hashlib
 import shutil
 import string
 import atexit
