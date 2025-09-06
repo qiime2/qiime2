@@ -9,7 +9,6 @@
 import os
 import gc
 import pwd
-import crypt
 import shutil
 import string
 import atexit
@@ -97,7 +96,7 @@ def _fake_user_for_cache(cache_prefix, i_acknowledge_this_is_dangerous=False):
         uname = ''.join(
             random.choices(string.ascii_letters + string.digits, k=8))
 
-    password = crypt.crypt('test', '22')
+    password = hashlib.sha256(('22' + 'test').encode()).hexdigest()[:13]
     os.system(f'useradd -p {password} {uname}')
 
     os.seteuid(pwd.getpwnam(uname).pw_uid)
