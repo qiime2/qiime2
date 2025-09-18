@@ -351,3 +351,8 @@ class Note(Annotation):
 
         with open(note_path, 'wb') as fh:
             fh.write(contents)
+
+
+class Signature(Annotation):
+    """Signature sub-class, inherits from Annotations.
+    """
