@@ -355,4 +355,44 @@ class Note(Annotation):
 
 class Signature(Annotation):
     """Signature sub-class, inherits from Annotations.
+
+    Creates a cryptographic signature over a canonical manifest of the Result
+    contents (excluding provenance/annotations/**).
+
+    Parameters
+    ----------
+    name : str
+        Annotation name (validated like other annotations).
+
+    private_key_path : str | os.PathLike, optional
+        Path to an Ed25519 private key in PEM format (RAW or PKCS8).
+        Exactly one of `private_key_path` or `private_key_bytes`
+        must be provided.
+
+    private_key_bytes : bytes, optional
+        Raw private key bytes in a supported PEM/PKCS8 format.
+
+    password : bytes | None, optional
+        If the private key is encrypted, supply the password bytes.
+
+    signer_name : str, optional
+        Free-form human name to record in metadata.
+
+    signer_email : str, optional
+        Free-form email to record in metadata.
+
+    Returns
+    -------
+    Signature : obj
+        The instantiated Signature.
+
+    See Also
+    --------
+    Annotation
     """
+    annotation_type = 'Signature'
+
+    # NOTE: in future versions, name will become optional & the default value
+    # will be the annotation's UUID (if name isn't provided by the user)
+    def __init__(self, name, other_params_go_here):
+        self.validate_name(name)
