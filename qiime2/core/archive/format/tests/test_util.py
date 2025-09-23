@@ -15,7 +15,7 @@ from qiime2.core.testing.type import FourInts
 from qiime2.core.testing.util import ArchiveTestingMixin
 import qiime2.core.archive as archive
 from qiime2.core.archive.format.v7_0 import ArchiveFormat
-from qiime2.core.archive.format.util import artifact_version
+from qiime2.core.archive.format.util import artifact_version, write_checksums
 from qiime2.core.annotate import Note
 from qiime2.sdk import Artifact
 
@@ -217,3 +217,33 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
         ):
             for annotation in artifact.iter_annotations():
                 print(annotation.name)
+
+    def test_write_checksums_ignores_annotations_dir(self):
+        root_dir = pathlib.Path(self.temp_dir.name)
+        checksum_file = 'checksums.sha512'
+
+        paths = {
+            'VERSION',
+            'metadata.yaml',
+            'data/ints.txt',
+            'provenance/VERSION',
+            'provenance/citations.bib',
+            'provenance/conda-env.yaml',
+            'provenance/metadata.yaml',
+            'provenance/action/action.yaml',
+            'annotations/checksums.sha512',
+            'annotations/metadata.yaml',
+            'annotations/note.txt'
+        }
+
+        for path in paths:
+            fp = root_dir / path
+            fp.parent.mkdir(parents=True, exist_ok=True)
+            fp.write_text('x')
+
+        write_checksums(root_dir, checksum_file, checksum_type='sha512')
+
+        obs_checksums = root_dir / checksum_file
+        contents = obs_checksums.read_text()
+
+        self.assertNotIn('annotations', contents)
