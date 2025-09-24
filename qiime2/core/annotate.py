@@ -356,30 +356,23 @@ class Note(Annotation):
 class Signature(Annotation):
     """Signature sub-class, inherits from Annotations.
 
-    Creates a cryptographic signature over a canonical manifest of the Result
-    contents (excluding provenance/annotations/**).
+    Creates a cryptographic signature over the Result's root checksums.sha256
+    file using credentials for an existing key pair via GnuPG.
 
     Parameters
     ----------
     name : str
-        Annotation name (validated like other annotations).
-
-    private_key_path : str | os.PathLike, optional
-        Path to an Ed25519 private key in PEM format (RAW or PKCS8).
-        Exactly one of `private_key_path` or `private_key_bytes`
-        must be provided.
-
-    private_key_bytes : bytes, optional
-        Raw private key bytes in a supported PEM/PKCS8 format.
-
-    password : bytes | None, optional
-        If the private key is encrypted, supply the password bytes.
+        Annotation name (validated like other Annotations).
 
     signer_name : str, optional
-        Free-form human name to record in metadata.
+        Name associated with the key pair in GnuPG
+        that will be used for signing.
+        At least one of name/email must be provided for Signature creation.
 
     signer_email : str, optional
-        Free-form email to record in metadata.
+        Email associated with the key pair in GnuPG
+        that will be used for signing.
+        At least one of name/email must be provided for Signature creation.
 
     Returns
     -------

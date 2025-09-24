@@ -29,7 +29,7 @@ class ArchiveFormat(v7_0.ArchiveFormat):
             ├── uuid1/
             │   ├── metadata.yaml
             │   ├── signature.txt
-            │   ├── checksums.sha256
+            │   ├── manifest.sha256
 
         The `metadata.yaml` file for Signatures will contain all standard
         Annotation fields, plus Signature-specific fields:
@@ -46,13 +46,13 @@ class ArchiveFormat(v7_0.ArchiveFormat):
 
             `algorithm`
                 The algorithm used to compute the signature.
-                Ed25519 is currently the only supported algorithm in 7.1.
+                TBD: Ed25519 is currently the only supported algorithm in 7.1.
 
             `fingerprint`
                 The calculated sha256 checksum of the public key.
 
             `manifest_digest`
-                The calculated sha256 checksum of the Signature-level
+                The calculated sha256 checksum of the root
                 checksums.sha256 file.
 
             `signer_name`
@@ -62,6 +62,6 @@ class ArchiveFormat(v7_0.ArchiveFormat):
                 (Optional) Email address of the user creating the Signature.
 
         The `signature.txt` file will contain the Ed25519-calculated signature
-        of the private key and the Signature-level checksums.sha256 file.
+        of the private key and the root level checksums.sha256 file.
     """
     pass
