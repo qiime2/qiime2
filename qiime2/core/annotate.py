@@ -356,7 +356,7 @@ class Note(Annotation):
 class Signature(Annotation):
     """Signature sub-class, inherits from Annotations.
 
-    Creates a cryptographic signature over the Result's root checksums.sha256
+    Creates a cryptographic signature over the Result's root checksums.sha512
     file using credentials for an existing key pair via GnuPG.
 
     Parameters

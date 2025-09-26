@@ -40,11 +40,11 @@ class ArchiveFormat(v6.ArchiveFormat):
             ├── uuid1/
             │   ├── metadata.yaml
             │   ├── note.txt
-            │   ├── checksums.sha256
+            │   ├── checksums.sha512
             ├── uuid2/
             │   ├── metadata.yaml
             │   ├── note.txt
-            │   ├── checksums.sha256
+            │   ├── checksums.sha512
 
         With each uuid representing an individual Annotation object that's been
         attached to the Result object.
