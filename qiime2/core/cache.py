@@ -465,22 +465,23 @@ class Cache:
         with self.lock:
             # If the path already existed and wasn't a cache then we don't want
             # to create the cache contents here
-            if not Cache.is_cache(self.path) and not created_path:
-                # We own the temp_cache_path, so we can recreate it if there
-                # was something wrong with it
-                if self.path == temp_cache_path:
-                    set_permissions(self.path, USER_GROUP_RWX,
-                                    USER_GROUP_RWX, skip_root=True)
-                    self._remove_cache_contents()
-                    self._create_cache_contents()
-                    warnings.warn(
-                        "Your temporary cache was found to be in an "
-                        "inconsistent state. It has been recreated.")
+            if not Cache.is_cache(self.path):
+                if not created_path:
+                    # We own the temp_cache_path, so we can recreate it if
+                    # there was something wrong with it
+                    if self.path == temp_cache_path:
+                        set_permissions(self.path, USER_GROUP_RWX,
+                                        USER_GROUP_RWX, skip_root=True)
+                        self._remove_cache_contents()
+                        self._create_cache_contents()
+                        warnings.warn(
+                            "Your temporary cache was found to be in an "
+                            "inconsistent state. It has been recreated.")
+                    else:
+                        raise ValueError(f"Path: '{self.path}' already exists "
+                                         "and is not a cache.")
                 else:
-                    raise ValueError(f"Path: '{self.path}' already exists and"
-                                     " is not a cache.")
-            elif not Cache.is_cache(self.path):
-                self._create_cache_contents()
+                    self._create_cache_contents()
             # else: it was a cache with the contents already in it
 
         self.process_pool = self._create_process_pool()
