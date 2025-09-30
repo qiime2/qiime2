@@ -70,10 +70,12 @@ class Annotation():
             corresponding annotation directory.
 
         """
+        # TODO: there needs to be a better way to deal with these shared attrs
         with open(os.path.join(filepath, 'metadata.yaml'), 'r') as fh:
             meta_yaml = yaml.safe_load(fh)
             annotation_type = meta_yaml['type']
 
+            # NOTE
             if annotation_type == 'Note':
                 annotation = Note.__new__(Note)
                 # Now attach Note attrs from metadata.yaml
@@ -93,6 +95,31 @@ class Annotation():
                 else:
                     with open(note_fp, 'r') as fh:
                         annotation.contents = fh.read()
+
+            # SIGNATURE
+            if annotation_type == 'Signature':
+                annotation = Signature.__new__(Signature)
+                # Now attach attrs from metadata.yaml
+                annotation.id = meta_yaml['id']
+                annotation.name = meta_yaml['name']
+                annotation.annotation_type = meta_yaml['type']
+                annotation.created_at = meta_yaml['created_at']
+                # signature-specific attrs
+                annotation.algorithm = meta_yaml['algorithm']
+                annotation.checksum_digest = meta_yaml['checksum_digest']
+                annotation.signer_name = meta_yaml['signer_name']
+                annotation.signer_email = meta_yaml['signer_email']
+
+            # Validate that `signature.gpg` exists
+            sig_fp = os.path.join(filepath, 'signature.gpg')
+            if not os.path.exists(sig_fp):
+                raise ValueError(
+                    'Unable to load malformed Signature with name: '
+                    f'"{annotation.name}" due to missing `signature.gpg` file.'
+                )
+            # TODO: what exactly do we do here?
+            # need to copy the resulting signature.gpg file that's produced
+            # when gpg subprocess call occurs
 
             else:
                 annotation = UnknownAnnotation.__new__(UnknownAnnotation)
@@ -161,7 +188,9 @@ class Annotation():
                              'python-identifiers-rules-best-practices')
 
     def _write_meta_yaml(self, annotations_dir,
-                         root_result_uuid, referenced_result_uuid):
+                         root_result_uuid, referenced_result_uuid,
+                         algorithm=None, checksum_digest=None,
+                         signer_name=None, signer_email=None):
         """Write the contents of `metadata.yaml` for a given Annotation.
 
         Parameters
@@ -204,6 +233,12 @@ class Annotation():
         metadata['created_at'] = self.created_at
         metadata['root_result_uuid'] = root_result_uuid
         metadata['referenced_result_uuid'] = referenced_result_uuid
+
+        if self.annotation_type == 'Signature':
+            metadata['algorithm'] = algorithm
+            metadata['checksum_digest'] = checksum_digest
+            metadata['signer_name'] = signer_name
+            metadata['signer_email'] = signer_email
 
         meta_yaml = os.path.join(annotation_uuid_dirname, 'metadata.yaml')
         with open(meta_yaml, 'w') as fh:
@@ -387,5 +422,60 @@ class Signature(Annotation):
 
     # NOTE: in future versions, name will become optional & the default value
     # will be the annotation's UUID (if name isn't provided by the user)
-    def __init__(self, name, other_params_go_here):
+    def __init__(self, name, filepath, *, signer_uid=None, fingerprint=None):
         self.validate_name(name)
+
+        # Ensure at least one of signer uid (name/email address) is provided
+        if not signer_uid and not fingerprint:
+            raise ValueError(
+                'No inputs provided to either `signer_uid` or `fingerprint`. '
+                'Please provide either signer ID (name and email) or '
+                'fingerprint for key pair identification.'
+            )
+
+        # Construct Annotation class
+        super().__init__(name)
+
+    def _write(self, annotations_dir, root_result_uuid,
+               referenced_result_uuid, algorithm, checksum_digest,
+               signer_name, signer_email):
+        """Write the contents of an instantiated Signature.
+
+        Parameters
+        ----------
+        annotations_dir
+            The path to the `annotations` directory within a Result object.
+            Located under `provenance`.
+
+        root_result_uuid
+            The uuid of the Result object where an Annotation is being added.
+
+        referenced_result_uuid
+            The uuid of the Result object that an Annotation is referring to.
+            Note that in 7.0 & 7.1, `root_result_uuid` and
+            `referenced_result_uuid` are the same (i.e. Annotations can only
+            refer to the same Result they are being attached to) but separate
+            root and referenced uuids will be supported in future versions.
+
+        algorithm
+            The algorithm used to create the key pair that was used
+            to generate the Signature.
+
+        checksum_digest
+            The `sha512sum` of the Result's root `checksums.sha512` file.
+
+        signer_name
+            The name associated with the key pair used to generate the
+            Signature.
+
+        signer_email
+            The email associated with the key pair used to generate the
+            Signature.
+        """
+        annotation_uuid_dirname = \
+            self._write_meta_yaml(annotations_dir, root_result_uuid,
+                                  referenced_result_uuid, algorithm,
+                                  checksum_digest, signer_name, signer_email)
+
+        sig_path = os.path.join(annotation_uuid_dirname, 'signature.gpg')
+        # NOW WRITE THE SIGNATURE STUFF
