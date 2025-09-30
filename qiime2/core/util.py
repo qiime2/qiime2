@@ -473,10 +473,11 @@ def create_collection_name(*, name, key, idx, size):
     return [name, key, f'{idx + 1}/{size}']
 
 
-def replace_bytes_in_directory(directory, old_bytes, new_bytes, extensions, buffer_size=None):
+def replace_bytes_in_directory(directory, old_bytes, new_bytes, extensions,
+                               buffer_size=None):
     """
-    Recursively replaces all occurrences of old_bytes with new_bytes in files under
-    the given directory. Only processes files with specified extensions.
+    Recursively replaces all occurrences of old_bytes with new_bytes in files
+    under the given directory. Only processes files with specified extensions.
 
     Parameters
     ----------

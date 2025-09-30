@@ -7,6 +7,7 @@
 # ----------------------------------------------------------------------------
 
 import os
+import json
 import tempfile
 import unittest
 import uuid
@@ -14,13 +15,14 @@ import collections
 import pathlib
 
 import qiime2.core.type
-from qiime2.sdk import Visualization
+from qiime2.sdk import Visualization, Artifact
 from qiime2.sdk.result import ResultMetadata
 import qiime2.core.archive as archive
 
+from qiime2.core.testing.type import Mapping, IntSequence1
 from qiime2.core.testing.visualizer import (
     mapping_viz, most_common_viz, multi_html_viz)
-from qiime2.core.testing.util import ArchiveTestingMixin
+from qiime2.core.testing.util import ArchiveTestingMixin, get_dummy_plugin
 
 
 class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
@@ -386,6 +388,115 @@ class TestVisualization(unittest.TestCase, ArchiveTestingMixin):
         faker = Faker()
 
         self.assertNotEqual(visualization, faker)
+
+
+class TestMakeReport(unittest.TestCase):
+    def setUp(self):
+        self.test_dir = tempfile.TemporaryDirectory(prefix='qiime2-test-temp-')
+        # load dummy plugin
+        self.plugin = get_dummy_plugin()
+        # create visualizations via the dummy plugin visualizers once for
+        # use across tests
+        artifact1 = Artifact.import_data(Mapping, {'a': '1'})
+        artifact2 = Artifact.import_data(Mapping, {'b': '2'})
+        mapping_res = self.plugin.visualizers['mapping_viz'](
+            artifact1, artifact2, 'Key', 'Value')
+        self.viz1 = mapping_res[0]
+
+        ints_art = Artifact.import_data(IntSequence1, [0, 1, 1])
+        most_common_res = self.plugin.visualizers['most_common_viz'](ints_art)
+        self.viz2 = most_common_res[0]
+
+    def tearDown(self):
+        self.test_dir.cleanup()
+
+    def test_make_report_simple(self):
+        template_index = None
+
+        def template(destination, index):
+            nonlocal template_index
+            template_index = index
+            # write a simple index.html at the report root
+            with open(os.path.join(destination, 'index.html'), 'w') as fh:
+                fh.write('<html><body>Report</body></html>')
+
+        collection = {'first': self.viz1, 'second': self.viz2}
+        report_viz = Visualization.make_report(template, collection)
+        res_dir = str(report_viz._archiver.path)
+
+        # verify index.html at top level and subfigures index.json
+        top_index = os.path.join(res_dir, 'data', 'index.html')
+        subfigures_index = os.path.join(res_dir, 'data', 'subfigures',
+                                        'index.json')
+
+        self.assertTrue(os.path.exists(top_index))
+        self.assertTrue(os.path.exists(subfigures_index))
+
+        with open(subfigures_index) as fh:
+            json_index = json.load(fh)
+
+        # both keys present
+        self.assertIn('first', json_index)
+        self.assertIn('second', json_index)
+        # Assert that the template recieved the same index as what was written
+        self.assertEqual(json_index, template_index)
+
+    def test_make_report_nested_hoist(self):
+        # create an inner report from viz2 alone
+        # create visualization via dummy plugin
+        def inner_template(destination, index):
+            with open(os.path.join(destination, 'index.html'), 'w') as fh:
+                fh.write('<html><body>Inner</body></html>')
+
+        inner_report = Visualization.make_report(
+            inner_template, {'inner': self.viz2})
+        inner_path = inner_report._archiver.path
+
+        # inner report will have two entries in subfigures, index and viz2
+        self.assertEqual(
+            set(os.listdir(inner_path / 'data' / 'subfigures')),
+            {'index.json', str(self.viz2.uuid)}
+        )
+
+        def outer_template(destination, index):
+            with open(os.path.join(destination, 'index.html'), 'w') as fh:
+                fh.write('<html><body>Outer</body></html>')
+
+        # outer report contains a visualization and a report
+        collection = {'first': self.viz1, 'nested': inner_report}
+        outer_report = Visualization.make_report(outer_template, collection)
+        res_dir = outer_report._archiver.path
+
+        subfigures_dir = os.path.join(res_dir, 'data', 'subfigures')
+        index_fp = os.path.join(subfigures_dir, 'index.json')
+        self.assertTrue(os.path.exists(index_fp))
+
+        with open(index_fp) as fh:
+            json_index = json.load(fh)
+
+        # should contain both 'first' and 'nested'
+        self.assertIn('first', json_index)
+        self.assertIn('nested', json_index)
+
+        # the inner report's subfigure should have been hoisted into top-level
+        # subfigures directory: check that there exists at least two uuid dirs
+        children = [name for name in os.listdir(subfigures_dir)
+                    if os.path.isdir(os.path.join(subfigures_dir, name))]
+        # expect 3 subfigure directories (viz1, nested, and hoisted inner)
+        self.assertEqual(len(children), 3)
+
+        # now assert that the inner report has a re-written index.json and
+        # no subfigures in its directory
+        inner, _ = os.path.split(json_index['nested']['index'])
+        inner_subfigures = os.path.join(res_dir, 'data', inner, 'subfigures')
+        # only index.json
+        self.assertEqual(os.listdir(inner_subfigures), ['index.json'])
+        with open(os.path.join(inner_subfigures, 'index.json')) as fh:
+            inner_index = json.load(fh)
+
+        self.assertEqual(inner_index['inner']['index'],
+                         # the base dir has been updated to the parent dir
+                         f'../{str(self.viz2.uuid)}/index.html')
 
 
 if __name__ == '__main__':

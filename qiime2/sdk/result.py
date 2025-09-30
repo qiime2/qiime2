@@ -656,9 +656,29 @@ class Visualization(Result):
 
     @classmethod
     def make_report(cls, template, collection):
-        provenance_capture = archive.ReportProvenanceCapture()
+        """Make a report out of existing visualizations and a template.
 
+        Parameters
+        ----------
+        template : Callable[[str, dict], None]
+            A template function which is given the output directory as the
+            first argument and an index of subfigures as the second.
+
+        collection : dict[str, Visualization]
+            The visualizations to make available to the template. It is up
+            to the template to use them, but they will exist in a specialized
+            subfigures directory unique to the report format for Visualization.
+
+        Returns
+        -------
+        Visualization
+            The newly created report as a Visualization. It will have the
+            format of "report".
+
+        """
+        provenance_capture = archive.ReportProvenanceCapture()
         to_reindex = {}
+
         def data_initializer(destination):
             index = {}
             subfigures_dir = os.path.join(destination, 'subfigures')
@@ -673,8 +693,15 @@ class Visualization(Result):
                 if not os.path.exists(subfigure_root):
                     shutil.copytree(viz._archiver.data_dir, subfigure_root)
 
-
+                # if not for reports of reports, this would have been the end
+                # of the data_initializer, however we don't want nested
+                # reports to have an arbitrarily long path as this will break
+                # things. Also we get de-duplication for free if we hoist
+                # sub-subfgures into just subfigures of the outermost report
                 if viz.format is report:
+                    # reports which were providfed as part of the collection
+                    # will have sub-figures moved and index.json re-written
+                    # to a new flattened path
                     to_reindex[viz_uuid] = set()
                     child_figs = os.path.join(subfigure_root, 'subfigures')
                     with open(os.path.join(child_figs, 'index.json')) as fh:
@@ -691,13 +718,17 @@ class Visualization(Result):
                         flattened_dest = os.path.join(subfigures_dir, uuid)
                         if os.path.exists(child_root):
                             if os.path.exists(flattened_dest):
+                                # exists already via another subfigure
                                 shutil.rmtree(child_root)
                             else:
+                                # hoist the sub-subfigure into a subfigure
                                 shutil.move(child_root, flattened_dest)
 
             for report_uuid, children in to_reindex.items():
                 subfigure_root = os.path.join(subfigures_dir, report_uuid)
                 for uuid in children:
+                    # correct any references to the original sub-subfigures
+                    # they are now the hoisted/flattened path
                     util.replace_bytes_in_directory(
                         subfigure_root,
                         f'subfigures/{uuid}/index.html'.encode(),
