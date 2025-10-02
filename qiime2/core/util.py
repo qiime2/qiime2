@@ -512,7 +512,9 @@ def replace_bytes_in_file(filepath, old_bytes, new_bytes, buffer_size=None):
     filepath : str
         Path to the file to process.
     old_bytes : bytes
-        The byte sequence to find and replace. Must be at least 2 bytes long.
+        The byte sequence to find and replace. Should be at least 2 bytes long.
+        If only replacing 1 byte, use a simpler implementation that does not
+        have to consider chunk boundaries.
     new_bytes : bytes
         The byte sequence to replace old_bytes with.
     buffer_size : int, optional

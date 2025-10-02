@@ -707,6 +707,10 @@ class Visualization(Result):
                     with open(os.path.join(child_figs, 'index.json')) as fh:
                         inner_index = json.load(fh)
                         index[key]['children'] = inner_index
+                        # collect the set of inner subfigures which may be
+                        # referenced by the inner report. The `index` key
+                        # holds the "url" `subfigures/<uuid>/index.html`
+                        # so we get the subfigure UUID from there.
                         to_reindex[viz_uuid] = \
                             set(map(lambda x: x['index'].split('/')[-2],
                                     util.flatten_children(inner_index)))
