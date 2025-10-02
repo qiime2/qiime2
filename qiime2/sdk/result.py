@@ -697,9 +697,9 @@ class Visualization(Result):
                 # of the data_initializer, however we don't want nested
                 # reports to have an arbitrarily long path as this will break
                 # things. Also we get de-duplication for free if we hoist
-                # sub-subfgures into just subfigures of the outermost report
+                # sub-subfigures into just subfigures of the outermost report
                 if viz.format is report:
-                    # reports which were providfed as part of the collection
+                    # reports which were provided as part of the collection
                     # will have sub-figures moved and index.json re-written
                     # to a new flattened path
                     to_reindex[viz_uuid] = set()
