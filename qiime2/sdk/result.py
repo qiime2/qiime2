@@ -26,7 +26,7 @@ import qiime2.core.util as util
 import qiime2.core.exceptions as exceptions
 
 from qiime2.sdk.iresult import IResult
-from qiime2.core.annotate import Annotation
+from qiime2.core.annotate import Annotation, ANNOTATION_TYPE_LIST
 
 # Note: Result, Artifact, and Visualization classes are in this file to avoid
 # circular dependencies between Result and its subclasses. Result is tightly
@@ -336,7 +336,7 @@ class Result(IResult):
         Parameters
         ----------
         annotation
-            An instantiated Annotation subclass (Note, etc).
+            An instantiated Annotation subclass (Note, Signature, etc).
 
         Raises
         ------
@@ -409,14 +409,24 @@ class Result(IResult):
 
         raise KeyError(f'No Annotation with name: "{name}" was found.')
 
-    # TODO: add support to filter by type
-    # once additional annotation types are added in 7.1
-    def iter_annotations(self):
+    def iter_annotations(self, filter_by_type=None):
         """Constructs an iterable containing all Annotations associated with
         the Result object.
         """
         self._validate_annotation_support()
-        yield from self._annotations.values()
+
+        if filter_by_type is None:
+            yield from self._annotations.values()
+            return
+
+        if filter_by_type not in ANNOTATION_TYPE_LIST:
+            raise ValueError(f'Unknown annotation type: "{filter_by_type}". '
+                             'Supported annotation types are: '
+                             f'{ANNOTATION_TYPE_LIST}')
+
+        for annotation in self._annotations.values():
+            if getattr(annotation, 'annotation_type') == filter_by_type:
+                yield annotation
 
     def remove_annotation(self, name):
         """

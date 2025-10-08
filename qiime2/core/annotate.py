@@ -18,139 +18,8 @@ import yaml
 from collections import OrderedDict
 from datetime import datetime
 
-
-# utils
-_PUBKEY_ALG = {
-    '1': 'RSA',
-    '2': 'RSA',
-    '3': 'RSA',
-    '16': 'ElGamal',
-    '17': 'DSA',
-    '18': 'ECDH',
-    '19': 'ECDSA',
-    '22': 'EdDSA'
-}
-_EMAIL_REGEX = re.compile(r'.*<([^>]+)>')
-
-
-def _find_root_fp(start: pathlib.Path) -> pathlib.Path:
-    p = pathlib.Path(start).resolve()
-
-    for _ in range(6):
-        provenance = p / 'provenance'
-        meta_yaml = p / 'metadata.yaml'
-        if provenance.is_dir() and meta_yaml.is_file():
-            return p
-        elif p.parent == p:
-            break
-        p = p.parent
-    raise ValueError(f'Could not locate Result root starting from {start}.')
-
-
-def _sha512_file_hex(path: pathlib.Path) -> str:
-    hex = hashlib.sha512()
-    with open(path, 'rb') as fh:
-        for chunk in iter(lambda: fh.read(1024*1024), b""):
-            hex.update(chunk)
-    return hex.hexdigest()
-
-
-def _parse_uid(uid_str: str):
-    uid_match = _EMAIL_REGEX.match(uid_str or "")
-    if uid_match:
-        email = uid_match.group(1)
-        name = uid_str[: uid_str.index('<')].strip()
-        return name or None, email or None
-    return (uid_str.strip() or None, None)
-
-
-def _normalize_fp(s: str) -> str:
-    return re.sub(r'\s+', '', (s or '')).upper()
-
-
-def _gpg_find_key(selector: str) -> dict:
-    cmd = [
-        'gpg',
-        '--list-keys',
-        '--with-colons',
-        '--fingerprint',
-        '--keyid-format=long',
-        selector
-    ]
-    try:
-        out = subprocess.check_output(cmd, text=True)
-    except FileNotFoundError as e:
-        raise RuntimeError('`gpg` not found on `PATH`.') from e
-    except subprocess.CalledProcessError:
-        raise RuntimeError(
-            'No matching key found for the provided UID/fingerprint'
-        )
-
-    info = {
-        'fingerprint': None,
-        'algorithm': None,
-        'length': None,
-        'curve': None,
-        'uids': [],
-        'chosen_uid': None
-    }
-
-    provided_fp = \
-        (_normalize_fp(selector) if re.fullmatch(r'[0-9A-Fa-f\s]+',
-                                                 selector or '') and
-         len(_normalize_fp(selector)) >= 32 else None)
-    in_primary = False
-
-    for ln in out.splitlines():
-        parts = ln.split(':')
-        tag = parts[0]
-        if tag == 'pub':
-            in_primary = True
-            length = parts[2] or '0'
-            algorithm_num = parts[3] or ''
-            curve = parts[15] if len(parts) >= 16 and parts[15] else None
-            info['length'] = int(length) if length.isdigit() else 0
-            info['algorithm'] = \
-                _PUBKEY_ALG.get(algorithm_num, f'ALG-{algorithm_num}')
-            info['curve'] = curve
-        elif in_primary and tag == 'fpr' and info['fingerprint'] is None:
-            fp = _normalize_fp(parts[9])
-            if provided_fp and fp != provided_fp:
-                continue
-            info['fingerprint'] = fp
-        elif in_primary and tag == 'uid':
-            raw = parts[9]
-            name, email = _parse_uid(raw)
-            info['uids'].append({'raw': raw, 'name': name, 'email': email})
-
-    if not info['fingerprint']:
-        raise RuntimeError('Could not determine primary key fingerprint '
-                           'from `gpg` output.')
-
-    chosen = None
-    if selector and '<' in selector and '>' in selector:
-        for u in info['uids']:
-            if u['raw'] == selector.strip():
-                chosen = u
-                break
-    info['chosen_uid'] = chosen or (info['uids'][0] if info['uids'] else
-                                    {'raw': None, 'name': None, 'email': None})
-
-    return info
-
-
-def _format_algorithm(info: dict) -> str:
-    algorithm = info.get('algorithm')
-    curve = (info.get('curve') or '').lower()
-    length = info.get('length') or 0
-    if algorithm == 'EdDSA' and curve == 'ed25519':
-        return 'Ed25519'
-    elif algorithm in {'ECDSA', 'ECDH'} and info.get('curve'):
-        return f'{algorithm}/{info["curve"]}'
-    elif algorithm in {'RSA', 'DSA'} and length:
-        return f'{algorithm}-{length}'
-    else:
-        return algorithm or 'unknown'
+# NOTE: UPDATE ME WITH EACH NEW ANNOTATION SUB-TYPE
+ANNOTATION_TYPE_LIST = ['Note', 'Signature']
 
 
 class Annotation():
@@ -528,6 +397,168 @@ class Note(Annotation):
             fh.write(contents)
 
 
+# public key algorithm identifiers
+# https://datatracker.ietf.org/doc/html/rfc4880#section-9.1
+_PUBKEY_ALG = {
+    '1': 'RSA',
+    '2': 'RSA',
+    '3': 'RSA',
+    '16': 'ElGamal',
+    '17': 'DSA',
+    '18': 'ECDH',
+    '19': 'ECDSA',
+    '22': 'EdDSA'
+}
+
+
+# SIGNATURE HELPERS
+# helper for locating root_fp for a given Result
+def _find_root_fp(start: pathlib.Path) -> pathlib.Path:
+    p = pathlib.Path(start).resolve()
+
+    for _ in range(6):
+        provenance = p / 'provenance'
+        meta_yaml = p / 'metadata.yaml'
+        if provenance.is_dir() and meta_yaml.is_file():
+            return p
+        elif p.parent == p:
+            break
+        p = p.parent
+    raise ValueError(f'Could not locate Result root starting from {start}.')
+
+
+# helper for calculating the root level checksum digest
+def _sha512_file_hex(path: pathlib.Path) -> str:
+    hex = hashlib.sha512()
+    with open(path, 'rb') as fh:
+        for chunk in iter(lambda: fh.read(1024*1024), b""):
+            hex.update(chunk)
+    return hex.hexdigest()
+
+
+# helper for parsing user name/email for keypair identification
+def _parse_uid(uid_str: str):
+    email_regex = re.compile(r'.*<([^>]+)>')
+    uid_match = email_regex.match(uid_str or "")
+    if uid_match:
+        email = uid_match.group(1)
+        name = uid_str[: uid_str.index('<')].strip()
+        return name or None, email or None
+    return (uid_str.strip() or None, None)
+
+
+# helper for normalizing fingerprint formatting
+def _normalize_fingerprint(s: str) -> str:
+    return re.sub(r'\s+', '', (s or '')).upper()
+
+
+# helper for pulling keypair info from a given fingerprint or uid
+def _gpg_find_key(key_selector: str) -> dict:
+    cmd = [
+        'gpg',
+        '--list-keys',
+        '--with-colons',
+        '--fingerprint',
+        '--keyid-format=long',
+        key_selector
+    ]
+    try:
+        output = subprocess.check_output(cmd, text=True)
+    except FileNotFoundError as e:
+        raise RuntimeError('`gpg` not found on `PATH`.') from e
+    except subprocess.CalledProcessError:
+        raise RuntimeError(
+            'No matching key found for the provided UID/fingerprint'
+        )
+
+    key_info = {
+        'fingerprint': None,
+        'algorithm': None,
+        'length': None,
+        'curve': None,
+        'uids': [],
+        'chosen_uid': None
+    }
+
+    fingerprint = \
+        (_normalize_fingerprint(key_selector)
+         if re.fullmatch(r'[0-9A-Fa-f\s]+', key_selector or '')
+         and len(_normalize_fingerprint(key_selector)) >= 32
+         else None)
+
+    # format for the output of `gpg --list-keys`
+    # pub:...:<len>:<algo>:<keyid>:...
+    # fpr:::::::::<PRIMARY-FINGERPRINT>::    -> fingerprint for the primary key
+    # uid:::::::<Name <email>>:              -> UID(s) for the primary key
+    # uid:::::::<Other Name <other@example>>:
+    # sub:...:                               -> subkey (not the primary)
+    # fpr:::::::::<SUBKEY-FINGERPRINT>::     -> fingerprint for the subkey
+    # ...
+
+    # this state flag tells us whether or not we're in the primary key block
+    in_primary = False
+
+    for line in output.splitlines():
+        parts = line.split(':')
+        tag = parts[0]
+        # public key tag; the primary key info that matches
+        # the given uid or fingerprint will be here
+        if tag == 'pub':
+            in_primary = True
+            length = parts[2] or '0'
+            algorithm_num = parts[3] or ''
+            curve = parts[15] if len(parts) >= 16 and parts[15] else None
+            key_info['length'] = int(length) if length.isdigit() else 0
+            key_info['algorithm'] = \
+                _PUBKEY_ALG.get(algorithm_num, f'ALG-{algorithm_num}')
+            key_info['curve'] = curve
+        # subkey fingerprint (if applicable)
+        elif in_primary and tag == 'fpr' and key_info['fingerprint'] is None:
+            normalized_fingerprint = _normalize_fingerprint(parts[9])
+            if fingerprint and normalized_fingerprint != fingerprint:
+                continue
+            # fill in fingerprint if given keypair id was name/email
+            key_info['fingerprint'] = normalized_fingerprint
+        # fill in name/email from given uid
+        elif in_primary and tag == 'uid':
+            raw = parts[9]
+            name, email = _parse_uid(raw)
+            key_info['uids'].append({'raw': raw, 'name': name, 'email': email})
+
+    if not key_info['fingerprint']:
+        raise RuntimeError('Could not determine primary key fingerprint '
+                           'from `gpg` output.')
+
+    chosen_uid = None
+    # identifies if Name <email> was used as the keypair identifier
+    if key_selector and '<' in key_selector and '>' in key_selector:
+        # since there can be multiple uids associated with a given keypair
+        for uid in key_info['uids']:
+            if uid['raw'] == key_selector.strip():
+                chosen_uid = uid
+                break
+    key_info['chosen_uid'] = \
+        chosen_uid or (key_info['uids'][0] if key_info['uids'] else
+                       {'raw': None, 'name': None, 'email': None})
+
+    return key_info
+
+
+# helper for formatting keypair algorithm in metadata.yaml
+def _format_algorithm(key_info: dict) -> str:
+    algorithm = key_info.get('algorithm')
+    curve = (key_info.get('curve') or '').lower()
+    length = key_info.get('length') or 0
+    if algorithm == 'EdDSA' and curve == 'ed25519':
+        return 'Ed25519'
+    elif algorithm in {'ECDSA', 'ECDH'} and key_info.get('curve'):
+        return f'{algorithm}/{key_info["curve"]}'
+    elif algorithm in {'RSA', 'DSA'} and length:
+        return f'{algorithm}-{length}'
+    else:
+        return algorithm or 'unknown'
+
+
 class Signature(Annotation):
     """Signature sub-class, inherits from Annotations.
 
@@ -597,21 +628,6 @@ class Signature(Annotation):
             `referenced_result_uuid` are the same (i.e. Annotations can only
             refer to the same Result they are being attached to) but separate
             root and referenced uuids will be supported in future versions.
-
-        algorithm
-            The algorithm used to create the key pair that was used
-            to generate the Signature.
-
-        checksum_digest
-            The `sha512sum` of the Result's root `checksums.sha512` file.
-
-        signer_name
-            The name associated with the key pair used to generate the
-            Signature.
-
-        signer_email
-            The email associated with the key pair used to generate the
-            Signature.
         """
         root_fp = _find_root_fp(annotations_dir)
 
