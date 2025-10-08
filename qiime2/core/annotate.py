@@ -6,12 +6,151 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import hashlib
 import os
+import pathlib
+import re
+import subprocess
+import sys
 import uuid as _uuid
 import yaml
 
 from collections import OrderedDict
 from datetime import datetime
+
+
+# utils
+_PUBKEY_ALG = {
+    '1': 'RSA',
+    '2': 'RSA',
+    '3': 'RSA',
+    '16': 'ElGamal',
+    '17': 'DSA',
+    '18': 'ECDH',
+    '19': 'ECDSA',
+    '22': 'EdDSA'
+}
+_EMAIL_REGEX = re.compile(r'.*<([^>]+)>')
+
+
+def _find_root_fp(start: pathlib.Path) -> pathlib.Path:
+    p = pathlib.Path(start).resolve()
+
+    for _ in range(6):
+        provenance = p / 'provenance'
+        meta_yaml = p / 'metadata.yaml'
+        if provenance.is_dir() and meta_yaml.is_file():
+            return p
+        elif p.parent == p:
+            break
+        p = p.parent
+    raise ValueError(f'Could not locate Result root starting from {start}.')
+
+
+def _sha512_file_hex(path: pathlib.Path) -> str:
+    hex = hashlib.sha512()
+    with open(path, 'rb') as fh:
+        for chunk in iter(lambda: fh.read(1024*1024), b""):
+            hex.update(chunk)
+    return hex.hexdigest()
+
+
+def _parse_uid(uid_str: str):
+    uid_match = _EMAIL_REGEX.match(uid_str or "")
+    if uid_match:
+        email = uid_match.group(1)
+        name = uid_str[: uid_str.index('<')].strip()
+        return name or None, email or None
+    return (uid_str.strip() or None, None)
+
+
+def _normalize_fp(s: str) -> str:
+    return re.sub(r'\s+', '', (s or '')).upper()
+
+
+def _gpg_find_key(selector: str) -> dict:
+    cmd = [
+        'gpg',
+        '--list-keys',
+        '--with-colons',
+        '--fingerprint',
+        '--keyid-format=long',
+        selector
+    ]
+    try:
+        out = subprocess.check_output(cmd, text=True)
+    except FileNotFoundError as e:
+        raise RuntimeError('`gpg` not found on `PATH`.') from e
+    except subprocess.CalledProcessError:
+        raise RuntimeError(
+            'No matching key found for the provided UID/fingerprint'
+        )
+
+    info = {
+        'fingerprint': None,
+        'algorithm': None,
+        'length': None,
+        'curve': None,
+        'uids': [],
+        'chosen_uid': None
+    }
+
+    provided_fp = \
+        (_normalize_fp(selector) if re.fullmatch(r'[0-9A-Fa-f\s]+',
+                                                 selector or '') and
+         len(_normalize_fp(selector)) >= 32 else None)
+    in_primary = False
+
+    for ln in out.splitlines():
+        parts = ln.split(':')
+        tag = parts[0]
+        if tag == 'pub':
+            in_primary = True
+            length = parts[2] or '0'
+            algorithm_num = parts[3] or ''
+            curve = parts[15] if len(parts) >= 16 and parts[15] else None
+            info['length'] = int(length) if length.isdigit() else 0
+            info['algorithm'] = \
+                _PUBKEY_ALG.get(algorithm_num, f'ALG-{algorithm_num}')
+            info['curve'] = curve
+        elif in_primary and tag == 'fpr' and info['fingerprint'] is None:
+            fp = _normalize_fp(parts[9])
+            if provided_fp and fp != provided_fp:
+                continue
+            info['fingerprint'] = fp
+        elif in_primary and tag == 'uid':
+            raw = parts[9]
+            name, email = _parse_uid(raw)
+            info['uids'].append({'raw': raw, 'name': name, 'email': email})
+
+    if not info['fingerprint']:
+        raise RuntimeError('Could not determine primary key fingerprint '
+                           'from `gpg` output.')
+
+    chosen = None
+    if selector and '<' in selector and '>' in selector:
+        for u in info['uids']:
+            if u['raw'] == selector.strip():
+                chosen = u
+                break
+    info['chosen_uid'] = chosen or (info['uids'][0] if info['uids'] else
+                                    {'raw': None, 'name': None, 'email': None})
+
+    return info
+
+
+def _format_algorithm(info: dict) -> str:
+    algorithm = info.get('algorithm')
+    curve = (info.get('curve') or '').lower()
+    length = info.get('length') or 0
+    if algorithm == 'EdDSA' and curve == 'ed25519':
+        return 'Ed25519'
+    elif algorithm in {'ECDSA', 'ECDH'} and info.get('curve'):
+        return f'{algorithm}/{info["curve"]}'
+    elif algorithm in {'RSA', 'DSA'} and length:
+        return f'{algorithm}-{length}'
+    else:
+        return algorithm or 'unknown'
 
 
 class Annotation():
@@ -97,7 +236,7 @@ class Annotation():
                         annotation.contents = fh.read()
 
             # SIGNATURE
-            if annotation_type == 'Signature':
+            elif annotation_type == 'Signature':
                 annotation = Signature.__new__(Signature)
                 # Now attach attrs from metadata.yaml
                 annotation.id = meta_yaml['id']
@@ -109,17 +248,16 @@ class Annotation():
                 annotation.checksum_digest = meta_yaml['checksum_digest']
                 annotation.signer_name = meta_yaml['signer_name']
                 annotation.signer_email = meta_yaml['signer_email']
+                annotation.fingerprint = meta_yaml.get('fingerprint')
 
-            # Validate that `signature.gpg` exists
-            sig_fp = os.path.join(filepath, 'signature.gpg')
-            if not os.path.exists(sig_fp):
-                raise ValueError(
-                    'Unable to load malformed Signature with name: '
-                    f'"{annotation.name}" due to missing `signature.gpg` file.'
-                )
-            # TODO: what exactly do we do here?
-            # need to copy the resulting signature.gpg file that's produced
-            # when gpg subprocess call occurs
+                # Validate that `signature.gpg` exists
+                sig_fp = os.path.join(filepath, 'signature.gpg')
+                if not os.path.exists(sig_fp):
+                    raise ValueError(
+                        'Unable to load malformed Signature with name: '
+                        f'"{annotation.name}" due to missing '
+                        '`signature.gpg` file.'
+                    )
 
             else:
                 annotation = UnknownAnnotation.__new__(UnknownAnnotation)
@@ -190,7 +328,8 @@ class Annotation():
     def _write_meta_yaml(self, annotations_dir,
                          root_result_uuid, referenced_result_uuid,
                          algorithm=None, checksum_digest=None,
-                         signer_name=None, signer_email=None):
+                         signer_name=None, signer_email=None,
+                         fingerprint=None):
         """Write the contents of `metadata.yaml` for a given Annotation.
 
         Parameters
@@ -239,6 +378,7 @@ class Annotation():
             metadata['checksum_digest'] = checksum_digest
             metadata['signer_name'] = signer_name
             metadata['signer_email'] = signer_email
+            metadata['fingerprint'] = fingerprint
 
         meta_yaml = os.path.join(annotation_uuid_dirname, 'metadata.yaml')
         with open(meta_yaml, 'w') as fh:
@@ -422,7 +562,7 @@ class Signature(Annotation):
 
     # NOTE: in future versions, name will become optional & the default value
     # will be the annotation's UUID (if name isn't provided by the user)
-    def __init__(self, name, filepath, *, signer_uid=None, fingerprint=None):
+    def __init__(self, name, *, signer_uid=None, fingerprint=None):
         self.validate_name(name)
 
         # Ensure at least one of signer uid (name/email address) is provided
@@ -434,11 +574,12 @@ class Signature(Annotation):
             )
 
         # Construct Annotation class
+        self.signer_uid = signer_uid
+        self.fingerprint = fingerprint
         super().__init__(name)
 
     def _write(self, annotations_dir, root_result_uuid,
-               referenced_result_uuid, algorithm, checksum_digest,
-               signer_name, signer_email):
+               referenced_result_uuid):
         """Write the contents of an instantiated Signature.
 
         Parameters
@@ -472,10 +613,85 @@ class Signature(Annotation):
             The email associated with the key pair used to generate the
             Signature.
         """
+        root_fp = _find_root_fp(annotations_dir)
+
+        checksums_fp = root_fp / 'checksums.sha512'
+        if not checksums_fp.exists():
+            raise ValueError(
+                'Unable to create Signature due to malformed Result: '
+                f'missing root checksums file at "{checksums_fp}".'
+            )
+        checksum_digest = _sha512_file_hex(checksums_fp)
+
+        keypair_id = self.signer_uid or self.fingerprint
+        if not keypair_id:
+            raise ValueError(
+                'No signer identity available. `signer_uid` '
+                '(e.g. "Name <email>") or `fingerprint` must be available '
+                'within gpg when constructing Signature.'
+            )
+
+        key_info = _gpg_find_key(keypair_id)
+        algorithm = _format_algorithm(key_info)
+        fingerprint = key_info['fingerprint']
+        signer_name = key_info['chosen_uid']['name']
+        signer_email = key_info['chosen_uid']['email']
+
         annotation_uuid_dirname = \
             self._write_meta_yaml(annotations_dir, root_result_uuid,
                                   referenced_result_uuid, algorithm,
-                                  checksum_digest, signer_name, signer_email)
+                                  checksum_digest, signer_name, signer_email,
+                                  fingerprint)
 
-        sig_path = os.path.join(annotation_uuid_dirname, 'signature.gpg')
-        # NOW WRITE THE SIGNATURE STUFF
+        signature_dir = pathlib.Path(annotation_uuid_dirname)
+        sig_fp = signature_dir / 'signature.gpg'
+
+        env = os.environ.copy()
+        # Apparently this is helpful on Unix for GPG to find
+        # the correct terminal
+        try:
+            if sys.stdin and sys.stdin.isatty():
+                env.setdefault('GPG_TTY', os.ttyname(sys.stdin.fileno()))
+        except Exception:
+            pass
+
+        cmd = [
+            'gpg',
+            '--local-user', str(keypair_id),
+            '--output', str(sig_fp),
+            '--detach-sign', str(checksums_fp)
+        ]
+
+        try:
+            subprocess.run(cmd, check=True, env=env)
+        except FileNotFoundError as e:
+            raise RuntimeError(
+                'GnuPG (`gpg`) is not installed or not on `PATH`. '
+                'Install GnuPG and ensure your key pair is available.'
+            ) from e
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(
+                '`gpg` signing failed. Ensure that the selected key exists '
+                'and is unlocked (or that pinentry can prompt for the '
+                'private key password).'
+            ) from e
+
+        if not sig_fp.exists() or sig_fp.stat().st_size == 0:
+            raise RuntimeError(
+                '`gpg` reported success but no signature was written at '
+                f'{sig_fp!s}.'
+            )
+
+        # smoke check to ensure signature writing was successful
+        try:
+            subprocess.run(
+                ['gpg', '--verify', str(sig_fp), str(checksums_fp)],
+                check=True, env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        except subprocess.CalledProcessError:
+            raise RuntimeError(
+                'Wrote signature.gpg but `gpg --verify` failed; '
+                'signature may be invalid.'
+            )
