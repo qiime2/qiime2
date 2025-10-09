@@ -28,7 +28,7 @@ class ArchiveFormat(v7_0.ArchiveFormat):
             annotations/
             ├── uuid1/
             │   ├── metadata.yaml
-            │   ├── signature.txt
+            │   ├── signature.gpg
             │   ├── manifest.sha512
 
         The `metadata.yaml` file for Signatures will contain all standard
@@ -48,10 +48,7 @@ class ArchiveFormat(v7_0.ArchiveFormat):
                 The algorithm used to create the key pair being used
                 for Signature creation.
 
-            `fingerprint`
-                The calculated sha512 checksum of the public key.
-
-            `manifest_digest`
+            `checksum_digest`
                 The calculated sha512 checksum of the root
                 checksums.sha512 file.
 
@@ -61,7 +58,10 @@ class ArchiveFormat(v7_0.ArchiveFormat):
             `signer_email`
                 (Optional) Email address of the user creating the Signature.
 
-        The `signature.txt` file will contain the calculated signature
+            `fingerprint`
+                The calculated sha512 checksum of the public key.
+
+        The `signature.gpg` file will contain the calculated signature
         of the private key and the root level checksums.sha512 file.
     """
     pass
