@@ -7,9 +7,12 @@
 # ----------------------------------------------------------------------------
 
 import os
+import re
+import sys
 import shutil
 import warnings
 import tempfile
+import subprocess
 import collections
 import distutils.dir_util
 import pathlib
@@ -26,7 +29,9 @@ import qiime2.core.util as util
 import qiime2.core.exceptions as exceptions
 
 from qiime2.sdk.iresult import IResult
-from qiime2.core.annotate import Annotation, ANNOTATION_TYPE_LIST
+from qiime2.core.annotate import (Annotation, ANNOTATION_TYPE_LIST,
+                                  _sha512_file_hex, _gpg_find_key,
+                                  _normalize_fingerprint)
 
 # Note: Result, Artifact, and Visualization classes are in this file to avoid
 # circular dependencies between Result and its subclasses. Result is tightly
@@ -327,6 +332,38 @@ class Result(IResult):
                 'formats of 7.0 and above.'
             )
 
+    def _iter_checksums(self, checksums_fp):
+        checksum_line_regex = re.compile(r"^([0-9a-f]{128})\s\s(.+)$")
+        with checksums_fp.open('r', encoding='utf-8') as fh:
+            for line in fh:
+                line = line.rstrip('\n')
+                if not line:
+                    continue
+                match = checksum_line_regex.match(line)
+                if match:
+                    yield (match.group(1), match.group(2))
+
+    # base report for signature verification
+    # keys will be updated as different checks pass, else will include the
+    # failure message in the details key pair
+    def _empty_report(self, signature=None):
+        return {
+            "ok": False,
+            "fingerprint_ok": False,
+            "checksum_digest_ok": False,
+            "gpg_signature_ok": False,
+            "file_checksums_ok": False,
+            "missing_files": [],
+            "mismatched_files": [],
+            "details": "",
+            "fingerprint": (getattr(signature, "fingerprint")
+                            if signature is not None else None),
+            "signer_name": (getattr(signature, "signer_name")
+                            if signature is not None else None),
+            "signer_email": (getattr(signature, "signer_email")
+                             if signature is not None else None),
+        }
+
     def add_annotation(self, annotation):
         """
         Add an Annotation onto a Result object.
@@ -464,6 +501,169 @@ class Result(IResult):
 
         shutil.rmtree(annotation_disk_dir)
         del annotations[name]
+
+    def verify(self, signature_name):
+        """
+        Verify a Signature annotation by name on the provided Result.
+
+        Parameters
+        ----------
+        signature_name
+            Name of the Signature Annotation to verify.
+
+        Returns
+        -------
+        dict
+            {
+            'ok': bool,
+            'fingerprint_ok': bool,
+            'checksum_digest_ok': bool,
+            'gpg_signature_ok': bool,
+            'file_checksums_ok': bool,
+            'missing_files': [relpath, ...],
+            'mismatched_files':
+                [{'path': relpath, 'expected': hex, 'actual': hex}, ...],
+            'details': str
+            'fingerprint': str | None,
+            'signer_name': str | None,
+            'signer_email': str | None
+            }
+
+        Notes
+        -----
+        The following checks are performed:
+            - keypair presence / fingerprint match in local GPG keyring
+            - sha512sum for root level checksums file matches checksum_digest
+            - gpg detached signature verification
+            - sha512sum checks for each file in signature-level checksums file
+        """
+        signature = None
+
+        for annotation in self.iter_annotations('Signature'):
+            if getattr(annotation, 'name') == signature_name:
+                signature = annotation
+                break
+
+        report = self._empty_report(signature)
+
+        if signature is None:
+            report['details'] = \
+                f'No Signature with name "{signature_name}" found.'
+            return report
+
+        annotation_dir = \
+            pathlib.Path(self._archiver.annotations_dir) / str(signature.id)
+
+        if not annotation_dir.exists():
+            report['details'] = \
+                f'Annotation directory missing: {annotation_dir}'
+            return report
+
+        root_fp = self._archiver.root_dir
+        root_checksums_fp = root_fp / 'checksums.sha512'
+        sig_checksums_fp = annotation_dir / 'checksums.sha512'
+        signature_fp = annotation_dir / 'signature.gpg'
+
+        if not sig_checksums_fp.exists():
+            report['details'] = ('Missing signature-level checksums file: '
+                                 f'{sig_checksums_fp}')
+            return report
+
+        if not signature_fp.exists():
+            report['details'] = f'Missing signature file: {signature_fp}'
+            return report
+
+        try:
+            keypair_selector = (getattr(signature, 'fingerprint') or
+                                getattr(signature, 'signer_uid')
+                                )
+            if not keypair_selector:
+                report['details'] = 'Signature is missing fingerprint/UID.'
+                return report
+            found_keypair = _gpg_find_key(keypair_selector)
+            if getattr(signature, 'fingerprint'):
+                report['fingerprint_ok'] = (
+                    _normalize_fingerprint(found_keypair['fingerprint']) ==
+                    _normalize_fingerprint(signature.fingerprint)
+                )
+            else:
+                report['fingerprint_ok'] = True
+        except Exception as e:
+            report['details'] = ('Signer key not found in local GPG keyring: '
+                                 f'{e}')
+            return report
+
+        if not root_checksums_fp.exists():
+            report['details'] = \
+                f'Missing root checksum file: {root_checksums_fp}'
+            return report
+
+        root_checksum_digest = _sha512_file_hex(root_checksums_fp)
+        report['checksum_digest_ok'] = \
+            (root_checksum_digest == getattr(signature, 'checksum_digest'))
+        if not report['checksum_digest_ok']:
+            report['details'] = \
+                'Root checksums.sha512 does not match digest in metadata.yaml'
+
+        try:
+            env = os.environ.copy()
+
+            try:
+                if sys.stdin and sys.stdin.isatty():
+                    env.setdefault('GPG_TTY', os.ttyname(sys.stdin.fileno()))
+            except Exception:
+                pass
+
+            subprocess.run(
+                ['gpg', '--verify',
+                 str(signature_fp),
+                 str(root_checksums_fp)],
+                check=True, env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            report['gpg_signature_ok'] = True
+        except FileNotFoundError:
+            report['gpg_signature_ok'] = False
+            if not report['details']:
+                report['details'] = '`gpg` not found on PATH.'
+        except subprocess.CalledProcessError as e:
+            report['gpg_signature_ok'] = False
+            if not report['details']:
+                msg = (e.stderr or '').strip()
+                if len(msg) > 500:
+                    msg = msg[:500] + '...'
+                report['details'] = \
+                    f'`gpg --verify` failed (rc={e.returncode}): {msg}'
+
+        missing, mismatched = [], []
+        for exp_digest, relpath in self._iter_checksums(sig_checksums_fp):
+            fp = annotation_dir / relpath
+            if not fp.exists():
+                missing.append(relpath)
+                continue
+            obs_digest = _sha512_file_hex(fp)
+            if obs_digest != exp_digest:
+                mismatched.append({
+                    'path': relpath,
+                    'expected': exp_digest,
+                    'actual': obs_digest
+                })
+
+        report['missing_files'] = missing
+        report['mismatched_files'] = mismatched
+        report['file_checksums_ok'] = (not missing and not mismatched)
+
+        report['ok'] = (
+            report['fingerprint_ok']
+            and report['checksum_digest_ok']
+            and report['gpg_signature_ok']
+            and report['file_checksums_ok']
+        )
+        if not report['ok'] and not report['details']:
+            report['details'] = 'One or more verification checks failed.'
+        return report
 
 
 class Artifact(Result):

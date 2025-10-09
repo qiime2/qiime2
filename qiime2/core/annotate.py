@@ -413,7 +413,7 @@ _PUBKEY_ALG = {
 
 # SIGNATURE HELPERS
 # helper for locating root_fp for a given Result
-def _find_root_fp(start: pathlib.Path) -> pathlib.Path:
+def _find_root_fp(start):
     p = pathlib.Path(start).resolve()
 
     for _ in range(6):
@@ -428,7 +428,7 @@ def _find_root_fp(start: pathlib.Path) -> pathlib.Path:
 
 
 # helper for calculating the root level checksum digest
-def _sha512_file_hex(path: pathlib.Path) -> str:
+def _sha512_file_hex(path):
     hex = hashlib.sha512()
     with open(path, 'rb') as fh:
         for chunk in iter(lambda: fh.read(1024*1024), b""):
@@ -437,7 +437,7 @@ def _sha512_file_hex(path: pathlib.Path) -> str:
 
 
 # helper for parsing user name/email for keypair identification
-def _parse_uid(uid_str: str):
+def _parse_uid(uid_str):
     email_regex = re.compile(r'.*<([^>]+)>')
     uid_match = email_regex.match(uid_str or "")
     if uid_match:
@@ -448,12 +448,12 @@ def _parse_uid(uid_str: str):
 
 
 # helper for normalizing fingerprint formatting
-def _normalize_fingerprint(s: str) -> str:
+def _normalize_fingerprint(s):
     return re.sub(r'\s+', '', (s or '')).upper()
 
 
 # helper for pulling keypair info from a given fingerprint or uid
-def _gpg_find_key(key_selector: str) -> dict:
+def _gpg_find_key(key_selector):
     cmd = [
         'gpg',
         '--list-keys',
@@ -545,7 +545,7 @@ def _gpg_find_key(key_selector: str) -> dict:
 
 
 # helper for formatting keypair algorithm in metadata.yaml
-def _format_algorithm(key_info: dict) -> str:
+def _format_algorithm(key_info):
     algorithm = key_info.get('algorithm')
     curve = (key_info.get('curve') or '').lower()
     length = key_info.get('length') or 0
