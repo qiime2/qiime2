@@ -413,18 +413,11 @@ _PUBKEY_ALG = {
 
 # SIGNATURE HELPERS
 # helper for locating root_fp for a given Result
-def _find_root_fp(start):
-    p = pathlib.Path(start).resolve()
-
-    for _ in range(6):
-        provenance = p / 'provenance'
-        meta_yaml = p / 'metadata.yaml'
-        if provenance.is_dir() and meta_yaml.is_file():
-            return p
-        elif p.parent == p:
-            break
-        p = p.parent
-    raise ValueError(f'Could not locate Result root starting from {start}.')
+def _find_root_fp(annotations_dir, root_result_uuid):
+    split_fp = annotations_dir.split(os.sep)
+    root_result_uuid_index = split_fp.index(root_result_uuid)
+    root_fp = os.sep.join(split_fp[0: root_result_uuid_index + 1])
+    return root_path
 
 
 # helper for calculating the root level checksum digest
