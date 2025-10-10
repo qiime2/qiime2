@@ -454,16 +454,14 @@ class Result(IResult):
 
         if filter_by_type is None:
             yield from self._annotations.values()
-            return
-
-        if filter_by_type not in ANNOTATION_TYPE_LIST:
+        elif filter_by_type not in ANNOTATION_TYPE_LIST:
             raise ValueError(f'Unknown annotation type: "{filter_by_type}". '
                              'Supported annotation types are: '
                              f'{ANNOTATION_TYPE_LIST}')
-
-        for annotation in self._annotations.values():
-            if getattr(annotation, 'annotation_type') == filter_by_type:
-                yield annotation
+        else:
+            for annotation in self._annotations.values():
+                if getattr(annotation, 'annotation_type') == filter_by_type:
+                    yield annotation
 
     def remove_annotation(self, name):
         """
