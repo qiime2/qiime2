@@ -622,7 +622,7 @@ class Signature(Annotation):
             refer to the same Result they are being attached to) but separate
             root and referenced uuids will be supported in future versions.
         """
-        root_fp = _find_root_fp(annotations_dir)
+        root_fp = _find_root_fp(annotations_dir, root_result_uuid)
 
         checksums_fp = root_fp / 'checksums.sha512'
         if not checksums_fp.exists():
