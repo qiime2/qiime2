@@ -6,10 +6,8 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-import hashlib
 import os
 import pathlib
-import re
 import subprocess
 import sys
 import uuid as _uuid
@@ -17,6 +15,9 @@ import yaml
 
 from collections import OrderedDict
 from datetime import datetime
+
+from .util import (add_shared_attrs, find_root_fp, sha512_file_hex,
+                   gpg_find_key, format_algorithm)
 
 # NOTE: UPDATE ME WITH EACH NEW ANNOTATION SUB-TYPE
 ANNOTATION_TYPE_LIST = ['Note', 'Signature']
@@ -78,20 +79,14 @@ class Annotation():
             corresponding annotation directory.
 
         """
-        # TODO: there needs to be a better way to deal with these shared attrs
         with open(os.path.join(filepath, 'metadata.yaml'), 'r') as fh:
             meta_yaml = yaml.safe_load(fh)
             annotation_type = meta_yaml['type']
 
+            annotation = add_shared_attrs(annotation_type, meta_yaml)
+
             # NOTE
             if annotation_type == 'Note':
-                annotation = Note.__new__(Note)
-                # Now attach Note attrs from metadata.yaml
-                annotation.id = meta_yaml['id']
-                annotation.name = meta_yaml['name']
-                annotation.annotation_type = meta_yaml['type']
-                annotation.created_at = meta_yaml['created_at']
-
                 # Validate that `note.txt` exists
                 note_fp = os.path.join(filepath, 'note.txt')
                 if not os.path.exists(note_fp):
@@ -106,12 +101,6 @@ class Annotation():
 
             # SIGNATURE
             elif annotation_type == 'Signature':
-                annotation = Signature.__new__(Signature)
-                # Now attach attrs from metadata.yaml
-                annotation.id = meta_yaml['id']
-                annotation.name = meta_yaml['name']
-                annotation.annotation_type = meta_yaml['type']
-                annotation.created_at = meta_yaml['created_at']
                 # signature-specific attrs
                 annotation.algorithm = meta_yaml['algorithm']
                 annotation.checksum_digest = meta_yaml['checksum_digest']
@@ -127,13 +116,6 @@ class Annotation():
                         f'"{annotation.name}" due to missing '
                         '`signature.gpg` file.'
                     )
-
-            else:
-                annotation = UnknownAnnotation.__new__(UnknownAnnotation)
-                annotation.id = meta_yaml['id']
-                annotation.name = meta_yaml['name']
-                annotation.annotation_type = meta_yaml['type']
-                annotation.created_at = meta_yaml['created_at']
 
         return annotation
 
@@ -397,161 +379,6 @@ class Note(Annotation):
             fh.write(contents)
 
 
-# public key algorithm identifiers
-# https://datatracker.ietf.org/doc/html/rfc4880#section-9.1
-_PUBKEY_ALG = {
-    '1': 'RSA',
-    '2': 'RSA',
-    '3': 'RSA',
-    '16': 'ElGamal',
-    '17': 'DSA',
-    '18': 'ECDH',
-    '19': 'ECDSA',
-    '22': 'EdDSA'
-}
-
-
-# SIGNATURE HELPERS
-# helper for locating root_fp for a given Result
-def _find_root_fp(annotations_dir, root_result_uuid):
-    split_fp = annotations_dir.split(os.sep)
-    root_result_uuid_index = split_fp.index(root_result_uuid)
-    root_fp = os.sep.join(split_fp[0: root_result_uuid_index + 1])
-    return root_fp
-
-
-# helper for calculating the root level checksum digest
-def _sha512_file_hex(path):
-    hex = hashlib.sha512()
-    with open(path, 'rb') as fh:
-        for chunk in iter(lambda: fh.read(1024*1024), b""):
-            hex.update(chunk)
-    return hex.hexdigest()
-
-
-# helper for parsing user name/email for keypair identification
-def _parse_uid(uid_str):
-    email_regex = re.compile(r'.*<([^>]+)>')
-    uid_match = email_regex.match(uid_str or "")
-    if uid_match:
-        email = uid_match.group(1)
-        name = uid_str[: uid_str.index('<')].strip()
-        return name or None, email or None
-    return (uid_str.strip() or None, None)
-
-
-# helper for normalizing fingerprint formatting
-def _normalize_fingerprint(s):
-    return re.sub(r'\s+', '', (s or '')).upper()
-
-
-# helper for pulling keypair info from a given fingerprint or uid
-def _gpg_find_key(key_selector):
-    cmd = [
-        'gpg',
-        '--list-keys',
-        '--with-colons',
-        '--fingerprint',
-        '--keyid-format=long',
-        key_selector
-    ]
-    try:
-        output = subprocess.check_output(cmd, text=True)
-    except FileNotFoundError as e:
-        raise RuntimeError('`gpg` not found on `PATH`.') from e
-    except subprocess.CalledProcessError:
-        raise RuntimeError(
-            'No matching key found for the provided UID/fingerprint'
-        )
-
-    key_info = {
-        'fingerprint': None,
-        'algorithm': None,
-        'length': None,
-        'curve': None,
-        'uids': [],
-        'chosen_uid': None
-    }
-
-    fingerprint = \
-        (_normalize_fingerprint(key_selector)
-         if re.fullmatch(r'[0-9A-Fa-f\s]+', key_selector or '')
-         and len(_normalize_fingerprint(key_selector)) >= 32
-         else None)
-
-    # format for the output of `gpg --list-keys`
-    # pub:...:<len>:<algo>:<keyid>:...
-    # fpr:::::::::<PRIMARY-FINGERPRINT>::    -> fingerprint for the primary key
-    # uid:::::::<Name <email>>:              -> UID(s) for the primary key
-    # uid:::::::<Other Name <other@example>>:
-    # sub:...:                               -> subkey (not the primary)
-    # fpr:::::::::<SUBKEY-FINGERPRINT>::     -> fingerprint for the subkey
-    # ...
-
-    # this state flag tells us whether or not we're in the primary key block
-    in_primary = False
-
-    for line in output.splitlines():
-        parts = line.split(':')
-        tag = parts[0]
-        # public key tag; the primary key info that matches
-        # the given uid or fingerprint will be here
-        if tag == 'pub':
-            in_primary = True
-            length = parts[2] or '0'
-            algorithm_num = parts[3] or ''
-            curve = parts[15] if len(parts) >= 16 and parts[15] else None
-            key_info['length'] = int(length) if length.isdigit() else 0
-            key_info['algorithm'] = \
-                _PUBKEY_ALG.get(algorithm_num, f'ALG-{algorithm_num}')
-            key_info['curve'] = curve
-        # subkey fingerprint (if applicable)
-        elif in_primary and tag == 'fpr' and key_info['fingerprint'] is None:
-            normalized_fingerprint = _normalize_fingerprint(parts[9])
-            if fingerprint and normalized_fingerprint != fingerprint:
-                continue
-            # fill in fingerprint if given keypair id was name/email
-            key_info['fingerprint'] = normalized_fingerprint
-        # fill in name/email from given uid
-        elif in_primary and tag == 'uid':
-            raw = parts[9]
-            name, email = _parse_uid(raw)
-            key_info['uids'].append({'raw': raw, 'name': name, 'email': email})
-
-    if not key_info['fingerprint']:
-        raise RuntimeError('Could not determine primary key fingerprint '
-                           'from `gpg` output.')
-
-    chosen_uid = None
-    # identifies if Name <email> was used as the keypair identifier
-    if key_selector and '<' in key_selector and '>' in key_selector:
-        # since there can be multiple uids associated with a given keypair
-        for uid in key_info['uids']:
-            if uid['raw'] == key_selector.strip():
-                chosen_uid = uid
-                break
-    key_info['chosen_uid'] = \
-        chosen_uid or (key_info['uids'][0] if key_info['uids'] else
-                       {'raw': None, 'name': None, 'email': None})
-
-    return key_info
-
-
-# helper for formatting keypair algorithm in metadata.yaml
-def _format_algorithm(key_info):
-    algorithm = key_info.get('algorithm')
-    curve = (key_info.get('curve') or '').lower()
-    length = key_info.get('length') or 0
-    if algorithm == 'EdDSA' and curve == 'ed25519':
-        return 'Ed25519'
-    elif algorithm in {'ECDSA', 'ECDH'} and key_info.get('curve'):
-        return f'{algorithm}/{key_info["curve"]}'
-    elif algorithm in {'RSA', 'DSA'} and length:
-        return f'{algorithm}-{length}'
-    else:
-        return algorithm or 'unknown'
-
-
 class Signature(Annotation):
     """Signature sub-class, inherits from Annotations.
 
@@ -622,7 +449,7 @@ class Signature(Annotation):
             refer to the same Result they are being attached to) but separate
             root and referenced uuids will be supported in future versions.
         """
-        root_fp = _find_root_fp(annotations_dir, root_result_uuid)
+        root_fp = find_root_fp(annotations_dir, root_result_uuid)
 
         checksums_fp = root_fp / 'checksums.sha512'
         if not checksums_fp.exists():
@@ -630,7 +457,7 @@ class Signature(Annotation):
                 'Unable to create Signature due to malformed Result: '
                 f'missing root checksums file at "{checksums_fp}".'
             )
-        checksum_digest = _sha512_file_hex(checksums_fp)
+        checksum_digest = sha512_file_hex(checksums_fp)
 
         keypair_id = self.signer_uid or self.fingerprint
         if not keypair_id:
@@ -640,8 +467,8 @@ class Signature(Annotation):
                 'within gpg when constructing Signature.'
             )
 
-        key_info = _gpg_find_key(keypair_id)
-        algorithm = _format_algorithm(key_info)
+        key_info = gpg_find_key(keypair_id)
+        algorithm = format_algorithm(key_info)
         fingerprint = key_info['fingerprint']
         signer_name = key_info['chosen_uid']['name']
         signer_email = key_info['chosen_uid']['email']

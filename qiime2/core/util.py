@@ -12,6 +12,7 @@ import hashlib
 import stat
 import os
 import io
+import re
 import collections
 import uuid as _uuid
 import yaml
@@ -22,11 +23,25 @@ import subprocess
 
 import decorator
 
+from qiime2.core.annotate import ANNOTATION_TYPE_LIST, UnknownAnnotation
+
 READ_ONLY_FILE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
 READ_ONLY_DIR = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH | stat.S_IRUSR \
     | stat.S_IRGRP | stat.S_IROTH
 USER_GROUP_RWX = stat.S_IRWXU | stat.S_IRWXG
 OTHER_NO_WRITE = stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH | stat.S_IXOTH
+# public key algorithm identifiers
+# https://datatracker.ietf.org/doc/html/rfc4880#section-9.1
+_PUBKEY_ALG = {
+    '1': 'RSA',
+    '2': 'RSA',
+    '3': 'RSA',
+    '16': 'ElGamal',
+    '17': 'DSA',
+    '18': 'ECDH',
+    '19': 'ECDSA',
+    '22': 'EdDSA'
+}
 
 
 def get_view_name(view):
@@ -470,3 +485,158 @@ def create_collection_name(*, name, key, idx, size):
         standardized way. Assumes 0 based indexing.
     """
     return [name, key, f'{idx + 1}/{size}']
+
+
+# annotation helpers
+# helper for parsing user name/email for keypair identification
+def _parse_uid(uid_str):
+    email_regex = re.compile(r'.*<([^>]+)>')
+    uid_match = email_regex.match(uid_str or "")
+    if uid_match:
+        email = uid_match.group(1)
+        name = uid_str[: uid_str.index('<')].strip()
+        return name or None, email or None
+    return (uid_str.strip() or None, None)
+
+
+# helper for normalizing fingerprint formatting
+def _normalize_fingerprint(s):
+    return re.sub(r'\s+', '', (s or '')).upper()
+
+
+def add_shared_attrs(annotation_type, meta_yaml):
+    if annotation_type in ANNOTATION_TYPE_LIST:
+        annotation = annotation_type.__new__(annotation_type)
+    else:
+        annotation = UnknownAnnotation.__new__(UnknownAnnotation)
+
+    annotation.id = meta_yaml['id']
+    annotation.name = meta_yaml['name']
+    annotation.annotation_type = meta_yaml['type']
+    annotation.created_at = meta_yaml['created_at']
+
+    return annotation
+
+
+# helper for locating root_fp for a given Result
+def find_root_fp(annotations_dir, root_result_uuid):
+    split_fp = annotations_dir.split(os.sep)
+    root_result_uuid_index = split_fp.index(root_result_uuid)
+    root_fp = os.sep.join(split_fp[0: root_result_uuid_index + 1])
+    return root_fp
+
+
+# helper for calculating the root level checksum digest
+def sha512_file_hex(path):
+    hex = hashlib.sha512()
+    with open(path, 'rb') as fh:
+        for chunk in iter(lambda: fh.read(1024*1024), b""):
+            hex.update(chunk)
+    return hex.hexdigest()
+
+
+# helper for pulling keypair info from a given fingerprint or uid
+def gpg_find_key(key_selector):
+    cmd = [
+        'gpg',
+        '--list-keys',
+        '--with-colons',
+        '--fingerprint',
+        '--keyid-format=long',
+        key_selector
+    ]
+    try:
+        output = subprocess.check_output(cmd, text=True)
+    except FileNotFoundError as e:
+        raise RuntimeError('`gpg` not found on `PATH`.') from e
+    except subprocess.CalledProcessError:
+        raise RuntimeError(
+            'No matching key found for the provided UID/fingerprint'
+        )
+
+    key_info = {
+        'fingerprint': None,
+        'algorithm': None,
+        'length': None,
+        'curve': None,
+        'uids': [],
+        'chosen_uid': None
+    }
+
+    fingerprint = \
+        (_normalize_fingerprint(key_selector)
+         if re.fullmatch(r'[0-9A-Fa-f\s]+', key_selector or '')
+         and len(_normalize_fingerprint(key_selector)) >= 32
+         else None)
+
+    # format for the output of `gpg --list-keys`
+    # pub:...:<len>:<algo>:<keyid>:...
+    # fpr:::::::::<PRIMARY-FINGERPRINT>::    -> fingerprint for the primary key
+    # uid:::::::<Name <email>>:              -> UID(s) for the primary key
+    # uid:::::::<Other Name <other@example>>:
+    # sub:...:                               -> subkey (not the primary)
+    # fpr:::::::::<SUBKEY-FINGERPRINT>::     -> fingerprint for the subkey
+    # ...
+
+    # this state flag tells us whether or not we're in the primary key block
+    in_primary = False
+
+    for line in output.splitlines():
+        parts = line.split(':')
+        tag = parts[0]
+        # public key tag; the primary key info that matches
+        # the given uid or fingerprint will be here
+        if tag == 'pub':
+            in_primary = True
+            length = parts[2] or '0'
+            algorithm_num = parts[3] or ''
+            curve = parts[15] if len(parts) >= 16 and parts[15] else None
+            key_info['length'] = int(length) if length.isdigit() else 0
+            key_info['algorithm'] = \
+                _PUBKEY_ALG.get(algorithm_num, f'ALG-{algorithm_num}')
+            key_info['curve'] = curve
+        # subkey fingerprint (if applicable)
+        elif in_primary and tag == 'fpr' and key_info['fingerprint'] is None:
+            normalized_fingerprint = _normalize_fingerprint(parts[9])
+            if fingerprint and normalized_fingerprint != fingerprint:
+                continue
+            # fill in fingerprint if given keypair id was name/email
+            key_info['fingerprint'] = normalized_fingerprint
+        # fill in name/email from given uid
+        elif in_primary and tag == 'uid':
+            raw = parts[9]
+            name, email = _parse_uid(raw)
+            key_info['uids'].append({'raw': raw, 'name': name, 'email': email})
+
+    if not key_info['fingerprint']:
+        raise RuntimeError('Could not determine primary key fingerprint '
+                           'from `gpg` output.')
+
+    chosen_uid = None
+    # identifies if Name <email> was used as the keypair identifier
+    if key_selector and '<' in key_selector and '>' in key_selector:
+        # since there can be multiple uids associated with a given keypair
+        for uid in key_info['uids']:
+            if uid['raw'] == key_selector.strip():
+                chosen_uid = uid
+                break
+    key_info['chosen_uid'] = \
+        chosen_uid or (key_info['uids'][0] if key_info['uids'] else
+                       {'raw': None, 'name': None, 'email': None})
+
+    return key_info
+
+
+# helper for formatting keypair algorithm in metadata.yaml
+def format_algorithm(key_info):
+    algorithm = key_info.get('algorithm')
+    curve = (key_info.get('curve') or '').lower()
+    length = key_info.get('length') or 0
+    if algorithm == 'EdDSA' and curve == 'ed25519':
+        return 'Ed25519'
+    elif algorithm in {'ECDSA', 'ECDH'} and key_info.get('curve'):
+        return f'{algorithm}/{key_info["curve"]}'
+    elif algorithm in {'RSA', 'DSA'} and length:
+        return f'{algorithm}-{length}'
+    else:
+        return algorithm or 'unknown'
