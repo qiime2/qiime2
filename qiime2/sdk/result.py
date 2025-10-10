@@ -535,12 +535,7 @@ class Result(IResult):
             - gpg detached signature verification
             - sha512sum checks for each file in signature-level checksums file
         """
-        signature = None
-
-        for annotation in self.iter_annotations('Signature'):
-            if getattr(annotation, 'name') == signature_name:
-                signature = annotation
-                break
+        signature = self.get_annotation(signature_name)
 
         report = self._empty_report(signature)
 
