@@ -417,7 +417,7 @@ def _find_root_fp(annotations_dir, root_result_uuid):
     split_fp = annotations_dir.split(os.sep)
     root_result_uuid_index = split_fp.index(root_result_uuid)
     root_fp = os.sep.join(split_fp[0: root_result_uuid_index + 1])
-    return root_path
+    return root_fp
 
 
 # helper for calculating the root level checksum digest
