@@ -450,7 +450,8 @@ class ProvenanceCapture:
         runtime['duration'] = \
             util.duration_time(relativedelta.relativedelta(end, start))
 
-        if not isinstance(self, ImportProvenanceCapture):
+        if not isinstance(self, (ImportProvenanceCapture,
+                                 ReportProvenanceCapture)):
             execution['execution_context'] = collections.OrderedDict(
                 {k: v for k, v in self.execution_context.items()})
 
@@ -661,3 +662,19 @@ class PipelineProvenanceCapture(ActionProvenanceCapture):
         forked.alias = alias
         forked.add_ancestor(alias)
         return forked
+
+
+class ReportProvenanceCapture(ProvenanceCapture):
+    def __init__(self):
+        super().__init__()
+        self.inputs = OrderedKeyValue()
+
+    def add_input(self, name, input):
+        self.inputs[name] = self.add_ancestor(input)
+
+    def make_action_section(self):
+        action = collections.OrderedDict()
+        action['type'] = 'report'
+        action['inputs'] = self.inputs
+
+        return action

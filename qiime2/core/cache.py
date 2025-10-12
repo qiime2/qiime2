@@ -496,7 +496,7 @@ class Cache:
 
         # Start thread that pokes things in the cache to ensure they aren't
         # culled for being too old (only if we are in a temp cache)
-        if path == temp_cache_path:
+        if self.path == temp_cache_path:
             self._thread_is_done = threading.Event()
             self._thread_destructor = \
                 weakref.finalize(self, self._thread_is_done.set)

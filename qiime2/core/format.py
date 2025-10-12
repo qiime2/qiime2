@@ -30,3 +30,10 @@ class FormatBase:
 
     def __str__(self):
         return str(self.path)
+
+
+class report:
+    """Class to mark a visualization as a report.
+
+    There is no relevant implementation
+    """

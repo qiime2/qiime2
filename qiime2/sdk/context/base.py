@@ -165,6 +165,13 @@ class Context:
         self.add_reference(artifact)
         return artifact
 
+    def make_report(self, template, collection):
+        viz = qiime2.sdk.Visualization.make_report(
+            # wait for any proxies via .result()
+            template, {k: v.result() for k, v in collection.items()})
+        self.add_reference(viz)
+        return viz
+
     # NOTE: We end up with both the artifact and the pipeline alias of artifact
     # in the named cache in the end. We only have the pipeline alias in the
     # process pool

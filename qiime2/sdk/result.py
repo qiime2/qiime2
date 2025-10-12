@@ -16,8 +16,10 @@ import subprocess
 import collections
 import distutils.dir_util
 import pathlib
+import json
 from typing import Union, get_args, get_origin
 
+from qiime2.core.format import report
 import qiime2.metadata
 import qiime2.plugin
 import qiime2.sdk
@@ -836,6 +838,105 @@ class Visualization(Result):
             qiime2.core.type.Visualization, None,
             data_initializer=data_initializer,
             provenance_capture=provenance_capture)
+        return viz
+
+    @classmethod
+    def make_report(cls, template, collection):
+        """Make a report out of existing visualizations and a template.
+
+        Parameters
+        ----------
+        template : Callable[[str, dict], None]
+            A template function which is given the output directory as the
+            first argument and an index of subfigures as the second.
+
+        collection : dict[str, Visualization]
+            The visualizations to make available to the template. It is up
+            to the template to use them, but they will exist in a specialized
+            subfigures directory unique to the report format for Visualization.
+
+        Returns
+        -------
+        Visualization
+            The newly created report as a Visualization. It will have the
+            format of "report".
+
+        """
+        provenance_capture = archive.ReportProvenanceCapture()
+        to_reindex = {}
+
+        def data_initializer(destination):
+            index = {}
+            subfigures_dir = os.path.join(destination, 'subfigures')
+            for key, viz in collection.items():
+                viz_uuid = str(viz.uuid)
+                provenance_capture.add_input(key, viz)
+                index[key] = {
+                    "name": key,
+                    "index": f'subfigures/{viz_uuid}/index.html',
+                }
+                subfigure_root = os.path.join(subfigures_dir, viz_uuid)
+                if not os.path.exists(subfigure_root):
+                    shutil.copytree(viz._archiver.data_dir, subfigure_root)
+
+                # if not for reports of reports, this would have been the end
+                # of the data_initializer, however we don't want nested
+                # reports to have an arbitrarily long path as this will break
+                # things. Also we get de-duplication for free if we hoist
+                # sub-subfigures into just subfigures of the outermost report
+                if viz.format is report:
+                    # reports which were provided as part of the collection
+                    # will have sub-figures moved and index.json re-written
+                    # to a new flattened path
+                    to_reindex[viz_uuid] = set()
+                    child_figs = os.path.join(subfigure_root, 'subfigures')
+                    with open(os.path.join(child_figs, 'index.json')) as fh:
+                        inner_index = json.load(fh)
+                        index[key]['children'] = inner_index
+                        # collect the set of inner subfigures which may be
+                        # referenced by the inner report. The `index` key
+                        # holds the "url" `subfigures/<uuid>/index.html`
+                        # so we get the subfigure UUID from there.
+                        to_reindex[viz_uuid] = \
+                            set(map(lambda x: x['index'].split('/')[-2],
+                                    util.flatten_children(inner_index)))
+
+                    for uuid in os.listdir(child_figs):
+                        if not os.path.isdir(os.path.join(child_figs, uuid)):
+                            continue
+                        child_root = os.path.join(child_figs, uuid)
+                        flattened_dest = os.path.join(subfigures_dir, uuid)
+                        if os.path.exists(child_root):
+                            if os.path.exists(flattened_dest):
+                                # exists already via another subfigure
+                                shutil.rmtree(child_root)
+                            else:
+                                # hoist the sub-subfigure into a subfigure
+                                shutil.move(child_root, flattened_dest)
+
+            for report_uuid, children in to_reindex.items():
+                subfigure_root = os.path.join(subfigures_dir, report_uuid)
+                for uuid in children:
+                    # correct any references to the original sub-subfigures
+                    # they are now the hoisted/flattened path
+                    util.replace_bytes_in_directory(
+                        subfigure_root,
+                        f'subfigures/{uuid}/index.html'.encode(),
+                        f'../{uuid}/index.html'.encode(),
+                        {'.json', '.jsonp', '.js', '.htm', '.html'}
+                    )
+
+            with open(os.path.join(subfigures_dir, 'index.json'), 'w') as fh:
+                json.dump(index, fh, indent=2)
+
+            template(destination, index)
+
+        viz = cls.__new__(cls)
+        viz._archiver = archive.Archiver.from_data(
+            qiime2.core.type.Visualization, report,
+            data_initializer=data_initializer,
+            provenance_capture=provenance_capture
+        )
         return viz
 
     def get_index_paths(self, relative=True):

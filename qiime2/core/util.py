@@ -20,6 +20,7 @@ import zipfile
 import pathlib
 import shutil
 import subprocess
+import re
 
 import decorator
 
@@ -629,3 +630,109 @@ def format_algorithm(key_info):
         return f'{algorithm}-{length}'
     else:
         return algorithm or 'unknown'
+
+
+def replace_bytes_in_directory(directory, old_bytes, new_bytes, extensions,
+                               buffer_size=None):
+    """
+    Recursively replaces all occurrences of old_bytes with new_bytes in files
+    under the given directory. Only processes files with specified extensions.
+
+    Parameters
+    ----------
+    directory : str
+        The root directory to recursively search.
+    old_bytes : bytes
+        The byte sequence to find and replace. Must be at least 2 bytes long.
+    new_bytes : bytes
+        The byte sequence to replace old_bytes with.
+    extensions : set[str] or list[str]
+        File extensions to process (e.g., {'.txt', '.md'}).
+        Extensions should include the leading dot.
+    buffer_size : int, optional
+        Size of the read buffer in bytes. Default is 4096.
+    """
+    extensions = set(extensions)
+
+    for root, _, files in os.walk(directory):
+        for file in files:
+            if os.path.splitext(file)[1] in extensions:
+                filepath = os.path.join(root, file)
+                replace_bytes_in_file(filepath, old_bytes, new_bytes,
+                                      buffer_size)
+
+
+def replace_bytes_in_file(filepath, old_bytes, new_bytes, buffer_size=None):
+    """
+    Replaces all occurrences of old_bytes with new_bytes in the specified file.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the file to process.
+    old_bytes : bytes
+        The byte sequence to find and replace. Should be at least 2 bytes long.
+        If only replacing 1 byte, use a simpler implementation that does not
+        have to consider chunk boundaries.
+    new_bytes : bytes
+        The byte sequence to replace old_bytes with.
+    buffer_size : int, optional
+        Size of the read buffer in bytes. Default is io.DEFAULT_BUFFER_SIZE.
+    """
+    if buffer_size is None:
+        buffer_size = io.DEFAULT_BUFFER_SIZE
+
+    # Compile the regex pattern for old_bytes
+    pattern = re.compile(re.escape(old_bytes))
+
+    tempfile = filepath + '._tmp_'
+    with open(filepath, 'rb') as src, open(tempfile, 'wb') as dst:
+        # Initialize a buffer to handle overlapping matches
+        overlap_buffer = b''
+
+        while True:
+            # Read the next chunk of data
+            chunk = src.read(buffer_size)
+            if not chunk:
+                break
+
+            # Prepend any overlap from the previous chunk
+            chunk = overlap_buffer + chunk
+
+            # Find all matches in the current chunk
+            matches = list(pattern.finditer(chunk))
+
+            # If matches are found, process them
+            if matches:
+                last_match = matches[-1]
+                last_match_end = last_match.end()
+
+                # Write up to the last match's end
+                dst.write(pattern.sub(new_bytes, chunk[:last_match_end]))
+
+                # Save the overlap for the next chunk
+                overlap_buffer = chunk[last_match_end:]
+            else:
+                # If no matches, write the chunk minus the possible overlap
+                write_end = max(0, len(chunk) - len(old_bytes) + 1)
+                dst.write(chunk[:write_end])
+
+                # Save the overlap for the next chunk
+                overlap_buffer = chunk[write_end:]
+
+        # Write any remaining overlap buffer
+        if overlap_buffer:
+            dst.write(pattern.sub(new_bytes, overlap_buffer))
+
+    # Replace the original file with the modified file
+    os.replace(tempfile, filepath)
+
+
+def flatten_children(dictionary, child_key='children'):
+    results = []
+    for value in dictionary.values():
+        value = value.copy()
+        results.append(value)
+        children = value.pop(child_key, {})
+        results.extend(flatten_children(children, child_key))
+    return results
