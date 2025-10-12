@@ -23,8 +23,6 @@ import subprocess
 
 import decorator
 
-from qiime2.core.annotate import ANNOTATION_TYPE_LIST, UnknownAnnotation
-
 READ_ONLY_FILE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
 READ_ONLY_DIR = stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH | stat.S_IRUSR \
     | stat.S_IRGRP | stat.S_IROTH
@@ -500,30 +498,21 @@ def _parse_uid(uid_str):
 
 
 # helper for normalizing fingerprint formatting
-def _normalize_fingerprint(s):
+def normalize_fingerprint(s):
     return re.sub(r'\s+', '', (s or '')).upper()
-
-
-def add_shared_attrs(annotation_type, meta_yaml):
-    if annotation_type in ANNOTATION_TYPE_LIST:
-        annotation = annotation_type.__new__(annotation_type)
-    else:
-        annotation = UnknownAnnotation.__new__(UnknownAnnotation)
-
-    annotation.id = meta_yaml['id']
-    annotation.name = meta_yaml['name']
-    annotation.annotation_type = meta_yaml['type']
-    annotation.created_at = meta_yaml['created_at']
-
-    return annotation
 
 
 # helper for locating root_fp for a given Result
 def find_root_fp(annotations_dir, root_result_uuid):
-    split_fp = annotations_dir.split(os.sep)
-    root_result_uuid_index = split_fp.index(root_result_uuid)
-    root_fp = os.sep.join(split_fp[0: root_result_uuid_index + 1])
-    return root_fp
+    p = pathlib.Path(annotations_dir)
+    parts = p.parts
+    try:
+        idx = parts.index(root_result_uuid)
+    except ValueError:
+        raise ValueError('Could not locate result UUID '
+                         f'"{root_result_uuid}" in path: {p}')
+
+    return pathlib.Path(*parts[:idx + 1])
 
 
 # helper for calculating the root level checksum digest
@@ -564,9 +553,9 @@ def gpg_find_key(key_selector):
     }
 
     fingerprint = \
-        (_normalize_fingerprint(key_selector)
+        (normalize_fingerprint(key_selector)
          if re.fullmatch(r'[0-9A-Fa-f\s]+', key_selector or '')
-         and len(_normalize_fingerprint(key_selector)) >= 32
+         and len(normalize_fingerprint(key_selector)) >= 32
          else None)
 
     # format for the output of `gpg --list-keys`
@@ -597,7 +586,7 @@ def gpg_find_key(key_selector):
             key_info['curve'] = curve
         # subkey fingerprint (if applicable)
         elif in_primary and tag == 'fpr' and key_info['fingerprint'] is None:
-            normalized_fingerprint = _normalize_fingerprint(parts[9])
+            normalized_fingerprint = normalize_fingerprint(parts[9])
             if fingerprint and normalized_fingerprint != fingerprint:
                 continue
             # fill in fingerprint if given keypair id was name/email

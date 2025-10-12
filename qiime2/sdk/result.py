@@ -29,9 +29,9 @@ import qiime2.core.util as util
 import qiime2.core.exceptions as exceptions
 
 from qiime2.sdk.iresult import IResult
-from qiime2.core.annotate import (Annotation, ANNOTATION_TYPE_LIST,
-                                  _sha512_file_hex, _gpg_find_key,
-                                  _normalize_fingerprint)
+from qiime2.core.annotate import (Annotation, ANNOTATION_TYPE_DICT)
+from qiime2.core.util import (sha512_file_hex, gpg_find_key,
+                              normalize_fingerprint)
 
 # Note: Result, Artifact, and Visualization classes are in this file to avoid
 # circular dependencies between Result and its subclasses. Result is tightly
@@ -346,7 +346,7 @@ class Result(IResult):
     # base report for signature verification
     # keys will be updated as different checks pass, else will include the
     # failure message in the details key pair
-    def _empty_report(self, signature=None):
+    def _empty_report(self, signature):
         return {
             "ok": False,
             "fingerprint_ok": False,
@@ -420,6 +420,11 @@ class Result(IResult):
                 fh.write(util.to_checksum_format(*item))
                 fh.write('\n')
 
+        # this ensures additional attrs on Signature (signer name/email)
+        # are present when running Result.verify
+        loaded_annotation = Annotation.load(str(annotation_dir))
+        self._annotations[loaded_annotation.name] = loaded_annotation
+
     def get_annotation(self, name):
         """Retrieve an Annotation given by `name` from the Result object.
 
@@ -454,10 +459,10 @@ class Result(IResult):
 
         if filter_by_type is None:
             yield from self._annotations.values()
-        elif filter_by_type not in ANNOTATION_TYPE_LIST:
+        elif filter_by_type not in ANNOTATION_TYPE_DICT:
             raise ValueError(f'Unknown annotation type: "{filter_by_type}". '
                              'Supported annotation types are: '
-                             f'{ANNOTATION_TYPE_LIST}')
+                             f'{ANNOTATION_TYPE_DICT.keys()}')
         else:
             for annotation in self._annotations.values():
                 if getattr(annotation, 'annotation_type') == filter_by_type:
@@ -535,36 +540,19 @@ class Result(IResult):
             - gpg detached signature verification
             - sha512sum checks for each file in signature-level checksums file
         """
+        # first make sure the Result isn't malformed & the Signature exists
+        self.validate()
         signature = self.get_annotation(signature_name)
 
         report = self._empty_report(signature)
 
-        if signature is None:
-            report['details'] = \
-                f'No Signature with name "{signature_name}" found.'
-            return report
-
         annotation_dir = \
             pathlib.Path(self._archiver.annotations_dir) / str(signature.id)
-
-        if not annotation_dir.exists():
-            report['details'] = \
-                f'Annotation directory missing: {annotation_dir}'
-            return report
 
         root_fp = self._archiver.root_dir
         root_checksums_fp = root_fp / 'checksums.sha512'
         sig_checksums_fp = annotation_dir / 'checksums.sha512'
         signature_fp = annotation_dir / 'signature.gpg'
-
-        if not sig_checksums_fp.exists():
-            report['details'] = ('Missing signature-level checksums file: '
-                                 f'{sig_checksums_fp}')
-            return report
-
-        if not signature_fp.exists():
-            report['details'] = f'Missing signature file: {signature_fp}'
-            return report
 
         try:
             keypair_selector = (getattr(signature, 'fingerprint') or
@@ -573,11 +561,11 @@ class Result(IResult):
             if not keypair_selector:
                 report['details'] = 'Signature is missing fingerprint/UID.'
                 return report
-            found_keypair = _gpg_find_key(keypair_selector)
+            found_keypair = gpg_find_key(keypair_selector)
             if getattr(signature, 'fingerprint'):
                 report['fingerprint_ok'] = (
-                    _normalize_fingerprint(found_keypair['fingerprint']) ==
-                    _normalize_fingerprint(signature.fingerprint)
+                    normalize_fingerprint(found_keypair['fingerprint']) ==
+                    normalize_fingerprint(signature.fingerprint)
                 )
             else:
                 report['fingerprint_ok'] = True
@@ -586,12 +574,7 @@ class Result(IResult):
                                  f'{e}')
             return report
 
-        if not root_checksums_fp.exists():
-            report['details'] = \
-                f'Missing root checksum file: {root_checksums_fp}'
-            return report
-
-        root_checksum_digest = _sha512_file_hex(root_checksums_fp)
+        root_checksum_digest = sha512_file_hex(root_checksums_fp)
         report['checksum_digest_ok'] = \
             (root_checksum_digest == getattr(signature, 'checksum_digest'))
         if not report['checksum_digest_ok']:
@@ -636,7 +619,7 @@ class Result(IResult):
             if not fp.exists():
                 missing.append(relpath)
                 continue
-            obs_digest = _sha512_file_hex(fp)
+            obs_digest = sha512_file_hex(fp)
             if obs_digest != exp_digest:
                 mismatched.append({
                     'path': relpath,

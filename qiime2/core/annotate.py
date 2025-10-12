@@ -12,15 +12,13 @@ import subprocess
 import sys
 import uuid as _uuid
 import yaml
+import shutil
 
 from collections import OrderedDict
 from datetime import datetime
 
-from .util import (add_shared_attrs, find_root_fp, sha512_file_hex,
-                   gpg_find_key, format_algorithm)
-
-# NOTE: UPDATE ME WITH EACH NEW ANNOTATION SUB-TYPE
-ANNOTATION_TYPE_LIST = ['Note', 'Signature']
+from qiime2.core.util import (find_root_fp, sha512_file_hex,
+                              gpg_find_key, format_algorithm)
 
 
 class Annotation():
@@ -83,7 +81,7 @@ class Annotation():
             meta_yaml = yaml.safe_load(fh)
             annotation_type = meta_yaml['type']
 
-            annotation = add_shared_attrs(annotation_type, meta_yaml)
+            annotation = _add_shared_attrs(annotation_type, meta_yaml)
 
             # NOTE
             if annotation_type == 'Note':
@@ -108,14 +106,20 @@ class Annotation():
                 annotation.signer_email = meta_yaml['signer_email']
                 annotation.fingerprint = meta_yaml.get('fingerprint')
 
-                # Validate that `signature.gpg` exists
+                # Validate `signature.gpg` and Signature-level
+                # `checksums.sha512` files exist
                 sig_fp = os.path.join(filepath, 'signature.gpg')
-                if not os.path.exists(sig_fp):
-                    raise ValueError(
-                        'Unable to load malformed Signature with name: '
-                        f'"{annotation.name}" due to missing '
-                        '`signature.gpg` file.'
-                    )
+                sig_checksum_fp = os.path.join(filepath, 'checksums.sha512')
+                fp_dict = {'signature.gpg': sig_fp,
+                           'checksums.sha512': sig_checksum_fp}
+
+                for name, fp in fp_dict.items():
+                    if not os.path.exists(fp):
+                        raise ValueError(
+                            'Unable to load malformed Signature with name: '
+                            f'"{annotation.name}" '
+                            f'due to missing `{name}` file.'
+                        )
 
         return annotation
 
@@ -449,9 +453,10 @@ class Signature(Annotation):
             refer to the same Result they are being attached to) but separate
             root and referenced uuids will be supported in future versions.
         """
-        root_fp = find_root_fp(annotations_dir, root_result_uuid)
-
+        root_fp = pathlib.Path(find_root_fp(annotations_dir, root_result_uuid))
+        annotations_dir = pathlib.Path(annotations_dir)
         checksums_fp = root_fp / 'checksums.sha512'
+
         if not checksums_fp.exists():
             raise ValueError(
                 'Unable to create Signature due to malformed Result: '
@@ -473,15 +478,6 @@ class Signature(Annotation):
         signer_name = key_info['chosen_uid']['name']
         signer_email = key_info['chosen_uid']['email']
 
-        annotation_uuid_dirname = \
-            self._write_meta_yaml(annotations_dir, root_result_uuid,
-                                  referenced_result_uuid, algorithm,
-                                  checksum_digest, signer_name, signer_email,
-                                  fingerprint)
-
-        signature_dir = pathlib.Path(annotation_uuid_dirname)
-        sig_fp = signature_dir / 'signature.gpg'
-
         env = os.environ.copy()
         # Apparently this is helpful on Unix for GPG to find
         # the correct terminal
@@ -491,43 +487,95 @@ class Signature(Annotation):
         except Exception:
             pass
 
-        cmd = [
-            'gpg',
-            '--local-user', str(keypair_id),
-            '--output', str(sig_fp),
-            '--detach-sign', str(checksums_fp)
-        ]
+        annotation_uuid_dirname = None
+        signature_dir = None
+        sig_fp = None
 
         try:
-            subprocess.run(cmd, check=True, env=env)
-        except FileNotFoundError as e:
-            raise RuntimeError(
-                'GnuPG (`gpg`) is not installed or not on `PATH`. '
-                'Install GnuPG and ensure your key pair is available.'
-            ) from e
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(
-                '`gpg` signing failed. Ensure that the selected key exists '
-                'and is unlocked (or that pinentry can prompt for the '
-                'private key password).'
-            ) from e
-
-        if not sig_fp.exists() or sig_fp.stat().st_size == 0:
-            raise RuntimeError(
-                '`gpg` reported success but no signature was written at '
-                f'{sig_fp!s}.'
+            annotation_uuid_dirname = self._write_meta_yaml(
+                str(annotations_dir), root_result_uuid,
+                referenced_result_uuid, algorithm, checksum_digest,
+                signer_name, signer_email, fingerprint
             )
 
-        # smoke check to ensure signature writing was successful
-        try:
-            subprocess.run(
-                ['gpg', '--verify', str(sig_fp), str(checksums_fp)],
-                check=True, env=env,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-        except subprocess.CalledProcessError:
-            raise RuntimeError(
-                'Wrote signature.gpg but `gpg --verify` failed; '
-                'signature may be invalid.'
-            )
+            signature_dir = pathlib.Path(annotation_uuid_dirname)
+            sig_fp = signature_dir / 'signature.gpg'
+
+            cmd = [
+                'gpg',
+                '--local-user', str(keypair_id),
+                '--output', str(sig_fp),
+                '--detach-sign', str(checksums_fp)
+            ]
+
+            try:
+                subprocess.run(cmd, check=True, env=env,
+                               stdout=subprocess.DEVNULL,
+                               stderr=subprocess.PIPE, text=True)
+            except FileNotFoundError as e:
+                raise RuntimeError(
+                    'GnuPG (`gpg`) is not installed or not on `PATH`. '
+                    'Install GnuPG and ensure your key pair is available.'
+                ) from e
+            except subprocess.CalledProcessError as e:
+                msg = (
+                    '`gpg` signing failed. Ensure that the selected key '
+                    'exists and is unlocked (or that pinentry can prompt for '
+                    'the private key password).'
+                )
+                if e.stderr:
+                    msg += f' Details: {e.stderr.strip()}'
+                raise RuntimeError(msg) from e
+
+            if not sig_fp.exists() or sig_fp.stat().st_size == 0:
+                raise RuntimeError(
+                    '`gpg` reported success but no signature was written.'
+                )
+
+            # smoke check to ensure signature writing was successful
+            try:
+                subprocess.run(
+                    ['gpg', '--verify', str(sig_fp), str(checksums_fp)],
+                    check=True, env=env, stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+            except subprocess.CalledProcessError:
+                raise RuntimeError(
+                    'Wrote signature.gpg but `gpg --verify` failed; '
+                    'signature may be invalid.'
+                )
+
+            return
+
+        # just to make extra sure there isn't a dangling
+        # annotation dir or half baked contents
+        except Exception as e:
+            try:
+                if annotation_uuid_dirname:
+                    shutil.rmtree(annotation_uuid_dirname, ignore_errors=True)
+                if signature_dir and signature_dir.exists():
+                    shutil.rmtree(signature_dir, ignore_errors=True)
+                elif (annotation_uuid_dirname and
+                      os.path.exists(annotation_uuid_dirname)):
+                    shutil.rmtree(annotation_uuid_dirname, ignore_errors=True)
+            finally:
+                raise RuntimeError(
+                    f'Failed to create Signature annotation "{self.name}": {e}'
+                )
+
+
+# NOTE: UPDATE ME WITH EACH NEW ANNOTATION SUB-TYPE
+ANNOTATION_TYPE_DICT = {'Note': Note, 'Signature': Signature}
+
+
+# cls helper
+def _add_shared_attrs(annotation_type, meta_yaml):
+    cls = ANNOTATION_TYPE_DICT.get(annotation_type, UnknownAnnotation)
+    annotation = cls.__new__(cls)
+
+    annotation.id = meta_yaml['id']
+    annotation.name = meta_yaml['name']
+    annotation.annotation_type = meta_yaml['type']
+    annotation.created_at = meta_yaml['created_at']
+
+    return annotation
