@@ -20,7 +20,6 @@ import zipfile
 import pathlib
 import shutil
 import subprocess
-import re
 
 import decorator
 
