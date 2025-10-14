@@ -14,6 +14,9 @@ import textwrap
 import decorator
 import dill
 
+from typing import Mapping, TypedDict, Union
+from types import MappingProxyType
+
 import qiime2.sdk
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
@@ -44,6 +47,46 @@ def _coerce_pipeline_outputs(ctx, outputs):
         coerced_outputs.append(output)
 
     return tuple(coerced_outputs)
+
+
+# TODO: validation on these params via data.yaml in distributions
+class MigrationInfo(TypedDict):
+    to_plugin: str
+    from_distro: str
+    to_distro: str
+    epoch: str
+
+
+def _validate_and_freeze_migrated(migrated: Union[bool, Mapping[str, str]]):
+    if migrated is False:
+        return False
+
+    if migrated is True:
+        raise TypeError(
+            "`migrated` must be False or a mapping with keys: "
+            "['plugin', 'from_distro', 'to_distro', 'epoch']; "
+            "`True` is not allowed."
+        )
+
+    if not isinstance(migrated, Mapping):
+        raise TypeError('`migrated` must be False or a Mapping (got %r)'
+                        % type(migrated))
+
+    required = ('to_plugin', 'from_distro', 'to_distro', 'epoch')
+    missing = [key for key in required if key not in migrated]
+    if missing:
+        raise ValueError('`migrated` mapping missing required keys: '
+                         f'{missing}')
+
+    # TODO: data.yaml validation from distributions for vals
+    for key in required:
+        val = migrated[key]
+        if not isinstance(val, str) or not val.strip():
+            raise TypeError(f'`migrated["{key}"]` must be a non-empty string.')
+
+    normalized = {key: migrated[key].strip() for key in required}
+
+    return MappingProxyType(normalized)
 
 
 class Action(metaclass=abc.ABCMeta):
@@ -79,7 +122,7 @@ class Action(metaclass=abc.ABCMeta):
     # Private constructor
     @classmethod
     def _init(cls, callable, signature, plugin_id, name, description,
-              citations, deprecated, examples):
+              citations, deprecated, migrated, examples):
         """
 
         Parameters
@@ -95,14 +138,14 @@ class Action(metaclass=abc.ABCMeta):
         """
         self = cls.__new__(cls)
         self.__init(callable, signature, plugin_id, name, description,
-                    citations, deprecated, examples)
+                    citations, deprecated, migrated, examples)
         return self
 
     # This "extra private" constructor is necessary because `Action` objects
     # can be initialized from a static (classmethod) context or on an
     # existing instance (see `_init` and `__setstate__`, respectively).
     def __init(self, callable, signature, plugin_id, name, description,
-               citations, deprecated, examples):
+               citations, deprecated, migrated, examples):
         self._callable = callable
         self.signature = signature
         self.plugin_id = plugin_id
@@ -110,6 +153,7 @@ class Action(metaclass=abc.ABCMeta):
         self.description = description
         self.citations = citations
         self.deprecated = deprecated
+        self.migrated = _validate_and_freeze_migrated(migrated)
         self.examples = examples
 
         self.id = callable.__name__
@@ -160,6 +204,7 @@ class Action(metaclass=abc.ABCMeta):
             'description': self.description,
             'citations': self.citations,
             'deprecated': self.deprecated,
+            'migrated': self.migrated,
             'examples': self.examples,
         })
 
@@ -205,6 +250,10 @@ class Action(metaclass=abc.ABCMeta):
             if self.deprecated:
                 with qiime2.core.util.warning() as warn:
                     warn(self._build_deprecation_message(), FutureWarning)
+
+            if self.migrated:
+                with qiime2.core.util.warning() as warn:
+                    warn(self._build_migration_message(), FutureWarning)
 
             # Type management
             collated_inputs = self.signature.collate_inputs(
@@ -310,6 +359,11 @@ class Action(metaclass=abc.ABCMeta):
                 textwrap.fill(self._build_deprecation_message(), width=72),
                 '   ')
             numpydoc.append('.. deprecated::\n' + base_msg)
+        elif self.migrated:
+            base_msg = textwrap.indent(
+                textwrap.fill(self._build_migration_message(), width=72),
+                '   ')
+            numpydoc.append('.. migrated::\n' + base_msg)
         numpydoc.append(textwrap.fill(self.description, width=75))
 
         sig = self.signature
@@ -345,6 +399,21 @@ class Action(metaclass=abc.ABCMeta):
     def _build_deprecation_message(self):
         return (f'This {self.type.title()} is deprecated and will be removed '
                 'in a future version of this plugin.')
+
+    def _build_migration_message(self):
+        info = self.migrated
+        to_plugin = info['to_plugin']
+        from_distro = info['from_distro']
+        to_distro = info['to_distro']
+        epoch = info['epoch']
+
+        return (f'This {self.type.title()} will be migrated from the '
+                f'{self.plugin_id} plugin of the {from_distro} distribution '
+                f'to the {to_plugin} plugin of the {to_distro} distribution '
+                f'in {epoch}. '
+                f'If you are using a QIIME 2 distribution version >= {epoch}, '
+                f'you will find this {self.type.title()} now located under '
+                f'{to_plugin}.')
 
 
 class Method(Action):
@@ -384,13 +453,13 @@ class Method(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions, citations, deprecated, examples):
+              output_descriptions, citations, deprecated, migrated, examples):
         signature = qtype.MethodSignature(callable, inputs, parameters,
                                           outputs, input_descriptions,
                                           parameter_descriptions,
                                           output_descriptions)
         return super()._init(callable, signature, plugin_id, name, description,
-                             citations, deprecated, examples)
+                             citations, deprecated, migrated, examples)
 
 
 class Visualizer(Action):
@@ -423,12 +492,12 @@ class Visualizer(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, plugin_id, name, description,
               input_descriptions, parameter_descriptions, citations,
-              deprecated, examples):
+              deprecated, migrated, examples):
         signature = qtype.VisualizerSignature(callable, inputs, parameters,
                                               input_descriptions,
                                               parameter_descriptions)
         return super()._init(callable, signature, plugin_id, name, description,
-                             citations, deprecated, examples)
+                             citations, deprecated, migrated, examples)
 
 
 class Pipeline(Action):
@@ -509,13 +578,13 @@ class Pipeline(Action):
     @classmethod
     def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
               description, input_descriptions, parameter_descriptions,
-              output_descriptions, citations, deprecated, examples):
+              output_descriptions, citations, deprecated, migrated, examples):
         signature = qtype.PipelineSignature(callable, inputs, parameters,
                                             outputs, input_descriptions,
                                             parameter_descriptions,
                                             output_descriptions)
         return super()._init(callable, signature, plugin_id, name, description,
-                             citations, deprecated, examples)
+                             citations, deprecated, migrated, examples)
 
 
 markdown_source_template = """
