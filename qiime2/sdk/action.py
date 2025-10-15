@@ -64,7 +64,7 @@ def _validate_and_freeze_migrated(migrated: Union[bool, Mapping[str, str]]):
     if migrated is True:
         raise TypeError(
             "`migrated` must be False or a mapping with keys: "
-            "['plugin', 'from_distro', 'to_distro', 'epoch']; "
+            "['to_plugin', 'from_distro', 'to_distro', 'epoch']; "
             "`True` is not allowed."
         )
 
@@ -410,10 +410,7 @@ class Action(metaclass=abc.ABCMeta):
         return (f'This {self.type.title()} will be migrated from the '
                 f'{self.plugin_id} plugin of the {from_distro} distribution '
                 f'to the {to_plugin} plugin of the {to_distro} distribution '
-                f'in {epoch}. '
-                f'If you are using a QIIME 2 distribution version >= {epoch}, '
-                f'you will find this {self.type.title()} now located under '
-                f'{to_plugin}.')
+                f'in {epoch}.')
 
 
 class Method(Action):
