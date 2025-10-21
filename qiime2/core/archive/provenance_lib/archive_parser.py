@@ -551,6 +551,7 @@ class _Citations:
     Citations for a single QIIME2 Result, as a dict of citation dicts keyed
     on the citation's bibtex ID.
     '''
+
     def __init__(self, zf: ZipFile, fp: str):
         bib_db = bp.loads(zf.read(fp))
         self.citations = bib_db.get_entry_dict()
@@ -562,6 +563,7 @@ class _Citations:
 
 class _ResultMetadata:
     '''Basic metadata about a single QIIME2 Result from metadata.yaml.'''
+
     def __init__(self, zf: ZipFile, md_fp: str):
         _md_dict = yaml.safe_load(zf.read(md_fp))
         self.uuid = _md_dict['uuid']
@@ -614,7 +616,7 @@ class ArchiveParser(Parser):
         -------
         Parser
             An ArchiveParser object for the version of the artifact. One of
-            ParserV[0-6].
+            ParserV[0-7].
         '''
         if isinstance(artifact, pathlib.PosixPath):
             artifact = str(artifact)
@@ -976,12 +978,21 @@ class ParserV2(ParserV1):
                 if node_uuid in archive_contents:
                     continue
 
-                for expected_file in self.expected_files_all_nodes:
+                # different artifact versions have different expected files
+                if 'artifacts' in fp.parts:
+                    nested_path = pathlib.Path(*fp.parts[1:4])
+                    archive_version, _ = parse_version(zf, nested_path)
+                    parser = FORMAT_REGISTRY[archive_version]
+                else:
+                    parser = self.__class__
+
+                for expected_file in parser.expected_files_all_nodes:
                     exp_node_fps.append(prefix / expected_file)
 
                 self._assert_expected_files_present(
                     zf, exp_node_fps, prov_fps
                 )
+
                 # we have confirmed that all expected fps for this node exist
                 node_fps = exp_node_fps
 
