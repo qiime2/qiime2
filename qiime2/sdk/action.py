@@ -61,30 +61,25 @@ def _validate_and_freeze_migrated(migrated: Union[bool, Mapping[str, str]]):
     if migrated is False:
         return False
 
-    if migrated is True:
+    if migrated is True or not isinstance(migrated, Mapping):
         raise TypeError(
-            "`migrated` must be False or a mapping with keys: "
-            "['to_plugin', 'from_distro', 'to_distro', 'epoch']; "
-            "`True` is not allowed."
-        )
+            '`migrated` must be False or a Mapping with at least `to_plugin`.')
 
-    if not isinstance(migrated, Mapping):
-        raise TypeError('`migrated` must be False or a Mapping (got %r)'
-                        % type(migrated))
+    allowed = {'to_plugin', 'from_distro', 'to_distro', 'epoch'}
 
-    required = ('to_plugin', 'from_distro', 'to_distro', 'epoch')
-    missing = [key for key in required if key not in migrated]
-    if missing:
-        raise ValueError('`migrated` mapping missing required keys: '
-                         f'{missing}')
+    if 'to_plugin' not in migrated:
+        raise ValueError('`migrated` mapping missing required key: '
+                         '`to_plugin`.')
+    for key in migrated:
+        if key not in allowed:
+            raise ValueError(f'Got unexpected key: {key}. '
+                             f'Allowed keys are: {allowed}')
 
-    # TODO: data.yaml validation from distributions for vals
-    for key in required:
-        val = migrated[key]
+    normalized = {}
+    for key, val in migrated.items():
         if not isinstance(val, str) or not val.strip():
             raise TypeError(f'`migrated["{key}"]` must be a non-empty string.')
-
-    normalized = {key: migrated[key].strip() for key in required}
+        normalized[key] = val.strip()
 
     return MappingProxyType(normalized)
 
@@ -402,15 +397,26 @@ class Action(metaclass=abc.ABCMeta):
 
     def _build_migration_message(self):
         info = self.migrated
-        to_plugin = info['to_plugin']
-        from_distro = info['from_distro']
-        to_distro = info['to_distro']
-        epoch = info['epoch']
 
-        return (f'This {self.type.title()} will be migrated from the '
-                f'{self.plugin_id} plugin of the {from_distro} distribution '
-                f'to the {to_plugin} plugin of the {to_distro} distribution '
-                f'in {epoch}.')
+        # required
+        to_plugin = info['to_plugin']
+        # optional
+        from_distro = info.get('from_distro')
+        to_distro = info.get('to_distro')
+        epoch = info.get('epoch')
+
+        base_msg = f'is slated for migration from the {self.plugin_id} plugin'
+        destination = f'to the {to_plugin} plugin'
+
+        if from_distro:
+            base_msg += f' of the {from_distro} distribution'
+
+        if to_distro:
+            destination += f' of the {to_distro} distribution'
+
+        when = f'in {epoch}' if epoch else 'in a future release'
+
+        return (f'This {self.type.title()} {base_msg} {destination} {when}.')
 
 
 class Method(Action):
