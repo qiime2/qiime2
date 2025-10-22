@@ -49,9 +49,14 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      list_of_ints, dict_of_ints, returns_int, varied_method,
                      collection_inner_union, collection_outer_union,
                      dict_params, list_params, _underscore_method,
-                     migrated_method1, migrated_method2, migrated_method3,
-                     migrated_method4, migrated_method5, migrated_method6,
-                     migrated_method7, migrated_method8)
+                     migrated_method_all_optional_params,
+                     migrated_method_no_optional_params,
+                     migrated_method_from_distro,
+                     migrated_method_to_distro,
+                     migrated_method_epoch,
+                     migrated_method_from_distro_to_distro,
+                     migrated_method_from_distro_epoch,
+                     migrated_method_to_distro_epoch)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -494,13 +499,13 @@ dummy_plugin.methods.register_function(
 
 # all params
 dummy_plugin.methods.register_function(
-    function=migrated_method1,
+    function=migrated_method_all_optional_params,
     inputs={},
     parameters={},
     outputs=[
         ('out', Mapping)
     ],
-    name='Migrated method with all params',
+    name='Migrated method with all optional params',
     description='Migrated method with `to_plugin`, '
                 '`to_distro`, `from_distro`, `epoch`',
     migrated={'to_plugin': 'smart',
@@ -511,7 +516,7 @@ dummy_plugin.methods.register_function(
 
 # no optional params
 dummy_plugin.methods.register_function(
-    function=migrated_method2,
+    function=migrated_method_no_optional_params,
     inputs={},
     parameters={},
     outputs=[
@@ -524,7 +529,7 @@ dummy_plugin.methods.register_function(
 
 # from_distro
 dummy_plugin.methods.register_function(
-    function=migrated_method3,
+    function=migrated_method_from_distro,
     inputs={},
     parameters={},
     outputs=[
@@ -538,7 +543,7 @@ dummy_plugin.methods.register_function(
 
 # to_distro
 dummy_plugin.methods.register_function(
-    function=migrated_method4,
+    function=migrated_method_to_distro,
     inputs={},
     parameters={},
     outputs=[
@@ -552,7 +557,7 @@ dummy_plugin.methods.register_function(
 
 # epoch
 dummy_plugin.methods.register_function(
-    function=migrated_method5,
+    function=migrated_method_epoch,
     inputs={},
     parameters={},
     outputs=[
@@ -566,7 +571,7 @@ dummy_plugin.methods.register_function(
 
 # from_distro & to_distro
 dummy_plugin.methods.register_function(
-    function=migrated_method6,
+    function=migrated_method_from_distro_to_distro,
     inputs={},
     parameters={},
     outputs=[
@@ -581,7 +586,7 @@ dummy_plugin.methods.register_function(
 
 # from_distro & epoch
 dummy_plugin.methods.register_function(
-    function=migrated_method7,
+    function=migrated_method_from_distro_epoch,
     inputs={},
     parameters={},
     outputs=[
@@ -596,7 +601,7 @@ dummy_plugin.methods.register_function(
 
 # to_distro & epoch
 dummy_plugin.methods.register_function(
-    function=migrated_method8,
+    function=migrated_method_to_distro_epoch,
     inputs={},
     parameters={},
     outputs=[

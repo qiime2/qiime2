@@ -186,14 +186,17 @@ class TestDeprecation(unittest.TestCase):
 class TestMigration(unittest.TestCase):
     def setUp(self):
         self.plugin = get_dummy_plugin()
-        self.method1 = self.plugin.methods['migrated_method1']
-        self.method2 = self.plugin.methods['migrated_method2']
-        self.method3 = self.plugin.methods['migrated_method3']
-        self.method4 = self.plugin.methods['migrated_method4']
-        self.method5 = self.plugin.methods['migrated_method5']
-        self.method6 = self.plugin.methods['migrated_method6']
-        self.method7 = self.plugin.methods['migrated_method7']
-        self.method8 = self.plugin.methods['migrated_method8']
+        self.method1 = \
+            self.plugin.methods['migrated_method_all_optional_params']
+        self.method2 = \
+            self.plugin.methods['migrated_method_no_optional_params']
+        self.method3 = self.plugin.methods['migrated_method_from_distro']
+        self.method4 = self.plugin.methods['migrated_method_to_distro']
+        self.method5 = self.plugin.methods['migrated_method_epoch']
+        self.method6 = \
+            self.plugin.methods['migrated_method_from_distro_to_distro']
+        self.method7 = self.plugin.methods['migrated_method_from_distro_epoch']
+        self.method8 = self.plugin.methods['migrated_method_to_distro_epoch']
 
     def test_full_migration_message(self):
         with warnings.catch_warnings(record=True) as w:

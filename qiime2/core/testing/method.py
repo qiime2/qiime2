@@ -55,35 +55,35 @@ def deprecated_method() -> dict:
     return {'foo': 43}
 
 
-def migrated_method1() -> dict:
+def migrated_method_all_optional_params() -> dict:
     return {'ziggy': 42}
 
 
-def migrated_method2() -> dict:
+def migrated_method_no_optional_params() -> dict:
     return {'ziggy': 42}
 
 
-def migrated_method3() -> dict:
+def migrated_method_from_distro() -> dict:
     return {'ziggy': 42}
 
 
-def migrated_method4() -> dict:
+def migrated_method_to_distro() -> dict:
     return {'ziggy': 42}
 
 
-def migrated_method5() -> dict:
+def migrated_method_epoch() -> dict:
     return {'ziggy': 42}
 
 
-def migrated_method6() -> dict:
+def migrated_method_from_distro_to_distro() -> dict:
     return {'ziggy': 42}
 
 
-def migrated_method7() -> dict:
+def migrated_method_from_distro_epoch() -> dict:
     return {'ziggy': 42}
 
 
-def migrated_method8() -> dict:
+def migrated_method_to_distro_epoch() -> dict:
     return {'ziggy': 42}
 
 
