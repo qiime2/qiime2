@@ -1,0 +1,319 @@
+execution:
+    uuid: 2c73ef81-c1f1-4214-8103-f63debc731b6
+    runtime:
+        start: 2025-10-22T10:04:16.099627-07:00
+        end: 2025-10-22T10:04:16.543947-07:00
+        duration: 444320 microseconds
+    execution_context:
+        type: synchronous
+
+action:
+    type: method
+    plugin: !ref 'environment:plugins:dummy-plugin'
+    action: split_ints
+    inputs:
+    -   ints: f8e289f7-636b-481d-add3-a38ea3975708
+    parameters: []
+    output-name: right
+    citations:
+    - !cite 'action|dummy-plugin:0.0.0-dev|method:split_ints|0'
+    - !cite 'action|dummy-plugin:0.0.0-dev|method:split_ints|1'
+
+transformers:
+    inputs:
+        ints:
+        -   from: IntSequenceDirectoryFormat
+            to: builtins:list
+            plugin: !ref 'environment:plugins:dummy-plugin'
+            citations:
+            - !cite 'view|dummy-plugin:0.0.0-dev|IntSequenceDirectoryFormat|0'
+    output:
+    -   from: builtins:list
+        to: IntSequenceDirectoryFormat
+        plugin: !ref 'environment:plugins:dummy-plugin'
+        citations:
+        - !cite 'transformer|dummy-plugin:0.0.0-dev|builtins:list->IntSequenceDirectoryFormat|0'
+        - !cite 'view|dummy-plugin:0.0.0-dev|IntSequenceDirectoryFormat|0'
+
+environment:
+    platform: macOS-15.6.1-x86_64-i386-64bit
+    python: |-
+        3.10.14 | packaged by conda-forge | (main, Mar 20 2024, 12:53:34) [Clang 16.0.6 ]
+    framework:
+        version: 2025.4.0.dev0+38.ge323827
+        website: https://qiime2.org
+        citations:
+        - !cite 'framework|qiime2:2025.4.0.dev0+38.ge323827|0'
+    plugins:
+        dummy-plugin:
+            version: 0.0.0-dev
+            website: https://github.com/qiime2/qiime2
+            citations:
+            - !cite 'plugin|dummy-plugin:0.0.0-dev|0'
+            - !cite 'plugin|dummy-plugin:0.0.0-dev|1'
+    python-packages:
+        altair: 5.5.0
+        annotated-types: 0.7.0
+        anyio: 4.9.0
+        appdirs: 1.4.4
+        appnope: 0.1.4
+        argcomplete: 3.6.2
+        argon2-cffi: 25.1.0
+        argon2-cffi-bindings: 21.2.0
+        arrow: 1.3.0
+        asttokens: 3.0.0
+        atpublic: 6.0.1
+        attrs: 25.3.0
+        autocommand: 2.2.2
+        backports.tarfile: 1.2.0
+        bcrypt: 4.3.0
+        beautifulsoup4: 4.13.4
+        bibtexparser: 1.4.3
+        biom-format: 2.1.16
+        bleach: 6.2.0
+        Brotli: 1.1.0
+        cached-property: 1.5.2
+        certifi: 2025.7.14
+        cffi: 1.17.1
+        chardet: 5.2.0
+        charset-normalizer: 3.4.2
+        click: 8.1.8
+        colorama: 0.4.6
+        comm: 0.2.2
+        conda-pack: 0.8.1
+        contourpy: 1.3.2
+        cryptography: 45.0.5
+        cutadapt: '5.1'
+        cycler: 0.12.1
+        deblur: 1.1.1
+        debugpy: 1.8.14
+        decorator: 4.4.2
+        defusedxml: 0.7.1
+        DendroPy: 5.0.8
+        dill: 0.4.0
+        dnaio: 1.2.2
+        dnspython: 2.7.0
+        emperor: 1.0.4
+        entrypoints: '0.4'
+        exceptiongroup: 1.3.0
+        executing: 2.2.0
+        fastcluster: 1.3.0
+        fastjsonschema: 2.21.1
+        filelock: 3.18.0
+        flake8: 7.3.0
+        flufl.lock: 8.2.0
+        fonttools: 4.58.5
+        formulaic: 1.2.0
+        fqdn: 1.5.1
+        frictionless: 5.5.0
+        future: 1.0.0
+        globus-sdk: 3.60.0
+        h2: 4.2.0
+        h5py: 3.11.0
+        hdmedians: 0.14.2
+        hpack: 4.1.0
+        humanize: 4.12.3
+        hyperframe: 6.1.0
+        idna: '3.10'
+        ijson: 3.4.0
+        importlib_metadata: 8.0.0
+        importlib_resources: 6.5.2
+        inflect: 7.3.1
+        iniconfig: 2.0.0
+        interface_meta: 1.3.0
+        iow: 1.0.5
+        ipykernel: 6.29.5
+        ipython: 8.21.0
+        ipython_genutils: 0.2.0
+        ipywidgets: 8.1.7
+        isal: 1.7.2
+        isodate: 0.7.2
+        isoduration: 20.11.0
+        jaraco.collections: 5.1.0
+        jaraco.context: 5.3.0
+        jaraco.functools: 4.0.1
+        jaraco.text: 3.12.1
+        jedi: 0.19.2
+        Jinja2: 3.1.6
+        joblib: 1.5.1
+        jsonpointer: 3.0.0
+        jsonschema: 4.24.0
+        jsonschema-specifications: 2025.4.1
+        jupyter-events: 0.12.0
+        jupyter_client: 7.4.9
+        jupyter_core: 5.8.1
+        jupyter_server: 2.16.0
+        jupyter_server_terminals: 0.5.3
+        jupyterlab_pygments: 0.3.0
+        jupyterlab_widgets: 3.0.15
+        kiwisolver: 1.4.8
+        llvmlite: 0.42.0
+        lxml: 5.2.2
+        lz4: 4.4.4
+        markdown-it-py: 3.0.0
+        marko: 2.1.4
+        MarkupSafe: 3.0.2
+        matplotlib: 3.8.4
+        matplotlib-inline: 0.1.7
+        mccabe: 0.7.0
+        mdurl: 0.1.2
+        mistune: 3.1.3
+        more-itertools: 10.3.0
+        munkres: 1.1.4
+        mypy_extensions: 1.1.0
+        narwhals: 1.47.0
+        natsort: 8.4.0
+        nbclassic: 1.3.1
+        nbclient: 0.10.2
+        nbconvert: 7.16.6
+        nbformat: 5.10.4
+        ncbi-datasets-pyclient: 18.4.0
+        nest_asyncio: 1.6.0
+        networkx: '3.1'
+        nlopt: 2.9.0
+        notebook: 6.5.5
+        notebook_shim: 0.2.4
+        numba: 0.59.1
+        numpy: 1.26.4
+        overrides: 7.7.0
+        packaging: '24.2'
+        pandas: 2.2.2
+        pandera: 0.25.0
+        pandocfilters: 1.5.0
+        paramiko: 3.5.1
+        parsl: 2024.4.15
+        parso: 0.8.4
+        PASTA: 1.9.3
+        patsy: 0.5.6
+        petl: 1.7.17
+        pexpect: 4.9.0
+        pickleshare: 0.7.5
+        pillow: 10.3.0
+        pip: 25.1.1
+        pkgutil_resolve_name: 1.3.10
+        platformdirs: 4.2.2
+        pluggy: 1.6.0
+        prometheus_client: 0.22.1
+        prompt_toolkit: 3.0.51
+        psutil: 7.0.0
+        ptyprocess: 0.7.0
+        pure_eval: 0.2.3
+        pycodestyle: 2.14.0
+        pycparser: '2.22'
+        pydantic: 2.11.7
+        pydantic_core: 2.33.2
+        pyflakes: 3.4.0
+        Pygments: 2.19.2
+        pyhmmer: 0.11.1
+        PyJWT: 2.10.1
+        pymongo: 4.13.0
+        PyNaCl: 1.5.0
+        pynndescent: 0.5.13
+        pyobjc-core: '11.1'
+        pyobjc-framework-Cocoa: '11.1'
+        pyparsing: 3.2.3
+        PySocks: 1.7.1
+        pytest: 8.4.1
+        python-dateutil: 2.9.0.post0
+        python-json-logger: 2.0.7
+        python-slugify: 8.0.4
+        pytz: '2025.2'
+        PyYAML: 6.0.2
+        pyzmq: 24.0.1
+        q2-alignment: 2025.7.0
+        q2-boots: 2025.7b0
+        q2-composition: 2025.7.0
+        q2-cutadapt: 2025.7.0
+        q2-dada2: 2022.4.0.dev0+69.gfeb531f.dirty
+        q2-deblur: 2025.7.0
+        q2-demux: 2025.7.0
+        q2-diversity: 2024.5.0.dev0+40.g66ed184.dirty
+        q2-diversity-lib: 2025.7.0
+        q2-emperor: 2025.7.0
+        q2-feature-classifier: 2025.7.0
+        q2-feature-table: 2025.7.0
+        q2-fragment-insertion: 2025.7.0
+        q2-longitudinal: 2025.7.0
+        q2-metadata: 2025.7.0
+        q2-mystery-stew: 2025.7.0
+        q2-phylogeny: 2025.7.0
+        q2-quality-control: 2025.7.0
+        q2-quality-filter: 2025.7.0
+        q2-sample-classifier: 2025.7.0
+        q2-stats: 2025.7.0
+        q2-taxa: 2025.7.0
+        q2-types: 2025.7.0
+        q2-vizard: 2025.7.0
+        q2-vsearch: 2025.7.0
+        q2cli: 2025.7.0
+        q2galaxy: 2025.7.0
+        q2templates: 2025.7.0
+        qiime2: 2025.4.0.dev0+38.ge323827
+        referencing: 0.36.2
+        requests: 2.32.4
+        rescript: 2025.7.0
+        rfc3339_validator: 0.1.4
+        rfc3986: 2.0.0
+        rfc3986-validator: 0.1.1
+        rich: 14.0.0
+        rnanorm: 2.1.0
+        rpds-py: 0.26.0
+        rpy2: 3.5.11
+        scikit-bio: 0.6.2
+        scikit-learn: 1.4.2
+        scipy: 1.13.0
+        seaborn: 0.12.2
+        Send2Trash: 1.8.3
+        sepp: 4.5.5
+        setproctitle: 1.3.6
+        setuptools: 80.9.0
+        shellingham: 1.5.4
+        simpleeval: 1.0.3
+        simplegeneric: 0.8.1
+        six: 1.17.0
+        sniffio: 1.3.1
+        soupsieve: '2.7'
+        stack_data: 0.6.3
+        statsmodels: 0.14.5
+        stringcase: 1.2.0
+        tabulate: 0.9.0
+        tblib: 3.1.0
+        terminado: 0.18.1
+        text-unidecode: '1.3'
+        threadpoolctl: 3.6.0
+        tinycss2: 1.4.0
+        toml: 0.10.2
+        tomli: 2.0.1
+        tomlkit: 0.13.3
+        tornado: 6.5.1
+        tqdm: 4.67.1
+        traitlets: 5.9.0
+        typeguard: 4.3.0
+        typer: 0.16.0
+        typer-slim: 0.16.0
+        types-python-dateutil: 2.9.0.20250708
+        typing-inspection: 0.4.1
+        typing_extensions: 4.12.2
+        typing_inspect: 0.9.0
+        typing_utils: 0.1.0
+        tzdata: '2025.2'
+        tzlocal: '2.1'
+        umap-learn: 0.5.7
+        unicodedata2: 16.0.0
+        unifrac: 1.3.0
+        uri-template: 1.3.0
+        urllib3: 2.5.0
+        validators: 0.35.0
+        wcwidth: 0.2.13
+        webcolors: 24.11.1
+        webencodings: 0.5.1
+        websocket-client: 1.8.0
+        wheel: 0.45.1
+        widgetsnbextension: 4.0.14
+        wrapt: 1.17.2
+        xmltodict: 0.14.2
+        xopen: 2.0.2
+        yq: 3.4.3
+        zipp: 3.19.2
+        zlib-ng: 0.5.1
+        zstandard: 0.23.0

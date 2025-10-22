@@ -35,6 +35,9 @@ from .testing_utilities import (
 
 from qiime2 import Artifact
 from qiime2.core.archive.archiver import ChecksumDiff
+from qiime2.core.archive.provenance_lib.tests.testing_utilities import (
+    write_zip_file
+)
 
 
 class ProvDAGTests(unittest.TestCase):
@@ -815,6 +818,29 @@ class ProvDAGTests(unittest.TestCase):
                     expected = (f'(?s)Malformed.*{file}.*{uuid}.*corrupt.*')
                     with self.assertRaisesRegex(ValueError, expected):
                         ProvDAG(altered_archive, validate_checksums=False)
+
+    def test_mixed_archive_version_provenance(self):
+        '''
+        Tests that an artifact of a given version that contains artifacts of
+        differing (lower) versions parses properly, looking for the
+        appropriate expected files for each different archive version.
+
+        The 'mixed-archived-versions' artifact is a V7 archive with a V6
+        archive in its provenance. V7 and V6 archives have different sets
+        of expected files in their directories.
+        '''
+        datadir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 'data'
+        )
+        artifact_dir = os.path.join(datadir, 'mixed-archive-versions')
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            zipfile = os.path.join(tempdir, 'temp.zip')
+            write_zip_file(zipfile, artifact_dir)
+            artifact = os.path.join(tempdir, 'mixed-archive-versions.qza')
+            Artifact.load(zipfile).save(artifact)
+
+            ProvDAG(artifact)
 
 
 class EmptyParserTests(unittest.TestCase):

@@ -267,6 +267,7 @@ class ActionTests(unittest.TestCase):
     Import is not handled by a plugin, so the parser provides values
     for the action_name and plugin properties not present in action.yaml
     '''
+
     def test_action_for_import_node(self):
         exp = 'import'
         self.assertEqual(self.import_action.action_name, exp)
