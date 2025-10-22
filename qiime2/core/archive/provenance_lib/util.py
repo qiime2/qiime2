@@ -80,12 +80,14 @@ def parse_version(
     tuple of (str, str)
         The archive version and framework version of the archive.
     '''
-    uuid = get_root_uuid(zf)
+    root_uuid = get_root_uuid(zf)
 
     if nested_artifact is not None:
-        version_fp = pathlib.Path(uuid) / nested_artifact / 'VERSION'
+        version_fp = pathlib.Path(root_uuid) / nested_artifact / 'VERSION'
+        uuid = nested_artifact.parts[-1]
     else:
-        version_fp = pathlib.Path(uuid) / 'VERSION'
+        version_fp = pathlib.Path(root_uuid) / 'VERSION'
+        uuid = root_uuid
 
     try:
         with zf.open(str(version_fp)) as v_fp:

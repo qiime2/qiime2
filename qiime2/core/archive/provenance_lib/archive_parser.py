@@ -959,6 +959,7 @@ class ParserV2(ParserV1):
 
             # make a provnode for each UUID
             archive_contents = {}
+
             for fp in prov_fps:
                 exp_node_fps = []
                 if 'artifacts' not in fp.parts:
