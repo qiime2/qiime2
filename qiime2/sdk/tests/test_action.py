@@ -181,3 +181,102 @@ class TestDeprecation(unittest.TestCase):
 
     def test_docstring(self):
         self.assertIn('Method is deprecated', self.method.__call__.__doc__)
+
+
+class TestMigration(unittest.TestCase):
+    def setUp(self):
+        self.plugin = get_dummy_plugin()
+        self.method1 = self.plugin.methods['migrated_method1']
+        self.method2 = self.plugin.methods['migrated_method2']
+        self.method3 = self.plugin.methods['migrated_method3']
+        self.method4 = self.plugin.methods['migrated_method4']
+        self.method5 = self.plugin.methods['migrated_method5']
+        self.method6 = self.plugin.methods['migrated_method6']
+        self.method7 = self.plugin.methods['migrated_method7']
+        self.method8 = self.plugin.methods['migrated_method8']
+
+    def test_full_migration_message(self):
+        with warnings.catch_warnings(record=True) as w:
+            self.method1()
+            self.assertEqual(1, len(w))
+            warning = w[0]
+            self.assertEqual(warning.category, FutureWarning)
+            self.assertEqual('This Method is slated for migration from the '
+                             'dummy_plugin plugin of the old distribution to '
+                             'the smart plugin of the new distribution '
+                             'in 2025.4.', str(warning.message))
+
+    def test_migration_message_no_optional_params(self):
+        with warnings.catch_warnings(record=True) as w:
+            self.method2()
+            self.assertEqual(1, len(w))
+            warning = w[0]
+            self.assertEqual(warning.category, FutureWarning)
+            self.assertEqual('This Method is slated for migration from the '
+                             'dummy_plugin plugin to the smart plugin in a '
+                             'future release.', str(warning.message))
+
+    def test_migration_message_from_distro(self):
+        with warnings.catch_warnings(record=True) as w:
+            self.method3()
+            self.assertEqual(1, len(w))
+            warning = w[0]
+            self.assertEqual(warning.category, FutureWarning)
+            self.assertEqual('This Method is slated for migration from the '
+                             'dummy_plugin plugin of the old distribution '
+                             'to the smart plugin in a future release.',
+                             str(warning.message))
+
+    def test_migration_message_to_distro(self):
+        with warnings.catch_warnings(record=True) as w:
+            self.method4()
+            self.assertEqual(1, len(w))
+            warning = w[0]
+            self.assertEqual(warning.category, FutureWarning)
+            self.assertEqual('This Method is slated for migration from the '
+                             'dummy_plugin plugin to the smart plugin of the '
+                             'new distribution in a future release.',
+                             str(warning.message))
+
+    def test_migration_message_epoch(self):
+        with warnings.catch_warnings(record=True) as w:
+            self.method5()
+            self.assertEqual(1, len(w))
+            warning = w[0]
+            self.assertEqual(warning.category, FutureWarning)
+            self.assertEqual('This Method is slated for migration from the '
+                             'dummy_plugin plugin to the smart plugin '
+                             'in 2025.4.', str(warning.message))
+
+    def test_migration_message_from_distro_to_distro(self):
+        with warnings.catch_warnings(record=True) as w:
+            self.method6()
+            self.assertEqual(1, len(w))
+            warning = w[0]
+            self.assertEqual(warning.category, FutureWarning)
+            self.assertEqual('This Method is slated for migration from the '
+                             'dummy_plugin plugin of the old distribution to '
+                             'the smart plugin of the new distribution '
+                             'in a future release.', str(warning.message))
+
+    def test_migration_message_from_distro_epoch(self):
+        with warnings.catch_warnings(record=True) as w:
+            self.method7()
+            self.assertEqual(1, len(w))
+            warning = w[0]
+            self.assertEqual(warning.category, FutureWarning)
+            self.assertEqual('This Method is slated for migration from the '
+                             'dummy_plugin plugin of the old distribution to '
+                             'the smart plugin in 2025.4.',
+                             str(warning.message))
+
+    def test_migration_message_to_distro_epoch(self):
+        with warnings.catch_warnings(record=True) as w:
+            self.method8()
+            self.assertEqual(1, len(w))
+            warning = w[0]
+            self.assertEqual(warning.category, FutureWarning)
+            self.assertEqual('This Method is slated for migration from the '
+                             'dummy_plugin plugin to the smart plugin of the '
+                             'new distribution in 2025.4.',
+                             str(warning.message))

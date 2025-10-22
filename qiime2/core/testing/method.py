@@ -55,6 +55,38 @@ def deprecated_method() -> dict:
     return {'foo': 43}
 
 
+def migrated_method1() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method2() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method3() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method4() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method5() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method6() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method7() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method8() -> dict:
+    return {'ziggy': 42}
+
+
 def long_description_method(mapping1: dict, name: str, age: int) -> dict:
     return {name: age}
 
