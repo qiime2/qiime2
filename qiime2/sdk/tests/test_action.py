@@ -18,7 +18,13 @@ from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.plugin.testing import TestPluginBase
 
 from qiime2.sdk import Artifact, Visualization
-from qiime2.core.testing.type import IntSequence1, IntSequence2, SingleInt
+from qiime2.core.testing.type import (IntSequence1, IntSequence2, SingleInt,
+                                      Mapping)
+from qiime2.core.testing.method import (migrated_method_true_no_dict,
+                                        migrated_method_missing_required_key,
+                                        migrated_method_invalid_key,
+                                        migrated_method_empty_key_value,
+                                        migrated_method_not_a_dict)
 from qiime2.core.testing.visualizer import most_common_viz
 from qiime2 import Metadata
 from qiime2.metadata.tests.test_io import get_data_path
@@ -186,10 +192,8 @@ class TestDeprecation(unittest.TestCase):
 class TestMigration(unittest.TestCase):
     def setUp(self):
         self.plugin = get_dummy_plugin()
-        self.method1 = \
-            self.plugin.methods['migrated_method_all_optional_params']
-        self.method2 = \
-            self.plugin.methods['migrated_method_no_optional_params']
+        self.method1 = self.plugin.methods['migrated_method_all_optional_keys']
+        self.method2 = self.plugin.methods['migrated_method_no_optional_keys']
         self.method3 = self.plugin.methods['migrated_method_from_distro']
         self.method4 = self.plugin.methods['migrated_method_to_distro']
         self.method5 = self.plugin.methods['migrated_method_epoch']
@@ -198,7 +202,7 @@ class TestMigration(unittest.TestCase):
         self.method7 = self.plugin.methods['migrated_method_from_distro_epoch']
         self.method8 = self.plugin.methods['migrated_method_to_distro_epoch']
 
-    def test_full_migration_message(self):
+    def test_migration_message_all_optional_keys(self):
         with warnings.catch_warnings(record=True) as w:
             self.method1()
             self.assertEqual(1, len(w))
@@ -209,7 +213,7 @@ class TestMigration(unittest.TestCase):
                              'the smart plugin of the new distribution '
                              'in 2025.4.', str(warning.message))
 
-    def test_migration_message_no_optional_params(self):
+    def test_migration_message_no_optional_keys(self):
         with warnings.catch_warnings(record=True) as w:
             self.method2()
             self.assertEqual(1, len(w))
@@ -283,3 +287,85 @@ class TestMigration(unittest.TestCase):
                              'dummy_plugin plugin to the smart plugin of the '
                              'new distribution in 2025.4.',
                              str(warning.message))
+
+    def test_migration_failure_true_no_dict(self):
+        with self.assertRaisesRegex(TypeError, '`migrated` must be False or a '
+                                    'Mapping with at least `to_plugin`'):
+            # migrated set to True; no dict
+            self.plugin.methods.register_function(
+                function=migrated_method_true_no_dict,
+                inputs={},
+                parameters={},
+                outputs=[
+                    ('out', Mapping)
+                ],
+                name='Migrated method set to True',
+                description='Migrated method set to True without a dict or '
+                            'required key.',
+                migrated={True},
+            )
+
+    def test_migration_failure_missing_required_key(self):
+        with self.assertRaisesRegex(ValueError, '`migrated` mapping missing '
+                                    'required key: `to_plugin`.'):
+            # missing required key
+            self.plugin.methods.register_function(
+                function=migrated_method_missing_required_key,
+                inputs={},
+                parameters={},
+                outputs=[
+                    ('out', Mapping)
+                ],
+                name='Migrated method missing `to_plugin`',
+                description='Migrated method without the required '
+                            '`to_plugin` key.',
+                migrated={'epoch': '2025.4'},
+            )
+
+    def test_migration_failure_invalid_key(self):
+        with self.assertRaisesRegex(ValueError, 'Got unexpected key: ziggy.*'):
+            # invalid key
+            self.plugin.methods.register_function(
+                function=migrated_method_invalid_key,
+                inputs={},
+                parameters={},
+                outputs=[
+                    ('out', Mapping)
+                ],
+                name='Migrated method with an invalid key',
+                description='Migrated method with an invalid key `ziggy`.',
+                migrated={'to_plugin': 'smart', 'ziggy': 'dog'},
+            )
+
+    def test_migration_failure_empty_key_value(self):
+        with self.assertRaisesRegex(TypeError, r'`migrated\["epoch"\]` must '
+                                    r'be a non-empty string\.'):
+            # empty key value
+            self.plugin.methods.register_function(
+                function=migrated_method_empty_key_value,
+                inputs={},
+                parameters={},
+                outputs=[
+                    ('out', Mapping)
+                ],
+                name='Migrated method with an empty key value',
+                description='Migrated method with an optional key '
+                            'containing an empty value.',
+                migrated={'to_plugin': 'smart', 'epoch': ''},
+            )
+
+    def test_migration_failure_not_a_dict(self):
+        with self.assertRaisesRegex(TypeError, '`migrated` must be False or a '
+                                    'Mapping with at least `to_plugin`.'):
+            # list not a dict
+            self.plugin.methods.register_function(
+                function=migrated_method_not_a_dict,
+                inputs={},
+                parameters={},
+                outputs=[
+                    ('out', Mapping)
+                ],
+                name='Migrated method with no dict',
+                description='Migrated method with a list instead of a dict.',
+                migrated=['to_plugin', 'to_distro', 'epoch'],
+            )

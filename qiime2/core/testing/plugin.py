@@ -49,8 +49,8 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      list_of_ints, dict_of_ints, returns_int, varied_method,
                      collection_inner_union, collection_outer_union,
                      dict_params, list_params, _underscore_method,
-                     migrated_method_all_optional_params,
-                     migrated_method_no_optional_params,
+                     migrated_method_all_optional_keys,
+                     migrated_method_no_optional_keys,
                      migrated_method_from_distro,
                      migrated_method_to_distro,
                      migrated_method_epoch,
@@ -497,15 +497,15 @@ dummy_plugin.methods.register_function(
     deprecated=True,
 )
 
-# all params
+# all optional keys
 dummy_plugin.methods.register_function(
-    function=migrated_method_all_optional_params,
+    function=migrated_method_all_optional_keys,
     inputs={},
     parameters={},
     outputs=[
         ('out', Mapping)
     ],
-    name='Migrated method with all optional params',
+    name='Migrated method with all optional keys',
     description='Migrated method with `to_plugin`, '
                 '`to_distro`, `from_distro`, `epoch`',
     migrated={'to_plugin': 'smart',
@@ -514,15 +514,15 @@ dummy_plugin.methods.register_function(
               'epoch': '2025.4'},
 )
 
-# no optional params
+# no optional keys
 dummy_plugin.methods.register_function(
-    function=migrated_method_no_optional_params,
+    function=migrated_method_no_optional_keys,
     inputs={},
     parameters={},
     outputs=[
         ('out', Mapping)
     ],
-    name='Migrated method with no optional params',
+    name='Migrated method with no optional keys',
     description='Migrated method with `to_plugin`',
     migrated={'to_plugin': 'smart'},
 )
@@ -535,7 +535,7 @@ dummy_plugin.methods.register_function(
     outputs=[
         ('out', Mapping)
     ],
-    name='Migrated method with optional params',
+    name='Migrated method with optional keys',
     description='Migrated method with `to_plugin`, `from_distro`',
     migrated={'to_plugin': 'smart',
               'from_distro': 'old'},
@@ -549,7 +549,7 @@ dummy_plugin.methods.register_function(
     outputs=[
         ('out', Mapping)
     ],
-    name='Migrated method with optional params',
+    name='Migrated method with optional keys',
     description='Migrated method with `to_plugin`, `to_distro`',
     migrated={'to_plugin': 'smart',
               'to_distro': 'new'},
@@ -563,7 +563,7 @@ dummy_plugin.methods.register_function(
     outputs=[
         ('out', Mapping)
     ],
-    name='Migrated method with optional params',
+    name='Migrated method with optional keys',
     description='Migrated method with `to_plugin`, `epoch`',
     migrated={'to_plugin': 'smart',
               'epoch': '2025.4'},
@@ -577,7 +577,7 @@ dummy_plugin.methods.register_function(
     outputs=[
         ('out', Mapping)
     ],
-    name='Migrated method with optional params',
+    name='Migrated method with optional keys',
     description='Migrated method with `to_plugin`, `from_distro`, `to_distro`',
     migrated={'to_plugin': 'smart',
               'from_distro': 'old',
@@ -592,7 +592,7 @@ dummy_plugin.methods.register_function(
     outputs=[
         ('out', Mapping)
     ],
-    name='Migrated method with optional params',
+    name='Migrated method with optional keys',
     description='Migrated method with `to_plugin`, `from_distro`, `epoch`',
     migrated={'to_plugin': 'smart',
               'from_distro': 'old',
@@ -607,7 +607,7 @@ dummy_plugin.methods.register_function(
     outputs=[
         ('out', Mapping)
     ],
-    name='Migrated method with optional params',
+    name='Migrated method with optional keys',
     description='Migrated method with `to_plugin`, `to_distro`, `epoch`',
     migrated={'to_plugin': 'smart',
               'to_distro': 'new',
