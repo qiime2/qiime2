@@ -524,24 +524,29 @@ def sha512_file_hex(path):
     return hex.hexdigest()
 
 
-# helper for pulling keypair info from a given fingerprint or uid
-def gpg_find_key(key_selector):
+# helper for pulling keypair info from a given fingerprint
+def gpg_find_key(fingerprint_raw):
+    fingerprint = normalize_fingerprint(fingerprint_raw)
+
+    if not re.fullmatch(r'[0-9A-F]{40}|[0-9A-F]{64}', fingerprint):
+        raise ValueError('Expected a full GPG fingerprint (40 or 64 chars).')
+
     cmd = [
         'gpg',
         '--list-keys',
         '--with-colons',
         '--fingerprint',
         '--keyid-format=long',
-        key_selector
+        fingerprint_raw
     ]
+
     try:
         output = subprocess.check_output(cmd, text=True)
     except FileNotFoundError as e:
         raise RuntimeError('`gpg` not found on `PATH`.') from e
     except subprocess.CalledProcessError:
         raise RuntimeError(
-            'No matching key found for the provided UID/fingerprint'
-        )
+            'No matching key found for the provided fingerprint')
 
     key_info = {
         'fingerprint': None,
@@ -551,12 +556,6 @@ def gpg_find_key(key_selector):
         'uids': [],
         'chosen_uid': None
     }
-
-    fingerprint = \
-        (normalize_fingerprint(key_selector)
-         if re.fullmatch(r'[0-9A-Fa-f\s]+', key_selector or '')
-         and len(normalize_fingerprint(key_selector)) >= 32
-         else None)
 
     # format for the output of `gpg --list-keys`
     # pub:...:<len>:<algo>:<keyid>:...
@@ -573,45 +572,51 @@ def gpg_find_key(key_selector):
     for line in output.splitlines():
         parts = line.split(':')
         tag = parts[0]
+
         # public key tag; the primary key info that matches
-        # the given uid or fingerprint will be here
+        # the fingerprint will be here
         if tag == 'pub':
             in_primary = True
-            length = parts[2] or '0'
-            algorithm_num = parts[3] or ''
-            curve = parts[15] if len(parts) >= 16 and parts[15] else None
-            key_info['length'] = int(length) if length.isdigit() else 0
+            length = parts[2] if len(parts) > 2 else '0'
+            algorithm_num = parts[3] if len(parts) > 3 else ''
+            curve = parts[15] if len(parts) > 15 and parts[15] else None
+            key_info['length'] = int(length) if str(length).isdigit() else 0
             key_info['algorithm'] = \
                 _PUBKEY_ALG.get(algorithm_num, f'ALG-{algorithm_num}')
             key_info['curve'] = curve
         # subkey fingerprint (if applicable)
-        elif in_primary and tag == 'fpr' and key_info['fingerprint'] is None:
-            normalized_fingerprint = normalize_fingerprint(parts[9])
+
+        elif in_primary and tag == 'fpr':
+            # confirm primary fingerprint matches the input fingerprint
+            normalized_fingerprint = \
+                normalize_fingerprint(parts[9] if len(parts) > 9 else '')
             if fingerprint and normalized_fingerprint != fingerprint:
+                # If gpg listed a different key somehow, skip it
                 continue
-            # fill in fingerprint if given keypair id was name/email
-            key_info['fingerprint'] = normalized_fingerprint
+            # this ensures we don't overwrite the primary with a subkey
+            if key_info['fingerprint'] is None:
+                key_info['fingerprint'] = normalized_fingerprint
+
         # fill in name/email from given uid
         elif in_primary and tag == 'uid':
-            raw = parts[9]
+            raw = parts[9] if len(parts) > 9 else ''
             name, email = _parse_uid(raw)
             key_info['uids'].append({'raw': raw, 'name': name, 'email': email})
 
-    if not key_info['fingerprint']:
-        raise RuntimeError('Could not determine primary key fingerprint '
+        # If we ever saw a new 'pub' after the first, we could break once
+        # fingerprint is confirmed. But gpg with a full fingerprint should
+        # return a single primary key.
+
+    # confirmation that the listed key's fingerprint matches input
+    if key_info['fingerprint'] is None:
+        raise RuntimeError('Could not confirm primary key fingerprint '
                            'from `gpg` output.')
 
-    chosen_uid = None
-    # identifies if Name <email> was used as the keypair identifier
-    if key_selector and '<' in key_selector and '>' in key_selector:
-        # since there can be multiple uids associated with a given keypair
-        for uid in key_info['uids']:
-            if uid['raw'] == key_selector.strip():
-                chosen_uid = uid
-                break
-    key_info['chosen_uid'] = \
-        chosen_uid or (key_info['uids'][0] if key_info['uids'] else
-                       {'raw': None, 'name': None, 'email': None})
+    # choose a default UID (first one if present)
+    key_info['chosen_uid'] = (
+        key_info['uids'][0] if key_info['uids']
+        else {'raw': None, 'name': None, 'email': None}
+    )
 
     return key_info
 

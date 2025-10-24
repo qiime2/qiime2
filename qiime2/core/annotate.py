@@ -130,6 +130,7 @@ class Annotation():
         raise NotImplementedError
 
     def __init__(self, name):
+        self.validate_name(name)
         """
         Construction for an initialized Annotation.
 
@@ -292,7 +293,6 @@ class Note(Annotation):
     # NOTE: in future versions, name will become optional & the default value
     # will be the annotation's UUID (if name isn't provided by the user)
     def __init__(self, name, *, text=None, filepath=None):
-        self.validate_name(name)
         # Ensure exactly one of text or filepath is provided
         if text and filepath:
             raise ValueError(
@@ -394,15 +394,9 @@ class Signature(Annotation):
     name : str
         Annotation name (validated like other Annotations).
 
-    signer_name : str, optional
-        Name associated with the key pair in GnuPG
+    fingerprint : str, optional
+        Fingerprint associated with the key pair in GnuPG
         that will be used for signing.
-        At least one of name/email must be provided for Signature creation.
-
-    signer_email : str, optional
-        Email associated with the key pair in GnuPG
-        that will be used for signing.
-        At least one of name/email must be provided for Signature creation.
 
     Returns
     -------
@@ -417,20 +411,21 @@ class Signature(Annotation):
 
     # NOTE: in future versions, name will become optional & the default value
     # will be the annotation's UUID (if name isn't provided by the user)
-    def __init__(self, name, *, signer_uid=None, fingerprint=None):
-        self.validate_name(name)
-
-        # Ensure at least one of signer uid (name/email address) is provided
-        if not signer_uid and not fingerprint:
+    def __init__(self, name, *, fingerprint):
+        if not fingerprint:
             raise ValueError(
-                'No inputs provided to either `signer_uid` or `fingerprint`. '
-                'Please provide either signer ID (name and email) or '
-                'fingerprint for key pair identification.'
+                'No input provided for `fingerprint`. '
+                'Please provide `fingerprint` for key pair identification.'
             )
 
         # Construct Annotation class
-        self.signer_uid = signer_uid
-        self.fingerprint = fingerprint
+        key_info = gpg_find_key(fingerprint)
+
+        self.algorithm = format_algorithm(key_info)
+        self.fingerprint = key_info['fingerprint']
+        self.signer_name = key_info['chosen_uid']['name']
+        self.signer_email = key_info['chosen_uid']['email']
+
         super().__init__(name)
 
     def _write(self, annotations_dir, root_result_uuid,
@@ -464,20 +459,6 @@ class Signature(Annotation):
             )
         checksum_digest = sha512_file_hex(checksums_fp)
 
-        keypair_id = self.signer_uid or self.fingerprint
-        if not keypair_id:
-            raise ValueError(
-                'No signer identity available. `signer_uid` '
-                '(e.g. "Name <email>") or `fingerprint` must be available '
-                'within gpg when constructing Signature.'
-            )
-
-        key_info = gpg_find_key(keypair_id)
-        algorithm = format_algorithm(key_info)
-        fingerprint = key_info['fingerprint']
-        signer_name = key_info['chosen_uid']['name']
-        signer_email = key_info['chosen_uid']['email']
-
         env = os.environ.copy()
         # Apparently this is helpful on Unix for GPG to find
         # the correct terminal
@@ -494,8 +475,9 @@ class Signature(Annotation):
         try:
             annotation_uuid_dirname = self._write_meta_yaml(
                 str(annotations_dir), root_result_uuid,
-                referenced_result_uuid, algorithm, checksum_digest,
-                signer_name, signer_email, fingerprint
+                referenced_result_uuid, self.algorithm, checksum_digest,
+                self.signer_name, self.signer_email,
+                self.fingerprint
             )
 
             signature_dir = pathlib.Path(annotation_uuid_dirname)
@@ -503,7 +485,7 @@ class Signature(Annotation):
 
             cmd = [
                 'gpg',
-                '--local-user', str(keypair_id),
+                '--local-user', str(self.fingerprint),
                 '--output', str(sig_fp),
                 '--detach-sign', str(checksums_fp)
             ]

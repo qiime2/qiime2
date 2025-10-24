@@ -641,6 +641,8 @@ class Result(IResult):
         )
         if not report['ok'] and not report['details']:
             report['details'] = 'One or more verification checks failed.'
+            raise ValueError(report)
+
         return report
 
 
