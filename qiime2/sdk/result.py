@@ -529,7 +529,7 @@ class Result(IResult):
                         self.add_annotation(other_annotation)
                     else:
                         raise e
-        
+
     def verify(self, signature_name):
         """
         Verify a Signature annotation by name on the provided Result.
