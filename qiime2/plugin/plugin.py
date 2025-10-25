@@ -610,7 +610,7 @@ class PluginMethods(PluginActions):
                           description, input_descriptions=None,
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None,
-                          deprecated=False, examples=None):
+                          deprecated=False, migrated=False, examples=None):
         """Register a method to the associated plugin.
 
         Parameters
@@ -649,6 +649,10 @@ class PluginMethods(PluginActions):
           used. Can also use an entire :py:class:`.Citations` object.
         deprecated : bool
           Whether this action is deprecated and should be migrated away from.
+        migrated : bool | Mapping[str, str]
+          Either False (default) or a mapping with keys:
+          {'to_plugin', 'from_distro', 'to_distro', 'epoch'}
+          indicating where/when this action will be migrated.
         examples : dict[str, callable]
           A dict of example name to usage example functions which take a
           single argument (the usage driver, a.k.a. ``use``). Each function
@@ -689,7 +693,7 @@ class PluginMethods(PluginActions):
                                          input_descriptions,
                                          parameter_descriptions,
                                          output_descriptions, citations,
-                                         deprecated, examples)
+                                         deprecated, migrated, examples)
         self[method.id] = method
 
 
@@ -698,7 +702,7 @@ class PluginVisualizers(PluginActions):
     def register_function(self, function, inputs, parameters, name,
                           description, input_descriptions=None,
                           parameter_descriptions=None, citations=None,
-                          deprecated=False, examples=None):
+                          deprecated=False, migrated=False, examples=None):
         """Register a visualizer to the associated plugin.
 
         Parameters
@@ -729,6 +733,10 @@ class PluginVisualizers(PluginActions):
           used. Can also use an entire :py:class:`.Citations` object.
         deprecated : bool
           Whether this action is deprecated and should be migrated away from.
+        migrated : bool | Mapping[str, str]
+          Either False (default) or a mapping with keys:
+          {'to_plugin', 'from_distro', 'to_distro', 'epoch'}
+          indicating where/when this action will be migrated.
         examples : dict[str, callable]
           A dict of example name to usage example functions which take a
           single argument (the usage driver, a.k.a. ``use``). Each function
@@ -761,7 +769,7 @@ class PluginVisualizers(PluginActions):
                                                  input_descriptions,
                                                  parameter_descriptions,
                                                  citations, deprecated,
-                                                 examples)
+                                                 migrated, examples)
         self[visualizer.id] = visualizer
 
 
@@ -771,7 +779,7 @@ class PluginPipelines(PluginActions):
                           description, input_descriptions=None,
                           parameter_descriptions=None,
                           output_descriptions=None, citations=None,
-                          deprecated=False, examples=None):
+                          deprecated=False, migrated=False, examples=None):
         """Register a pipeline to the associated plugin.
 
         Parameters
@@ -811,6 +819,10 @@ class PluginPipelines(PluginActions):
           used. Can also use an entire :py:class:`.Citations` object.
         deprecated : bool
           Whether this action is deprecated and should be migrated away from.
+        migrated : bool | Mapping[str, str]
+          Either False (default) or a mapping with keys:
+          {'to_plugin', 'from_distro', 'to_distro', 'epoch'}
+          indicating where/when this action will be migrated.
         examples : dict[str, callable]
           A dict of example name to usage example functions which take a
           single argument (the usage driver, a.k.a. ``use``). Each function
@@ -838,5 +850,5 @@ class PluginPipelines(PluginActions):
                                              description, input_descriptions,
                                              parameter_descriptions,
                                              output_descriptions, citations,
-                                             deprecated, examples)
+                                             deprecated, migrated, examples)
         self[pipeline.id] = pipeline

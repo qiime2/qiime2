@@ -16,9 +16,13 @@ import importlib
 import parsl
 import tomlkit
 
+import logging
+
+
 # Stores info about the currently loaded parallel config
 PARALLEL_CONFIG = threading.local()
 PARALLEL_CONFIG.dfk = None
+PARALLEL_CONFIG.debug = False
 PARALLEL_CONFIG.parallel_config = None
 PARALLEL_CONFIG.action_executor_mapping = {}
 
@@ -81,6 +85,16 @@ module_paths = {
     'provider': PARSL_PROVIDER,
     'providers': PARSL_PROVIDER
 }
+
+
+class ChangeDebugLevel:
+    def __enter__(self):
+        self.DEBUG = logging.DEBUG
+        if not PARALLEL_CONFIG.debug:
+            logging.DEBUG = logging.INFO
+
+    def __exit__(self, *args):
+        logging.DEBUG = self.DEBUG
 
 
 def get_vendored_config():
@@ -223,6 +237,7 @@ def load_config_from_dict(config_dict):
 
     processed_parallel_config_dict = _process_config(parallel_config_dict)
 
+    PARALLEL_CONFIG.debug = parallel_config_dict.pop('debug', False)
     if processed_parallel_config_dict != {}:
         parallel_config = parsl.Config(**processed_parallel_config_dict)
     else:
@@ -393,7 +408,8 @@ class ParallelConfig():
             PARALLEL_CONFIG.action_executor_mapping = \
                 self.action_executor_mapping
 
-        PARALLEL_CONFIG.dfk = parsl.load(PARALLEL_CONFIG.parallel_config)
+        with ChangeDebugLevel():
+            PARALLEL_CONFIG.dfk = parsl.load(PARALLEL_CONFIG.parallel_config)
 
     def __exit__(self, *args):
         """Unset our parallel config.

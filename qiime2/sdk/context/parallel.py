@@ -182,7 +182,7 @@ class ParallelContext(Context):
         # Set the name of the closure to the name of the action, so we see the
         # correct name in the parsl log
         self.action_obj._set_wrapper_name(
-            _run_parsl_action, self.action_obj.name)
+            _run_parsl_action, self.action_obj.id)
 
         if isinstance(self.action_obj, Pipeline):
             # Nested pipelines are not run as a parsl app at all, they run as a

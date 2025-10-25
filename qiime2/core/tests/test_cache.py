@@ -676,3 +676,73 @@ class TestCache(unittest.TestCase):
             ValueError, f"The cache at `{self.cache.path}`.*`{future_version}`"
                         f".*`{Cache.CURRENT_FORMAT_VERSION}`"):
             Cache.is_cache(self.cache.path)
+
+    def test_annotation_merge(self):
+        art1_path = os.path.join(self.test_dir.name, 'art1.qza')
+        art1_copy_path = os.path.join(self.test_dir.name, 'art1_copy.qza')
+
+        self.art1.save(art1_path)
+        self.art1.save(art1_copy_path)
+
+        # Use different caches to force creation of two different on disk
+        # representations of the artifact
+        cache2 = Cache(os.path.join(self.test_dir.name, 'new_cache2'))
+        cache3 = Cache(os.path.join(self.test_dir.name, 'new_cache3'))
+
+        with cache2:
+            art1 = qiime2.sdk.Result.load(art1_path)
+            self.assertEqual(art1._annotations, {})
+            Note1 = qiime2.core.annotate.Note(name='annotation-1', text='1')
+            art1.add_annotation(Note1)
+            self.cache.save(art1, 'annotation-1')
+            art1_annotation1 = self.cache.load('annotation-1')
+
+        self.assertEqual(
+            set(art1_annotation1._annotations.keys()), set(['annotation-1']))
+
+        with cache3:
+            art1_copy = qiime2.sdk.Result.load(art1_copy_path)
+            self.assertEqual(art1_copy._annotations, {})
+            Note2 = qiime2.core.annotate.Note(name='annotation-2', text='2')
+            art1_copy.add_annotation(Note2)
+            self.cache.save(art1_copy, 'annotation-2')
+            art1_both_annotations = self.cache.load('annotation-2')
+
+        self.assertEqual(
+            set(art1_both_annotations._annotations.keys()),
+            set(['annotation-1', 'annotation-2']))
+
+    def test_annotation_merge_collisions(self):
+        art1_path = os.path.join(self.test_dir.name, 'art1.qza')
+        art1_copy_path = os.path.join(self.test_dir.name, 'art1_copy.qza')
+
+        self.art1.save(art1_path)
+        self.art1.save(art1_copy_path)
+
+        # Use different caches to force creation of two different on disk
+        # representations of the artifact
+        cache2 = Cache(os.path.join(self.test_dir.name, 'new_cache2'))
+        cache3 = Cache(os.path.join(self.test_dir.name, 'new_cache3'))
+
+        with cache2:
+            art1 = qiime2.sdk.Result.load(art1_path)
+            Note1 = qiime2.core.annotate.Note(name='annotation-1', text='1')
+            art1.add_annotation(Note1)
+            self.cache.save(art1, 'annotation-1')
+            art1_annotation1 = self.cache.load('annotation-1')
+
+        self.assertEqual(
+            set(art1_annotation1._annotations.keys()), set(['annotation-1']))
+
+        with cache3:
+            art1_copy = qiime2.sdk.Result.load(art1_copy_path)
+            Note2 = qiime2.core.annotate.Note(
+                name='annotation-1', text='1 again')
+            art1_copy.add_annotation(Note2)
+            with self.assertWarnsRegex(Warning, 'Duplicate name annotation-1'):
+                self.cache.save(art1_copy, 'annotation-1')
+            art1_both_annotations = self.cache.load('annotation-1')
+
+        self.assertEqual(
+            set(art1_both_annotations._annotations.keys()),
+            set(['annotation-1', f'annotation-1-{Note2.id}']))

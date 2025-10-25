@@ -48,7 +48,15 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      unioned_primitives, type_match_list_and_set, union_inputs,
                      list_of_ints, dict_of_ints, returns_int, varied_method,
                      collection_inner_union, collection_outer_union,
-                     dict_params, list_params, _underscore_method)
+                     dict_params, list_params, _underscore_method,
+                     migrated_method_all_optional_keys,
+                     migrated_method_no_optional_keys,
+                     migrated_method_from_distro,
+                     migrated_method_to_distro,
+                     migrated_method_epoch,
+                     migrated_method_from_distro_to_distro,
+                     migrated_method_from_distro_epoch,
+                     migrated_method_to_distro_epoch)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -487,6 +495,123 @@ dummy_plugin.methods.register_function(
     name='A deprecated method',
     description='This deprecated method does not accept any type of input.',
     deprecated=True,
+)
+
+# all optional keys
+dummy_plugin.methods.register_function(
+    function=migrated_method_all_optional_keys,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='Migrated method with all optional keys',
+    description='Migrated method with `to_plugin`, '
+                '`to_distro`, `from_distro`, `epoch`',
+    migrated={'to_plugin': 'smart',
+              'from_distro': 'old',
+              'to_distro': 'new',
+              'epoch': '2025.4'},
+)
+
+# no optional keys
+dummy_plugin.methods.register_function(
+    function=migrated_method_no_optional_keys,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='Migrated method with no optional keys',
+    description='Migrated method with `to_plugin`',
+    migrated={'to_plugin': 'smart'},
+)
+
+# from_distro
+dummy_plugin.methods.register_function(
+    function=migrated_method_from_distro,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='Migrated method with optional keys',
+    description='Migrated method with `to_plugin`, `from_distro`',
+    migrated={'to_plugin': 'smart',
+              'from_distro': 'old'},
+)
+
+# to_distro
+dummy_plugin.methods.register_function(
+    function=migrated_method_to_distro,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='Migrated method with optional keys',
+    description='Migrated method with `to_plugin`, `to_distro`',
+    migrated={'to_plugin': 'smart',
+              'to_distro': 'new'},
+)
+
+# epoch
+dummy_plugin.methods.register_function(
+    function=migrated_method_epoch,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='Migrated method with optional keys',
+    description='Migrated method with `to_plugin`, `epoch`',
+    migrated={'to_plugin': 'smart',
+              'epoch': '2025.4'},
+)
+
+# from_distro & to_distro
+dummy_plugin.methods.register_function(
+    function=migrated_method_from_distro_to_distro,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='Migrated method with optional keys',
+    description='Migrated method with `to_plugin`, `from_distro`, `to_distro`',
+    migrated={'to_plugin': 'smart',
+              'from_distro': 'old',
+              'to_distro': 'new'},
+)
+
+# from_distro & epoch
+dummy_plugin.methods.register_function(
+    function=migrated_method_from_distro_epoch,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='Migrated method with optional keys',
+    description='Migrated method with `to_plugin`, `from_distro`, `epoch`',
+    migrated={'to_plugin': 'smart',
+              'from_distro': 'old',
+              'epoch': '2025.4'},
+)
+
+# to_distro & epoch
+dummy_plugin.methods.register_function(
+    function=migrated_method_to_distro_epoch,
+    inputs={},
+    parameters={},
+    outputs=[
+        ('out', Mapping)
+    ],
+    name='Migrated method with optional keys',
+    description='Migrated method with `to_plugin`, `to_distro`, `epoch`',
+    migrated={'to_plugin': 'smart',
+              'to_distro': 'new',
+              'epoch': '2025.4'},
 )
 
 

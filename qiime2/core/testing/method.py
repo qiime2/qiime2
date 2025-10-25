@@ -55,6 +55,58 @@ def deprecated_method() -> dict:
     return {'foo': 43}
 
 
+def migrated_method_all_optional_keys() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_no_optional_keys() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_from_distro() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_to_distro() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_epoch() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_from_distro_to_distro() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_from_distro_epoch() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_to_distro_epoch() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_true_no_dict() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_missing_required_key() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_invalid_key() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_empty_key_value() -> dict:
+    return {'ziggy': 42}
+
+
+def migrated_method_not_a_dict() -> dict:
+    return {'ziggy': 42}
+
+
 def long_description_method(mapping1: dict, name: str, age: int) -> dict:
     return {name: age}
 
