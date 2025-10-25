@@ -146,6 +146,7 @@ def get_filepath_from_package(package, relative_filepath):
     else:
         return fp
 
+
 def handle_deprecated_alias(changes: dict, release: str):
     def decorator(function):
         def wrapper(*args, **kwargs):
@@ -160,4 +161,3 @@ def handle_deprecated_alias(changes: dict, release: str):
             return function(*args, **kwargs)
         return wrapper
     return decorator
-
