@@ -11,6 +11,7 @@ import sys
 import errno
 import shutil
 import importlib
+import warnings
 
 import threading
 import contextlib
@@ -144,3 +145,19 @@ def get_filepath_from_package(package, relative_filepath):
             f'The requested data asset {fp} does not exist.')
     else:
         return fp
+
+def handle_deprecated_alias(changes: dict, release: str):
+    def decorator(function):
+        def wrapper(*args, **kwargs):
+            for parameter in kwargs.keys():
+                if parameter in changes.keys():
+                    warnings.warn(
+                        f"The parameter `{parameter}` is deprecated and will"
+                        f" be changed to `{changes[parameter]}` in the "
+                        f"`{release}` release.",
+                        DeprecationWarning,
+                    )
+            return function(*args, **kwargs)
+        return wrapper
+    return decorator
+

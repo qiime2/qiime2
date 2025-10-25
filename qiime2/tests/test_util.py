@@ -11,8 +11,10 @@ import errno
 import tempfile
 import unittest
 import unittest.mock as mock
+import warnings
 
 import qiime2.util as util
+from qiime2.util import handle_deprecated_alias
 
 EXDEV = OSError(errno.EXDEV, "Invalid cross-device link")
 ENOTSUP = OSError(errno.ENOTSUP, "Operation not supported")
@@ -154,6 +156,24 @@ class GetFilepathFromPackageTests(unittest.TestCase):
         with self.assertRaisesRegex(FileNotFoundError, "-exists.txt does not"):
             util.get_filepath_from_package(
                 'qiime2', 'i-hope-this-filename-never-exists.txt')
+
+
+class TestDeprecatedAliases(unittest.TestCase):
+    @handle_deprecated_alias(
+        {"some_word": "new_word", "some_list": "new_list"}, "1999"
+    )
+    def some_function(self, some_word, some_integer, some_list):
+        return [some_word, some_integer, some_list]
+
+    def test_deprecated(self):
+        with warnings.catch_warnings(record=True) as w:
+
+            result = self.some_function(
+                some_word="hello", some_integer=1999, some_list=["world"]
+            )
+
+            self.assertEqual(result, ["hello", 1999, ["world"]])
+            self.assertEqual(len(w), 2)
 
 
 if __name__ == '__main__':
