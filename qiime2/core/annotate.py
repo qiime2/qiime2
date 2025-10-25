@@ -394,7 +394,7 @@ class Signature(Annotation):
     name : str
         Annotation name (validated like other Annotations).
 
-    fingerprint : str, optional
+    fingerprint : str
         Fingerprint associated with the key pair in GnuPG
         that will be used for signing.
 
