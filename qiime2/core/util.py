@@ -577,8 +577,13 @@ def gpg_find_key(fingerprint_raw):
         # the fingerprint will be here
         if tag == 'pub':
             in_primary = True
+            # length and algorithm are always present on pub lines
+            # so don't need to check truthiness on these
             length = parts[2] if len(parts) > 2 else '0'
             algorithm_num = parts[3] if len(parts) > 3 else ''
+            # curve is optional and only set for ECC keys (ECDSA/ECDH/EdDSA)
+            # when not applicable, gpg leaves this empty - hence the need
+            # to check truthiness on this field
             curve = parts[15] if len(parts) > 15 and parts[15] else None
             key_info['length'] = int(length) if str(length).isdigit() else 0
             key_info['algorithm'] = \
