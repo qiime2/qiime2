@@ -13,6 +13,7 @@ import stat
 import os
 import io
 import re
+import sys
 import collections
 import uuid as _uuid
 import yaml
@@ -495,6 +496,16 @@ def _parse_uid(uid_str):
         name = uid_str[: uid_str.index('<')].strip()
         return name or None, email or None
     return (uid_str.strip() or None, None)
+
+
+# Apparently this is helpful on Unix to GPG to find the correct terminal
+def unix_gpg_terminal_helper(env):
+    try:
+        if sys.stdin and sys.stdin.isatty():
+            env.setdefault('GPG_TTY', os.ttyname(sys.stdin.fileno()))
+    except Exception:
+        pass
+    return env
 
 
 # helper for normalizing fingerprint formatting

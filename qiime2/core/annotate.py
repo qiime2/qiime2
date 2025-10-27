@@ -9,7 +9,6 @@
 import os
 import pathlib
 import subprocess
-import sys
 import uuid as _uuid
 import yaml
 import shutil
@@ -18,7 +17,8 @@ from collections import OrderedDict
 from datetime import datetime
 
 from qiime2.core.util import (find_root_fp, sha512_file_hex,
-                              gpg_find_key, format_algorithm)
+                              gpg_find_key, format_algorithm,
+                              unix_gpg_terminal_helper)
 
 
 class Annotation():
@@ -131,7 +131,6 @@ class Annotation():
         raise NotImplementedError
 
     def __init__(self, name):
-        self.validate_name(name)
         """
         Construction for an initialized Annotation.
 
@@ -152,6 +151,8 @@ class Annotation():
             If the Annotation base class is instantiated.
 
         """
+        self.validate_name(name)
+
         if type(self) is Annotation:
             raise TypeError('Annotation is an abstract class'
                             ' and cannot be instantiated directly.')
@@ -294,6 +295,8 @@ class Note(Annotation):
     # NOTE: in future versions, name will become optional & the default value
     # will be the annotation's UUID (if name isn't provided by the user)
     def __init__(self, name, *, text=None, filepath=None):
+        # Construct Annotation class
+        super().__init__(name)
         # Ensure exactly one of text or filepath is provided
         if text and filepath:
             raise ValueError(
@@ -325,9 +328,6 @@ class Note(Annotation):
 
             self._filepath = str(filepath)
             self.contents = None
-
-        # Construct Annotation class
-        super().__init__(name)
 
     def _write(self, annotations_dir, root_result_uuid,
                referenced_result_uuid):
@@ -413,21 +413,22 @@ class Signature(Annotation):
     # NOTE: in future versions, name will become optional & the default value
     # will be the annotation's UUID (if name isn't provided by the user)
     def __init__(self, name, *, fingerprint):
+        # Construct Annotation class
+        super().__init__(name)
+
         if not fingerprint:
             raise ValueError(
                 'No input provided for `fingerprint`. '
                 'Please provide `fingerprint` for key pair identification.'
             )
 
-        # Construct Annotation class
+        # Signature-specific construction
         key_info = gpg_find_key(fingerprint)
 
         self.algorithm = format_algorithm(key_info)
         self.fingerprint = key_info['fingerprint']
         self.signer_name = key_info['chosen_uid']['name']
         self.signer_email = key_info['chosen_uid']['email']
-
-        super().__init__(name)
 
     def _write(self, annotations_dir, root_result_uuid,
                referenced_result_uuid):
@@ -461,13 +462,7 @@ class Signature(Annotation):
         checksum_digest = sha512_file_hex(checksums_fp)
 
         env = os.environ.copy()
-        # Apparently this is helpful on Unix for GPG to find
-        # the correct terminal
-        try:
-            if sys.stdin and sys.stdin.isatty():
-                env.setdefault('GPG_TTY', os.ttyname(sys.stdin.fileno()))
-        except Exception:
-            pass
+        unix_gpg_terminal_helper(env)
 
         annotation_uuid_dirname = None
         signature_dir = None
