@@ -840,7 +840,10 @@ class ProvDAGTests(unittest.TestCase):
             artifact = os.path.join(tempdir, 'mixed-archive-versions.qza')
             Artifact.load(zipfile).save(artifact)
 
-            ProvDAG(artifact)
+            dag = ProvDAG(artifact)
+            self.assertEqual(len(dag.terminal_uuids), 1)
+            self.assertEqual(len(dag.dag.nodes), 2)
+            self.assertEqual(dag.provenance_is_valid, ValidationCode.VALID)
 
 
 class EmptyParserTests(unittest.TestCase):

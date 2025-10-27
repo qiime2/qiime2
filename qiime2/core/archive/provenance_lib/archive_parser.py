@@ -981,6 +981,8 @@ class ParserV2(ParserV1):
 
                 # different artifact versions have different expected files
                 if 'artifacts' in fp.parts:
+                    #      0         1          2        3
+                    # /root-uuid/provenance/artifacts/node-uuid
                     nested_path = pathlib.Path(*fp.parts[1:4])
                     archive_version, _ = parse_version(zf, nested_path)
                     parser = FORMAT_REGISTRY[archive_version]
