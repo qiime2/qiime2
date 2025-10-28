@@ -10,10 +10,13 @@ import os
 import tempfile
 import unittest
 import pathlib
+import pytest
+import subprocess
 
 import qiime2.core.type
 from qiime2.sdk import Result, Artifact, Visualization, ResultCollection
 from qiime2.sdk.result import ResultMetadata
+from qiime2.core.annotate import Signature
 import qiime2.core.archive as archive
 import qiime2.core.exceptions as exceptions
 
@@ -644,6 +647,112 @@ class TestResultCollection(unittest.TestCase):
                 'ResultCollection keys must be strings and may only contain '
                 'the following characters:.*valid key'):
             collection['not a valid key'] = 0
+
+
+@pytest.fixture
+def signature_test_env(monkeypatch):
+    # fake key info that gpg_find_key would normally parse
+    fake_key_info = {
+        "fingerprint": 'ABCDEF0123456789ABCDEF0123456789ABCDEF01',
+        "algorithm": "Ed25519",
+        "length": 0,
+        "curve": "ed25519",
+        "uids": [{"raw": "Test User <test@example.com>",
+                  "name": "Test User",
+                  "email": "test@example.com"}],
+        "chosen_uid": {"raw": "Test User <test@example.com>",
+                       "name": "Test User",
+                       "email": "test@example.com"}
+    }
+
+    # default behavior will be to succeed
+    key_lookup_behavior = {'mode': 'ok'}
+
+    def fake_gpg_find_key(fp):
+        if key_lookup_behavior['mode'] == 'ok':
+            return dict(fake_key_info, fingerprint=fp)
+
+        if key_lookup_behavior['mode'] == 'mismatch':
+            # key found but different fingerprint
+            return dict(fake_key_info, fingerprint='MEGALOCK' * 5)
+
+        if key_lookup_behavior['mode'] == 'raise':
+            # no matching key found
+            raise RuntimeError(
+                'No matching key found for the provided fingerprint')
+
+    real_run = subprocess.run
+
+    # fake subprocess.run to:
+    # - write a dummy signature.gpg file when called with --detach-sign
+    # - returncode 0 when called with --verify
+    def fake_run(cmd, *args, **kwargs):
+        if '--detach-sign' in cmd:
+            # ['gpg', ..., '--output', sig_fp, '--detach-sign', checksums_fp]
+            out_index = cmd.index('--output') + 1
+            sig_fp = cmd[out_index]
+            pathlib.Path(sig_fp).write_bytes(b'FAKESIG')
+            return unittest.mock.Mock(returncode=0)
+
+        elif cmd[:2] == ['gpg', '--verify']:
+            # pretend verify succeeded
+            return unittest.mock.Mock(returncode=0)
+
+        else:
+            return real_run(cmd, *args, **kwargs)
+
+    # patch calls to gpg_find_key with fake dict & subprocess.run w/fake_run
+    monkeypatch.setattr(qiime2.core.annotate,
+                        'gpg_find_key', fake_gpg_find_key)
+    monkeypatch.setattr(qiime2.sdk.result, 'gpg_find_key', fake_gpg_find_key)
+    monkeypatch.setattr(subprocess, 'run', fake_run)
+
+    def set_key_lookup(mode):
+        key_lookup_behavior['mode'] = mode
+
+    return {
+        'fake_key_info': fake_key_info,
+        'set_key_lookup': set_key_lookup,
+    }
+
+
+def test_signature_roundtrip_success(signature_test_env):
+    artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
+
+    sig = Signature(
+        name='mysig',
+        fingerprint='ABCDEF0123456789ABCDEF0123456789ABCDEF01'
+    )
+
+    artifact.add_annotation(sig)
+    artifact.verify('mysig')
+
+
+def test_signature_create_failure_invalid_fingerprint(signature_test_env):
+    signature_test_env['set_key_lookup']('raise')
+
+    with pytest.raises(RuntimeError) as e:
+        Signature(
+            name='badtothebone',
+            fingerprint='0000000000000000000000000000000000000000'
+        )
+
+    assert 'No matching key' in str(e.value)
+
+
+def test_signature_verify_failure_mismatched_fingerprint(signature_test_env):
+    artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])
+    sig = Signature(
+        name='mysig',
+        fingerprint='ABCDEF0123456789ABCDEF0123456789ABCDEF01'
+    )
+    artifact.add_annotation(sig)
+
+    signature_test_env['set_key_lookup']('mismatch')
+    with pytest.raises(ValueError) as e:
+        artifact.verify('mysig')
+
+    assert 'Found fingerprint does not match' in str(e.value)
 
 
 if __name__ == '__main__':
