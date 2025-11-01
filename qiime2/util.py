@@ -5,13 +5,13 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
-
 import os
 import sys
 import errno
 import shutil
 import importlib
 import warnings
+import functools
 
 import threading
 import contextlib
@@ -149,8 +149,10 @@ def get_filepath_from_package(package, relative_filepath):
 
 def handle_deprecated_alias(changes: dict, release: str):
     def decorator(function):
+        @functools.wraps(function)
         def wrapper(*args, **kwargs):
-            for parameter in kwargs.keys():
+            warnings.simplefilter('always', DeprecationWarning)
+            for parameter in list(kwargs.keys()):
                 if parameter in changes.keys():
                     warnings.warn(
                         f"The parameter `{parameter}` is deprecated and will"
@@ -158,6 +160,8 @@ def handle_deprecated_alias(changes: dict, release: str):
                         f"`{release}` release.",
                         DeprecationWarning,
                     )
+                    kwargs[changes[parameter]] = kwargs[parameter]
+                    kwargs.pop(parameter)
             return function(*args, **kwargs)
         return wrapper
     return decorator
