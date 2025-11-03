@@ -249,6 +249,8 @@ class UnknownAnnotation(Annotation):
     """Utility sub-class that handles loading newer Annotation types on an
     older version of QIIME 2 that supports Annotations.
     """
+    annotation_type = 'Unknown'
+
     def __init__(*args):
         raise NotImplementedError('`UnknownAnnotation` is an abstract class'
                                   ' used for handling Annotations associated'

@@ -12,6 +12,7 @@ import unittest
 import uuid
 import zipfile
 import pathlib
+import importlib
 
 from qiime2.sdk.result import Result
 from qiime2.core.annotate import Note
@@ -393,6 +394,41 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
         self.assertEqual(diff.added, {})
         self.assertEqual(diff.removed, {})
         self.assertEqual(diff.changed, {})
+
+    def test_archive_versions_match_current_format_version(self):
+        """
+        Another deadman switch to assert that we haven't created a new
+        Archive Format without updating the _FORMAT_REGISTRY and the
+        CURRENT_FORMAT_VERSION
+
+        If this test fails, it's because a new Archive Format was added
+        without being included in the Archiver's format registry
+        """
+        # pull the listed current archive version from the Archiver
+        # syntax for this will look like:
+        # qiime2.core.archive.format.vwhatever:ArchiveFormat
+        current_archive_ver, class_name = \
+            Archiver._FORMAT_REGISTRY[
+                Archiver.CURRENT_FORMAT_VERSION].split(':')
+
+        # grap all archive format paths
+        from qiime2.core.archive import format
+        paths = os.listdir(format.__path__[0])
+
+        # rip apart each path to grab the format names and import them
+        for path in paths:
+            if path.endswith('py') and not path.startswith('__init__'):
+                importlib.import_module(
+                    f'qiime2.core.archive.format.{path.split(".py")[0]}'
+                    )
+
+        # construct the latest ArchiveFormat based on the format registry
+        ArchiveFormat = \
+            getattr(importlib.import_module(current_archive_ver), class_name)
+
+        # ensure there are no subclasses (ie new archive versions that
+        # havent been added to the format registry)
+        self.assertEqual(ArchiveFormat.__subclasses__(), [])
 
 
 if __name__ == '__main__':
