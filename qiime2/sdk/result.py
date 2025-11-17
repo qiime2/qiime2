@@ -1097,9 +1097,9 @@ class ResultCollection:
     def items(self):
         return self.collection.items()
 
-    def validate(self, view, level=None):
+    def validate(self, level=None):
         for result in self.values():
-            result.validate(view, level)
+            result.validate(level)
 
     def result(self):
         """ Noop to provide standardized interface with ProxyResultCollection.

@@ -648,6 +648,46 @@ class TestResultCollection(unittest.TestCase):
                 'the following characters:.*valid key'):
             collection['not a valid key'] = 0
 
+    def test_validate(self):
+        '''
+        Validates two results collections, one with all valid members which is
+        expected to pass, and one with an invalid member which is expected to
+        fail.
+        '''
+        int_seq_1 = Artifact.import_data(
+            'IntSequence1', [1, 3, 5, 7], validate_level='min'
+        )
+        int_seq_2 = Artifact.import_data(
+            'IntSequence1', [6, 7], validate_level='min'
+        )
+        int_seq_3 = Artifact.import_data(
+            'IntSequence1', [2, 4, 6, 8], validate_level='min'
+        )
+
+        collection = ResultCollection({
+            'is1': int_seq_1, 'is2': int_seq_2, 'is3': int_seq_3
+        })
+        collection.validate(level='max')
+
+        # we want to test ResultCollection.validate's logic, not
+        # IntSequenceFormat._validate_ directly
+        with unittest.mock.patch(
+            'qiime2.core.testing.format.IntSequenceFormat._validate_',
+            side_effect=lambda level: None
+        ):
+            int_seq_invalid = Artifact.import_data(
+                'IntSequence1', [2, 4, 6, 'suh'], validate_level='min'
+            )
+
+        collection = ResultCollection({
+            'is1': int_seq_1, 'is2': int_seq_2, 'is3': int_seq_invalid
+        })
+
+        with self.assertRaisesRegex(
+            exceptions.ValidationError, 'not an integer'
+        ):
+            collection.validate(level='max')
+
 
 @pytest.fixture
 def signature_test_env(monkeypatch):
