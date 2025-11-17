@@ -19,6 +19,7 @@ import qiime2
 import qiime2.core.cite as cite
 
 from qiime2.core.util import checksum_directory, from_checksum_format, is_uuid4
+from qiime2.core.archive.format.v0 import ArchiveFormat
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -303,7 +304,7 @@ class Archiver:
         cache.process_pool.remove(str(process_alias))
 
     @classmethod
-    def get_format_class(cls, version):
+    def get_format_class(cls, version) -> ArchiveFormat | None:
         if '.' in version:
             major, minor = version.split('.')
             minor = int(minor)
@@ -324,7 +325,7 @@ class Archiver:
             return getattr(importlib.import_module(imp), fmt_cls)
 
     @classmethod
-    def get_archive(cls, filepath):
+    def get_archive(cls, filepath) -> _ZipArchive | _NoOpArchive:
         filepath = pathlib.Path(filepath)
         if not filepath.exists():
             raise ValueError("%s does not exist." % filepath)
@@ -339,7 +340,7 @@ class Archiver:
         return archive
 
     @classmethod
-    def _futuristic_archive_error(cls, filepath, archive):
+    def _futuristic_archive_error(cls, filepath, archive: _Archive):
         raise ValueError("%s was created by 'QIIME %s'. The currently"
                          " installed framework cannot interpret archive"
                          " version %r."
@@ -362,6 +363,10 @@ class Archiver:
     @classmethod
     def extract(cls, filepath, dest):
         archive = cls.get_archive(filepath)
+
+        if isinstance(archive, _NoOpArchive):
+            raise ValueError('Can not extract archive of type _NoOpArchive')
+
         dest = os.path.join(dest, str(archive.uuid))
         os.makedirs(dest)
         # Format really doesn't matter, the archive knows how to extract so
@@ -480,10 +485,15 @@ class Archiver:
     def save(self, filepath):
         _ZipArchive.save(self.path, filepath)
 
-    def validate_checksums(self):
-        checksum_file = getattr(self._fmt, 'CHECKSUM_FILE', None)
+    def get_checksums_from_file(self):
+        with open(self.root_dir / self._fmt.CHECKSUM_FILE) as fh:
+            return dict(from_checksum_format(line) for line in fh.readlines())
 
-        if not checksum_file:
+    def has_checksums(self):
+        return hasattr(self._fmt, 'CHECKSUM_FILE')
+
+    def validate_checksums(self):
+        if not self.has_checksums():
             return ChecksumDiff({}, {}, {})
 
         obs = \
@@ -494,8 +504,8 @@ class Archiver:
                  if (x[0] != self._fmt.CHECKSUM_FILE and
                      pathlib.Path(x[0]).parts[0] != 'annotations')
                  )
-        with open(self.root_dir / self._fmt.CHECKSUM_FILE) as fh:
-            exp = dict(from_checksum_format(line) for line in fh.readlines())
+
+        exp = self.get_checksums_from_file()
 
         obs_keys = set(obs)
         exp_keys = set(exp)
