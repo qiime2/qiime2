@@ -778,6 +778,9 @@ class Artifact(Result):
 
         self.format.validate(self.view(self.format), level)
 
+    def get_checksums(self) -> dict[str, str]:
+        return self._archiver.get_checksums()
+
     def validate_checksums(self):
         super().validate()
 
@@ -1115,3 +1118,91 @@ class ResultCollection:
         """ Noop to provide standardized interface with ProxyResultCollection.
         """
         return self
+
+
+class ChecksumCache:
+    def __init__(self):
+        '''
+        Implements a cache of artifact file checksums. Maps artifact uuids to
+        nested dictionaries that map filepaths to checksums.
+
+        The cache is populated at the beginning of an action using all input
+        artifacts and is queried at the end of an action to prevent redundant
+        checksumming of the provenance files in the new output artifacts.
+        '''
+        self.cache: dict[str, dict[pathlib.Path, str]] = {}
+
+    def get(self, uuid: str, filepath: pathlib.Path) -> str | None:
+        '''
+        Gets the checksum of the file at `filepath` within the artifact with
+        `uuid` if both are present.
+
+        Parameters
+        ----------
+        uuid : str
+            The uuid of the queried artifact.
+        filepath : pathlib.Path
+            The filepath of the file of interest within the artifact.
+
+        Returns
+        -------
+        str | None
+            The checksum if found, None otherwise.
+        '''
+        try:
+            checksum = self.cache[uuid][filepath]
+        except KeyError:
+            return None
+
+        return checksum
+
+    def set(self, uuid: str, filepath: pathlib.Path, checksum: str) -> None:
+        '''
+        Inserts a filepath and checksum pair into the checksum cache.
+
+        Parameters
+        ----------
+        uuid : str
+            The uuid of the artifact for which the filepath and checksum pair
+            is being inserted.
+        filepath : pathlib.Path
+            The path of the file in the artifact.
+        checksum : str
+            The checksum of `filepath`.
+        '''
+        if uuid not in self.cache:
+            self.cache[uuid] = {}
+
+        self.cache[uuid][filepath] = checksum
+
+    def cache_artifact(self, artifact: Artifact) -> None:
+        '''
+        Adds a single artifact's checksum file's contents to the checksum
+        cache.
+
+        Parameters
+        ----------
+        artifact : Artifact
+            The artifact to cache.
+        '''
+        if artifact.uuid in self.cache:
+            return
+
+        fps_to_checksums = artifact.get_checksums()
+
+        for fp, checksum in fps_to_checksums.items():
+            self.set(artifact.uuid, pathlib.path(fp), checksum)
+
+    def cache_result_collection(
+        self, result_collection: ResultCollection
+    ) -> None:
+        '''
+        Adds all artifacts in a result collection to the checksum cache.
+
+        Parameters
+        ----------
+        result_collection : ResultCollection
+            The result collection containing the artifacts to cache.
+        '''
+        for artifact in result_collection.values():
+            self.cache_artifact(artifact)
