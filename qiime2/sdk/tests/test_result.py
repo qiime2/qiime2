@@ -540,6 +540,38 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
                     'IntSequence1', [1, 'a', 3, 4], validate_level='min'
                 )
 
+    def test_validate_checksums(self):
+        '''
+        Tests that Artifact.validate_checksums passes when artifact contents
+        are not changed and fails when a checksum in the checksum file is
+        altered.
+        '''
+        artifact = Artifact.import_data('IntSequence1', [1, 2, 3, 5])
+        artifact.validate_checksums()
+
+        if not hasattr(artifact._archiver._fmt, 'CHECKSUM_FILE'):
+            return
+
+        checksum_fp = (
+            pathlib.Path(artifact._archiver.root_dir) /
+            artifact._archiver._fmt.CHECKSUM_FILE
+        )
+        with open(checksum_fp, 'r+') as fh:
+            content = fh.read()
+
+            # change the first character in the first checksum
+            if content[0] != 'a':
+                content = 'a' + content[1:]
+            else:
+                content = 'b' + content[1:]
+
+            fh.write(content)
+
+        with self.assertRaisesRegex(
+            exceptions.ValidationError, 'Changed files'
+        ):
+            artifact.validate_checksums()
+
 
 class TestResultCollection(unittest.TestCase):
     def setUp(self):
@@ -687,6 +719,40 @@ class TestResultCollection(unittest.TestCase):
             exceptions.ValidationError, 'not an integer'
         ):
             collection.validate(level='max')
+
+    def test_validate_checksums(self):
+        '''
+        Tests that ResultCollection.validate_checksums passes when its artifact
+        contents' are not changed and fails when a checksum in the checksum
+        file of a member artifact is altered.
+        '''
+        artifact1 = Artifact.import_data('IntSequence1', [1, 2, 3, 4])
+        artifact2 = Artifact.import_data('IntSequence1', [6, 7])
+        collection = ResultCollection({'a1': artifact1, 'a2': artifact2})
+        collection.validate_checksums()
+
+        if not hasattr(artifact1._archiver._fmt, 'CHECKSUM_FILE'):
+            return
+
+        checksum_fp = (
+            pathlib.Path(artifact1._archiver.root_dir) /
+            artifact1._archiver._fmt.CHECKSUM_FILE
+        )
+        with open(checksum_fp, 'r+') as fh:
+            content = fh.read()
+
+            # change the first character in the first checksum
+            if content[0] != 'a':
+                content = 'a' + content[1:]
+            else:
+                content = 'b' + content[1:]
+
+            fh.write(content)
+
+        with self.assertRaisesRegex(
+            exceptions.ValidationError, 'Changed files'
+        ):
+            collection.validate_checksums()
 
 
 @pytest.fixture

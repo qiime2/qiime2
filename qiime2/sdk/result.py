@@ -778,6 +778,9 @@ class Artifact(Result):
 
         self.format.validate(self.view(self.format), level)
 
+    def validate_checksums(self):
+        super().validate()
+
 
 class Visualization(Result):
     extension = '.qzv'
@@ -1100,6 +1103,13 @@ class ResultCollection:
     def validate(self, level=None):
         for result in self.values():
             result.validate(level)
+
+    def validate_checksums(self):
+        for result in self.values():
+            if isinstance(result, Artifact):
+                result.validate_checksums()
+            elif isinstance(result, Result):
+                result.validate()
 
     def result(self):
         """ Noop to provide standardized interface with ProxyResultCollection.

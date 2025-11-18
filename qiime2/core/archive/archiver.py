@@ -485,7 +485,7 @@ class Archiver:
     def save(self, filepath):
         _ZipArchive.save(self.path, filepath)
 
-    def get_checksums_from_file(self):
+    def get_checksums(self):
         with open(self.root_dir / self._fmt.CHECKSUM_FILE) as fh:
             return dict(from_checksum_format(line) for line in fh.readlines())
 
@@ -505,7 +505,7 @@ class Archiver:
                      pathlib.Path(x[0]).parts[0] != 'annotations')
                  )
 
-        exp = self.get_checksums_from_file()
+        exp = self.get_checksums()
 
         obs_keys = set(obs)
         exp_keys = set(exp)
