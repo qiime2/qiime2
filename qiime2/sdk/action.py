@@ -10,6 +10,7 @@ import abc
 import inspect
 import tempfile
 import textwrap
+from types import FunctionType
 
 import decorator
 import dill
@@ -18,10 +19,12 @@ from typing import Mapping, TypedDict, Union
 from types import MappingProxyType
 
 import qiime2.sdk
+from qiime2.sdk.result import Artifact, ResultCollection, ChecksumCache
 import qiime2.core.type as qtype
 import qiime2.core.archive as archive
 from qiime2.core.util import (LateBindingAttribute, DropFirstParameter,
                               tuplize, create_collection_name)
+from qiime2.core.cite import CitationRecord
 
 
 def _coerce_pipeline_outputs(ctx, outputs):
@@ -116,8 +119,18 @@ class Action(metaclass=abc.ABCMeta):
 
     # Private constructor
     @classmethod
-    def _init(cls, callable, signature, plugin_id, name, description,
-              citations, deprecated, migrated, examples):
+    def _init(
+        cls,
+        callable: FunctionType,
+        signature: qtype.MethodSignature,
+        plugin_id: str,
+        name: str,
+        description: str,
+        citations: CitationRecord | list[CitationRecord],
+        deprecated: bool,
+        migrated: bool | dict[str, str],
+        examples: dict[str, FunctionType]
+    ):
         """
 
         Parameters
@@ -251,12 +264,20 @@ class Action(metaclass=abc.ABCMeta):
                     warn(self._build_migration_message(), FutureWarning)
 
             # Type management
-            collated_inputs = self.signature.collate_inputs(
-                *args, **kwargs)
+            collated_inputs = self.signature.collate_inputs(*args, **kwargs)
             self.signature.check_types(**collated_inputs)
             output_types = self.signature.solve_output(**collated_inputs)
-            callable_args = self.signature.coerce_user_input(
-                **collated_inputs)
+            callable_args = self.signature.coerce_user_input(**collated_inputs)
+
+            # validate and cache checksums
+            checksum_cache = ChecksumCache()
+            for input in collated_inputs.values():
+                if isinstance(input, Artifact):
+                    input.validate_checksums()
+                    checksum_cache.cache_artifact(input)
+                elif isinstance(input, ResultCollection):
+                    input.validate_checksums()
+                    checksum_cache.cache_result_collection(input)
 
             callable_args = \
                 self.signature.transform_and_add_callable_args_to_prov(
@@ -454,9 +475,23 @@ class Method(Action):
         return tuple(output_artifacts)
 
     @classmethod
-    def _init(cls, callable, inputs, parameters, outputs, plugin_id, name,
-              description, input_descriptions, parameter_descriptions,
-              output_descriptions, citations, deprecated, migrated, examples):
+    def _init(
+        cls,
+        callable: FunctionType,
+        inputs: dict,
+        parameters: dict,
+        outputs: dict,
+        plugin_id: str,
+        name: str,
+        description: str,
+        input_descriptions: dict[str, str],
+        parameter_descriptions: dict[str, str],
+        output_descriptions: dict[str, str],
+        citations: CitationRecord | list[CitationRecord],
+        deprecated: bool,
+        migrated: bool | dict[str, str],
+        examples: dict[str, FunctionType]
+    ):
         signature = qtype.MethodSignature(callable, inputs, parameters,
                                           outputs, input_descriptions,
                                           parameter_descriptions,
