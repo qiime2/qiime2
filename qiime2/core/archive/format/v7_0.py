@@ -11,7 +11,6 @@ import pathlib
 
 import qiime2.core.archive.format.v1 as v1
 import qiime2.core.archive.format.v6 as v6
-from qiime2.core.archive.format.util import write_checksums
 
 
 class ArchiveFormat(v6.ArchiveFormat):
@@ -166,14 +165,6 @@ class ArchiveFormat(v6.ArchiveFormat):
 
         # Write checksums last
         cls.write_checksums(archive_record)
-
-    @classmethod
-    def write_checksums(cls, archive_record):
-        write_checksums(
-            directory=str(archive_record.root),
-            checksum_file=cls.CHECKSUM_FILE,
-            checksum_type=cls.CHECKSUM_TYPE
-        )
 
     def __init__(self, archive_record):
         super().__init__(archive_record)
