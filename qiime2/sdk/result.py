@@ -152,6 +152,10 @@ class Result(IResult):
         return self._archiver.format
 
     @property
+    def archive_version(self):
+        return self._archiver.archive_version
+
+    @property
     def citations(self):
         return self._archiver.citations
 
@@ -1163,12 +1167,19 @@ class ChecksumCache:
         Adds a single artifact's checksum file's contents to the checksum
         cache.
 
+        If `artifact` is less than or equal to archive version 6 then it is not
+        cached. This is because such artifacts used the md5sum algorithm to
+        perform checksumming. Their contents need to be checksummed using the
+        new sha512 algorithm, otherwise validation of v7+ artifacts that
+        contain them in provenance will fail in the future.
+
         Parameters
         ----------
         artifact : Artifact
             The artifact to cache.
         '''
-        if artifact.uuid in self.cache:
+        major_version = int(artifact.archive_version.split('.')[0])
+        if major_version < 7:
             return
 
         for fp, checksum in artifact.get_checksums().items():

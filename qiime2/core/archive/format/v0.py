@@ -76,3 +76,5 @@ class ArchiveFormat:
 
         self.path = path
         self.data_dir = path / self.DATA_DIR
+
+        self.version = archive_record.version

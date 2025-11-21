@@ -463,6 +463,10 @@ class Archiver:
         return self._fmt.format
 
     @property
+    def archive_version(self):
+        return self._fmt.version
+
+    @property
     def data_dir(self):
         return self._fmt.data_dir
 
