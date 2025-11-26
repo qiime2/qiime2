@@ -1162,24 +1162,46 @@ class ChecksumCache:
 
         return self.cache[filepath]
 
+    def has_matching_checksum_type(self, artifact: Artifact) -> bool:
+        '''
+        Determines whether an artifact uses the same checksumming algorithm
+        as the current one.
+
+        Parameters
+        ----------
+        artifact : Artifact
+            The artifact for which to determine the checksum algorithm type.
+
+        Returns
+        -------
+        bool
+            True if the artifact uses the same checksum type as the current
+            one, False otherwise.
+        '''
+        artifact_checksum_type = artifact._archiver._fmt.CHECKSUM_TYPE
+        current_checksum_type = archive.Archiver.get_format_class(
+            archive.Archiver.CURRENT_FORMAT_VERSION
+        ).CHECKSUM_TYPE
+
+        return artifact_checksum_type == current_checksum_type
+
     def cache_artifact(self, artifact: Artifact) -> None:
         '''
         Adds a single artifact's checksum file's contents to the checksum
         cache.
 
-        If `artifact` is less than or equal to archive version 6 then it is not
-        cached. This is because such artifacts used the md5sum algorithm to
-        perform checksumming. Their contents need to be checksummed using the
-        new sha512 algorithm, otherwise validation of v7+ artifacts that
-        contain them in provenance will fail in the future.
+        If the checksum type associated with `artifact` is different than the
+        checksum type associated with the current archive version, then the
+        artifact is not cached. This allows the filepaths associated with
+        `artifact` to be re-checksummed with the new algorithm at output write
+        time, as will be needed for future validation.
 
         Parameters
         ----------
         artifact : Artifact
             The artifact to cache.
         '''
-        major_version = int(artifact.archive_version.split('.')[0])
-        if major_version < 7:
+        if not self.has_matching_checksum_type(artifact):
             return
 
         for fp, checksum in artifact.get_checksums().items():
