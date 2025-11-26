@@ -10,9 +10,7 @@ from pathlib import Path
 import os
 
 import qiime2.core.archive.format.v4 as v4
-from qiime2.core.util import (
-    to_checksum_format, has_checksum_native, checksum_native, checksum_python
-)
+from qiime2.core.util import to_checksum_format, checksum
 from qiime2.sdk.result import ChecksumCache
 
 
@@ -33,11 +31,6 @@ class ArchiveFormat(v4.ArchiveFormat):
     def write_checksums(cls, archive_record):
         checksum_cache = ChecksumCache()
 
-        if has_checksum_native(cls.CHECKSUM_TYPE):
-            checksummer = checksum_native
-        else:
-            checksummer = checksum_python
-
         checksums = {}
         for root, dirs, files in os.walk(archive_record.root, topdown=True):
             dirs[:] = sorted([d for d in dirs if not d[0] == '.'])
@@ -50,19 +43,20 @@ class ArchiveFormat(v4.ArchiveFormat):
                     Path(archive_record.root)
                 )
 
-                checksum = None
+                # check checksum cache
+                checksum_string = None
                 if archive_relative_path.is_relative_to(
                     Path("provenance/artifacts")
                 ):
                     cached_path = archive_relative_path.relative_to(
                         Path("provenance/artifacts")
                     )
-                    checksum = checksum_cache.get(cached_path)
+                    checksum_string = checksum_cache.get(cached_path)
 
-                if checksum is None:
-                    checksum = checksummer(str(path), cls.CHECKSUM_TYPE)
+                if checksum_string is None:
+                    checksum_string = checksum(str(path), cls.CHECKSUM_TYPE)
 
-                checksums[str(archive_relative_path)] = checksum
+                checksums[str(archive_relative_path)] = checksum_string
 
         with (Path(archive_record.root) / cls.CHECKSUM_FILE).open('w') as fh:
             for item in checksums.items():
