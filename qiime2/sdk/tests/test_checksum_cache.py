@@ -27,6 +27,9 @@ class TestChecksumCache(unittest.TestCase):
             side_effect=lambda artifact: None
         )
 
+    def setUp(self):
+        ChecksumCache().cache = {}
+
     @unittest.mock.patch(
         'qiime2.core.util.checksum_python', wraps=checksum_python
     )
