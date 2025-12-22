@@ -43,6 +43,11 @@ class ArchiveFormat(v4.ArchiveFormat):
                     Path(archive_record.root)
                 )
 
+                # always ignore annotations dir when checksumming
+                # so we dont self-invalidate when adding/removing annotations
+                if archive_relative_path.is_relative_to(Path('annotations')):
+                    continue
+
                 # check checksum cache
                 checksum_string = None
                 if archive_relative_path.is_relative_to(
@@ -60,8 +65,5 @@ class ArchiveFormat(v4.ArchiveFormat):
 
         with (Path(archive_record.root) / cls.CHECKSUM_FILE).open('w') as fh:
             for item in checksums.items():
-                # always ignore annotations dir when writing checksums
-                # so we dont self-invalidate when adding/removing annotations
-                if not item[0].startswith('annotations'):
-                    fh.write(to_checksum_format(*item))
-                    fh.write('\n')
+                fh.write(to_checksum_format(*item))
+                fh.write('\n')
