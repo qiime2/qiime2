@@ -5,17 +5,20 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
-import unittest
-import tempfile
 import os
-import zipfile
 import pathlib
+import tempfile
+import unittest
+from uuid import uuid4
+import zipfile
 
+import qiime2
 from qiime2.core.testing.type import FourInts
 from qiime2.core.testing.util import ArchiveTestingMixin
 import qiime2.core.archive as archive
+from qiime2.core.archive.archiver import Archiver, ArchiveRecord
 from qiime2.core.archive.format.v7_0 import ArchiveFormat
-from qiime2.core.archive.format.util import artifact_version, write_checksums
+from qiime2.core.archive.format.util import artifact_version
 from qiime2.core.annotate import Note
 from qiime2.sdk import Artifact
 
@@ -219,6 +222,10 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
                 print(annotation.name)
 
     def test_write_checksums_ignores_annotations_dir(self):
+        '''
+        Tests that files under the annotations/ directory are not written to
+        an archive's checksums file.
+        '''
         root_dir = pathlib.Path(self.temp_dir.name)
         checksum_file = 'checksums.sha512'
 
@@ -241,7 +248,19 @@ class TestArtifactVersion(unittest.TestCase, ArchiveTestingMixin):
             fp.parent.mkdir(parents=True, exist_ok=True)
             fp.write_text('x')
 
-        write_checksums(root_dir, checksum_file, checksum_type='sha512')
+        archive_record = ArchiveRecord(
+            root_dir,
+            root_dir / 'VERSION',
+            uuid4(),
+            Archiver.CURRENT_FORMAT_VERSION,
+            qiime2.__version__
+        )
+
+        current_format_class = Archiver.get_format_class(
+            Archiver.CURRENT_FORMAT_VERSION
+        )
+
+        current_format_class.write_checksums(archive_record)
 
         obs_checksums = root_dir / checksum_file
         contents = obs_checksums.read_text()
