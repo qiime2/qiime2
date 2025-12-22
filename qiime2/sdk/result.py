@@ -1215,6 +1215,8 @@ class ChecksumCache:
                     path.relative_to(pathlib.Path("provenance"))
                 )
             else:
+                # all other files are not included in the provenance of any
+                # artifact generated using this artifact as input
                 continue
 
             self.cache[key] = checksum
