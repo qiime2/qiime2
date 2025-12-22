@@ -682,7 +682,7 @@ class TestResultCollection(unittest.TestCase):
 
     def test_validate(self):
         '''
-        Validates two results collections, one with all valid members which is
+        Validates two result collections, one with all valid members which is
         expected to pass, and one with an invalid member which is expected to
         fail.
         '''

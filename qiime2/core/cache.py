@@ -806,7 +806,7 @@ class Cache:
             # while tracking all data within those that were referenced
             for pool in self.get_pools():
                 if pool not in referenced_pools:
-                    shutil.rmtree(self.pools / pool)
+                    self._try_to_remove_target_dir(self.pools / pool)
                 else:
                     for data in os.listdir(self.pools / pool):
                         if not self._check_dangling_reference(
@@ -820,7 +820,9 @@ class Cache:
                 create_time = float(process_pool.split('-')[1].split('@')[0])
 
                 if time.time() - create_time >= self.process_pool_lifespan:
-                    shutil.rmtree(self.processes / process_pool)
+                    self._try_to_remove_target_dir(
+                        self.processes / process_pool
+                    )
                 else:
                     for data in os.listdir(self.processes / process_pool):
                         referenced_data.add(data.split('.')[0])
@@ -831,24 +833,27 @@ class Cache:
                 assert is_uuid4(data)
 
                 if data not in referenced_data:
-                    target = self.data / data
-                    try:
-                        shutil.rmtree(target)
-                    # We may not have permissions because old versions of
-                    # QIIME 2 set entries in data to read-only. If we encounter
-                    # that then set write permissions here and try again.
-                    #
-                    # This try-except will induce a slight performance overhead
-                    # in Python versions pre 3.11, but much less than running
-                    # set_permissions every time. In Python 3.11 and on,
-                    # try-except introduces no performance penalty if an
-                    # exception is not raised.
-                    except PermissionError as e:
-                        if e.errno == 13:
-                            set_permissions(target, None, USER_GROUP_RWX)
-                            shutil.rmtree(target)
-                        else:
-                            raise e
+                    self._try_to_remove_target_dir(self.data / data)
+
+    def _try_to_remove_target_dir(self, target):
+        try:
+            shutil.rmtree(target)
+        # We may not have permissions because old versions of
+        # QIIME 2 set entries in data to read-only. If we encounter
+        # that then set write permissions here and try again.
+        #
+        # This try-except will induce a slight performance overhead
+        # in Python versions pre 3.11, but much less than running
+        # set_permissions every time. In Python 3.11 and on,
+        # try-except introduces no performance penalty if an
+        # exception is not raised.
+        except PermissionError:
+            try:
+                set_permissions(target, None, USER_GROUP_RWX)
+                shutil.rmtree(target)
+            except PermissionError:
+                # Give up, we tried
+                pass
 
     def _check_dangling_reference(self, data_path, key_path):
         """ If the data specified does not exist then we have a dangling
