@@ -8,19 +8,16 @@
 from datetime import timedelta
 import os
 import networkx as nx
-import pathlib
 from unittest.mock import MagicMock
 import pandas as pd
-import tempfile
 import unittest
 import zipfile
+import copy
 
 import pytest
 
 from .._checksum_validator import ChecksumDiff, ValidationCode
-from .testing_utilities import (
-    DummyArtifacts, is_root_provnode_data, write_zip_archive
-)
+from .testing_utilities import DummyArtifacts
 from ..archive_parser import (
     ProvNode, Config, _Action, _Citations, _ResultMetadata, ParserResults,
     ArchiveParser, ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
@@ -41,49 +38,10 @@ class ParserVxTests(unittest.TestCase):
     def tearDownClass(cls):
         cls.das.free()
 
-    def test_parse_root_md(self):
-        for artifact in self.das.all_artifact_versions:
-            fp = artifact.filepath
-            uuid = artifact.uuid
-            parser = ArchiveParser.get_parser(fp)
-            with zipfile.ZipFile(fp) as zf:
-                root_md = parser._parse_root_md(zf, uuid)
-                self.assertEqual(root_md.uuid, uuid)
-                if artifact == self.das.table_v0:
-                    self.assertEqual(root_md.format, 'BIOMV210DirFmt')
-                    self.assertEqual(root_md.type, 'FeatureTable[Frequency]')
-                else:
-                    self.assertEqual(root_md.format,
-                                     'IntSequenceDirectoryFormat')
-                    self.assertEqual(root_md.type, 'IntSequence1')
-
-    def test_parse_root_md_no_md_yaml(self):
-        for artifact in self.das.all_artifact_versions:
-            parser = ArchiveParser.get_parser(artifact.filepath)
-
-            with tempfile.TemporaryDirectory() as tempdir:
-                with zipfile.ZipFile(artifact.filepath) as zf:
-                    zf.extractall(tempdir)
-
-                metadata_path = os.path.join(tempdir, artifact.uuid,
-                                             'metadata.yaml')
-                os.remove(metadata_path)
-                fn = os.path.basename(artifact.filepath)
-                fp = os.path.join(tempdir, fn)
-                write_zip_archive(fp, tempdir)
-
-                with zipfile.ZipFile(fp) as zf:
-                    with self.assertRaisesRegex(
-                        ValueError,
-                        'Malformed.*metadata'
-                    ):
-                        parser._parse_root_md(zf, artifact.uuid)
-
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_populate_archive(self):
         for artifact in self.das.all_artifact_versions:
-            parser = ArchiveParser.get_parser(artifact.filepath)
-            fp = artifact.filepath
+            parser = ArchiveParser.get_parser(artifact.archiver)
             uuid = artifact.uuid
             version = artifact.archive_version
 
@@ -92,10 +50,11 @@ class ParserVxTests(unittest.TestCase):
                     UserWarning,
                     'Artifact .*prior to provenance'
                 ):
-                    res = parser.parse_prov(Config(), fp)
+                    res = parser.parse_prov(
+                        Config(), artifact.archiver)
 
             else:
-                res = parser.parse_prov(Config(), fp)
+                res = parser.parse_prov(Config(), artifact.archiver)
                 self.assertIsInstance(res, ParserResults)
                 pa_uuids = res.parsed_artifact_uuids
                 self.assertIsInstance(pa_uuids, set)
@@ -115,16 +74,15 @@ class ParserVxTests(unittest.TestCase):
 
     def test_validate_checksums(self):
         for artifact in self.das.all_artifact_versions:
-            parser = ArchiveParser.get_parser(artifact.filepath)
-            with zipfile.ZipFile(artifact.filepath) as zf:
-                is_valid, diff = parser._validate_checksums(zf)
-                if artifact.archive_version < 5:
-                    self.assertEqual(is_valid,
-                                     ValidationCode.PREDATES_CHECKSUMS)
-                    self.assertEqual(diff, None)
-                else:
-                    self.assertEqual(is_valid, ValidationCode.VALID)
-                    self.assertEqual(diff, ChecksumDiff({}, {}, {}))
+            parser = ArchiveParser.get_parser(artifact.archiver)
+            is_valid, diff = \
+                parser._validate_checksums(artifact.archiver)
+            if artifact.archive_version < 5:
+                self.assertEqual(is_valid, ValidationCode.PREDATES_CHECKSUMS)
+                self.assertEqual(diff, None)
+            else:
+                self.assertEqual(is_valid, ValidationCode.VALID)
+                self.assertEqual(diff, ChecksumDiff({}, {}, {}))
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_correct_validate_checksums_method_called(self):
@@ -133,13 +91,13 @@ class ParserVxTests(unittest.TestCase):
         even when it calls super().parse_prov() internally
         '''
         for artifact in self.das.all_artifact_versions:
-            parser = ArchiveParser.get_parser(artifact.filepath)
+            parser = ArchiveParser.get_parser(artifact.archiver)
             if artifact.archive_version < 5:
                 parser._validate_checksums = MagicMock(
                     # return values only here to facilitate normal execution
                     return_value=(ValidationCode.PREDATES_CHECKSUMS, None)
                 )
-                parser.parse_prov(Config(), artifact.filepath)
+                parser.parse_prov(Config(), artifact.archiver)
                 parser._validate_checksums.assert_called_once()
             else:
                 parser._validate_checksums = MagicMock(
@@ -148,7 +106,7 @@ class ParserVxTests(unittest.TestCase):
                         ChecksumDiff({}, {}, {})
                     )
                 )
-                parser.parse_prov(Config(), artifact.filepath)
+                parser.parse_prov(Config(), artifact.archiver)
                 parser._validate_checksums.assert_called_once()
 
 
@@ -170,14 +128,8 @@ class ArchiveParserTests(unittest.TestCase):
         for artifact, parser_version in zip(
             self.das.all_artifact_versions, parsers
         ):
-            parser = ArchiveParser.get_parser(artifact.filepath)
+            parser = ArchiveParser.get_parser(artifact.archiver)
             self.assertEqual(type(parser), parser_version)
-
-    def test_get_parser_nonexistent_fp(self):
-        fn = 'not_a_filepath.qza'
-        fp = os.path.join(self.tempdir, fn)
-        with self.assertRaises(FileNotFoundError):
-            ArchiveParser.get_parser(fp)
 
     def test_artifact_parser_parse_prov(self):
         with self.assertRaisesRegex(NotImplementedError, "Use a subclass"):
@@ -191,9 +143,8 @@ class ResultMetadataTests(unittest.TestCase):
         cls.tempdir = cls.das.tempdir
 
         cls.uuid = cls.das.concated_ints.uuid
-        md_fp = f'{cls.uuid}/provenance/metadata.yaml'
-        with zipfile.ZipFile(cls.das.concated_ints.filepath) as zf:
-            cls.root_md = _ResultMetadata(zf, md_fp)
+        md_fp = cls.das.concated_ints.artifact._archiver.path / 'metadata.yaml'
+        cls.root_md = _ResultMetadata(md_fp)
 
     @classmethod
     def tearDownClass(cls):
@@ -217,20 +168,23 @@ class ActionTests(unittest.TestCase):
         cls.das = DummyArtifacts()
         cls.tempdir = cls.das.tempdir
 
-        action_path = os.path.join(cls.das.concated_ints_v6.uuid, 'provenance',
-                                   'action', 'action.yaml')
-        with zipfile.ZipFile(cls.das.concated_ints_v6.filepath) as zf:
-            cls.concat_action = _Action(zf, action_path)
+        action_path = os.path.join(
+            cls.das.concated_ints_v6.artifact._archiver.path, 'provenance',
+            'action', 'action.yaml'
+        )
+        cls.concat_action = _Action(action_path)
 
-        action_path = os.path.join(cls.das.single_int.uuid, 'provenance',
-                                   'action', 'action.yaml')
-        with zipfile.ZipFile(cls.das.single_int.filepath) as zf:
-            cls.import_action = _Action(zf, action_path)
+        action_path = os.path.join(
+            cls.das.single_int.artifact._archiver.path, 'provenance', 'action',
+            'action.yaml'
+        )
+        cls.import_action = _Action(action_path)
 
-        action_path = os.path.join(cls.das.pipeline_viz.uuid, 'provenance',
-                                   'action', 'action.yaml')
-        with zipfile.ZipFile(cls.das.pipeline_viz.filepath) as zf:
-            cls.pipeline_action = _Action(zf, action_path)
+        action_path = os.path.join(
+            cls.das.pipeline_viz.artifact._archiver.path, 'provenance',
+            'action', 'action.yaml'
+        )
+        cls.pipeline_action = _Action(action_path)
 
     @classmethod
     def tearDownClass(cls):
@@ -366,43 +320,37 @@ class CitationsTests(unittest.TestCase):
         cls.das = DummyArtifacts()
         cls.tempdir = cls.das.tempdir
 
-        cite_strs = ['cite_none', 'cite_one', 'cite_many']
-        cls.bibs = [bib+'.bib' for bib in cite_strs]
-        cls.zips = [
-            os.path.join(cls.das.datadir, bib+'.zip') for bib in cite_strs
-        ]
+        cls.cite_none = os.path.join(cls.das.datadir, 'cite_none.bib')
+        cls.cite_one = os.path.join(cls.das.datadir, 'cite_one.bib')
+        cls.cite_many = os.path.join(cls.das.datadir, 'cite_many.bib')
 
     @classmethod
     def tearDownClass(cls):
         cls.das.free()
 
     def test_empty_bib(self):
-        with zipfile.ZipFile(self.zips[0]) as zf:
-            citations = _Citations(zf, self.bibs[0])
-            self.assertEqual(len(citations.citations), 0)
+        citations = _Citations(self.cite_none)
+        self.assertEqual(len(citations.citations), 0)
 
     def test_citation(self):
-        with zipfile.ZipFile(self.zips[1]) as zf:
-            exp = 'framework'
-            citations = _Citations(zf, self.bibs[1])
-            for key in citations.citations:
-                self.assertRegex(key, exp)
+        exp = 'framework'
+        citations = _Citations(self.cite_one)
+        for key in citations.citations:
+            self.assertRegex(key, exp)
 
     def test_many_citations(self):
         exp = ['2020.6.0.dev0', 'unweighted_unifrac.+0',
                'unweighted_unifrac.+1', 'unweighted_unifrac.+2',
                'unweighted_unifrac.+3', 'unweighted_unifrac.+4',
                'BIOMV210DirFmt', 'BIOMV210Format']
-        with zipfile.ZipFile(self.zips[2]) as zf:
-            citations = _Citations(zf, self.bibs[2])
-            for i, key in enumerate(citations.citations):
-                self.assertRegex(key, exp[i])
+        citations = _Citations(self.cite_many)
+        for i, key in enumerate(citations.citations):
+            self.assertRegex(key, exp[i])
 
     def test_repr(self):
         exp = ("Citations(['framework|qiime2:2020.6.0.dev0|0'])")
-        with zipfile.ZipFile(self.zips[1]) as zf:
-            citations = _Citations(zf, self.bibs[1])
-            self.assertEqual(repr(citations), exp)
+        citations = _Citations(self.cite_one)
+        self.assertEqual(repr(citations), exp)
 
 
 class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
@@ -415,69 +363,57 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
         cfg = Config(parse_study_metadata=True)
         cls.nodes = {}
         for artifact in cls.das.all_artifact_versions:
-            with zipfile.ZipFile(artifact.filepath) as zf:
-                all_filenames = zf.namelist()
-                root_md_fnames = filter(is_root_provnode_data, all_filenames)
-                root_md_fps = [pathlib.Path(fp) for fp in root_md_fnames]
-                cls.nodes[str(artifact.archive_version)] = \
-                    ProvNode(cfg, zf, root_md_fps)
+            cls.nodes[str(artifact.archive_version)] = \
+                ProvNode(cfg, artifact.archiver)
 
         with zipfile.ZipFile(cls.das.concated_ints_with_md.filepath) as zf:
             root_node_id = cls.das.concated_ints_with_md.uuid
             all_filenames = zf.namelist()
-            dag = cls.das.concated_ints_with_md.dag
-            for node in dag.nodes:
-                md_path = os.path.join(
-                    root_node_id, 'provenance', 'artifacts', node, 'action',
-                    'metadata.tsv'
-                )
-                if md_path in all_filenames:
-                    md_node_id = node
-                else:
-                    non_md_node_id = node
 
-            # build a nonroot node without study metadata
-            node_fps = [
-                pathlib.Path(fp) for fp in all_filenames if
-                non_md_node_id in fp and
-                ('metadata.yaml' in fp or 'action.yaml' in fp
-                 or 'VERSION' in fp)
-            ]
-            cls.nonroot_non_md_node = ProvNode(cfg, zf, node_fps)
+        dag = cls.das.concated_ints_with_md.dag
+        for node in dag.nodes:
+            md_path = os.path.join(
+                root_node_id, 'provenance', 'artifacts', node, 'action',
+                'metadata.tsv'
+            )
+            if md_path in all_filenames:
+                md_node_id = node
+            else:
+                non_md_node_id = node
 
-            # build a nonroot node with study metadata
-            all_filenames = zf.namelist()
-            node_fps = [
-                pathlib.Path(fp) for fp in all_filenames if
-                md_node_id in fp and
-                ('metadata.yaml' in fp or 'action.yaml' in fp
-                 or 'VERSION' in fp)
-            ]
-            cls.nonroot_md_node = ProvNode(cfg, zf, node_fps)
+        # build a nonroot node without study metadata
+        cls.nonroot_non_md_node = ProvNode(
+            cfg, cls.das.concated_ints_with_md.artifact._archiver,
+            uuid=non_md_node_id
+        )
 
-            # build a root node and parse study metadata files
-            root_md_fnames = filter(is_root_provnode_data, all_filenames)
-            root_md_fps = [pathlib.Path(fp) for fp in root_md_fnames]
-            cfg = Config(parse_study_metadata=True)
-            cls.root_node_parse_md = ProvNode(cfg, zf, root_md_fps)
+        # build a nonroot node with study metadata
+        cls.nonroot_md_node = ProvNode(
+            cfg, cls.das.concated_ints_with_md.artifact._archiver,
+            uuid=md_node_id
+        )
 
-            # build a root node and don't parse study metadata files
-            cfg = Config(parse_study_metadata=False)
-            cls.root_node_dont_parse_md = ProvNode(cfg, zf, root_md_fps)
+        # build a root node and parse study metadata files
+        cfg = Config(parse_study_metadata=True)
+        cls.root_node_parse_md = ProvNode(
+            cfg, cls.das.concated_ints_with_md.artifact._archiver
+        )
+
+        # build a root node and don't parse study metadata files
+        cfg = Config(parse_study_metadata=False)
+        cls.root_node_dont_parse_md = ProvNode(
+            cfg, cls.das.concated_ints_with_md.artifact._archiver
+        )
 
         # build a node with a collection as input
-        with zipfile.ZipFile(cls.das.int_from_collection.filepath) as zf:
-            all_filenames = zf.namelist()
-            root_md_fnames = filter(is_root_provnode_data, all_filenames)
-            root_md_fps = [pathlib.Path(fp) for fp in root_md_fnames]
-            cls.input_collection_node = ProvNode(cfg, zf, root_md_fps)
+        cls.input_collection_node = ProvNode(
+            cfg, cls.das.int_from_collection.artifact._archiver
+        )
 
         # build a node with an optional input that defaults to None
-        with zipfile.ZipFile(cls.das.int_seq_optional_input.filepath) as zf:
-            all_filenames = zf.namelist()
-            root_md_fnames = filter(is_root_provnode_data, all_filenames)
-            root_md_fps = [pathlib.Path(fp) for fp in root_md_fnames]
-            cls.optional_input_node = ProvNode(cfg, zf, root_md_fps)
+        cls.optional_input_node = ProvNode(
+            cfg, cls.das.int_seq_optional_input.artifact._archiver
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -507,15 +443,16 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
                 self.assertEqual(self.nodes[node].format, 'BIOMV210DirFmt')
                 self.assertEqual(self.nodes[node].type,
                                  'FeatureTable[Frequency]')
+            else:
+                self.assertEqual(
+                    self.nodes[node].format, 'IntSequenceDirectoryFormat'
+                )
+                self.assertEqual(self.nodes[node].type, 'IntSequence1')
+
+            if archive_version == '0' or archive_version == '1':
                 self.assertEqual(self.nodes[node].has_provenance, False)
             else:
-                self.assertEqual(self.nodes[node].format,
-                                 'IntSequenceDirectoryFormat')
-                self.assertEqual(self.nodes[node].type, 'IntSequence1')
-                if archive_version == '1':
-                    self.assertEqual(self.nodes[node].has_provenance, False)
-                else:
-                    self.assertEqual(self.nodes[node].has_provenance, True)
+                self.assertEqual(self.nodes[node].has_provenance, True)
 
             self.assertEqual(self.nodes[node].archive_version, archive_version)
             self.assertEqual(
@@ -562,7 +499,8 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
                              f'(?s)UUID:\t\t{uuid}.*Type.*Data Format')
 
     def test_get_metadata_from_action(self):
-        find_md = self.root_node_parse_md._get_metadata_from_Action
+        new_node = copy.deepcopy(self.root_node_parse_md)
+        find_md = new_node._get_metadata_from_Action
 
         # create dummy hash '0', not relevant here
         md = MetadataInfo(
@@ -571,7 +509,9 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
         action_details = {
             'parameters': [{'metadata': md}]
         }
-        all_md, artifacts_as_md = find_md(action_details)
+        new_node.action._action_details = action_details
+
+        all_md, artifacts_as_md = find_md()
         all_exp = {'metadata': 'metadata.tsv'}
         a_as_md_exp = [{
             'artifact_passed_as_metadata':
@@ -581,15 +521,19 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
         self.assertEqual(artifacts_as_md, a_as_md_exp)
 
     def test_get_metadata_from_action_with_no_params(self):
-        find_md = self.nodes['5']._get_metadata_from_Action
-        action_details = \
-            {'parameters': []}
-        all_md, artifacts_as_md = find_md(action_details)
+        new_node = copy.deepcopy(self.nodes['5'])
+        find_md = new_node._get_metadata_from_Action
+        action_details = {'parameters': []}
+        new_node.action._action_details = action_details
+
+        all_md, artifacts_as_md = find_md()
         self.assertEqual(all_md, {})
         self.assertEqual(artifacts_as_md, [])
 
         action_details = {'non-parameters-key': 'here is a thing'}
-        all_md, artifacts_as_md = find_md(action_details)
+        new_node.action._action_details = action_details
+
+        all_md, artifacts_as_md = find_md()
         self.assertEqual(all_md, {})
         self.assertEqual(artifacts_as_md, [])
 
@@ -655,16 +599,9 @@ class ProvNodeTests(unittest.TestCase, ReallyEqualMixin):
         self.assertEqual(len(actual_parent_names), 2)
 
     def test_parents_for_import_node(self):
-        uuid = self.das.single_int.uuid
-        with zipfile.ZipFile(self.das.single_int.filepath) as zf:
-            required_fps = ('VERSION', 'metadata.yaml', 'action.yaml')
-            import_node_fps = [
-                pathlib.Path(fp) for fp in zf.namelist()
-                if uuid in fp
-                and any(map(lambda x: x in fp, required_fps))
-            ]
-            import_node = ProvNode(Config(), zf, import_node_fps)
-
+        import_node = ProvNode(
+            Config(), self.das.single_int.artifact._archiver
+        )
         self.assertEqual(import_node._parents, [])
 
     def test_parents_collection_of_inputs(self):

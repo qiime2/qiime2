@@ -63,7 +63,7 @@ class ArchiveFormat:
 
         data_initializer(data_dir)
 
-    def __init__(self, archive_record):
+    def __init__(self, archive_record, *args, replay=False):
         path = archive_record.root
 
         with (path / self.METADATA_FILE).open() as fh:
@@ -72,7 +72,14 @@ class ArchiveFormat:
 
         self.uuid = _uuid.UUID(uuid)
         self.type = sdk.parse_type(type)
-        self.format = sdk.parse_format(format)
+
+        try:
+            self.format = sdk.parse_format(format)
+        except TypeError:
+            if replay:
+                self.format = format
+            else:
+                raise
 
         self.path = path
         self.data_dir = path / self.DATA_DIR

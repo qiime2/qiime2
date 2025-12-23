@@ -19,6 +19,9 @@ from .archive_parser import (
     Config, ParserResults, ProvNode, Parser, ArchiveParser
 )
 
+from qiime2.sdk import Result
+from qiime2.core.archive import Archiver
+
 
 class ProvDAG:
     '''
@@ -299,19 +302,17 @@ class ProvDAG:
 
 # TODO: can this get nuked?
 class EmptyParser(Parser):
+    @classmethod
+    def get_parser(cls, artifact_data: None):
+        if artifact_data is None:
+            return cls()
+
+        raise TypeError(f' in EmptyParser: {artifact_data} is not None.')
+
     '''
     Creates empty ProvDAGs.
     Disregards Config, because it's not meaningful in this context.
     '''
-    accepted_data_types = 'None'
-
-    @classmethod
-    def get_parser(cls, artifact_data: Any) -> Parser:
-        if artifact_data is None:
-            return EmptyParser()
-        else:
-            raise TypeError(f' in EmptyParser: {artifact_data} is not None.')
-
     def parse_prov(self, cfg: Config, data: None) -> ParserResults:
         '''
         Returns a static ParserResults with empty parsed_artifact_uuids,
@@ -326,27 +327,8 @@ class EmptyParser(Parser):
 
 
 class DirectoryParser(Parser):
-    accepted_data_types = \
-        'filepath to a directory containing .qza/.qzv archives'
-
     @classmethod
-    def get_parser(cls, artifact_data: Any) -> Parser:
-        '''
-        Return a DirectoryParser if appropriate.
-
-        Parameters
-        ----------
-        artifact_data : Any
-            Ideally a path to a directory containing one or more archives, but
-            may be a different type during searches for other Parsers.
-
-        Raises
-        ------
-        TypeError
-            If something other than a str or path-like object is input.
-        ValueError
-            If the path does not point to a directory.
-        '''
+    def get_parser(cls, artifact_data):
         try:
             is_dir = os.path.isdir(artifact_data)
         except TypeError:
@@ -458,35 +440,15 @@ class ProvDAGParser(Parser):
 
     Disregards Config, because it's not meaningful in this context.
     '''
-    accepted_data_types = 'ProvDAG'
 
     @classmethod
-    def get_parser(cls, artifact_data: Any) -> Parser:
-        '''
-        Returns ProvDAGParser if appropriate.
-
-        Parameters
-        ----------
-        artifact_data : Any
-            Hopefully a ProvDAG but may be a different type during searches for
-            the proper Parser.
-
-        Returns
-        -------
-        ProvDAGParser
-            An instance of ProvDAGParser if artifact_data is a ProvDAG.
-
-        Raises
-        ------
-        TypeError
-            If artifact_data is not a ProvDAG.
-        '''
+    def get_parser(cls, artifact_data):
         if isinstance(artifact_data, ProvDAG):
             return ProvDAGParser()
-        else:
-            raise TypeError(
-                f' in ProvDAGParser: {artifact_data} is not a ProvDAG.'
-            )
+
+        raise TypeError(
+            f' in ProvDAGParser: {artifact_data} is not a ProvDAG.'
+        )
 
     def parse_prov(self, cfg: Config, dag: ProvDAG) -> ParserResults:
         '''
@@ -539,7 +501,7 @@ def parse_provenance(cfg: Config, payload: Any) -> ParserResults:
         checksum diff.
 
     '''
-    parser = select_parser(payload)
+    payload, parser = select_parser(payload)
     return parser.parse_prov(cfg, payload)
 
 
@@ -554,6 +516,9 @@ def select_parser(payload: Any) -> Parser:
 
     Returns
     -------
+    Payload
+        Return the payload back up the chain converted to a parsable format if
+        necessary
     Parser
         The appropriate Parser for the payload type.
 
@@ -562,37 +527,60 @@ def select_parser(payload: Any) -> Parser:
     UnparseableDataError
         If no appropriate parser could be found for the payload.
     '''
-    _PARSER_TYPE_REGISTRY = [
-        ArchiveParser,
-        DirectoryParser,
-        ProvDAGParser,
-        EmptyParser
-    ]
-
-    accepted_data_types = [
-        parser.accepted_data_types for parser in _PARSER_TYPE_REGISTRY
-    ]
-
-    optional_parser = None
-    errors = []
-    for parser in _PARSER_TYPE_REGISTRY:
-        try:
-            optional_parser = parser.get_parser(payload)
-            if optional_parser is not None:
-                return optional_parser
-        except Exception as e:
-            errors.append(e)
+    PARSER_TYPE_MAP = {
+        'Archiver': ArchiveParser,
+        'str': DirectoryParser,
+        'ProvDAG': ProvDAGParser,
+        'NoneType': EmptyParser
+    }
 
     err_msg = (
         f'Input data {payload} is not supported.\n'
         'Parsers are available for the following data types: '
-        f'{accepted_data_types}.\n'
-        'The following errors were caught while trying to identify a parser '
-        'that can_handle this input data:\n'
+        f'{list(PARSER_TYPE_MAP.keys())}.\n'
     )
-    for e in errors:
-        err_msg += str(type(e)) + str(e) + '\n'
-    raise UnparseableDataError(err_msg)
+
+    try:
+        payload = _load_payload(payload)
+        parser = \
+            PARSER_TYPE_MAP.get(payload.__class__.__name__).get_parser(payload)
+        if parser is not None:
+            return payload, parser
+    except Exception as e:
+        err_msg += (
+            'The following error was caught while trying to identify a '
+            'parser that can handle this input data:\n'
+            f'{str(e)}'
+        )
+
+        raise UnparseableDataError(err_msg) from e
+
+
+def _load_payload(payload):
+    '''
+    Ensures Paths are converted into strings and then attempts to load non
+    directory paths as an Archiver. If a Result was provided take its _archiver
+
+    Parameters
+    ----------
+    payload : Any
+        The payload to load.
+
+    Returns
+    -------
+    Parser
+        The payload loaded if needed.
+    '''
+    if isinstance(payload, Path):
+        payload = str(payload)
+
+    if isinstance(payload, Result):
+        payload = payload._archiver
+
+    if isinstance(payload, str) and not os.path.isdir(payload):
+        payload = Archiver.load(payload, replay=True)
+
+    return payload
 
 
 class UnparseableDataError(Exception):

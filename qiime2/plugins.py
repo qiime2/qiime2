@@ -101,13 +101,24 @@ class ArtifactAPIUsage(usage.Usage):
         import_: str
         from_: str = None
         as_: str = None
+        missing_: bool = False
 
         def render(self):
-            tmpl = 'import %s' % (self.import_,)
+            FIXME_COMMENT = (
+                "# FIXME: This import is unverified because one or more "
+                "actions associated with\n# it were not found in your current "
+                "QIIME 2 environment"
+            )
+
+            tmpl = f'import {self.import_}'
             if self.from_ is not None:
-                tmpl = 'from %s %s' % (self.from_, tmpl)
+                tmpl = f'from {self.from_} {tmpl}'
             if self.as_ is not None:
-                tmpl = '%s as %s' % (tmpl, self.as_)
+                tmpl = f'{tmpl} as {self.as_}'
+
+            if self.missing_:
+                tmpl = f'{FIXME_COMMENT}\n{tmpl}'
+
             return tmpl
 
     def __init__(self, enable_assertions: bool = False,
@@ -406,9 +417,10 @@ class ArtifactAPIUsage(usage.Usage):
 
         return self.INDENT + '%s=%r,' % (input_name, value)
 
-    def _update_imports(self, import_, from_=None, as_=None):
+    def _update_imports(self, import_, from_=None, as_=None, missing_=False):
         import_record = self.ImporterRecord(
-            import_=import_, from_=from_, as_=as_)
+            import_=import_, from_=from_, as_=as_, missing_=missing_
+        )
 
         if as_ is not None:
             self.namespace.add(as_)

@@ -54,7 +54,7 @@ class ReplayConfig:
     verbose : bool
         If True, progress is reported to stdout.
     md_out_dir : str
-        The directory where caputred metadata should be written.
+        The directory where captured metadata should be written.
     '''
     def __init__(
         self,
@@ -848,7 +848,8 @@ def build_action_usage(
         inputs.update({param_name: param_val})
 
     usg_var = cfg.use.action(
-        cfg.use.UsageAction(plugin_id=plugin, action_id=action),
+        cfg.use.UsageAction(
+            plugin_id=plugin, action_id=action, node=node),
         cfg.use.UsageInputs(**inputs),
         cfg.use.UsageOutputNames(**outputs)
     )
@@ -1047,7 +1048,8 @@ def init_md_from_recorded_md(
     plugin = node.action.plugin
     action = node.action.action_name
 
-    if param_is_metadata_column(cfg, param_name, plugin, action):
+    if node._action_present_ and \
+            param_is_metadata_column(cfg, param_name, plugin, action):
         mdc_id = node._uuid + '_mdc'
         mdc_name = ns.get_usg_var_record(md_id).name + '_mdc'
         var_name = ns.add_usg_var_record(mdc_id, mdc_name)
@@ -1089,7 +1091,8 @@ def init_md_from_md_file(
     action = node.action.action_name
     md = cfg.use.init_metadata(ns.get_usg_var_record(md_id).name, lambda: None)
 
-    if param_is_metadata_column(cfg, param_name, plugin, action):
+    if node._action_present_ and \
+            param_is_metadata_column(cfg, param_name, plugin, action):
         mdc_id = node._uuid + '_mdc'
         mdc_name = ns.get_usg_var_record(md_id).name + '_mdc'
         var_name = ns.add_usg_var_record(mdc_id, mdc_name)

@@ -339,7 +339,7 @@ class ReplayProvDAGDirectoryTests(unittest.TestCase):
 
         for artifact in self.das.single_int, self.das.single_int2:
             for dir_ in inner_dir, outer_dir:
-                artifact.artifact.save(
+                artifact.archiver.save(
                     os.path.join(dir_, f'{artifact.name}.qza')
                 )
 
@@ -1443,7 +1443,6 @@ class CitationsTests(unittest.TestCase):
         }
 
         citations = collect_citations(dag, deduplicate=True)
-        print(citations.entries_dict.keys())
         keys = set(citations.entries_dict.keys())
         self.assertEqual(len(keys), len(exp_keys))
         self.assertEqual(keys, exp_keys)
@@ -1484,3 +1483,48 @@ class CitationsTests(unittest.TestCase):
             with open(out_fp, 'r') as fp:
                 written = fp.read()
                 self.assertIn(exp, written)
+
+
+class PluginActionFormatNotFoundTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        datadir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 'data'
+        )
+        cls.artifact_fp = os.path.join(datadir, 'rarefied_table.qza')
+
+    def test_replay_not_found(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_fp = pathlib.Path(tmpdir) / 'rendered.txt'
+            replay_provenance(
+                ReplayPythonUsage, self.artifact_fp, out_fp,
+                md_out_dir=tmpdir
+            )
+
+            with open(out_fp, 'r') as fh:
+                rendered = fh.read()
+
+            FIXME_import = \
+"""
+# FIXME: This import is unverified because one or more actions associated with
+# it were not found in your current QIIME 2 environment
+import qiime2.plugins.diversity.actions.actions as diversity_actions
+"""  # noqa: E128
+            self.assertIn(FIXME_import, rendered)
+
+            FIXME_action = \
+"""
+# FIXME: The following action was not found in your current QIIME 2
+# environment. Please ensure the action and its parameters are correct before
+# running.
+action_results = diversity_actions.core_metrics_phylogenetic(
+    table=feature_table_frequency_0,
+    phylogeny=phylogeny_rooted_0,
+    sampling_depth=13,
+    metadata=metadata_0_md,
+    with_replacement=False,
+    n_jobs_or_threads=1,
+    ignore_missing_samples=False,
+)
+"""  # noqa: E128
+            self.assertIn(FIXME_action, rendered)

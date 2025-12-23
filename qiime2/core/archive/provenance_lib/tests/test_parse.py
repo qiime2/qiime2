@@ -12,7 +12,6 @@ import random
 import shutil
 import tempfile
 import unittest
-import zipfile
 from contextlib import redirect_stdout
 
 import networkx as nx
@@ -29,21 +28,22 @@ from ..archive_parser import (
     Config, ProvNode, ParserResults, ArchiveParser,
 )
 
-from .testing_utilities import (
-    is_root_provnode_data, generate_archive_with_file_removed, DummyArtifacts
-)
+from .testing_utilities import DummyArtifacts
 
-from qiime2 import Artifact
-from qiime2.core.archive.archiver import ChecksumDiff
+from qiime2 import Artifact, Cache
+from qiime2.core.archive.archiver import ChecksumDiff, Archiver
 from qiime2.core.archive.provenance_lib.tests.testing_utilities import (
     write_zip_file
 )
+from qiime2.sdk.plugin_manager import PluginManager
 
 
 class ProvDAGTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.das = DummyArtifacts()
+        cls.pm = PluginManager()
+        cls.dp = cls.pm.plugins['dummy-plugin']
         cls.tempdir = cls.das.tempdir
 
     @classmethod
@@ -58,7 +58,7 @@ class ProvDAGTests(unittest.TestCase):
             pass
 
         fp = os.path.join(dir_fp, f'{artifact.name}.qza')
-        artifact.artifact.save(fp)
+        artifact.archiver.save(fp)
         return dir_fp
 
     def test_number_of_nodes(self):
@@ -102,13 +102,11 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(num_pipeline_viz_term_nodes, 1)
 
     def test_root_node_is_archive_root(self):
-        with zipfile.ZipFile(self.das.concated_ints.filepath) as zf:
-            all_filenames = zf.namelist()
-            root_filenames = filter(is_root_provnode_data, all_filenames)
-            root_filepaths = [pathlib.Path(fp) for fp in root_filenames]
-            exp_node = ProvNode(Config(), zf, root_filepaths)
-            act_terminal_node, *_ = self.das.concated_ints.dag.terminal_nodes
-            self.assertEqual(exp_node, act_terminal_node)
+        exp_node = ProvNode(
+            Config(), self.das.concated_ints.artifact._archiver
+        )
+        act_terminal_node, *_ = self.das.concated_ints.dag.terminal_nodes
+        self.assertEqual(exp_node, act_terminal_node)
 
     def test_number_of_actions(self):
         self.assertEqual(self.das.int_seq1.dag.dag.number_of_edges(), 0)
@@ -125,21 +123,25 @@ class ProvDAGTests(unittest.TestCase):
 
     def test_nonexistent_fp(self):
         fp = os.path.join(self.tempdir, 'does-not-exist.qza')
-        err_msg = 'FileNotFoundError'
-        with self.assertRaisesRegex(UnparseableDataError, err_msg):
+        with self.assertRaisesRegex(UnparseableDataError, 'does not exist'):
             ProvDAG(fp)
 
     def test_insufficient_permissions(self):
         fp = os.path.join(self.tempdir, 'int-seq-1-permissions-copy.qza')
         self.das.int_seq1.artifact.save(fp)
 
+        # TODO: We do not get a permission error anymore. If QIIME 2 tries to
+        # load a .qza as a Result without perms it says it isn't an archive.
+        # The permission error was much more informative, maybe bring that back
+        # somehow?
+
         os.chmod(fp, 0o000)
-        err_msg = 'PermissionError.*Permission denied'
+        err_msg = '.*is not a QIIME archive.'
         with self.assertRaisesRegex(UnparseableDataError, err_msg):
             ProvDAG(fp)
 
         os.chmod(fp, 0o123)
-        err_msg = 'PermissionError.*Permission denied'
+        err_msg = '.*is not a QIIME archive'
         with self.assertRaisesRegex(UnparseableDataError, err_msg):
             ProvDAG(fp)
 
@@ -148,7 +150,7 @@ class ProvDAGTests(unittest.TestCase):
         with open(fp, 'w') as fh:
             fh.write("This is just a text file.")
 
-        err_msg = 'zipfile.BadZipFile.*File is not a zip file'
+        err_msg = 'is not a QIIME archive.'
         with self.assertRaisesRegex(UnparseableDataError, err_msg):
             ProvDAG(fp)
 
@@ -299,63 +301,62 @@ class ProvDAGTests(unittest.TestCase):
         and then build a ProvDAG with it to confirm the ProvDAG constructor
         handles broken checksums appropriately
         '''
-        uuid = self.das.int_seq1.uuid
-        with generate_archive_with_file_removed(
-            self.das.int_seq1.filepath,
-            uuid,
-            os.path.join('data', 'ints.txt')
-        ) as altered_archive:
-            new_fp = os.path.join(uuid, 'data', 'tamper.txt')
-            overwrite_fp = os.path.join(uuid, 'provenance', 'citations.bib')
-            with zipfile.ZipFile(altered_archive, 'a') as zf:
-                zf.writestr(new_fp, 'added file')
+        with tempfile.TemporaryDirectory() as tempdir:
+            # Create a new cache to make sure we aren't mutilating the
+            # canonical on disk representation of this Result
+            cache = Cache(os.path.join(tempdir, 'cache'))
+            with cache:
+                int_seq1 = cache.save(self.das.int_seq1.artifact, 'int_seq1')
 
-                with zf.open(overwrite_fp, 'w') as fh:
-                    fh.write(b'999\n')
+                os.remove(int_seq1._archiver.path / 'data' / 'ints.txt')
+                with open(
+                        int_seq1._archiver.path / 'data' / 'tamper.txt', 'w'):
+                    pass
+                with open(int_seq1._archiver.path / 'provenance' /
+                          'citations.bib', 'w') as fh:
+                    fh.write('999\n')
 
-            expected = (
-                '(?s)'
-                f'Checksums are invalid for Archive {uuid}.*'
-                'Archive may be corrupt.*'
-                'Files added.*tamper.txt.*'
-                'Files removed.*ints.txt.*'
-                'Files changed.*provenance.*citations.bib.*'
-            )
+                expected = (
+                    '(?s)'
+                    f'Checksums are invalid for Archive {int_seq1.uuid}.*'
+                    'Archive may be corrupt.*'
+                    'Files added.*tamper.txt.*'
+                    'Files removed.*ints.txt.*'
+                    'Files changed.*provenance.*citations.bib.*'
+                )
 
-            with self.assertWarnsRegex(UserWarning, expected):
-                dag = ProvDAG(altered_archive)
+                with self.assertWarnsRegex(UserWarning, expected):
+                    dag = ProvDAG(int_seq1)
 
-            self.assertEqual(dag.provenance_is_valid, ValidationCode.INVALID)
+                self.assertEqual(dag.provenance_is_valid,
+                                 ValidationCode.INVALID)
 
-            diff = dag.checksum_diff
-            self.assertEqual(list(diff.removed.keys()), ['data/ints.txt'])
-            self.assertEqual(list(diff.added.keys()), ['data/tamper.txt'])
-            self.assertEqual(list(diff.changed.keys()),
-                             ['provenance/citations.bib'])
+                diff = dag.checksum_diff
+                self.assertEqual(list(diff.removed.keys()), ['data/ints.txt'])
+                self.assertEqual(list(diff.added.keys()), ['data/tamper.txt'])
+                self.assertEqual(list(diff.changed.keys()),
+                                 ['provenance/citations.bib'])
 
     def test_missing_checksums_sha512(self):
-        uuid = self.das.single_int.uuid
-        with generate_archive_with_file_removed(
-            self.das.single_int.filepath,
-            uuid,
-            'checksums.sha512'
-        ) as altered_archive:
-            expected = (
-                'The checksums.sha512 file is missing from the archive.*'
-                'Archive may be corrupt'
-            )
-            with self.assertWarnsRegex(UserWarning, expected):
-                dag = ProvDAG(altered_archive)
+        single_int = Artifact.import_data('SingleInt', 0)
+        os.remove(single_int._archiver.path / 'checksums.sha512')
 
-            self.assertEqual(dag.provenance_is_valid, ValidationCode.INVALID)
+        expected = (
+            'The checksums.sha512 file is missing from the archive.*'
+            'Archive may be corrupt'
+        )
+        with self.assertWarnsRegex(UserWarning, expected):
+            dag = ProvDAG(single_int)
 
-            diff = dag.checksum_diff
-            self.assertEqual(diff, None)
+        self.assertEqual(dag.provenance_is_valid, ValidationCode.INVALID)
+
+        diff = dag.checksum_diff
+        self.assertEqual(diff, None)
 
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_error_if_missing_node_files(self):
-        path_prefix = os.path.join('provenance', 'artifacts')
-        root_uuid = self.das.concated_ints.uuid
+        concat_ints = self.dp.methods['concatenate_ints']
+
         for removed_file in [
             'metadata.yaml',
             'citations.bib',
@@ -363,21 +364,18 @@ class ProvDAGTests(unittest.TestCase):
             'action/action.yaml'
         ]:
             for uuid in [self.das.int_seq1.uuid, self.das.int_seq2.uuid]:
-                with generate_archive_with_file_removed(
-                    self.das.concated_ints.filepath,
-                    root_uuid,
-                    os.path.join(path_prefix, uuid, removed_file)
-                ) as altered_archive:
-                    if removed_file == 'action/action.yaml':
-                        file = 'action.yaml'
-                    else:
-                        file = removed_file
+                concated_ints, = concat_ints(
+                    self.das.int_seq1.artifact, self.das.int_seq1.artifact,
+                    self.das.int_seq2.artifact, 7, 13
+                )
 
-                    expected = (
-                        f'(?s)Malformed.*{file}.*{uuid}.*corrupt.*'
-                    )
-                    with self.assertRaisesRegex(ValueError, expected):
-                        ProvDAG(altered_archive)
+                removed_path = concated_ints._archiver.provenance_dir / \
+                    'artifacts' / uuid / removed_file
+                os.remove(removed_path)
+                expected = f'No such file or directory:.*{removed_path}'
+
+                with self.assertRaisesRegex(FileNotFoundError, expected):
+                    ProvDAG(concated_ints)
 
     def test_v0_archive(self):
         dag = self.das.table_v0.dag
@@ -415,9 +413,10 @@ class ProvDAGTests(unittest.TestCase):
         )
         self.assertEqual(dag.node_has_provenance(uuid), True)
 
-        with zipfile.ZipFile(self.das.concated_ints_v4.filepath) as zf:
-            citations_path = os.path.join(uuid, 'provenance', 'citations.bib')
-            self.assertIn(citations_path, zf.namelist())
+        self.assertTrue(
+            os.path.exists(
+                self.das.concated_ints_v4.artifact._archiver.provenance_dir /
+                'citations.bib'))
 
     def test_v5_archive(self):
         dag = self.das.concated_ints_v5.dag
@@ -431,13 +430,13 @@ class ProvDAGTests(unittest.TestCase):
         uuid = self.das.mapping1.uuid
         self.assertEqual(dag.node_has_provenance(uuid), True)
         self.assertEqual(dag.get_node_data(uuid)._uuid, uuid)
-        self.assertEqual(dag.get_node_data(uuid).type, 'Mapping')
+        self.assertEqual(str(dag.get_node_data(uuid).type), 'Mapping')
 
     def test_artifact_with_collection_of_inputs(self):
         dag = self.das.merged_mappings.dag
         uuid = self.das.merged_mappings.uuid
         root_node = dag.get_node_data(uuid)
-        self.assertEqual(root_node.type, 'Mapping')
+        self.assertEqual(str(root_node.type), 'Mapping')
 
         exp_parents = {self.das.mapping1.uuid, self.das.mapping2.uuid}
         self.assertEqual(dag.predecessors(uuid), exp_parents)
@@ -535,10 +534,11 @@ class ProvDAGTests(unittest.TestCase):
         # ...but this should make clear that the provenance is bad
         # (or that the user opted out of validation)
         self.assertEqual(
-            unioned_dag.provenance_is_valid, ValidationCode.INVALID)
+            unioned_dag.provenance_is_valid, ValidationCode.INVALID
+        )
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 1
+            nx.number_weakly_connected_components(unioned_dag.dag), 2
         )
 
     def test_union_other_missing_checksums_sha512(self):
@@ -560,7 +560,7 @@ class ProvDAGTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            nx.number_weakly_connected_components(unioned_dag.dag), 1
+            nx.number_weakly_connected_components(unioned_dag.dag), 2
         )
 
     def test_union_both_missing_checksums_sha512(self):
@@ -574,7 +574,7 @@ class ProvDAGTests(unittest.TestCase):
         self.assertRegex(
             repr(unioned_dag),
             'ProvDAG representing the provenance.*Artifacts.*'
-            f'{self.das.single_int.uuid}'
+            f'{self.das.single_int_no_checksum.uuid}'
         )
 
         # Both DAGs have NoneType checksum_diffs, so the ChecksumDiff==None
@@ -782,22 +782,26 @@ class ProvDAGTests(unittest.TestCase):
         self.assertEqual(no_validation_dag.checksum_diff, None)
 
     def test_no_checksum_validation_missing_checksums_sha512(self):
-        with generate_archive_with_file_removed(
-            self.das.concated_ints.filepath,
-            self.das.concated_ints.uuid,
-            'checksums.sha512'
-        ) as altered_archive:
-            dag = ProvDAG(altered_archive, validate_checksums=False)
+        concat_ints = self.dp.methods['concatenate_ints']
 
-            self.assertEqual(
-                dag.provenance_is_valid, ValidationCode.VALIDATION_OPTOUT
-            )
+        concated_ints, = concat_ints(
+            self.das.int_seq1.artifact, self.das.int_seq1.artifact,
+            self.das.int_seq2.artifact, 7, 13
+        )
 
-            self.assertEqual(dag.checksum_diff, None)
+        removed_path = concated_ints._archiver.path / 'checksums.sha512'
+        os.remove(removed_path)
+
+        dag = ProvDAG(concated_ints, validate_checksums=False)
+
+        self.assertEqual(
+            dag.provenance_is_valid, ValidationCode.VALIDATION_OPTOUT
+        )
+        self.assertEqual(dag.checksum_diff, None)
 
     def test_no_checksum_validation_missing_node_files(self):
-        path_prefix = os.path.join('provenance', 'artifacts')
-        root_uuid = self.das.concated_ints.uuid
+        concat_ints = self.dp.methods['concatenate_ints']
+
         for removed_file in [
             'metadata.yaml',
             'citations.bib',
@@ -805,19 +809,18 @@ class ProvDAGTests(unittest.TestCase):
             'action/action.yaml'
         ]:
             for uuid in [self.das.int_seq1.uuid, self.das.int_seq2.uuid]:
-                with generate_archive_with_file_removed(
-                    self.das.concated_ints.filepath,
-                    root_uuid,
-                    os.path.join(path_prefix, uuid, removed_file)
-                ) as altered_archive:
-                    if removed_file == 'action/action.yaml':
-                        file = 'action.yaml'
-                    else:
-                        file = removed_file
+                concated_ints, = concat_ints(
+                    self.das.int_seq1.artifact, self.das.int_seq1.artifact,
+                    self.das.int_seq2.artifact, 7, 13
+                )
 
-                    expected = (f'(?s)Malformed.*{file}.*{uuid}.*corrupt.*')
-                    with self.assertRaisesRegex(ValueError, expected):
-                        ProvDAG(altered_archive, validate_checksums=False)
+                removed_path = concated_ints._archiver.provenance_dir / \
+                    'artifacts' / uuid / removed_file
+                os.remove(removed_path)
+                expected = f'No such file or directory:.*{removed_path}'
+
+                with self.assertRaisesRegex(FileNotFoundError, expected):
+                    ProvDAG(concated_ints, validate_checksums=False)
 
     def test_mixed_archive_version_provenance(self):
         '''
@@ -837,8 +840,7 @@ class ProvDAGTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             zipfile = os.path.join(tempdir, 'temp.zip')
             write_zip_file(zipfile, artifact_dir)
-            artifact = os.path.join(tempdir, 'mixed-archive-versions.qza')
-            Artifact.load(zipfile).save(artifact)
+            artifact = Artifact.load(zipfile)
 
             dag = ProvDAG(artifact)
             self.assertEqual(len(dag.terminal_uuids), 1)
@@ -928,26 +930,27 @@ class SelectParserTests(unittest.TestCase):
         cls.das.free()
 
     def test_correct_parser_type(self):
-        empty = select_parser(None)
+        _, empty = select_parser(None)
         self.assertIsInstance(empty, EmptyParser)
 
-        archive = select_parser(self.das.concated_ints.filepath)
+        payload, archive = select_parser(self.das.concated_ints.filepath)
         self.assertIsInstance(archive, ArchiveParser)
+        self.assertIsInstance(payload, Archiver)
 
         dag = ProvDAG()
-        pdag = select_parser(dag)
+        _, pdag = select_parser(dag)
         self.assertIsInstance(pdag, ProvDAGParser)
 
         # check dir_fp as fp
         test_dir = os.path.join(self.tempdir, 'parse_dir_test')
         os.mkdir(test_dir)
         dir_fp = pathlib.Path(test_dir)
-        dir_p = select_parser(dir_fp)
+        _, dir_p = select_parser(dir_fp)
         self.assertIsInstance(dir_p, DirectoryParser)
 
         # check dir_fp as str
         dir_fp_str = str(dir_fp)
-        dir_p = select_parser(dir_fp_str)
+        _, dir_p = select_parser(dir_fp_str)
         self.assertIsInstance(dir_p, DirectoryParser)
 
     def test_correct_archive_parser_version(self):
@@ -955,8 +958,8 @@ class SelectParserTests(unittest.TestCase):
             ParserV0, ParserV1, ParserV2, ParserV3, ParserV4, ParserV5,
             ParserV6
         ]
-        for archive, parser in zip(self.das.all_artifact_versions, parsers):
-            handler = select_parser(archive.filepath)
+        for artifact, parser in zip(self.das.all_artifact_versions, parsers):
+            _, handler = select_parser(artifact.archiver)
             self.assertEqual(type(handler), parser)
 
 
@@ -1059,18 +1062,27 @@ class ParseProvenanceTests(unittest.TestCase):
 
     def test_parse_with_directory_parser_bad_dir_path(self):
         dir_fp = os.path.join(self.tempdir, 'fake_dir')
-        with self.assertRaisesRegex(Exception, 'not a valid dir'):
+        with self.assertRaisesRegex(
+            UnparseableDataError,
+            f"Input data {dir_fp} is not supported.\n"
+            "Parsers are available for the following data types: "
+            "\['Archiver', 'str', 'ProvDAG', 'NoneType'].\n"  # noqa: W605
+            "The following error was caught while trying to identify a parser "
+            "that can handle this input data:\n"
+            f"{dir_fp} does not exist."
+        ):
             parse_provenance(self.cfg, dir_fp)
 
     def test_no_correct_parser_found_error(self):
         input_data = {'this': 'is not parseable'}
         with self.assertRaisesRegex(
             UnparseableDataError,
-            f'(?s)Input data {input_data}.*not supported.*'
-            'ArchiveParser expects a string or pathlib.PosixPath.*'
-            'DirectoryParser.*expects a directory.*'
-            'ProvDAGParser.*is not a ProvDAG.*'
-            'EmptyParser.*is not None'
+            f"Input data {input_data} is not supported.\n"
+            "Parsers are available for the following data types: "
+            "\['Archiver', 'str', 'ProvDAG', 'NoneType'].\n"  # noqa: W605
+            "The following error was caught while trying to identify a parser "
+            "that can handle this input data:\n"
+            "'NoneType' object has no attribute 'get_parser'"
         ):
             select_parser(input_data)
 

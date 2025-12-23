@@ -39,6 +39,7 @@ from typing import Set, List, Literal, Any, Callable, Type, Union
 import dataclasses
 import functools
 import re
+import yaml
 
 import qiime2
 from qiime2 import sdk
@@ -1660,6 +1661,63 @@ class Usage:
         object.__setattr__(results, '_cache_info', cache_info)
         object.__setattr__(results, '_cache_reset', cache_clear)
         return results
+
+    def action_not_found(self,
+                         action: 'qiime2.sdk.usage.UsageAction',
+                         inputs: 'qiime2.sdk.usage.UsageInputs',
+                         outputs: 'qiime2.sdk.usage.UsageOutputNames'
+                         ) -> 'qiime2.sdk.usage.UsageOutputs':
+        if not isinstance(action, UsageAction):
+            raise ValueError('Invalid value for `action`: expected %r, '
+                             'received %r.' % (UsageAction, type(action)))
+
+        if not isinstance(inputs, UsageInputs):
+            raise ValueError('Invalid value for `inputs`: expected %r, '
+                             'received %r.' % (UsageInputs, type(inputs)))
+
+        if not isinstance(outputs, UsageOutputNames):
+            raise ValueError('Invalid value for `outputs`: expected %r, '
+                             'received %r.' % (UsageOutputNames,
+                                               type(outputs)))
+
+        usage_results = []
+        for _, var_name in outputs.items():
+            var_type = self._find_var_type_from_prov(
+                action.node, action.node.action._action_dict)
+
+            variable = self._usage_variable(var_name, lambda x: x, var_type)
+            usage_results.append(variable)
+
+        results = UsageOutputs(outputs.keys(), usage_results)
+        return results
+
+    def _find_var_type_from_prov(self,
+                                 node,
+                                 action_yaml):
+        if action_yaml['action']['type'] == 'visualizer':
+            # Visualizers can only output visualizations
+            if type(action_yaml['action']['output-name']) is List:
+                var_type = 'visualization_collection'
+            else:
+                var_type = 'visualization'
+        elif action_yaml['action']['type'] == 'method':
+            # Methods can only output artifacts
+            if type(action_yaml['action']['output-name']) is List:
+                var_type = 'artifact_collection'
+            else:
+                var_type = 'artifact'
+        else:
+            # If we are a pipeline we need to recurse until we find our root
+            alias_uuid = action_yaml['action']['alias-of']
+            alias_path = node._archiver.provenance_dir / 'artifacts' \
+                / alias_uuid / 'action' / 'action.yaml'
+
+            with open(alias_path) as fh:
+                alias_yaml = yaml.safe_load(fh)
+
+            var_type = self._find_var_type_from_prov(node, alias_yaml)
+
+        return var_type
 
 
 class DiagnosticUsage(Usage):

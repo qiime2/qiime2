@@ -1198,7 +1198,7 @@ class Cache:
                     Result._from_archiver(Archiver.load_raw(destination, self))
                 existing.merge_annotations(ref)
 
-    def _rename_to_data(self, uuid, src):
+    def _rename_to_data(self, uuid, src, *args, replay=False):
         """Takes some data in src and renames it into the cache's data dir. It
         then ensures there are symlinks for this data in the process pool and
         the named pool if one exists. This is generally used to move data from
@@ -1228,8 +1228,10 @@ class Cache:
             if not os.path.exists(dest):
                 os.rename(src, dest)
             else:
-                existing = Result._from_archiver(Archiver.load_raw(dest, self))
-                new = Result._from_archiver(Archiver.load_raw(src, self))
+                existing = Result._from_archiver(
+                    Archiver.load_raw(dest, self, replay=replay))
+                new = Result._from_archiver(
+                    Archiver.load_raw(src, self, replay=replay))
                 existing.merge_annotations(new)
 
             # Create a new alias whether we renamed or not because this is

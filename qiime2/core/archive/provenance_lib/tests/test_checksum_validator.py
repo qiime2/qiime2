@@ -9,7 +9,6 @@ import os
 import shutil
 import tempfile
 import unittest
-import zipfile
 
 import pytest
 
@@ -18,7 +17,6 @@ from qiime2.core.archive.archiver import ChecksumDiff
 from qiime2.sdk.plugin_manager import PluginManager
 
 from .._checksum_validator import validate_checksums, ValidationCode
-from .testing_utilities import write_zip_archive
 
 
 class ValidateChecksumTests(unittest.TestCase):
@@ -34,11 +32,8 @@ class ValidateChecksumTests(unittest.TestCase):
 
     def test_validate_checksums(self):
         int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
-        fp = os.path.join(self.tempdir, 'int-seq.qza')
-        int_seq.save(fp)
 
-        with zipfile.ZipFile(fp) as zf:
-            is_valid, diff = validate_checksums(zf)
+        is_valid, diff = validate_checksums(int_seq._archiver)
         self.assertEqual(is_valid, ValidationCode.VALID)
         self.assertEqual(diff, ChecksumDiff({}, {}, {}))
 
@@ -53,27 +48,15 @@ class ValidateChecksumTests(unittest.TestCase):
         - overwrite `<uuid>/provenance/citations.bib`
         '''
         int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
-        fp = os.path.join(self.tempdir, 'int-seq-altered.qza')
-        int_seq.save(fp)
+        os.remove(int_seq._archiver.path / 'metadata.yaml')
 
-        with tempfile.TemporaryDirectory() as tempdir:
-            with zipfile.ZipFile(fp) as zf:
-                zf.extractall(tempdir)
+        with open(int_seq._archiver.path / 'tamper.txt', 'w') as fh:
+            pass
+        with open(
+                int_seq._archiver.provenance_dir / 'citations.bib', 'w') as fh:
+            fh.write('file overwritten\n')
 
-            uuid = os.listdir(tempdir)[0]
-            root_dir = os.path.join(tempdir, uuid)
-            os.remove(os.path.join(root_dir, 'metadata.yaml'))
-            with open(os.path.join(root_dir, 'tamper.txt'), 'w') as fh:
-                pass
-            citations_path = \
-                os.path.join(root_dir, 'provenance', 'citations.bib')
-            with open(citations_path, 'w') as fh:
-                fh.write('file overwritten\n')
-
-            write_zip_archive(fp, tempdir)
-
-        with zipfile.ZipFile(fp) as zf:
-            is_valid, diff = validate_checksums(zf)
+        is_valid, diff = validate_checksums(int_seq._archiver)
 
         self.assertEqual(is_valid, ValidationCode.INVALID)
         self.assertEqual(list(diff.added.keys()), ['tamper.txt'])
@@ -84,20 +67,9 @@ class ValidateChecksumTests(unittest.TestCase):
     @pytest.mark.filterwarnings('ignore::UserWarning')
     def test_validate_checksums_checksums_missing(self):
         int_seq = Artifact.import_data('IntSequence1', [1, 2, 3])
-        fp = os.path.join(self.tempdir, 'int-seq-missing-version.qza')
-        int_seq.save(fp)
+        os.remove(int_seq._archiver.path / 'checksums.sha512')
 
-        with tempfile.TemporaryDirectory() as tempdir:
-            with zipfile.ZipFile(fp) as zf:
-                zf.extractall(tempdir)
-
-            uuid = os.listdir(tempdir)[0]
-            os.remove(os.path.join(tempdir, uuid, 'checksums.sha512'))
-
-            write_zip_archive(fp, tempdir)
-
-        with zipfile.ZipFile(fp) as zf:
-            is_valid, diff = validate_checksums(zf)
+        is_valid, diff = validate_checksums(int_seq._archiver)
 
         self.assertEqual(is_valid, ValidationCode.INVALID)
         self.assertEqual(diff, None)

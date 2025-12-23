@@ -12,7 +12,6 @@ import tempfile
 import unittest
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Generator
 import warnings
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -28,6 +27,7 @@ from qiime2.sdk.plugin_manager import PluginManager
 class DummyArtifact:
     name: str
     artifact: Artifact
+    archiver: Archiver
     uuid: str
     filepath: str
     dag: ProvDAG
@@ -56,20 +56,22 @@ class DummyArtifacts:
         '''
         single_int = Artifact.import_data('SingleInt', 0)
         single_int2 = Artifact.import_data('SingleInt', 7)
+        single_int_no_checksum = Artifact.import_data('SingleInt', 0)
         int_seq1 = Artifact.import_data('IntSequence1', [1, 1, 2])
         int_seq2 = Artifact.import_data('IntSequence2', [3, 5])
         mapping1 = Artifact.import_data('Mapping', {'a': 42})
         mapping2 = Artifact.import_data('Mapping', {'c': 8, 'd': 13})
 
         for name in (
-            'single_int', 'single_int2', 'int_seq1', 'int_seq2', 'mapping1',
-            'mapping2'
+            'single_int', 'single_int2', 'single_int_no_checksum', 'int_seq1',
+            'int_seq2', 'mapping1', 'mapping2'
         ):
             artifact = locals()[name]
             fp = os.path.join(self.tempdir, f'{name}.qza')
             artifact.save(fp)
             test_artifact = DummyArtifact(
-                name, artifact, str(artifact.uuid), fp, ProvDAG(fp)
+                name, artifact, artifact._archiver, str(artifact.uuid), fp,
+                ProvDAG(fp)
             )
             setattr(self, name, test_artifact)
 
@@ -148,7 +150,8 @@ class DummyArtifacts:
             fp = os.path.join(self.tempdir, f'{name}{ext}')
             artifact.save(fp)
             test_artifact = DummyArtifact(
-                name, artifact, str(artifact.uuid), fp, ProvDAG(fp)
+                name, artifact, artifact._archiver, str(artifact.uuid), fp,
+                ProvDAG(fp)
             )
             setattr(self, name, test_artifact)
 
@@ -173,10 +176,12 @@ class DummyArtifacts:
 
             if version == 0:
                 shutil.copy(temp_zf_path, fp)
-                a = None
+                archiver = Archiver.load(temp_zf_path, replay=True)
+                artifact = None
             else:
-                a = Artifact.load(temp_zf_path)
-                a.save(fp)
+                artifact = Artifact.load(temp_zf_path)
+                archiver = artifact._archiver
+                artifact.save(fp)
 
             with warnings.catch_warnings():
                 warnings.filterwarnings('ignore', category=UserWarning)
@@ -187,7 +192,9 @@ class DummyArtifacts:
             uuid = terminal_node._uuid
 
             name = filename.replace('-', '_').replace('.qza', '')
-            da = DummyArtifact(name, a, uuid, fp, dag, version)
+            da = DummyArtifact(
+                name, artifact, archiver, uuid, fp, dag, version
+            )
             setattr(self, name, da)
 
     def init_artifact_with_md_in_provenance(self):
@@ -204,28 +211,24 @@ class DummyArtifacts:
         terminal_node, *_ = dag.terminal_nodes
         uuid = terminal_node._uuid
         name = filename.replace('-', '_').replace('.qza', '')
-        da = DummyArtifact(name, a, uuid, fp, dag, 6)
+        da = DummyArtifact(name, a, a._archiver, uuid, fp, dag, 6)
         setattr(self, name, da)
 
     def init_no_checksum_dag(self):
         '''
         create archive with missing checksums.sha512
         '''
-        with warnings.catch_warnings():
-            warnings.filterwarnings('ignore', category=UserWarning)
-            with generate_archive_with_file_removed(
-                self.single_int.filepath,
-                self.single_int.uuid,
-                'checksums.sha512'
-            ) as altered_archive:
-                self.dag_missing_sha512 = ProvDAG(altered_archive)
+        os.remove(
+            self.single_int_no_checksum.artifact._archiver.path /
+            'checksums.sha512')
+        self.dag_missing_sha512 = ProvDAG(self.single_int_no_checksum.artifact)
 
     @property
     def all_artifact_versions(self):
         return (
-            self.table_v0, self.concated_ints_v1, self.concated_ints_v2,
-            self.concated_ints_v3, self.concated_ints_v4,
-            self.concated_ints_v5, self.concated_ints_v6
+            self.table_v0, self.concated_ints_v1,
+            self.concated_ints_v2, self.concated_ints_v3,
+            self.concated_ints_v4, self.concated_ints_v5, self.concated_ints_v6
         )
 
     def free(self):
@@ -265,37 +268,6 @@ def is_root_provnode_data(fp):
         'VERSION', 'metadata.yaml', 'checksums.sha512'
     ):
         return True
-
-
-@contextmanager
-def generate_archive_with_file_removed(
-    qzv_fp: str, root_uuid: str, file_to_drop: pathlib.Path
-) -> Generator[pathlib.Path, None, None]:
-    """
-    Deleting files from zip archives is hard, so this makes a temporary
-    copy of qzf_fp with fp_to_drop removed and returns a handle to this archive
-
-    file_to_drop should represent the relative path to the file within the
-    zip archive, excluding the root directory (named for the root UUID).
-
-    e.g. `/d9e080bb-e245-4ab0-a2cf-0a89b63b8050/metadata.yaml` should be passed
-    in as `metadata.yaml`
-
-    adapted from https://stackoverflow.com/a/513889/9872253
-    """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp_arc = pathlib.Path(tmpdir) / 'mangled.qzv'
-        fp_pfx = pathlib.Path(root_uuid)
-        zin = ZipFile(qzv_fp, 'r')
-        zout = ZipFile(str(tmp_arc), 'w')
-        for item in zin.infolist():
-            buffer = zin.read(item.filename)
-            drop_filename = str(fp_pfx / file_to_drop)
-            if (item.filename != drop_filename):
-                zout.writestr(item, buffer)
-        zout.close()
-        zin.close()
-        yield tmp_arc
 
 
 @contextmanager
