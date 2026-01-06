@@ -1178,6 +1178,9 @@ class ChecksumCache:
             True if the artifact uses the same checksum type as the current
             one, False otherwise.
         '''
+        if not artifact._archiver.has_checksums():
+            return False
+
         artifact_checksum_type = artifact._archiver._fmt.CHECKSUM_TYPE
         current_checksum_type = archive.Archiver.get_format_class(
             archive.Archiver.CURRENT_FORMAT_VERSION

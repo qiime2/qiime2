@@ -6,15 +6,21 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+from pathlib import Path
+import tempfile
 import unittest
 import uuid
 
+import qiime2
 from qiime2 import Artifact
 from qiime2.sdk.result import ChecksumCache
 from qiime2.core.testing.type import IntSequence1, Mapping
 from qiime2.core.testing.util import get_dummy_plugin
 from qiime2.core.util import checksum_native, checksum_python
 from qiime2.core.archive.format.util import artifact_version
+from qiime2.core.archive.provenance_lib.tests.testing_utilities import (
+    write_zip_file
+)
 
 
 class TestChecksumCache(unittest.TestCase):
@@ -119,3 +125,22 @@ class TestChecksumCache(unittest.TestCase):
         for output in outputs:
             if isinstance(output, Artifact):
                 output.validate_checksums()
+
+    def test_checksum_cache_handles_artifacts_with_no_checksums(self):
+        '''
+        Tests that artifacts with a format that does not contain checksums are
+        handled by the checksum cache.
+        '''
+        v3_artifact_dir = (
+            Path(qiime2.__file__).parent / 'core' / 'archive' /
+            'provenance_lib' / 'tests' / 'data' / 'concated-ints-v3'
+        )
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            temp_zf_path = Path(tempdir) / 'v3-artifact.zip'
+            write_zip_file(temp_zf_path, v3_artifact_dir)
+            v3_artifact = Artifact.load(temp_zf_path)
+
+        ints1, ints2 = self.plugin.actions['split_ints'](v3_artifact)
+        ints1.validate_checksums()
+        ints2.validate_checksums()
