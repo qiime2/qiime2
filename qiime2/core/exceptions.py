@@ -13,3 +13,8 @@ class ValidationError(Exception):
 
 class ImplementationError(Exception):
     pass
+
+
+class QIIME2Warning(UserWarning):
+    """Custom QIIME2 warning that will always be displayed"""
+    pass
