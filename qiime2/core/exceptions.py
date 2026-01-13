@@ -15,6 +15,9 @@ class ImplementationError(Exception):
     pass
 
 
-class QIIME2Warning(UserWarning):
-    """Custom QIIME2 warning that will always be displayed"""
+class RachisWarning(UserWarning):
+    """
+    A custom warning that will always be displayed in the CLI, whether or not
+    the --verbose flag is set.
+    """
     pass
