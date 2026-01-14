@@ -58,7 +58,8 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      migrated_method_epoch,
                      migrated_method_from_distro_to_distro,
                      migrated_method_from_distro_epoch,
-                     migrated_method_to_distro_epoch)
+                     migrated_method_to_distro_epoch,
+                     raises_rachis_warning)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -691,6 +692,18 @@ dummy_plugin.methods.register_function(
     output_descriptions={
         'output': '[0]'
     }
+)
+
+dummy_plugin.methods.register_function(
+    function=raises_rachis_warning,
+    inputs={},
+    parameters={},
+    outputs=[('output', SingleInt)],
+    name='Method that raises a Rachis warning.',
+    description='A method that raises a Rachis warning and returns an int',
+    input_descriptions={},
+    parameter_descriptions={},
+    output_descriptions={}
 )
 
 dummy_plugin.visualizers.register_function(
