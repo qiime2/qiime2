@@ -129,7 +129,8 @@ class TestPlugin(unittest.TestCase):
                           '_underscore_method', 'return_four_ints',
                           'return_many_ints', 'random_seed_method',
                           'random_seed_method_set_twice',
-                          'random_seed_method_never_set'
+                          'random_seed_method_never_set',
+                          'raises_rachis_warning'
                           })
         for action in actions.values():
             self.assertIsInstance(action, qiime2.sdk.Action)
@@ -176,7 +177,8 @@ class TestPlugin(unittest.TestCase):
                           'list_params', 'varied_method', '_underscore_method',
                           'return_four_ints', 'return_many_ints',
                           'random_seed_method', 'random_seed_method_set_twice',
-                          'random_seed_method_never_set'
+                          'random_seed_method_never_set',
+                          'raises_rachis_warning'
                           })
         for method in methods.values():
             self.assertIsInstance(method, qiime2.sdk.Method)
