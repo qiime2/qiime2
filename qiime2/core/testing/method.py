@@ -272,4 +272,4 @@ def _underscore_method() -> int:
 
 def raises_rachis_warning() -> int:
     warnings.warn('This is an important warning.', RachisWarning)
-    return 67
+    return 42
