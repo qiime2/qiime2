@@ -296,10 +296,8 @@ class Action(metaclass=abc.ABCMeta):
             checksum_cache = ChecksumCache()
             for input in collated_inputs.values():
                 if isinstance(input, Artifact):
-                    input.validate_checksums()
                     checksum_cache.cache_artifact(input)
                 elif isinstance(input, ResultCollection):
-                    input.validate_checksums()
                     checksum_cache.cache_result_collection(input)
 
             callable_args, captures = \
