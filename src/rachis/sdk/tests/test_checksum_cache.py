@@ -62,8 +62,8 @@ class TestChecksumCache(unittest.TestCase):
             calls_without_cache = get_call_count()
 
         # with cache
-        native_mock.call_count = 0
-        python_mock.call_count = 0
+        native_mock.reset_mock()
+        python_mock.reset_mock()
         left, right = self.plugin.actions['split_ints'](int_seq)
         calls_with_cache = get_call_count()
 
