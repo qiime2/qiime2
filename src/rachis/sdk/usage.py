@@ -1721,6 +1721,9 @@ class Usage:
         elif action_type == 'import':
             # Imports are always an Artifact
             var_type = 'artifact'
+        elif action_type == 'report':
+            # Reports are always a Visualization
+            var_type = 'visualization'
         else:
             # What have you done
             raise ValueError(f'Unknown action type found: {action_type}')
