@@ -42,7 +42,7 @@ del T, U, V
 
 
 def combinatorically_mapped_method(a: EchoFormat, b: EchoFormat
-                                   ) -> (EchoFormat, EchoFormat):
+                                   ) -> tuple[EchoFormat, EchoFormat]:
     return a, b
 
 

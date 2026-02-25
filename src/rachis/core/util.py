@@ -21,6 +21,7 @@ import zipfile
 import pathlib
 import shutil
 import subprocess
+import typing
 
 import decorator
 
@@ -56,6 +57,10 @@ def get_view_name(view):
 
 
 def tuplize(x):
+    # get_origin returns None if not a GenericAlias
+    if typing.get_origin(x) is tuple:
+        # tuple[X, Y] -> (X, Y)
+        return typing.get_args(x)
     if type(x) is not tuple:
         return (x,)
     return x

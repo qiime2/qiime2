@@ -59,7 +59,7 @@ from .method import (concatenate_ints, split_ints, merge_mappings,
                      migrated_method_from_distro_to_distro,
                      migrated_method_from_distro_epoch,
                      migrated_method_to_distro_epoch,
-                     raises_rachis_warning)
+                     raises_rachis_warning, split_ints_compat)
 from .visualizer import (most_common_viz, mapping_viz, params_only_viz,
                          no_input_viz)
 from .pipeline import (parameter_only_pipeline, typical_pipeline,
@@ -256,6 +256,25 @@ dummy_plugin.methods.register_function(
         'right': T
     },
     name='Split sequence of integers in half',
+    description='This method splits a sequence of integers in half, returning '
+                'the two halves (left and right). If the input sequence\'s '
+                'length is not evenly divisible by 2, the right half will '
+                'have one more element than the left.',
+    citations=[
+        citations['witcombe2006sword'], citations['reimers2012response']]
+)
+
+dummy_plugin.methods.register_function(
+    function=split_ints_compat,
+    inputs={
+        'ints': T
+    },
+    parameters={},
+    outputs={
+        'left': T,
+        'right': T
+    },
+    name='Split sequence of integers in half (compat)',
     description='This method splits a sequence of integers in half, returning '
                 'the two halves (left and right). If the input sequence\'s '
                 'length is not evenly divisible by 2, the right half will '

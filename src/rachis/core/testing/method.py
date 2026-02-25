@@ -10,6 +10,7 @@ import random
 import sys
 from typing import Union
 import warnings
+import typing
 
 import rachis
 import rachis.core.type as qtype
@@ -23,12 +24,18 @@ def concatenate_ints(ints1: list, ints2: list, ints3: list, int1: int,
 
 
 # Multiple output artifacts.
-def split_ints(ints: list) -> (list, list):
+def split_ints(ints: list) -> tuple[list, list]:
     middle = int(len(ints) / 2)
     left = ints[:middle]
     right = ints[middle:]
     return left, right
 
+@typing.no_type_check  # use the pre-PEP version of this annotation
+def split_ints_compat(ints: list) -> (list, list):
+    middle = int(len(ints) / 2)
+    left = ints[:middle]
+    right = ints[middle:]
+    return left, right
 
 # No parameters, only artifacts.
 def merge_mappings(mapping1: dict, mapping2: dict) -> dict:
@@ -231,7 +238,7 @@ def list_params(ints: list) -> int:
 
 
 def varied_method(ints1: int, ints2: list, int1: int = None,
-                  string: str = "NO") -> (int, list, int):
+                  string: str = "NO") -> tuple[int, list, int]:
     if int1 is None:
         int1 = 1
     assert isinstance(ints1, list)

@@ -85,6 +85,7 @@ class TestPlugin(unittest.TestCase):
         self.assertEqual(actions.keys(),
                          {'merge_mappings', 'concatenate_ints', 'split_ints',
                           'most_common_viz', 'mapping_viz',
+                          'split_ints_compat',
                           'identity_with_metadata',
                           'identity_with_metadata_column',
                           'identity_with_categorical_metadata_column',
@@ -146,6 +147,7 @@ class TestPlugin(unittest.TestCase):
 
         self.assertEqual(methods.keys(),
                          {'merge_mappings', 'concatenate_ints', 'split_ints',
+                          'split_ints_compat',
                           'identity_with_metadata',
                           'identity_with_metadata_column',
                           'identity_with_categorical_metadata_column',

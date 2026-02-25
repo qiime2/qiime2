@@ -46,6 +46,7 @@ class TestUtil(unittest.TestCase):
             'Do a great many things', 'Identity', 'Identity', 'Identity',
             'Visualize most common integers', 'Inputs with typing.Union',
             'Split sequence of integers in half',
+            'Split sequence of integers in half (compat)',
             'Test different ways of failing', 'Optional artifacts method',
             'Do stuff normally, but override this one step sometimes',
             'TypeMatch with list and set params',

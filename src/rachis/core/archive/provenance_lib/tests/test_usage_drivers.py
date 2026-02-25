@@ -25,7 +25,7 @@ class ReplayPythonUsageTests(unittest.TestCase):
             prefix='rachis-test-usage-drivers-temp-'
         )
 
-        def return_many_ints() -> (list, list, list, list, list, list):
+        def return_many_ints() -> tuple[list, list, list, list, list, list]:
             return ([1, 2, 3], [4, 5, 6], [7], [4, 4], [0], [9, 8])
 
         self.dp.methods.register_function(
@@ -52,7 +52,7 @@ class ReplayPythonUsageTests(unittest.TestCase):
             description=''
         )
 
-        def return_four_ints() -> (list, list, list, list):
+        def return_four_ints() -> tuple[list, list, list, list]:
             return ([1, 2, 3], [4, 5, 6], [7, 8, 9], [4, 4])
 
         self.dp.methods.register_function(
