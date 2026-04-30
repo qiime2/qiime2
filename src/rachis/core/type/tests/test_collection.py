@@ -152,6 +152,19 @@ class TestCollectionExpression(unittest.TestCase):
         json = Set[Int].encode(value)
         self.assertEqual(json, "[1, 2, 3]")
 
+    def test_collection_of_large_union(self):
+        """Tests functionality used by Signature._infer_type()
+        without all the overhead of creating that.
+        """
+        from rachis.core.type.grammar import UnionExp
+
+        # force a "constructive" definition of Foo (different id() but equal)
+        big = List[UnionExp([SemanticType('Foo')
+                             for _ in range(1000)]).normalize()]
+
+        self.assertEqual(repr(big), repr(List[SemanticType('Foo')]))
+
+
 
 if __name__ == '__main__':
     unittest.main()

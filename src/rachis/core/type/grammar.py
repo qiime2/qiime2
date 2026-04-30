@@ -574,7 +574,9 @@ class UnionExp(_IdentityExpBase):
         }
 
     def normalize(self):
-        elements = self.members
+        # Duplicates are irrelevant in a union, and removing them
+        # up front keeps large monomorphic collections easy to normalize.
+        elements = tuple(dict.fromkeys(self.members))
 
         groups = {}
         for e in elements:
