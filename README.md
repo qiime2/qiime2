@@ -6,8 +6,8 @@ Source code repository for the rachis Framework (the framework formerly known as
 
 Are you looking for:
 - the project homepage? For now, that's still [https://qiime2.org](https://qiime2.org) but we'll be migrating soon to rachis.org.
-- an explanation of why we now call this framework `rachis`, and how it is different from QIIME 2? See [this announcement](https://news.rachis.org/en/latest/2025-10-23-q2f-transition/). (and don't worry, the QIIME 2 that you know and love is still alive and well!)
-- learning resources for microbiome marker gene (i.e., amplicon) analysis? See the [QIIME 2 *amplicon distribution* documentation](https://amplicon-docs.qiime2.org).
+- an explanation of why we now call this framework `rachis`, and how it is different from QIIME 2? See [this announcement](https://news.rachis.org/en/latest/2025-10-23-q2f-transition/). (And don't worry, the QIIME 2 that you know and love is still alive and well!)
+- learning resources for microbiome marker gene (i.e., amplicon) analysis? See the [QIIME 2 documentation](https://amplicon-docs.qiime2.org).
 - learning resources for microbiome metagenome analysis? See the [MOSHPIT documentation](https://moshpit.qiime2.org).
 - installation instructions, plugins, books, videos, workshops, or resources? See the [QIIME 2 Library](https://library.qiime2.org).
 - general help? See the [QIIME 2 Forum](https://forum.qiime2.org)
