@@ -10,7 +10,7 @@ from importlib import import_module
 
 from rachis.plugin import (Plugin, Bool, Int, Str, Choices, Range, List, Set,
                            Collection, Visualization, Metadata, MetadataColumn,
-                           Categorical, Numeric, TypeMatch)
+                           Categorical, Numeric, TypeMatch, Properties)
 
 from .format import (
     IntSequenceFormat,
@@ -70,7 +70,10 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        internal_fail_pipeline, de_facto_list_pipeline,
                        mix_arts_and_proxies, de_facto_dict_pipeline,
                        de_facto_collection_pipeline, list_pipeline,
-                       collection_pipeline, pointless_pipeline,
+                       collection_pipeline, property_refinement_pipeline,
+                       property_refinement_collection_pipeline,
+                       property_refinement_mismatch_pipeline,
+                       pointless_pipeline,
                        failing_pipeline, viz_collection_pipeline)
 from ..cite import Citations
 
@@ -1067,6 +1070,33 @@ dummy_plugin.pipelines.register_function(
     outputs=[('output', Collection[Mapping])],
     name='Returns de facto ResultCollection',
     description='Takes nothing and returns de facto ResultCollection'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=property_refinement_pipeline,
+    inputs={},
+    parameters={},
+    outputs=[('output', Foo % Properties('A'))],
+    name='Refine pipeline output property',
+    description='Returns a broader artifact than its output annotation'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=property_refinement_collection_pipeline,
+    inputs={},
+    parameters={},
+    outputs=[('output', Collection[Foo % Properties('A')])],
+    name='Refine pipeline collection output property',
+    description='Returns broader artifacts than its collection annotation'
+)
+
+dummy_plugin.pipelines.register_function(
+    function=property_refinement_mismatch_pipeline,
+    inputs={},
+    parameters={},
+    outputs=[('output', Foo % Properties('A'))],
+    name='Mismatch pipeline output property',
+    description='Returns an artifact with an empty output intersection'
 )
 
 dummy_plugin.pipelines.register_function(

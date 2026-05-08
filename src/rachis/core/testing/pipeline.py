@@ -6,7 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
-from .type import SingleInt, Mapping
+from .type import SingleInt, Mapping, Foo, Bar
 from rachis.sdk.result import ResultCollection
 from rachis.core.testing.util import PipelineError
 
@@ -285,6 +285,21 @@ def de_facto_collection_pipeline(ctx):
     art2, = method()
 
     return [art1, art2]
+
+
+def property_refinement_pipeline(ctx):
+    return ctx.make_artifact(Foo, 'foo', view_type=str)
+
+
+def property_refinement_collection_pipeline(ctx):
+    return [
+        ctx.make_artifact(Foo, 'foo', view_type=str),
+        ctx.make_artifact(Foo, 'bar', view_type=str)
+    ]
+
+
+def property_refinement_mismatch_pipeline(ctx):
+    return ctx.make_artifact(Bar, 'bar', view_type=str)
 
 
 def pointless_pipeline(ctx):

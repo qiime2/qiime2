@@ -10,9 +10,15 @@ import abc
 
 
 class IResult(metaclass=abc.ABCMeta):
+    @staticmethod
+    def _assert_alias_type_refines_realized_type(qiime_type, realized_type):
+        if qiime_type is not None and not qiime_type <= realized_type:
+            raise TypeError(
+                "Alias type %r must be a subtype of realized result type %r."
+                % (qiime_type, realized_type))
 
     @abc.abstractmethod
-    def _alias(self, name, provenance, ctx):
+    def _alias(self, name, provenance, ctx, qiime_type=None):
         """
         Create a pipeline alias for this result
         """

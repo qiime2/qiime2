@@ -14,8 +14,8 @@ import pandas as pd
 import rachis
 import rachis.sdk
 from rachis.core.testing.util import get_dummy_plugin
-from rachis.core.testing.type import IntSequence1, SingleInt, Mapping
-from rachis.plugin import Visualization, Int, Bool
+from rachis.core.testing.type import IntSequence1, SingleInt, Mapping, Foo
+from rachis.plugin import Visualization, Int, Bool, Properties
 import rachis.sdk.parallel_config
 from rachis.plugin import List, Collection, IContext
 
@@ -179,6 +179,34 @@ class TestPipeline(unittest.TestCase):
             observed[k] = v.view(dict)
 
         self.assertEqual(observed, expected)
+
+    def test_pipeline_output_property_refinement(self):
+        pipeline = self.plugin.pipelines['property_refinement_pipeline']
+
+        result = pipeline()
+
+        self.assertEqual(result.output.type, Foo % Properties('A'))
+
+    def test_pipeline_collection_output_property_refinement(self):
+        pipeline = self.plugin.pipelines[
+            'property_refinement_collection_pipeline']
+
+        result = pipeline()
+
+        expected_type = Foo % Properties('A')
+        self.assertEqual(result.output.type, Collection[expected_type])
+        for artifact in result.output.values():
+            self.assertEqual(artifact.type, expected_type)
+
+    def test_pipeline_output_property_refinement_mismatch(self):
+        pipeline = self.plugin.pipelines[
+            'property_refinement_mismatch_pipeline']
+
+        with self.assertRaisesRegex(
+                TypeError,
+                "Expected output 'output' to be of type "
+                ".*Foo.*Properties.*Bar"):
+            pipeline()
 
     def iter_callables(self, name):
         pipeline = self.plugin.pipelines[name]

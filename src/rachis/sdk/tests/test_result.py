@@ -16,13 +16,14 @@ import subprocess
 import rachis.core.type
 from rachis.sdk import Result, Artifact, Visualization, ResultCollection
 from rachis.sdk.result import ResultMetadata
+from rachis.sdk.proxy import ProxyResult
 from rachis.core.annotate import Signature
 import rachis.core.archive as archive
 import rachis.core.exceptions as exceptions
 
 from rachis.core.testing.format import IntSequenceDirectoryFormat
 from rachis.core.testing.type import (FourInts, SingleInt, IntSequence1,
-                                      IntSequence2)
+                                      IntSequence2, Foo, Bar)
 from rachis.core.testing.util import get_dummy_plugin, ArchiveTestingMixin
 from rachis.core.testing.visualizer import mapping_viz
 from rachis.core.util import set_permissions, OTHER_NO_WRITE
@@ -57,6 +58,28 @@ class TestResult(unittest.TestCase, ArchiveTestingMixin):
                 NotImplementedError,
                 'Result constructor.*private.*Result.load'):
             Result()
+
+    def test_alias_type_must_refine_realized_type(self):
+        artifact = Artifact.import_data(Foo, 'foo', view_type=str)
+
+        with self.assertRaisesRegex(
+                TypeError,
+                "Alias type Bar must be a subtype of realized result type "
+                "Foo"):
+            artifact._alias('output', None, None, Bar)
+
+    def test_proxy_alias_type_must_refine_known_type(self):
+        class Future:
+            def result(self):
+                raise AssertionError("Proxy alias type check blocked.")
+
+        proxy = ProxyResult(Future(), 'output', Foo)
+
+        with self.assertRaisesRegex(
+                TypeError,
+                "Alias type Bar must be a subtype of realized result type "
+                "Foo"):
+            proxy._alias('output', None, None, Bar)
 
     def test_load_artifact(self):
         saved_artifact = Artifact.import_data(FourInts, [-1, 42, 0, 43])

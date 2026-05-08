@@ -271,7 +271,12 @@ class Result(IResult):
         self._archiver.save(filepath)
         return filepath
 
-    def _alias(self, name, provenance, ctx):
+    def _alias(self, name, provenance, ctx, qiime_type=None):
+        self._assert_alias_type_refines_realized_type(qiime_type, self.type)
+
+        if qiime_type is None:
+            qiime_type = self.type
+
         provenance_capture = provenance.fork(name, self)
 
         def clone_original(into):
@@ -289,7 +294,7 @@ class Result(IResult):
         cls = type(self)
         alias = cls.__new__(cls)
         alias._archiver = archive.Archiver.from_data(
-            self.type, self.format, clone_original, provenance_capture)
+            qiime_type, self.format, clone_original, provenance_capture)
 
         return ctx.add_reference(alias)
 

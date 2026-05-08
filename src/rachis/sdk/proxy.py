@@ -43,16 +43,24 @@ class ProxyResult(Proxy, IResult):
     def __hash__(self):
         return hash(self.uuid)
 
-    def _alias(self, name, provenance, ctx):
+    def _alias(self, name, provenance, ctx, qiime_type=None):
         """We don't want to alias immediately because aliasing is a blocking
         operation. Calling alias on a Proxy adds a hook that will create the
         alias when the result on the Proxy is requested
         """
+        if self._qiime_type_ is not None:
+            self._assert_alias_type_refines_realized_type(
+                qiime_type, self._qiime_type_)
+
+        alias_type = (
+            qiime_type if qiime_type is not None else self._qiime_type_
+        )
+
         def _alias_hook():
             result = new._get_element_(new._future_.result())
-            return result._alias(name, provenance, ctx)
+            return result._alias(name, provenance, ctx, qiime_type)
 
-        new = self.__class__(self._future_, self._selector_, self._qiime_type_)
+        new = self.__class__(self._future_, self._selector_, alias_type)
         new._alias_hook = _alias_hook
         return new
 
