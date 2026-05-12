@@ -51,23 +51,15 @@ def _coerce_pipeline_outputs(ctx, outputs):
     return tuple(coerced_outputs)
 
 
-def _raise_incompatible_output_type(expected, output, context=''):
-    observed = output.type if hasattr(output, 'type') else type(output)
+def _intersect_pipeline_output_type(expected, output_type, output_name):
+    refined_type = output_type & expected
+
+    if (not refined_type.is_bottom()) and refined_type.is_concrete():
+        return refined_type
+
     raise TypeError(
-        "Expected output%s to be of type %r, received %r"
-        % (context, expected, observed))
-
-
-def _intersect_pipeline_output_type(expected, output, context=''):
-    try:
-        refined_type = output.type & expected
-    except TypeError:
-        _raise_incompatible_output_type(expected, output, context)
-
-    if refined_type.is_bottom() or not refined_type.is_concrete():
-        _raise_incompatible_output_type(expected, output, context)
-
-    return refined_type
+        "Expected output %s to be of type %r, received %r"
+        % (output_name, expected, output_type))
 
 
 # TODO: validation on these params via data.yaml in distributions
@@ -609,10 +601,6 @@ class Pipeline(Action):
         # happened
         for output, (name, spec) in zip(outputs, output_types.items()):
             if spec.qiime_type.name == 'Collection':
-                if not isinstance(output, rachis.sdk.ResultCollection):
-                    _raise_incompatible_output_type(
-                        spec.qiime_type, output, " %r" % name)
-
                 size = len(output)
                 aliased_output = rachis.sdk.ResultCollection()
                 element_type = spec.qiime_type.fields[0]
@@ -621,7 +609,7 @@ class Pipeline(Action):
                     collection_name = create_collection_name(
                         name=name, key=key, idx=idx, size=size)
                     refined_type = _intersect_pipeline_output_type(
-                        element_type, value, " %r member %r" % (name, key))
+                        element_type, value.type, "%r member %r" % (name, key))
                     aliased_result = \
                         value._alias(collection_name, provenance, ctx,
                                      refined_type)
@@ -630,7 +618,7 @@ class Pipeline(Action):
                 results.append(aliased_output)
             else:
                 refined_type = _intersect_pipeline_output_type(
-                    spec.qiime_type, output, " %r" % name)
+                    spec.qiime_type, output.type, repr(name))
                 aliased_result = output._alias(
                     name, provenance, ctx, refined_type)
 
