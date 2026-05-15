@@ -700,12 +700,19 @@ class Artifact(Result):
             # lookup default format for the type
             view_type = output_dir_fmt
 
-        from_type = transform.ModelType.from_view_type(view_type)
         to_type = transform.ModelType.from_view_type(output_dir_fmt)
-
         recorder = provenance_capture.transformation_recorder('return')
-        transformation = from_type.make_transformation(to_type,
-                                                       recorder=recorder)
+
+        if cls._is_union_type(view_type):
+            transformation, _ = cls._transform_to_or_from_union(
+                from_type=view_type, to_type=to_type, recorder=recorder
+            )
+        else:
+            from_type = transform.ModelType.from_view_type(view_type)
+            transformation = from_type.make_transformation(
+                to_type, recorder=recorder
+            )
+
         result = transformation(view, validate_level)
 
         if type_raw in pm.validators:
@@ -720,6 +727,10 @@ class Artifact(Result):
 
         return artifact
 
+    @classmethod
+    def _is_union_type(cls, view_type):
+        return isinstance(get_origin(view_type), type(Union))
+
     def view(self, view_type):
         return self._view(view_type)
 
@@ -730,29 +741,15 @@ class Artifact(Result):
 
         from_type = transform.ModelType.from_view_type(self.format)
 
-        if isinstance(get_origin(view_type), type(Union)):
-            transformation = None
-            for arg in get_args(view_type):
-                to_type = transform.ModelType.from_view_type(arg)
-                try:
-                    transformation = from_type.make_transformation(
-                        to_type, recorder=recorder)
-                    if transformation:
-                        break
-                except Exception as e:
-                    if str(e).startswith("No transformation from"):
-                        continue
-                    else:
-                        raise e
-            if not transformation:
-                raise Exception(
-                    "No transformation into either of %s was found" %
-                    ", ".join([str(x) for x in view_type.__args__])
-                )
+        if self._is_union_type(view_type):
+            transformation, to_type = self._transform_to_or_from_union(
+                from_type=from_type, to_type=view_type, recorder=recorder
+            )
         else:
             to_type = transform.ModelType.from_view_type(view_type)
             transformation = from_type.make_transformation(to_type,
                                                            recorder=recorder)
+
         result = transformation(self._archiver.data_dir)
 
         if view_type is rachis.Metadata:
@@ -760,6 +757,70 @@ class Artifact(Result):
 
         to_type.set_user_owned(result, True)
         return result
+
+    @classmethod
+    def _transform_to_or_from_union(cls, from_type, to_type, recorder):
+        '''
+        Attempts to find a transformation to/from a union type that lives in
+        either `from_type` or `to_type`.
+
+        Parameters
+        ----------
+        from_type : ModelType | Union
+        to_type : ModelType | Union
+        recorder : Callable
+
+        Returns
+        -------
+        Callable, ModelType
+            The transformer and the union member as a ModelType for which the
+            transformer was found.
+
+        Raises
+        ------
+        Exception
+            If no transformation to/from any of the union members is found.
+        TypeError
+            If the union type expression has no arguments.
+        '''
+        if cls._is_union_type(from_type):
+            union_type = from_type
+        else:
+            union_type = to_type
+
+        args = get_args(union_type)
+        if len(args) == 0:
+            raise TypeError("Non-parameterized (empty) Union provided.")
+
+        transformation = None
+        for arg in args:
+            arg_type = transform.ModelType.from_view_type(arg)
+            try:
+                if cls._is_union_type(from_type):
+                    transformation = arg_type.make_transformation(
+                        to_type, recorder=recorder
+                    )
+                else:
+                    transformation = from_type.make_transformation(
+                        arg_type, recorder=recorder
+                    )
+            except Exception as e:
+                if str(e).startswith("No transformation from"):
+                    continue
+                else:
+                    raise e
+
+        if transformation is None:
+            if cls._is_union_type(from_type):
+                types = ", ".join([str(t) for t in from_type.__args__])
+                msg = f"No transformation from any of {types} to {to_type}."
+            else:
+                types = ", ".join([str(t) for t in to_type.__args__])
+                msg = f"No transformation from {from_type} to any of {types}."
+
+            raise Exception(msg)
+
+        return transformation, arg_type
 
     def has_metadata(self):
         """ Checks for metadata within an artifact
