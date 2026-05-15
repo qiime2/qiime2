@@ -705,7 +705,10 @@ class Artifact(Result):
 
         if cls._is_union_type(view_type):
             transformation, _ = cls._transform_to_or_from_union(
-                from_type=view_type, to_type=to_type, recorder=recorder
+                from_type=view_type,
+                to_type=to_type,
+                recorder=recorder,
+                view=view
             )
         else:
             from_type = transform.ModelType.from_view_type(view_type)
@@ -759,7 +762,9 @@ class Artifact(Result):
         return result
 
     @classmethod
-    def _transform_to_or_from_union(cls, from_type, to_type, recorder):
+    def _transform_to_or_from_union(
+        cls, from_type, to_type, recorder, view=None
+    ):
         '''
         Attempts to find a transformation to/from a union type that lives in
         either `from_type` or `to_type`.
@@ -769,6 +774,7 @@ class Artifact(Result):
         from_type : ModelType | Union
         to_type : ModelType | Union
         recorder : Callable
+        view : Any
 
         Returns
         -------
@@ -797,6 +803,10 @@ class Artifact(Result):
             arg_type = transform.ModelType.from_view_type(arg)
             try:
                 if cls._is_union_type(from_type):
+                    # don't grab the wrong transformer
+                    if not isinstance(view, arg):
+                        continue
+
                     transformation = arg_type.make_transformation(
                         to_type, recorder=recorder
                     )
