@@ -113,6 +113,15 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
                 'No transformation from'):
             self.assertEqual(artifact.view(Union[str, dict]), [-1, 42, 0, 43])
 
+    def test_from_view_with_union_view_type(self):
+        artifact = Artifact._from_view(
+            IntSequence1, [1, 2, 3, 4], Union[IntSequenceFormat, list],
+            self.provenance_capture)
+
+        self.assertEqual(artifact.type, IntSequence1)
+        self.assertIsInstance(artifact.uuid, uuid.UUID)
+        self.assertEqual(artifact.view(list), [1, 2, 3, 4])
+
     def test_from_view_different_type_with_multiple_view_types(self):
         artifact = Artifact._from_view(IntSequence1, [42, 42, 43, -999, 42],
                                        list, self.provenance_capture)
