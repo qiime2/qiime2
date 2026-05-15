@@ -110,7 +110,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         self.assertIsInstance(artifact.uuid, uuid.UUID)
         with self.assertRaisesRegex(
                 Exception,
-                'No transformation into either of'):
+                'No transformation from'):
             self.assertEqual(artifact.view(Union[str, dict]), [-1, 42, 0, 43])
 
     def test_from_view_different_type_with_multiple_view_types(self):
