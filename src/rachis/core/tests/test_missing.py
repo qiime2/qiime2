@@ -10,7 +10,7 @@ import unittest
 
 import pandas as pd
 import pandas.testing as pdt
-
+import numpy as np
 
 from rachis.core.missing import series_encode_missing, series_extract_missing
 
@@ -27,6 +27,8 @@ class RoundTripMixin:
         # the non-null side of the series
         self.assertEqual(list(encoded[encoded.notna()]), notna_exp)
         # the null end (but in the orginal vocabulary)
+        missing = missing.where(pd.notna(missing), np.nan)
+        series = series.where(pd.notna(series), np.nan)
         pdt.assert_series_equal(missing, series[1:].astype(object))
 
     def test_roundtrip_float(self):
@@ -47,6 +49,9 @@ class RoundTripMixin:
 
         encoded = series_encode_missing(series, self.enum)
         missing = series_extract_missing(encoded)
+
+        missing = missing.where(pd.notna(missing), np.nan)
+        series = series.where(pd.notna(series), np.nan)
 
         self.assertEqual(encoded.dtype, object)
         pdt.assert_series_equal(missing, series.astype(object))

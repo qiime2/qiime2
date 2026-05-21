@@ -218,10 +218,18 @@ class DummyArtifacts:
         '''
         create archive with missing checksums.sha512
         '''
-        os.remove(
-            self.single_int_no_checksum.artifact._archiver.path /
-            'checksums.sha512')
-        self.dag_missing_sha512 = ProvDAG(self.single_int_no_checksum.artifact)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                'ignore',
+                message='.*checksums.sha512 file is missing.*',
+                category=UserWarning
+            )
+            os.remove(
+                self.single_int_no_checksum.artifact._archiver.path /
+                'checksums.sha512')
+            self.dag_missing_sha512 = ProvDAG(
+                self.single_int_no_checksum.artifact
+            )
 
     @property
     def all_artifact_versions(self):
