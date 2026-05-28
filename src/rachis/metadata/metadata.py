@@ -257,8 +257,9 @@ class _MetadataBase:
 
 
 # Other properties such as units can be included here in the future!
-ColumnProperties = collections.namedtuple('ColumnProperties',
-                                          ['type', 'missing_scheme'])
+ColumnProperties = collections.namedtuple(
+    'ColumnProperties', ['type', 'missing_scheme']
+)
 
 
 class Metadata(_MetadataBase):
@@ -438,8 +439,28 @@ class Metadata(_MetadataBase):
         """
         return len(self._columns)
 
-    def __init__(self, dataframe, column_missing_schemes=None,
-                 default_missing_scheme=DEFAULT_MISSING):
+    def __init__(
+        self,
+        dataframe: pd.DataFrame,
+        column_missing_schemes: dict | None = None,
+        default_missing_scheme: str = DEFAULT_MISSING,
+        missing: pd.DataFrame | None = None
+    ):
+        '''
+        Parameters
+        ----------
+        dataframe : pd.DataFrame
+            The dataframe to underly the Metadata.
+        column_missing_schemes : dict | None
+            A mapping of column name to missing scheme type.
+        default_missing_scheme : str
+            The default missing scheme to use for all columns not specified in
+            `column_missing_schemes`.
+        missing : pd.DataFrame | None
+            A dataframe storing representations of missing values. If provided,
+            then `dataframe` is assumed to have already had any special
+            representations of missing values replaced with `np.nan`.
+        '''
         if not isinstance(dataframe, pd.DataFrame):
             raise TypeError(
                 "%s constructor requires a pandas.DataFrame object, not "
@@ -450,12 +471,22 @@ class Metadata(_MetadataBase):
         if column_missing_schemes is None:
             column_missing_schemes = {}
 
-        self._dataframe, self._columns = self._normalize_dataframe(
-            dataframe, column_missing_schemes, default_missing_scheme)
+        self._dataframe, self._columns, self._missing = \
+            self._normalize_dataframe(
+                dataframe,
+                column_missing_schemes,
+                default_missing_scheme,
+                missing
+            )
         self._validate_index(self._dataframe.columns, axis='column')
 
-    def _normalize_dataframe(self, dataframe, column_missing_schemes,
-                             default_missing_scheme):
+    def _normalize_dataframe(
+        self,
+        dataframe,
+        column_missing_schemes,
+        default_missing_scheme,
+        missing
+    ):
         norm_df = dataframe.copy()
 
         # Do not attempt to strip empty metadata
@@ -464,31 +495,59 @@ class Metadata(_MetadataBase):
 
         norm_df.index = norm_df.index.str.strip()
 
+        missing_df = norm_df.copy()
+
         columns = collections.OrderedDict()
         for column_name, series in norm_df.items():
-            missing_scheme = column_missing_schemes.get(column_name,
-                                                        default_missing_scheme)
-            metadata_column = self._metadata_column_factory(series,
-                                                            missing_scheme)
+            missing_scheme = column_missing_schemes.get(
+                column_name, default_missing_scheme
+            )
+
+            if missing is not None:
+                missing_series = missing[column_name]
+            else:
+                missing_series = None
+
+            metadata_column = self._metadata_column_factory(
+                series, missing_scheme, missing=missing_series
+            )
+
             norm_df[column_name] = metadata_column.to_series()
-            properties = ColumnProperties(type=metadata_column.type,
-                                          missing_scheme=missing_scheme)
+            missing_df[column_name] = metadata_column._missing
+
+            properties = ColumnProperties(
+                type=metadata_column.type,
+                missing_scheme=missing_scheme
+            )
             columns[column_name] = properties
 
-        return norm_df, columns
+        return norm_df, columns, missing_df
 
-    def _metadata_column_factory(self, series, missing_scheme):
-        series = _missing.series_encode_missing(series, missing_scheme)
-        # Collapse dtypes except for all NaN columns so that we can preserve
-        # empty categorical columns. Empty numeric columns will already have
-        # the expected dtype and values
-        if not series.isna().all():
-            series = series.infer_objects()
-        dtype = series.dtype
+    def _metadata_column_factory(
+        self, series, missing_scheme, missing=None
+    ):
+        if missing is None:
+            encoded_series, _ = _missing.encode_and_get_missing_mask(
+                series, missing_scheme
+            )
+            # Collapse dtypes except for all NaN columns so that we can
+            # preserve empty categorical columns. Empty numeric columns will
+            # already have the expected dtype and values
+            if not encoded_series.isna().all():
+                encoded_series = encoded_series.infer_objects()
+
+            dtype = encoded_series.dtype
+        else:
+            dtype = series.dtype
+
         if NumericMetadataColumn._is_supported_dtype(dtype):
-            column = NumericMetadataColumn(series, missing_scheme)
+            column = NumericMetadataColumn(
+                series, missing_scheme, missing
+            )
         elif CategoricalMetadataColumn._is_supported_dtype(dtype):
-            column = CategoricalMetadataColumn(series, missing_scheme)
+            column = CategoricalMetadataColumn(
+                series, missing_scheme, missing
+            )
         else:
             raise TypeError(
                 "Metadata column %r has an unsupported pandas dtype of %s. "
@@ -496,6 +555,7 @@ class Metadata(_MetadataBase):
                 (series.name, dtype))
 
         column._add_artifacts(self.artifacts)
+
         return column
 
     def __repr__(self):
@@ -604,12 +664,11 @@ class Metadata(_MetadataBase):
         df = self._dataframe.copy()
         if encode_missing:
             def replace_nan(series):
-                missing = _missing.series_extract_missing(series)
-                # avoid dtype changing if there's no missing values
-                if not missing.empty:
-                    series = series.astype(object)
-                    series[missing.index] = missing
-                return series
+                missing_mask = self._missing[series.name]
+                decoded = _missing.decode_from_missing_mask(
+                    series, missing_mask
+                )
+                return decoded
 
             df = df.apply(replace_nan)
 
@@ -637,12 +696,16 @@ class Metadata(_MetadataBase):
         try:
             series = self._dataframe[name]
             missing_scheme = self._columns[name].missing_scheme
+            missing = self._missing[name]
         except KeyError:
             raise ValueError(
                 '%r is not a column in the metadata. Available columns: '
                 '%s' % (name, ', '.join(repr(c) for c in self.columns)))
 
-        return self._metadata_column_factory(series, missing_scheme)
+
+        return self._metadata_column_factory(
+            series, missing_scheme, missing
+        )
 
     def get_ids(self, where=None):
         """Retrieve IDs matching search criteria.
@@ -774,11 +837,13 @@ class Metadata(_MetadataBase):
         dfs = []
         columns = []
         artifacts = []
+        missings = []
         for md in itertools.chain([self], others):
             df = md._dataframe
             dfs.append(df)
             columns.extend(df.columns.tolist())
             artifacts.extend(md.artifacts)
+            missings.append(md._missing)
 
         columns = pd.Index(columns)
         if columns.has_duplicates:
@@ -789,6 +854,7 @@ class Metadata(_MetadataBase):
                            columns[columns.duplicated()].unique()]))
 
         merged_df = dfs[0].join(dfs[1:], how='inner')
+        merged_missing = missings[0].join(missings[1:], how='inner')
 
         # Not using DataFrame.empty because empty columns are allowed in
         # Metadata.
@@ -798,8 +864,11 @@ class Metadata(_MetadataBase):
                 "objects.")
 
         merged_df.index.name = 'id'
-        merged_md = self.__class__(merged_df)
+        merged_missing.index.name = 'id'
+
+        merged_md = self.__class__(merged_df, missing=merged_missing)
         merged_md._add_artifacts(artifacts)
+
         return merged_md
 
     def filter_ids(self, ids_to_keep):
@@ -827,10 +896,20 @@ class Metadata(_MetadataBase):
         filter_columns
 
         """
-        filtered_df = self._filter_ids_helper(self._dataframe, self.get_ids(),
-                                              ids_to_keep)
-        filtered_md = self.__class__(filtered_df)
+        ids_to_keep = list(ids_to_keep)
+
+        filtered_df = self._filter_ids_helper(
+            self._dataframe, self.get_ids(), ids_to_keep
+        )
+        filtered_missing = self._filter_ids_helper(
+            self._missing, self.get_ids(), ids_to_keep
+        )
+
+        filtered_md = self.__class__(
+            filtered_df, missing=filtered_missing
+        )
         filtered_md._add_artifacts(self.artifacts)
+
         return filtered_md
 
     def filter_columns(self, *, column_type=None, drop_all_unique=False,
@@ -900,10 +979,16 @@ class Metadata(_MetadataBase):
                 columns_to_drop.add(column)
                 continue
 
-        filtered_df = self._dataframe.drop(columns_to_drop, axis=1,
-                                           inplace=False)
-        filtered_md = self.__class__(filtered_df)
+        filtered_df = self._dataframe.drop(
+            columns_to_drop, axis=1, inplace=False
+        )
+        filtered_missing = self._missing.drop(
+            columns_to_drop, axis=1, inplace=False
+        )
+
+        filtered_md = self.__class__(filtered_df, missing=filtered_missing)
         filtered_md._add_artifacts(self.artifacts)
+
         return filtered_md
 
 
@@ -988,7 +1073,24 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         """
         return self._missing_scheme
 
-    def __init__(self, series, missing_scheme=DEFAULT_MISSING):
+    def __init__(
+        self,
+        series: pd.Series,
+        missing_scheme: str = DEFAULT_MISSING,
+        missing: pd.Series | None = None
+    ):
+        '''
+        Parameters
+        ----------
+        series : pd.Series
+            The series to underly the MetadataColumn.
+        missing_scheme : str
+            The scheme to use to encode missing values.
+        missing : pd.Series | None
+            A mask storing representations of missing values. If provided,
+            then `series` is assumed to have already had any special
+            representations of missing values replaced with `np.nan`.
+        '''
         if not isinstance(series, pd.Series):
             raise TypeError(
                 "%s constructor requires a pandas.Series object, not %r" %
@@ -996,11 +1098,14 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
         super().__init__(series.index)
 
-        series = _missing.series_encode_missing(series, missing_scheme)
-        # if the series has values with a consistent dtype, make the series
-        # that dtype. Don't change the dtype if there is a column of all NaN
-        if not series.isna().all():
-            series = series.infer_objects()
+        if missing is None:
+            series, missing = _missing.encode_and_get_missing_mask(
+                series, missing_scheme
+            )
+        else:
+            if not series.index.equals(missing.index):
+                msg = 'Series and missing indices do not match.'
+                raise ValueError(msg)
 
         if not self._is_supported_dtype(series.dtype):
             raise TypeError(
@@ -1009,6 +1114,7 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
 
         self._missing_scheme = missing_scheme
         self._series = self._normalize_(series)
+        self._missing = missing
 
         self._validate_index([self._series.name], axis='column')
 
@@ -1095,10 +1201,9 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         """
         series = self._series.copy()
         if encode_missing:
-            missing = self.get_missing()
-            if not missing.empty:
-                series = series.astype(object)
-                series[missing.index] = missing
+            return _missing.decode_from_missing_mask(
+                series, self._missing
+            )
 
         return series
 
@@ -1129,13 +1234,16 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         return self.to_series(encode_missing=encode_missing).to_frame()
 
     def get_missing(self):
-        """Return a series containing only missing values (with an index).
+        """
+        Return a series containing only missing values (with an index).
 
         If the column was constructed with a missing scheme, then the values
         of the series will be the original terms instead of NaN.
-
         """
-        return _missing.series_extract_missing(self._series)
+        decoded_series = _missing.decode_from_missing_mask(
+            self._series, self._missing
+        )
+        return decoded_series[self._series.isna()]
 
     def get_value(self, id):
         """Retrieve metadata column value associated with an ID.
@@ -1243,10 +1351,20 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         get_ids
 
         """
-        filtered_series = self._filter_ids_helper(self._series, self.get_ids(),
-                                                  ids_to_keep)
-        filtered_mdc = self.__class__(filtered_series)
+        ids_to_keep = list(ids_to_keep)
+
+        filtered_series = self._filter_ids_helper(
+            self._series, self.get_ids(), ids_to_keep
+        )
+        filtered_missing = self._filter_ids_helper(
+            self._missing, self.get_ids(), ids_to_keep
+        )
+
+        filtered_mdc = self.__class__(
+            filtered_series, missing=filtered_missing
+        )
         filtered_mdc._add_artifacts(self.artifacts)
+
         return filtered_mdc
 
 

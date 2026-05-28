@@ -917,7 +917,7 @@ class TestGetMissing(unittest.TestCase):
 
         missing = mdc.get_missing()
 
-        exp = pd.Series([np.nan, np.nan, np.nan], name='col1', dtype=object,
+        exp = pd.Series([np.nan, np.nan, np.nan], name='col1', dtype='float64',
                         index=pd.Index(['b', 'd', 'e'], name='sampleid'))
 
         pd.testing.assert_series_equal(missing, exp)
@@ -930,7 +930,7 @@ class TestGetMissing(unittest.TestCase):
 
         missing = mdc.get_missing()
 
-        exp = pd.Series([], name='col1', dtype=object,
+        exp = pd.Series([], name='col1', dtype='float64',
                         index=pd.Index([], name='sampleid'))
 
         pd.testing.assert_series_equal(missing, exp)
