@@ -117,11 +117,16 @@ class MetadataReader:
         resolved_missing.update(directives.get('missing', {}))
         resolved_missing.update(column_missing_schemes)
 
+        missing = df.copy()
         try:
             # Cast each column to the appropriate dtype based on column type.
-            df = df.apply(self._cast_column, axis='index',
-                          column_types=resolved_column_types,
-                          missing_schemes=resolved_missing)
+            df = df.apply(
+                self._cast_column,
+                axis='index',
+                column_types=resolved_column_types,
+                missing_schemes=resolved_missing,
+                missing=missing
+            )
         except MetadataFileError as e:
             # HACK: If an exception is raised within `DataFrame.apply`, pandas
             # adds an extra tuple element to `e.args`, making the original
@@ -134,8 +139,12 @@ class MetadataReader:
             raise MetadataFileError(msg, include_suffix=False)
 
         try:
-            return into(df, column_missing_schemes=resolved_missing,
-                        default_missing_scheme=default_missing_scheme)
+            return into(
+                df,
+                column_missing_schemes=resolved_missing,
+                default_missing_scheme=default_missing_scheme,
+                missing=missing
+            )
         except Exception as e:
             raise MetadataFileError(
                 "There was an issue with loading the metadata file:\n\n%s" % e)
@@ -250,13 +259,13 @@ class MetadataReader:
 
         if 'missing' in directives:
             for column_name, column_missing in directives['missing'].items():
-                if column_missing not in _missing.BUILTIN_MISSING:
+                if column_missing not in _missing._MISSING_ENUMS:
                     raise MetadataFileError(
                         "Column %r has an unrecognized missing value scheme %r"
                         " specified in its #q2:missing directive."
                         " Supported missing value schemes (case-sensitive): %s"
                         % (column_name, column_missing,
-                           list(_missing.BUILTIN_MISSING))
+                           list(_missing._MISSING_ENUMS))
                         )
 
         return directives
@@ -332,10 +341,13 @@ class MetadataReader:
     def _is_missing_directive(self, row):
         return len(row) > 0 and row[0].split(' ')[0] == '#q2:missing'
 
-    def _cast_column(self, series, column_types, missing_schemes):
+    def _cast_column(self, series, column_types, missing_schemes, missing):
         if series.name in missing_schemes:
             scheme = missing_schemes[series.name]
-            series = _missing.series_encode_missing(series, scheme)
+            series, missing_mask = _missing.encode_and_get_missing_mask(
+                series, scheme
+            )
+            missing[series.name] = missing_mask
         if series.name in column_types:
             if column_types[series.name] == 'numeric':
                 return self._to_numeric(series)
