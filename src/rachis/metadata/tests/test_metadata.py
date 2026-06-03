@@ -11,6 +11,7 @@ import unittest
 import warnings
 
 import pandas as pd
+from pandas.testing import assert_frame_equal
 import numpy as np
 
 from rachis import Artifact
@@ -1344,6 +1345,40 @@ class TestMerge(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "columns overlap: 'a', 'b'"):
             md.merge(md)
 
+    def test_missing_masks_merge(self):
+        md1 = Metadata(
+            pd.DataFrame(
+                {'a': [1.0, 'missing'], 'b': [2.0, 3.0]},
+                index=pd.Index(['id1', 'id2'], name='id')
+            ),
+            default_missing_scheme='INSDC:missing'
+        )
+        md2 = Metadata(
+            pd.DataFrame(
+                {'c': [4.0, 5.0], 'd': [6.0, 7.0]},
+                index=pd.Index(['id1', 'id2'], name='id')
+            ),
+            default_missing_scheme='INSDC:missing'
+        )
+
+        merged = md1.merge(md2)
+
+        exp = pd.DataFrame(
+            {'a': [1.0, np.nan], 'b': [2.0, 3.0],
+                'c': [4.0, 5.0], 'd': [6.0, 7.0]},
+            index=pd.Index(['id1', 'id2'], name='id')
+        )
+        exp_missing_mask = pd.DataFrame(
+            {
+                'a': [np.nan, 'missing'], 'b': [np.nan, np.nan],
+                'c': [np.nan, np.nan], 'd': [np.nan, np.nan]
+            },
+            index=pd.Index(['id1', 'id2'], name='id')
+        )
+
+        assert_frame_equal(merged._dataframe, exp)
+        assert_frame_equal(merged._missing, exp_missing_mask)
+
 
 class TestFilterIDs(unittest.TestCase):
     def setUp(self):
@@ -1504,6 +1539,33 @@ class TestFilterIDs(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,
                                     "IDs.*not present.*'d', 'id1'"):
             md.filter_ids({'b', 'id1', 'c', 'd'})
+
+    def test_missing_mask_stays_synced(self):
+        md = Metadata(
+            pd.DataFrame(
+                {
+                    'col1': [1, 2, 'missing'],
+                    'col2': ['not collected', 'bar', 'baz']
+                },
+                index=pd.Index(['a', 'b', 'c'], name='id')
+            ),
+            default_missing_scheme='INSDC:missing'
+        )
+
+        filtered = md.filter_ids({'b', 'c'})
+
+        exp = pd.DataFrame(
+            {'col1': [2, np.nan], 'col2': ['bar', 'baz']},
+            index=pd.Index(['b', 'c'], name='id')
+        )
+        exp_missing_mask = pd.DataFrame(
+            {'col1': [np.nan, 'missing'], 'col2': [np.nan, np.nan]},
+            index=pd.Index(['b', 'c'], name='id')
+        )
+        exp_missing_mask['col2'] = exp_missing_mask['col2'].astype('object')
+
+        assert_frame_equal(filtered._dataframe, exp)
+        assert_frame_equal(filtered._missing, exp_missing_mask)
 
 
 class TestFilterColumns(unittest.TestCase):
