@@ -204,8 +204,11 @@ class _MetadataBase:
         # While preserving order, get rid of any IDs not contained in
         # `ids_to_keep`.
         ids_to_discard = ids - ids_to_keep
-        return df_or_series.drop(labels=ids_to_discard, axis='index',
-                                 inplace=False, errors='raise')
+        filtered = df_or_series.drop(
+            labels=ids_to_discard, axis='index', inplace=False, errors='raise'
+        )
+
+        return filtered
 
     def save(self, filepath, ext=None):
         """Save a TSV metadata file.
@@ -1361,7 +1364,9 @@ class MetadataColumn(_MetadataBase, metaclass=abc.ABCMeta):
         )
 
         filtered_mdc = self.__class__(
-            filtered_series, missing=filtered_missing
+            filtered_series,
+            missing_scheme=self.missing_scheme,
+            missing=filtered_missing,
         )
         filtered_mdc._add_artifacts(self.artifacts)
 

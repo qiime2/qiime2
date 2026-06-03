@@ -11,6 +11,7 @@ import tempfile
 import unittest
 
 import pandas as pd
+from pandas.testing import assert_series_equal
 import numpy as np
 
 from rachis import Artifact
@@ -733,6 +734,23 @@ class TestDropMissingValues(unittest.TestCase):
         self.assertEqual(obs, exp)
         self.assertEqual(obs.artifacts, (artifact,))
 
+    def test_missing_mask_stays_synced(self):
+        series = pd.Series(
+            [0.0, np.nan, 3.3, 'missing', 'not applicable', 4.4], name='col1',
+            index=pd.Index(['a', 'b', 'c', 'd', 'e', 'f'], name='sampleid'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        obs = mdc.drop_missing_values()
+
+        exp_missing_mask = pd.Series(
+            [np.nan, np.nan, np.nan],
+            index=pd.Index(['a', 'c', 'f'], name='sampleid'),
+            dtype='object',
+            name='col1'
+        )
+
+        assert_series_equal(obs._missing, exp_missing_mask)
+
 
 class TestGetIDs(unittest.TestCase):
     def test_single_id(self):
@@ -893,6 +911,30 @@ class TestFilterIDs(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,
                                     "IDs.*not present.*'d', 'id1'"):
             mdc.filter_ids({'b', 'id1', 'c', 'd'})
+
+    def test_missing_mask_stays_synced(self):
+        series = pd.Series(
+            [0.0, np.nan, 3.3, 'missing', 'not applicable', 4.4], name='col1',
+            index=pd.Index(['a', 'b', 'c', 'd', 'e', 'f'], name='sampleid'))
+        mdc = DummyMetadataColumn(series, missing_scheme='INSDC:missing')
+
+        obs = mdc.filter_ids({'b', 'c', 'e', 'f'})
+
+        exp = pd.Series(
+            [np.nan, 3.3, np.nan, 4.4],
+            index=pd.Index(['b', 'c', 'e', 'f'], name='sampleid'),
+            name='col1'
+        )
+        assert_series_equal(obs._series, exp)
+
+        exp_missing_mask = pd.Series(
+            [np.nan, np.nan, 'not applicable', np.nan],
+            index=pd.Index(['b', 'c', 'e', 'f'], name='sampleid'),
+            name='col1'
+        )
+        assert_series_equal(obs._missing, exp_missing_mask)
+
+
 
 
 class TestGetMissing(unittest.TestCase):
