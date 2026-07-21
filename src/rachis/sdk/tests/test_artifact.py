@@ -388,6 +388,55 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         with self.assertRaisesRegex(ValidationError, error_regex):
             Artifact.import_data(FourInts, data_dir)
 
+    def test_import_data_ignores_dotpaths_sfdf(self):
+        '''
+        Tests that dotfiles and files with a hidden directory anywhere in
+        their ancestory are ignored during validation when importing into a
+        SingleFileDirectoryFormat.
+        '''
+        test_dir = pathlib.Path(self.test_dir.name)
+
+        with open(test_dir / 'ints.txt', 'w') as fh:
+            fh.write('42\n')
+
+        dotfile = test_dir / '.dotfile'
+        dotfile.touch()
+
+        dotdir = test_dir / '.dotdir'
+        os.mkdir(dotdir)
+
+        nested = test_dir / '.dotdir' / 'nested'
+        nested.touch()
+
+        Artifact.import_data(IntSequence1, test_dir)
+
+    def test_import_data_ignores_dotpaths_df(self):
+        '''
+        Tests that dotfiles and files with a hidden directory anywhere in
+        their ancestory are ignored during validation when importing into a
+        DirectoryFormat.
+        '''
+        test_dir = pathlib.Path(self.test_dir.name)
+
+        with open(test_dir / 'file1.txt', 'w') as fh:
+            fh.write('42\n')
+
+        with open(test_dir / 'file2.txt', 'w') as fh:
+            fh.write('42\n')
+
+        dotfile = test_dir / '.dotfile'
+        dotfile.touch()
+
+        dotdir = test_dir / '.dotdir'
+        os.mkdir(dotdir)
+
+        nested = test_dir / '.dotdir' / 'nested'
+        nested.touch()
+
+        Artifact.import_data(SingleInt, test_dir)
+
+
+
     def test_import_data_with_unreachable_path(self):
         with self.assertRaisesRegex(rachis.plugin.ValidationError,
                                     "does not exist"):
