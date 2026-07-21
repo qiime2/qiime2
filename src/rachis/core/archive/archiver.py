@@ -13,13 +13,27 @@ import weakref
 import zipfile
 import importlib
 import os
+import re
 import io
+import yaml
+import shutil
+import subprocess
+from pathlib import Path
 
 import rachis
 import rachis.core.cite as cite
+import rachis.core.util as util
 
-from rachis.core.util import checksum_directory, from_checksum_format, is_uuid4
+from rachis.core.util import (
+    sha512_file_hex, gpg_find_key, normalize_fingerprint,
+    unix_gpg_terminal_helper, checksum, checksum_directory,
+    from_checksum_format, is_uuid4
+)
 from rachis.core.archive.format.v0 import ArchiveFormat
+from rachis.core.archive.provenance import (
+    metadata_path_constructor, MetadataInfo
+)
+from rachis.core.annotate import Note, Annotation, ANNOTATION_TYPE_DICT
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -450,6 +464,7 @@ class Archiver:
         self._fmt = fmt
         self._destructor = weakref.finalize(self, cache._deallocate,
                                             str(self.process_alias))
+        self._memoize_annotations = []
 
     @property
     def uuid(self):
@@ -494,6 +509,332 @@ class Archiver:
         with open(self.root_dir / self._fmt.CHECKSUM_FILE) as fh:
             return dict(from_checksum_format(line) for line in fh.readlines())
 
+    def extract_uuid_in_provenance(self, file):
+        return re.findall(r'provenance/artifacts/([0-9a-f-]{36})/', file)
+
+    @property
+    def _annotations(self):
+        """
+        Append any existing Annotations to `self._annotations`.
+        Helper method for `add_annotation`, after a given Annotation
+        has been written to disk.
+        """
+        if self._memoize_annotations:
+            return self._memoize_annotations[0]
+
+        annotations = {}
+        annotations_dir = self.annotations_dir
+        # annotations_dir will be None for all previous archive versions < 7.0
+        if annotations_dir and os.path.exists(annotations_dir):
+            for annotation_id in os.listdir(annotations_dir):
+                annotation_path = os.path.join(annotations_dir, annotation_id)
+                annotation = Annotation.load(annotation_path)
+                annotations[annotation.name] = annotation
+
+        self._memoize_annotations.append(annotations)
+
+        return annotations
+
+
+    def _validate_annotation_support(self):
+        # Checks for the existance of `annotations_dir` on a Result's
+        # format class to guard against annotation actions being called on
+        # Results with versions < 7.0.
+
+        # Raises
+        # ------
+        # ValueError
+        #     If the Result's format class has no `annotations_dir` and is
+        #     thus a format version < 7.0.
+
+        if self.annotations_dir is None:
+            raise ValueError(
+                'The Artifact or Visualization being used is associated with '
+                'a QIIME 2 archive format of < 7.0. '
+                'Annotation actions are only supported for QIIME 2 archive '
+                'formats of 7.0 and above.'
+            )
+
+    def add_annotation(self, annotation, reference_uuid = None):
+        """
+        Add an Annotation onto a Result object.
+        All Result-associated parameters are passed into the sub-class's
+        `write` method, while the Annotation instance handles everything else
+
+        Parameters
+        ----------
+        annotation
+            An instantiated Annotation subclass (Note, Signature, etc).
+
+        Raises
+        ------
+        ValueError
+            If the Annotation name matches an existing Annotation name
+            attached to the Result in question.
+
+        Notes
+        -----
+            In Archive Format 7.0, `referenced_result_uuid` is set to
+            the same value as `root_result_uuid`, but this will change
+            in future versions to allow for Annotations that may reference
+            a different Result than the one they are attached to.
+
+        """
+        self._validate_annotation_support()
+
+        # Guard to ensure Annotation names are unique per Result object
+        if annotation.name in self._annotations:
+            raise ValueError(
+                'Duplicate name detected when attempting to add '
+                f'Annotation with name: "{annotation.name}"\n'
+                'Annotation names must be unique within each Result '
+                'they are attached to.'
+            )
+
+        if not reference_uuid:
+            annotation._write(annotations_dir=self.annotations_dir,
+                            root_result_uuid=str(self.uuid),
+                            referenced_result_uuid=str(self.uuid))
+        else:
+            annotation._write(annotations_dir=self.annotations_dir,
+                            root_result_uuid=str(self.uuid),
+                            referenced_result_uuid=str(reference_uuid))
+
+        self._annotations[annotation.name] = annotation
+
+        # now calculate checksums for all files within the newly minted
+        # annotation subdir
+        # TODO: think about moving these into annotation._write after 7.1
+        annotation_dir = Path(self.annotations_dir) / str(annotation.id)
+        checksum_ext = self._fmt.CHECKSUM_TYPE
+        manifest = self._fmt.CHECKSUM_FILE
+
+        checksums = util.checksum_directory(annotation_dir,
+                                            checksum_type=checksum_ext)
+
+        with (annotation_dir / manifest).open('w') as fh:
+            for item in checksums.items():
+                fh.write(util.to_checksum_format(*item))
+                fh.write('\n')
+
+        # this ensures additional attrs on Signature (signer name/email)
+        # are present when running Archiver.verify
+        loaded_annotation = Annotation.load(str(annotation_dir))
+        self._annotations[loaded_annotation.name] = loaded_annotation
+
+    def get_annotation(self, name):
+        """
+        Retrieve an Annotation given by `name` from the Result object.
+
+        Parameters
+        ----------
+        name : str
+            The name of the Annotation to retrieve.
+
+        Returns
+        -------
+        Annotation : obj
+            The Annotation object associated with the provided name.
+
+        Raises
+        ------
+        KeyError
+            If no Annotation with the provided name is found.
+
+        """
+        self._validate_annotation_support()
+
+        if name in self._annotations:
+            return self._annotations[name]
+
+        raise KeyError(f'No Annotation with name: "{name}" was found.')
+
+    def iter_annotations(self, filter_by_type):
+        """
+        Constructs an iterable containing all Annotations associated with
+        the Result object.
+        """
+        self._validate_annotation_support()
+
+        if filter_by_type is None:
+            yield from self._annotations.values()
+        elif filter_by_type not in ANNOTATION_TYPE_DICT:
+            raise ValueError(f'Unknown annotation type: "{filter_by_type}". '
+                             'Supported annotation types are: '
+                             f'{ANNOTATION_TYPE_DICT.keys()}')
+        else:
+            for annotation in self._annotations.values():
+                if getattr(annotation, 'annotation_type') == filter_by_type:
+                    yield annotation
+
+    def remove_annotation(self, name):
+        """
+        Remove an Annotation given by `name` from the Result object.
+
+        Parameters
+        ----------
+        name : str
+            The name of the Annotation to be removed.
+
+        Raises
+        ------
+        KeyError
+            If no Annotation with the specified name is found.
+
+        ValueError
+            If the corresponding annotation directory cannot be located.
+
+        """
+        self._validate_annotation_support()
+        annotations = self._annotations
+
+        if name not in annotations:
+            raise KeyError(f'No Annotation found with name: "{name}"')
+
+        annotations_dir = self.annotations_dir
+        annotation_disk_dir = os.path.join(annotations_dir,
+                                           str(annotations[name].id))
+
+        if not os.path.exists(annotation_disk_dir):
+            raise ValueError('Unable to locate on-disk directory '
+                             f'for Annotation with name: "{name}"')
+
+        shutil.rmtree(annotation_disk_dir)
+        del annotations[name]
+
+    def merge_annotations(self, other):
+        import warnings
+        annotation_uuids = \
+            [str(annotation.id) for annotation in self._annotations.values()]
+
+        for other_annotation in other._archiver._annotations.values():
+            if str(other_annotation.id) not in annotation_uuids:
+                try:
+                    self.add_annotation(other_annotation)
+                except ValueError as e:
+                    if 'Duplicate name' in str(e):
+                        warnings.warn(f'Duplicate name {other_annotation.name}'
+                                      ' found. The annotation UUID will be'
+                                      ' prepended to the name of the new'
+                                      ' annotation.')
+                        # It should not be possible for this to collide because
+                        # we only get here if this annotation.id isn't present
+                        # on the artifact.
+                        other_annotation.name = \
+                            f'{other_annotation.name}-{other_annotation.id}'
+                        self.add_annotation(other_annotation)
+                    else:
+                        raise e
+
+    def verify(self, signature_name):
+        """
+        Verify a Signature annotation by name on the provided Result.
+
+        Parameters
+        ----------
+        signature_name
+            Name of the Signature Annotation to verify.
+
+        Notes
+        -----
+        The following checks are performed:
+            - fingerprint match in local GPG keyring
+            - sha512sum for root level checksums file matches checksum_digest
+            - gpg detached signature verification
+            - sha512sum checks for each file in signature-level checksums file
+        """
+        signature = self.get_annotation(signature_name)
+
+        annotation_dir = \
+            pathlib.Path(self.annotations_dir) / str(signature.id)
+
+        root_fp = self.root_dir
+        root_checksums_fp = root_fp / 'checksums.sha512'
+        sig_checksums_fp = annotation_dir / 'checksums.sha512'
+        signature_fp = annotation_dir / 'signature.gpg'
+
+        try:
+            fingerprint = getattr(signature, 'fingerprint')
+
+            if not fingerprint:
+                raise ValueError('Signature is missing fingerprint.')
+
+            found_fingerprint = gpg_find_key(fingerprint)
+            if not (normalize_fingerprint(found_fingerprint['fingerprint']) ==
+                    normalize_fingerprint(signature.fingerprint)):
+                raise ValueError('Found fingerprint does not match '
+                                 'fingerprint associated with Signature.')
+
+        except Exception as e:
+            raise ValueError(f'Signer key not found in local GPG keyring: {e}')
+
+        root_checksum_digest = sha512_file_hex(root_checksums_fp)
+        if not root_checksum_digest == getattr(signature, 'checksum_digest'):
+            raise ValueError(
+                'Root checksums.sha512 does not match digest in metadata.yaml')
+
+        try:
+            env = os.environ.copy()
+            unix_gpg_terminal_helper(env)
+
+            subprocess.run(
+                ['gpg', '--verify',
+                 str(signature_fp),
+                 str(root_checksums_fp)],
+                check=True, env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+        except FileNotFoundError:
+            raise FileNotFoundError('`gpg` not found on PATH.')
+
+        except subprocess.CalledProcessError as e:
+            msg = (e.stderr or '').strip()
+            if len(msg) > 500:
+                msg = msg[:500] + '...'
+            raise subprocess.CalledProcessError(
+                f'`gpg --verify` failed (rc={e.returncode}): {msg}')
+
+        missing, mismatched = [], []
+        for exp_digest, relpath in self._iter_checksums(sig_checksums_fp):
+            fp = annotation_dir / relpath
+            if not fp.exists():
+                missing.append(relpath)
+                continue
+            obs_digest = sha512_file_hex(fp)
+            if obs_digest != exp_digest:
+                mismatched.append({
+                    'path': relpath,
+                    'expected': exp_digest,
+                    'actual': obs_digest
+                })
+        if missing:
+            raise ValueError('The following expected files were not found: '
+                             f'{missing}')
+        if mismatched:
+            raise ValueError('The following unexpected files were found: '
+                             f'{mismatched}')
+
+        return f'Signature `{signature_name}` verified successfully.'
+
+    def _iter_checksums(self, checksums_fp):
+        checksum_line_regex = re.compile(r"^([0-9a-f]{128})\s\s(.+)$")
+        with checksums_fp.open('r', encoding='utf-8') as fh:
+            for line in fh:
+                line = line.rstrip('\n')
+                if not line:
+                    continue
+                match = checksum_line_regex.match(line)
+                if match:
+                    yield (match.group(1), match.group(2))
+
+    def write_checksums(self, checksums):
+        with open(self.root_dir / self._fmt.CHECKSUM_FILE, 'w') as fh:
+            for k, v in checksums.items():
+                fh.write(f'{v}  {k}\n')
+
     def has_checksums(self):
         return hasattr(self._fmt, 'CHECKSUM_FILE')
 
@@ -521,3 +862,86 @@ class Archiver:
                    if exp[x] != obs[x]}
 
         return ChecksumDiff(added=added, removed=removed, changed=changed)
+
+    def metadata_paths(self):
+        '''
+        Finds and returns all absolute and relative metadata paths.
+        '''
+        def get_metadata_objects(yaml_dict):
+            '''
+            Recursively searches through dictionary returned by
+            `yaml.safe_load` returning any `MetadataInfo` objects.
+            '''
+            metadata = []
+            if isinstance(yaml_dict, MetadataInfo):
+                metadata.append(yaml_dict)
+            elif isinstance(yaml_dict, dict):
+                for value in yaml_dict.values():
+                    metadata.extend(get_metadata_objects(value))
+            elif isinstance(yaml_dict, (list, tuple)):
+                for value in yaml_dict:
+                    metadata.extend(get_metadata_objects(value))
+            return metadata
+
+        yaml.SafeLoader.add_constructor('!metadata', metadata_path_constructor)
+
+        metadata_paths = []
+        relative_metadata_paths = []
+        for action_yaml in Path(self.provenance_dir).rglob('action.yaml'):
+            with open(action_yaml) as fh:
+                metadata = yaml.safe_load(fh)
+                metadatas = get_metadata_objects(metadata)
+                for metadata in metadatas:
+                    path = action_yaml.parent / metadata.relative_fp
+                    metadata_paths.append(path)
+                    relative_metadata_paths.append(metadata.relative_fp)
+
+        return [metadata_paths, relative_metadata_paths]
+
+    def redact_metadata(self):
+        '''
+        Empties metadata files. It is also neccessary to remove the
+        corresponding lines in the `checksums` file.
+        '''
+        metadata_paths, relative_metadata_paths = self.metadata_paths()
+
+        if len(metadata_paths) == 0:
+            raise ValueError(
+                'Cannot redact metadata from a Result without metadata.'
+            )
+
+        if all(os.path.getsize(path) == 0 for path in metadata_paths):
+            raise ValueError(
+                'Cannot redact metadata from a Result with only redacted '
+                'metadata files.'
+            )
+
+        # Empty metadata files
+        for metadata_path in metadata_paths:
+            open(metadata_path, 'w').close()
+
+        # Re-write checksums for empty metadata files
+        checksums = self.get_checksums()
+
+        for k, v in checksums.items():
+            if any(path in k for path in relative_metadata_paths):
+                checksums[k] = checksum(
+                    self.root_dir / k, self._fmt.CHECKSUM_FILE.split('.')[1]
+                )
+
+        self.write_checksums(checksums)
+
+        joined = '\n'.join(str(p) for p in metadata_paths)
+        annotation = Note(
+            name='Metadata-redaction',
+            text=f'Redacted metadata from all Results in provenance for '
+                 f'performance and/or privacy reasons.\n'
+                 f"Redacted the following files:\n{joined}"
+        )
+        if self.annotations_dir is not None:
+            self.add_annotation(annotation)
+
+            for path in os.listdir(self.provenance_dir):
+                if any(r_path in path for r_path in relative_metadata_paths):
+                    ref_uuid = self.extract_uuid_in_provenance(path)
+                    self.add_annotation(annotation, ref_uuid)

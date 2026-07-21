@@ -68,7 +68,7 @@ def run_commands(cmds, verbose=True):
 
 
 # Numpy recommends using at least 128 bits of entropy as a seed.
-NP_RNG_SIZE = 128
+NP_RNG_BITS = 128
 
 
 def get_np_random_seed():
