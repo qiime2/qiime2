@@ -13,6 +13,8 @@ import pathlib
 import pytest
 import subprocess
 
+from rachis import Metadata
+from rachis.sdk.plugin_manager import PluginManager
 import rachis.core.type
 from rachis.sdk import Result, Artifact, Visualization, ResultCollection
 from rachis.sdk.result import ResultMetadata
@@ -778,6 +780,46 @@ class TestResultCollection(unittest.TestCase):
             collection.validate_checksums()
 
 
+class TestRedactMetadata(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tempdir = tempfile.mkdtemp(prefix='qiime2-q2cli-test-temp-')
+
+        metadata_path = os.path.join(cls.tempdir, 'metadata.tsv')
+        with open(metadata_path, 'w') as fh:
+            fh.write('sample-id\tbarcode-sequence\n')
+            fh.write('1\tACT')
+        dummy_md = Metadata.load(metadata_path)
+
+        pm = PluginManager()
+        identity_with_metadata = pm.plugins['dummy-plugin'].actions[
+            'identity_with_metadata'
+        ]
+
+        artifact1 = Artifact.import_data(IntSequence1, [0, 6, 7])
+        cls.artifact1, = identity_with_metadata(artifact1, dummy_md)
+        artifact2 = Artifact.import_data(IntSequence2, [3, 4, 5])
+        cls.artifact2, = identity_with_metadata(artifact2, dummy_md)
+        cls.artifact3 = Artifact.import_data(SingleInt, 9)
+
+    def test_redact_metadata_success(self):
+        self.artifact1.redact_metadata()
+        metadata_paths, _ = self.artifact1.metadata_paths()
+
+        for path in metadata_paths:
+            self.assertEqual(os.path.getsize(path), 0)
+
+    def test_redact_metadata_twice_fails(self):
+        self.artifact2.redact_metadata()
+
+        with self.assertRaisesRegex(ValueError, 'only redacted metadata'):
+            self.artifact2.redact_metadata()
+
+    def test_redact_metadata_no_metadata(self):
+        with self.assertRaisesRegex(ValueError, 'Result without metadata'):
+            self.artifact3.redact_metadata()
+
+
 @pytest.fixture
 def signature_test_env(monkeypatch):
     # fake key info that gpg_find_key would normally parse
@@ -833,7 +875,9 @@ def signature_test_env(monkeypatch):
     # patch calls to gpg_find_key with fake dict & subprocess.run w/fake_run
     monkeypatch.setattr(rachis.core.annotate,
                         'gpg_find_key', fake_gpg_find_key)
-    monkeypatch.setattr(rachis.sdk.result, 'gpg_find_key', fake_gpg_find_key)
+    monkeypatch.setattr(
+        rachis.core.archive.archiver, 'gpg_find_key', fake_gpg_find_key
+    )
     monkeypatch.setattr(subprocess, 'run', fake_run)
 
     def set_key_lookup(mode):

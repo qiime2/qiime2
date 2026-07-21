@@ -48,6 +48,7 @@ class DummyArtifacts:
         self.init_action_artifacts()
         self.init_all_version_artifacts()
         self.init_artifact_with_md_in_provenance()
+        self.init_fake_action_artifact()
         self.init_no_checksum_dag()
 
     def init_import_artifacts(self):
@@ -73,6 +74,10 @@ class DummyArtifacts:
                 name, artifact, artifact._archiver, str(artifact.uuid), fp,
                 ProvDAG(fp)
             )
+            # This dir is empty on imported artifacts and won't actually be
+            # here for real .qzas of imported artifacts. Caused us a bit of a
+            # headache https://github.com/rachis-org/rachis/pull/943
+            os.rmdir(artifact._archiver.provenance_dir / 'artifacts')
             setattr(self, name, test_artifact)
 
     def init_action_artifacts(self):
@@ -199,6 +204,23 @@ class DummyArtifacts:
 
     def init_artifact_with_md_in_provenance(self):
         dirname = 'concated-ints-with-md'
+        artifact_dir = os.path.join(self.datadir, dirname)
+        temp_zf_path = os.path.join(self.tempdir, 'temp.zip')
+        write_zip_file(temp_zf_path, artifact_dir)
+        filename = f'{dirname}.qza'
+        fp = os.path.join(self.tempdir, filename)
+        a = Artifact.load(temp_zf_path)
+        a.save(fp)
+
+        dag = ProvDAG(fp)
+        terminal_node, *_ = dag.terminal_nodes
+        uuid = terminal_node._uuid
+        name = filename.replace('-', '_').replace('.qza', '')
+        da = DummyArtifact(name, a, a._archiver, uuid, fp, dag, 6)
+        setattr(self, name, da)
+
+    def init_fake_action_artifact(self):
+        dirname = 'fake-action'
         artifact_dir = os.path.join(self.datadir, dirname)
         temp_zf_path = os.path.join(self.tempdir, 'temp.zip')
         write_zip_file(temp_zf_path, artifact_dir)

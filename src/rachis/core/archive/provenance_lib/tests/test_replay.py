@@ -97,6 +97,11 @@ class ReplayProvenanceTests(unittest.TestCase):
         cls.das = DummyArtifacts()
         cls.tempdir = cls.das.tempdir
 
+        datadir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), 'data'
+        )
+        cls.artifact_fp = os.path.join(datadir, 'rarefied_table.qza')
+
     @classmethod
     def tearDownClass(cls):
         cls.das.free()
@@ -262,6 +267,96 @@ class ReplayProvenanceTests(unittest.TestCase):
             self.assertIn('num1=', rendered)
             self.assertNotIn('optional1=', rendered)
             self.assertNotIn('num2=', rendered)
+
+    def test_replay_plugin_not_found(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_fp = pathlib.Path(tmpdir) / 'rendered.txt'
+            replay_provenance(
+                ReplayPythonUsage, self.artifact_fp, out_fp,
+                md_out_dir=tmpdir
+            )
+
+            with open(out_fp, 'r') as fh:
+                rendered = fh.read()
+
+            FIXME_import = \
+"""
+# FIXME: This import is unverified because one or more actions associated with
+# it were not found in your current QIIME 2 environment
+import rachis.plugins.diversity.actions.actions as diversity_actions
+"""  # noqa: E128
+            self.assertIn(FIXME_import, rendered)
+
+            FIXME_action = \
+"""
+# FIXME: The following action was not found in your current QIIME 2
+# environment. Please ensure the action and its parameters are correct before
+# running.
+action_results = diversity_actions.core_metrics_phylogenetic(
+    table=feature_table_frequency_0,
+    phylogeny=phylogeny_rooted_0,
+    sampling_depth=13,
+    metadata=metadata_0_md,
+    with_replacement=False,
+    n_jobs_or_threads=1,
+    ignore_missing_samples=False,
+)
+"""  # noqa: E128
+            self.assertIn(FIXME_action, rendered)
+
+    def test_replay_action_not_found(self):
+        dag = self.das.fake_action.dag
+        with tempfile.TemporaryDirectory() as tempdir:
+            out_path = pathlib.Path(tempdir) / 'fake_action.txt'
+
+            replay_provenance(
+                ReplayPythonUsage, dag, out_path, md_out_dir=tempdir
+            )
+            with open(out_path, 'r') as fp:
+                rendered = fp.read()
+
+            FIXME_import = \
+"""
+# FIXME: This import is unverified because one or more actions associated with
+# it were not found in your current QIIME 2 environment
+import rachis.plugins.dummy_plugin.actions.actions as dummy_plugin_actions
+"""  # noqa: E128
+            self.assertIn(FIXME_import, rendered)
+
+            FIXME_action = \
+"""
+# FIXME: The following action was not found in your current QIIME 2
+# environment. Please ensure the action and its parameters are correct before
+# running.
+action_results = dummy_plugin_actions.__FAKE_ACTION__(
+    ints1=int_sequence1_0,
+    ints2=int_sequence1_0,
+    ints3=int_sequence2_0,
+    int1=7,
+    int2=100,
+)
+"""  # noqa: E128
+            self.assertIn(FIXME_action,rendered)
+
+    def test_replay_imported_artifact(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_fp = pathlib.Path(tmpdir) / 'rendered.txt'
+            in_fp = self.das.single_int.filepath
+
+            replay_provenance(
+                ReplayPythonUsage, in_fp, out_fp, md_out_dir=tmpdir
+            )
+            self.assertTrue(out_fp.is_file())
+
+            with open(out_fp, 'r') as fp:
+                rendered = fp.read()
+
+            self.assertIn('from rachis import Artifact', rendered)
+            self.assertIn('single_int_0 = Artifact.import_data(', rendered)
+            self.assertIn("'SingleInt',", rendered)
+            self.assertIn('<your data here>,', rendered)
+            self.assertIn(')', rendered)
+            self.assertIn("single_int_0.save('single_int_0')", rendered)
 
 
 class MultiplePluginTests(unittest.TestCase):
@@ -1520,48 +1615,3 @@ class CitationsTests(unittest.TestCase):
             with open(out_fp, 'r') as fp:
                 written = fp.read()
                 self.assertIn(exp, written)
-
-
-class PluginActionFormatNotFoundTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        datadir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), 'data'
-        )
-        cls.artifact_fp = os.path.join(datadir, 'rarefied_table.qza')
-
-    def test_replay_not_found(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            out_fp = pathlib.Path(tmpdir) / 'rendered.txt'
-            replay_provenance(
-                ReplayPythonUsage, self.artifact_fp, out_fp,
-                md_out_dir=tmpdir
-            )
-
-            with open(out_fp, 'r') as fh:
-                rendered = fh.read()
-
-            FIXME_import = \
-"""
-# FIXME: This import is unverified because one or more actions associated with
-# it were not found in your current QIIME 2 environment
-import rachis.plugins.diversity.actions.actions as diversity_actions
-"""  # noqa: E128
-            self.assertIn(FIXME_import, rendered)
-
-            FIXME_action = \
-"""
-# FIXME: The following action was not found in your current QIIME 2
-# environment. Please ensure the action and its parameters are correct before
-# running.
-action_results = diversity_actions.core_metrics_phylogenetic(
-    table=feature_table_frequency_0,
-    phylogeny=phylogeny_rooted_0,
-    sampling_depth=13,
-    metadata=metadata_0_md,
-    with_replacement=False,
-    n_jobs_or_threads=1,
-    ignore_missing_samples=False,
-)
-"""  # noqa: E128
-            self.assertIn(FIXME_action, rendered)

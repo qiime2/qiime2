@@ -737,3 +737,49 @@ class TestPipelineResumption(unittest.TestCase):
             self.assertNotEqual(int_list_uuids, complete_int_list_uuids)
             # The dict should have been recycled
             self.assertEqual(int_dict_uuids, complete_int_dict_uuids)
+
+    def test_capture_holder_value_passed(self):
+        '''
+        Assert that when passing the a value into a CaptureHolder we do recycle
+        the cached Result due to the value of the seed matching.
+        '''
+        pipeline = self.plugin.pipelines['resumable_random_seed_pipeline']
+
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                pipeline(fail=True, random_seed=42)
+
+            random_int_uuid_failed, = e.exception.uuids
+
+            random_int, = pipeline(random_seed=42)
+            random_int_uuid_succeeded = _load_alias_uuid(random_int)
+
+            self.assertEqual(
+                random_int_uuid_failed, random_int_uuid_succeeded
+            )
+
+    def test_capture_holder_no_value_passed(self):
+        '''
+        Assert that when passing the auto value into a CaptureHolder we do not
+        recycle the cached Result due to the value of the seed not matching.
+
+        Note
+        ----
+        This test has a 1/sys.maxsize chance of failing due to the
+        CaptureHolder in resumable_random_seed_pipeline getting the same random
+        value in both calls.
+        '''
+        pipeline = self.plugin.pipelines['resumable_random_seed_pipeline']
+
+        with self.pool:
+            with self.assertRaises(PipelineError) as e:
+                pipeline(fail=True)
+
+            random_int_uuid_failed, = e.exception.uuids
+
+            random_int, = pipeline()
+            random_int_uuid_succeeded = _load_alias_uuid(random_int)
+
+            self.assertNotEqual(
+                random_int_uuid_failed, random_int_uuid_succeeded
+            )

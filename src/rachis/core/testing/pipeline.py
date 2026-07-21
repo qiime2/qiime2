@@ -5,10 +5,13 @@
 #
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
+import sys
+import random
 
 from .type import SingleInt, Mapping, Foo, Bar
-from rachis.sdk.result import ResultCollection
+from rachis.sdk.result import ResultCollection, Artifact
 from rachis.core.testing.util import PipelineError
+from rachis.plugin import IContext, CaptureHolder
 
 
 def parameter_only_pipeline(ctx, int1, int2=2, metadata=None, other=False):
@@ -345,3 +348,22 @@ def viz_collection_pipeline(ctx, ints):
     viz2, = most_common_viz(ints)
 
     return [viz1, viz2]
+
+
+def resumable_random_seed_pipeline(
+            ctx: IContext,
+            fail: bool = False,
+            random_seed: CaptureHolder[int] = None
+        ) -> Artifact:
+    random_int = CaptureHolder.get_or_set(
+        random_seed, lambda: random.randrange(sys.maxsize)
+    )
+
+    random_seed_method = ctx.get_action('dummy_plugin', 'random_seed_method')
+    random_int_art, = random_seed_method(random_int)
+
+    if fail:
+        uuids = [str(random_int_art.uuid)]
+        raise PipelineError(uuids)
+
+    return random_int_art

@@ -9,7 +9,7 @@
 import os
 import copy
 import psutil
-import appdirs
+import platformdirs
 import threading
 import importlib
 
@@ -137,9 +137,9 @@ def _get_vendored_config_path():
 
     1. Path pointed to by the `QIIME2_CONFIG` envvar if set
     2. A file named qiime2_config.toml in the user writable
-       appdirs.user_config_dir for QIIME 2
+       platformdirs.user_config_dir for QIIME 2
     3. A file named qiime2_config.toml in the admin writable
-       appdirs.site_config_dir for QIIME 2
+       platformdirs.site_config_dir for QIIME 2
     4. The default location `CONDA_PREFIX/etc/qiime2_config.toml`
     5. Write the VENDORED_CONFIG to the location specified in 4 then return
        that path
@@ -157,16 +157,16 @@ def _get_vendored_config_path():
 
     if config_fp is None:
         # 2. Check in user writable location
-        # appdirs.user_config_dir(appname='qiime2', author='...')
+        # platformdirs.user_config_dir(appname='qiime2', author='...')
         if os.path.exists(fp_ := os.path.join(
-                appdirs.user_config_dir('qiime2'), 'qiime2_config.toml')):
+                platformdirs.user_config_dir('qiime2'), 'qiime2_config.toml')):
             config_fp = fp_
         # 3. Check in admin writable location
         # /etc/
         # site_config_dir
-        # appdirs.site_config_dir(appname='qiime2, author='...')
+        # platformdirs.site_config_dir(appname='qiime2, author='...')
         elif os.path.exists(fp_ := os.path.join(
-                appdirs.site_config_dir('qiime2'), 'qiime2_config.toml')):
+                platformdirs.site_config_dir('qiime2'), 'qiime2_config.toml')):
             config_fp = fp_
         # NOTE: These next two are dependent on us being in a conda environment
         # 4. Check in conda env

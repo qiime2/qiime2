@@ -56,6 +56,7 @@ from rachis.core.util import (is_uuid4, set_permissions, touch_under_path,
                               load_action_yaml, USER_GROUP_RWX)
 from rachis.core.archive.archiver import Archiver
 from rachis.core.type import HashableInvocation, IndexedCollectionElement
+from rachis.util import duplicate
 
 _VERSION_TEMPLATE = """\
 QIIME 2
@@ -1260,12 +1261,14 @@ class Cache:
                 if not isinstance(ref._archiver.path, ArchivePath):
                     os.mkdir(destination)
                     shutil.copytree(
-                        ref._archiver.path, destination, dirs_exist_ok=True)
+                        ref._archiver.path, destination, dirs_exist_ok=True,
+                        copy_function=duplicate)
                 # Otherwise, the path we are copying should already contain the
                 # uuid, so we don't need to manually create the uuid directory
                 else:
                     shutil.copytree(
-                        ref._archiver.path, self.data, dirs_exist_ok=True)
+                        ref._archiver.path, self.data, dirs_exist_ok=True,
+                        copy_function=duplicate)
             else:
                 existing = \
                     Result._from_archiver(Archiver.load_raw(destination, self))

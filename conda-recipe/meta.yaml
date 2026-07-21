@@ -24,7 +24,7 @@ requirements:
   - psutil
   - flufl.lock
   - parsl {{ parsl }}
-  - appdirs
+  - platformdirs
   - tomlkit
   - lxml
   build:

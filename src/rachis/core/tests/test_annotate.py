@@ -84,13 +84,13 @@ class TestAnnotationEndpoints(unittest.TestCase):
     # `ADD_ANNOTATION` ENDPOINT TESTS
     def test_add_annotation_roundtrip(self):
         # confirm that annotations starts as an empty list
-        self.assertEqual(self.artifact._annotations, {})
+        self.assertEqual(self.artifact._archiver._annotations, {})
 
         # add note1 to ints1 artifact
         self.artifact.add_annotation(self.note1)
 
         # check that there's exactly one annotation entry
-        self.assertEqual(len(self.artifact._annotations), 1)
+        self.assertEqual(len(self.artifact._archiver._annotations), 1)
 
         for annotation in self.artifact.iter_annotations():
             self.assertEqual(annotation.name, 'mynote')
@@ -188,8 +188,8 @@ class TestAnnotationEndpoints(unittest.TestCase):
     def test_remove_annotation_round_trip(self):
         self.artifact.add_annotation(self.note1)
         # confirm there's currently one annotation
-        self.assertEqual(len(self.artifact._annotations), 1)
+        self.assertEqual(len(self.artifact._archiver._annotations), 1)
 
         self.artifact.remove_annotation(name='mynote')
         # now confirm _annotations is empty
-        self.assertEqual(len(self.artifact._annotations), 0)
+        self.assertEqual(len(self.artifact._archiver._annotations), 0)

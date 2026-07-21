@@ -111,6 +111,7 @@ class TestPlugin(unittest.TestCase):
                           'property_refinement_mismatch_pipeline',
                           'failing_pipeline',
                           'viz_collection_pipeline',
+                          'resumable_random_seed_pipeline',
                           'docstring_order_method',
                           'constrained_input_visualization',
                           'combinatorically_mapped_method',
@@ -219,7 +220,8 @@ class TestPlugin(unittest.TestCase):
                           'property_refinement_collection_pipeline',
                           'property_refinement_mismatch_pipeline',
                           'failing_pipeline',
-                          'viz_collection_pipeline'})
+                          'viz_collection_pipeline',
+                          'resumable_random_seed_pipeline'})
         for pipeline in pipelines.values():
             self.assertIsInstance(pipeline, rachis.sdk.Pipeline)
 

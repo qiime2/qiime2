@@ -75,7 +75,8 @@ from .pipeline import (parameter_only_pipeline, typical_pipeline,
                        property_refinement_collection_pipeline,
                        property_refinement_mismatch_pipeline,
                        pointless_pipeline,
-                       failing_pipeline, viz_collection_pipeline)
+                       failing_pipeline, viz_collection_pipeline,
+                       resumable_random_seed_pipeline)
 from ..cite import Citations
 
 from .examples import (concatenate_ints_simple, concatenate_ints_complex,
@@ -1137,6 +1138,21 @@ dummy_plugin.pipelines.register_function(
     name='Return a collection of Visualizations',
     description='Just returns a collection of Visualizations',
     examples={'collection_of_visualizations': collection_of_visualizations}
+)
+
+dummy_plugin.pipelines.register_function(
+    function=resumable_random_seed_pipeline,
+    inputs={},
+    parameters={
+        'fail': Bool,
+        'random_seed': Int,
+    },
+    outputs=[
+        ('random_seed', SingleInt)
+    ],
+    name=('Takes a random seed and returns it but this time as a pipeline that'
+          ' can be resumed.'),
+    description='Just returns a random int',
 )
 
 dummy_plugin.methods.register_function(
