@@ -82,7 +82,7 @@ def get_np_random_seed():
     int
         A random int with 128 bits of entropy
     """
-    return secrets.randbits(NP_RNG_SIZE)
+    return secrets.randbits(NP_RNG_BITS)
 
 
 def get_nonhidden_files(dir: Path) -> list[Path]:
