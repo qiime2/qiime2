@@ -6,6 +6,7 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+from pathlib import Path
 import psutil
 import secrets
 import subprocess
@@ -82,3 +83,22 @@ def get_np_random_seed():
         A random int with 128 bits of entropy
     """
     return secrets.randbits(NP_RNG_SIZE)
+
+
+def get_nonhidden_files(dir: Path) -> list[Path]:
+    '''
+    Return all files under `dir` that are not dotfiles and are not ancestors
+    of dotdirectories.
+    '''
+    candidates = dir.glob('**/*')
+
+    non_hidden = []
+    for path in candidates:
+        if not path.is_file():
+            continue
+        if any([part.startswith('.') for part in path.parts]):
+            continue
+
+        non_hidden.append(path)
+
+    return non_hidden

@@ -13,6 +13,7 @@ import pathlib
 
 from rachis.core import transform
 from .base import FormatBase, ValidationError, _check_validation_level
+from rachis.plugin.util import get_nonhidden_files
 
 
 class PathMakerDescriptor:
@@ -170,9 +171,7 @@ class DirectoryFormat(FormatBase, metaclass=_DirectoryMeta):
 
         if not self.path.is_dir():
             raise ValidationError("%s is not a directory." % self.path)
-        collected_paths = {p: None for p in self.path.glob('**/*')
-                           if not p.name.startswith('.') and
-                           p.is_file()}
+        collected_paths = {p: None for p in get_nonhidden_files(self.path)}
         for field in self._fields:
             getattr(self, field)._validate_members(collected_paths, level)
 
@@ -204,10 +203,7 @@ class SingleFileDirectoryFormatBase(DirectoryFormat):
     def validate(self, level='max'):
         super().validate(level=level)
 
-        collected_files = [
-            p for p in self.path.glob('**/*')
-            if not p.name.startswith('.') and p.is_file()
-        ]
+        collected_files = get_nonhidden_files(self.path)
 
         if len(collected_files) != 1:
             raise ValidationError(
