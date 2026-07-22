@@ -330,8 +330,8 @@ class Metadata(_MetadataBase):
         headers described in the metadata file format spec. Each column in the
         dataframe defines a metadata column, and the metadata column's type
         (i.e. *categorical* or *numeric*) is determined based on the column's
-        dtype. Columns with ``dtype="str"`` or columns with ``dtype=object`` that
-        contain only strings or pandas missing values (e.g. ``np.nan``,
+        dtype. Columns with ``dtype="str"`` or columns with ``dtype=object``
+        that contain only strings or pandas missing values (e.g. ``np.nan``,
         ``None``) are assumed to be *categorical*. If a column in the
         dataframe has ``dtype=float`` or ``dtype=int``, it may contain floating
         point numbers or integers, as well as pandas missing values

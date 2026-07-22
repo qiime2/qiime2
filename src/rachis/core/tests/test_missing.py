@@ -40,7 +40,7 @@ class RoundTripMixin:
         self.check_roundtrip(0.05, float)
 
     def test_roundtrip_string(self):
-        self.check_roundtrip('hello', object)
+        self.check_roundtrip('hello', 'str')
 
     def test_roundtrip_int(self):
         self.check_roundtrip(42, float)
@@ -58,6 +58,16 @@ class RoundTripMixin:
         missing = decode_from_missing_mask(encoded, mask)
 
         self.assertEqual(encoded.dtype, object)
+        pdt.assert_series_equal(missing, series)
+
+    def test_roundtrip_all_missing_string(self):
+        expected = [None, float('nan')] + self.missing_terms
+        series = pd.Series(expected, dtype='str')
+
+        encoded, mask = encode_and_get_missing_mask(series, self.enum)
+        missing = decode_from_missing_mask(encoded, mask)
+
+        self.assertEqual(encoded.dtype, 'str')
         pdt.assert_series_equal(missing, series)
 
 
@@ -100,3 +110,7 @@ class TestError(RoundTripMixin, unittest.TestCase):
     def test_roundtrip_all_missing_object(self):
         with self.assertRaisesRegex(ValueError, 'Missing values.*name=None'):
             super().test_roundtrip_all_missing_object()
+
+    def test_roundtrip_all_missing_string(self):
+        with self.assertRaisesRegex(ValueError, 'Missing values.*name=None'):
+            super().test_roundtrip_all_missing_string()

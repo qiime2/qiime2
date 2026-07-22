@@ -930,7 +930,7 @@ class TestFilterIDs(unittest.TestCase):
         exp_missing_mask = pd.Series(
             [np.nan, np.nan, 'not applicable', np.nan],
             index=pd.Index(['b', 'c', 'e', 'f'], name='sampleid'),
-            name='col1'
+            name='col1', dtype=object
         )
         assert_series_equal(obs._missing, exp_missing_mask)
 
@@ -946,8 +946,9 @@ class TestGetMissing(unittest.TestCase):
 
         missing = mdc.get_missing()
 
-        exp = pd.Series([np.nan, 'missing', 'not applicable'], name='col1',
-                        index=pd.Index(['b', 'd', 'e'], name='sampleid'))
+        exp = pd.Series(
+            [np.nan, 'missing', 'not applicable'], name='col1', dtype=object,
+            index=pd.Index(['b', 'd', 'e'], name='sampleid'))
 
         pd.testing.assert_series_equal(missing, exp)
 
@@ -973,7 +974,7 @@ class TestGetMissing(unittest.TestCase):
         missing = mdc.get_missing()
 
         exp = pd.Series([], name='col1', dtype='float64',
-                        index=pd.Index([], name='sampleid'))
+                        index=pd.Index([], dtype='str', name='sampleid'))
 
         pd.testing.assert_series_equal(missing, exp)
 
@@ -1012,7 +1013,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
     def test_supported_dtype(self):
         series = pd.Series(
             ['foo', np.nan, 'bar', 'foo'], name='my column',
-            index=pd.Index(['a', 'b', 'c', 'd'], name='id'))
+            index=pd.Index(['a', 'b', 'c', 'd'], name='id'), dtype='str')
         mdc = CategoricalMetadataColumn(series)
 
         self.assertEqual(mdc.id_count, 4)
@@ -1022,7 +1023,33 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
 
         obs_series = mdc.to_series()
         pd.testing.assert_series_equal(obs_series, series)
-        self.assertEqual(obs_series.dtype, object)
+        self.assertEqual(obs_series.dtype, 'str')
+
+    def test_object_dtype_normalized(self):
+        series = pd.Series(
+            ['foo', np.nan, 'bar'], name='col1', dtype=object,
+            index=pd.Index(['a', 'b', 'c'], name='id'))
+
+        obs = CategoricalMetadataColumn(series).to_series()
+
+        exp = pd.Series(
+            ['foo', np.nan, 'bar'], name='col1', dtype='str',
+            index=pd.Index(['a', 'b', 'c'], name='id'))
+        pd.testing.assert_series_equal(obs, exp)
+
+    def test_nullable_string_dtype_normalized(self):
+        series = pd.Series(
+            ['foo', pd.NA, 'bar'], name='col1', dtype=pd.StringDtype(),
+            index=pd.Index(['a', 'b', 'c'], name='id'))
+
+        obs = CategoricalMetadataColumn(series).to_series()
+
+        exp = pd.Series(
+            ['foo', np.nan, 'bar'], name='col1', dtype='str',
+            index=pd.Index(['a', 'b', 'c'], name='id'))
+        pd.testing.assert_series_equal(obs, exp)
+        self.assertIsNot(obs['b'], pd.NA)
+        self.assertTrue(np.isnan(obs['b']))
 
     def test_numeric_strings_preserved_as_strings(self):
         series = pd.Series(
@@ -1037,7 +1064,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
 
         obs_series = mdc.to_series()
         pd.testing.assert_series_equal(obs_series, series)
-        self.assertEqual(obs_series.dtype, object)
+        self.assertEqual(obs_series.dtype, 'str')
 
     def test_missing_data_normalized(self):
         # Different missing data representations should be normalized to np.nan
@@ -1052,7 +1079,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
             index=pd.Index(['a', 'b', 'c', 'd'], name='id'))
 
         pd.testing.assert_series_equal(obs, exp)
-        self.assertEqual(obs.dtype, object)
+        self.assertEqual(obs.dtype, 'str')
         self.assertTrue(np.isnan(obs['a']))
         self.assertTrue(np.isnan(obs['c']))
         self.assertTrue(np.isnan(obs['d']))
@@ -1065,11 +1092,21 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
         obs = mdc.to_series()
 
         exp = pd.Series(
-            np.array([np.nan, np.nan, np.nan], dtype=object), name='col1',
+            [np.nan, np.nan, np.nan], name='col1', dtype='str',
             index=pd.Index(['a', 'b', 'c'], name='id'))
 
         pd.testing.assert_series_equal(obs, exp)
-        self.assertEqual(obs.dtype, object)
+        self.assertEqual(obs.dtype, 'str')
+
+    def test_all_missing_string_data(self):
+        series = pd.Series(
+            [np.nan, np.nan, np.nan], name='col1', dtype='str',
+            index=pd.Index(['a', 'b', 'c'], name='id'))
+
+        obs = CategoricalMetadataColumn(series).to_series()
+
+        pd.testing.assert_series_equal(obs, series)
+        self.assertEqual(obs.dtype, 'str')
 
     def test_leading_trailing_whitespace_value(self):
         col1 = CategoricalMetadataColumn(pd.Series(
@@ -1114,7 +1151,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
             index=pd.Index(['a', 'b', 'c', 'd'], name='id'))
 
         pd.testing.assert_series_equal(obs, exp)
-        self.assertEqual(obs.dtype, object)
+        self.assertEqual(obs.dtype, 'str')
         self.assertTrue(np.isnan(obs['a']))
         self.assertTrue(np.isnan(obs['c']))
         self.assertTrue(np.isnan(obs['d']))

@@ -359,7 +359,7 @@ class TestMetadataConstructionAndProperties(unittest.TestCase):
         pd.testing.assert_frame_equal(md.to_dataframe(), pd.DataFrame(
             {'col1': [1.0, np.nan, np.nan, np.nan],
              'col3': ['null', 'N/A', np.nan, 'NA'],
-             'col4': np.array([np.nan, np.nan, np.nan, np.nan], dtype=object)},
+             'col4': pd.array([np.nan, np.nan, np.nan, np.nan], dtype='str')},
             index=index))
 
     def test_missing_data_insdc_column_missing(self):
@@ -391,7 +391,7 @@ class TestMetadataConstructionAndProperties(unittest.TestCase):
         pd.testing.assert_frame_equal(md.to_dataframe(), pd.DataFrame(
             {'col1': [1.0, np.nan, np.nan, np.nan],
              'col3': ['null', 'N/A', np.nan, 'NA'],
-             'col4': np.array([np.nan, np.nan, np.nan, np.nan], dtype=object)},
+             'col4': pd.array([np.nan, np.nan, np.nan, np.nan], dtype='str')},
             index=index))
 
     def test_missing_data_default_override(self):
@@ -423,7 +423,7 @@ class TestMetadataConstructionAndProperties(unittest.TestCase):
         pd.testing.assert_frame_equal(md.to_dataframe(), pd.DataFrame(
             {'col1': [1.0, np.nan, np.nan, np.nan],
              'col3': ['null', 'N/A', np.nan, 'NA'],
-             'col4': np.array([np.nan, np.nan, np.nan, np.nan], dtype=object)},
+             'col4': pd.array([np.nan, np.nan, np.nan, np.nan], dtype='str')},
             index=index))
 
     def test_does_not_cast_ids_or_column_names(self):
@@ -795,14 +795,14 @@ class TestToDataframe(unittest.TestCase):
             ('col1', [42.5, np.nan, np.nan, 3.0]),
             ('NA', [np.nan, 'foo', np.nan, np.nan]),
             ('col3', ['null', 'N/A', np.nan, 'NA']),
-            ('col4', np.array([np.nan, np.nan, np.nan, np.nan],
-                              dtype=object))]),
+            ('col4', pd.array([np.nan, np.nan, np.nan, np.nan],
+                              dtype='str'))]),
             index=index)
 
         pd.testing.assert_frame_equal(obs, exp)
         self.assertEqual(obs.dtypes.to_dict(),
-                         {'col1': np.float64, 'NA': object, 'col3': object,
-                          'col4': object})
+                         {'col1': np.float64, 'NA': 'str', 'col3': 'str',
+                          'col4': 'str'})
         self.assertTrue(np.isnan(obs['col1']['NA']))
         self.assertTrue(np.isnan(obs['NA']['NA']))
         self.assertTrue(np.isnan(obs['NA']['id1']))
@@ -851,6 +851,8 @@ class TestToDataframe(unittest.TestCase):
         obs = md.to_dataframe(encode_missing=True)
 
         pd.testing.assert_frame_equal(obs, df)
+        self.assertEqual(obs['col1'].dtype, object)
+        self.assertEqual(obs['col2'].dtype, 'str')
         self.assertIsNot(obs, df)
 
     def test_insdc_missing_encode_missing_false(self):
@@ -1375,6 +1377,7 @@ class TestMerge(unittest.TestCase):
             },
             index=pd.Index(['id1', 'id2'], name='id')
         )
+        exp_missing_mask['a'] = exp_missing_mask['a'].astype(object)
 
         assert_frame_equal(merged._dataframe, exp)
         assert_frame_equal(merged._missing, exp_missing_mask)
@@ -1562,7 +1565,8 @@ class TestFilterIDs(unittest.TestCase):
             {'col1': [np.nan, 'missing'], 'col2': [np.nan, np.nan]},
             index=pd.Index(['b', 'c'], name='id')
         )
-        exp_missing_mask['col2'] = exp_missing_mask['col2'].astype('object')
+        exp_missing_mask['col1'] = exp_missing_mask['col1'].astype(object)
+        exp_missing_mask['col2'] = exp_missing_mask['col2'].astype('str')
 
         assert_frame_equal(filtered._dataframe, exp)
         assert_frame_equal(filtered._missing, exp_missing_mask)
