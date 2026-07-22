@@ -53,11 +53,11 @@ def encode_and_get_missing_mask(
     encoded = series.where(~series.isin(to_encode), np.nan)
     missing_mask = series.where(series.isin(to_encode), np.nan)
 
-    encoded = encoded.infer_objects()
-
-    if series.dtype == object and encoded.isna().all():
-        # return to categorical of all missing values
+    if pd.api.types.is_object_dtype(series.dtype) and encoded.isna().all():
+        # float64 by default, return to categorical
         encoded = encoded.astype(object)
+    else:
+        encoded = encoded.infer_objects()
 
     return encoded, missing_mask
 

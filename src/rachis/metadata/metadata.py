@@ -330,18 +330,19 @@ class Metadata(_MetadataBase):
         headers described in the metadata file format spec. Each column in the
         dataframe defines a metadata column, and the metadata column's type
         (i.e. *categorical* or *numeric*) is determined based on the column's
-        dtype. If a column has ``dtype=object``, it may contain strings or
-        pandas missing values (e.g. ``np.nan``, ``None``). Columns matching
-        this requirement are assumed to be *categorical*. If a column in the
+        dtype. Columns with ``dtype="str"`` or columns with ``dtype=object`` that
+        contain only strings or pandas missing values (e.g. ``np.nan``,
+        ``None``) are assumed to be *categorical*. If a column in the
         dataframe has ``dtype=float`` or ``dtype=int``, it may contain floating
         point numbers or integers, as well as pandas missing values
         (e.g. ``np.nan``). Columns matching this requirement are assumed to be
-        *numeric*. Regardless of column type (categorical vs numeric), the
-        dataframe stored within the ``Metadata`` object will have any missing
-        values normalized to ``np.nan``. Columns with ``dtype=int`` will be
-        cast to ``dtype=float``. To obtain a dataframe from the ``Metadata``
-        object containing these normalized data types and values, use
-        ``Metadata.to_dataframe()``.
+        *numeric*. Categorical columns are standardized to ``dtype="str"`` and
+        numeric columns to ``dtype=float``. Regardless of column type
+        (categorical vs numeric), the dataframe stored within the ``Metadata``
+        object will have any missing values normalized to ``np.nan``. Columns
+        with ``dtype=int`` will be cast to ``dtype=float``. To obtain a
+        dataframe from the ``Metadata`` object containing these normalized
+        data types and values, use ``Metadata.to_dataframe()``.
     column_missing_schemes : dict, optional
         Describe the metadata column handling for missing values described
         in the dataframe. This is a dict mapping column names (str) to
@@ -554,7 +555,7 @@ class Metadata(_MetadataBase):
         else:
             raise TypeError(
                 "Metadata column %r has an unsupported pandas dtype of %s. "
-                "Supported dtypes: float, int, object" %
+                "Supported dtypes: float, int, str, object" %
                 (series.name, dtype))
 
         column._add_artifacts(self.artifacts)
@@ -649,8 +650,10 @@ class Metadata(_MetadataBase):
         object's ``id_header``, and the index will contain this metadata
         object's IDs. The dataframe's column names will match the column names
         in this metadata. Categorical columns will be stored as
-        ``dtype=object`` (containing strings), and numeric columns will be
-        stored as ``dtype=float``.
+        ``dtype="str"``, and numeric columns will be stored as ``dtype=float``.
+
+        When ``encode_missing=True``, numeric columns containing restored
+        missing vocabulary terms may be stored as ``dtype=object``.
 
         Parameters
         ----------
@@ -1385,7 +1388,8 @@ class CategoricalMetadataColumn(MetadataColumn):
 
     @classmethod
     def _is_supported_dtype(cls, dtype):
-        return dtype == 'object'
+        # also accepts `object`
+        return pd.api.types.is_string_dtype(dtype)
 
     @classmethod
     def _normalize_(cls, series):
@@ -1411,7 +1415,7 @@ class CategoricalMetadataColumn(MetadataColumn):
                     "%r of type %r in column %r." %
                     (cls.__name__, value, type(value), series.name))
 
-        norm_series = series.apply(normalize).astype(object)
+        norm_series = series.apply(normalize).astype("str")
         norm_series.index = norm_series.index.str.strip()
         norm_series.name = norm_series.name.strip()
         return norm_series

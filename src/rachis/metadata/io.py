@@ -361,17 +361,7 @@ class MetadataReader:
                 return self._to_categorical(series)
 
     def _to_categorical(self, series):
-        # Replace empty strings with `None` to force the series to remain
-        # dtype=object (this only matters if the series consists solely of
-        # missing data). Replacing with np.nan and casting to dtype=object
-        # won't retain the correct dtype in the resulting dataframe
-        # (`DataFrame.apply` seems to force series consisting solely of np.nan
-        # to dtype=float64, even if dtype=object is specified.
-        #
-        # To replace a value with `None`, the following invocation of
-        # `Series.replace` must be used because `None` is a sentinel:
-        #     https://stackoverflow.com/a/17097397/3776794
-        return series.replace([''], [None])
+        return series.replace('', np.nan).astype("str")
 
     def _to_numeric(self, series):
         with pd.option_context('future.no_silent_downcasting', True):
@@ -427,7 +417,7 @@ class MetadataWriter:
             if self._non_default_missing(missing_directive):
                 tsv_writer.writerow(missing_directive)
 
-            df = md.to_dataframe(encode_missing=True)
+            df = md.to_dataframe(encode_missing=True).astype(object)
             df.fillna('', inplace=True)
             df = df.map(self._format)
             tsv_writer.writerows(df.itertuples(index=True))
