@@ -17,6 +17,7 @@ import numpy as np
 from rachis import Artifact
 from rachis.metadata import (Metadata, CategoricalMetadataColumn,
                              NumericMetadataColumn)
+from rachis.metadata.base import CATEGORICAL_DTYPE
 from rachis.core.testing.util import get_dummy_plugin, ReallyEqualMixin
 
 
@@ -358,8 +359,10 @@ class TestMetadataConstructionAndProperties(unittest.TestCase):
 
         pd.testing.assert_frame_equal(md.to_dataframe(), pd.DataFrame(
             {'col1': [1.0, np.nan, np.nan, np.nan],
-             'col3': ['null', 'N/A', np.nan, 'NA'],
-             'col4': pd.array([np.nan, np.nan, np.nan, np.nan], dtype='str')},
+             'col3': pd.array(['null', 'N/A', np.nan, 'NA'],
+                              dtype=CATEGORICAL_DTYPE),
+             'col4': pd.array([np.nan, np.nan, np.nan, np.nan],
+                              dtype=CATEGORICAL_DTYPE)},
             index=index))
 
     def test_missing_data_insdc_column_missing(self):
@@ -390,8 +393,10 @@ class TestMetadataConstructionAndProperties(unittest.TestCase):
 
         pd.testing.assert_frame_equal(md.to_dataframe(), pd.DataFrame(
             {'col1': [1.0, np.nan, np.nan, np.nan],
-             'col3': ['null', 'N/A', np.nan, 'NA'],
-             'col4': pd.array([np.nan, np.nan, np.nan, np.nan], dtype='str')},
+             'col3': pd.array(['null', 'N/A', np.nan, 'NA'],
+                              dtype=CATEGORICAL_DTYPE),
+             'col4': pd.array([np.nan, np.nan, np.nan, np.nan],
+                              dtype=CATEGORICAL_DTYPE)},
             index=index))
 
     def test_missing_data_default_override(self):
@@ -422,8 +427,10 @@ class TestMetadataConstructionAndProperties(unittest.TestCase):
 
         pd.testing.assert_frame_equal(md.to_dataframe(), pd.DataFrame(
             {'col1': [1.0, np.nan, np.nan, np.nan],
-             'col3': ['null', 'N/A', np.nan, 'NA'],
-             'col4': pd.array([np.nan, np.nan, np.nan, np.nan], dtype='str')},
+             'col3': pd.array(['null', 'N/A', np.nan, 'NA'],
+                              dtype=CATEGORICAL_DTYPE),
+             'col4': pd.array([np.nan, np.nan, np.nan, np.nan],
+                              dtype=CATEGORICAL_DTYPE)},
             index=index))
 
     def test_does_not_cast_ids_or_column_names(self):
@@ -743,8 +750,11 @@ class TestToDataframe(unittest.TestCase):
         pd.testing.assert_frame_equal(obs, df)
 
     def test_id_header_preserved(self):
-        df = pd.DataFrame({'col1': [42, 2.5], 'col2': ['foo', 'bar']},
-                          index=pd.Index(['id1', 'id2'], name='#SampleID'))
+        df = pd.DataFrame(
+            {'col1': [42, 2.5],
+             'col2': pd.array(['foo', 'bar'],
+                              dtype=CATEGORICAL_DTYPE)},
+            index=pd.Index(['id1', 'id2'], name='#SampleID'))
         md = Metadata(df)
 
         obs = md.to_dataframe()
@@ -753,8 +763,11 @@ class TestToDataframe(unittest.TestCase):
         self.assertEqual(obs.index.name, '#SampleID')
 
     def test_dataframe_copy(self):
-        df = pd.DataFrame({'col1': [42, 2.5], 'col2': ['foo', 'bar']},
-                          index=pd.Index(['id1', 'id2'], name='id'))
+        df = pd.DataFrame(
+            {'col1': [42, 2.5],
+             'col2': pd.array(['foo', 'bar'],
+                              dtype=CATEGORICAL_DTYPE)},
+            index=pd.Index(['id1', 'id2'], name='id'))
         md = Metadata(df)
 
         obs = md.to_dataframe()
@@ -770,6 +783,8 @@ class TestToDataframe(unittest.TestCase):
             [2.0, 'b', 'bar']
         ]
         df = pd.DataFrame(data, index=index, columns=columns)
+        df['a'] = df['a'].astype(CATEGORICAL_DTYPE)
+        df['ch'] = df['ch'].astype(CATEGORICAL_DTYPE)
         md = Metadata(df)
 
         obs = md.to_dataframe()
@@ -793,16 +808,19 @@ class TestToDataframe(unittest.TestCase):
 
         exp = pd.DataFrame(collections.OrderedDict([
             ('col1', [42.5, np.nan, np.nan, 3.0]),
-            ('NA', [np.nan, 'foo', np.nan, np.nan]),
-            ('col3', ['null', 'N/A', np.nan, 'NA']),
+            ('NA', pd.array([np.nan, 'foo', np.nan, np.nan],
+                            dtype=CATEGORICAL_DTYPE)),
+            ('col3', pd.array(['null', 'N/A', np.nan, 'NA'],
+                              dtype=CATEGORICAL_DTYPE)),
             ('col4', pd.array([np.nan, np.nan, np.nan, np.nan],
-                              dtype='str'))]),
+                              dtype=CATEGORICAL_DTYPE))]),
             index=index)
 
         pd.testing.assert_frame_equal(obs, exp)
         self.assertEqual(obs.dtypes.to_dict(),
-                         {'col1': np.float64, 'NA': 'str', 'col3': 'str',
-                          'col4': 'str'})
+                         {'col1': np.float64, 'NA': CATEGORICAL_DTYPE,
+                          'col3': CATEGORICAL_DTYPE,
+                          'col4': CATEGORICAL_DTYPE})
         self.assertTrue(np.isnan(obs['col1']['NA']))
         self.assertTrue(np.isnan(obs['NA']['NA']))
         self.assertTrue(np.isnan(obs['NA']['id1']))
@@ -832,9 +850,11 @@ class TestToDataframe(unittest.TestCase):
                           'col3': np.float64})
 
     def test_encode_missing_no_missing(self):
-        df = pd.DataFrame({'col1': [42.0, 50.0],
-                           'col2': ['foo', 'bar']},
-                          index=pd.Index(['id1', 'id2'], name='id'))
+        df = pd.DataFrame(
+            {'col1': [42.0, 50.0],
+             'col2': pd.array(['foo', 'bar'],
+                              dtype=CATEGORICAL_DTYPE)},
+            index=pd.Index(['id1', 'id2'], name='id'))
         md = Metadata(df, default_missing_scheme='INSDC:missing')
 
         obs = md.to_dataframe(encode_missing=True)
@@ -843,16 +863,18 @@ class TestToDataframe(unittest.TestCase):
         self.assertIsNot(obs, df)
 
     def test_insdc_missing_encode_missing_true(self):
-        df = pd.DataFrame({'col1': [42, 'missing'],
-                           'col2': ['foo', 'not applicable']},
-                          index=pd.Index(['id1', 'id2'], name='id'))
+        df = pd.DataFrame(
+            {'col1': [42, 'missing'],
+             'col2': pd.array(['foo', 'not applicable'],
+                              dtype=CATEGORICAL_DTYPE)},
+            index=pd.Index(['id1', 'id2'], name='id'))
         md = Metadata(df, default_missing_scheme='INSDC:missing')
 
         obs = md.to_dataframe(encode_missing=True)
 
         pd.testing.assert_frame_equal(obs, df)
         self.assertEqual(obs['col1'].dtype, object)
-        self.assertEqual(obs['col2'].dtype, 'str')
+        self.assertEqual(obs['col2'].dtype, CATEGORICAL_DTYPE)
         self.assertIsNot(obs, df)
 
     def test_insdc_missing_encode_missing_false(self):
@@ -863,9 +885,11 @@ class TestToDataframe(unittest.TestCase):
 
         obs = md.to_dataframe()
 
-        exp = pd.DataFrame({'col1': [42, np.nan],
-                            'col2': ['foo', np.nan]},
-                           index=pd.Index(['id1', 'id2'], name='id'))
+        exp = pd.DataFrame(
+            {'col1': [42, np.nan],
+             'col2': pd.array(['foo', np.nan],
+                              dtype=CATEGORICAL_DTYPE)},
+            index=pd.Index(['id1', 'id2'], name='id'))
 
         pd.testing.assert_frame_equal(obs, exp)
         self.assertIsNot(obs, df)
@@ -1548,7 +1572,8 @@ class TestFilterIDs(unittest.TestCase):
             pd.DataFrame(
                 {
                     'col1': [1, 2, 'missing'],
-                    'col2': ['not collected', 'bar', 'baz']
+                    'col2': pd.array(['not collected', 'bar', 'baz'],
+                                     dtype=CATEGORICAL_DTYPE)
                 },
                 index=pd.Index(['a', 'b', 'c'], name='id')
             ),
@@ -1558,7 +1583,9 @@ class TestFilterIDs(unittest.TestCase):
         filtered = md.filter_ids({'b', 'c'})
 
         exp = pd.DataFrame(
-            {'col1': [2, np.nan], 'col2': ['bar', 'baz']},
+            {'col1': [2, np.nan],
+             'col2': pd.array(['bar', 'baz'],
+                              dtype=CATEGORICAL_DTYPE)},
             index=pd.Index(['b', 'c'], name='id')
         )
         exp_missing_mask = pd.DataFrame(
@@ -1566,7 +1593,8 @@ class TestFilterIDs(unittest.TestCase):
             index=pd.Index(['b', 'c'], name='id')
         )
         exp_missing_mask['col1'] = exp_missing_mask['col1'].astype(object)
-        exp_missing_mask['col2'] = exp_missing_mask['col2'].astype('str')
+        exp_missing_mask['col2'] = exp_missing_mask['col2'].astype(
+            CATEGORICAL_DTYPE)
 
         assert_frame_equal(filtered._dataframe, exp)
         assert_frame_equal(filtered._missing, exp_missing_mask)

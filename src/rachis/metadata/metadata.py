@@ -19,7 +19,10 @@ import numpy as np
 import rachis
 from rachis.core.util import find_duplicates
 import rachis.core.missing as _missing
-from .base import SUPPORTED_COLUMN_TYPES, FORMATTED_ID_HEADERS, is_id_header
+from .base import (
+    CATEGORICAL_DTYPE, SUPPORTED_COLUMN_TYPES, FORMATTED_ID_HEADERS,
+    is_id_header
+)
 
 
 DEFAULT_MISSING = _missing.DEFAULT_MISSING
@@ -1415,7 +1418,7 @@ class CategoricalMetadataColumn(MetadataColumn):
                     "%r of type %r in column %r." %
                     (cls.__name__, value, type(value), series.name))
 
-        norm_series = series.apply(normalize).astype("str")
+        norm_series = series.apply(normalize).astype(CATEGORICAL_DTYPE)
         norm_series.index = norm_series.index.str.strip()
         norm_series.name = norm_series.name.strip()
         return norm_series

@@ -17,6 +17,7 @@ import numpy as np
 from rachis import Artifact
 from rachis.metadata import (MetadataColumn, CategoricalMetadataColumn,
                              NumericMetadataColumn)
+from rachis.metadata.base import CATEGORICAL_DTYPE
 from rachis.core.testing.util import get_dummy_plugin, ReallyEqualMixin
 
 
@@ -974,7 +975,7 @@ class TestGetMissing(unittest.TestCase):
         missing = mdc.get_missing()
 
         exp = pd.Series([], name='col1', dtype='float64',
-                        index=pd.Index([], dtype='str', name='sampleid'))
+                        index=series.index[:0])
 
         pd.testing.assert_series_equal(missing, exp)
 
@@ -1013,7 +1014,8 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
     def test_supported_dtype(self):
         series = pd.Series(
             ['foo', np.nan, 'bar', 'foo'], name='my column',
-            index=pd.Index(['a', 'b', 'c', 'd'], name='id'), dtype='str')
+            index=pd.Index(['a', 'b', 'c', 'd'], name='id'),
+            dtype=CATEGORICAL_DTYPE)
         mdc = CategoricalMetadataColumn(series)
 
         self.assertEqual(mdc.id_count, 4)
@@ -1023,7 +1025,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
 
         obs_series = mdc.to_series()
         pd.testing.assert_series_equal(obs_series, series)
-        self.assertEqual(obs_series.dtype, 'str')
+        self.assertEqual(obs_series.dtype, CATEGORICAL_DTYPE)
 
     def test_object_dtype_normalized(self):
         series = pd.Series(
@@ -1033,7 +1035,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
         obs = CategoricalMetadataColumn(series).to_series()
 
         exp = pd.Series(
-            ['foo', np.nan, 'bar'], name='col1', dtype='str',
+            ['foo', np.nan, 'bar'], name='col1', dtype=CATEGORICAL_DTYPE,
             index=pd.Index(['a', 'b', 'c'], name='id'))
         pd.testing.assert_series_equal(obs, exp)
 
@@ -1045,7 +1047,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
         obs = CategoricalMetadataColumn(series).to_series()
 
         exp = pd.Series(
-            ['foo', np.nan, 'bar'], name='col1', dtype='str',
+            ['foo', np.nan, 'bar'], name='col1', dtype=CATEGORICAL_DTYPE,
             index=pd.Index(['a', 'b', 'c'], name='id'))
         pd.testing.assert_series_equal(obs, exp)
         self.assertIsNot(obs['b'], pd.NA)
@@ -1054,7 +1056,8 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
     def test_numeric_strings_preserved_as_strings(self):
         series = pd.Series(
             ['1', np.nan, '2.5', '3.0'], name='my column',
-            index=pd.Index(['a', 'b', 'c', 'd'], name='id'))
+            index=pd.Index(['a', 'b', 'c', 'd'], name='id'),
+            dtype=CATEGORICAL_DTYPE)
         mdc = CategoricalMetadataColumn(series)
 
         self.assertEqual(mdc.id_count, 4)
@@ -1064,7 +1067,7 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
 
         obs_series = mdc.to_series()
         pd.testing.assert_series_equal(obs_series, series)
-        self.assertEqual(obs_series.dtype, 'str')
+        self.assertEqual(obs_series.dtype, CATEGORICAL_DTYPE)
 
     def test_missing_data_normalized(self):
         # Different missing data representations should be normalized to np.nan
@@ -1076,10 +1079,11 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
 
         exp = pd.Series(
             [np.nan, 'foo', np.nan, np.nan], name='col1',
+            dtype=CATEGORICAL_DTYPE,
             index=pd.Index(['a', 'b', 'c', 'd'], name='id'))
 
         pd.testing.assert_series_equal(obs, exp)
-        self.assertEqual(obs.dtype, 'str')
+        self.assertEqual(obs.dtype, CATEGORICAL_DTYPE)
         self.assertTrue(np.isnan(obs['a']))
         self.assertTrue(np.isnan(obs['c']))
         self.assertTrue(np.isnan(obs['d']))
@@ -1092,21 +1096,23 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
         obs = mdc.to_series()
 
         exp = pd.Series(
-            [np.nan, np.nan, np.nan], name='col1', dtype='str',
+            [np.nan, np.nan, np.nan], name='col1',
+            dtype=CATEGORICAL_DTYPE,
             index=pd.Index(['a', 'b', 'c'], name='id'))
 
         pd.testing.assert_series_equal(obs, exp)
-        self.assertEqual(obs.dtype, 'str')
+        self.assertEqual(obs.dtype, CATEGORICAL_DTYPE)
 
     def test_all_missing_string_data(self):
         series = pd.Series(
-            [np.nan, np.nan, np.nan], name='col1', dtype='str',
+            [np.nan, np.nan, np.nan], name='col1',
+            dtype=CATEGORICAL_DTYPE,
             index=pd.Index(['a', 'b', 'c'], name='id'))
 
         obs = CategoricalMetadataColumn(series).to_series()
 
         pd.testing.assert_series_equal(obs, series)
-        self.assertEqual(obs.dtype, 'str')
+        self.assertEqual(obs.dtype, CATEGORICAL_DTYPE)
 
     def test_leading_trailing_whitespace_value(self):
         col1 = CategoricalMetadataColumn(pd.Series(
@@ -1148,10 +1154,11 @@ class TestCategoricalMetadataColumn(unittest.TestCase):
 
         exp = pd.Series(
             [np.nan, 'foo', np.nan, np.nan], name='col1',
+            dtype=CATEGORICAL_DTYPE,
             index=pd.Index(['a', 'b', 'c', 'd'], name='id'))
 
         pd.testing.assert_series_equal(obs, exp)
-        self.assertEqual(obs.dtype, 'str')
+        self.assertEqual(obs.dtype, CATEGORICAL_DTYPE)
         self.assertTrue(np.isnan(obs['a']))
         self.assertTrue(np.isnan(obs['c']))
         self.assertTrue(np.isnan(obs['d']))
