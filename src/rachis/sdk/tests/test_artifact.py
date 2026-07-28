@@ -434,6 +434,7 @@ class TestArtifact(unittest.TestCase, ArchiveTestingMixin):
         nested = test_dir / '.dotdir' / 'nested'
         nested.touch()
 
+        # If dotfiles weren't ignored, this would fail.
         Artifact.import_data(SingleInt, test_dir)
 
 
