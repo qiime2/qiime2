@@ -85,4 +85,4 @@ line-length = 79
 
 [tool.ruff.lint]
 # equivalent for flake8
-extend-select = ["E", "F", "W"]
+select = ["E", "F", "W"]
