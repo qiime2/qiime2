@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from enum import Enum
 import pathlib
-from typing import TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING
 if TYPE_CHECKING:
-    from rachis.plugin.plugin import TransformerRecord
+    from rachis.plugin.plugin import TransformerRecord, ViewRecord
 
 from rachis import sdk
 from rachis.plugin import model
@@ -400,8 +400,27 @@ def find_transformation_path(start: type, target: type) -> SearchNode | None:
         node_queue.insert_neighbors(current)
 
 
-def compose_transformation(target: SearchNode | None, recorder = None):
+def compose_transformation(
+    target: SearchNode | None,
+    recorder: Callable | None = None,
+) -> Callable:
     '''
+    Records transformation provenance and composes a transformer closure
+    that ties together one or more individual transformations.
+
+    Parameters
+    ----------
+    target : SearchNode | None
+        The type that we wish to transform to. The transformation path is
+        encoded in its ancestors. None if no transformation path was found.
+    recorder : Callable | None
+        The transformation provenance recording function. None if caller does
+        not care about provenance, e.g. `Artifact.view`.
+
+    Returns
+    -------
+    Callable
+        The composed transformer closure.
     '''
     if target is None:
         return None
@@ -410,7 +429,7 @@ def compose_transformation(target: SearchNode | None, recorder = None):
 
     steps = target.steps()
 
-    if recorder is not None and len(steps) > 1:
+    if recorder is not None:
         registered_indices = [
             i for i, node in enumerate(steps)
             if node.transform_type is TransformType.registered
