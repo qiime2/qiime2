@@ -7,21 +7,24 @@
 # ----------------------------------------------------------------------------
 
 import unittest
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, patch
 from typing import Union
 from tempfile import TemporaryDirectory
 
 from rachis import Artifact
 from rachis import sdk
 from rachis.core import util
-from rachis.core.transform import ModelType
+from rachis.core.transform import (
+    ModelType, NodeQueue, SearchNode, TransformType, find_transformation_path
+)
 from rachis.core.testing.format import (
     FirstStepFormat, SecondStepFormat, ThirdStepFormat, FourthStepFormat,
     FifthStepFormat, Cephalapod, IntSequenceFormat, IntSequenceFormatV2,
-    IntSequenceDirectoryFormat, IntSequenceV2DirectoryFormat)
+    IntSequenceDirectoryFormat, IntSequenceV2DirectoryFormat
+)
 
 
-class TestTransitiveTransfomrers(unittest.TestCase):
+class TestTransitiveTransformers(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         with TemporaryDirectory() as tempdir:
@@ -74,6 +77,124 @@ class TestTransitiveTransfomrers(unittest.TestCase):
         """
         view = self.first_format.view(FifthStepFormat)
         self.assertEqual(type(view), FifthStepFormat)
+
+
+class TestTransitiveUpgradeSpec(unittest.TestCase):
+    _implicit = object()
+
+    def _make_path(self, *upgrades):
+        '''
+        Creates a dummy transformation path.
+
+        Parameters
+        ----------
+        *upgrades : list[None | True | False | self._implicit]
+            The upgrade types in the path. `None`, `True`, and `False`
+            represent registered transformers with `upgrade=None`,
+            `upgrade=True`, and `upgrade=False`, respectively. A
+            `self._implicit` represents an implicit (unregistered) transformer.
+
+        Returns
+        -------
+        SearchNode
+            A node storing the dummy transformation path in its ancestors.
+        '''
+        node = SearchNode(type('Start', (), {}))
+
+        for index, upgrade in enumerate(upgrades):
+            if upgrade is self._implicit:
+                record = None
+                transform_type = TransformType.wrap
+            else:
+                record = Mock(upgrade=upgrade)
+                transform_type = TransformType.registered
+
+            node = SearchNode(
+                type_=type(f'Step{index}', (), {}),
+                parent=node,
+                record=record,
+                transform_type=transform_type,
+            )
+
+        return node
+
+    def test_upgrade_none_only_is_valid(self):
+        '''
+        A path composed of a single `upgrade=None` step is valid because there
+        is only one and it occurs at an end (here, both ends).
+        '''
+        path = self._make_path(None)
+        self.assertTrue(path.validate_path())
+
+    def test_upgrade_none_first_is_valid(self):
+        '''
+        A path containing a single `upgrade=None` step as the first registered
+        step is valid.
+        '''
+        path = self._make_path(None, True)
+        self.assertTrue(path.validate_path())
+
+    def test_upgrade_none_last_is_valid(self):
+        '''
+        A path containging a single `upgrade=None` step as the last registered
+        step is valid.
+        '''
+        path = self._make_path(True, None)
+        self.assertTrue(path.validate_path())
+
+    def test_implicit_steps_do_not_affect_upgrade_none_position(self):
+        '''
+        Implicit (unregistered) steps do not determine the "ends" of the path.
+        Thus, the `upgrade=Nones` here are valid because they are the first or
+        last registered transformers.
+        '''
+        paths = [
+            self._make_path(
+                self._implicit, None, True, self._implicit
+            ),
+            self._make_path(
+                self._implicit, True, None, self._implicit
+            ),
+        ]
+        for path in paths:
+            self.assertTrue(path.validate_path())
+
+    def test_upgrade_none_in_middle_is_invalid(self):
+        '''
+        A path containing an `upgrade=None` step that occurs between registered
+        steps is invalid.
+        '''
+        path = self._make_path(True, None, True)
+        self.assertFalse(path.validate_path())
+
+    def test_multiple_upgrade_none_steps_are_invalid(self):
+        '''
+        A path may not contain more than one `upgrade=None` step, even if they
+        occur at the ends.
+        '''
+        path = self._make_path(None, True, None)
+        self.assertFalse(path.validate_path())
+
+    def test_search_continues_after_invalid_target_path(self):
+        '''
+        Shows that an invalid target path which is explored first does not
+        prevent finding a valid one later on.
+        '''
+        class Target:
+            pass
+
+        invalid_target = self._make_path(True, None, True)
+        invalid_target.type_ = Target
+        valid_target = self._make_path(True, None)
+        valid_target.type_ = Target
+
+        with patch.object(
+            NodeQueue, 'pop', side_effect=[invalid_target, valid_target]
+        ) as pop:
+            target = find_transformation_path(object, Target)
+
+        self.assertIs(target, valid_target)
+        self.assertEqual(pop.call_count, 2)
 
 
 class TestTransformationRecorder(unittest.TestCase):
