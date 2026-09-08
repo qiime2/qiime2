@@ -27,19 +27,21 @@ class TestTransitiveTransfomrers(unittest.TestCase):
 
     def test_first_to_third(self):
         """
-        Path exists and is upgraded.
+        Path exists and each hop is `upgrade=True`.
         FirstStepFormat -> SecondStepFormat -> ThirdStepFormat
         """
-        view = self.first_format.view(ThirdStepFormat)
-        self.assertEqual(type(view), ThirdStepFormat)
+        transformed = self.first_format.view(ThirdStepFormat)
+        self.assertEqual(type(transformed), ThirdStepFormat)
 
-    def test_first_to_fourth_fails(self):
+    def test_first_to_fourth(self):
         """
-        Path exists but is not upgraded.
-        FirstStepFormat -> SecondStepFormat -> ThirdStepFormat -None-> Fourth
+        The transformation from `FirstStepFormat` to `FourthStepFormat` uses
+        an `upgrade=None` transformer from `ThirdStepFormat` to
+        `FourthStepFormat`. This is allowed because there is only one
+        `upgrade=None` hop, and it occurs at one of the ends of the path.
         """
-        with self.assertRaisesRegex(Exception, 'No transformation from'):
-            self.first_format.view(FourthStepFormat)
+        transformed = self.first_format.view(FourthStepFormat)
+        self.assertEqual(type(transformed), FourthStepFormat)
 
     def test_union_transitivity(self):
         """
