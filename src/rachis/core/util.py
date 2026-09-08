@@ -42,6 +42,17 @@ _PUBKEY_ALG = {
 }
 
 
+def in_test_mode():
+    """Whether the framework is running in test mode.
+
+    Test mode is enabled by setting either RACHISTEST or QIIMETEST to any
+    value, including an empty one. QIIMETEST is the historical name for this
+    variable and remains supported; the two are interchangeable.
+
+    """
+    return 'RACHISTEST' in os.environ or 'QIIMETEST' in os.environ
+
+
 def get_view_name(view):
     from .format import FormatBase
     if not isinstance(view, type):
@@ -145,8 +156,7 @@ def has_checksum_native(checksum_type):
 
 
 def checksum(filepath, checksum_type):
-    if os.environ.get('QIIMETEST') is None \
-            and has_checksum_native(checksum_type):
+    if not in_test_mode() and has_checksum_native(checksum_type):
         return checksum_native(filepath, checksum_type)
     else:
         return checksum_python(filepath, checksum_type)
@@ -202,8 +212,7 @@ def checksum_zip(zf: zipfile.ZipFile, filepath: str,
 
 
 def checksum_directory(directory, checksum_type):
-    if os.environ.get('QIIMETEST') is None \
-            and has_checksum_native(checksum_type):
+    if not in_test_mode() and has_checksum_native(checksum_type):
         checksum = checksum_native
     else:
         checksum = checksum_python
