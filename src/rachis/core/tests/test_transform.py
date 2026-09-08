@@ -197,7 +197,7 @@ class TestTransitiveUpgradeSpec(unittest.TestCase):
         self.assertEqual(pop.call_count, 2)
 
 
-class TestCompetingPathPreferences(unittest.TestCase):
+class _TransformationGraphTestCase(unittest.TestCase):
     def _find_path(self, start, target, edges):
         '''
         Find a transformation path through the search graph represented in
@@ -233,6 +233,8 @@ class TestCompetingPathPreferences(unittest.TestCase):
         ):
             return find_transformation_path(start, target)
 
+
+class TestCompetingPathPreferences(_TransformationGraphTestCase):
     def test_longer_upgrade_only_path_preferred_to_shorter_false_path(self):
         '''
         A path containing only `upgrade=True` transformations of length 4 is
@@ -433,6 +435,116 @@ class TestCompetingPathPreferences(unittest.TestCase):
         )
         self.assertEqual(
             [node.type_ for node in false_registered_first.steps()], expected
+        )
+
+
+class TestTransformationPathCycles(_TransformationGraphTestCase):
+    def test_reachable_target_with_cycle(self):
+        '''
+        Shows that the presence of a cycle in the transformation graph does
+        not preclude the target from being found.
+        '''
+        class Start:
+            pass
+
+        class First:
+            pass
+
+        class Second:
+            pass
+
+        class Target:
+            pass
+
+        path = self._find_path(
+            Start,
+            Target,
+            [
+                (Start, First, True),
+                (First, Second, True),
+                (Second, First, True),
+                (Second, Target, True),
+            ],
+        )
+
+        self.assertEqual(
+            [node.type_ for node in path.steps()],
+            [Start, First, Second, Target],
+        )
+
+    def test_unreachable_target_with_cycle(self):
+        '''
+        Shows that a transformation graph with a cycle but no valid path does
+        not hang forever.
+        '''
+        class Start:
+            pass
+
+        class First:
+            pass
+
+        class Second:
+            pass
+
+        class Target:
+            pass
+
+        path = self._find_path(
+            Start,
+            Target,
+            [
+                (Start, First, True),
+                (First, Second, True),
+                (Second, First, True),
+            ],
+        )
+
+        self.assertIsNone(path)
+
+    def test_reconverging_paths_preserve_path_history(self):
+        '''
+        A type reached through one path does not prevent it from being reached
+        and extended through another path with different history.
+
+        The shorter path to `Merge` produces the invalid sequence
+        [True, None, True]. The longer path produces the valid sequence
+        [None, True, True, True]. We know that the shorter path to `Merge`
+        is discovered first due to queue ordering.
+        '''
+        class Start:
+            pass
+
+        class InvalidBranch:
+            pass
+
+        class ValidBranch:
+            pass
+
+        class Detour:
+            pass
+
+        class Merge:
+            pass
+
+        class Target:
+            pass
+
+        path = self._find_path(
+            Start,
+            Target,
+            [
+                (Start, InvalidBranch, True),
+                (InvalidBranch, Merge, None),
+                (Start, ValidBranch, None),
+                (ValidBranch, Detour, True),
+                (Detour, Merge, True),
+                (Merge, Target, True),
+            ],
+        )
+
+        self.assertEqual(
+            [node.type_ for node in path.steps()],
+            [Start, ValidBranch, Detour, Merge, Target],
         )
 
 
