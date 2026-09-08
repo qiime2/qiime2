@@ -18,29 +18,10 @@ from rachis.plugin import model
 from rachis.core import util
 
 
-def identity_transformer(view):
-    return view
-
-
 class ModelType:
     @staticmethod
     def from_view_type(view_type):
         if issubclass(view_type, model.base.FormatBase):
-            if issubclass(view_type,
-                          model.SingleFileDirectoryFormatBase):
-                # HACK: this is necessary because we need to be able to "act"
-                # like a FileFormat when looking up transformers, but our
-                # input/output coercion still needs to bridge the
-                # transformation as we do not have transitivity
-
-                # In other words we have DX and we have transformers of X
-                # In a perfect world we would automatically define DX -> X and
-                # let transitivity handle it, but since that doesn't exist, we
-                # need to treat DX as if it were X and coerce behind the scenes
-
-                # TODO: redo this when transformers are transitive
-                return SingleFileDirectoryFormatType(view_type)
-            # Normal format type
             return FormatType(view_type)
         else:
             # TODO: supporting stdlib.typing may require an alternate
@@ -68,45 +49,25 @@ class ModelType:
 
         return compose_transformation(target_node, recorder=recorder)
 
-    def _get_transformer_to(self, other):
-        transformer, record = self._lookup_transformer(self._view_type,
-                                                       other._view_type)
-        if transformer is None:
-            return other._get_transformer_from(self)
-
-        return transformer, record
-
     def has_transformation(self, other):
-        """ Checks to see if there exist transformers for other
+        """
+        Checks to see if there exists a transformation to `other`.
 
         Parameters
         ----------
         other : ModelType subclass
-           The object being checked for transformer
+            The type to check for transformation to.
 
         Returns
         -------
         bool
-            Does the specified transformer exist for other?
+            Does a transformation path to `other` exist?
         """
-
-        transformer, _ = self._get_transformer_to(other)
-        return transformer is not None
-
-    def _get_transformer_from(self, other):
-        return None, None
+        path = find_transformation_path(self._view_type, other._view_type)
+        return path is not None
 
     def coerce_view(self, view):
         return view
-
-    def _lookup_transformer(self, from_, to_):
-        if from_ == to_:
-            return identity_transformer, None
-
-        search_node = find_transformation_path(from_, to_)
-        if search_node is None or search_node.record is None:
-            return None, None
-        return search_node.record.transformer, search_node.record
 
     def set_user_owned(self, view, value):
         pass
@@ -133,87 +94,6 @@ class FormatType(ModelType):
 
     def set_user_owned(self, view, value):
         view.path._user_owned = value
-
-
-class SingleFileDirectoryFormatType(FormatType):
-    def __init__(self, view_type):
-        # Single file directory formats have only one file named `file`
-        # allowing us construct a model type from the format of `file`
-        self._wrapped_view_type = view_type.file.format
-        super().__init__(view_type)
-
-    def _get_transformer_to(self, other):
-        # Legend:
-        # - Dx: single directory format of x
-        # - Dy: single directory format of y
-        # - x: input format x
-        # - y: output format y
-        # - ->: implicit transformer
-        # - =>: registered transformer
-        # - :> final transformation
-        # - |: or, used when multiple situation are possible
-
-        # It looks like all permutations because it is...
-
-        # Dx :> y | Dy via Dx => y | Dy
-        transformer, record = self._wrap_transformer(self, other)
-        if transformer is not None:
-            return transformer, record
-
-        # Dx :> Dy via Dx -> x => y | Dy
-        transformer, record = self._wrap_transformer(self, other,
-                                                     wrap_input=True)
-        if transformer is not None:
-            return transformer, record
-
-        if type(other) is type(self):
-            # Dx :> Dy via Dx -> x => y -> Dy
-            transformer, record = self._wrap_transformer(
-                self, other, wrap_input=True, wrap_output=True)
-            if transformer is not None:
-                return transformer, record
-
-        # Out of options, try for Dx :> Dy via Dx => y -> Dy
-        return other._get_transformer_from(self)  # record is included
-
-    def _get_transformer_from(self, other):
-        # x | Dx :> Dy via x | Dx => y -> Dy
-        # IMPORTANT: reverse other and self, this method is like __radd__
-        return self._wrap_transformer(other, self, wrap_output=True)
-
-    def _wrap_transformer(self, in_, out_, wrap_input=False,
-                          wrap_output=False):
-        input = in_._wrapped_view_type if wrap_input else in_._view_type
-        output = out_._wrapped_view_type if wrap_output else out_._view_type
-
-        transformer, record = self._lookup_transformer(input, output)
-        if transformer is None:
-            return None, None
-
-        if wrap_input:
-            transformer = in_._wrap_input(transformer)
-
-        if wrap_output:
-            transformer = out_._wrap_output(transformer)
-
-        return transformer, record
-
-    def _wrap_input(self, transformer):
-        def wrapped(view):
-            return transformer(view.file.view(self._wrapped_view_type))
-
-        return wrapped
-
-    def _wrap_output(self, transformer):
-        def wrapped(view):
-            new_view = self._view_type()
-            file_view = transformer(view)
-            if transformer is not identity_transformer:
-                self.set_user_owned(file_view, False)
-            new_view.file.write_data(file_view, self._wrapped_view_type)
-            return new_view
-
-        return wrapped
 
 
 class ObjectType(ModelType):
@@ -259,10 +139,9 @@ class SearchNode:
     def __init__(
         self,
         type_: type,
-        parent: SearchNode | None,
+        parent: SearchNode | None = None,
         record: TransformerRecord | None = None,
-        transform_type: TransformType = TransformType.registered,
-        wrapped: bool = False
+        transform_type: TransformType | None = None,
     ):
         '''
         Parameters
@@ -276,16 +155,13 @@ class SearchNode:
             The `TransformerRecord` as registered in `Plugin.transformers` when
             the transformation from parent to self was registered, or None for
             wrap/unwrap transformations.
-        transform_type : TransformType
-            See `TransformType`.
-        wrapped : bool
-
+        transform_type : TransformType | None
+            See `TransformType`. None if node is starting node in search.
         '''
         self.type_ = type_
         self.parent = parent
         self.record = record
         self.transform_type = transform_type
-        self.wrapped = wrapped
 
     def __len__(self):
         '''
@@ -459,6 +335,7 @@ class NodeQueue:
                 type_=neighbor,
                 parent=node,
                 record=transform_record,
+                transform_type=TransformType.registered
             )
             if not node.has_ancestor(neighbor):
                 self.push(neighbor)
@@ -471,7 +348,6 @@ class NodeQueue:
                 record=None,
                 transform_type=TransformType.unwrap,
             )
-            node.wrapped = True
             if not node.has_ancestor(neighbor):
                 self.push(neighbor)
 
@@ -484,7 +360,6 @@ class NodeQueue:
                     record=None,
                     transform_type=TransformType.wrap,
                 )
-                node.wrapped = True
                 if not node.has_ancestor(neighbor):
                     self.push(neighbor)
 
@@ -506,7 +381,7 @@ def find_transformation_path(start: type, target: type) -> SearchNode | None:
     SearchNode | None
         A SearchNode of the target type, if reachable, otherwise None.
     '''
-    current = SearchNode(type_=start, parent=None)
+    current = SearchNode(type_=start)
 
     node_queue = NodeQueue()
     node_queue.push(current)
@@ -526,6 +401,8 @@ def find_transformation_path(start: type, target: type) -> SearchNode | None:
 
 
 def compose_transformation(target: SearchNode | None, recorder = None):
+    '''
+    '''
     if target is None:
         return None
 
@@ -533,35 +410,40 @@ def compose_transformation(target: SearchNode | None, recorder = None):
 
     steps = target.steps()
 
-    if recorder is not None:
-        for i in range(len(steps) - 1):
-            name  = util.get_view_name(steps[i].type_)
-            view = pm.views.get(name)
-            if steps[i].wrapped:
-                continue
-            elif steps[i + 1].wrapped:
-                try:
-                    parent_name = util.get_view_name(steps[i + 2].type_)
-                    parent_view = pm.views.get(parent_name)
-                    recorder(
-                        steps[i + 1].record,
-                        name,
-                        view,
-                        parent_name,
-                        parent_view
-                    )
-                except IndexError:
-                    pass
-            else:
-                parent_name = util.get_view_name(steps[i + 1].type_)
-                parent_view = pm.views.get(parent_name)
-                recorder(
-                    steps[i + 1].record,
-                    name,
-                    view,
-                    parent_name,
-                    parent_view
-                )
+    if recorder is not None and len(steps) > 1:
+        registered_indices = [
+            i for i, node in enumerate(steps)
+            if node.transform_type is TransformType.registered
+        ]
+
+        if registered_indices:
+            recorded_steps = []
+            start = 0
+            for index in registered_indices:
+               recorded_steps.append(
+                   (start, index, steps[index].record)
+               )
+               start = index
+
+            # the last entry must point to the last type in the chain, even
+            # if not registered
+            last = recorded_steps[-1]
+            amended = (last[0], len(steps) - 1, last[2])
+            recorded_steps[-1] = amended
+        else:
+            # a path of only implicit transformations has one entry, no record
+            recorded_steps = [(0, len(steps) - 1, None)]
+
+        for start, end, record in recorded_steps:
+            input_name = util.get_view_name(steps[start].type_)
+            output_name = util.get_view_name(steps[end].type_)
+            recorder(
+                record,
+                input_name=input_name,
+                input_record=pm.views.get(input_name),
+                output_name=output_name,
+                output_record=pm.views.get(output_name),
+            )
 
     if len(steps) == 1:
         def identity_transformation(view, validate_level='min'):
@@ -584,7 +466,7 @@ def compose_transformation(target: SearchNode | None, recorder = None):
             elif steps[i + 1].transform_type == TransformType.unwrap:
                 transformer = unwrap_transformer(from_type)
             else:
-                transformer = pm.transformers[from_type][to_type].transformer
+                transformer = steps[i + 1].record.transformer
 
             from_mt = ModelType.from_view_type(from_type)
             to_mt = ModelType.from_view_type(to_type)
