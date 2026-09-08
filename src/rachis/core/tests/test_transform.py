@@ -1,3 +1,11 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2016-2026, QIIME 2 development team.
+#
+# Distributed under the terms of the Modified BSD License.
+#
+# The full license is in the file LICENSE, distributed with this software.
+# ----------------------------------------------------------------------------
+
 import unittest
 from unittest.mock import Mock, call
 from typing import Union
@@ -25,7 +33,7 @@ class TestTransitiveTransfomrers(unittest.TestCase):
             type='IntSequence1', view=[1, 2, 3]
         )
 
-    def test_first_to_third(self):
+    def test_upgrade_true_only_path(self):
         """
         Path exists and each hop is `upgrade=True`.
         FirstStepFormat -> SecondStepFormat -> ThirdStepFormat
@@ -33,7 +41,7 @@ class TestTransitiveTransfomrers(unittest.TestCase):
         transformed = self.first_format.view(ThirdStepFormat)
         self.assertEqual(type(transformed), ThirdStepFormat)
 
-    def test_first_to_fourth(self):
+    def test_upgrade_none_allowed_at_end_of_transformation_path(self):
         """
         The transformation from `FirstStepFormat` to `FourthStepFormat` uses
         an `upgrade=None` transformer from `ThirdStepFormat` to

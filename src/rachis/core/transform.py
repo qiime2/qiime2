@@ -11,7 +11,7 @@ from enum import Enum
 import pathlib
 from typing import Callable, TYPE_CHECKING
 if TYPE_CHECKING:
-    from rachis.plugin.plugin import TransformerRecord, ViewRecord
+    from rachis.plugin.plugin import TransformerRecord
 
 from rachis import sdk
 from rachis.plugin import model
