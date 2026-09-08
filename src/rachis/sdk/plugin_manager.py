@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import collections
-import os
 import importlib.metadata
 import enum
 
