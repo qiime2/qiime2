@@ -197,6 +197,245 @@ class TestTransitiveUpgradeSpec(unittest.TestCase):
         self.assertEqual(pop.call_count, 2)
 
 
+class TestCompetingPathPreferences(unittest.TestCase):
+    def _find_path(self, start, target, edges):
+        '''
+        Find a transformation path through the search graph represented in
+        `edges`. Mocks the plugin manager to create artificial transformers
+        for each of the graph edges in `edges`.
+
+        Parameters
+        ----------
+        start : type
+            The starting type for the transformation path.
+        target : type
+            The target type for the transformation path.
+        edges : list[tuple[type, type, bool | None]]
+            Transformers represented by source type, target type, and upgrade
+            classification. Their order determines registration order.
+
+        Returns
+        -------
+        SearchNode | None
+            A `SearchNode` representing the discovered path, or None if no
+            path was found.
+        '''
+        transformers = {}
+        for source, destination, upgrade in edges:
+            transformers.setdefault(source, {})[destination] = Mock(
+                upgrade=upgrade
+            )
+
+        plugin_manager = Mock(transformers=transformers)
+        with patch(
+            'rachis.core.transform.sdk.PluginManager',
+            return_value=plugin_manager,
+        ):
+            return find_transformation_path(start, target)
+
+    def test_longer_upgrade_only_path_preferred_to_shorter_false_path(self):
+        '''
+        A path containing only `upgrade=True` transformations of length 4 is
+        preferred over a path containing an `upgrade=False` transformation of
+        length 2. Shows that true-only paths are prioritized regardless of
+        length.
+        '''
+        class Start:
+            pass
+
+        class First:
+            pass
+
+        class Second:
+            pass
+
+        class Target:
+            pass
+
+        path = self._find_path(
+            Start,
+            Target,
+            [
+                (Start, Target, False),
+                (Start, First, True),
+                (First, Second, True),
+                (Second, Target, True),
+            ],
+        )
+
+        self.assertEqual(
+            [node.type_ for node in path.steps()],
+            [Start, First, Second, Target],
+        )
+
+    def test_longer_false_path_preferred_to_shorter_none_path(self):
+        '''
+        A path containing an `upgrade=False` transformations of length 4 is
+        preferred over a path containing an `upgrade=None` transformation of
+        length 2. Shows that non-None paths are prioritized over
+        None-containing paths regardless of length.
+        '''
+        class Start:
+            pass
+
+        class First:
+            pass
+
+        class Second:
+            pass
+
+        class Target:
+            pass
+
+        path = self._find_path(
+            Start,
+            Target,
+            [
+                (Start, Target, None),
+                (Start, First, False),
+                (First, Second, True),
+                (Second, Target, True),
+            ],
+        )
+
+        self.assertEqual(
+            [node.type_ for node in path.steps()],
+            [Start, First, Second, Target],
+        )
+
+    def test_shorter_path_preferred_within_same_classification(self):
+        '''
+        Asserts that within a path classification (upgrade-only,
+        includes-false, includes-none), the shortest path is preferred. Here
+        the includes-false class is used.
+        '''
+        class Start:
+            pass
+
+        class Short:
+            pass
+
+        class LongFirst:
+            pass
+
+        class LongSecond:
+            pass
+
+        class Target:
+            pass
+
+        path = self._find_path(
+            Start,
+            Target,
+            [
+                (Start, Short, False),
+                (Start, LongFirst, False),
+                (Short, Target, True),
+                (LongFirst, LongSecond, True),
+                (LongSecond, Target, True),
+            ],
+        )
+
+        self.assertEqual(
+            [node.type_ for node in path.steps()],
+            [Start, Short, Target],
+        )
+
+    def test_true_preference_independent_of_registration_order(self):
+        '''
+        A path containing only `upgrade=True` steps is preferred over a path
+        with an `upgrade=False` step regardless of the order in which the
+        differing transformers are registered.
+        '''
+        class Start:
+            pass
+
+        class UpgradeOnly:
+            pass
+
+        class IncludesFalse:
+            pass
+
+        class Target:
+            pass
+
+        false_registered_first = self._find_path(
+            Start,
+            Target,
+            [
+                (Start, IncludesFalse, False),
+                (Start, UpgradeOnly, True),
+                (UpgradeOnly, Target, True),
+                (IncludesFalse, Target, True),
+            ],
+        )
+        true_registered_first = self._find_path(
+            Start,
+            Target,
+            [
+                (Start, UpgradeOnly, True),
+                (Start, IncludesFalse, False),
+                (UpgradeOnly, Target, True),
+                (IncludesFalse, Target, True),
+            ],
+        )
+
+        expected = [Start, UpgradeOnly, Target]
+        self.assertEqual(
+            [node.type_ for node in false_registered_first.steps()], expected
+        )
+        self.assertEqual(
+            [node.type_ for node in true_registered_first.steps()], expected
+        )
+
+    def test_false_preference_independent_of_registration_order(self):
+        '''
+        A path containing `upgrade=False` but no `upgrade=None` steps is
+        preferred over a path with an `upgrade=None` step regardless of the
+        order in which the differing transformers registered.
+        '''
+        class Start:
+            pass
+
+        class IncludesFalse:
+            pass
+
+        class IncludesNone:
+            pass
+
+        class Target:
+            pass
+
+        none_registered_first = self._find_path(
+            Start,
+            Target,
+            [
+                (Start, IncludesNone, None),
+                (Start, IncludesFalse, False),
+                (IncludesFalse, Target, True),
+                (IncludesNone, Target, True),
+            ],
+        )
+        false_registered_first = self._find_path(
+            Start,
+            Target,
+            [
+                (Start, IncludesFalse, False),
+                (Start, IncludesNone, None),
+                (IncludesFalse, Target, True),
+                (IncludesNone, Target, True),
+            ],
+        )
+
+        expected = [Start, IncludesFalse, Target]
+        self.assertEqual(
+            [node.type_ for node in none_registered_first.steps()], expected
+        )
+        self.assertEqual(
+            [node.type_ for node in false_registered_first.steps()], expected
+        )
+
+
 class TestTransformationRecorder(unittest.TestCase):
     def setUp(self):
         self.pm = sdk.PluginManager()
