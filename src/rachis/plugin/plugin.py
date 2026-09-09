@@ -341,7 +341,9 @@ class Plugin:
             return validator
         return decorator
 
-    def register_transformer(self, _fn=None, *, citations=None, upgrade=None):
+    def register_transformer(
+        self, _fn=None, *, citations=None, upgrade: Optional[bool] = None
+    ):
         """ **Decorator** which registers a transformer to convert data
 
         Parameters
@@ -412,6 +414,14 @@ class Plugin:
         # def _(x: A) -> B:
         #   ...
         # ```
+        if (
+            upgrade is not True and upgrade is not False
+            and upgrade is not None
+        ):
+            raise TypeError(
+                'The upgrade parameter must be one of True, False, or None.'
+            )
+
         citations = _make_citations_tuple(citations)
 
         def decorator(transformer):
