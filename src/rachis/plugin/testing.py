@@ -19,7 +19,8 @@ from rachis.sdk.parallel_config import ParallelConfig
 from rachis.plugin.util import transform
 from rachis.plugin.model.base import FormatBase
 
-# This is to be used by plugins with parallel testing that do not set QIIMETEST
+# This is to be used by plugins with parallel testing that do not
+# set RACHISTEST (or the historical QIIMETEST)
 # it uses a ThreadPoolExecutor only to avoid the HighThroughputExecutor issues
 # mentioned above. It also ensures all tests will in theory be using the same
 # config not beholden to potential issues with vendored configs being

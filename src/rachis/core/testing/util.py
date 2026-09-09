@@ -18,10 +18,10 @@ def get_dummy_plugin():
     plugin_manager = rachis.sdk.PluginManager()
     if 'dummy-plugin' not in plugin_manager.plugins:
         raise RuntimeError(
-            "When running QIIME 2 unit tests, the QIIMETEST environment "
-            "variable must be defined so that plugins required by unit tests "
-            "are loaded. The value of the QIIMETEST environment variable can "
-            "be anything. Example command: QIIMETEST=1 nosetests")
+            "When running rachis unit tests, the RACHISTEST environment "
+            "variable (or the historical QIIMETEST variable) must be defined "
+            "so that plugins required by unit tests are loaded. The value can "
+            "be anything. Example command: RACHISTEST=1 pytest")
     return plugin_manager.plugins['dummy-plugin']
 
 

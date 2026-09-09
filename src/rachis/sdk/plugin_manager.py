@@ -7,7 +7,6 @@
 # ----------------------------------------------------------------------------
 
 import collections
-import os
 import importlib.metadata
 import enum
 
@@ -17,6 +16,7 @@ from rachis.plugin.model import SingleFileDirectoryFormatBase
 from rachis.core.validate import ValidationObject
 from rachis.sdk.util import parse_type
 from rachis.core.type import is_semantic_type
+from rachis.core.util import in_test_mode
 
 
 class GetFormatFilters(enum.Flag):
@@ -40,15 +40,15 @@ class PluginManager:
     def iter_entry_points(cls):
         """Yield QIIME 2 plugin entry points.
 
-        If the QIIMETEST environment variable is set, only the framework
-        testing plugin entry point (`dummy-plugin`) will be yielded. Otherwise,
-        all available plugin entry points (excluding `dummy-plugin`) will be
-        yielded.
+        If the RACHISTEST (or legacy QIIMETEST) environment variable is
+        set, only the framework testing plugin entry point (`dummy-plugin`)
+        will be yielded. Otherwise, all available plugin entry points
+        (excluding `dummy-plugin`) will be yielded.
 
         """
         for entry_point in importlib.metadata.entry_points(
                 group=cls.entry_point_group):
-            if 'QIIMETEST' in os.environ:
+            if in_test_mode():
                 if entry_point.name in ('dummy-plugin', 'other-plugin'):
                     yield entry_point
             else:
@@ -56,7 +56,7 @@ class PluginManager:
                     yield entry_point
 
         # backwards compatibility
-        if 'QIIMETEST' not in os.environ:
+        if not in_test_mode():
             for entry_point in importlib.metadata.entry_points(
                     group='qiime2.plugins'):
                 yield entry_point

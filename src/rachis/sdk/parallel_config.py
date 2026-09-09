@@ -109,8 +109,10 @@ def get_vendored_config():
 
     NOTE: Does NOT load the config
     """
+    from rachis.core.util import in_test_mode
+
     # If we are running tests, get the test config not the normal one
-    if 'QIIMETEST' in os.environ:
+    if in_test_mode():
         source = 'test config dict'
         config_dict = copy.copy(_TEST_CONFIG_)
     else:
@@ -421,7 +423,9 @@ class ParallelConfig():
 
 # TESTING STUFF #
 def _check_env(cls):
-    if 'QIIMETEST' not in os.environ:
+    from rachis.core.util import in_test_mode
+
+    if not in_test_mode():
         raise ValueError(
             f"Do not instantiate the class '{cls}' when not testing")
 
