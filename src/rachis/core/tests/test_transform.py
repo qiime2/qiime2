@@ -18,7 +18,7 @@ from rachis.core.transform import (
     ModelType, NodeQueue, SearchNode, TransformType, compose_transformation,
     find_transformation_path
 )
-from rachis.plugin import TextFileFormat
+from rachis.plugin import SingleFileDirectoryFormat, TextFileFormat
 from rachis.core.testing.format import (
     FirstStepFormat, SecondStepFormat, ThirdStepFormat, FourthStepFormat,
     FifthStepFormat, Cephalapod, IntSequenceFormat, IntSequenceFormatV2,
@@ -728,6 +728,44 @@ class TestTransformationComposition(unittest.TestCase):
         self.assertEqual(result._mode, 'r')
         self.assertFalse(result.path._user_owned)
         self.assertTrue(result.path.exists())
+
+    def test_implicit_unwrap_rewrap_preserves_source_file(self):
+        '''
+        Tests the special case where an unwrap transformation is followed by a
+        wrap transformation and ensures that the source file is copied, not
+        moved. Because unwrap transformers create no new storage we must ensure
+        that the resulting output is marked `user_owned=True`.
+        '''
+        SourceFormat = SingleFileDirectoryFormat(
+            'SourceFormat', 'source.txt', IntSequenceFormat
+        )
+        TargetFormat = SingleFileDirectoryFormat(
+            'TargetFormat', 'target.txt', IntSequenceFormat
+        )
+
+        source = SourceFormat()
+        source_member = source.file.path_maker()
+        source_member.write_text('1\n2\n')
+        self.assertTrue(source.path._user_owned)
+
+        node = SearchNode(SourceFormat)
+        node = SearchNode(
+            IntSequenceFormat,
+            parent=node,
+            transform_type=TransformType.unwrap,
+        )
+        node = SearchNode(
+            TargetFormat,
+            parent=node,
+            transform_type=TransformType.wrap,
+        )
+
+        result = compose_transformation(node)(source)
+        target_member = result.file.path_maker()
+
+        # path was not moved into TargetFormat
+        self.assertTrue(source_member.exists())
+        self.assertEqual(target_member.read_text(), source_member.read_text())
 
 
 class TestTransformationRecorder(unittest.TestCase):

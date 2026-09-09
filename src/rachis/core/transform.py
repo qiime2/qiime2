@@ -496,7 +496,12 @@ def compose_transformation(
 
             current = to_mt.coerce_view(current)
             to_mt.validate(current, level=validate_level)
-            to_mt.set_user_owned(current, False)
+
+            # an unwrap aliases a file in the source directory; if we keep
+            # that file user-owned then a subsequent wrap copies it instead of
+            # moving it out from under a user's feet
+            if steps[i + 1].transform_type is not TransformType.unwrap:
+                to_mt.set_user_owned(current, False)
 
         return current
 
