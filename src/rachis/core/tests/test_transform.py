@@ -15,8 +15,10 @@ from rachis import Artifact
 from rachis import sdk
 from rachis.core import util
 from rachis.core.transform import (
-    ModelType, NodeQueue, SearchNode, TransformType, find_transformation_path
+    ModelType, NodeQueue, SearchNode, TransformType, compose_transformation,
+    find_transformation_path
 )
+from rachis.plugin import TextFileFormat
 from rachis.core.testing.format import (
     FirstStepFormat, SecondStepFormat, ThirdStepFormat, FourthStepFormat,
     FifthStepFormat, Cephalapod, IntSequenceFormat, IntSequenceFormatV2,
@@ -68,7 +70,18 @@ class TestTransitiveTransformers(unittest.TestCase):
         upgrading the path.
         """
         view = self.int_sequence.view(list)
-        self.assertEqual(type(view), list)
+        self.assertEqual(view, [1, 2, 3])
+
+    def test_implicit_steps_preserve_payload_and_return_user_owned_view(self):
+        """
+        An implicit unwrap and wrap surrounding a registered transformation
+        preserve payload data. The final format returned by `Artifact.view`
+        is user-owned.
+        """
+        view = self.int_sequence.view(IntSequenceV2DirectoryFormat)
+
+        self.assertEqual(view.file.view(list), [1, 2, 3])
+        self.assertTrue(view.path._user_owned)
 
     def test_lossy_transformer(self):
         """
@@ -546,6 +559,175 @@ class TestTransformationPathCycles(_TransformationGraphTestCase):
             [node.type_ for node in path.steps()],
             [Start, ValidBranch, Detour, Merge, Target],
         )
+
+
+class TestTransformationComposition(unittest.TestCase):
+    def _compose_registered_path(self, types, transformers):
+        '''
+        Compose a transformation closure from a series of types and associated
+        transformers.
+        '''
+        node = SearchNode(types[0])
+        for type_, transformer in zip(types[1:], transformers):
+            node = SearchNode(
+                type_=type_,
+                parent=node,
+                record=Mock(transformer=transformer),
+                transform_type=TransformType.registered,
+            )
+
+        return compose_transformation(node)
+
+    def test_transformers_execute_in_order_and_pass_intermediate_value(self):
+        '''
+        Assert that each transformer receives the expected value produced by
+        the expected prior step.
+        '''
+        class First:
+            def __init__(self, value):
+                self.value = value
+
+        class Second:
+            def __init__(self, value):
+                self.value = value
+
+        class Third:
+            def __init__(self, value):
+                self.value = value
+
+        calls = []
+
+        def first_to_second(view):
+            calls.append(('first-to-second', view.value))
+            return Second(view.value + 1)
+
+        def second_to_third(view):
+            calls.append(('second-to-third', view.value))
+            return Third(view.value * 2)
+
+        transformation = self._compose_registered_path(
+            [First, Second, Third],
+            [first_to_second, second_to_third],
+        )
+
+        result = transformation(First(3))
+
+        self.assertEqual(
+            calls,
+            [('first-to-second', 3), ('second-to-third', 4)],
+        )
+        self.assertIsInstance(result, Third)
+        self.assertEqual(result.value, 8)
+
+    def test_validator_can_short_circuit_transformation_chain(self):
+        '''
+        Shows that validation will terminate a composed transformation if an
+        intermediate type is invalid.
+        '''
+        class First:
+            pass
+
+        class Second:
+            pass
+
+        class Third:
+            pass
+
+        first_to_second = Mock(return_value='uh-oh')
+        second_to_third = Mock(return_value=Third())
+        transformation = self._compose_registered_path(
+            [First, Second, Third],
+            [first_to_second, second_to_third],
+        )
+
+        with self.assertRaisesRegex(TypeError, 'cannot transform further'):
+            transformation(First())
+
+        first_to_second.assert_called_once()
+        second_to_third.assert_not_called()
+
+    def test_format_validation_ownership_and_lifetime(self):
+        '''
+        Shows that each format in the transformation chain is validated at
+        the same requested level. Also shows that intermediate formats remain
+        readable during the next hop and that transformation outputs are
+        marked as internally owned (`user_owned=False`).
+        '''
+        validations = []
+        transformer_calls = []
+
+        class TracedFormat(TextFileFormat):
+            label = None
+
+            def _validate_(self, level):
+                validations.append((self.label, level))
+
+        class FirstFormat(TracedFormat):
+            label = 'first'
+
+        class SecondFormat(TracedFormat):
+            label = 'second'
+
+        class ThirdFormat(TracedFormat):
+            label = 'third'
+
+        def write_format(format_, value):
+            result = format_()
+            with result.open() as fh:
+                fh.write(value)
+            return result
+
+        def first_to_second(view):
+            transformer_calls.append(
+                ('first-to-second', view._mode, view.path._user_owned,
+                 view.path.exists())
+            )
+            return write_format(SecondFormat, 'second')
+
+        def second_to_third(view):
+            with view.open() as fh:
+                intermediate_value = fh.read()
+            transformer_calls.append(
+                ('second-to-third', view._mode, view.path._user_owned,
+                 view.path.exists())
+            )
+            self.assertEqual(intermediate_value, 'second')
+            return write_format(ThirdFormat, 'third')
+
+        source = write_format(FirstFormat, 'first')
+        transformation = self._compose_registered_path(
+            [FirstFormat, SecondFormat, ThirdFormat],
+            [first_to_second, second_to_third],
+        )
+        result = transformation(source, validate_level='max')
+
+        self.assertEqual(
+            transformer_calls,
+            [
+                # source format is user_owned=True
+                ('first-to-second', 'r', True, True),
+                # transformed-to format is user_owned=False
+                ('second-to-third', 'r', False, True),
+            ],
+        )
+        self.assertEqual(
+            validations,
+            [
+                ('first', 'max'),
+                # SecondFormat is validated once as output from first-to-second
+                # transformer and again as input to second-to-third transformer
+                ('second', 'max'),
+                ('second', 'max'),
+                ('third', 'max'),
+            ],
+        )
+
+        self.assertTrue(source.path._user_owned)
+        self.assertTrue(source.path.exists())
+
+        self.assertEqual(result._mode, 'r')
+        self.assertFalse(result.path._user_owned)
+        self.assertTrue(result.path.exists())
 
 
 class TestTransformationRecorder(unittest.TestCase):
