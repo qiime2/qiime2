@@ -316,6 +316,9 @@ class Action(metaclass=abc.ABCMeta):
                     "outputs defined in signature: %d != %d" %
                     (len(outputs), len(self.signature.outputs)))
 
+            for output in outputs:
+                output._record_provenance = ctx._record_provenance
+
             # Wrap in a Results object mapping output name to value so
             # users have access to outputs by name or position.
             results = rachis.sdk.Results(

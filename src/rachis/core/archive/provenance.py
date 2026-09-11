@@ -661,7 +661,8 @@ class ActionProvenanceCapture(ProvenanceCapture):
 class PipelineProvenanceCapture(ActionProvenanceCapture):
     def make_action_section(self):
         action = super().make_action_section()
-        action['alias-of'] = str(self.alias.uuid)
+        if self.alias._record_provenance:
+            action['alias-of'] = str(self.alias.uuid)
 
         return action
 
@@ -692,7 +693,7 @@ class ReportProvenanceCapture(ProvenanceCapture):
 # the archiver, and that's it. So the internal artifacts are in the returned
 # artifact's provenance/artifacts dir and just look like uuid/metadata.yaml +
 # conda-env.yaml
-class NoOpProvenanceCapture(ProvenanceCapture):
+class NoOpProvenanceCapture(ActionProvenanceCapture):
     def __init__(self, *args, **kwargs):
         pass
 

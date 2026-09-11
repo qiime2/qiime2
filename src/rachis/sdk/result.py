@@ -135,6 +135,13 @@ class Result(IResult):
         return result
 
     @property
+    def record_provenance(self):
+        if hasattr(self, "_record_provenance"):
+            return self._record_provenance
+
+        return True
+
+    @property
     def type(self):
         return self._archiver.type
 
