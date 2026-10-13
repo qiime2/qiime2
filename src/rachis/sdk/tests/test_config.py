@@ -409,7 +409,7 @@ class TestParslConfigParsing(unittest.TestCase):
     def test_launchers(self):
         self._load_config('launchers.toml')
 
-    # UV was running my tests with parsl 2026.01.19 when my conda env had
+    # Nox was running my tests with parsl 2026.01.19 when my conda env had
     # 2026.02.23, so we need to skip this test when parsl is too old.
     @unittest.skipIf(PARSL_VERSION < (2026, 2, 23),
                      'SlurmProvider gained gpus_per_node and gres in parsl '
