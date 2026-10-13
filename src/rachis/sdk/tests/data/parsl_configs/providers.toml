@@ -1,5 +1,5 @@
 # Every option of each provider that ships with parsl and does not need an
-# optional dependency
+# optional dependency, except the options in slurm_provider_gpus.toml
 [parsl]
 
 [[parsl.executors]]
@@ -33,8 +33,6 @@ clusters = "cluster1"
 nodes_per_block = 2
 cores_per_node = 8
 mem_per_node = 16
-gpus_per_node = 1
-gres = "gpu:1"
 init_blocks = 2
 min_blocks = 1
 max_blocks = 4
