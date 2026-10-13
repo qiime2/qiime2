@@ -47,24 +47,6 @@ VENDORED_CONFIG = {
         }
     }
 
-# As near as I can tell, loading a config with a HighThroughputExecutor leaks
-# open sockets. This leads to issues (especially on osx) with "too many open
-# files" errors while running the test, so this test config with no
-# HighThroughputExecutor was created to mitigate that scenario. This config is
-# only to be used in tests that do not specifically need to test multiple
-# different executors
-_TEST_CONFIG_ = {
-    'parsl': {
-        'strategy': 'None',
-        'executors': [
-            {'class': 'ThreadPoolExecutor', 'label': 'default',
-                'max_threads': 1},
-            {'class': '_TEST_EXECUTOR_', 'label': 'test',
-                'max_threads': 1}
-            ]
-        }
-    }
-
 # Directs keys in the config whose values need to be objects to the module, or
 # modules in search order, that contain the class they need to instantiate
 PARSL_EXECUTOR = 'parsl.executors'
@@ -166,22 +148,22 @@ def get_vendored_config():
     """
     from rachis.core.util import in_test_mode
 
-    # If we are running tests, get the test config not the normal one
+    # If we are running tests, use the vendored config dict so the tests do not
+    # depend on or write config files on this machine
     if in_test_mode():
-        source = 'test config dict'
-        config_dict = copy.copy(_TEST_CONFIG_)
+        config_fp = None
     else:
         config_fp = _get_vendored_config_path()
 
-        # If we are not in a conda environment, we may not get an fp back
-        # (because the vendored fp uses the conda prefix), so we load from
-        # the vendored dict. Otherwise we load from the vendored file
-        if config_fp:
-            source = config_fp
-            config_dict = _get_config_dict_from_file(config_fp)
-        else:
-            source = 'vendored config dict'
-            config_dict = copy.copy(VENDORED_CONFIG)
+    # If we are not in a conda environment, we may not get an fp back
+    # (because the vendored fp uses the conda prefix), so we load from
+    # the vendored dict. Otherwise we load from the vendored file
+    if config_fp:
+        source = config_fp
+        config_dict = _get_config_dict_from_file(config_fp)
+    else:
+        source = 'vendored config dict'
+        config_dict = copy.copy(VENDORED_CONFIG)
 
     vendored_mapping = config_dict.pop('executor_mapping', {})
     vendored_config = config_dict
@@ -392,12 +374,9 @@ def _process_key(key, value):
         _check_optional_dependencies(key, value)
         if _type in python_api_only_classes:
             raise ValueError(_python_api_only_message(_type))
-        elif _type == '_TEST_EXECUTOR_':
-            # Only used for tests
-            cls = _TEST_EXECUTOR_
-        else:
-            # Get the class we need to instantiate
-            cls = _get_class(key, _type)
+
+        # Get the class we need to instantiate
+        cls = _get_class(key, _type)
 
         _check_python_api_only_options(_type, value)
 
@@ -631,15 +610,3 @@ class _MASK_CONDA_ENV_():
 
         CONDA_PREFIX = self.old_prefix
         VENDORED_FP = self.old_fp
-
-
-class _TEST_EXECUTOR_(parsl.executors.threads.ThreadPoolExecutor):
-    """We needed multiple kinds of executor to ensure we were mapping things
-    correctly, but the HighThroughputExecutor was leaking sockets, so we avoid
-    creating those during the tests because so many sockets were being opened
-    that we were getting "Too many open files" errors, so this gets used as the
-    second executor type."""
-
-    def __init__(self, *args, **kwargs):
-        _check_env(self.__class__)
-        super(_TEST_EXECUTOR_, self).__init__(*args, **kwargs)
