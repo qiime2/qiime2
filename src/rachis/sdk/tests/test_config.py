@@ -6,11 +6,20 @@
 # The full license is in the file LICENSE, distributed with this software.
 # ----------------------------------------------------------------------------
 
+import collections
+import inspect
 import os
+import pathlib
 import tempfile
 import unittest
+import unittest.mock
 
 import parsl
+import parsl.executors
+import parsl.launchers
+import parsl.monitoring
+import parsl.providers
+import tomlkit
 from parsl.executors.threads import ThreadPoolExecutor
 
 from rachis import Artifact, Cache
@@ -21,7 +30,10 @@ from rachis.core.testing.type import SingleInt
 from rachis.core.testing.util import get_dummy_plugin
 from rachis.sdk.parallel_config import (PARALLEL_CONFIG, _TEST_EXECUTOR_,
                                         _MASK_CONDA_ENV_, ParallelConfig,
-                                        load_config_from_file)
+                                        _get_missing_dependencies,
+                                        load_config_from_dict,
+                                        load_config_from_file,
+                                        optional_dependencies, tuple_options)
 
 
 class TestConfig(unittest.TestCase):
@@ -74,14 +86,9 @@ class TestConfig(unittest.TestCase):
                     Artifact.import_data(SingleInt, 1)]
 
         # Get paths to config files
-        self.config_fp = self.get_data_path('test_config.toml')
         self.mapping_config_fp = self.get_data_path('mapping_config.toml')
         self.mapping_only_config_fp = \
             self.get_data_path('mapping_only_config.toml')
-        self.mapping_only_config_old_fp = \
-            self.get_data_path('mapping_only_config_old.toml')
-        self.complex_config_fp = \
-            self.get_data_path('complex_config.toml')
 
     def tearDown(self):
         self.test_dir.cleanup()
@@ -92,7 +99,7 @@ class TestConfig(unittest.TestCase):
 
     def get_data_path(self, filename):
         fp = rachis.util.get_filepath_from_package(
-            'rachis.sdk.tests', 'data/%s' % filename)
+            'rachis.sdk.tests', 'data/parsl_configs/%s' % filename)
         return str(fp)
 
     def test_default_config(self):
@@ -214,19 +221,6 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(list_execution_contexts, self.tpool_expected)
             self.assertEqual(dict_execution_contexts, self.tpool_expected)
 
-    def test_load_complex_config(self):
-        """ Test that all parsl modules we currently map are correct
-        """
-        config, mapping = load_config_from_file(self.complex_config_fp)
-
-        self.assertEqual(mapping, {})
-
-        # Just assert that we were able to parse the file and get a config out
-        with ParallelConfig(config, mapping):
-            self.assertIsInstance(
-                PARALLEL_CONFIG.parallel_config, parsl.Config)
-            self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
-
     def test_no_config(self):
         with self.assertRaisesRegex(ValueError,
                                     'You must load a parallel config'):
@@ -267,12 +261,6 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(other_execution_context,
                          {'type': 'parsl', 'parsl_type': 'ThreadPoolExecutor'})
 
-    def test_old_mapping(self):
-        with self.assertRaisesRegex(TypeError,
-                                    'The provided mapping:\n\n'
-                                    "{'list_of_ints': 'test'}"):
-            load_config_from_file(self.mapping_only_config_old_fp)
-
     def _load_alias_execution_contexts(self, collection):
         execution_contexts = []
 
@@ -287,3 +275,305 @@ class TestConfig(unittest.TestCase):
             result._archiver.path)['action']['alias-of']
         return load_action_yaml(
             self.cache.data / alias_uuid)['execution']['execution_context']
+
+
+class TestParslConfigParsing(unittest.TestCase):
+    """Parses the configs in data/parsl_configs, which between them use every
+    option of every parsl class that can be written in TOML, so we notice when
+    a parsl release changes its config in a way our parser cannot handle.
+
+    The configs are only parsed into parsl objects, never loaded by parsl, so
+    nothing is ever submitted to a scheduler or cloud provider.
+    """
+    # Keys in the parsl table that are used by rachis and not passed to parsl
+    RACHIS_OPTIONS = {'debug', 'executor_mapping'}
+
+    # Options parsl rewrites when it is given them, so the attribute on the
+    # parsl object will not equal the value in the config. For example,
+    # SlurmProvider appends the partition to scheduler_options
+    REWRITTEN_OPTIONS = {'block_error_handler', 'environment',
+                         'scheduler_options', 'worker_init'}
+
+    # Options that cannot be written in TOML because they take a callable or
+    # an existing instance
+    UNTESTABLE_OPTIONS = {
+        'Config': {'dependency_resolver', 'retry_handler', 'std_autopath'},
+    }
+
+    def setUp(self):
+        self.config_dir = pathlib.Path(str(
+            rachis.util.get_filepath_from_package(
+                'rachis.sdk.tests', 'data/parsl_configs')))
+
+    def tearDown(self):
+        PARALLEL_CONFIG.debug = False
+        PARALLEL_CONFIG.parallel_config = None
+        PARALLEL_CONFIG.action_executor_mapping = {}
+
+    def test_load_complex_config(self):
+        """ Test that all parsl modules we currently map are correct
+        """
+        config, mapping = load_config_from_file(
+            self.config_dir / 'complex_config.toml')
+
+        self.assertEqual(mapping, {})
+
+        # Just assert that we were able to parse the file and get a config out
+        with ParallelConfig(config, mapping):
+            self.assertIsInstance(
+                PARALLEL_CONFIG.parallel_config, parsl.Config)
+            self.assertEqual(PARALLEL_CONFIG.action_executor_mapping, {})
+
+    def test_old_mapping(self):
+        with self.assertRaisesRegex(TypeError,
+                                    'The provided mapping:\n\n'
+                                    "{'list_of_ints': 'test'}"):
+            load_config_from_file(
+                self.config_dir / 'mapping_only_config_old.toml')
+
+    def test_every_parsl_option_is_in_a_config(self):
+        classes = [parsl.Config, parsl.monitoring.MonitoringHub]
+        for module in (parsl.executors, parsl.providers, parsl.launchers):
+            classes.extend(getattr(module, name)
+                           for name in dict.fromkeys(module.__all__))
+
+        used_options = collections.defaultdict(set)
+        for fp in self.config_dir.glob('*.toml'):
+            self._collect_options(
+                self._read_config(fp)['parsl'], 'Config', used_options)
+
+        missing = {}
+        for cls in classes:
+            name = cls.__name__
+            options = {
+                param.name
+                for param in inspect.signature(cls).parameters.values()
+                if param.kind not in (param.VAR_POSITIONAL,
+                                      param.VAR_KEYWORD)}
+            unused = (options - used_options[name]
+                      - self.UNTESTABLE_OPTIONS.get(name, set()))
+            if unused:
+                missing[name] = sorted(unused)
+
+        self.assertEqual(
+            missing, {}, 'These parsl options are not used by any config in '
+            'data/parsl_configs. Add them to one to test that they parse.')
+
+    def test_config_options(self):
+        self._load_config('config_options.toml')
+
+    def test_strategy_none(self):
+        config, _ = load_config_from_file(
+            self.config_dir / 'test_config.toml')
+
+        # The config says 'None', but parsl only accepts 'none'
+        self.assertEqual(config.strategy, 'none')
+
+    def test_thread_pool_executor(self):
+        self._load_config('thread_pool_executor.toml')
+
+    def test_high_throughput_executor(self):
+        self._load_config('high_throughput_executor.toml')
+
+    def test_mpi_executor(self):
+        self._load_config('mpi_executor.toml')
+
+    def test_flux_executor(self):
+        # FluxExecutor registers a finalizer that joins a thread parsl only
+        # starts when the executor is loaded, so it raises at exit otherwise
+        with unittest.mock.patch('weakref.finalize'):
+            self._load_config('flux_executor.toml')
+
+    def test_providers(self):
+        self._load_config('providers.toml')
+
+    def test_launchers(self):
+        self._load_config('launchers.toml')
+
+    def test_debug(self):
+        self._load_config('debug.toml')
+        self.assertTrue(PARALLEL_CONFIG.debug)
+
+    def test_missing_optional_dependency(self):
+        with unittest.mock.patch.dict(
+                optional_dependencies,
+                {'ThreadPoolExecutor': ['os', 'rachis_missing_module']}):
+            with self.assertRaisesRegex(
+                    ImportError, 'ThreadPoolExecutor requires '
+                    'rachis_missing_module, which could not be imported.*'
+                    'not included in the QIIME 2 conda environments'):
+                self._load_config('thread_pool_executor.toml')
+
+    def test_missing_optional_dependency_bad_option(self):
+        # We check the options are valid even when we cannot build the class
+        with unittest.mock.patch.dict(
+                optional_dependencies,
+                {'ThreadPoolExecutor': ['rachis_missing_module']}):
+            with self.assertRaisesRegex(
+                    TypeError, 'ThreadPoolExecutor: .*not_an_option'):
+                load_config_from_dict({'parsl': {'executors': [
+                    {'class': 'ThreadPoolExecutor', 'not_an_option': 1}]}})
+
+    def test_installed_optional_dependency(self):
+        with unittest.mock.patch.dict(
+                optional_dependencies, {'ThreadPoolExecutor': ['os']}):
+            self._load_config('thread_pool_executor.toml')
+
+    def test_python_api_only_installed_dependency(self):
+        with unittest.mock.patch.dict(
+                optional_dependencies, {'TaskVineExecutor': ['os']}):
+            self._assert_python_api_only(
+                'task_vine_executor.toml', 'TaskVineExecutor')
+
+    # The following options cannot be parsed yet
+    @unittest.expectedFailure
+    def test_storage_access(self):
+        self._load_config('storage_access.toml')
+
+    @unittest.expectedFailure
+    def test_remote_monitoring_radio(self):
+        self._load_config('remote_monitoring_radio.toml')
+
+    # The following use classes that need optional dependencies of parsl, so
+    # loading them raises an ImportError when those are not installed
+    def test_monitoring(self):
+        # Requires the optional dependency sqlalchemy, which we do not have in
+        # our conda environments at this time
+        self._load_optional_config('monitoring.toml', 'MonitoringHub')
+
+    def test_work_queue_executor(self):
+        # Requires the optional dependency ndcctools, which we do not have in
+        # our conda environments at this time
+        self._load_optional_config(
+            'work_queue_executor.toml', 'WorkQueueExecutor')
+
+    def test_task_vine_executor(self):
+        # Requires the optional dependency ndcctools, which we do not have in
+        # our conda environments at this time. We also cannot parse it from
+        # TOML, so it is only supported through the Python API
+        self._assert_python_api_only(
+            'task_vine_executor.toml', 'TaskVineExecutor')
+
+    def test_radical_pilot_executor(self):
+        # Requires the optional dependency radical.pilot, which we do not have
+        # in our conda environments at this time. We also cannot parse it from
+        # TOML, so it is only supported through the Python API
+        self._assert_python_api_only(
+            'radical_pilot_executor.toml', 'RadicalPilotExecutor')
+
+    def test_globus_compute_executor(self):
+        # Requires the optional dependency globus-compute-sdk, which we do not
+        # have in our conda environments at this time. We also cannot parse it
+        # from TOML, so it is only supported through the Python API
+        self._assert_python_api_only(
+            'globus_compute_executor.toml', 'GlobusComputeExecutor')
+
+    @unittest.skipUnless(_get_missing_dependencies('AWSProvider'),
+                         'AWSProvider contacts AWS when boto3 is installed')
+    def test_aws_provider(self):
+        # Requires the optional dependency boto3, which we do not have in our
+        # conda environments at this time
+        self._load_optional_config('aws_provider.toml', 'AWSProvider')
+
+    @unittest.skipUnless(_get_missing_dependencies('AzureProvider'),
+                         'AzureProvider contacts Azure when its dependencies '
+                         'are installed')
+    def test_azure_provider(self):
+        # Requires the optional Azure SDK dependencies, which we do not have in
+        # our conda environments at this time
+        self._load_optional_config('azure_provider.toml', 'AzureProvider')
+
+    @unittest.skipUnless(_get_missing_dependencies('GoogleCloudProvider'),
+                         'GoogleCloudProvider contacts Google Cloud when '
+                         'google-api-python-client is installed')
+    def test_google_cloud_provider(self):
+        # Requires the optional dependency google-api-python-client, which we
+        # do not have in our conda environments at this time
+        self._load_optional_config(
+            'google_cloud_provider.toml', 'GoogleCloudProvider')
+
+    @unittest.skipUnless(_get_missing_dependencies('KubernetesProvider'),
+                         'KubernetesProvider reads the cluster config when '
+                         'kubernetes is installed')
+    def test_kubernetes_provider(self):
+        # Requires the optional dependency kubernetes, which we do not have in
+        # our conda environments at this time
+        self._load_optional_config(
+            'kubernetes_provider.toml', 'KubernetesProvider')
+
+    def assertParslObjectMatches(self, obj, table):
+        """Asserts that obj is of the class named in the config table and has
+        each option's value from the table as an attribute
+        """
+        if 'class' in table:
+            self.assertEqual(type(obj).__name__, table['class'])
+
+        for option, value in table.items():
+            if option == 'class' or option in self.REWRITTEN_OPTIONS:
+                continue
+
+            attr = getattr(obj, option)
+            if self._is_parsl_object(value):
+                self.assertParslObjectMatches(attr, value)
+            elif isinstance(value, list) and value and \
+                    all(self._is_parsl_object(item) for item in value):
+                self.assertEqual(len(attr), len(value))
+                for attr_item, item in zip(attr, value):
+                    self.assertParslObjectMatches(attr_item, item)
+            else:
+                if option in tuple_options:
+                    value = tuple_options[option](value)
+                self.assertEqual(attr, value,
+                                 f'{type(obj).__name__}.{option}')
+
+    def _load_config(self, filename):
+        fp = self.config_dir / filename
+        table = {key: value
+                 for key, value in self._read_config(fp)['parsl'].items()
+                 if key not in self.RACHIS_OPTIONS}
+
+        config, _ = load_config_from_file(fp)
+        self.assertParslObjectMatches(config, table)
+
+    def _load_optional_config(self, filename, class_name):
+        """Loads a config that uses a class with optional dependencies. If they
+        are not installed, asserts that we raise our ImportError, which we only
+        do after checking that the class accepts the options in the config
+        """
+        if not _get_missing_dependencies(class_name):
+            self._load_config(filename)
+            return
+
+        with self.assertRaisesRegex(
+                ImportError, f'^{class_name} requires .* not included in the '
+                'QIIME 2 conda environments'):
+            self._load_config(filename)
+
+    def _assert_python_api_only(self, filename, class_name):
+        """Asserts that loading the config raises an error saying the class is
+        only supported through the Python API. If the class's dependencies are
+        not installed, this is part of our ImportError about them
+        """
+        if _get_missing_dependencies(class_name):
+            error = ImportError
+        else:
+            error = ValueError
+
+        with self.assertRaisesRegex(
+                error, f'^{class_name} .*only supported through the Python '
+                'API by passing an instantiated parsl.Config'):
+            self._load_config(filename)
+
+    def _read_config(self, fp):
+        with open(fp) as fh:
+            return tomlkit.load(fh).unwrap()
+
+    def _collect_options(self, table, class_name, used_options):
+        used_options[class_name].update(table.keys() - {'class'})
+        for value in table.values():
+            for item in value if isinstance(value, list) else [value]:
+                if self._is_parsl_object(item):
+                    self._collect_options(item, item['class'], used_options)
+
+    def _is_parsl_object(self, value):
+        return isinstance(value, dict) and 'class' in value
