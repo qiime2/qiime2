@@ -65,18 +65,22 @@ _TEST_CONFIG_ = {
         }
     }
 
-# Directs keys in the config whose values need to be objects to the module that
-# contains the class they need to instantiate
-PARSL_DATA_PROVIDER = 'parsl.data_provider'
+# Directs keys in the config whose values need to be objects to the module, or
+# modules in search order, that contain the class they need to instantiate
 PARSL_EXECUTOR = 'parsl.executors'
 PARSL_LAUNCHER = 'parsl.launchers'
 PARSL_MANAGER_SELECTOR = 'parsl.executors.high_throughput.manager_selector'
 PARSL_MEMOIZER = 'parsl.dataflow.memoization'
 PARSL_MONITORING = 'parsl.monitoring'
 PARSL_PROVIDER = 'parsl.providers'
+PARSL_RADIO = ('parsl.monitoring.radios.filesystem',
+               'parsl.monitoring.radios.htex',
+               'parsl.monitoring.radios.multiprocessing',
+               'parsl.monitoring.radios.udp')
+PARSL_STAGING = ('parsl.data_provider.file_noop', 'parsl.data_provider.ftp',
+                 'parsl.data_provider.globus', 'parsl.data_provider.http',
+                 'parsl.data_provider.rsync', 'parsl.data_provider.zip')
 module_paths = {
-    'data_provider': PARSL_DATA_PROVIDER,
-    'data_providers': PARSL_DATA_PROVIDER,
     'executor': PARSL_EXECUTOR,
     'executors': PARSL_EXECUTOR,
     'launcher': PARSL_LAUNCHER,
@@ -85,7 +89,9 @@ module_paths = {
     'memoizer': PARSL_MEMOIZER,
     'monitoring': PARSL_MONITORING,
     'provider': PARSL_PROVIDER,
-    'providers': PARSL_PROVIDER
+    'providers': PARSL_PROVIDER,
+    'remote_monitoring_radio': PARSL_RADIO,
+    'storage_access': PARSL_STAGING,
 }
 
 # parsl classes that need optional dependencies which are not in the QIIME 2
@@ -114,6 +120,13 @@ python_api_only_classes = {
     # These are not exported from parsl.executors
     'RadicalPilotExecutor',
     'TaskVineExecutor',
+}
+
+# Options of parsl classes we cannot parse from a TOML config because they take
+# a callable or an existing instance, which can only be used by passing an
+# instantiated parsl.Config to ParallelConfig. Maps each class to these options
+python_api_only_options = {
+    'Config': {'dependency_resolver', 'retry_handler', 'std_autopath'},
 }
 
 # TOML has no tuples, so options parsl requires to be tuples are loaded as
@@ -327,6 +340,7 @@ def _process_config(config_dict):
     dict
         Kwargs that can be used to instantiate a parsl.Config
     """
+    _check_python_api_only_options('Config', config_dict)
     config_kwargs = {}
 
     for key, value in config_dict.items():
@@ -374,11 +388,8 @@ def _process_key(key, value):
         return processed_value
     # Our key needs to point to some object.
     elif key in module_paths:
-        # Get the module our class is from
-        module = importlib.import_module(module_paths[key])
-
         _type = value['class']
-        _check_optional_dependencies(module, value)
+        _check_optional_dependencies(key, value)
         if _type in python_api_only_classes:
             raise ValueError(_python_api_only_message(_type))
         elif _type == '_TEST_EXECUTOR_':
@@ -386,7 +397,9 @@ def _process_key(key, value):
             cls = _TEST_EXECUTOR_
         else:
             # Get the class we need to instantiate
-            cls = getattr(module, value['class'])
+            cls = _get_class(key, _type)
+
+        _check_python_api_only_options(_type, value)
 
         # Get the kwargs we need to pass to the class constructor
         kwargs = {}
@@ -400,6 +413,36 @@ def _process_key(key, value):
     # Our key points to primitive data
     else:
         return value
+
+
+def _get_class(key, class_name):
+    """Finds the parsl class with the given name in the modules for the given
+    key in the config.
+
+    Parameters
+    ----------
+    key: string
+        The key in the config whose value is an instance of the class
+    class_name: string
+        The name of the class
+
+    Returns
+    -------
+    type
+        The class
+    """
+    modules = module_paths[key]
+    if isinstance(modules, str):
+        modules = (modules,)
+
+    for module_path in modules:
+        module = importlib.import_module(module_path)
+        if hasattr(module, class_name):
+            return getattr(module, class_name)
+
+    raise AttributeError(
+        f'Could not find a parsl class named {class_name!r} for {key!r}. '
+        f'Looked in: {", ".join(modules)}')
 
 
 def _get_missing_dependencies(class_name):
@@ -426,14 +469,14 @@ def _get_missing_dependencies(class_name):
     return missing
 
 
-def _check_optional_dependencies(module, options):
+def _check_optional_dependencies(key, options):
     """Raises an ImportError explaining what is missing if the parsl class the
     options are for needs optional dependencies that are not installed.
 
     Parameters
     ----------
-    module: module
-        The module the class is looked up in
+    key: string
+        The key in the config whose value is an instance of the class
     options: dict
         The class's table from the config, which names the class under 'class'
     """
@@ -443,9 +486,13 @@ def _check_optional_dependencies(module, options):
         return
 
     # We cannot build the class, but we can still make sure it accepts the
-    # options it was given. Some of these classes are not in the module we look
-    # them up in, so we cannot check those
-    cls = getattr(module, class_name, None)
+    # options it was given. Some of these classes are not in the modules we
+    # look them up in, so we cannot check those
+    try:
+        cls = _get_class(key, class_name)
+    except AttributeError:
+        cls = None
+
     if cls is not None:
         kwargs = {k: v for k, v in options.items() if k != 'class'}
         try:
@@ -464,8 +511,25 @@ def _check_optional_dependencies(module, options):
     raise ImportError(message)
 
 
-def _python_api_only_message(class_name):
-    return (f'{class_name} cannot be parsed from a TOML config, so it is only '
+def _check_python_api_only_options(class_name, options):
+    """Raises a ValueError if the config gives the parsl class an option we
+    cannot parse from a TOML config.
+
+    Parameters
+    ----------
+    class_name: string
+        The name of the parsl class
+    options: dict
+        The class's table from the config
+    """
+    for option in options:
+        if option in python_api_only_options.get(class_name, set()):
+            raise ValueError(_python_api_only_message(
+                f'The {option!r} option of {class_name}'))
+
+
+def _python_api_only_message(subject):
+    return (f'{subject} cannot be parsed from a TOML config, so it is only '
             'supported through the Python API by passing an instantiated '
             'parsl.Config to ParallelConfig.')
 

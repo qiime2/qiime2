@@ -1,5 +1,5 @@
-# The staging providers live in submodules of parsl.data_provider and the
-# executors take them as storage_access
+# Every option of each staging provider that ships with parsl and does not
+# need an optional dependency. Executors take these as storage_access
 [parsl]
 
 [[parsl.executors]]

@@ -7,20 +7,26 @@
 # ----------------------------------------------------------------------------
 
 import collections
+import importlib
 import inspect
 import os
 import pathlib
+import pkgutil
 import tempfile
 import unittest
 import unittest.mock
 
 import parsl
+import parsl.data_provider
 import parsl.executors
 import parsl.launchers
 import parsl.monitoring
+import parsl.monitoring.radios
 import parsl.providers
 import tomlkit
+from parsl.data_provider.staging import Staging
 from parsl.executors.threads import ThreadPoolExecutor
+from parsl.monitoring.radios.base import RadioConfig
 
 from rachis import Artifact, Cache
 
@@ -33,7 +39,9 @@ from rachis.sdk.parallel_config import (PARALLEL_CONFIG, _TEST_EXECUTOR_,
                                         _get_missing_dependencies,
                                         load_config_from_dict,
                                         load_config_from_file,
-                                        optional_dependencies, tuple_options)
+                                        optional_dependencies,
+                                        python_api_only_options,
+                                        tuple_options)
 
 
 class TestConfig(unittest.TestCase):
@@ -294,12 +302,6 @@ class TestParslConfigParsing(unittest.TestCase):
     REWRITTEN_OPTIONS = {'block_error_handler', 'environment',
                          'scheduler_options', 'worker_init'}
 
-    # Options that cannot be written in TOML because they take a callable or
-    # an existing instance
-    UNTESTABLE_OPTIONS = {
-        'Config': {'dependency_resolver', 'retry_handler', 'std_autopath'},
-    }
-
     def setUp(self):
         self.config_dir = pathlib.Path(str(
             rachis.util.get_filepath_from_package(
@@ -336,6 +338,10 @@ class TestParslConfigParsing(unittest.TestCase):
         for module in (parsl.executors, parsl.providers, parsl.launchers):
             classes.extend(getattr(module, name)
                            for name in dict.fromkeys(module.__all__))
+        # These are spread across their packages' modules with no list of them
+        classes.extend(self._find_subclasses(parsl.data_provider, Staging))
+        classes.extend(
+            self._find_subclasses(parsl.monitoring.radios, RadioConfig))
 
         used_options = collections.defaultdict(set)
         for fp in self.config_dir.glob('*.toml'):
@@ -345,19 +351,25 @@ class TestParslConfigParsing(unittest.TestCase):
         missing = {}
         for cls in classes:
             name = cls.__name__
+            if name not in used_options:
+                missing[name] = 'class is not used'
+                continue
+
             options = {
                 param.name
                 for param in inspect.signature(cls).parameters.values()
                 if param.kind not in (param.VAR_POSITIONAL,
                                       param.VAR_KEYWORD)}
+            # These are covered by test_python_api_only_options
             unused = (options - used_options[name]
-                      - self.UNTESTABLE_OPTIONS.get(name, set()))
+                      - python_api_only_options.get(name, set()))
             if unused:
                 missing[name] = sorted(unused)
 
         self.assertEqual(
-            missing, {}, 'These parsl options are not used by any config in '
-            'data/parsl_configs. Add them to one to test that they parse.')
+            missing, {}, 'These parsl classes or options are not used by any '
+            'config in data/parsl_configs. Add them to one to test that they '
+            'parse.')
 
     def test_config_options(self):
         self._load_config('config_options.toml')
@@ -390,6 +402,20 @@ class TestParslConfigParsing(unittest.TestCase):
     def test_launchers(self):
         self._load_config('launchers.toml')
 
+    def test_storage_access(self):
+        self._load_config('storage_access.toml')
+
+    def test_remote_monitoring_radio(self):
+        self._load_config('remote_monitoring_radio.toml')
+
+    def test_unknown_class(self):
+        with self.assertRaisesRegex(
+                AttributeError, "parsl class named 'NotAStagingProvider' for "
+                "'storage_access'. Looked in: parsl.data_provider"):
+            load_config_from_dict({'parsl': {'executors': [{
+                'class': 'ThreadPoolExecutor',
+                'storage_access': [{'class': 'NotAStagingProvider'}]}]}})
+
     def test_debug(self):
         self._load_config('debug.toml')
         self.assertTrue(PARALLEL_CONFIG.debug)
@@ -419,20 +445,21 @@ class TestParslConfigParsing(unittest.TestCase):
                 optional_dependencies, {'ThreadPoolExecutor': ['os']}):
             self._load_config('thread_pool_executor.toml')
 
+    def test_python_api_only_options(self):
+        for option in python_api_only_options['Config']:
+            with self.subTest(option=option):
+                with self.assertRaisesRegex(
+                        ValueError, f"^The '{option}' option of Config cannot "
+                        'be parsed from a TOML config, so it is only '
+                        'supported through the Python API'):
+                    load_config_from_dict(
+                        {'parsl': {option: 'my_module.my_function'}})
+
     def test_python_api_only_installed_dependency(self):
         with unittest.mock.patch.dict(
                 optional_dependencies, {'TaskVineExecutor': ['os']}):
             self._assert_python_api_only(
                 'task_vine_executor.toml', 'TaskVineExecutor')
-
-    # The following options cannot be parsed yet
-    @unittest.expectedFailure
-    def test_storage_access(self):
-        self._load_config('storage_access.toml')
-
-    @unittest.expectedFailure
-    def test_remote_monitoring_radio(self):
-        self._load_config('remote_monitoring_radio.toml')
 
     # The following use classes that need optional dependencies of parsl, so
     # loading them raises an ImportError when those are not installed
@@ -440,6 +467,11 @@ class TestParslConfigParsing(unittest.TestCase):
         # Requires the optional dependency sqlalchemy, which we do not have in
         # our conda environments at this time
         self._load_optional_config('monitoring.toml', 'MonitoringHub')
+
+    def test_globus_staging(self):
+        # Requires the optional dependency globus-sdk, which we do not have in
+        # our conda environments at this time
+        self._load_optional_config('globus_staging.toml', 'GlobusStaging')
 
     def test_work_queue_executor(self):
         # Requires the optional dependency ndcctools, which we do not have in
@@ -574,6 +606,25 @@ class TestParslConfigParsing(unittest.TestCase):
             for item in value if isinstance(value, list) else [value]:
                 if self._is_parsl_object(item):
                     self._collect_options(item, item['class'], used_options)
+
+    def _find_subclasses(self, package, base):
+        """Finds the classes in any of package's modules that subclass base
+        """
+        for module in pkgutil.iter_modules(package.__path__):
+            try:
+                importlib.import_module(f'{package.__name__}.{module.name}')
+            except ImportError:
+                pass
+
+        subclasses = []
+        to_search = [base]
+        while to_search:
+            for cls in to_search.pop().__subclasses__():
+                if cls.__module__.startswith(package.__name__):
+                    subclasses.append(cls)
+                to_search.append(cls)
+
+        return subclasses
 
     def _is_parsl_object(self, value):
         return isinstance(value, dict) and 'class' in value
