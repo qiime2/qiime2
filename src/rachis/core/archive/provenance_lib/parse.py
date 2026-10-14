@@ -506,7 +506,6 @@ def parse_provenance(cfg: Config, payload: Any) -> ParserResults:
         from copy import copy
         with payload.snapshot() as view:
             retained = copy(payload)
-            retained.path = view.root
             retained._fmt = copy(payload._fmt)
             retained._fmt.path = view.root
             if payload.provenance_dir is not None:

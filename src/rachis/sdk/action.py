@@ -273,10 +273,7 @@ class Action(metaclass=abc.ABCMeta):
         """
         def bound_callable(*args, **kwargs):
             ctx = context_factory()._execution_context()
-            import contextlib
-            lifecycle = (ctx.scope if ctx.cache.CURRENT_FORMAT_VERSION == 'v2'
-                         else contextlib.nullcontext())
-            with lifecycle:
+            with ctx:
                 provenance = self._ProvCaptureCls(
                     self.type, self.plugin_id, self.id, execution_ctx)
 
@@ -292,6 +289,7 @@ class Action(metaclass=abc.ABCMeta):
                 collated_inputs = self.signature.collate_inputs(
                     *args, **kwargs)
                 self.signature.check_types(**collated_inputs)
+                ctx._retain_inputs(collated_inputs)
                 output_types = self.signature.solve_output(**collated_inputs)
                 callable_args = self.signature.coerce_user_input(
                     **collated_inputs)

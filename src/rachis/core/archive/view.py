@@ -5,12 +5,20 @@
 """Logical archive paths. No implicit extraction or filesystem conversion."""
 
 import contextlib
+from functools import cached_property
 import fnmatch
 import io
+import hashlib
+import json
 from pathlib import Path, PurePosixPath
 import shutil
 import uuid
 import zipfile
+
+from .pack import manifest_bytes, parse_manifest
+from ..reference import relative_path
+from ..util import from_checksum_format
+
 
 
 class LogicalPath:
@@ -124,17 +132,17 @@ class LiveArchiveView:
     across multiple queries belongs to an explicit operation-wide snapshot.
     """
 
-    def __init__(self, archiver):
-        self.archiver = archiver
-        self.uuid = str(archiver.uuid)
+    def __init__(self, cache, ref_id):
+        self.cache = cache
+        self.ref_id = ref_id
+        self.uuid, artifact = cache.attachment(ref_id)
+        version_line = (artifact / "VERSION").read_text().splitlines()[1]
+        self.version = version_line.split(": ", 1)[1]
         self.root = LogicalPath(self)
 
     def _locations(self):
-        cache = self.archiver.cache
-        ref = cache.object_path(
-            "ref", cache.editable_ref(self.archiver.ref_id)
-        )
-        _, artifact = cache.attachment(self.archiver.ref_id)
+        ref = self.cache.object_path("archives", self.ref_id)
+        _, artifact = self.cache.attachment(self.ref_id)
         return ref, artifact
 
     def _locate(self, member):
@@ -152,15 +160,17 @@ class LiveArchiveView:
             if member in ("checksums.sha512", "checksums.md5"):
                 algorithm = member.split(".", 1)[1]
                 return (
-                    "manifest", ref / ("archive-checksums." + algorithm),
-                    algorithm, None,
+                    "manifest",
+                    artifact / ("checksums." + algorithm),
+                    algorithm,
+                    None,
                 )
-            return "file", ref / "archive-metadata" / member, None, None
+            return "file", artifact / member, None, None
         category, relative = member.split("/", 1)
         return self._locate_pack(category, relative, ref, artifact)
 
     def _locate_pack(self, category, relative, ref, artifact):
-        if category == "provenance" and self.archiver.archive_version != "0":
+        if category == "provenance" and self.version != "0":
             if relative == "artifacts":
                 return None
             if relative.startswith("artifacts/"):
@@ -184,23 +194,20 @@ class LiveArchiveView:
             return None
         return category, namespace / (identity + ".zip"), identity, relative
 
-    def _root_members(self, ref):
-        names = {
-            p.name for p in (ref / "archive-metadata").iterdir()
-            if p.is_file()
+    def _root_members(self, artifact):
+        return {
+            p.name
+            for p in artifact.iterdir()
+            if p.is_file() and p.name != ".iref"
         }
-        names.update(
-            "checksums." + algorithm for algorithm in ("sha512", "md5")
-            if (ref / ("archive-checksums." + algorithm)).is_file()
-        )
-        return names
 
     def _pack_bindings(self, ref, artifact):
-        if self.archiver.archive_version != "0":
+        if self.version != "0":
             for path in (artifact / "provenance").glob("*.zip"):
                 prefix = (
-                    "provenance/" if path.stem == self.uuid else
-                    "provenance/artifacts/" + path.stem + "/"
+                    "provenance/"
+                    if path.stem == self.uuid
+                    else "provenance/artifacts/" + path.stem + "/"
                 )
                 yield path, prefix
         for path in (ref / "annotations").glob("*.zip"):
@@ -208,10 +215,8 @@ class LiveArchiveView:
 
     @contextlib.contextmanager
     def _opened_pack(self, location, *, masks=False, refresh=False):
-        from .archiver_v2 import read_whiteouts
-
         category, path, identity, relative = location
-        cache = self.archiver.cache
+        cache = self.cache
         if refresh and category == "provenance":
             cache.refresh_provenance(self.uuid, node_id=identity)
         with contextlib.ExitStack() as resources:
@@ -224,25 +229,32 @@ class LiveArchiveView:
             pack = resources.enter_context(zipfile.ZipFile(file))
             yield pack, identity + "/" + relative, hidden, resources
 
-    def members(self):
-        from .archiver_v2 import _files
-
-        cache = self.archiver.cache
+    def members(self, *, include_directories=False):
+        cache = self.cache
         with contextlib.ExitStack() as resources:
             with cache.lock:
                 ref, artifact = self._locations()
-                names = self._root_members(ref)
+                names = self._root_members(artifact)
                 files = [
                     (p.stem, prefix, resources.enter_context(p.open("rb")))
                     for p, prefix in self._pack_bindings(ref, artifact)
                 ]
             names.update("data/" + name for name in _files(artifact / "data"))
+            if include_directories:
+                names.update(
+                    "data/" + path.relative_to(artifact / "data").as_posix()
+                    + "/"
+                    for path in (artifact / "data").rglob("*")
+                    if path.is_dir()
+                )
             for identity, prefix, file in files:
                 with zipfile.ZipFile(file) as pack:
                     node_prefix = identity + "/"
                     names.update(
-                        prefix + n[len(node_prefix):] for n in pack.namelist()
-                        if n.startswith(node_prefix) and not n.endswith("/")
+                        prefix + n[len(node_prefix) :]
+                        for n in pack.namelist()
+                        if n.startswith(node_prefix) and n != node_prefix
+                        and (include_directories or not n.endswith("/"))
                     )
         return sorted(names)
 
@@ -274,11 +286,11 @@ class LiveArchiveView:
             except FileNotFoundError:
                 return False
         if member in ("provenance", "provenance/artifacts", "annotations"):
-            with self.archiver.cache.lock:
+            with self.cache.lock:
                 ref, artifact = self._locations()
                 if member == "annotations":
                     return any((ref / "annotations").glob("*.zip"))
-                if self.archiver.archive_version == "0":
+                if self.version == "0":
                     return False
                 return any(
                     member == "provenance" or p.stem != self.uuid
@@ -298,13 +310,16 @@ class LiveArchiveView:
                 raise FileNotFoundError(member)
             # A derived manifest is a compound read of the archive's hashes
             # and masks. Capture it once, then return independent bytes.
-            with self.archiver.snapshot() as snapshot:
-                data = snapshot.manifest(algorithm)
+            with _ArchiveCapture(self) as capture:
+                data = capture.manifest(algorithm)
             if data is None:
                 raise FileNotFoundError(member)
             return io.BytesIO(data)
         with self._opened_pack(location, masks=True, refresh=True) as (
-            pack, name, hidden, resources,
+            pack,
+            name,
+            hidden,
+            resources,
         ):
             try:
                 pack.getinfo(name)
@@ -334,7 +349,7 @@ class RetainedStream(io.BufferedReader):
 
 @contextlib.contextmanager
 def materialize_tree(view, member=""):
-    scope = view.cache.root_scope.child()
+    scope = view.cache.root_scope.child(recycle=False)
     directory = scope.acquire_directory("materialized")
     try:
         prefix = member.rstrip("/") + "/" if member else ""
@@ -372,11 +387,11 @@ def copy_tree(source, destination, exclude=()):
 class ConcreteArchiveView:
     """V1 concrete tree retained through its existing archiver owner."""
 
-    def __init__(self, archiver):
-        self.archiver = archiver
-        self.root = archiver.root_dir
-        self.cache = archiver._cache
-        self.uuid = str(archiver.uuid)
+    def __init__(self, archive):
+        self.archive = archive
+        self.root = archive.path
+        self.cache = archive.cache
+        self.uuid = str(archive.uuid)
 
     def __enter__(self):
         return self
@@ -393,3 +408,225 @@ class ConcreteArchiveView:
         with tempfile.TemporaryDirectory(dir=workspace) as path:
             copy_tree(self.root / member, path)
             yield SimpleNamespace(path=Path(path))
+
+
+def _files(path):
+    return {
+        p.relative_to(path).as_posix(): p
+        for p in path.rglob("*")
+        if p.is_file()
+    }
+
+
+def whiteout_bytes(records):
+    return "".join(
+        json.dumps({"uuid": u, "path": p}, separators=(",", ":")) + "\n"
+        for u, p in sorted(records)
+    ).encode()
+
+
+def read_whiteouts(ref):
+    path = ref / "whiteout.jsonl"
+    if not path.exists():
+        return set()
+    records = set()
+    for line in path.read_text().splitlines():
+        record = json.loads(line)
+        if set(record) != {"uuid", "path"}:
+            raise ValueError("Malformed published whiteout")
+        node = record["uuid"]
+        if str(uuid.UUID(node)) != node:
+            raise ValueError("Malformed whiteout UUID")
+        relative_path(record["path"])
+        records.add((node, record["path"]))
+    return records
+
+
+class _ArchiveCapture:
+    """Operation-local selections and opened packs; index only when needed.
+
+    The caller's archive owns the RefDir. Open files retain the selected pack
+    inodes while membership and whiteouts may change. No scope is allocated.
+    """
+
+    def __init__(self, archive):
+        self.archive = archive
+        self.cache = archive.cache
+        self.ref_id = archive.ref_id
+        self.closed = False
+        self._resources = contextlib.ExitStack()
+        self._indexes = {}
+        self.packs = []
+        try:
+            self.uuid = str(archive.uuid)
+            self.root = LogicalPath(self)
+            self.cache.refresh_provenance(self.uuid)
+            for category, identity, file in self._capture_state():
+                pack = self._resources.enter_context(zipfile.ZipFile(file))
+                pack._cache_file = file
+                self.packs.append((category, identity, pack))
+        except BaseException:
+            self.close()
+            raise
+
+    def _capture_state(self):
+        """Capture mutable metadata and open revisions in one transaction."""
+        with self.cache.lock:
+            ref = self.cache.object_path("archives", self.ref_id)
+            _, artifact = self.cache.attachment(self.ref_id)
+            self.whiteouts = read_whiteouts(ref)
+            self.original = {
+                algorithm: path.read_bytes()
+                for algorithm in ("sha512", "md5")
+                if (path := artifact / ("checksums." + algorithm)).exists()
+            }
+            self.metadata = {
+                p.name: p.read_bytes()
+                for p in artifact.iterdir()
+                if p.is_file()
+                and p.name != ".iref"
+                and not p.name.startswith("checksums.")
+            }
+            version = self.metadata["VERSION"].decode().splitlines()[1]
+            version = version.split(": ", 1)[1]
+            # Retain opened files immediately, even if a later open fails.
+            namespaces = [("annotations", ref / "annotations")]
+            if version != "0":
+                namespaces.append(("provenance", artifact / "provenance"))
+            files = [
+                (category, p.stem,
+                 self._resources.enter_context(p.open("rb")))
+                for category, namespace in namespaces
+                for p in namespace.glob("*.zip")
+            ]
+            self.data_dir = artifact / "data"
+        return files
+
+    @cached_property
+    def sources(self):
+        sources = dict(self.metadata)
+        sources.update(
+            ("checksums." + algorithm, data)
+            for algorithm, data in self.original.items()
+        )
+        sources.update(
+            ("data/" + name, path)
+            for name, path in _files(self.data_dir).items()
+        )
+        for category, node_id, pack in self.packs:
+            if category == "annotations":
+                prefix = "annotations/" + node_id + "/"
+            elif node_id == self.uuid:
+                prefix = "provenance/"
+            else:
+                prefix = "provenance/artifacts/" + node_id + "/"
+            for member in pack.namelist():
+                if (member.startswith(node_id + "/")
+                        and not member.endswith("/")):
+                    relative = member[len(node_id) + 1:]
+                    sources[prefix + relative] = (
+                        b"" if category == "provenance"
+                        and (node_id, relative) in self.whiteouts
+                        else (pack, member)
+                    )
+        return sources
+
+    @cached_property
+    def digests(self):
+        result = {"sha512": {}, "md5": {}}
+        for algorithm, data in self.original.items():
+            result[algorithm].update(parse_manifest(data))
+        return result
+
+    def members(self):
+        return sorted(self.sources)
+
+    def is_file(self, member):
+        return member in self.sources
+
+    def is_dir(self, member):
+        prefix = member.rstrip("/") + "/" if member else ""
+        return any(n.startswith(prefix) for n in self.sources)
+
+    def open_member(self, member):
+        if self.closed:
+            raise ValueError("Archive capture is closed")
+        if member not in self.sources:
+            raise FileNotFoundError(member)
+        if member in ("checksums.sha512", "checksums.md5"):
+            return io.BytesIO(self.manifest(member.split(".", 1)[1]))
+        source = self.sources[member]
+        if isinstance(source, bytes):
+            return io.BytesIO(source)
+        if isinstance(source, tuple):
+            return source[0].open(source[1])
+        return source.open("rb")
+
+    def digest(self, member, algorithm):
+        source = self.sources[member]
+        if isinstance(source, bytes):
+            return hashlib.new(algorithm, source).hexdigest()
+        digest = self.digests[algorithm].get(member)
+        if isinstance(source, tuple):
+            pack, entry = source
+            key = pack, algorithm
+            if key not in self._indexes:
+                name = "checksums." + algorithm
+                self._indexes[key] = (
+                    parse_manifest(pack.read(name))
+                    if name in pack.NameToInfo else {}
+                )
+            digest = self._indexes[key].get(entry, digest)
+        if digest is None:
+            hasher = hashlib.new(algorithm)
+            with self.open_member(member) as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    hasher.update(chunk)
+            digest = hasher.hexdigest()
+            self.digests[algorithm][member] = digest
+        return digest
+
+    def manifest(self, algorithm):
+        original = self.original.get(algorithm)
+        if original is None:
+            return None
+        # Archive manifest excludes annotations and itself, and retains exact
+        # supplied bytes (including order/escaping) for unchanged covered data.
+        covered = {
+            n: self.digest(n, algorithm)
+            for n in self.members()
+            if not n.startswith("annotations/")
+            and n not in ("checksums.sha512", "checksums.md5")
+        }
+        previous = parse_manifest(original)
+        if covered == previous:
+            return original
+        if covered.keys() == previous.keys():
+            # Redaction/restoration changes digests, not the manifest's layout.
+            lines = []
+            for line in original.splitlines(keepends=True):
+                if line.strip():
+                    member, digest = from_checksum_format(
+                        line.decode().rstrip("\r\n")
+                    )
+                    line = line.replace(
+                        digest.encode(), covered[member].encode(), 1
+                    )
+                lines.append(line)
+            return b"".join(lines)
+        return manifest_bytes(covered)
+
+    def materialize(self, member=""):
+        return materialize_tree(self, member)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+    def close(self):
+        if self.closed:
+            return
+        self.closed = True
+        self._resources.close()

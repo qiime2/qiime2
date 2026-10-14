@@ -11,7 +11,8 @@ from rachis.metadata import (Metadata, MetadataColumn,
                              CategoricalMetadataColumn, NumericMetadataColumn)
 from rachis.plugin import Citations
 from rachis.core.cache import Cache, CacheV1, Pool, get_cache
-from rachis.core.cache_v2 import CacheV2, Scope, ScopedDirectory
+from rachis.core.cache_v2 import CacheV2, Scope
+from rachis.core.refdir import RefDir
 from rachis.core.annotate import Note
 import rachis.util as util
 
@@ -30,5 +31,5 @@ __website__ = 'https://qiime2.org'
 __all__ = ['Artifact', 'Visualization', 'ResultCollection', 'Metadata',
            'MetadataColumn', 'CategoricalMetadataColumn',
            'NumericMetadataColumn', 'Cache', 'CacheV1', 'CacheV2', 'Scope',
-           'ScopedDirectory', 'Pool', 'get_cache', 'Note',
+           'RefDir', 'Pool', 'get_cache', 'Note',
            'util']

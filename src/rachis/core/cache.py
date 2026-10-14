@@ -77,6 +77,13 @@ USED_CACHES = set()
 EXPECTED_PERMISSIONS = 0o41777
 
 
+def _check_pool_selection():
+    if getattr(_CACHE, 'context', None) is not None:
+        raise ValueError(
+            'Recycle pools must be selected at the call site; '
+            'they cannot be changed while an action is running.')
+
+
 def get_cache():
     """Gets the cache we have instructed QIIME 2 to use in this invocation.
     By default this is a cache located at $TMPDIR/qiime2/$USER, but if the
@@ -1530,6 +1537,10 @@ class CacheV1(Cache):
 
         return self._named_pool_
 
+    def create_archive(self, identity=None):
+        from .archive.archive import _NoOpArchive
+        return _NoOpArchive.create(self, identity)
+
 
 class Pool:
     """Pools are folders in the cache that contain many symlinks to many
@@ -1632,6 +1643,7 @@ class Pool:
         False
         >>> test_dir.cleanup()
         """
+        _check_pool_selection()
         # This threadlocal may not even have a cache attribute
         has_cache = hasattr(_CACHE, 'cache')
 
@@ -1664,6 +1676,7 @@ class Pool:
         different cache set when we set this named pool, we would have errored
         in __enter__.
         """
+        _check_pool_selection()
         _CACHE.cache = self.previously_entered_cache
         self.cache._named_pool_ = None
 

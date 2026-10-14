@@ -169,7 +169,9 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '%s/provenance/action/action.yaml' % root_dir
             }
 
-            observed = set(zf.namelist())
+            observed = {
+                info.filename for info in zf.infolist() if not info.is_dir()
+            }
 
             # Not using self.assertArchiveMembers() because it accepts paths
             # relative to root_dir, and we have extra paths at the same level
@@ -248,7 +250,9 @@ class TestArchiver(unittest.TestCase, ArchiveTestingMixin):
                 '%s/VERSION' % second_root_dir
             }
 
-            observed = set(zf.namelist())
+            observed = {
+                info.filename for info in zf.infolist() if not info.is_dir()
+            }
 
             self.assertEqual(observed, expected)
 

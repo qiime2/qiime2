@@ -392,7 +392,7 @@ class ProvenanceCapture:
         # transitive provenance trees. Captured masks are independent of future
         # mutations to the input's shared editable ref.
         import os
-        from .archiver_v2 import whiteout_bytes, read_whiteouts
+        from .view import whiteout_bytes, read_whiteouts
         from ..cache_v2 import durable_write, fsync_dir
         retained = self.path / '.cache-v2-ancestry'
         retained.mkdir(exist_ok=True)

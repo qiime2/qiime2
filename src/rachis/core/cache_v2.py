@@ -12,8 +12,7 @@ opened files or hardlinks, never a promise that a pathname will stay unchanged.
 import contextlib
 import json
 import os
-from pathlib import Path, PurePosixPath
-import secrets
+from pathlib import Path
 import shutil
 import socket
 import threading
@@ -31,60 +30,26 @@ from .cache import (
     MEGALock,
     USED_CACHES,
     _CACHE,
+    _check_pool_selection,
     _cache_version,
 )
 from .cache_stat import ownership_stat
 
-_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567"
+from .reference import (
+    ALPHABET as _ALPHABET,
+    Reference,
+    category_name,
+    directory_references,
+    durable_write,
+    fsync_dir,
+    new_id,
+    relative_path,
+    shared_mkdir,
+    target_name,
+)
+from .refdir import RefDir
 
-
-def new_id():
-    return "".join(secrets.choice(_ALPHABET) for _ in range(20))
-
-
-def relative_path(value):
-    """Validate lexical member/marker names without filesystem coercion."""
-    p = PurePosixPath(value)
-    if (
-        not value
-        or p.is_absolute()
-        or "\\" in value
-        or any(x in ("", ".", "..") for x in value.rstrip("/").split("/"))
-    ):
-        raise ValueError(f"Invalid cache-relative path: {value!r}")
-    return p
-
-
-def fsync_dir(path):
-    fd = os.open(path, os.O_RDONLY)
-    try:
-        os.fsync(fd)
-    finally:
-        os.close(fd)
-
-
-def shared_mkdir(path, parents=False, exist_ok=False):
-    """Set group publication permissions before exposing new directories."""
-    path = Path(path)
-    if parents and not path.parent.exists():
-        shared_mkdir(path.parent, parents=True, exist_ok=True)
-    try:
-        path.mkdir()
-    except FileExistsError:
-        if not exist_ok or not path.is_dir():
-            raise
-    else:
-        os.chmod(path, 0o2770)
-        fsync_dir(path.parent)
-
-
-def durable_write(path, data):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("wb") as stream:
-        stream.write(data)
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.chmod(path, 0o660)
+_ACTIVE_POOL = object()
 
 
 def flush_tree(path):
@@ -125,72 +90,55 @@ class MetadataLock:
             self._threads.release()
 
 
-class ScopedDirectory:
-    """A concrete workspace and its stable lifetime ref."""
+class Scope(RefDir):
+    """One lifetime boundary, retained directly by process/recycle roots."""
 
-    def __init__(self, cache, ref_id, scope, path):
-        self.cache = cache
-        self.ref_id = ref_id
-        self.scope = scope
-        self.path = path
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        self.release()
-
-    def release(self):
-        self.scope.release(self.ref_id)
-
-
-class Scope:
     def __init__(self, cache, scope_id, owner=None):
-        self.cache = cache
+        super().__init__(cache, scope_id, category="scopes")
         self.scope_id = scope_id
-        self.path = cache.object_path("scope", scope_id)
-        self.owner = owner
         self.closed = False
+        self.owners = set()
+        if owner is not None:
+            self.owners.add(Path(owner))
 
-    def acquire_directory(self, name="directory_format"):
+    def acquire_directory(
+        self, name="directory_format", *, category="tempdirs"
+    ):
         if self.closed:
             raise ValueError("Scope is closed")
-        relative_path(name)
-        ref_id, path = self.cache._publish_owned("ref", self.path)
-        directory = path / name
-        shared_mkdir(directory)
-        fsync_dir(path)
-        return ScopedDirectory(self.cache, ref_id, self, directory)
+        return self.cache.create_refdir(category, name=name, scope=self)
 
-    def child(self):
-        if self.closed:
-            raise ValueError("Scope is closed")
-        sid, _ = self.cache._publish_owned("scope", self.path)
-        return Scope(self.cache, sid, self.path)
+    def child(self, *, recycle=True):
+        # Context nesting belongs to the call stack, not the ownership graph.
+        return self.cache.create_scope(recycle=recycle)
 
     def adopt(self, ref_id):
-        self.cache.retain(self.path, "ref", ref_id)
+        if self.closed:
+            raise ValueError("Scope is closed")
+        target = (
+            ref_id if isinstance(ref_id, RefDir) else self.cache.refdir(ref_id)
+        )
+        return self.reference(target)
 
-    def retain_scope(self, scope):
-        self.cache.retain(self.path, "scope", scope.scope_id)
+    def reference(self, target, *, acquisition=True):
+        return super().reference(target, acquisition=acquisition)
 
-    def release(self, ref_id):
-        self.cache.release(self.path, "ref", ref_id)
-
-    def close(self):
-        if not self.closed:
-            self.closed = True
-            if self.owner is not None:
-                self.cache.release(self.owner, "scope", self.scope_id)
+    def close(self, success=True):
+        if self.closed:
+            return
+        self.closed = True
+        for owner in self.owners:
+            if success or owner.parent == self.cache.processes:
+                self.cache.release(owner, "scope", self.scope_id)
 
     def __enter__(self):
         self._previous = getattr(self.cache._scope_local, "scope", None)
         self.cache._scope_local.scope = self
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, exc_type, exc, traceback):
         self.cache._scope_local.scope = self._previous
-        self.close()
+        self.close(success=exc_type is None)
 
 
 class CacheV2(Cache):
@@ -211,12 +159,15 @@ class CacheV2(Cache):
             # VERSION is the last publication. An incomplete root is an error
             # for another opener, never an invitation to repair it.
             for name in (
-                "immutable/artifacts",
+                "immutable/archives",
                 "immutable/provenance",
                 "immutable/annotations",
-                "mutable/refs",
+                "mutable/archives",
+                "mutable/collections",
+                "mutable/views",
+                "mutable/tempdirs",
                 "mutable/scopes",
-                "mutable/garbage",
+                "mutable/.garbage",
                 "keys/recycle",
                 "keys/proc",
             ):
@@ -259,9 +210,9 @@ class CacheV2(Cache):
                 ).encode(),
             )
             fsync_dir(self.processes)
-        sid, _ = self._publish_owned("scope", self.process_root)
+        sid, _, _ = self._publish_owned("scope", self.process_root)
         self.root_scope = Scope(self, sid, self.process_root)
-        self.process_pool = ScopePool(self, self.root_scope)
+        self.process_pool = ScopePool(self, self.process_root)
         USED_CACHES.add(self)
 
     @classmethod
@@ -270,12 +221,15 @@ class CacheV2(Cache):
             return _cache_version(path) == "v2" and all(
                 (Path(path) / x).is_dir()
                 for x in (
-                    "immutable/artifacts",
+                    "immutable/archives",
                     "immutable/provenance",
                     "immutable/annotations",
-                    "mutable/refs",
+                    "mutable/archives",
+                    "mutable/collections",
+                    "mutable/views",
+                    "mutable/tempdirs",
                     "mutable/scopes",
-                    "mutable/garbage",
+                    "mutable/.garbage",
                     "keys/proc",
                     "keys/recycle",
                 )
@@ -305,11 +259,11 @@ class CacheV2(Cache):
 
     @property
     def lockfile(self):
-        return self.path / "mutable/LOCK"
+        return self.path / "mutable/.LOCK"
 
     @property
     def named_pool(self):
-        return self._named_pool_
+        return getattr(self._scope_local, "pool", self._named_pool_)
 
     __enter__ = CacheV1.__enter__
     __exit__ = CacheV1.__exit__
@@ -321,60 +275,79 @@ class CacheV2(Cache):
                 str(self.path),
                 self.process_pool_lifespan / 86400,
                 getattr(self, "_handoff_pid", os.getpid()),
-                getattr(self, "_handoff_scope", self.root_scope).scope_id,
-                self.named_pool.scope.scope_id
+                getattr(self, "_handoff_scope", self.scope).scope_id,
+                str(self.named_pool.path)
                 if self.named_pool is not None
                 else None,
+                str(getattr(self, "_handoff_process_root", self.process_root)),
             ),
         )
+
+    def refdir_path(self, category, identity):
+        category_name(category)
+        if len(identity) != 20 or any(c not in _ALPHABET for c in identity):
+            raise ValueError(f"Invalid RefDir ID: {identity}")
+        return self.path / "mutable" / category / identity[:2] / identity
 
     def object_path(self, kind, identity):
         if kind == "artifact":
             if str(uuid.UUID(identity)) != identity:
                 raise ValueError("Noncanonical artifact UUID")
-            return self.path / "immutable/artifacts" / identity[:3] / identity
-        if kind not in ("ref", "scope") or (
-            len(identity) != 20 or any(c not in _ALPHABET for c in identity)
-        ):
-            raise ValueError(f"Invalid {kind} ID: {identity}")
-        return self.path / "mutable" / (kind + "s") / identity[:2] / identity
+            return self.path / "immutable/archives" / identity[:3] / identity
+        if kind == "ref":
+            if len(identity) != 20 or any(
+                c not in _ALPHABET for c in identity
+            ):
+                raise ValueError(f"Invalid RefDir ID: {identity}")
+            candidates = list(
+                (self.path / "mutable").glob(f"*/{identity[:2]}/{identity}")
+            )
+            if len(candidates) != 1:
+                raise KeyError(f"Unknown or ambiguous RefDir: {identity}")
+            return candidates[0]
+        return self.refdir_path(
+            "scopes" if kind == "scope" else kind, identity
+        )
+
+    def refdir(self, identity, category=None):
+        return RefDir(self, identity, category=category)
 
     def marker_target(self, marker):
-        value = marker.read_text()
-        if not value.endswith("\n") or value.count("\n") != 1:
-            raise ValueError(f"Malformed ownership marker: {marker}")
-        relative_path(value[:-1])
-        target = self.path / value[:-1]
-        if not target.resolve().is_relative_to(self.path.resolve()):
-            raise ValueError("Ownership marker escapes cache")
-        rel = target.relative_to(self.path).parts
-        kind = (
-            {"refs": "ref", "scopes": "scope", "artifacts": "artifact"}.get(
-                rel[1]
-            )
-            if len(rel) == 4
-            else None
+        marker = Path(marker)
+        reference = Reference.read(
+            self.path,
+            marker,
+            named=marker.parent == self.keys and marker.name != ".iref",
         )
-        if kind is None or target != self.object_path(kind, rel[-1]):
+        target = reference.target.parent
+        relative = target.relative_to(self.path).parts
+        if len(relative) != 4:
             raise ValueError(f"Invalid ownership target: {marker}")
-        # Typed filenames must agree, including pending memberships.
-        name = marker.name.removeprefix(".pending.")
-        if (
-            name != ".iref"
-            and name != f"{kind}.{rel[-1]}.iref"
-            and marker.parent != self.keys
-        ):
-            raise ValueError(
-                f"Ownership entry disagrees with marker: {marker}"
-            )
-        return kind, rel[-1], target
+        if relative[:2] == ("immutable", "archives"):
+            kind = "artifact"
+        elif relative[0] == "mutable":
+            kind = "scope" if relative[1] == "scopes" else relative[1]
+        else:
+            raise ValueError(f"Invalid ownership target: {marker}")
+        expected = (
+            self.object_path("artifact", relative[-1])
+            if relative[0] == "immutable"
+            else self.refdir_path(relative[1], relative[-1])
+        )
+        if target != expected:
+            raise ValueError(f"Invalid ownership target: {marker}")
+        return kind, relative[-1], target
 
-    def _publish_owned(self, kind, owner):
+    def _publish_owned(self, kind, owner, *, acquisition=False, category=None):
         with self.lock:
             while True:
                 identity = new_id()
-                dest = self.object_path(kind, identity)
-                staging = owner / ".staging" / identity
+                dest = (
+                    self.refdir_path(category, identity)
+                    if category
+                    else self.object_path(kind, identity)
+                )
+                staging = Path(owner) / ".staging" / identity
                 if dest.exists():
                     continue
                 shared_mkdir(staging.parent, exist_ok=True)
@@ -387,127 +360,169 @@ class CacheV2(Cache):
                 staging / ".iref",
                 (dest.relative_to(self.path).as_posix() + "/\n").encode(),
             )
-            pending = owner / f".pending.{kind}.{identity}.iref"
+            fsync_dir(staging)
+            name = target_name(
+                self.path, dest / ".iref", new_id() if acquisition else None
+            )
+            pending = Path(owner) / (".pending." + name)
             os.link(staging / ".iref", pending)
             fsync_dir(owner)
             shared_mkdir(dest.parent, parents=True, exist_ok=True)
             staging.rename(dest)
             fsync_dir(dest.parent)
-            pending.rename(owner / f"{kind}.{identity}.iref")
+            if not any(staging.parent.iterdir()):
+                staging.parent.rmdir()
+            entry = Path(owner) / name
+            pending.rename(entry)
             fsync_dir(owner)
-        return identity, dest
+        return identity, dest, Reference(entry, dest / ".iref")
 
-    def _graph_snapshot(self, kind, identity, wanted):
-        """Traverse outside LOCK and record directory identities."""
-        states = {}
-        seen = set()
+    def create_refdir(
+        self, category="tempdirs", *, name=None, scope=None, cls=RefDir
+    ):
+        category_name(category)
+        if category == "scopes":
+            raise ValueError("Use create_scope for scopes")
+        if name is not None:
+            relative_path(name)
+        scope = scope or self.scope
+        if scope.closed:
+            raise ValueError("Scope is closed")
+        identity, root, acquisition = self._publish_owned(
+            category, scope.root, acquisition=True, category=category
+        )
+        path = root if name is None else root / name
+        if path != root:
+            shared_mkdir(path, parents=True)
+        return cls(
+            self,
+            identity,
+            scope,
+            path,
+            category=category,
+            acquisition=acquisition,
+        )
 
-        def visit(k, i):
-            if (k, i) == wanted:
-                return True
-            if (k, i) in seen or k == "artifact":
-                return False
-            seen.add((k, i))
-            target = self.object_path(k, i)
-            entries = []
-            for directory in (target, target / "dependencies"):
-                try:
-                    before = directory.stat()
-                except FileNotFoundError:
-                    states[directory] = None
-                    continue
-                entries.extend(directory.glob("*.iref"))
-                after = directory.stat()
-                signature = (after.st_dev, after.st_ino, after.st_mtime_ns)
-                if (
-                    before.st_dev,
-                    before.st_ino,
-                    before.st_mtime_ns,
-                ) != signature:
-                    raise BlockingIOError("Ownership changed during discovery")
-                states[directory] = signature
-            for entry in entries:
-                ck, ci, _ = self.marker_target(entry)
-                if visit(ck, ci):
-                    return True
-            return False
+    def create_scope(self, *, recycle=True, pool=_ACTIVE_POOL):
+        identity, _, _ = self._publish_owned("scope", self.process_root)
+        scope = Scope(self, identity, self.process_root)
+        handoff = getattr(self, "_handoff_process_root", None)
+        if handoff is not None and handoff != self.process_root:
+            self.retain(handoff, "scope", identity)
+            scope.owners.add(handoff)
+        pool = self.named_pool if pool is _ACTIVE_POOL else pool
+        if recycle and pool is not None:
+            pool.retain_scope(scope)
+        return scope
 
-        return visit(kind, identity), states
+    def _graph_snapshot(self, target, wanted):
+        """Discover dependencies and directory identities outside LOCK."""
+        states, seen = {}, set()
+        pending = [target]
+        while pending:
+            path = pending.pop()
+            if path == wanted:
+                return True, states
+            if (
+                path in seen
+                or path.relative_to(self.path).parts[0] != "mutable"
+            ):
+                continue
+            seen.add(path)
+            try:
+                before = path.stat()
+                entries = list(directory_references(self.path, path))
+                after = path.stat()
+            except FileNotFoundError:
+                raise BlockingIOError("Ownership changed during discovery")
+            signature = (after.st_dev, after.st_ino, after.st_mtime_ns)
+            if (before.st_dev, before.st_ino, before.st_mtime_ns) != signature:
+                raise BlockingIOError("Ownership changed during discovery")
+            states[path] = signature
+            pending.extend(reference.target.parent for reference in entries)
+        return False, states
 
-    def retain(self, owner, kind, identity):
+    def reference(self, owner, target, *, acquisition=False):
         owner = Path(owner)
-        target = self.object_path(kind, identity)
+        marker = (
+            target.root / ".iref"
+            if isinstance(target, RefDir)
+            else Path(target)
+        )
+        is_directory = marker.name == ".iref"
+        graph_owner = owner / ".iref"
+        if (
+            is_directory
+            and marker.parent.parent.parent.name == "scopes"
+            and graph_owner.exists()
+        ):
+            raise ValueError("Scopes are retained by pools, not other RefDirs")
         while True:
-            states = {}
-            cyclic = False
-            graph_owner = owner
-            if owner.name == "dependencies":
-                graph_owner = owner.parent
-            if (graph_owner / ".iref").exists() and kind != "artifact":
-                ok, oi, _ = self.marker_target(graph_owner / ".iref")
+            states, cyclic = {}, False
+            if (
+                is_directory
+                and graph_owner.exists()
+                and owner.parent.parent.name != "scopes"
+            ):
                 try:
-                    cyclic, states = self._graph_snapshot(
-                        kind, identity, (ok, oi)
-                    )
-                except (BlockingIOError, FileNotFoundError):
+                    cyclic, states = self._graph_snapshot(marker.parent, owner)
+                except BlockingIOError:
                     continue
             with self.lock:
-                marker = target / ".iref"
                 if not marker.is_file():
-                    raise KeyError(f"{kind} {identity} was reclaimed")
-                changed = False
-                for directory, signature in states.items():
-                    try:
-                        current = directory.stat()
-                        current = (
-                            current.st_dev,
-                            current.st_ino,
-                            current.st_mtime_ns,
-                        )
-                    except FileNotFoundError:
-                        current = None
-                    if current != signature:
-                        changed = True
-                        break
-                if changed:
+                    raise KeyError(f"Ownership target was reclaimed: {marker}")
+                if any(
+                    not path.exists()
+                    or (
+                        path.stat().st_dev,
+                        path.stat().st_ino,
+                        path.stat().st_mtime_ns,
+                    )
+                    != signature
+                    for path, signature in states.items()
+                ):
                     continue
                 if cyclic:
                     raise ValueError("Ownership graph must be acyclic")
-                entry = owner / f"{kind}.{identity}.iref"
-                if not entry.exists():
-                    os.link(marker, entry)
-                    fsync_dir(owner)
-                return
+                return Reference.link(
+                    self.path, owner, marker, acquisition=acquisition
+                )
+
+    def unreference(self, reference):
+        with self.lock:
+            reference.release()
+        self._schedule_target(reference.target)
+
+    def _schedule_target(self, target):
+        with self._candidate_lock:
+            self._candidates.add(Path(target))
+
+    def retain(self, owner, kind, identity):
+        return self.reference(
+            owner, self.object_path(kind, identity) / ".iref"
+        )
 
     def release(self, owner, kind, identity):
-        with self.lock:
-            entry = Path(owner) / f"{kind}.{identity}.iref"
-            entry.unlink(missing_ok=True)
-            if entry.parent.exists():
-                fsync_dir(entry.parent)
-        self.schedule(kind, identity)
+        target = self.object_path(kind, identity) / ".iref"
+        self.unreference(
+            Reference(Path(owner) / target_name(self.path, target), target)
+        )
 
     def schedule(self, kind, identity):
-        with self._candidate_lock:
-            self._candidates.add((kind, identity))
+        if kind in ("provenance_pack", "annotation_pack"):
+            from .archive.pack import pack_path
 
-    def editable_ref(self, ref_id):
-        path = self.object_path("ref", ref_id)
-        forwards = list(path.glob("ref.*.iref"))
-        if forwards:
-            if len(forwards) != 1 or list(path.glob("artifact.*.iref")):
-                raise ValueError("Malformed forwarding ref")
-            kind, identity, _ = self.marker_target(forwards[0])
-            if kind != "ref":
-                raise ValueError("Invalid forwarding target")
-            if list(self.object_path("ref", identity).glob("ref.*.iref")):
-                raise ValueError("Forwarding chains are unsupported")
-            return identity
-        return ref_id
+            category = (
+                "provenance" if kind == "provenance_pack" else "annotations"
+            )
+            target = pack_path(self, category, identity)
+        else:
+            target = self.object_path(kind, identity) / ".iref"
+        self._schedule_target(target)
 
     def attachment(self, ref_id):
-        path = self.object_path("ref", self.editable_ref(ref_id))
-        entries = list(path.glob("artifact.*.iref"))
+        path = self.object_path("archives", ref_id)
+        entries = list(path.glob("immutable.archives.*.iref"))
         if len(entries) != 1:
             raise ValueError(
                 "Result ref is incomplete; resume or finalize it first"
@@ -517,17 +532,13 @@ class CacheV2(Cache):
             raise ValueError("Dangling artifact attachment")
         return identity, target
 
-    def acquire_directory(self, name="directory_format"):
-        return self.scope.acquire_directory(name)
+    def acquire_directory(
+        self, name="directory_format", *, category="tempdirs"
+    ):
+        return self.scope.acquire_directory(name, category=category)
 
     def get_tmp_path(self):
         return self.acquire_directory("temporary").path
-
-    def forwarding_ref(self, ref_id):
-        handle = self.acquire_directory("staging")
-        target = self.editable_ref(ref_id)
-        self.retain(self.object_path("ref", handle.ref_id), "ref", target)
-        return handle.ref_id
 
     def _bind_key(self, key, kind, identity):
         self.validate_key(key)
@@ -543,52 +554,39 @@ class CacheV2(Cache):
             self.schedule(*previous)
 
     def retain_result(self, ref):
-        from .archive.archiver_v2 import V2Archiver
-
-        if (
-            isinstance(ref._archiver, V2Archiver)
-            and ref._archiver.cache is self
-        ):
+        if ref._archiver.cache is self:
             self.scope.adopt(ref._archiver.ref_id)
             return ref
-        # Explicit transfer preserves source archive semantics and independent
-        # view state, even on another filesystem.
-        directory = self.acquire_directory("transfer")
-        source = directory.path / "source.qza"
-        ref._archiver.save(source)
-        return rachis.sdk.Result._from_archiver(self.import_archive(source))
+        # Import the backing adapter directly: V1 supplies its extracted tree,
+        # while another V2 cache supplies existing packs and separate masks.
+        return rachis.sdk.Result._from_archiver(
+            self.import_archive(ref._archiver._archive())
+        )
 
     def save(self, ref, key):
         local = self.retain_result(ref)
-        target = self.editable_ref(local._archiver.ref_id)
-        self._bind_key(key, "ref", target)
+        target = local._archiver.ref_id
+        self._bind_key(key, "archives", target)
         return self.load(key)
 
     def load(self, key):
-        from .archive.archiver_v2 import V2Archiver
+        from .archive.archiver import Archiver
+        from .archive.archive import _CacheV2Archive
 
         self.validate_key(key)
-        handle = self.acquire_directory("staging")
-        try:
-            with self.lock:
-                marker = self.keys / f"{key}.iref"
-                if not marker.exists():
-                    raise KeyError(key)
-                kind, identity, _ = self.marker_target(marker)
-                if kind != "ref":
-                    raise ValueError(
-                        "Key refers to a scope; use load_collection"
-                    )
-                target = self.editable_ref(identity)
-                self.retain(
-                    self.object_path("ref", handle.ref_id), "ref", target
-                )
-            return rachis.sdk.Result._from_archiver(
-                V2Archiver(self, handle.ref_id)
+        with self.lock:
+            marker = self.keys / f"{key}.iref"
+            if not marker.exists():
+                raise KeyError(key)
+            kind, identity, _ = self.marker_target(marker)
+            if kind != "archives":
+                raise ValueError("Key does not refer to an archive")
+            self.scope.adopt(identity)
+        return rachis.sdk.Result._from_archiver(
+            Archiver.from_archive(
+                _CacheV2Archive(self, identity, scope_owned=True)
             )
-        except BaseException:
-            handle.release()
-            raise
+        )
 
     def get_keys(self):
         return sorted(
@@ -604,7 +602,7 @@ class CacheV2(Cache):
             if not p.exists():
                 raise KeyError(key)
             kind, identity, _ = self.marker_target(p)
-            if kind == "ref":
+            if kind == "archives":
                 result = {"origin": key, "data": self.attachment(identity)[0]}
             else:
                 result = {"origin": key, "pool": identity}
@@ -616,15 +614,18 @@ class CacheV2(Cache):
     def remove(self, key):
         self.validate_key(key)
         with self.lock:
-            p = self.keys / f"{key}.iref"
-            if not p.exists():
-                raise KeyError(key)
-            kind, identity, _ = self.marker_target(p)
-            p.unlink()
-            fsync_dir(self.keys)
+            marker = self.keys / f"{key}.iref"
             recycle = self.pools / key
+            if not marker.exists() and not recycle.exists():
+                raise KeyError(key)
+            target = (
+                self.marker_target(marker)[:2] if marker.exists() else None
+            )
+            marker.unlink(missing_ok=True)
+            fsync_dir(self.keys)
             retired = self._retire_root(recycle) if recycle.exists() else None
-        self.schedule(kind, identity)
+        if target:
+            self.schedule(*target)
         if retired:
             self._delete_garbage(retired)
         self.garbage_collection()
@@ -632,39 +633,47 @@ class CacheV2(Cache):
     def save_collection(self, refs, key):
         if isinstance(refs, rachis.sdk.Results):
             refs = refs.output
-        scope = self.root_scope.child()
-        order = []
-        for name, ref in refs.items():
-            local = self.retain_result(ref)
-            target = self.editable_ref(local._archiver.ref_id)
-            scope.adopt(target)
-            order.append([name, target])
-        durable_write(
-            scope.path / "collection.json", json.dumps(order).encode()
-        )
-        fsync_dir(scope.path)
-        self._bind_key(key, "scope", scope.scope_id)
-        scope.close()
-        return self.load_collection(key)
+        collection = self.create_refdir("collections")
+        try:
+            order = []
+            for name, ref in refs.items():
+                local = self.retain_result(ref)
+                collection.reference(self.refdir(local._archiver.ref_id))
+                order.append([name, local._archiver.ref_id])
+            durable_write(
+                collection.root / "collection.json", json.dumps(order).encode()
+            )
+            fsync_dir(collection.root)
+            self._bind_key(key, "collections", collection.ref_id)
+            return self.load_collection(key)
+        finally:
+            collection.release()
 
     def load_collection(self, key):
-        from .archive.archiver_v2 import V2Archiver
+        from .archive.archiver import Archiver
+        from .archive.archive import _CacheV2Archive
 
         self.validate_key(key)
         with self.lock:
             kind, identity, target = self.marker_target(
                 self.keys / f"{key}.iref"
             )
-            if kind != "scope":
+            if kind != "collections":
                 raise ValueError("Key does not refer to a collection")
-            self.root_scope.retain_scope(Scope(self, identity))
+            self.scope.adopt(identity)
             order = json.loads((target / "collection.json").read_text())
-        result = rachis.sdk.ResultCollection()
-        for name, ref_id in order:
-            result[name] = rachis.sdk.Result._from_archiver(
-                V2Archiver(self, self.forwarding_ref(ref_id))
-            )
-        return result
+            for _, ref_id in order:
+                self.scope.adopt(ref_id)
+        return rachis.sdk.ResultCollection(
+            {
+                name: rachis.sdk.Result._from_archiver(
+                    Archiver.from_archive(
+                        _CacheV2Archive(self, ref_id, scope_owned=True)
+                    )
+                )
+                for name, ref_id in order
+            }
+        )
 
     def create_pool(self, key, reuse=False):
         self.validate_key(key)
@@ -673,18 +682,9 @@ class CacheV2(Cache):
             if container.exists():
                 if not reuse:
                     raise ValueError("Pool already exists; use reuse=True")
-                markers = list(container.glob("scope.*.iref"))
-                if len(markers) != 1:
-                    raise ValueError("Malformed recycle group")
-                _, identity, _ = self.marker_target(markers[0])
-                scope = Scope(self, identity)
-                self.root_scope.retain_scope(scope)
             else:
                 shared_mkdir(container)
-                scope = self.root_scope.child()
-                self.retain(container, "scope", scope.scope_id)
-                self._bind_key(key, "scope", scope.scope_id)
-        return ScopePool(self, scope, key)
+        return ScopePool(self, container, key)
 
     def get_pools(self):
         return sorted(p.name for p in self.pools.iterdir() if p.is_dir())
@@ -695,7 +695,7 @@ class CacheV2(Cache):
     def get_data(self):
         return sorted(
             p.name
-            for p in (self.path / "immutable/artifacts").glob("*/*")
+            for p in (self.path / "immutable/archives").glob("*/*")
             if p.is_dir()
         )
 
@@ -704,33 +704,36 @@ class CacheV2(Cache):
         return None
 
     def import_archive(self, filepath, replay=False):
-        from .archive.archiver_v2 import import_archive
-
-        return import_archive(self, filepath, replay=replay)
+        from .archive.archiver import Archiver
+        return Archiver.load(filepath, cache=self, replay=replay)
 
     def broadcast_annotation(self, results, annotation, reference_uuid=None):
-        from .archive.archiver_v2 import broadcast_annotation
+        from .archive.archive import broadcast_annotation
 
-        archivers = [r._archiver for r in results]
-        if any(a.cache is not self for a in archivers):
+        archives = [r._archiver._storage for r in results]
+        if any(a.cache is not self for a in archives):
             raise ValueError("Broadcast targets must belong to this cache")
-        broadcast_annotation(archivers, annotation, reference_uuid)
+        broadcast_annotation(archives, annotation, reference_uuid)
 
     def broadcast_whiteouts(self, results, records):
-        from .archive.archiver_v2 import commit_whiteouts
+        from .archive.archive import commit_whiteouts
 
-        archivers = [r._archiver for r in results]
-        if any(a.cache is not self for a in archivers):
+        archives = [r._archiver._storage for r in results]
+        if any(a.cache is not self for a in archives):
             raise ValueError("Broadcast targets must belong to this cache")
-        commit_whiteouts(archivers, records)
+        commit_whiteouts(archives, records)
 
     def _deallocate(self, ref_id):
-        # Scopes own refs independently of Python objects. A finalizer only
+        # Scopes own RefDirs independently of Python objects. A finalizer only
         # schedules discovery; it cannot invalidate retained pipeline outputs.
-        self.schedule("ref", ref_id)
+        try:
+            target = self.object_path("ref", ref_id) / ".iref"
+        except KeyError:
+            return
+        self._schedule_target(target)
 
     def reserve_result(self, reserved_uuid=None, **execution):
-        directory = self.acquire_directory("cells")
+        directory = self.acquire_directory("cells", category="archives")
         record = dict(execution, uuid=str(reserved_uuid or uuid.uuid4()))
         durable_write(
             self.object_path("ref", directory.ref_id) / "resumption.json",
@@ -740,7 +743,7 @@ class CacheV2(Cache):
         return directory
 
     def retain_incomplete(self, directory, key):
-        self._bind_key(key, "ref", directory.ref_id)
+        self._bind_key(key, "archives", directory.ref_id)
 
     def resume(self, key):
         """Acquire exclusive producer authority for an incomplete result."""
@@ -749,7 +752,9 @@ class CacheV2(Cache):
             kind, identity, path = self.marker_target(
                 self.keys / f"{key}.iref"
             )
-            if kind != "ref" or list(path.glob("artifact.*.iref")):
+            if kind != "archives" or list(
+                path.glob("immutable.archives.*.iref")
+            ):
                 raise ValueError("Key does not identify an incomplete result")
             self.scope.adopt(identity)
         return ProducerLease(self, identity)
@@ -757,40 +762,38 @@ class CacheV2(Cache):
     def _retire_root(self, path):
         if not path.exists():
             return None
-        dest = self.path / "mutable/garbage" / f"root.{new_id()}"
+        dest = self.path / "mutable/.garbage" / f"root.{new_id()}"
         path.rename(dest)
         fsync_dir(path.parent)
         fsync_dir(dest.parent)
         return dest
 
     def _delete_garbage(self, path):
+        from .archive.pack import pack_path
+
         candidates = set()
         try:
             for root, dirs, files in os.walk(path):
                 for name in files:
-                    if name.endswith(".zip"):
-                        try:
-                            identity = str(uuid.UUID(name[:-4]))
-                        except ValueError:
-                            pass
-                        else:
-                            category = (
-                                "annotation_pack"
-                                if "annotations" in Path(root).parts
-                                else "provenance_pack"
-                            )
-                            candidates.add((category, identity))
+                    entry = Path(root) / name
                     if name.endswith(".iref") and name != ".iref":
-                        marker = Path(root) / name
-                        try:
-                            candidates.add(self.marker_target(marker)[:2])
-                        except FileNotFoundError:
-                            pass
+                        candidates.add(Reference.read(self.path, entry).target)
+                    elif name.endswith(".zip") and (
+                        name.startswith("immutable.") or name.startswith("_")
+                    ):
+                        candidates.add(Reference.read(self.path, entry).target)
+                    elif name.endswith(".zip") and Path(root).name in (
+                        "annotations",
+                        "provenance",
+                    ):
+                        candidates.add(
+                            pack_path(self, Path(root).name, Path(name).stem)
+                        )
             shutil.rmtree(path)
         except FileNotFoundError:
             pass
-        for candidate in candidates:
-            self.schedule(*candidate)
+        for target in candidates:
+            self._schedule_target(target)
 
     def _expired_roots(self):
         for root in self.processes.iterdir():
@@ -823,10 +826,7 @@ class CacheV2(Cache):
 
     def garbage_collection(self, deep=False):
         """Discover candidates, retire under LOCK, and delete outside it."""
-        if (
-            not self.path.exists()
-            or getattr(self.lock._local, "depth", 0)
-        ):
+        if not self.path.exists() or getattr(self.lock._local, "depth", 0):
             return
         self._expired_roots()
         self._drain_garbage()
@@ -837,28 +837,49 @@ class CacheV2(Cache):
                 if not self._candidates:
                     break
                 candidates, self._candidates = self._candidates, set()
-            for kind, identity in candidates:
-                self._collect_candidate(kind, identity)
+            for target in candidates:
+                self._collect_target(target)
         if deep:
             self._collect_orphan_packs()
 
     def _drain_garbage(self):
-        garbage = self.path / "mutable/garbage"
+        garbage = self.path / "mutable/.garbage"
         for tree in list(garbage.iterdir()):
             if tree.is_dir():
                 self._delete_garbage(tree)
             else:
                 tree.unlink(missing_ok=True)
 
+    def _refdir_paths(self):
+        # Category names are open-ended; payload contents are never traversed.
+        for category in (self.path / "mutable").iterdir():
+            if category.name.startswith(".") or not category.is_dir():
+                continue
+            for path in category.glob("*/*"):
+                if (path / ".iref").is_file():
+                    yield category.name, path
+
     def _discover_gc_candidates(self):
-        for kind in ("scope", "ref", "artifact"):
-            namespace = self.object_path(
-                kind, new_id() if kind != "artifact" else str(uuid.uuid4())
-            ).parent.parent
-            for path in namespace.glob("*/*"):
-                if path.is_dir():
-                    self.schedule(kind, path.name)
         self._recover_pending()
+        candidates = list(self._refdir_paths())
+        candidates.sort(
+            key=lambda item: (
+                0
+                if item[0] == "scopes"
+                else 1
+                if any(
+                    reference.target.relative_to(self.path).parts[0]
+                    == "mutable"
+                    for reference in directory_references(self.path, item[1])
+                )
+                else 2
+            )
+        )
+        for category, path in candidates:
+            self._collect_target(path / ".iref")
+        for path in (self.path / "immutable/archives").glob("*/*"):
+            if path.is_dir():
+                self.schedule("artifact", path.name)
         for owner in self.keys.glob("*.iref"):
             _, _, target = self.marker_target(owner)
             if not (target / ".iref").exists():
@@ -876,29 +897,22 @@ class CacheV2(Cache):
             except FileNotFoundError:
                 return None
             if (current.st_dev, current.st_ino) != (
-                discovered.st_dev, discovered.st_ino,
+                discovered.st_dev,
+                discovered.st_ino,
             ) or current.st_nlink != 1:
                 return None
-            garbage = self.path / "mutable/garbage"
+            garbage = self.path / "mutable/.garbage"
             retired = garbage / f"{label}.{new_id()}"
             path.rename(retired)
             fsync_dir(path.parent)
             fsync_dir(garbage)
         return retired
 
-    def _collect_candidate(self, kind, identity):
-        is_pack = kind in ("provenance_pack", "annotation_pack")
-        if is_pack:
-            from .archive.archiver_v2 import pack_path
-
-            category = (
-                "provenance" if kind == "provenance_pack" else "annotations"
-            )
-            path = pack_path(self, category, identity)
-        else:
-            path = self.object_path(kind, identity)
-        marker = path if is_pack else path / ".iref"
-        retired = self._retire_unowned(path, marker, f"{kind}.{identity}")
+    def _collect_target(self, target):
+        is_pack = target.name != ".iref"
+        path = target if is_pack else target.parent
+        label = path.name
+        retired = self._retire_unowned(path, target, label)
         if retired is not None:
             if is_pack:
                 retired.unlink(missing_ok=True)
@@ -914,7 +928,7 @@ class CacheV2(Cache):
 
     def refresh_provenance(self, artifact_id, node_id=None):
         """Discover enriched bindings outside LOCK and revalidate on commit."""
-        from .archive.archiver_v2 import pack_path
+        from .archive.pack import pack_path
 
         artifact = self.object_path("artifact", artifact_id)
         if node_id is None:
@@ -926,7 +940,7 @@ class CacheV2(Cache):
             self._refresh_provenance_binding(artifact, binding)
 
     def _refresh_provenance_binding(self, artifact, binding):
-        from .archive.archiver_v2 import pack_path, pack_revision
+        from .archive.pack import pack_path, pack_revision
 
         catalogue = pack_path(self, "provenance", binding.stem)
         with contextlib.ExitStack() as resources:
@@ -975,65 +989,53 @@ class CacheV2(Cache):
                 fsync_dir(binding.parent)
 
     def snapshot_ref(self, ref_id):
-        """Create an independent editable view with retained pack revisions."""
-        source = self.object_path("ref", self.editable_ref(ref_id))
-        directory = self.acquire_directory("staging")
-        dest = self.object_path("ref", directory.ref_id)
+        """Clone mutable membership/masks, sharing the immutable archive."""
+        source = self.object_path("archives", ref_id)
+        directory = self.create_refdir("archives")
         with self.lock:
             artifact_id, _ = self.attachment(ref_id)
-            pending = dest / f".pending.artifact.{artifact_id}.iref"
-            os.link(
-                self.object_path("artifact", artifact_id) / ".iref", pending
+            directory.reference(
+                self.object_path("artifact", artifact_id) / ".iref"
             )
-            fsync_dir(dest)
-            shared_mkdir(dest / "archive-metadata")
-            for file in (source / "archive-metadata").iterdir():
-                # Root metadata is immutable per ref; hardlinks are safe.
-                os.link(file, dest / "archive-metadata" / file.name)
-            order = source / "annotations-order.json"
-            if order.exists():
-                os.link(order, dest / order.name)
-            for algorithm in ("sha512", "md5"):
-                file = source / ("archive-checksums." + algorithm)
-                if file.exists():
-                    os.link(file, dest / file.name)
-            from .archive.archiver_v2 import read_whiteouts, whiteout_bytes
+            from .archive.view import read_whiteouts, whiteout_bytes
 
-            durable_write(
-                dest / "whiteout.jsonl", whiteout_bytes(read_whiteouts(source))
-            )
+            whiteouts = read_whiteouts(source)
+            if whiteouts:
+                durable_write(
+                    directory.root / "whiteout.jsonl",
+                    whiteout_bytes(whiteouts),
+                )
             if (source / "annotations").exists():
-                shared_mkdir(dest / "annotations")
+                shared_mkdir(directory.root / "annotations")
                 for pack in (source / "annotations").glob("*.zip"):
-                    os.link(pack, dest / "annotations" / pack.name)
-                fsync_dir(dest / "annotations")
-            fsync_dir(dest / "archive-metadata")
-            pending.rename(dest / f"artifact.{artifact_id}.iref")
-            fsync_dir(dest)
+                    Reference.link(
+                        self.path,
+                        directory.root / "annotations",
+                        pack,
+                        name=pack.name,
+                    )
+            fsync_dir(directory.root)
         return directory.ref_id
 
     def _recover_pending(self):
-        for base in ("mutable/refs", "mutable/scopes", "keys/proc"):
-            for owner in (self.path / base).glob(
-                "*/*" if base != "keys/proc" else "*"
-            ):
-                for marker in owner.glob(".pending.*.iref"):
-                    kind, identity, target = self.marker_target(marker)
-                    # Pending artifact attachments require explicit view
-                    # completion. They must never be promoted by GC.
-                    if kind == "artifact":
-                        continue
+        owners = [path for _, path in self._refdir_paths()]
+        owners.extend(self.processes.iterdir())
+        owners.extend(self.pools.iterdir())
+        for owner in owners:
+            for marker in owner.glob(".pending.*.iref"):
+                _, _, target = self.marker_target(marker)
+                if target.relative_to(self.path).parts[0] == "immutable":
+                    continue
+                with self.lock:
+                    if target.exists() and marker.exists():
+                        marker.rename(owner / marker.name[len(".pending.") :])
+                        fsync_dir(owner)
+            if list(owner.glob("immutable.archives.*.iref")):
+                for name in ("cells", "staging"):
                     with self.lock:
-                        if target.exists() and marker.exists():
-                            marker.rename(owner / marker.name[9:])
-                            fsync_dir(owner)
-                if list(owner.glob("artifact.*.iref")):
-                    for name in ("cells", "dependencies", "staging"):
-                        redundant = owner / name
-                        with self.lock:
-                            retired = self._retire_root(redundant)
-                        if retired:
-                            self._delete_garbage(retired)
+                        retired = self._retire_root(owner / name)
+                    if retired:
+                        self._delete_garbage(retired)
 
     def close(self):
         if self._closed:
@@ -1050,6 +1052,10 @@ class CacheV2(Cache):
             "Breaking the metadata lock can invalidate active writers"
         )
         self.lockfile.unlink(missing_ok=True)
+
+    def create_archive(self, identity=None):
+        from .archive.archive import _CacheV2Archive
+        return _CacheV2Archive.create(self, identity)
 
 
 class ProducerLease:
@@ -1093,19 +1099,15 @@ class ProducerLease:
         fsync_dir(dest.parent)
 
     def finalize(self, archive_path):
-        from .archive.archiver_v2 import seal_tree
-
-        reserved = json.loads((self.path / "resumption.json").read_text())[
-            "uuid"
-        ]
-        import yaml
-
-        metadata = yaml.safe_load(
-            (Path(archive_path) / "metadata.yaml").read_text()
+        from .archive.archive import _CacheV2Archive, _NoOpArchive
+        from .archive.archiver import Archiver
+        archive = _CacheV2Archive.create(
+            self.cache, ref_id=self.ref_id
         )
-        if metadata["uuid"] != reserved:
-            raise ValueError("Finalization must preserve the reserved UUID")
-        return seal_tree(self.cache, self.ref_id, Path(archive_path))
+        source = _NoOpArchive(Path(archive_path))
+        archive.import_from(source)
+        archive.finalize()
+        return Archiver.from_archive(archive)
 
     def __exit__(self, *args):
         self._done.set()
@@ -1113,49 +1115,78 @@ class ProducerLease:
 
 
 class ScopePool:
-    """Pool API implemented as scope retention and recycle roots."""
+    """A process/recycle root retaining a flat set of scopes."""
 
-    def __init__(self, cache, scope, name=None):
+    def __init__(self, cache, path, name=None):
         self.cache = cache
-        self.scope = scope
-        self.path = scope.path
-        self.name = name or scope.scope_id
+        self.path = Path(path)
+        self.name = name or self.path.name
         self.index = {}
+        self._entries = []
+
+    def retain_scope(self, scope):
+        self.cache.retain(self.path, "scope", scope.scope_id)
+        scope.owners.add(self.path)
+
+    def _result_refs(self):
+        seen = set()
+        with self.cache.lock:
+            for reference in directory_references(self.cache.path, self.path):
+                scope = reference.target.parent
+                for member in directory_references(self.cache.path, scope):
+                    path = member.target.parent
+                    if (
+                        path.parent.parent.name == "archives"
+                        and path.name not in seen
+                    ):
+                        if list(path.glob("immutable.archives.*.iref")):
+                            seen.add(path.name)
+        return sorted(seen)
 
     def __enter__(self):
-        self._previous = getattr(_CACHE, "cache", None)
-        if (
-            self._previous is not None
-            and self._previous.path != self.cache.path
-        ):
+        _check_pool_selection()
+        previous = getattr(_CACHE, "cache", None)
+        if previous is not None and previous.path != self.cache.path:
             raise ValueError("Pool belongs to another cache")
-        if self.cache.named_pool is not None:
-            raise ValueError("Cannot enter multiple pools")
+        self._entries.append(
+            (previous, self.cache.named_pool, self.cache.scope)
+        )
         _CACHE.cache = self.cache
-        self.cache._named_pool_ = self
+        self.cache._scope_local.pool = self
+        self.cache._scope_local.scope = self.cache.create_scope()
         return self
 
     def __exit__(self, *args):
-        _CACHE.cache = self._previous
-        self.cache._named_pool_ = None
+        _check_pool_selection()
+        previous, pool, scope = self._entries.pop()
+        _CACHE.cache = previous
+        self.cache._scope_local.pool = pool
+        self.cache._scope_local.scope = scope
 
     def save(self, ref):
         local = self.cache.retain_result(ref)
-        self.scope.adopt(local._archiver.ref_id)
+        scope = self.cache.scope
+        if (
+            self.path.parent == self.cache.pools
+            and self.path not in scope.owners
+        ):
+            scope = self.cache.create_scope(recycle=False)
+            scope.adopt(local._archiver.ref_id)
+        self.retain_scope(scope)
         return local
 
     def load(self, identity):
-        from .archive.archiver_v2 import V2Archiver
+        from .archive.archiver import Archiver
+        from .archive.archive import _CacheV2Archive
 
-        for marker in self.path.glob("ref.*.iref"):
-            _, ref_id, _ = self.cache.marker_target(marker)
-            try:
-                artifact_id, _ = self.cache.attachment(ref_id)
-            except ValueError:
-                continue
+        for ref_id in self._result_refs():
+            artifact_id, _ = self.cache.attachment(ref_id)
             if identity in (ref_id, artifact_id):
+                self.cache.scope.adopt(ref_id)
                 return rachis.sdk.Result._from_archiver(
-                    V2Archiver(self.cache, self.cache.forwarding_ref(ref_id))
+                    Archiver.from_archive(
+                        _CacheV2Archive(self.cache, ref_id, scope_owned=True)
+                    )
                 )
         raise KeyError(identity)
 
@@ -1163,39 +1194,42 @@ class ScopePool:
         identity = (
             ref._archiver.ref_id if hasattr(ref, "_archiver") else str(ref)
         )
-        for marker in list(self.path.glob("ref.*.iref")):
-            _, ref_id, _ = self.cache.marker_target(marker)
-            if (
-                identity == ref_id
-                or identity == self.cache.attachment(ref_id)[0]
-            ):
-                self.scope.release(ref_id)
+        with self.cache.lock:
+            for reference in directory_references(self.cache.path, self.path):
+                scope = reference.target.parent
+                for member in list(
+                    directory_references(self.cache.path, scope)
+                ):
+                    path = member.target.parent
+                    if path.parent.parent.name != "archives":
+                        continue
+                    if identity in (
+                        path.name,
+                        self.cache.attachment(path.name)[0],
+                    ):
+                        self.cache.unreference(member)
         self.cache.garbage_collection()
 
     def get_data(self):
-        result = set()
-        for marker in self.path.glob("ref.*.iref"):
-            _, ref_id, _ = self.cache.marker_target(marker)
-            try:
-                result.add(self.cache.attachment(ref_id)[0])
-            except ValueError:
-                pass
-        return result
+        return {
+            self.cache.attachment(ref_id)[0] for ref_id in self._result_refs()
+        }
 
     def create_index(self):
-        from .archive.archiver_v2 import V2Archiver
+        from .archive.archiver import Archiver
+        from .archive.archive import _CacheV2Archive
         from .util import load_action_yaml
         from .type import HashableInvocation
         from .cache import Pool
 
         self.index = {}
-        for marker in list(self.path.glob("ref.*.iref")):
-            _, ref_id, _ = self.cache.marker_target(marker)
-            handle = V2Archiver(self.cache, self.cache.forwarding_ref(ref_id))
+        for ref_id in self._result_refs():
+            handle = Archiver.from_archive(
+                _CacheV2Archive(self.cache, ref_id, scope_owned=True)
+            )
             if handle.provenance_dir is None:
                 continue
-            with handle.snapshot() as view:
-                action = load_action_yaml(view.root)["action"]
+            action = load_action_yaml(handle.root_dir)["action"]
             if action.get("type") == "import":
                 continue
             invocation = HashableInvocation(
@@ -1214,13 +1248,14 @@ class ScopePool:
     ).Pool._add_collection_index_output
 
 
-def _restore_cache(path, lifespan, source_pid, source_scope, named_scope):
+def _restore_cache(
+    path, lifespan, source_pid, source_scope, named_pool, source_process_root
+):
     cache = Cache(path, lifespan)
     if source_pid != os.getpid():
         cache._handoff_pid = source_pid
         cache._handoff_scope = Scope(cache, source_scope)
-        if named_scope is not None:
-            scope = Scope(cache, named_scope)
-            cache.root_scope.retain_scope(scope)
-            cache._named_pool_ = ScopePool(cache, scope)
+        cache._handoff_process_root = Path(source_process_root)
+        if named_pool is not None:
+            cache._named_pool_ = ScopePool(cache, named_pool)
     return cache
